@@ -11,13 +11,14 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                profileSection
-                journalSection
-                accountSection
-                appSection
+                VStack(spacing: 14) {
+                    profileCard
+                    statsGrid
+                    accountSection
+                    appSection
                 }
                 .padding(16)
+                .padding(.bottom, 24)
             }
             .background(MirrorTheme.bgBase)
             .navigationTitle("Profile")
@@ -34,85 +35,169 @@ struct SettingsView: View {
         }
     }
 
-    private var profileSection: some View {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(colors: MirrorTheme.moodSpectrum, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 62, height: 62)
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+    // MARK: - Profile Card
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Mirror")
-                        .font(.headline)
-                    Text(authService.isAuthenticated ? "Signed in with Apple" : "Local journal")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+    private var profileCard: some View {
+        HStack(spacing: 16) {
+            // Avatar with gradient
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: MirrorTheme.moodSpectrum,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 58, height: 58)
+                Image(systemName: "person.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Mirror Journal")
+                    .font(.system(size: 17, weight: .semibold))
+                HStack(spacing: 6) {
+                    if subscriptionService.isSubscribed {
+                        Label("Core", systemImage: "checkmark.seal.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                    } else {
+                        Text(authService.isAuthenticated ? "Signed in" : "Local only")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .futureSurface(cornerRadius: 26)
+
+            Spacer()
+
+            if subscriptionService.isSubscribed {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(MirrorTheme.primary)
+            }
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 26)
     }
 
-    private var journalSection: some View {
-        settingsGroup("Journal") {
-            settingsRow("Entries", value: entries.count.formatted(), systemImage: "book.pages")
-            settingsRow("Words", value: totalWords.formatted(), systemImage: "text.word.spacing")
-            settingsRow("Current Streak", value: "\(currentStreak) \(currentStreak == 1 ? "day" : "days")", systemImage: "flame")
-            settingsRow("Latest Entry", value: latestEntryText, systemImage: "clock")
+    // MARK: - Stats Grid
+
+    private var statsGrid: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Your journal")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.8)
+                .padding(.bottom, 14)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                statCard(value: "\(entries.count)", label: "Entries", icon: "book.pages", color: MirrorTheme.primary)
+                statCard(value: totalWords.formatted(), label: "Words", icon: "text.word.spacing", color: .blue)
+                statCard(value: "\(currentStreak)", label: currentStreak == 1 ? "Day streak" : "Day streak", icon: "flame.fill", color: .orange)
+                statCard(value: latestEntryText, label: "Last entry", icon: "clock.fill", color: .green)
+            }
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 24)
+    }
+
+    private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
         }
     }
+
+    // MARK: - Account Section
 
     private var accountSection: some View {
         settingsGroup("Account") {
             settingsRow(
-                "Subscription",
-                value: subscriptionService.isSubscribed ? "Core active" : "Free",
-                systemImage: subscriptionService.isSubscribed ? "checkmark.seal" : "seal"
+                subscriptionService.isSubscribed ? "Core · Active" : "Free plan",
+                systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
+                iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
             )
+
+            Divider().padding(.leading, 48)
 
             if authService.isAuthenticated {
                 Button(role: .destructive) {
                     Task { await signOut() }
                 } label: {
                     HStack {
-                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        settingsRowLabel("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", iconColor: .red)
                         Spacer()
                         if isLoading { ProgressView() }
                     }
                 }
+                .buttonStyle(.plain)
             } else {
                 Button {
                     Task { await signIn() }
                 } label: {
                     HStack {
-                        Label("Sign in with Apple", systemImage: "apple.logo")
+                        settingsRowLabel("Sign in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
                         Spacer()
                         if isLoading { ProgressView() }
                     }
                 }
+                .buttonStyle(.plain)
             }
         }
     }
 
+    // MARK: - App Section
+
     private var appSection: some View {
         settingsGroup("App") {
-            settingsRow("Version", value: appVersion, systemImage: "info.circle")
-            settingsRow("Data", value: "Stored on device", systemImage: "lock")
+            settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .blue)
+            Divider().padding(.leading, 48)
+            settingsRow("Data stored on device", systemImage: "lock.shield.fill", iconColor: .green)
         }
     }
 
+    // MARK: - Helpers
+
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
-            VStack(spacing: 14) {
+                .tracking(0.8)
+                .padding(.bottom, 14)
+            VStack(spacing: 0) {
                 content()
             }
         }
@@ -120,19 +205,25 @@ struct SettingsView: View {
         .futureSurface(cornerRadius: 24)
     }
 
-    private func settingsRow(_ title: String, value: String, systemImage: String) -> some View {
+    private func settingsRow(_ title: String, systemImage: String, iconColor: Color) -> some View {
+        settingsRowLabel(title, systemImage: systemImage, iconColor: iconColor)
+    }
+
+    private func settingsRowLabel(_ title: String, systemImage: String, iconColor: Color) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(MirrorTheme.primary)
-                .frame(width: 30, height: 30)
-                .background(MirrorTheme.primary.opacity(0.10), in: Circle())
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(iconColor.opacity(0.12))
+                    .frame(width: 32, height: 32)
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(iconColor)
+            }
             Text(title)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+                .font(.system(size: 15))
+                .foregroundStyle(.primary)
         }
+        .padding(.vertical, 2)
     }
 
     private func signIn() async {
@@ -174,13 +265,11 @@ struct SettingsView: View {
         let today = calendar.startOfDay(for: Date())
         var day = days.contains(today) ? today : calendar.date(byAdding: .day, value: -1, to: today) ?? today
         var count = 0
-
         while days.contains(day) {
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
             day = previous
         }
-
         return count
     }
 
