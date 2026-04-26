@@ -46,6 +46,7 @@ struct EntriesTabView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { path.append(NewEntryTag()) } label: {
                         Image(systemName: "square.and.pencil")
+                            .font(.system(size: 17, weight: .semibold))
                     }
                     .accessibilityLabel("New Entry")
                 }
@@ -55,89 +56,140 @@ struct EntriesTabView: View {
 
     private var entryList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 journalHeader
 
-            ForEach(groupedByDay, id: \.date) { group in
+                ForEach(groupedByDay, id: \.date) { group in
                     VStack(alignment: .leading, spacing: 10) {
                         Text(sectionTitle(for: group.date))
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
                             .textCase(.uppercase)
+                            .tracking(0.8)
                             .padding(.horizontal, 4)
 
-                    ForEach(group.entries) { entry in
-                        NavigationLink(value: entry) {
-                            EntryRow(entry: entry)
-                        }
+                        ForEach(group.entries) { entry in
+                            NavigationLink(value: entry) {
+                                EntryRow(entry: entry)
+                            }
                             .buttonStyle(.plain)
                         }
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.top, 14)
+            .padding(.bottom, 32)
         }
         .background(MirrorTheme.bgBase)
     }
 
     private var journalHeader: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Today")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Text("\(entries.count) entries · \(totalWords.formatted()) words")
+                    Text(greetingText)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                    Text(headerSubtitle)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: "sparkle.magnifyingglass")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
-                    .frame(width: 46, height: 46)
-                    .background(MirrorTheme.primary.opacity(0.12), in: Circle())
+                ZStack {
+                    Circle()
+                        .fill(MirrorTheme.accentGradient)
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+
+            HStack(spacing: 12) {
+                statPill(label: "\(entries.count)", caption: "entries", icon: "book.pages")
+                statPill(label: totalWords.formatted(), caption: "words", icon: "text.word.spacing")
             }
 
             Capsule()
-                .fill(LinearGradient(colors: MirrorTheme.moodSpectrum, startPoint: .leading, endPoint: .trailing))
-                .frame(height: 8)
-                .opacity(0.82)
+                .fill(
+                    LinearGradient(colors: MirrorTheme.moodSpectrum, startPoint: .leading, endPoint: .trailing)
+                )
+                .frame(height: 6)
+                .overlay(Capsule().stroke(Color(white: 1, opacity: 0.14), lineWidth: 0.5))
+                .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 8, x: 0, y: 2)
         }
-        .padding(18)
-        .futureSurface(cornerRadius: 26)
+        .padding(20)
+        .futureSurface(cornerRadius: 28)
+    }
+
+    private func statPill(label: String, caption: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(MirrorTheme.primary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(caption)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(MirrorTheme.bgCard, in: Capsule())
     }
 
     private var emptyState: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 20) {
             Spacer()
-            Image(systemName: "sparkles.rectangle.stack")
-                .font(.system(size: 42, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
-                .frame(width: 86, height: 86)
-                .background(MirrorTheme.primary.opacity(0.12), in: Circle())
-            VStack(spacing: 6) {
-                Text("Start your mirror")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text("A private space for notes, feelings, and patterns.")
+            ZStack {
+                Circle()
+                    .fill(MirrorTheme.accentGradient)
+                    .frame(width: 88, height: 88)
+                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
+                Image(systemName: "pencil.and.sparkles")
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            VStack(spacing: 8) {
+                Text("Your mirror awaits")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                Text("A private space for thoughts, feelings, and patterns.")
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             Button { path.append(NewEntryTag()) } label: {
-                Label("New Entry", systemImage: "square.and.pencil")
+                Label("Write first entry", systemImage: "square.and.pencil")
                     .font(.system(size: 16, weight: .semibold))
-                    .padding(.horizontal, 18)
-                    .frame(height: 48)
+                    .padding(.horizontal, 22)
+                    .frame(height: 50)
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             Spacer()
         }
-        .padding(24)
+        .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MirrorTheme.bgBase)
+    }
+
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default: return "Late night thoughts"
+        }
+    }
+
+    private var headerSubtitle: String {
+        guard !entries.isEmpty else { return "Start writing" }
+        let words = totalWords
+        return "\(entries.count) \(entries.count == 1 ? "entry" : "entries") · \(words.formatted()) words"
     }
 
     private var totalWords: Int {
@@ -155,46 +207,82 @@ struct EntriesTabView: View {
 private struct EntryRow: View {
     let entry: Entry
 
+    private var moodColor: Color { MirrorTheme.moodColor(entry.mood) }
+    private var hasMood: Bool { !(entry.mood ?? "").isEmpty }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(entry.title.isEmpty ? "Untitled" : entry.title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                Text(entry.createdAt, format: .dateTime.hour().minute())
-                    .font(.caption)
+        HStack(spacing: 0) {
+            // Mood accent strip — transparent when no mood
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(hasMood ? moodColor : Color.clear)
+                .frame(width: 3)
+                .padding(.vertical, 8)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(entry.title.isEmpty ? "Untitled" : entry.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(entry.createdAt, format: .dateTime.hour().minute())
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+
+                Text(preview)
+                    .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
+                    .lineLimit(2)
 
-            Text(preview)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+                if hasMood || entry.wordCount > 0 || !entry.tags.isEmpty {
+                    HStack(spacing: 6) {
+                        if let mood = entry.mood, !mood.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: MirrorTheme.moodSymbol(mood))
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text(mood)
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundStyle(moodColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(moodColor.opacity(0.12), in: Capsule())
+                        }
 
-            HStack(spacing: 8) {
-                if let mood = entry.mood, !mood.isEmpty {
-                    Label(mood, systemImage: MirrorTheme.moodSymbol(mood))
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(MirrorTheme.moodColor(mood))
+                        Text("\(entry.wordCount)w")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.quaternary)
+
+                        ForEach(entry.tags.prefix(2), id: \.self) { tag in
+                            Text("#\(tag)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.quaternary)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
                 }
-
-                Label("\(entry.wordCount) words", systemImage: "text.word.spacing")
-                    .labelStyle(.titleAndIcon)
-
-                ForEach(entry.tags.prefix(2), id: \.self) { tag in
-                    Text("#\(tag)")
-                }
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+            .padding(.leading, 14)
+            .padding(.trailing, 16)
+            .padding(.vertical, 14)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .futureSurface(cornerRadius: 20)
+        .background {
+            HStack(spacing: 0) {
+                if hasMood {
+                    moodColor
+                        .frame(width: 3)
+                }
+                MirrorTheme.bgCard
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color(white: 1, opacity: 0.18), lineWidth: 0.5)
+        }
     }
 
     private var preview: String {
@@ -210,5 +298,4 @@ private struct EntryRow: View {
 
         return lines.isEmpty ? "No additional text" : lines.joined(separator: " ")
     }
-
 }
