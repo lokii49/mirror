@@ -1141,22 +1141,6 @@ final class RichTextCoordinator: NSObject, UITextViewDelegate, UIGestureRecogniz
         refreshFormatState()
     }
 
-    // MARK: - Voice input helpers
-
-    func currentText() -> String {
-        textView?.text ?? ""
-    }
-
-    func appendText(_ text: String) {
-        guard let textView else { return }
-        let attrs = textView.typingAttributes.isEmpty ? defaultAttrs() : textView.typingAttributes
-        let appended = NSAttributedString(string: text, attributes: attrs)
-        let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
-        mutable.append(appended)
-        textView.attributedText = mutable
-        textView.selectedRange = NSRange(location: mutable.length, length: 0)
-        notifyChange()
-    }
 }
 
 struct AppleNotesEditor: UIViewRepresentable {
