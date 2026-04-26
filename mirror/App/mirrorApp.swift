@@ -1,10 +1,3 @@
-//
-//  mirrorApp.swift
-//  mirror
-//
-//  Created by Lokesh Pudhari on 25/04/26.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -12,10 +5,14 @@ import SwiftData
 struct mirrorApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Entry.self,
+            Insight.self,
+            UserProfile.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+        let modelConfiguration = ModelConfiguration(
+            schema: schema,
+            cloudKitDatabase: .automatic
+        )
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
