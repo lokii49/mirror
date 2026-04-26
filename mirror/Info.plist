@@ -5,9 +5,17 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Mirror uses the camera so you can capture photos, videos, and scanned documents in your notes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mirror uses the microphone when you record videos to attach to your notes.</string>
+	<string>Mirror uses the microphone to transcribe your voice into journal entries.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Mirror uses speech recognition to convert your voice into text for journal entries.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.lokesh.mirror.weeklyDigest</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
+		<string>processing</string>
 		<string>remote-notification</string>
 	</array>
 </dict>
