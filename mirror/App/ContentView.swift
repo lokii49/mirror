@@ -1,6 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    @Query private var profiles: [UserProfile]
+
+    private var onboardingComplete: Bool {
+        profiles.first?.onboardingComplete ?? false
+    }
+
     init() {
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
@@ -27,5 +34,8 @@ struct ContentView: View {
                 .tabItem { Label("Profile", systemImage: "person.circle.fill") }
         }
         .tint(MirrorTheme.primary)
+        .fullScreenCover(isPresented: .constant(!onboardingComplete)) {
+            OnboardingFlow()
+        }
     }
 }

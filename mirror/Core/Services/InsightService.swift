@@ -43,6 +43,19 @@ enum InsightService {
         )
     }
 
+    static func generateWeeklyDigest(entries: [Entry], token: String) async throws -> String {
+        let texts = entries.prefix(14).map(\.text)
+        return try await post(
+            WorkerRequest(
+                type: "weeklyDigest",
+                entries: Array(texts),
+                periodIdentifier: DateHelpers.weekIdentifier(for: Date()),
+                question: nil
+            ),
+            token: token
+        )
+    }
+
     static func ask(question: String, entries: [Entry], token: String) async throws -> String {
         let relevant = SearchService.search(query: question, in: entries)
         return try await post(

@@ -10,9 +10,21 @@ enum NudgeState {
     case error(String)
 }
 
+enum DigestState {
+    case idle
+    case loading
+    case loaded(Insight)
+    case notEnoughEntries
+    case subscriptionRequired
+    case error(String)
+}
+
 @Observable
 final class InsightViewModel {
     var nudgeState: NudgeState = .idle
+    var digestState: DigestState = .idle
+
+    // MARK: - Daily Nudge
 
     func loadNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
         guard entries.count >= 3 else {
@@ -20,7 +32,10 @@ final class InsightViewModel {
             return
         }
 
-        guard SubscriptionService.shared.isSubscribed else {
+        let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge }
+
+        // First nudge is always free — subsequent nudges require subscription
+        if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
             nudgeState = .subscriptionRequired
             return
         }
@@ -52,6 +67,49 @@ final class InsightViewModel {
             nudgeState = .subscriptionRequired
         } catch {
             nudgeState = .error(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Weekly Digest
+
+    func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        guard entries.count >= 5 else {
+            digestState = .notEnoughEntries
+            return
+        }
+
+        guard SubscriptionService.shared.isSubscribed else {
+            digestState = .subscriptionRequired
+            return
+        }
+
+        guard let token = KeychainManager.load() else {
+            digestState = .error("Sign in to unlock weekly digest.")
+            return
+        }
+
+        // Cache check — one digest per week
+        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        if let cached = insights.first(where: {
+            $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek
+        }) {
+            digestState = .loaded(cached)
+            return
+        }
+
+        digestState = .loading
+        do {
+            let text = try await InsightService.generateWeeklyDigest(
+                entries: entries.sorted { $0.createdAt > $1.createdAt },
+                token: token
+            )
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            context.insert(insight)
+            digestState = .loaded(insight)
+        } catch InsightError.subscriptionRequired {
+            digestState = .subscriptionRequired
+        } catch {
+            digestState = .error(error.localizedDescription)
         }
     }
 }

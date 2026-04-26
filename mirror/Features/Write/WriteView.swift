@@ -18,6 +18,7 @@ struct WriteView: View {
 
     @State private var viewModel = WriteViewModel()
     @State private var showsEmotionLog = false
+    @State private var voiceManager = VoiceInputManager()
 
     private let moodOptions: [MoodOption] = [
         MoodOption(symbol: "cloud.rain", label: "Heavy", caption: "low energy", color: .indigo),
@@ -331,6 +332,7 @@ struct WriteView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 styleButton
+                voiceButton
                 toolbarButton("checklist", label: "Checklist") { viewModel.coordinator.tbChecklist() }
                 toolbarButton("tablecells", label: "Table") { viewModel.coordinator.tbInsertTable() }
                 attachmentButton
@@ -346,6 +348,55 @@ struct WriteView: View {
             .padding(.vertical, 8)
         }
         .background(.bar)
+    }
+
+    private var voiceButton: some View {
+        Button {
+            switch voiceManager.state {
+            case .recording:
+                voiceManager.stop { transcript in
+                    guard !transcript.isEmpty else { return }
+                    let current = viewModel.coordinator.currentText()
+                    let separator = current.isEmpty ? "" : " "
+                    viewModel.coordinator.appendText(separator + transcript)
+                }
+            default:
+                voiceManager.start()
+            }
+        } label: {
+            ZStack {
+                if voiceManager.state == .recording {
+                    Circle()
+                        .fill(Color.red.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.red.opacity(0.4), lineWidth: 1)
+                        )
+                }
+                Image(systemName: voiceManager.state == .recording ? "waveform" : "mic")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(voiceManager.state == .recording ? .red : .primary)
+                    .symbolEffect(.variableColor.iterative, isActive: voiceManager.state == .recording)
+                    .frame(width: 44, height: 38)
+                    .contentShape(Rectangle())
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(voiceManager.state == .recording ? "Stop recording" : "Start voice input")
+        .alert(
+            "Voice Input",
+            isPresented: .constant({
+                if case .error = voiceManager.state { return true }
+                return false
+            }()),
+            actions: { Button("OK") { voiceManager.cancel() } },
+            message: {
+                if case .error(let msg) = voiceManager.state {
+                    Text(msg)
+                }
+            }
+        )
     }
 
     private var styleButton: some View {
