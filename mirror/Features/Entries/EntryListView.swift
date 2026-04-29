@@ -1,35 +1,37 @@
 import SwiftUI
 import SwiftData
 
-private struct NewEntryTag: Hashable {}
+private let moodLabels: [String] = ["Rough", "Low", "Okay", "Good", "Alive"]
 
 struct EntriesTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
-    @State private var path = NavigationPath()
+    @State private var showSearch = false
 
     private var filteredEntries: [Entry] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return entries }
         return entries.filter {
-            $0.title.localizedCaseInsensitiveContains(query) ||
-            $0.text.localizedCaseInsensitiveContains(query) ||
-            $0.tags.contains { $0.localizedCaseInsensitiveContains(query) }
+            $0.text.localizedCaseInsensitiveContains(query)
         }
     }
 
-    private var groupedByDay: [(date: Date, entries: [Entry])] {
+    private var groupedByMonth: [(date: Date, entries: [Entry])] {
         let calendar = Calendar.current
-        let groups = Dictionary(grouping: filteredEntries) { calendar.startOfDay(for: $0.createdAt) }
-        return groups.keys.sorted(by: >).map { day in
-            (day, groups[day, default: []].sorted { $0.createdAt > $1.createdAt })
+        let groups = Dictionary(grouping: filteredEntries) { entry -> Date in
+            let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
+            return calendar.date(from: comps) ?? entry.createdAt
+        }
+        return groups.keys.sorted(by: >).map { month in
+            (month, groups[month, default: []].sorted { $0.createdAt > $1.createdAt })
         }
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             Group {
-                if entries.isEmpty && searchText.isEmpty {
+                if entries.isEmpty {
                     emptyState
                 } else if filteredEntries.isEmpty {
                     ContentUnavailableView.search(text: searchText)
@@ -37,31 +39,55 @@ struct EntriesTabView: View {
                     entryList
                 }
             }
-            .background(MirrorTheme.bgBase)
-            .navigationTitle("Mirror")
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always))
-            .navigationDestination(for: Entry.self) { entry in WriteView(entry: entry) }
-            .navigationDestination(for: NewEntryTag.self) { _ in WriteView() }
+            .navigationTitle("Entries")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { path.append(NewEntryTag()) } label: {
-                        Image(systemName: "square.and.pencil")
+                    Button {
+                        withAnimation { showSearch.toggle() }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
                             .font(.system(size: 17, weight: .semibold))
                     }
-                    .accessibilityLabel("New Entry")
+                }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if showSearch {
+                    searchBar
                 }
             }
         }
     }
 
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Search entries...", text: $searchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
+    }
+
     private var entryList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                journalHeader
-
-                ForEach(groupedByDay, id: \.date) { group in
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(sectionTitle(for: group.date))
+                ForEach(groupedByMonth, id: \.date) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(monthTitle(for: group.date))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.tertiary)
                             .textCase(.uppercase)
@@ -69,7 +95,9 @@ struct EntriesTabView: View {
                             .padding(.horizontal, 4)
 
                         ForEach(group.entries) { entry in
-                            NavigationLink(value: entry) {
+                            NavigationLink {
+                                EntryDetailView(entry: entry)
+                            } label: {
                                 EntryRow(entry: entry)
                             }
                             .buttonStyle(.plain)
@@ -81,221 +109,85 @@ struct EntriesTabView: View {
             .padding(.top, 14)
             .padding(.bottom, 32)
         }
-        .background(MirrorTheme.bgBase)
-    }
-
-    private var journalHeader: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(greetingText)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                    Text(headerSubtitle)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 46, height: 46)
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-
-            HStack(spacing: 12) {
-                statPill(label: "\(entries.count)", caption: "entries", icon: "book.pages")
-                statPill(label: totalWords.formatted(), caption: "words", icon: "text.word.spacing")
-            }
-
-            Capsule()
-                .fill(
-                    LinearGradient(colors: MirrorTheme.moodSpectrum, startPoint: .leading, endPoint: .trailing)
-                )
-                .frame(height: 6)
-                .overlay(Capsule().stroke(Color(white: 1, opacity: 0.14), lineWidth: 0.5))
-                .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 8, x: 0, y: 2)
-        }
-        .padding(20)
-        .futureSurface(cornerRadius: 28)
-    }
-
-    private func statPill(label: String, caption: String, icon: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                Text(caption)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(MirrorTheme.bgCard, in: Capsule())
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
-            ZStack {
-                Circle()
-                    .fill(MirrorTheme.accentGradient)
-                    .frame(width: 88, height: 88)
-                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
-                Image(systemName: "pencil.and.sparkles")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            VStack(spacing: 8) {
-                Text("Your mirror awaits")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                Text("A private space for thoughts, feelings, and patterns.")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            Button { path.append(NewEntryTag()) } label: {
-                Label("Write first entry", systemImage: "square.and.pencil")
-                    .font(.system(size: 16, weight: .semibold))
-                    .padding(.horizontal, 22)
-                    .frame(height: 50)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            Image(systemName: "book.closed")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.quaternary)
+            Text("No entries yet")
+                .font(.system(size: 20, weight: .semibold))
+            Text("Tap Write to start your first entry.")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MirrorTheme.bgBase)
     }
 
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<21: return "Good evening"
-        default: return "Late night thoughts"
-        }
-    }
-
-    private var headerSubtitle: String {
-        guard !entries.isEmpty else { return "Start writing" }
-        let words = totalWords
-        return "\(entries.count) \(entries.count == 1 ? "entry" : "entries") · \(words.formatted()) words"
-    }
-
-    private var totalWords: Int {
-        entries.reduce(0) { $0 + $1.wordCount }
-    }
-
-    private func sectionTitle(for date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) { return "Today" }
-        if calendar.isDateInYesterday(date) { return "Yesterday" }
-        return date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+    private func monthTitle(for date: Date) -> String {
+        date.formatted(.dateTime.month(.wide).year())
     }
 }
 
 private struct EntryRow: View {
     let entry: Entry
 
-    private var moodColor: Color { MirrorTheme.moodColor(entry.mood) }
-    private var hasMood: Bool { !(entry.mood ?? "").isEmpty }
+    private var moodLabel: String? {
+        guard let mood = entry.mood, !mood.isEmpty else { return nil }
+        return mood
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Mood accent strip — transparent when no mood
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(hasMood ? moodColor : Color.clear)
-                .frame(width: 3)
-                .padding(.vertical, 8)
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(entry.title.isEmpty ? "Untitled" : entry.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(entry.createdAt, format: .dateTime.hour().minute())
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                if let label = moodLabel {
+                    Text(label)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color(.tertiarySystemFill), in: Capsule())
                 }
-
-                Text(preview)
-                    .font(.system(size: 14))
+                if entry.voiceNoteData != nil {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(entry.wordCount)w")
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                if hasMood || entry.wordCount > 0 || !entry.tags.isEmpty {
-                    HStack(spacing: 6) {
-                        if let mood = entry.mood, !mood.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: MirrorTheme.moodSymbol(mood))
-                                    .font(.system(size: 10, weight: .semibold))
-                                Text(mood)
-                                    .font(.system(size: 11, weight: .semibold))
-                            }
-                            .foregroundStyle(moodColor)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(moodColor.opacity(0.12), in: Capsule())
-                        }
-
-                        Text("\(entry.wordCount)w")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.quaternary)
-
-                        ForEach(entry.tags.prefix(2), id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.quaternary)
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                }
+                    .monospacedDigit()
             }
-            .padding(.leading, 14)
-            .padding(.trailing, 16)
-            .padding(.vertical, 14)
+
+            Text(preview)
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
         }
-        .background {
-            HStack(spacing: 0) {
-                if hasMood {
-                    moodColor
-                        .frame(width: 3)
-                }
-                MirrorTheme.bgCard
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(white: 1, opacity: 0.18), lineWidth: 0.5)
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var preview: String {
-        let title = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        var lines = entry.text
+        let lines = entry.text
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-
-        if let first = lines.first, !title.isEmpty, first == title {
-            lines.removeFirst()
-        }
-
-        return lines.isEmpty ? "No additional text" : lines.joined(separator: " ")
+        let textPreview = lines.joined(separator: " ")
+        if !textPreview.isEmpty { return textPreview }
+        if entry.voiceNoteData != nil { return "Voice note \(formatDuration(entry.voiceNoteDuration))" }
+        return ""
     }
 }

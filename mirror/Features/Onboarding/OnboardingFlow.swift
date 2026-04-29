@@ -197,9 +197,10 @@ struct OnboardingFlow: View {
             Spacer()
         }
         .padding(.horizontal, 24)
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                editorFocused = true
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { editorFocused = false }
             }
         }
     }

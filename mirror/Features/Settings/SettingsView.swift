@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var error: Error?
+    @State private var showSubscription = false
 
     var body: some View {
         NavigationStack {
@@ -20,6 +21,7 @@ struct SettingsView: View {
                 .padding(16)
                 .padding(.bottom, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle("Profile")
             .alert("Something went wrong", isPresented: .constant(error != nil)) {
@@ -42,13 +44,7 @@ struct SettingsView: View {
             // Avatar with gradient
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: MirrorTheme.moodSpectrum,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(MirrorTheme.accentGradient)
                     .frame(width: 58, height: 58)
                 Image(systemName: "person.fill")
                     .font(.system(size: 26, weight: .semibold))
@@ -143,11 +139,21 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         settingsGroup("Account") {
-            settingsRow(
-                subscriptionService.isSubscribed ? "Core · Active" : "Free plan",
-                systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
-                iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
-            )
+            Button { showSubscription = true } label: {
+                HStack {
+                    settingsRowLabel(
+                        subscriptionService.isSubscribed ? "Core · Active" : "Free plan",
+                        systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
+                        iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
+                    )
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showSubscription) { SubscriptionView() }
 
             Divider().padding(.leading, 48)
 

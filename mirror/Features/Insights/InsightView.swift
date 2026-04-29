@@ -8,27 +8,38 @@ struct InsightView: View {
     @State private var viewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Daily Nudge section
                     nudgeSection
 
-                    // Weekly Digest section
                     if SubscriptionService.shared.isSubscribed || hasSeenFirstNudge {
-                        Divider()
-                            .padding(.horizontal, 4)
+                        Divider().padding(.horizontal, 4)
                         digestSection
                     }
+
+                    Divider().padding(.horizontal, 4)
+                    askSection
                 }
                 .padding(16)
                 .padding(.bottom, 16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle("Insights")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "person.circle")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                    .accessibilityLabel("Settings")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task {
@@ -43,9 +54,8 @@ struct InsightView: View {
                 }
             }
             .sheet(isPresented: $showPaywall) { PaywallView() }
-            .sheet(isPresented: $showPaywallAfterFirstNudge) {
-                PaywallView()
-            }
+            .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView() }
+            .sheet(isPresented: $showSettings) { SettingsView() }
         }
         .task {
             await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
@@ -130,6 +140,33 @@ struct InsightView: View {
         }
     }
 
+    // MARK: - Ask Mirror
+
+    private var askSection: some View {
+        NavigationLink {
+            AskView()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("ASK MIRROR")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.8)
+                    Text("Ask anything about your journal")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .futureSurface(cornerRadius: 22)
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Weekly Digest
 
     private var digestSection: some View {
@@ -172,7 +209,7 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
         case .loaded(let insight):
-            WeeklyDigestTextView(insight: insight)
+            WeeklyDigestView(insight: insight)
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries:
             VStack(alignment: .leading, spacing: 10) {
@@ -286,13 +323,16 @@ private struct UpgradePromptCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Button("View Plans", action: onUpgrade)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(MirrorTheme.accentGradient, in: Capsule())
-                .foregroundStyle(.white)
-                .buttonStyle(.plain)
+            Button(action: onUpgrade) {
+                Text("View Plans")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .contentShape(Capsule())
+            }
+            .background(MirrorTheme.accentGradient, in: Capsule())
+            .buttonStyle(.plain)
         }
         .padding(20)
         .futureSurface(cornerRadius: 24)
@@ -348,126 +388,6 @@ private struct InsightTextView: View {
     }
 }
 
-private struct WeeklyDigestTextView: View {
-    let insight: Insight
-
-    private var sections: [(title: String, body: String)] {
-        parseDigest(insight.content)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                Label("Weekly Digest", systemImage: "calendar.badge.clock")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.indigo)
-                Spacer()
-                Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.bottom, 14)
-
-            Divider().overlay(Color.indigo.opacity(0.18)).padding(.bottom, 16)
-
-            if sections.isEmpty {
-                // Fallback: render raw content
-                Text(insight.content)
-                    .font(.system(size: 15, weight: .regular))
-                    .lineSpacing(5)
-                    .textSelection(.enabled)
-            } else {
-                VStack(alignment: .leading, spacing: 18) {
-                    ForEach(sections, id: \.title) { section in
-                        DigestSection(title: section.title, content: section.body)
-                    }
-                }
-            }
-        }
-        .padding(22)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(
-                    LinearGradient(colors: [Color.indigo.opacity(0.4), Color.purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1.5
-                )
-                .opacity(0.55)
-        }
-    }
-
-    private func parseDigest(_ text: String) -> [(title: String, body: String)] {
-        let sectionHeaders = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "NEXT WEEK"]
-        var results: [(title: String, body: String)] = []
-        var remaining = text
-
-        for (i, header) in sectionHeaders.enumerated() {
-            guard let headerRange = remaining.range(of: header + ":") else { continue }
-            let afterHeader = String(remaining[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Find end: next header or end of string
-            var bodyEnd = afterHeader.endIndex
-            for nextHeader in sectionHeaders[(i+1)...] {
-                if let nextRange = afterHeader.range(of: nextHeader + ":") {
-                    bodyEnd = nextRange.lowerBound
-                    break
-                }
-            }
-
-            let body = String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
-            results.append((title: header, body: body))
-        }
-
-        return results
-    }
-}
-
-private struct DigestSection: View {
-    let title: String
-    let content: String
-
-    private var sectionColor: Color {
-        switch title {
-        case "THIS WEEK'S THEME": return .indigo
-        case "YOUR ENERGY": return .orange
-        case "WHAT'S BUILDING": return .green
-        case "WATCH OUT FOR": return .red
-        case "NEXT WEEK": return MirrorTheme.primary
-        default: return MirrorTheme.primary
-        }
-    }
-
-    private var sectionIcon: String {
-        switch title {
-        case "THIS WEEK'S THEME": return "quote.bubble"
-        case "YOUR ENERGY": return "bolt"
-        case "WHAT'S BUILDING": return "arrow.up.forward"
-        case "WATCH OUT FOR": return "eye"
-        case "NEXT WEEK": return "arrow.right.circle"
-        default: return "circle"
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: sectionIcon)
-                    .font(.system(size: 11, weight: .bold))
-                Text(title)
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(0.5)
-            }
-            .foregroundStyle(sectionColor)
-
-            Text(content)
-                .font(.system(size: 15, weight: .regular, design: .serif))
-                .lineSpacing(5)
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
-        }
-    }
-}
 
 // Make NudgeState Equatable for onChange
 extension NudgeState: Equatable {

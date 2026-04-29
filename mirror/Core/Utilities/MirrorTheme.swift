@@ -15,8 +15,6 @@ enum MirrorTheme {
     static let purple = primary
 
     static let palette: [Color] = [red, yellow, green, blue, purple]
-    static let moodSpectrum: [Color] = [.indigo, .blue, .gray, .green, primary, .yellow, .red]
-
     static var accentGradient: LinearGradient {
         LinearGradient(colors: [primary, primary.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
@@ -27,32 +25,6 @@ enum MirrorTheme {
 
     static func entryColor(index: Int) -> Color {
         palette[abs(index) % palette.count]
-    }
-
-    static func moodColor(_ mood: String?) -> Color {
-        switch mood {
-        case "Heavy": return .indigo
-        case "Quiet": return .blue
-        case "Neutral": return .gray
-        case "Calm": return .green
-        case "Hopeful": return primary
-        case "Joyful": return .yellow
-        case "Fired Up": return .red
-        default: return primary
-        }
-    }
-
-    static func moodSymbol(_ mood: String?) -> String {
-        switch mood {
-        case "Heavy": return "cloud.rain"
-        case "Quiet": return "moon"
-        case "Neutral": return "circle.dashed"
-        case "Calm": return "leaf"
-        case "Hopeful": return "sparkle"
-        case "Joyful": return "sun.max"
-        case "Fired Up": return "flame"
-        default: return "circle"
-        }
     }
 }
 
