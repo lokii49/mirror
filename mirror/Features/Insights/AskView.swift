@@ -73,6 +73,7 @@ struct AskView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
         }
     }

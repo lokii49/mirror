@@ -5,7 +5,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Mirror uses the camera so you can capture photos, videos, and scanned documents in your notes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mirror uses the microphone to transcribe your voice into journal entries.</string>
+	<string>Mirror uses the microphone so you can attach voice notes to journal entries.</string>
 <key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.lokesh.mirror.weeklyDigest</string>
