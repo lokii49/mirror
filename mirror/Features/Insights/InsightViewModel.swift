@@ -40,11 +40,6 @@ final class InsightViewModel {
             return
         }
 
-        guard let token = KeychainManager.load() else {
-            nudgeState = .error("Sign in to unlock insights.")
-            return
-        }
-
         // Cache check — one nudge per day
         let today = DateHelpers.dayIdentifier(for: Date())
         if let cached = insights.first(where: {
@@ -58,7 +53,7 @@ final class InsightViewModel {
         do {
             let text = try await InsightService.generateNudge(
                 entries: entries.sorted { $0.createdAt > $1.createdAt },
-                token: token
+                token: ""
             )
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
@@ -83,11 +78,6 @@ final class InsightViewModel {
             return
         }
 
-        guard let token = KeychainManager.load() else {
-            digestState = .error("Sign in to unlock weekly digest.")
-            return
-        }
-
         // Cache check — one digest per week
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
         if let cached = insights.first(where: {
@@ -101,7 +91,7 @@ final class InsightViewModel {
         do {
             let text = try await InsightService.generateWeeklyDigest(
                 entries: entries.sorted { $0.createdAt > $1.createdAt },
-                token: token
+                token: ""
             )
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)

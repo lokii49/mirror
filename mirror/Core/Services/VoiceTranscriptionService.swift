@@ -1,4 +1,5 @@
 import Foundation
+import Speech
 
 struct VoiceTranscription: Codable {
     let transcript: String
@@ -7,37 +8,74 @@ struct VoiceTranscription: Codable {
     let englishTranslation: String
 }
 
-private struct VoiceTranscriptionRequest: Encodable {
-    let type = "transcribeVoiceNote"
-    let audioBase64: String
-    let mimeType: String
-}
-
 enum VoiceTranscriptionService {
     static func transcribe(audioData: Data, token: String) async throws -> VoiceTranscription {
-        var request = URLRequest(url: InsightService.workerURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(
-            VoiceTranscriptionRequest(
-                audioBase64: audioData.base64EncodedString(),
-                mimeType: "audio/mp4"
-            )
+        let authStatus = await requestAuthorization()
+        guard authStatus == .authorized else {
+            throw InsightError.localModelUnavailable("Speech recognition permission is required for local transcription.")
+        }
+
+        guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
+            throw InsightError.localModelUnavailable("On-device speech recognition is not available for the current locale.")
+        }
+
+        guard recognizer.supportsOnDeviceRecognition else {
+            throw InsightError.localModelUnavailable("This device or language does not support offline speech recognition.")
+        }
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        try audioData.write(to: url, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let request = SFSpeechURLRecognitionRequest(url: url)
+        request.requiresOnDeviceRecognition = true
+        request.shouldReportPartialResults = false
+
+        let transcript = try await recognize(request: request, recognizer: recognizer)
+        return VoiceTranscription(
+            transcript: transcript,
+            languageCode: Locale.current.language.languageCode?.identifier ?? "und",
+            languageName: Locale.current.localizedString(forIdentifier: Locale.current.identifier) ?? "Current language",
+            englishTranslation: transcript
         )
+    }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    private static func recognize(
+        request: SFSpeechURLRecognitionRequest,
+        recognizer: SFSpeechRecognizer
+    ) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            var didResume = false
+            var task: SFSpeechRecognitionTask?
+            task = recognizer.recognitionTask(with: request) { result, error in
+                if let error, !didResume {
+                    didResume = true
+                    task?.cancel()
+                    continuation.resume(throwing: error)
+                    return
+                }
 
-        switch status {
-        case 200:
-            return try JSONDecoder().decode(VoiceTranscription.self, from: data)
-        case 401:
-            throw InsightError.unauthorized
-        case 402:
-            throw InsightError.subscriptionRequired
-        default:
-            throw InsightError.serverError(status)
+                guard let result, result.isFinal, !didResume else { return }
+                let transcript = result.bestTranscription.formattedString
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                didResume = true
+                task?.finish()
+                if transcript.isEmpty {
+                    continuation.resume(throwing: InsightError.emptyResponse)
+                } else {
+                    continuation.resume(returning: transcript)
+                }
+            }
+        }
+    }
+
+    private static func requestAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status)
+            }
         }
     }
 }
