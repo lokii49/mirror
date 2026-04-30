@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		471288812F9CFB7F00812160 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 471288802F9CFB7F00812160 /* Supabase */; };
+		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				471288812F9CFB7F00812160 /* Supabase in Frameworks */,
+				471288832F9D300100812160 /* SwiftLlama in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -131,6 +133,7 @@
 			name = mirror;
 			packageProductDependencies = (
 				471288802F9CFB7F00812160 /* Supabase */,
+				471288822F9D300100812160 /* SwiftLlama */,
 			);
 			productName = mirror;
 			productReference = 471287F62F9CF11200812160 /* mirror.app */;
@@ -216,6 +219,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 471287F72F9CF11200812160 /* Products */;
@@ -616,6 +620,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pgorzelany/swift-llama-cpp";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -623,6 +635,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		471288822F9D300100812160 /* SwiftLlama */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */;
+			productName = SwiftLlama;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

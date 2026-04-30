@@ -199,11 +199,6 @@ struct AskView: View {
     private func submitQuestion() async {
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, remaining > 0 else { return }
-        guard let token = KeychainManager.load() else {
-            error = "Sign in to use Ask."
-            return
-        }
-
         isLoading = true
         error = nil
         let submitted = q
@@ -211,7 +206,7 @@ struct AskView: View {
         isInputFocused = false
 
         do {
-            let answer = try await InsightService.ask(question: submitted, entries: entries, token: token)
+            let answer = try await InsightService.ask(question: submitted, entries: entries, token: "")
             let insight = Insight(
                 type: .askResponse,
                 content: answer,

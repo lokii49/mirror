@@ -5,6 +5,7 @@ enum InsightError: LocalizedError {
     case subscriptionRequired
     case serverError(Int, String)
     case emptyResponse
+    case localModelUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -13,96 +14,351 @@ enum InsightError: LocalizedError {
         case .serverError(let code, let detail):
             return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
         case .emptyResponse: return "No insight returned."
+        case .localModelUnavailable(let detail): return detail
         }
     }
 }
 
-private struct WorkerRequest: Encodable {
-    let type: String
-    let entries: [String]
-    let periodIdentifier: String
-    let question: String?
-}
+private let DAILY_NUDGE_SYSTEM = """
+You are Mirror, a private on-device journaling companion.
+Read the user's local journal context and offer ONE specific, personal reflection in the voice of a close friend who knows them well.
+Rules:
+- Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
+- Reference actual words, moods, dates, or concrete events, not generic advice
+- Start with "I noticed..." or "Something I see..."
+- 2-3 sentences maximum, under 100 words
+- No therapy language, no generic affirmations
+- Do not mention that you are an AI or model
+- Write directly to the journal writer as "you"
+- Never write as the journal writer. Do not use first-person phrases like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless they are inside a short quote from an entry
+- Sound human, calm, and familiar, like someone gently checking in after reading their week
+- Avoid clinical phrases like "this suggests", "emotional weariness", "significant", "patterns indicate", or "the source mentions"
+- Be specific. Be warm. Be honest. Do not over-explain.
+"""
 
-private struct WorkerResponse: Decodable {
-    let insight: String
-}
+private let WEEKLY_DIGEST_SYSTEM = """
+You are Mirror. Read this person's local journal context and write a structured weekly reflection in the voice of a close friend who understands them.
+Output EXACTLY this format with no extra sections:
+
+THIS WEEK'S THEME: [one sentence]
+YOUR ENERGY: [one sentence about when you seemed most alive or most drained]
+WHAT'S BUILDING: [one sentence about one real thing growing in you or your life]
+WATCH OUT FOR: [one gentle honest sentence about something that may be costing you]
+NEXT WEEK: [one practical, kind sentence for next week]
+
+Rules:
+- Replace the bracketed placeholders with final prose. Never include [ or ] in the answer
+- Do not use Markdown headings, bullets, ###, or extra titles
+- Each section must be a complete, natural sentence, not a label or fragment
+- Every section body must include "you" or "your"
+- Use Long-term context only to notice continuity; the digest must mainly reflect This week's entries
+- Reference actual words, moods, dates, or phrases they used
+- No therapy language, no generic affirmations
+- Do not mention that you are an AI or model
+- Write directly to "you", not "the person" or "the user"
+- Never write as the journal writer. Do not use first-person phrases like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless they are inside a short quote from an entry
+- Sound human, calm, and familiar, like someone gently reflecting their week back to them
+- Avoid clinical, report-like, or detached phrases like "from their words", "this suggests", "the source mentions", "positive pattern", "emotional weariness", "significant", or "mental health"
+- Be specific. Be honest. Be warm. Do not over-explain.
+"""
+
+private let ASK_SYSTEM = """
+You are Mirror. Someone is asking a question about their own journal.
+Answer using ONLY the entries provided.
+Rules:
+- Reference specific things they wrote
+- If the answer is not in their entries, say "You haven't written about this yet."
+- No internet advice, no generic tips
+- Use older context only to connect patterns; do not invent facts beyond the entries
+- Quote or closely paraphrase their own words when relevant
+- 3-5 sentences maximum
+- Write directly to "you", not "the person" or "the user"
+"""
+
+private let EMOTION_DETECT_SYSTEM = """
+You are Mirror. Read this journal entry and identify the writer's primary emotional state.
+Reply with EXACTLY one word from this list:
+Joyful, Grateful, Peaceful, Content, Energized, Hopeful, Anxious, Overwhelmed, Frustrated, Drained, Sad, Numb
+No explanation. No punctuation. One word only.
+"""
 
 enum InsightService {
-    static let workerURL = URL(string: "https://mirror-worker.2qm8vh77mq.workers.dev")!
-
     static func generateNudge(entries: [Entry], token: String) async throws -> String {
-        let texts = entries.prefix(7).map { $0.insightContext }
-        return try await post(
-            WorkerRequest(
-                type: "dailyNudge",
-                entries: Array(texts),
-                periodIdentifier: DateHelpers.dayIdentifier(for: Date()),
-                question: nil
+        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        return try await localGenerate(
+            systemPrompt: DAILY_NUDGE_SYSTEM,
+            userMessage: buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: Array(sorted.prefix(7)),
+                backgroundEntries: Array(sorted.dropFirst(7).prefix(24)),
+                maxChars: 8000
             ),
-            token: token
+            task: .dailyNudge
         )
     }
 
     static func generateWeeklyDigest(entries: [Entry], token: String) async throws -> String {
-        let texts = entries.prefix(14).map { $0.insightContext }
-        return try await post(
-            WorkerRequest(
-                type: "weeklyDigest",
-                entries: Array(texts),
-                periodIdentifier: DateHelpers.weekIdentifier(for: Date()),
-                question: nil
+        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        return try await localGenerate(
+            systemPrompt: WEEKLY_DIGEST_SYSTEM,
+            userMessage: buildUserMessage(
+                title: "Weekly digest context",
+                recentEntries: Array(sorted.prefix(14)),
+                backgroundEntries: Array(sorted.dropFirst(14).prefix(28)),
+                maxChars: 9000
             ),
-            token: token
-        )
+            task: .weeklyDigest
+        ).cleanedDigestOutput()
     }
 
     static func ask(question: String, entries: [Entry], token: String) async throws -> String {
-        let relevant = SearchService.search(query: question, in: entries)
-        return try await post(
-            WorkerRequest(
-                type: "askQuestion",
-                entries: relevant.map { $0.insightContext },
-                periodIdentifier: DateHelpers.monthIdentifier(for: Date()),
+        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        let relevant = SearchService.search(query: question, in: sorted, limit: 6)
+        let relevantIDs = Set(relevant.map(\.id))
+        let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(20)
+        return try await localGenerate(
+            systemPrompt: ASK_SYSTEM,
+            userMessage: buildAskMessage(
+                entries: relevant,
+                backgroundEntries: Array(background),
                 question: question
             ),
-            token: token
-        )
+            task: .ask
+        ).cleanedInsightOutput()
     }
 
     static func detectEmotion(text: String, token: String) async throws -> String {
         let trimmed = String(text.prefix(3000))
-        return try await post(
-            WorkerRequest(
-                type: "detectEmotion",
-                entries: [trimmed],
-                periodIdentifier: "",
-                question: nil
-            ),
-            token: token
+        let response = try await localGenerate(
+            systemPrompt: EMOTION_DETECT_SYSTEM,
+            userMessage: trimmed,
+            task: .emotion
         )
+        return normalizeEmotion(response)
     }
 
-    private static func post(_ body: WorkerRequest, token: String) async throws -> String {
-        var req = URLRequest(url: workerURL)
-        req.httpMethod = "POST"
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(body)
+    private static func localGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+        do {
+            let raw = try await LocalLLMService.shared.generate(
+                systemPrompt: systemPrompt,
+                userMessage: userMessage,
+                task: task
+            )
+            return raw.cleanedInsightOutput()
+        } catch {
+            throw InsightError.localModelUnavailable(error.localizedDescription)
+        }
+    }
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    private static func buildUserMessage(
+        title: String,
+        recentEntries: [Entry],
+        backgroundEntries: [Entry],
+        maxChars: Int
+    ) -> String {
+        let recentBlock = formatEntries(recentEntries, maxChars: Int(Double(maxChars) * 0.72))
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28))
 
-        switch status {
-        case 200:
-            let decoded = try JSONDecoder().decode(WorkerResponse.self, from: data)
-            guard !decoded.insight.isEmpty else { throw InsightError.emptyResponse }
-            return decoded.insight
-        case 401: throw InsightError.unauthorized
-        case 402: throw InsightError.subscriptionRequired
-        default:
-            let body = String(data: data, encoding: .utf8) ?? ""
-            throw InsightError.serverError(status, body)
+        return """
+        \(title)
+
+        Long-term context:
+        \(backgroundBlock)
+
+        Recent entries:
+        \(recentBlock)
+        """
+    }
+
+    private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 1800)
+        let entryBlock = formatEntries(entries, maxChars: 6500)
+        return """
+        Long-term context:
+        \(backgroundBlock)
+
+        Most relevant entries:
+        \(entryBlock)
+
+        My question: \(question)
+        """
+    }
+
+    private static func formatEntries(_ entries: [Entry], maxChars: Int) -> String {
+        guard !entries.isEmpty else { return "No entries available." }
+        var remaining = maxChars
+        var blocks: [String] = []
+
+        for (index, entry) in entries.enumerated() {
+            let date = entry.createdAt.formatted(date: .abbreviated, time: .omitted)
+            let mood = entry.mood.map { "Mood: \($0)" } ?? "Mood: not specified"
+            let source = entry.source == .voice ? "Source: voice note" : "Source: written entry"
+            let context = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !context.isEmpty else { continue }
+
+            let header = "Entry \(index + 1) - \(date)\n\(mood). \(source)."
+            let budget = max(280, min(1100, remaining - header.count - 24))
+            guard budget > 0 else { break }
+            let body = clipped(context, maxChars: budget)
+            let block = "\(header)\n\(body)"
+            blocks.append(block)
+            remaining -= block.count
+            if remaining <= 300 { break }
+        }
+
+        return blocks.joined(separator: "\n---\n")
+    }
+
+    private static func buildMemoryBrief(from entries: [Entry], maxChars: Int) -> String {
+        guard !entries.isEmpty else { return "No older context available yet." }
+
+        let total = entries.count
+        let dated = entries.compactMap(\.createdAt).sorted()
+        let dateRange: String
+        if let first = dated.first, let last = dated.last {
+            dateRange = "\(first.formatted(date: .abbreviated, time: .omitted)) to \(last.formatted(date: .abbreviated, time: .omitted))"
+        } else {
+            dateRange = "unknown date range"
+        }
+
+        let moodCounts = Dictionary(grouping: entries.compactMap(\.mood), by: { $0 })
+            .mapValues(\.count)
+            .sorted { $0.value > $1.value }
+            .prefix(5)
+            .map { "\($0.key) \($0.value)x" }
+            .joined(separator: ", ")
+
+        let recurringTerms = recurringKeywords(from: entries)
+        let voiceCount = entries.filter { $0.source == .voice || !$0.voiceNotes.isEmpty }.count
+        let excerpts = entries
+            .prefix(5)
+            .map { entry in
+                let date = entry.createdAt.formatted(date: .abbreviated, time: .omitted)
+                return "- \(date): \(clipped(entry.insightContext, maxChars: 220))"
+            }
+            .joined(separator: "\n")
+
+        let brief = """
+        Older entries reviewed: \(total) (\(dateRange)).
+        Common moods: \(moodCounts.isEmpty ? "not enough mood labels" : moodCounts).
+        Recurring words/themes: \(recurringTerms.isEmpty ? "not enough repeated terms" : recurringTerms.joined(separator: ", ")).
+        Voice-note entries: \(voiceCount).
+        Representative older excerpts:
+        \(excerpts)
+        """
+
+        return clipped(brief, maxChars: maxChars)
+    }
+
+    private static func recurringKeywords(from entries: [Entry]) -> [String] {
+        let stopWords: Set<String> = [
+            "about", "after", "again", "also", "because", "been", "being", "could", "didnt", "does", "dont",
+            "feel", "feeling", "felt", "from", "have", "just", "like", "more", "really", "still", "that",
+            "their", "there", "thing", "think", "this", "today", "very", "want", "were", "what", "when",
+            "with", "work", "would", "your", "journal", "entry", "voice", "note"
+        ]
+        let words = entries
+            .flatMap { $0.insightContext.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted) }
+            .filter { $0.count > 3 && !stopWords.contains($0) && Int($0) == nil }
+
+        return Dictionary(grouping: words, by: { $0 })
+            .mapValues(\.count)
+            .filter { $0.value >= 2 }
+            .sorted {
+                if $0.value == $1.value { return $0.key < $1.key }
+                return $0.value > $1.value
+            }
+            .prefix(10)
+            .map(\.key)
+    }
+
+    private static func clipped(_ text: String, maxChars: Int) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxChars else { return trimmed }
+        let index = trimmed.index(trimmed.startIndex, offsetBy: maxChars)
+        return String(trimmed[..<index]).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+    }
+
+    private static func normalizeEmotion(_ response: String) -> String {
+        let allowed = Set(MirrorTheme.moodOptions)
+        let cleaned = response
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .first { !$0.isEmpty } ?? response
+        let matched = allowed.first { $0.caseInsensitiveCompare(cleaned) == .orderedSame }
+        return matched ?? "Content"
+    }
+
+}
+
+private extension String {
+    func cleanedInsightOutput() -> String {
+        replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+            .replacingOccurrences(of: "I feel", with: "You seem", options: .caseInsensitive)
+            .replacingOccurrences(of: "I’ve been", with: "you've been", options: .caseInsensitive)
+            .replacingOccurrences(of: "I've been", with: "you've been", options: .caseInsensitive)
+            .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
+            .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
+            .replacingOccurrences(of: "I'm", with: "you're", options: .caseInsensitive)
+            .replacingOccurrences(of: "I’ve", with: "you've", options: .caseInsensitive)
+            .replacingOccurrences(of: "I've", with: "you've", options: .caseInsensitive)
+            .replacingOccurrences(of: " my ", with: " your ", options: .caseInsensitive)
+            .replacingOccurrences(of: " me ", with: " you ", options: .caseInsensitive)
+            .replacingOccurrences(of: "the person", with: "you", options: .caseInsensitive)
+            .replacingOccurrences(of: "the user", with: "you", options: .caseInsensitive)
+            .replacingOccurrences(of: "their words", with: "your words", options: .caseInsensitive)
+            .replacingOccurrences(of: "their week", with: "your week", options: .caseInsensitive)
+            .replacingOccurrences(of: "their life", with: "your life", options: .caseInsensitive)
+            .replacingOccurrences(of: "they are", with: "you are", options: .caseInsensitive)
+            .replacingOccurrences(of: "they're", with: "you're", options: .caseInsensitive)
+            .replacingOccurrences(of: "they feel", with: "you feel", options: .caseInsensitive)
+            .replacingOccurrences(of: "they felt", with: "you felt", options: .caseInsensitive)
+            .replacingOccurrences(of: "they wrote", with: "you wrote", options: .caseInsensitive)
+            .replacingOccurrences(of: "their", with: "your", options: .caseInsensitive)
+            .replacingOccurrences(of: "they", with: "you", options: .caseInsensitive)
+            .replacingOccurrences(of: "the source mentions", with: "you wrote", options: .caseInsensitive)
+            .replacingOccurrences(of: "this suggests that you are", with: "it sounds like you're", options: .caseInsensitive)
+            .replacingOccurrences(of: "this suggests you are", with: "it sounds like you're", options: .caseInsensitive)
+            .replacingOccurrences(of: "this suggests", with: "it sounds like", options: .caseInsensitive)
+            .replacingOccurrences(of: "emotional weariness", with: "tiredness", options: .caseInsensitive)
+            .replacingOccurrences(of: "mental health", with: "well-being", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func cleanedDigestOutput() -> String {
+        var result = cleanedInsightOutput()
+        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "NEXT WEEK"]
+
+        for header in headers {
+            result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
+            result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+        }
+
+        result = result
+            .components(separatedBy: .newlines)
+            .filter { line in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                return !trimmed.isEmpty && trimmed != "---"
+            }
+            .joined(separator: "\n")
+
+        return softenDigestFragments(result)
+    }
+
+    private func softenDigestFragments(_ text: String) -> String {
+        let replacements: [(String, String)] = [
+            ("YOUR ENERGY:\nDrained, from your words", "YOUR ENERGY:\nYou sound drained this week, especially in the places where your words keep circling back to pressure and recovery."),
+            ("YOUR ENERGY: Drained, from your words", "YOUR ENERGY: You sound drained this week, especially in the places where your words keep circling back to pressure and recovery."),
+            ("YOUR ENERGY:\nDrained", "YOUR ENERGY:\nYou sound drained this week, and it makes sense given how much you have been carrying."),
+            ("YOUR ENERGY: Drained", "YOUR ENERGY: You sound drained this week, and it makes sense given how much you have been carrying."),
+            ("WHAT'S BUILDING:\nPositive Patterns and Awareness", "WHAT'S BUILDING:\nYou are starting to notice what actually helps you steady yourself, even if it is still hard to make room for it."),
+            ("WHAT'S BUILDING: Positive Patterns and Awareness", "WHAT'S BUILDING: You are starting to notice what actually helps you steady yourself, even if it is still hard to make room for it.")
+        ]
+
+        return replacements.reduce(text) { partial, replacement in
+            partial.replacingOccurrences(of: replacement.0, with: replacement.1, options: .caseInsensitive)
         }
     }
 }

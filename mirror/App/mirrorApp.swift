@@ -84,14 +84,13 @@ struct mirrorApp: App {
         let entries = (try? context.fetch(entryDescriptor)) ?? []
 
         guard entries.count >= 5,
-              SubscriptionService.shared.isSubscribed,
-              let token = KeychainManager.load() else {
+              SubscriptionService.shared.isSubscribed else {
             scheduleWeeklyDigestTask()
             return
         }
 
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: token)
+            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: "")
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             try? context.save()

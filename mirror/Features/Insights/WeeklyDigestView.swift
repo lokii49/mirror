@@ -53,9 +53,14 @@ struct WeeklyDigestView: View {
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
+        let normalized = text
+            .replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
         let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "NEXT WEEK"]
         var results: [(title: String, body: String)] = []
-        var remaining = text
+        let remaining = normalized
 
         for (i, header) in headers.enumerated() {
             guard let headerRange = remaining.range(of: header + ":") else { continue }
@@ -69,7 +74,9 @@ struct WeeklyDigestView: View {
                 }
             }
 
-            let body = String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = String(afterHeader[..<bodyEnd])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n\n", with: "\n")
             results.append((title: header, body: body))
         }
 

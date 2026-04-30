@@ -253,10 +253,9 @@ struct WriteView: View {
     private func detectMoodWithMirror() {
         let text = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        guard let token = KeychainManager.load() else { return }
         isDetectingMood = true
         Task {
-            let detected = try? await InsightService.detectEmotion(text: text, token: token)
+            let detected = try? await InsightService.detectEmotion(text: text, token: "")
             await MainActor.run {
                 if let detected, MirrorTheme.moodOptions.contains(detected) {
                     viewModel.selectedMood = detected
@@ -483,17 +482,16 @@ struct WriteView: View {
     }
 
     private func transcribeVoiceNote(data: Data, index: Int) {
-        guard let token = KeychainManager.load() else { return }
         transcribingVoiceNoteIndexes.insert(index)
         Task {
             do {
-                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: token)
+                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: "")
                 await MainActor.run {
                     applyTranscription(result, toVoiceNoteAt: index)
                     transcribingVoiceNoteIndexes.remove(index)
                 }
             } catch {
-                await MainActor.run {
+                let _: Void = await MainActor.run {
                     transcribingVoiceNoteIndexes.remove(index)
                 }
             }
