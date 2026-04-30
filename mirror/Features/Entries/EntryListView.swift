@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-private let moodLabels: [String] = ["Rough", "Low", "Okay", "Good", "Alive"]
+private let moodLabels = MirrorTheme.moodOptions
 
 struct EntriesTabView: View {
     @Environment(\.modelContext) private var modelContext
@@ -13,7 +13,7 @@ struct EntriesTabView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return entries }
         return entries.filter {
-            $0.text.localizedCaseInsensitiveContains(query)
+            $0.insightContext.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -75,11 +75,10 @@ struct EntriesTabView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .futureSurface(cornerRadius: 14)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .background(MirrorTheme.bgBase)
     }
 
     private var entryList: some View {
@@ -110,6 +109,7 @@ struct EntriesTabView: View {
             .padding(.bottom, 32)
         }
         .scrollDismissesKeyboard(.interactively)
+        .background(MirrorTheme.bgBase)
     }
 
     private var emptyState: some View {
@@ -142,11 +142,27 @@ private struct EntryRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
-                    .font(.system(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(preview)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if !entry.voiceNotes.isEmpty {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 if let label = moodLabel {
                     Text(label)
@@ -156,28 +172,16 @@ private struct EntryRow: View {
                         .padding(.vertical, 2)
                         .background(Color(.tertiarySystemFill), in: Capsule())
                 }
-                if entry.voiceNoteData != nil {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
                 Text("\(entry.wordCount)w")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-
-            Text(preview)
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .futureSurface(cornerRadius: 16)
     }
 
     private var preview: String {
@@ -187,7 +191,18 @@ private struct EntryRow: View {
             .filter { !$0.isEmpty }
         let textPreview = lines.joined(separator: " ")
         if !textPreview.isEmpty { return textPreview }
-        if entry.voiceNoteData != nil { return "Voice note \(formatDuration(entry.voiceNoteDuration))" }
+        if !entry.voiceNotes.isEmpty {
+            if let transcript = entry.voiceNotes
+                .compactMap(\.transcript)
+                .map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+                .first(where: { !$0.isEmpty }) {
+                return transcript
+            }
+            if entry.voiceNotes.count == 1 {
+                return "Voice note \(formatDuration(entry.voiceNotes[0].duration))"
+            }
+            return "\(entry.voiceNotes.count) voice notes"
+        }
         return ""
     }
 }

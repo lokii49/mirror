@@ -19,6 +19,11 @@ enum MirrorTheme {
         LinearGradient(colors: [primary, primary.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    static let moodOptions: [String] = [
+        "Joyful", "Grateful", "Peaceful", "Content", "Energized", "Hopeful",
+        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
+    ]
+
     static let cornerCard: CGFloat = 20
     static let cornerPill: CGFloat = 999
     static let cornerChip: CGFloat = 10

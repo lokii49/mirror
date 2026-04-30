@@ -25,6 +25,7 @@ struct SubscriptionView: View {
             }
             .navigationTitle("Subscription")
             .navigationBarTitleDisplayMode(.inline)
+            .background(MirrorTheme.bgBase)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
@@ -55,7 +56,7 @@ struct SubscriptionView: View {
             Spacer()
         }
         .padding(20)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .futureSurface(cornerRadius: 22)
     }
 
     private var upgradeSection: some View {
@@ -85,7 +86,7 @@ struct SubscriptionView: View {
                             .font(.system(size: 16, weight: .bold))
                     }
                     .padding(16)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .futureSurface(cornerRadius: 16)
                 }
                 .buttonStyle(.plain)
                 .disabled(isLoading)
@@ -125,7 +126,7 @@ struct SubscriptionView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(16)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .futureSurface(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 

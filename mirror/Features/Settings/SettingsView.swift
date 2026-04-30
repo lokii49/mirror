@@ -17,6 +17,9 @@ struct SettingsView: View {
                     statsGrid
                     accountSection
                     appSection
+                    #if DEBUG
+                    debugSection
+                    #endif
                 }
                 .padding(16)
                 .padding(.bottom, 24)
@@ -128,11 +131,7 @@ struct SettingsView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-        }
+        .futureSurface(cornerRadius: 16)
     }
 
     // MARK: - Account Section
@@ -193,6 +192,50 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Debug
+
+    #if DEBUG
+    @Environment(\.modelContext) private var debugModelContext
+
+    private var debugSection: some View {
+        settingsGroup("Developer") {
+            Button {
+                SampleData.seed(into: debugModelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Load Sample Entries", systemImage: "doc.badge.plus", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button(role: .destructive) {
+                SampleData.clearInsights(from: debugModelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Clear Insight Cache", systemImage: "sparkles.slash", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button(role: .destructive) {
+                SampleData.clear(from: debugModelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Clear All Data", systemImage: "trash", iconColor: .red)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -228,8 +271,10 @@ struct SettingsView: View {
             Text(title)
                 .font(.system(size: 15))
                 .foregroundStyle(.primary)
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func signIn() async {
