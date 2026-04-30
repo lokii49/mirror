@@ -41,16 +41,18 @@ struct InsightView: View {
                     .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task {
-                            await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
-                            await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+                    if shouldShowRefresh {
+                        Button {
+                            Task {
+                                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+                                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+                            }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 15, weight: .semibold))
                         }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 15, weight: .semibold))
+                        .accessibilityLabel("Retry insights")
                     }
-                    .accessibilityLabel("Refresh")
                 }
             }
             .sheet(isPresented: $showPaywall) { PaywallView() }
@@ -79,6 +81,12 @@ struct InsightView: View {
 
     private var hasSeenMoreThanOneNudge: Bool {
         insights.filter { $0.type == .dailyNudge }.count > 1
+    }
+
+    private var shouldShowRefresh: Bool {
+        if case .error = viewModel.nudgeState { return true }
+        if case .error = viewModel.digestState { return true }
+        return false
     }
 
     // MARK: - Daily Nudge

@@ -144,34 +144,58 @@ final class VoiceNotePlayer {
 struct VoiceNoteAttachmentView: View {
     let data: Data
     let duration: TimeInterval
+    var title: String = "Voice note"
+    var transcript: String? = nil
+    var languageName: String? = nil
+    var isTranscribing: Bool = false
 
     @State private var player = VoiceNotePlayer()
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                player.toggle(data: data)
-            } label: {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(Color.accentColor, in: Circle())
-            }
-            .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Button {
+                    player.toggle(data: data)
+                } label: {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Color.accentColor, in: Circle())
+                }
+                .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Voice note")
-                    .font(.system(size: 14, weight: .semibold))
-                Text(formatDuration(duration))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Text(formatDuration(duration))
+                        if let languageName, !languageName.isEmpty {
+                            Text("·")
+                            Text(languageName)
+                        }
+                        if isTranscribing {
+                            Text("·")
+                            Text("Transcribing")
+                        }
+                    }
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
 
-            Spacer()
+            if let transcript,
+               !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(transcript)
+                    .font(.system(size: 13))
+                    .lineLimit(3)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(12)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .futureSurface(cornerRadius: 14)
         .onDisappear { player.stop() }
     }
 }

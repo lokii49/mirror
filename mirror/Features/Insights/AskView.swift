@@ -107,11 +107,7 @@ struct AskView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .frame(maxWidth: .infinity)
-                            .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-                            }
+                            .futureSurface(cornerRadius: 14)
                     }
                     .buttonStyle(.plain)
                 }
@@ -275,11 +271,7 @@ private struct AskBubblePair: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.primary.opacity(0.07), lineWidth: 0.5)
-                }
+                .futureSurface(cornerRadius: 18)
 
                 Spacer(minLength: 28)
             }
@@ -325,7 +317,7 @@ private struct LoadingAskBubble: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .futureSurface(cornerRadius: 18)
 
                 Spacer(minLength: 28)
             }

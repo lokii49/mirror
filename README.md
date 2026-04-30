@@ -31,7 +31,6 @@ Insights are generated through a Cloudflare Worker backed by Supabase auth and s
 Required Worker secrets:
 
 - `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY` if Claude fallback is enabled
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_KEY`
 

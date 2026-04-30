@@ -3,14 +3,15 @@ import Foundation
 enum InsightError: LocalizedError {
     case unauthorized
     case subscriptionRequired
-    case serverError(Int)
+    case serverError(Int, String)
     case emptyResponse
 
     var errorDescription: String? {
         switch self {
         case .unauthorized: return "Sign in to generate insights."
         case .subscriptionRequired: return "Core subscription required."
-        case .serverError(let code): return "Server error (\(code))."
+        case .serverError(let code, let detail):
+            return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
         case .emptyResponse: return "No insight returned."
         }
     }
@@ -31,7 +32,7 @@ enum InsightService {
     static let workerURL = URL(string: "https://mirror-worker.2qm8vh77mq.workers.dev")!
 
     static func generateNudge(entries: [Entry], token: String) async throws -> String {
-        let texts = entries.prefix(7).map(\.text)
+        let texts = entries.prefix(7).map { $0.insightContext }
         return try await post(
             WorkerRequest(
                 type: "dailyNudge",
@@ -44,7 +45,7 @@ enum InsightService {
     }
 
     static func generateWeeklyDigest(entries: [Entry], token: String) async throws -> String {
-        let texts = entries.prefix(14).map(\.text)
+        let texts = entries.prefix(14).map { $0.insightContext }
         return try await post(
             WorkerRequest(
                 type: "weeklyDigest",
@@ -61,9 +62,22 @@ enum InsightService {
         return try await post(
             WorkerRequest(
                 type: "askQuestion",
-                entries: relevant.map(\.text),
+                entries: relevant.map { $0.insightContext },
                 periodIdentifier: DateHelpers.monthIdentifier(for: Date()),
                 question: question
+            ),
+            token: token
+        )
+    }
+
+    static func detectEmotion(text: String, token: String) async throws -> String {
+        let trimmed = String(text.prefix(3000))
+        return try await post(
+            WorkerRequest(
+                type: "detectEmotion",
+                entries: [trimmed],
+                periodIdentifier: "",
+                question: nil
             ),
             token: token
         )
@@ -86,7 +100,39 @@ enum InsightService {
             return decoded.insight
         case 401: throw InsightError.unauthorized
         case 402: throw InsightError.subscriptionRequired
-        default:  throw InsightError.serverError(status)
+        default:
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw InsightError.serverError(status, body)
         }
+    }
+}
+
+extension Entry {
+    var insightContext: String {
+        var parts: [String] = []
+        let plain = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !plain.isEmpty {
+            parts.append(plain)
+        }
+
+        for (index, voiceNote) in voiceNotes.enumerated() {
+            let transcript = voiceNote.transcript?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let translation = voiceNote.englishTranslation?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !transcript.isEmpty || !translation.isEmpty else { continue }
+
+            var block = "Voice note \(index + 1):"
+            if let languageName = voiceNote.languageName, !languageName.isEmpty {
+                block += "\nLanguage: \(languageName)"
+            }
+            if !transcript.isEmpty {
+                block += "\nTranscript: \(transcript)"
+            }
+            if !translation.isEmpty, translation != transcript {
+                block += "\nEnglish translation: \(translation)"
+            }
+            parts.append(block)
+        }
+
+        return parts.joined(separator: "\n\n")
     }
 }

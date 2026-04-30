@@ -163,10 +163,10 @@ struct OnboardingFlow: View {
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(MirrorTheme.bgCard)
+                    .fill(.ultraThinMaterial)
                     .overlay {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(editorFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1)
+                            .stroke(editorFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.10), lineWidth: 1)
                     }
 
                 if firstEntryText.isEmpty {
@@ -235,15 +235,16 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .background(
-                selectedReason == label ? MirrorTheme.primary.opacity(0.07) : MirrorTheme.bgCard,
+                selectedReason == label ? MirrorTheme.primary.opacity(0.08) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        selectedReason == label ? MirrorTheme.primary.opacity(0.3) : Color.primary.opacity(0.07),
-                        lineWidth: selectedReason == label ? 1.5 : 0.5
+                        selectedReason == label ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.10),
+                        lineWidth: selectedReason == label ? 1.5 : 0.75
                     )
             }
         }
@@ -284,15 +285,16 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .background(
-                selectedTime == label ? MirrorTheme.primary.opacity(0.07) : MirrorTheme.bgCard,
+                selectedTime == label ? MirrorTheme.primary.opacity(0.08) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        selectedTime == label ? MirrorTheme.primary.opacity(0.3) : Color.primary.opacity(0.07),
-                        lineWidth: selectedTime == label ? 1.5 : 0.5
+                        selectedTime == label ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.10),
+                        lineWidth: selectedTime == label ? 1.5 : 0.75
                     )
             }
         }

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
-private let moodLabels: [String] = ["Rough", "Low", "Okay", "Good", "Alive"]
+private let moodLabels = MirrorTheme.moodOptions
 
 struct WriteView: View {
     @Environment(\.modelContext) private var modelContext
@@ -21,11 +21,52 @@ struct WriteView: View {
     @State private var photoData: Data? = nil
     @State private var voiceNoteData: Data? = nil
     @State private var voiceNoteDuration: TimeInterval = 0
+    @State private var voiceNoteTranscript: String? = nil
+    @State private var voiceNoteLanguageCode: String? = nil
+    @State private var voiceNoteLanguageName: String? = nil
+    @State private var voiceNoteEnglishTranslation: String? = nil
+    @State private var additionalVoiceNoteData: [Data] = []
+    @State private var additionalVoiceNoteDurations: [TimeInterval] = []
+    @State private var additionalVoiceNoteTranscripts: [String] = []
+    @State private var additionalVoiceNoteLanguageCodes: [String] = []
+    @State private var additionalVoiceNoteLanguageNames: [String] = []
+    @State private var additionalVoiceNoteEnglishTranslations: [String] = []
+    @State private var transcribingVoiceNoteIndexes: Set<Int> = []
+    @State private var isDetectingMood = false
     @FocusState private var editorFocused: Bool
 
     private var noteDate: Date { entry?.createdAt ?? Date() }
     private var hasDraftContent: Bool {
-        viewModel.hasContent || photoData != nil || voiceNoteData != nil
+        viewModel.hasContent || photoData != nil || !draftVoiceNotes.isEmpty
+    }
+    private var isTranscribingVoiceNotes: Bool {
+        !transcribingVoiceNoteIndexes.isEmpty
+    }
+    private var draftVoiceNotes: [(data: Data, duration: TimeInterval, transcript: String?, languageName: String?, englishTranslation: String?)] {
+        var notes: [(Data, TimeInterval, String?, String?, String?)] = []
+        if let voiceNoteData {
+            notes.append((
+                voiceNoteData,
+                voiceNoteDuration,
+                voiceNoteTranscript,
+                voiceNoteLanguageName,
+                voiceNoteEnglishTranslation
+            ))
+        }
+        for (index, data) in additionalVoiceNoteData.enumerated() {
+            let duration = index < additionalVoiceNoteDurations.count ? additionalVoiceNoteDurations[index] : 0
+            let transcript = index < additionalVoiceNoteTranscripts.count ? additionalVoiceNoteTranscripts[index] : nil
+            let languageName = index < additionalVoiceNoteLanguageNames.count ? additionalVoiceNoteLanguageNames[index] : nil
+            let translation = index < additionalVoiceNoteEnglishTranslations.count ? additionalVoiceNoteEnglishTranslations[index] : nil
+            notes.append((
+                data,
+                duration,
+                transcript,
+                languageName,
+                translation
+            ))
+        }
+        return notes
     }
 
     var body: some View {
@@ -35,9 +76,20 @@ struct WriteView: View {
             VStack(spacing: 0) {
                 dateHeader
 
-                if let voiceNoteData {
-                    VoiceNoteAttachmentView(data: voiceNoteData, duration: voiceNoteDuration)
-                        .padding(.horizontal, 20)
+                if !draftVoiceNotes.isEmpty {
+                    VStack(spacing: 8) {
+                        ForEach(draftVoiceNotes.indices, id: \.self) { index in
+                            VoiceNoteAttachmentView(
+                                data: draftVoiceNotes[index].data,
+                                duration: draftVoiceNotes[index].duration,
+                                title: "Voice note \(index + 1)",
+                                transcript: draftVoiceNotes[index].transcript,
+                                languageName: draftVoiceNotes[index].languageName,
+                                isTranscribing: transcribingVoiceNoteIndexes.contains(index)
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 20)
                         .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -96,6 +148,16 @@ struct WriteView: View {
                 photoData = entry.photoData
                 voiceNoteData = entry.voiceNoteData
                 voiceNoteDuration = entry.voiceNoteDuration
+                voiceNoteTranscript = entry.voiceNoteTranscript
+                voiceNoteLanguageCode = entry.voiceNoteLanguageCode
+                voiceNoteLanguageName = entry.voiceNoteLanguageName
+                voiceNoteEnglishTranslation = entry.voiceNoteEnglishTranslation
+                additionalVoiceNoteData = entry.additionalVoiceNoteData
+                additionalVoiceNoteDurations = entry.additionalVoiceNoteDurations
+                additionalVoiceNoteTranscripts = entry.additionalVoiceNoteTranscripts
+                additionalVoiceNoteLanguageCodes = entry.additionalVoiceNoteLanguageCodes
+                additionalVoiceNoteLanguageNames = entry.additionalVoiceNoteLanguageNames
+                additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
             }
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -110,8 +172,7 @@ struct WriteView: View {
         }
         .sheet(isPresented: $showVoiceInput) {
             VoiceInputSheet { data, duration in
-                voiceNoteData = data
-                voiceNoteDuration = duration
+                appendVoiceNote(data: data, duration: duration)
             }
         }
     }
@@ -132,6 +193,15 @@ struct WriteView: View {
 
     private var moodMenu: some View {
         Menu {
+            Button {
+                detectMoodWithMirror()
+            } label: {
+                Label(isDetectingMood ? "Detecting…" : "Mirror suggests", systemImage: "sparkles")
+            }
+            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+
+            Divider()
+
             ForEach(moodLabels, id: \.self) { mood in
                 Button {
                     viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
@@ -152,10 +222,16 @@ struct WriteView: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Text(viewModel.selectedMood ?? "Mood")
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(viewModel.selectedMood == nil ? .secondary : Color.accentColor)
+                if isDetectingMood {
+                    ProgressView()
+                        .scaleEffect(0.65)
+                        .frame(width: 13, height: 13)
+                } else {
+                    Text(viewModel.selectedMood ?? "Mood")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .foregroundStyle(viewModel.selectedMood == nil ? .secondary : Color.accentColor)
+                }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.tertiary)
@@ -163,7 +239,7 @@ struct WriteView: View {
             .padding(.horizontal, 11)
             .padding(.vertical, 7)
             .background(
-                viewModel.selectedMood == nil
+                viewModel.selectedMood == nil && !isDetectingMood
                     ? Color(.secondarySystemFill)
                     : Color.accentColor.opacity(0.12),
                 in: Capsule()
@@ -172,6 +248,22 @@ struct WriteView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Mood")
         .accessibilityValue(viewModel.selectedMood ?? "Not selected")
+    }
+
+    private func detectMoodWithMirror() {
+        let text = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        guard let token = KeychainManager.load() else { return }
+        isDetectingMood = true
+        Task {
+            let detected = try? await InsightService.detectEmotion(text: text, token: token)
+            await MainActor.run {
+                if let detected, MirrorTheme.moodOptions.contains(detected) {
+                    viewModel.selectedMood = detected
+                }
+                isDetectingMood = false
+            }
+        }
     }
 
     @ToolbarContentBuilder
@@ -186,6 +278,7 @@ struct WriteView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .disabled(isTranscribingVoiceNotes)
             }
         }
 
@@ -193,6 +286,7 @@ struct WriteView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Done") { saveAndDismiss() }
+                        .disabled(isTranscribingVoiceNotes)
                     Button("Delete Entry", systemImage: "trash", role: .destructive) {
                         showDeleteConfirm = true
                     }
@@ -217,7 +311,7 @@ struct WriteView: View {
                         .foregroundStyle(hasDraftContent ? Color.accentColor : Color.secondary)
                 }
                 .buttonStyle(.plain)
-                .disabled(!hasDraftContent)
+                .disabled(!hasDraftContent || isTranscribingVoiceNotes)
                 .accessibilityLabel("Save entry")
             }
         }
@@ -242,9 +336,9 @@ struct WriteView: View {
                 Button {
                     presentVoiceNoteSheet()
                 } label: {
-                    Image(systemName: voiceNoteData != nil ? "waveform.circle.fill" : "mic")
+                    Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
                         .font(.system(size: 20))
-                        .foregroundStyle(voiceNoteData != nil ? Color.accentColor : .primary)
+                        .foregroundStyle(!draftVoiceNotes.isEmpty ? Color.accentColor : .primary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
@@ -266,20 +360,41 @@ struct WriteView: View {
     }
 
     private func saveAndDismiss() {
+        guard !isTranscribingVoiceNotes else { return }
         if let entry {
             if hasDraftContent {
                 update(entry)
                 entry.photoData = photoData
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
+                entry.voiceNoteTranscript = voiceNoteTranscript
+                entry.voiceNoteLanguageCode = voiceNoteLanguageCode
+                entry.voiceNoteLanguageName = voiceNoteLanguageName
+                entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
+                entry.additionalVoiceNoteData = additionalVoiceNoteData
+                entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
+                entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+                entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
+                entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
+                entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
             }
         } else {
             if hasDraftContent {
                 let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                let entry = Entry(text: plain, mood: viewModel.selectedMood, source: voiceNoteData != nil && plain.isEmpty ? .voice : .typed)
+                let entry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
                 entry.photoData = photoData
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
+                entry.voiceNoteTranscript = voiceNoteTranscript
+                entry.voiceNoteLanguageCode = voiceNoteLanguageCode
+                entry.voiceNoteLanguageName = voiceNoteLanguageName
+                entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
+                entry.additionalVoiceNoteData = additionalVoiceNoteData
+                entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
+                entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+                entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
+                entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
+                entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
                 modelContext.insert(entry)
                 withAnimation { showSaved = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -291,12 +406,22 @@ struct WriteView: View {
     }
 
     private func saveDraft() {
-        guard entry == nil, hasDraftContent else { return }
+        guard entry == nil, hasDraftContent, !isTranscribingVoiceNotes else { return }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: voiceNoteData != nil && plain.isEmpty ? .voice : .typed)
+        let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
         savedEntry.photoData = photoData
         savedEntry.voiceNoteData = voiceNoteData
         savedEntry.voiceNoteDuration = voiceNoteDuration
+        savedEntry.voiceNoteTranscript = voiceNoteTranscript
+        savedEntry.voiceNoteLanguageCode = voiceNoteLanguageCode
+        savedEntry.voiceNoteLanguageName = voiceNoteLanguageName
+        savedEntry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
+        savedEntry.additionalVoiceNoteData = additionalVoiceNoteData
+        savedEntry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
+        savedEntry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+        savedEntry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
+        savedEntry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
+        savedEntry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
         modelContext.insert(savedEntry)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
@@ -313,6 +438,17 @@ struct WriteView: View {
         photoData = nil
         voiceNoteData = nil
         voiceNoteDuration = 0
+        voiceNoteTranscript = nil
+        voiceNoteLanguageCode = nil
+        voiceNoteLanguageName = nil
+        voiceNoteEnglishTranslation = nil
+        additionalVoiceNoteData = []
+        additionalVoiceNoteDurations = []
+        additionalVoiceNoteTranscripts = []
+        additionalVoiceNoteLanguageCodes = []
+        additionalVoiceNoteLanguageNames = []
+        additionalVoiceNoteEnglishTranslations = []
+        transcribingVoiceNoteIndexes = []
     }
 
     private func update(_ entry: Entry) {
@@ -320,8 +456,64 @@ struct WriteView: View {
         entry.text = plain
         entry.wordCount = plain.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
         entry.mood = viewModel.selectedMood
-        entry.source = voiceNoteData != nil && plain.isEmpty ? .voice : .typed
+        entry.source = !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func appendVoiceNote(data: Data, duration: TimeInterval) {
+        let noteIndex: Int
+        if voiceNoteData == nil {
+            voiceNoteData = data
+            voiceNoteDuration = duration
+            voiceNoteTranscript = nil
+            voiceNoteLanguageCode = nil
+            voiceNoteLanguageName = nil
+            voiceNoteEnglishTranslation = nil
+            noteIndex = 0
+        } else {
+            additionalVoiceNoteData.append(data)
+            additionalVoiceNoteDurations.append(duration)
+            additionalVoiceNoteTranscripts.append("")
+            additionalVoiceNoteLanguageCodes.append("")
+            additionalVoiceNoteLanguageNames.append("")
+            additionalVoiceNoteEnglishTranslations.append("")
+            noteIndex = additionalVoiceNoteData.count
+        }
+        transcribeVoiceNote(data: data, index: noteIndex)
+    }
+
+    private func transcribeVoiceNote(data: Data, index: Int) {
+        guard let token = KeychainManager.load() else { return }
+        transcribingVoiceNoteIndexes.insert(index)
+        Task {
+            do {
+                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: token)
+                await MainActor.run {
+                    applyTranscription(result, toVoiceNoteAt: index)
+                    transcribingVoiceNoteIndexes.remove(index)
+                }
+            } catch {
+                await MainActor.run {
+                    transcribingVoiceNoteIndexes.remove(index)
+                }
+            }
+        }
+    }
+
+    private func applyTranscription(_ transcription: VoiceTranscription, toVoiceNoteAt index: Int) {
+        if index == 0 {
+            voiceNoteTranscript = transcription.transcript
+            voiceNoteLanguageCode = transcription.languageCode
+            voiceNoteLanguageName = transcription.languageName
+            voiceNoteEnglishTranslation = transcription.englishTranslation
+        } else {
+            let additionalIndex = index - 1
+            guard additionalVoiceNoteData.indices.contains(additionalIndex) else { return }
+            additionalVoiceNoteTranscripts[additionalIndex] = transcription.transcript
+            additionalVoiceNoteLanguageCodes[additionalIndex] = transcription.languageCode
+            additionalVoiceNoteLanguageNames[additionalIndex] = transcription.languageName
+            additionalVoiceNoteEnglishTranslations[additionalIndex] = transcription.englishTranslation
+        }
     }
 
     private func presentVoiceNoteSheet() {
