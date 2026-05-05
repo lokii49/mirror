@@ -11,17 +11,27 @@ enum InsightType: String, Codable {
 @Model final class Insight {
     var id: UUID = UUID()
     var type: InsightType = InsightType.dailyNudge
-    var content: String = ""
+    var encryptedContent: String = ""
     var generatedAt: Date = Date()
     var periodIdentifier: String = ""
-    var question: String?
+    var encryptedQuestion: String?
+
+    var content: String {
+        get { MirrorEncryption.decryptString(encryptedContent) }
+        set { encryptedContent = MirrorEncryption.encryptString(newValue) }
+    }
+
+    var question: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedQuestion) }
+        set { encryptedQuestion = MirrorEncryption.encryptOptionalString(newValue) }
+    }
 
     init(type: InsightType, content: String, periodIdentifier: String, question: String? = nil) {
         self.id = UUID()
         self.type = type
-        self.content = content
+        self.encryptedContent = MirrorEncryption.encryptString(content)
         self.generatedAt = Date()
         self.periodIdentifier = periodIdentifier
-        self.question = question
+        self.encryptedQuestion = MirrorEncryption.encryptOptionalString(question)
     }
 }

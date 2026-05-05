@@ -7,25 +7,93 @@ enum EntrySource: String, Codable {
 
 @Model final class Entry {
     var id: UUID = UUID()
-    var text: String = ""
+    var encryptedText: String = ""
     var createdAt: Date = Date()
     var wordCount: Int = 0
-    var mood: String? = nil
+    var encryptedMood: String? = nil
     var source: EntrySource = EntrySource.typed
-    var photoData: Data? = nil  // one photo, stored as data
-    var voiceNoteData: Data? = nil
+    var encryptedPhotoData: Data? = nil
+    var encryptedVoiceNoteData: Data? = nil
     var voiceNoteDuration: Double = 0
-    var voiceNoteTranscript: String? = nil
-    var voiceNoteLanguageCode: String? = nil
-    var voiceNoteLanguageName: String? = nil
-    var voiceNoteEnglishTranslation: String? = nil
-    var additionalVoiceNoteData: [Data] = []
+    var encryptedVoiceNoteTranscript: String? = nil
+    var encryptedVoiceNoteLanguageCode: String? = nil
+    var encryptedVoiceNoteLanguageName: String? = nil
+    var encryptedVoiceNoteEnglishTranslation: String? = nil
+    var encryptedAdditionalVoiceNoteData: [Data] = []
     var additionalVoiceNoteDurations: [Double] = []
-    var additionalVoiceNoteTranscripts: [String] = []
-    var additionalVoiceNoteLanguageCodes: [String] = []
-    var additionalVoiceNoteLanguageNames: [String] = []
-    var additionalVoiceNoteEnglishTranslations: [String] = []
+    var encryptedAdditionalVoiceNoteTranscripts: [String] = []
+    var encryptedAdditionalVoiceNoteLanguageCodes: [String] = []
+    var encryptedAdditionalVoiceNoteLanguageNames: [String] = []
+    var encryptedAdditionalVoiceNoteEnglishTranslations: [String] = []
     var weekIdentifier: String = ""
+
+    var text: String {
+        get { MirrorEncryption.decryptString(encryptedText) }
+        set {
+            encryptedText = MirrorEncryption.encryptString(newValue)
+            wordCount = newValue.split(separator: " ").count
+        }
+    }
+
+    var mood: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedMood) }
+        set { encryptedMood = MirrorEncryption.encryptOptionalString(newValue) }
+    }
+
+    var photoData: Data? {
+        get { MirrorEncryption.decryptOptionalData(encryptedPhotoData) }
+        set { encryptedPhotoData = MirrorEncryption.encryptOptionalData(newValue) }
+    }
+
+    var voiceNoteData: Data? {
+        get { MirrorEncryption.decryptOptionalData(encryptedVoiceNoteData) }
+        set { encryptedVoiceNoteData = MirrorEncryption.encryptOptionalData(newValue) }
+    }
+
+    var voiceNoteTranscript: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedVoiceNoteTranscript) }
+        set { encryptedVoiceNoteTranscript = MirrorEncryption.encryptOptionalString(newValue) }
+    }
+
+    var voiceNoteLanguageCode: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedVoiceNoteLanguageCode) }
+        set { encryptedVoiceNoteLanguageCode = MirrorEncryption.encryptOptionalString(newValue) }
+    }
+
+    var voiceNoteLanguageName: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedVoiceNoteLanguageName) }
+        set { encryptedVoiceNoteLanguageName = MirrorEncryption.encryptOptionalString(newValue) }
+    }
+
+    var voiceNoteEnglishTranslation: String? {
+        get { MirrorEncryption.decryptOptionalString(encryptedVoiceNoteEnglishTranslation) }
+        set { encryptedVoiceNoteEnglishTranslation = MirrorEncryption.encryptOptionalString(newValue) }
+    }
+
+    var additionalVoiceNoteData: [Data] {
+        get { MirrorEncryption.decryptDataArray(encryptedAdditionalVoiceNoteData) }
+        set { encryptedAdditionalVoiceNoteData = MirrorEncryption.encryptDataArray(newValue) }
+    }
+
+    var additionalVoiceNoteTranscripts: [String] {
+        get { encryptedAdditionalVoiceNoteTranscripts.map(MirrorEncryption.decryptString) }
+        set { encryptedAdditionalVoiceNoteTranscripts = newValue.map(MirrorEncryption.encryptString) }
+    }
+
+    var additionalVoiceNoteLanguageCodes: [String] {
+        get { encryptedAdditionalVoiceNoteLanguageCodes.map(MirrorEncryption.decryptString) }
+        set { encryptedAdditionalVoiceNoteLanguageCodes = newValue.map(MirrorEncryption.encryptString) }
+    }
+
+    var additionalVoiceNoteLanguageNames: [String] {
+        get { encryptedAdditionalVoiceNoteLanguageNames.map(MirrorEncryption.decryptString) }
+        set { encryptedAdditionalVoiceNoteLanguageNames = newValue.map(MirrorEncryption.encryptString) }
+    }
+
+    var additionalVoiceNoteEnglishTranslations: [String] {
+        get { encryptedAdditionalVoiceNoteEnglishTranslations.map(MirrorEncryption.decryptString) }
+        set { encryptedAdditionalVoiceNoteEnglishTranslations = newValue.map(MirrorEncryption.encryptString) }
+    }
 
     var voiceNotes: [(data: Data, duration: Double, transcript: String?, languageCode: String?, languageName: String?, englishTranslation: String?)] {
         var notes: [(Data, Double, String?, String?, String?, String?)] = []
@@ -54,24 +122,24 @@ enum EntrySource: String, Codable {
 
     init(text: String, mood: String? = nil, source: EntrySource = .typed) {
         self.id = UUID()
-        self.text = text
+        self.encryptedText = MirrorEncryption.encryptString(text)
         self.createdAt = Date()
         self.wordCount = text.split(separator: " ").count
-        self.mood = mood
+        self.encryptedMood = MirrorEncryption.encryptOptionalString(mood)
         self.source = source
-        self.photoData = nil
-        self.voiceNoteData = nil
+        self.encryptedPhotoData = nil
+        self.encryptedVoiceNoteData = nil
         self.voiceNoteDuration = 0
-        self.voiceNoteTranscript = nil
-        self.voiceNoteLanguageCode = nil
-        self.voiceNoteLanguageName = nil
-        self.voiceNoteEnglishTranslation = nil
-        self.additionalVoiceNoteData = []
+        self.encryptedVoiceNoteTranscript = nil
+        self.encryptedVoiceNoteLanguageCode = nil
+        self.encryptedVoiceNoteLanguageName = nil
+        self.encryptedVoiceNoteEnglishTranslation = nil
+        self.encryptedAdditionalVoiceNoteData = []
         self.additionalVoiceNoteDurations = []
-        self.additionalVoiceNoteTranscripts = []
-        self.additionalVoiceNoteLanguageCodes = []
-        self.additionalVoiceNoteLanguageNames = []
-        self.additionalVoiceNoteEnglishTranslations = []
+        self.encryptedAdditionalVoiceNoteTranscripts = []
+        self.encryptedAdditionalVoiceNoteLanguageCodes = []
+        self.encryptedAdditionalVoiceNoteLanguageNames = []
+        self.encryptedAdditionalVoiceNoteEnglishTranslations = []
         self.weekIdentifier = DateHelpers.weekIdentifier(for: Date())
     }
 }

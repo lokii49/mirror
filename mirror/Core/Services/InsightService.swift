@@ -5,7 +5,7 @@ enum InsightError: LocalizedError {
     case subscriptionRequired
     case serverError(Int, String)
     case emptyResponse
-    case localModelUnavailable(String)
+    case serviceUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -14,7 +14,7 @@ enum InsightError: LocalizedError {
         case .serverError(let code, let detail):
             return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
         case .emptyResponse: return "No insight returned."
-        case .localModelUnavailable(let detail): return detail
+        case .serviceUnavailable(let detail): return detail
         }
     }
 }
@@ -27,6 +27,7 @@ Rules:
 - Reference actual words, moods, dates, or concrete events, not generic advice
 - Start with "I noticed..." or "Something I see..."
 - 2-3 sentences maximum, under 100 words
+- If the recent mood suggests difficulty (anxious, overwhelmed, frustrated, drained, sad, numb), gently offer one small concrete action that could help — not generic advice, but something specific to what they wrote
 - No therapy language, no generic affirmations
 - Do not mention that you are an AI or model
 - Write directly to the journal writer as "you"
@@ -44,6 +45,7 @@ THIS WEEK'S THEME: [one sentence]
 YOUR ENERGY: [one sentence about when you seemed most alive or most drained]
 WHAT'S BUILDING: [one sentence about one real thing growing in you or your life]
 WATCH OUT FOR: [one gentle honest sentence about something that may be costing you]
+MOOD BOOST: [one specific, small action tied to something they wrote that could help their mood next week]
 NEXT WEEK: [one practical, kind sentence for next week]
 
 Rules:
@@ -53,6 +55,7 @@ Rules:
 - Every section body must include "you" or "your"
 - Use Long-term context only to notice continuity; the digest must mainly reflect This week's entries
 - Reference actual words, moods, dates, or phrases they used
+- For MOOD BOOST: make it concrete and personal — not "meditate" or "rest more" but something tied to what they specifically wrote
 - No therapy language, no generic affirmations
 - Do not mention that you are an AI or model
 - Write directly to "you", not "the person" or "the user"
@@ -146,7 +149,7 @@ enum InsightService {
             )
             return raw.cleanedInsightOutput()
         } catch {
-            throw InsightError.localModelUnavailable(error.localizedDescription)
+            throw InsightError.serviceUnavailable(error.localizedDescription)
         }
     }
 

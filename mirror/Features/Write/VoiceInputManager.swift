@@ -148,6 +148,7 @@ struct VoiceNoteAttachmentView: View {
     var transcript: String? = nil
     var languageName: String? = nil
     var isTranscribing: Bool = false
+    var onDelete: (() -> Void)? = nil
 
     @State private var player = VoiceNotePlayer()
 
@@ -184,13 +185,26 @@ struct VoiceNoteAttachmentView: View {
                 }
 
                 Spacer()
+
+                if let onDelete {
+                    Button {
+                        player.stop()
+                        onDelete()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Delete voice note")
+                }
             }
 
             if let transcript,
                !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(transcript)
                     .font(.system(size: 13))
-                    .lineLimit(3)
                     .foregroundStyle(.secondary)
             }
         }

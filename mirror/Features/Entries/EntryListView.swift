@@ -8,13 +8,26 @@ struct EntriesTabView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var showSearch = false
+    @State private var selectedMoodFilter: String? = nil
+    @State private var selectedEntry: Entry?
+    @State private var showEntryDetail = false
 
     private var filteredEntries: [Entry] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return entries }
-        return entries.filter {
-            $0.insightContext.localizedCaseInsensitiveContains(query)
+        var result = entries
+        if let mood = selectedMoodFilter {
+            result = result.filter { $0.mood == mood }
         }
+        if !query.isEmpty {
+            result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
+        }
+        return result
+    }
+
+    private var usedMoods: [String] {
+        let all = entries.compactMap(\.mood).filter { !$0.isEmpty }
+        var seen = Set<String>()
+        return all.filter { seen.insert($0).inserted }
     }
 
     private var groupedByMonth: [(date: Date, entries: [Entry])] {
@@ -52,11 +65,53 @@ struct EntriesTabView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                if showSearch {
-                    searchBar
+                VStack(spacing: 0) {
+                    if showSearch { searchBar }
+                    if !usedMoods.isEmpty { moodFilterBar }
+                }
+            }
+            .navigationDestination(isPresented: $showEntryDetail) {
+                if let selectedEntry {
+                    EntryDetailView(entry: selectedEntry)
                 }
             }
         }
+    }
+
+    private var moodFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(usedMoods, id: \.self) { mood in
+                    let isSelected = selectedMoodFilter == mood
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedMoodFilter = isSelected ? nil : mood
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(MirrorTheme.moodColor(for: mood))
+                                .frame(width: 7, height: 7)
+                            Text(mood)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            isSelected
+                                ? MirrorTheme.moodColor(for: mood).opacity(0.18)
+                                : Color(.tertiarySystemFill),
+                            in: Capsule()
+                        )
+                        .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(MirrorTheme.bgBase)
     }
 
     private var searchBar: some View {
@@ -82,32 +137,53 @@ struct EntriesTabView: View {
     }
 
     private var entryList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
-                ForEach(groupedByMonth, id: \.date) { group in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(monthTitle(for: group.date))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.tertiary)
-                            .textCase(.uppercase)
-                            .tracking(0.8)
-                            .padding(.horizontal, 4)
+        List {
+            Text("\(filteredEntries.count) \(filteredEntries.count == 1 ? "entry" : "entries")")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
 
-                        ForEach(group.entries) { entry in
-                            NavigationLink {
-                                EntryDetailView(entry: entry)
-                            } label: {
-                                EntryRow(entry: entry)
+            ForEach(groupedByMonth, id: \.date) { group in
+                Section {
+                    ForEach(group.entries) { entry in
+                        EntryRow(entry: entry)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedEntry = entry
+                                showEntryDetail = true
                             }
                             .buttonStyle(.plain)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    modelContext.delete(entry)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
-                    }
+                } header: {
+                    Text(monthTitle(for: group.date))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 0)
+                        .padding(.bottom, 2)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 32)
         }
+        .listStyle(.plain)
+        .contentMargins(.top, 0, for: .scrollContent)
+        .contentMargins(.bottom, 96, for: .scrollContent)
+        .listSectionSpacing(8)
+        .environment(\.defaultMinListHeaderHeight, 0)
+        .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
         .background(MirrorTheme.bgBase)
     }
@@ -163,19 +239,24 @@ private struct EntryRow: View {
                 Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                if let label = moodLabel {
-                    Text(label)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color(.tertiarySystemFill), in: Capsule())
-                }
                 Text("\(entry.wordCount)w")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                Spacer(minLength: 8)
+                if let label = moodLabel {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(MirrorTheme.moodColor(for: label))
+                            .frame(width: 7, height: 7)
+                        Text(label)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -186,6 +267,7 @@ private struct EntryRow: View {
 
     private var preview: String {
         let lines = entry.text
+            .replacingOccurrences(of: inlinePhotoToken, with: "")
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

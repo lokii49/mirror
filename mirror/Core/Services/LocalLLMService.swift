@@ -121,11 +121,9 @@ actor LocalLLMService {
     private func stripAssistantPreamble(_ text: String) -> String {
         let markers = ["assistant\n", "assistant:", "<|assistant|>", "<|im_start|>assistant"]
         var result = text
-        for marker in markers {
-            if result.lowercased().hasPrefix(marker) {
-                result = String(result.dropFirst(marker.count))
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+        for marker in markers where result.lowercased().hasPrefix(marker) {
+            result = String(result.dropFirst(marker.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return result
     }

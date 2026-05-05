@@ -12,15 +12,7 @@ enum VoiceTranscriptionService {
     static func transcribe(audioData: Data, token: String) async throws -> VoiceTranscription {
         let authStatus = await requestAuthorization()
         guard authStatus == .authorized else {
-            throw InsightError.localModelUnavailable("Speech recognition permission is required for local transcription.")
-        }
-
-        guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
-            throw InsightError.localModelUnavailable("On-device speech recognition is not available for the current locale.")
-        }
-
-        guard recognizer.supportsOnDeviceRecognition else {
-            throw InsightError.localModelUnavailable("This device or language does not support offline speech recognition.")
+            throw InsightError.serviceUnavailable("Speech recognition permission is required for local transcription.")
         }
 
         let url = FileManager.default.temporaryDirectory
@@ -29,17 +21,43 @@ enum VoiceTranscriptionService {
         try audioData.write(to: url, options: .atomic)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        let request = SFSpeechURLRecognitionRequest(url: url)
-        request.requiresOnDeviceRecognition = true
-        request.shouldReportPartialResults = false
+        var lastError: Error?
+        let supported = SFSpeechRecognizer.supportedLocales()
+        for locale in recognitionLocales where supported.contains(locale) {
+            guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else { continue }
 
-        let transcript = try await recognize(request: request, recognizer: recognizer)
-        return VoiceTranscription(
-            transcript: transcript,
-            languageCode: Locale.current.language.languageCode?.identifier ?? "und",
-            languageName: Locale.current.localizedString(forIdentifier: Locale.current.identifier) ?? "Current language",
-            englishTranslation: transcript
-        )
+            let request = SFSpeechURLRecognitionRequest(url: url)
+            request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+            request.shouldReportPartialResults = false
+
+            do {
+                let transcript = try await recognize(request: request, recognizer: recognizer)
+                return VoiceTranscription(
+                    transcript: transcript,
+                    languageCode: locale.identifier,
+                    languageName: Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier,
+                    englishTranslation: transcript
+                )
+            } catch {
+                lastError = error
+                continue
+            }
+        }
+
+        throw lastError ?? InsightError.serviceUnavailable("Speech recognition is not available for the configured languages on this device.")
+    }
+
+    private static var recognitionLocales: [Locale] {
+        let identifiers = [
+            Locale.current.identifier,
+            "en-US", "en-IN", "hi-IN", "te-IN", "ta-IN", "bn-IN", "mr-IN", "gu-IN", "kn-IN", "ml-IN",
+            "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR", "ru-RU", "ja-JP", "ko-KR", "zh-Hans",
+            "ar-SA", "id-ID", "tr-TR", "vi-VN", "th-TH", "nl-NL"
+        ]
+        var seen = Set<String>()
+        return identifiers
+            .map(Locale.init(identifier:))
+            .filter { seen.insert($0.identifier).inserted }
     }
 
     private static func recognize(

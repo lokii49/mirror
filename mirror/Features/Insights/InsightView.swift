@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
@@ -15,6 +16,11 @@ struct InsightView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     nudgeSection
+
+                    if moodEntries.count >= 2 {
+                        Divider().padding(.horizontal, 4)
+                        MoodWeekChartView(entries: moodEntries)
+                    }
 
                     if SubscriptionService.shared.isSubscribed || hasSeenFirstNudge {
                         Divider().padding(.horizontal, 4)
@@ -77,6 +83,11 @@ struct InsightView: View {
 
     private var hasSeenFirstNudge: Bool {
         insights.contains { $0.type == .dailyNudge }
+    }
+
+    private var moodEntries: [Entry] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
     }
 
     private var hasSeenMoreThanOneNudge: Bool {
@@ -396,6 +407,76 @@ private struct InsightTextView: View {
     }
 }
 
+
+// MARK: - Mood Week Chart
+
+private struct MoodWeekChartView: View {
+    let entries: [Entry]
+
+    private static let moodScore: [String: Double] = [
+        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
+        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
+    ]
+
+    private struct MoodPoint: Identifiable {
+        let id: UUID
+        let date: Date
+        let mood: String
+        let score: Double
+    }
+
+    private var points: [MoodPoint] {
+        entries.compactMap { entry in
+            guard let mood = entry.mood, let score = Self.moodScore[mood] else { return nil }
+            return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Chart(points) { point in
+                PointMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                .symbolSize(120)
+
+                LineMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.primary.opacity(0.25))
+                .interpolationMethod(.catmullRom)
+            }
+            .chartYScale(domain: 0...6)
+            .chartYAxis {
+                AxisMarks(values: [1, 3, 5]) { value in
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                        .font(.system(size: 10))
+                }
+            }
+            .frame(height: 130)
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
+    }
+}
 
 // Make NudgeState Equatable for onChange
 extension NudgeState: Equatable {
