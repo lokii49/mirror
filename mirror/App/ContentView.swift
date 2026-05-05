@@ -15,7 +15,7 @@ struct ContentView: View {
                 .tabItem { Label("Entries", systemImage: "book.closed") }
                 .tag(0)
 
-            WriteTabView()
+            WriteTabView(selectedTab: $selectedTab)
                 .tabItem { Label("Write", systemImage: "square.and.pencil") }
                 .tag(1)
 
@@ -38,9 +38,13 @@ struct ContentView: View {
 
 // Write tab wraps WriteView in a NavigationStack so it can push VoiceInputSheet
 private struct WriteTabView: View {
+    @Binding var selectedTab: Int
+
     var body: some View {
         NavigationStack {
-            WriteView(autoFocus: true)
+            WriteView(autoFocus: true) {
+                selectedTab = 0
+            }
         }
     }
 }

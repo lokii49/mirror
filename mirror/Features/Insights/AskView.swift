@@ -7,14 +7,20 @@ struct AskView: View {
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
     @State private var question = ""
+    @State private var pendingQuestion = ""
     @State private var isLoading = false
     @State private var error: String?
     @FocusState private var isInputFocused: Bool
 
     private let monthLimit = 10
+    private let bottomAnchorID = "ask-bottom-anchor"
 
     private var askHistory: [Insight] {
         allInsights.filter { $0.type == .askResponse }
+    }
+
+    private var chatHistory: [Insight] {
+        askHistory.sorted { $0.generatedAt < $1.generatedAt }
     }
 
     private var thisMonthCount: Int {
@@ -29,28 +35,29 @@ struct AskView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                content
-                inputBar
-            }
-            .background(MirrorTheme.bgBase)
-            .navigationTitle("Ask")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if remaining <= 3 {
-                        Text("\(remaining) left")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(remaining <= 2 ? .orange : .secondary)
-                            .monospacedDigit()
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(
-                                (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
-                                in: Capsule()
-                            )
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    inputBar
+                }
+                .background(MirrorTheme.bgBase)
+                .navigationTitle("Ask")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if remaining <= 3 {
+                            Text("\(remaining) left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                                .monospacedDigit()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
+                                    in: Capsule()
+                                )
+                        }
                     }
                 }
-            }
         }
     }
 
@@ -59,22 +66,49 @@ struct AskView: View {
         if askHistory.isEmpty && !isLoading {
             askEmptyState
         } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    askHeader
-                        .padding(.bottom, 8)
-                    if isLoading {
-                        LoadingAskBubble(question: question)
+            GeometryReader { geometry in
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            askHeader
+                                .padding(.bottom, 8)
+
+                            Spacer(minLength: 12)
+
+                            ForEach(chatHistory) { insight in
+                                AskBubblePair(insight: insight)
+                            }
+
+                            if isLoading {
+                                LoadingAskBubble(question: pendingQuestion)
+                            }
+
+                            Color.clear
+                                .frame(height: 1)
+                                .id(bottomAnchorID)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .frame(minHeight: geometry.size.height, alignment: .top)
                     }
-                    ForEach(askHistory) { insight in
-                        AskBubblePair(insight: insight)
+                    .scrollDismissesKeyboard(.interactively)
+                    .background(MirrorTheme.bgBase)
+                    .onAppear {
+                        proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+                    }
+                    .onChange(of: chatHistory.count) { _, _ in
+                        scrollToLatest(proxy)
+                    }
+                    .onChange(of: isLoading) { _, _ in
+                        scrollToLatest(proxy)
+                    }
+                    .onChange(of: isInputFocused) { _, focused in
+                        if focused {
+                            scrollToLatest(proxy)
+                        }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(MirrorTheme.bgBase)
         }
     }
 
@@ -202,6 +236,7 @@ struct AskView: View {
         isLoading = true
         error = nil
         let submitted = q
+        pendingQuestion = submitted
         question = ""
         isInputFocused = false
 
@@ -221,6 +256,15 @@ struct AskView: View {
         }
 
         isLoading = false
+        pendingQuestion = ""
+    }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.22)) {
+                proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+            }
+        }
     }
 }
 

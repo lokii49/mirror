@@ -8,7 +8,5 @@ DEST_FILE="${DEST_DIR}/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
 mkdir -p "${DEST_DIR}"
 
 echo "Downloading Qwen2.5 1.5B Instruct Q4_K_M..."
-echo "Destination: ${DEST_FILE}"
-curl -L --fail --continue-at - \
-  "${MODEL_URL}" -o "${DEST_FILE}"
-echo "Done."
+curl -L "${MODEL_URL}" -o "${DEST_FILE}"
+echo "Saved to ${DEST_FILE}"

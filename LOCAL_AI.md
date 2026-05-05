@@ -1,18 +1,11 @@
 # Mirror Local AI
 
-Mirror is configured to run insight generation locally with:
+Mirror runs daily reflection, weekly digest, Ask Mirror, and mood detection locally with:
 
 - Model: `Qwen2.5 1.5B Instruct`
 - Format: GGUF
 - Quantization: `Q4_K_M`
-- Size: ~1GB
 - Runtime: `swift-llama-cpp` / llama.cpp
-- Min device: iPhone 12+ (4GB RAM)
-- Source: `bartowski/Qwen2.5-1.5B-Instruct-GGUF` on Hugging Face
-- Upstream model: `Qwen/Qwen2.5-1.5B-Instruct`
-- License: Apache-2.0
-
-## Model File
 
 The app looks for this exact file name:
 
@@ -29,22 +22,10 @@ Lookup order:
 Application Support/Mirror/Models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
 ```
 
-Do not commit the model file to git. Deliver via on-demand resource or in-app download on first launch.
-
-For development, download the model with:
-
-```bash
-bash scripts/download-local-model.sh
-```
-
-The script downloads the GGUF from Hugging Face and writes it to `mirror/LocalModels/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`. Add that file to the app bundle in Xcode when you want the app to ship with the model.
-
-## License Notes
-
-Qwen2.5 1.5B Instruct is Apache-2.0 licensed. Keep Apache-2.0 attribution and third-party notices with the app and update the privacy policy if any future feature sends journal content to a third-party AI service.
+Do not commit the model file to git. Deliver it as an on-demand resource or in-app download.
 
 ## Privacy
 
-Daily reflection, weekly digest, Ask Mirror, and mood detection use the local model. Voice note transcription uses Apple's on-device speech recognition with `requiresOnDeviceRecognition = true`.
+Journal entry content, media payloads, generated insights, and Ask Mirror questions are encrypted before SwiftData/CloudKit persistence. The local model receives decrypted text only inside the app process on the user's device.
 
-The OpenAI Worker backend is no longer used by these app flows.
+This is not yet complete multi-device E2E sync because the content key is generated and stored in the local Keychain. A second device will need a recovery-key or passphrase-based key import flow before it can decrypt synced ciphertext from the first device.

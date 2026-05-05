@@ -7,7 +7,10 @@ class WriteViewModel {
     var selectedMood: String? = nil
 
     var wordCount: Int {
-        text.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+        text.replacingOccurrences(of: inlinePhotoToken, with: "")
+            .split { $0.isWhitespace }
+            .filter { !$0.isEmpty }
+            .count
     }
 
     var hasContent: Bool {
@@ -35,7 +38,10 @@ class WriteViewModel {
         let plain = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !plain.isEmpty else { return }
         entry.text = plain
-        entry.wordCount = plain.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+        entry.wordCount = plain.replacingOccurrences(of: inlinePhotoToken, with: "")
+            .split { $0.isWhitespace }
+            .filter { !$0.isEmpty }
+            .count
         entry.mood = selectedMood
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }

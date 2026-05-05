@@ -24,6 +24,24 @@ enum MirrorTheme {
         "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
     ]
 
+    static func moodColor(for mood: String) -> Color {
+        switch mood {
+        case "Joyful":      return .yellow
+        case "Grateful":    return .green
+        case "Peaceful":    return Color(.systemTeal)
+        case "Content":     return Color(.systemCyan)
+        case "Energized":   return .orange
+        case "Hopeful":     return .indigo
+        case "Anxious":     return Color(.systemYellow)
+        case "Overwhelmed": return .red
+        case "Frustrated":  return Color(.systemOrange)
+        case "Drained":     return Color(.systemGray)
+        case "Sad":         return Color(.systemBlue)
+        case "Numb":        return Color(.systemGray2)
+        default:            return .accentColor
+        }
+    }
+
     static let cornerCard: CGFloat = 20
     static let cornerPill: CGFloat = 999
     static let cornerChip: CGFloat = 10
