@@ -48,7 +48,7 @@ struct SubscriptionView: View {
                 Text(subscriptionService.isSubscribed ? "Mirror Core" : "Free Plan")
                     .font(.system(size: 17, weight: .semibold))
                 Text(subscriptionService.isSubscribed
-                     ? "Daily nudges, weekly digest, Ask Mirror"
+                     ? "Daily nudges, weekly digest, 60 Ask questions/month"
                      : "Unlimited writing, full history, iCloud sync")
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
@@ -64,6 +64,23 @@ struct SubscriptionView: View {
             Text("Upgrade to Core")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary)
+                    .frame(width: 28, height: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("60 Ask questions per month")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Ask Mirror about patterns in your journal, grounded only in your entries.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .futureSurface(cornerRadius: 16)
 
             ForEach(subscriptionService.products, id: \.id) { product in
                 Button {

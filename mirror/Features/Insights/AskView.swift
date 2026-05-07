@@ -10,9 +10,10 @@ struct AskView: View {
     @State private var pendingQuestion = ""
     @State private var isLoading = false
     @State private var error: String?
+    @State private var keyboardHeight: CGFloat = 0
     @FocusState private var isInputFocused: Bool
 
-    private let monthLimit = 10
+    private let monthLimit = 60
     private let bottomAnchorID = "ask-bottom-anchor"
 
     private var askHistory: [Insight] {
@@ -34,30 +35,37 @@ struct AskView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    inputBar
+            inputBar
+        }
+        .padding(.bottom, keyboardHeight)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .background(MirrorTheme.bgBase)
+        .navigationTitle("Ask")
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if remaining <= 3 {
+                    Text("\(remaining) left")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                        .monospacedDigit()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
+                            in: Capsule()
+                        )
                 }
-                .background(MirrorTheme.bgBase)
-                .navigationTitle("Ask")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        if remaining <= 3 {
-                            Text("\(remaining) left")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(remaining <= 2 ? .orange : .secondary)
-                                .monospacedDigit()
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(
-                                    (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
-                                    in: Capsule()
-                                )
-                        }
-                    }
-                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            updateKeyboardHeight(from: notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
         }
     }
 
@@ -66,46 +74,43 @@ struct AskView: View {
         if askHistory.isEmpty && !isLoading {
             askEmptyState
         } else {
-            GeometryReader { geometry in
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 6) {
-                            askHeader
-                                .padding(.bottom, 8)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        askHeader
+                            .padding(.bottom, 8)
 
-                            Spacer(minLength: 12)
+                        Spacer(minLength: 12)
 
-                            ForEach(chatHistory) { insight in
-                                AskBubblePair(insight: insight)
-                            }
-
-                            if isLoading {
-                                LoadingAskBubble(question: pendingQuestion)
-                            }
-
-                            Color.clear
-                                .frame(height: 1)
-                                .id(bottomAnchorID)
+                        ForEach(chatHistory) { insight in
+                            AskBubblePair(insight: insight)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .frame(minHeight: geometry.size.height, alignment: .top)
-                    }
-                    .scrollDismissesKeyboard(.interactively)
-                    .background(MirrorTheme.bgBase)
-                    .onAppear {
-                        proxy.scrollTo(bottomAnchorID, anchor: .bottom)
-                    }
-                    .onChange(of: chatHistory.count) { _, _ in
-                        scrollToLatest(proxy)
-                    }
-                    .onChange(of: isLoading) { _, _ in
-                        scrollToLatest(proxy)
-                    }
-                    .onChange(of: isInputFocused) { _, focused in
-                        if focused {
-                            scrollToLatest(proxy)
+
+                        if isLoading {
+                            LoadingAskBubble(question: pendingQuestion)
                         }
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id(bottomAnchorID)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .background(MirrorTheme.bgBase)
+                .onAppear {
+                    proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+                }
+                .onChange(of: chatHistory.count) { _, _ in
+                    scrollToLatest(proxy)
+                }
+                .onChange(of: isLoading) { _, _ in
+                    scrollToLatest(proxy)
+                }
+                .onChange(of: isInputFocused) { _, focused in
+                    if focused {
+                        scrollToLatest(proxy)
                     }
                 }
             }
@@ -266,6 +271,25 @@ struct AskView: View {
             }
         }
     }
+
+    private func updateKeyboardHeight(from notification: Notification) {
+        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+            return
+        }
+        // TabView forces .ignoresSafeArea(.keyboard) on all descendants.
+        // The view's bottom edge stops at the home indicator safe area, not the physical screen bottom.
+        // Raw keyboard height includes the home indicator inset (~34pt), so subtract it to avoid a gap.
+        let bottomInset = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first(where: { $0.isKeyWindow })?.safeAreaInsets.bottom ?? 0
+        let rawHeight = max(0, UIScreen.main.bounds.height - frame.minY)
+        let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        withAnimation(.easeOut(duration: duration)) {
+            keyboardHeight = rawHeight > 0 ? rawHeight - bottomInset : 0
+        }
+    }
+
 }
 
 private struct AskBubblePair: View {

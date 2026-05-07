@@ -6,10 +6,11 @@ struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
-    @State private var viewModel = InsightViewModel()
+    var viewModel: InsightViewModel
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
+    @State private var chartVisible = false
 
     var body: some View {
         NavigationStack {
@@ -17,7 +18,7 @@ struct InsightView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     nudgeSection
 
-                    if moodEntries.count >= 2 {
+                    if moodEntries.count >= 2, chartVisible {
                         Divider().padding(.horizontal, 4)
                         MoodWeekChartView(entries: moodEntries)
                     }
@@ -50,8 +51,7 @@ struct InsightView: View {
                     if shouldShowRefresh {
                         Button {
                             Task {
-                                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
-                                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+                                await refreshInsights()
                             }
                         } label: {
                             Image(systemName: "arrow.clockwise")
@@ -66,8 +66,14 @@ struct InsightView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
         }
         .task {
-            await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
-            await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+            async let showChart: Void = showChartAfterInitialRender()
+            async let load: Void = refreshInsights()
+            _ = await (showChart, load)
+        }
+        .onChange(of: entries.count) { _, _ in
+            Task(priority: .background) {
+                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+            }
         }
         .onChange(of: viewModel.nudgeState) { _, newState in
             // Show paywall after first nudge if not subscribed
@@ -98,6 +104,17 @@ struct InsightView: View {
         if case .error = viewModel.nudgeState { return true }
         if case .error = viewModel.digestState { return true }
         return false
+    }
+
+    private func refreshInsights() async {
+        await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+        await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+    }
+
+    private func showChartAfterInitialRender() async {
+        guard !chartVisible else { return }
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        chartVisible = true
     }
 
     // MARK: - Daily Nudge

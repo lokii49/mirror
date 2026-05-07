@@ -8,7 +8,7 @@ struct PaywallView: View {
 
     private let features: [(String, String, String, Color)] = [
         ("sparkles", "Daily Reflection", "One focused observation from your recent entries.", MirrorTheme.primary),
-        ("bubble.left.and.bubble.right", "Ask", "Ten grounded questions per month — answered from your own writing.", .blue),
+        ("bubble.left.and.bubble.right", "Ask", "60 grounded questions per month — answered from your own writing.", .blue),
         ("calendar.badge.clock", "Weekly Digest", "A deeper pattern summary delivered each Sunday.", .indigo),
     ]
 

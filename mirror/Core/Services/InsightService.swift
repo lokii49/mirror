@@ -5,6 +5,7 @@ enum InsightError: LocalizedError {
     case subscriptionRequired
     case serverError(Int, String)
     case emptyResponse
+    case incompleteResponse
     case serviceUnavailable(String)
 
     var errorDescription: String? {
@@ -14,6 +15,7 @@ enum InsightError: LocalizedError {
         case .serverError(let code, let detail):
             return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
         case .emptyResponse: return "No insight returned."
+        case .incompleteResponse: return "Mirror could not finish that reflection. Try again."
         case .serviceUnavailable(let detail): return detail
         }
     }
@@ -93,8 +95,8 @@ enum InsightService {
             userMessage: buildUserMessage(
                 title: "Daily reflection context",
                 recentEntries: Array(sorted.prefix(7)),
-                backgroundEntries: Array(sorted.dropFirst(7).prefix(24)),
-                maxChars: 8000
+                backgroundEntries: Array(sorted.dropFirst(7).prefix(16)),
+                maxChars: 5600
             ),
             task: .dailyNudge
         )
@@ -106,9 +108,9 @@ enum InsightService {
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
             userMessage: buildUserMessage(
                 title: "Weekly digest context",
-                recentEntries: Array(sorted.prefix(14)),
-                backgroundEntries: Array(sorted.dropFirst(14).prefix(28)),
-                maxChars: 9000
+                recentEntries: Array(sorted.prefix(10)),
+                backgroundEntries: Array(sorted.dropFirst(10).prefix(14)),
+                maxChars: 5600
             ),
             task: .weeklyDigest
         ).cleanedDigestOutput()
@@ -118,7 +120,7 @@ enum InsightService {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 6)
         let relevantIDs = Set(relevant.map(\.id))
-        let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(20)
+        let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(12)
         return try await localGenerate(
             systemPrompt: ASK_SYSTEM,
             userMessage: buildAskMessage(
@@ -142,15 +144,193 @@ enum InsightService {
 
     private static func localGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         do {
-            let raw = try await LocalLLMService.shared.generate(
+            do {
+                let first = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: userMessage, task: task)
+                return try validate(first, for: task)
+            } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
+                let retryMessage = retryUserMessage(original: userMessage, task: task)
+                let second = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: retryMessage, task: task)
+                return try validate(second, for: task)
+            }
+        } catch let error as InsightError {
+            throw error
+        } catch {
+            throw InsightError.serviceUnavailable(error.localizedDescription)
+        }
+    }
+
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+        let raw = try await LLMGenerationQueue.shared.run {
+            try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
                 userMessage: userMessage,
                 task: task
             )
-            return raw.cleanedInsightOutput()
-        } catch {
-            throw InsightError.serviceUnavailable(error.localizedDescription)
         }
+
+        switch task {
+        case .weeklyDigest:
+            return raw.cleanedDigestOutput()
+        case .dailyNudge, .ask, .emotion:
+            return raw.cleanedInsightOutput()
+        }
+    }
+
+    private static func retryUserMessage(original: String, task: LocalLLMTask) -> String {
+        """
+        \(original)
+
+        IMPORTANT:
+        Your previous response was incomplete or malformed. Write the full final answer again from the beginning.
+        Finish with a complete sentence and final punctuation.
+        Do not continue the previous answer.
+        \(retryConstraint(for: task))
+        """
+    }
+
+    private static func retryConstraint(for task: LocalLLMTask) -> String {
+        switch task {
+        case .dailyNudge:
+            return "Return only 2-3 complete sentences under 100 words."
+        case .weeklyDigest:
+            return "Return exactly the required six labeled lines. Every section must have a complete sentence after the colon."
+        case .ask:
+            return "Return only 3-5 complete sentences, or exactly: You haven't written about this yet."
+        case .emotion:
+            return "Return exactly one allowed mood word and nothing else."
+        }
+    }
+
+    private static func validate(_ text: String, for task: LocalLLMTask) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw InsightError.emptyResponse }
+
+        switch task {
+        case .dailyNudge:
+            return try validateCompleteProse(
+                trimmed,
+                minimumCharacters: 45,
+                maximumWords: 120,
+                allowedSentenceRange: 1...4,
+                rejectsFirstPerson: false
+            )
+        case .ask:
+            if trimmed == "You haven't written about this yet." {
+                return trimmed
+            }
+            return try validateCompleteProse(
+                trimmed,
+                minimumCharacters: 35,
+                maximumWords: 140,
+                allowedSentenceRange: 1...6,
+                rejectsFirstPerson: false
+            )
+        case .weeklyDigest:
+            return try validateWeeklyDigest(trimmed)
+        case .emotion:
+            guard recognizedEmotion(trimmed) != nil else {
+                throw InsightError.incompleteResponse
+            }
+            return trimmed
+        }
+    }
+
+    private static func validateCompleteProse(
+        _ text: String,
+        minimumCharacters: Int,
+        maximumWords: Int,
+        allowedSentenceRange: ClosedRange<Int>,
+        rejectsFirstPerson: Bool
+    ) throws -> String {
+        guard text.count >= minimumCharacters else { throw InsightError.incompleteResponse }
+        guard endsAsCompleteSentence(text) else { throw InsightError.incompleteResponse }
+        guard !hasDanglingEnding(text) else { throw InsightError.incompleteResponse }
+        if rejectsFirstPerson {
+            guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
+        }
+
+        let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        guard words.count <= maximumWords else { throw InsightError.incompleteResponse }
+
+        let sentences = text.filter { ".!?".contains($0) }.count
+        guard allowedSentenceRange.contains(max(1, sentences)) else { throw InsightError.incompleteResponse }
+        return text
+    }
+
+    private static func validateWeeklyDigest(_ text: String) throws -> String {
+        let requiredHeaders = [
+            "THIS WEEK'S THEME",
+            "YOUR ENERGY",
+            "WHAT'S BUILDING",
+            "WATCH OUT FOR",
+            "MOOD BOOST",
+            "NEXT WEEK"
+        ]
+
+        for (index, header) in requiredHeaders.enumerated() {
+            guard let body = digestBody(for: header, at: index, in: text, headers: requiredHeaders) else {
+                throw InsightError.incompleteResponse
+            }
+            guard body.count >= 20,
+                  endsAsCompleteSentence(body),
+                  !hasDanglingEnding(body),
+                  !containsJournalWriterFirstPerson(body) else {
+                throw InsightError.incompleteResponse
+            }
+        }
+
+        return text
+    }
+
+    private static func endsAsCompleteSentence(_ text: String) -> Bool {
+        guard let last = text.trimmingCharacters(in: .whitespacesAndNewlines).last else { return false }
+        return ".!?".contains(last)
+    }
+
+    private static func hasDanglingEnding(_ text: String) -> Bool {
+        let lower = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".!?"))
+            .lowercased()
+
+        let danglingEndings = [
+            " and", " but", " because", " so", " while", " although", " though", " with", " without",
+            " into", " toward", " towards", " about", " around", " through", " from", " for", " to",
+            " it seems like", " it sounds like"
+        ]
+        return danglingEndings.contains { lower.hasSuffix($0) }
+    }
+
+    private static func containsJournalWriterFirstPerson(_ text: String) -> Bool {
+        let blockedPatterns = [
+            #"\bI\s+(am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|notice|noticed|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were)\b"#,
+            #"\bI'm\b"#,
+            #"\bI['’]m\b"#,
+            #"\bI['’]ll\b"#,
+            #"\bI['’]ve\b"#,
+            #"\bI['’]d\b"#,
+            #"\bmy\s+(work|mind|sister|brother|mother|father|friend|friends|family|project|life|week|mood|energy|journal|entry|entries|well-being)\b"#,
+            #"\bme\s+(feel|felt|think|notice|noticed|want|need)\b"#
+        ]
+
+        return blockedPatterns.contains { pattern in
+            text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        }
+    }
+
+    private static func digestBody(for header: String, at index: Int, in text: String, headers: [String]) -> String? {
+        guard let headerRange = text.range(of: "\(header):", options: [.caseInsensitive]) else { return nil }
+        let afterHeader = String(text[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        var bodyEnd = afterHeader.endIndex
+
+        for nextHeader in headers.dropFirst(index + 1) {
+            if let nextRange = afterHeader.range(of: "\(nextHeader):", options: [.caseInsensitive]) {
+                bodyEnd = nextRange.lowerBound
+                break
+            }
+        }
+
+        return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func buildUserMessage(
@@ -232,7 +412,7 @@ enum InsightService {
             .joined(separator: ", ")
 
         let recurringTerms = recurringKeywords(from: entries)
-        let voiceCount = entries.filter { $0.source == .voice || !$0.voiceNotes.isEmpty }.count
+        let voiceCount = entries.filter { $0.source == .voice || $0.hasVoiceNotes }.count
         let excerpts = entries
             .prefix(5)
             .map { entry in
@@ -283,12 +463,14 @@ enum InsightService {
     }
 
     private static func normalizeEmotion(_ response: String) -> String {
-        let allowed = Set(MirrorTheme.moodOptions)
+        recognizedEmotion(response) ?? "Content"
+    }
+
+    private static func recognizedEmotion(_ response: String) -> String? {
         let cleaned = response
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .first { !$0.isEmpty } ?? response
-        let matched = allowed.first { $0.caseInsensitiveCompare(cleaned) == .orderedSame }
-        return matched ?? "Content"
+        return MirrorTheme.moodOptions.first { $0.caseInsensitiveCompare(cleaned) == .orderedSame }
     }
 
 }
@@ -299,15 +481,35 @@ private extension String {
             .replacingOccurrences(of: "**", with: "")
             .replacingOccurrences(of: "[", with: "")
             .replacingOccurrences(of: "]", with: "")
+            .replacingOccurrences(of: #"\bI seem\b"#, with: "You seem", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: "I feel", with: "You seem", options: .caseInsensitive)
+            .replacingOccurrences(of: #"\bI felt\b"#, with: "you felt", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI work\b"#, with: "you work", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI try\b"#, with: "you try", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI tried\b"#, with: "you tried", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI need\b"#, with: "you need", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI needed\b"#, with: "you needed", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI want\b"#, with: "you want", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI wanted\b"#, with: "you wanted", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI plan\b"#, with: "you plan", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI planned\b"#, with: "you planned", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI can\b"#, with: "you can", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI could\b"#, with: "you could", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI will\b"#, with: "you will", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI would\b"#, with: "you would", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI should\b"#, with: "you should", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: "I’ve been", with: "you've been", options: .caseInsensitive)
             .replacingOccurrences(of: "I've been", with: "you've been", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
+            .replacingOccurrences(of: "I’ll", with: "you could", options: .caseInsensitive)
+            .replacingOccurrences(of: "I'll", with: "you could", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm", with: "you're", options: .caseInsensitive)
             .replacingOccurrences(of: "I’ve", with: "you've", options: .caseInsensitive)
             .replacingOccurrences(of: "I've", with: "you've", options: .caseInsensitive)
+            .replacingOccurrences(of: " I'd ", with: " you could ", options: .caseInsensitive)
             .replacingOccurrences(of: " my ", with: " your ", options: .caseInsensitive)
+            .replacingOccurrences(of: " My ", with: " Your ", options: .caseInsensitive)
             .replacingOccurrences(of: " me ", with: " you ", options: .caseInsensitive)
             .replacingOccurrences(of: "the person", with: "you", options: .caseInsensitive)
             .replacingOccurrences(of: "the user", with: "you", options: .caseInsensitive)
@@ -332,7 +534,7 @@ private extension String {
 
     func cleanedDigestOutput() -> String {
         var result = cleanedInsightOutput()
-        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "NEXT WEEK"]
+        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
 
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")

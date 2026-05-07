@@ -8,6 +8,9 @@ struct SettingsView: View {
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showSubscription = false
+    @State private var cachedTotalWords: Int = 0
+    @State private var cachedStreak: Int = 0
+    @State private var cachedLatestEntryText: String = "None"
 
     var body: some View {
         NavigationStack {
@@ -36,6 +39,12 @@ struct SettingsView: View {
                 await authService.checkSession()
                 await subscriptionService.refresh()
                 await subscriptionService.loadProducts()
+            }
+            .task(id: entries.count) {
+                let snapshot = entries
+                cachedTotalWords = snapshot.reduce(0) { $0 + $1.wordCount }
+                cachedStreak = computeStreak(from: snapshot)
+                cachedLatestEntryText = computeLatestEntryText(from: snapshot)
             }
         }
     }
@@ -99,9 +108,9 @@ struct SettingsView: View {
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 statCard(value: "\(entries.count)", label: "Entries", icon: "book.pages", color: MirrorTheme.primary)
-                statCard(value: totalWords.formatted(), label: "Words", icon: "text.word.spacing", color: .blue)
-                statCard(value: "\(currentStreak)", label: currentStreak == 1 ? "Day streak" : "Day streak", icon: "flame.fill", color: .orange)
-                statCard(value: latestEntryText, label: "Last entry", icon: "clock.fill", color: .green)
+                statCard(value: cachedTotalWords.formatted(), label: "Words", icon: "text.word.spacing", color: .blue)
+                statCard(value: "\(cachedStreak)", label: "Day streak", icon: "flame.fill", color: .orange)
+                statCard(value: cachedLatestEntryText, label: "Last entry", icon: "clock.fill", color: .green)
             }
         }
         .padding(18)
@@ -299,20 +308,16 @@ struct SettingsView: View {
         }
     }
 
-    private var totalWords: Int {
-        entries.reduce(0) { $0 + $1.wordCount }
-    }
-
-    private var latestEntryText: String {
-        guard let latest = entries.first?.createdAt else { return "None" }
+    private func computeLatestEntryText(from snapshot: [Entry]) -> String {
+        guard let latest = snapshot.first?.createdAt else { return "None" }
         if Calendar.current.isDateInToday(latest) { return "Today" }
         if Calendar.current.isDateInYesterday(latest) { return "Yesterday" }
         return latest.formatted(date: .abbreviated, time: .omitted)
     }
 
-    private var currentStreak: Int {
+    private func computeStreak(from snapshot: [Entry]) -> Int {
         let calendar = Calendar.current
-        let days = Set(entries.map { calendar.startOfDay(for: $0.createdAt) })
+        let days = Set(snapshot.map { calendar.startOfDay(for: $0.createdAt) })
         let today = calendar.startOfDay(for: Date())
         var day = days.contains(today) ? today : calendar.date(byAdding: .day, value: -1, to: today) ?? today
         var count = 0

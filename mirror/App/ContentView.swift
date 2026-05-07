@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
     @Query private var profiles: [UserProfile]
     @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
+    @State private var insightViewModel = InsightViewModel()
 
     private var onboardingComplete: Bool {
         profiles.first?.onboardingComplete ?? false
@@ -19,7 +20,7 @@ struct ContentView: View {
                 .tabItem { Label("Write", systemImage: "square.and.pencil") }
                 .tag(1)
 
-            InsightView()
+            InsightView(viewModel: insightViewModel)
                 .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
