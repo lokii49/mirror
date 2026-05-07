@@ -10,11 +10,12 @@ enum KeychainManager {
         save(data: data, account: account)
     }
 
-    static func save(data: Data, account: String) {
+    static func save(data: Data, account: String, synchronizable: Bool = false) {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any
         ]
         SecItemDelete(query as CFDictionary)
         var item = query
@@ -27,11 +28,19 @@ enum KeychainManager {
         return String(data: data, encoding: .utf8)
     }
 
-    static func loadData(account: String) -> Data? {
+    static func loadData(account: String, synchronizable: Bool = false) -> Data? {
+        if let exact = loadData(account: account, synchronizableValue: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any) {
+            return exact
+        }
+        return loadData(account: account, synchronizableValue: kSecAttrSynchronizableAny)
+    }
+
+    private static func loadData(account: String, synchronizableValue: Any) -> Data? {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: synchronizableValue,
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
@@ -50,6 +59,7 @@ enum KeychainManager {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny
         ]
         SecItemDelete(query as CFDictionary)
     }

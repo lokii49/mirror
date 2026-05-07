@@ -27,6 +27,10 @@ final class InsightViewModel {
     // MARK: - Daily Nudge
 
     func loadNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        if case .loading = nudgeState {
+            return
+        }
+
         guard entries.count >= 3 else {
             nudgeState = .needsMoreEntries(3 - entries.count)
             return
@@ -51,10 +55,10 @@ final class InsightViewModel {
 
         nudgeState = .loading
         do {
-            let text = try await InsightService.generateNudge(
-                entries: entries.sorted { $0.createdAt > $1.createdAt },
-                token: ""
-            )
+            let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
+            let text = try await Task.detached(priority: .background) {
+                try await InsightService.generateNudge(entries: sortedEntries, token: "")
+            }.value
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             nudgeState = .loaded(insight)
@@ -68,6 +72,10 @@ final class InsightViewModel {
     // MARK: - Weekly Digest
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        if case .loading = digestState {
+            return
+        }
+
         guard entries.count >= 5 else {
             digestState = .notEnoughEntries
             return
@@ -89,10 +97,10 @@ final class InsightViewModel {
 
         digestState = .loading
         do {
-            let text = try await InsightService.generateWeeklyDigest(
-                entries: entries.sorted { $0.createdAt > $1.createdAt },
-                token: ""
-            )
+            let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
+            let text = try await Task.detached(priority: .background) {
+                try await InsightService.generateWeeklyDigest(entries: sortedEntries, token: "")
+            }.value
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             digestState = .loaded(insight)

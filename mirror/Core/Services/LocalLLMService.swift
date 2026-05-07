@@ -53,7 +53,13 @@ actor LocalLLMService {
             topP: 0.9,
             topK: 40
         )
-        let response = try await service.respond(to: messages, samplingConfig: sampling)
+        let response: String
+        do {
+            response = try await service.respond(to: messages, samplingConfig: sampling)
+        } catch {
+            self.service = nil
+            throw error
+        }
         let cleaned = clean(response)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
         return cleaned
@@ -100,7 +106,7 @@ actor LocalLLMService {
         }
 
         let config = LlamaConfig(
-            batchSize: 512,
+            batchSize: 256,
             maxTokenCount: 4096,
             useGPU: true
         )

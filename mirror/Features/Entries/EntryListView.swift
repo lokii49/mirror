@@ -7,49 +7,57 @@ struct EntriesTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
     @State private var showSearch = false
     @State private var selectedMoodFilter: String? = nil
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
 
-    private var filteredEntries: [Entry] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    private struct EntryMonthGroup {
+        let date: Date
+        let entries: [Entry]
+    }
+
+    private struct EntryListSnapshot {
+        let filteredEntries: [Entry]
+        let usedMoods: [String]
+        let groupedByMonth: [EntryMonthGroup]
+    }
+
+    private var listSnapshot: EntryListSnapshot {
+        let query = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = entries
+        let usedMoods = usedMoods(in: entries)
+
         if let mood = selectedMoodFilter {
             result = result.filter { $0.mood == mood }
         }
         if !query.isEmpty {
             result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
         }
-        return result
-    }
 
-    private var usedMoods: [String] {
-        let all = entries.compactMap(\.mood).filter { !$0.isEmpty }
-        var seen = Set<String>()
-        return all.filter { seen.insert($0).inserted }
-    }
-
-    private var groupedByMonth: [(date: Date, entries: [Entry])] {
         let calendar = Calendar.current
-        let groups = Dictionary(grouping: filteredEntries) { entry -> Date in
+        let groups = Dictionary(grouping: result) { entry -> Date in
             let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
             return calendar.date(from: comps) ?? entry.createdAt
         }
-        return groups.keys.sorted(by: >).map { month in
-            (month, groups[month, default: []].sorted { $0.createdAt > $1.createdAt })
+        let groupedByMonth = groups.keys.sorted(by: >).map { month in
+            EntryMonthGroup(date: month, entries: groups[month, default: []].sorted { $0.createdAt > $1.createdAt })
         }
+
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, groupedByMonth: groupedByMonth)
     }
 
     var body: some View {
+        let snapshot = listSnapshot
         NavigationStack {
             Group {
                 if entries.isEmpty {
                     emptyState
-                } else if filteredEntries.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
+                } else if snapshot.filteredEntries.isEmpty {
+                    ContentUnavailableView.search(text: debouncedSearchText)
                 } else {
-                    entryList
+                    entryList(snapshot)
                 }
             }
             .navigationTitle("Entries")
@@ -67,18 +75,35 @@ struct EntriesTabView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if showSearch { searchBar }
-                    if !usedMoods.isEmpty { moodFilterBar }
+                    if !snapshot.usedMoods.isEmpty { moodFilterBar(snapshot.usedMoods) }
+                }
+            }
+            .onChange(of: searchText) { _, newValue in
+                Task {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    if newValue == searchText {
+                        debouncedSearchText = newValue
+                    }
                 }
             }
             .navigationDestination(isPresented: $showEntryDetail) {
                 if let selectedEntry {
-                    EntryDetailView(entry: selectedEntry)
+                    EntryDetailView(entry: selectedEntry) {
+                        showEntryDetail = false
+                        self.selectedEntry = nil
+                    }
                 }
             }
         }
     }
 
-    private var moodFilterBar: some View {
+    private func usedMoods(in entries: [Entry]) -> [String] {
+        let all = entries.compactMap(\.mood).filter { !$0.isEmpty }
+        var seen = Set<String>()
+        return all.filter { seen.insert($0).inserted }
+    }
+
+    private func moodFilterBar(_ usedMoods: [String]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(usedMoods, id: \.self) { mood in
@@ -136,16 +161,16 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
-    private var entryList: some View {
+    private func entryList(_ snapshot: EntryListSnapshot) -> some View {
         List {
-            Text("\(filteredEntries.count) \(filteredEntries.count == 1 ? "entry" : "entries")")
+            Text("\(snapshot.filteredEntries.count) \(snapshot.filteredEntries.count == 1 ? "entry" : "entries")")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.tertiary)
                 .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
 
-            ForEach(groupedByMonth, id: \.date) { group in
+            ForEach(snapshot.groupedByMonth, id: \.date) { group in
                 Section {
                     ForEach(group.entries) { entry in
                         EntryRow(entry: entry)
@@ -211,10 +236,24 @@ struct EntriesTabView: View {
 
 private struct EntryRow: View {
     let entry: Entry
+    private let moodLabel: String?
+    private let preview: String
+    private let displayWordCount: Int
+    private let hasReadablePreview: Bool
+    private let hasVoiceNotes: Bool
 
-    private var moodLabel: String? {
-        guard let mood = entry.mood, !mood.isEmpty else { return nil }
-        return mood
+    init(entry: Entry) {
+        self.entry = entry
+        self.moodLabel = entry.mood.flatMap { $0.isEmpty ? nil : $0 }
+        let snapshot = Self.makePreview(for: entry)
+        self.preview = snapshot.preview
+        self.displayWordCount = snapshot.wordCount
+        self.hasReadablePreview = snapshot.hasReadablePreview
+        self.hasVoiceNotes = snapshot.hasVoiceNotes
+    }
+
+    private var previewTextColor: Color {
+        hasReadablePreview && !entry.textDecryptionFailed ? .primary : .secondary
     }
 
     var body: some View {
@@ -222,12 +261,12 @@ private struct EntryRow: View {
             HStack(alignment: .top, spacing: 12) {
                 Text(preview)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(previewTextColor)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if !entry.voiceNotes.isEmpty {
+                if hasVoiceNotes {
                     Image(systemName: "waveform")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)
@@ -239,10 +278,12 @@ private struct EntryRow: View {
                 Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text("\(entry.wordCount)w")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                if displayWordCount > 0 {
+                    Text("\(displayWordCount)w")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
                 Spacer(minLength: 8)
                 if let label = moodLabel {
                     HStack(spacing: 4) {
@@ -262,29 +303,60 @@ private struct EntryRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .futureSurface(cornerRadius: 16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+        }
     }
 
-    private var preview: String {
-        let lines = entry.text
+    private static let stylePrefixes = ["### ", "## ", "# ", "    "]
+
+    private static func strippedLine(_ line: String) -> String {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        for prefix in Self.stylePrefixes where trimmed.hasPrefix(prefix) {
+            return String(trimmed.dropFirst(prefix.count))
+        }
+        if trimmed.hasPrefix("○ ") || trimmed.hasPrefix("✓ ") {
+            return String(trimmed.dropFirst(2))
+        }
+        return trimmed
+    }
+
+    private static func makePreview(for entry: Entry) -> (preview: String, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
+        guard !entry.textDecryptionFailed else {
+            return ("Encrypted entry unavailable", 0, false, entry.hasVoiceNotes)
+        }
+        let textPreview = entry.text
             .replacingOccurrences(of: inlinePhotoToken, with: "")
             .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { strippedLine($0) }
             .filter { !$0.isEmpty }
-        let textPreview = lines.joined(separator: " ")
-        if !textPreview.isEmpty { return textPreview }
-        if !entry.voiceNotes.isEmpty {
-            if let transcript = entry.voiceNotes
-                .compactMap(\.transcript)
-                .map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) })
-                .first(where: { !$0.isEmpty }) {
-                return transcript
-            }
-            if entry.voiceNotes.count == 1 {
-                return "Voice note \(formatDuration(entry.voiceNotes[0].duration))"
-            }
-            return "\(entry.voiceNotes.count) voice notes"
+            .joined(separator: " ")
+        let voicePreview = entry.voiceNotePreview
+        let voiceTranscriptPreview = voicePreview.transcript
+        let hasReadablePreview = !textPreview.isEmpty || voiceTranscriptPreview != nil || voicePreview.count > 0 || entry.hasPhoto
+        let textSource = textPreview.isEmpty ? (voiceTranscriptPreview ?? "") : textPreview
+        let wordCount = textSource
+            .split { $0.isWhitespace || $0.isNewline }
+            .filter { !$0.isEmpty }
+            .count
+
+        if !textPreview.isEmpty {
+            return (textPreview, wordCount, hasReadablePreview, voicePreview.count > 0)
         }
-        return ""
+        if let voiceTranscriptPreview {
+            return (voiceTranscriptPreview, wordCount, hasReadablePreview, voicePreview.count > 0)
+        }
+        if voicePreview.count > 0 {
+            if voicePreview.count == 1 {
+                return ("Voice note \(formatDuration(voicePreview.duration))", wordCount, hasReadablePreview, true)
+            }
+            return ("\(voicePreview.count) voice notes", wordCount, hasReadablePreview, true)
+        }
+        if entry.hasPhoto {
+            return ("Photo entry", wordCount, hasReadablePreview, false)
+        }
+        return ("Untitled entry", wordCount, hasReadablePreview, false)
     }
 }
