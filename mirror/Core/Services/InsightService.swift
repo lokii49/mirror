@@ -27,13 +27,14 @@ Read the user's local journal context and offer ONE specific, personal reflectio
 Rules:
 - Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
 - Reference actual words, moods, dates, or concrete events, not generic advice
-- Start with "I noticed..." or "Something I see..."
+- Start with "I noticed..." or "Something I see..." — here "I" is Mirror's voice, not the journal writer's
+- You may use "I" only as Mirror speaking (e.g., "I noticed", "I see"). Never use "I/me/my" as if you are the journal writer
+- Address the journal writer as "you/your" throughout
 - 2-3 sentences maximum, under 100 words
 - If the recent mood suggests difficulty (anxious, overwhelmed, frustrated, drained, sad, numb), gently offer one small concrete action that could help — not generic advice, but something specific to what they wrote
 - No therapy language, no generic affirmations
 - Do not mention that you are an AI or model
-- Write directly to the journal writer as "you"
-- Never write as the journal writer. Do not use first-person phrases like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless they are inside a short quote from an entry
+- Never write as the journal writer. Do not echo first-person phrases from entries like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless inside a short direct quote
 - Sound human, calm, and familiar, like someone gently checking in after reading their week
 - Avoid clinical phrases like "this suggests", "emotional weariness", "significant", "patterns indicate", or "the source mentions"
 - Be specific. Be warm. Be honest. Do not over-explain.
@@ -54,7 +55,8 @@ Rules:
 - Replace the bracketed placeholders with final prose. Never include [ or ] in the answer
 - Do not use Markdown headings, bullets, ###, or extra titles
 - Each section must be a complete, natural sentence, not a label or fragment
-- Every section body must include "you" or "your"
+- Each sentence must be under 35 words. Be concise.
+- Write entirely in second person. Address the user as "you/your" throughout. Never write in first person ("I", "me", "myself", "my") as if you are the journal writer — you are Mirror, observing them from outside
 - Use Long-term context only to notice continuity; the digest must mainly reflect This week's entries
 - Reference actual words, moods, dates, or phrases they used
 - For MOOD BOOST: make it concrete and personal — not "meditate" or "rest more" but something tied to what they specifically wrote
@@ -68,16 +70,20 @@ Rules:
 """
 
 private let ASK_SYSTEM = """
-You are Mirror. Someone is asking a question about their own journal.
-Answer using ONLY the entries provided.
+You are Mirror, a private journaling companion. Someone is asking a question about their own journal.
+Answer using ONLY the entries provided. Speak directly to them as "you/your".
 Rules:
-- Reference specific things they wrote
+- Write entirely in second person. Address the user as "you/your". Never write in first person ("I", "me", "my") as if you are the journal writer
+- Reference specific things the user wrote — say "you wrote..." or "you mentioned..." not "they wrote"
 - If the answer is not in their entries, say "You haven't written about this yet."
 - No internet advice, no generic tips
 - Use older context only to connect patterns; do not invent facts beyond the entries
 - Quote or closely paraphrase their own words when relevant
 - 3-5 sentences maximum
 - Write directly to "you", not "the person" or "the user"
+- Do not mention that you are an AI or model
+- Sound human, warm, and direct — like a close friend who read their journal
+- Avoid clinical phrases like "this suggests", "patterns indicate", "significant", or "the source mentions"
 """
 
 private let EMOTION_DETECT_SYSTEM = """
@@ -258,6 +264,9 @@ enum InsightService {
     }
 
     private static func validateWeeklyDigest(_ text: String) throws -> String {
+        let normalizedText = text
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
         let requiredHeaders = [
             "THIS WEEK'S THEME",
             "YOUR ENERGY",
@@ -268,10 +277,11 @@ enum InsightService {
         ]
 
         for (index, header) in requiredHeaders.enumerated() {
-            guard let body = digestBody(for: header, at: index, in: text, headers: requiredHeaders) else {
+            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
                 throw InsightError.incompleteResponse
             }
             guard body.count >= 20,
+                  body.count <= 200,
                   endsAsCompleteSentence(body),
                   !hasDanglingEnding(body),
                   !containsJournalWriterFirstPerson(body) else {
@@ -279,7 +289,7 @@ enum InsightService {
             }
         }
 
-        return text
+        return normalizedText
     }
 
     private static func endsAsCompleteSentence(_ text: String) -> Bool {
@@ -342,8 +352,11 @@ enum InsightService {
         let recentBlock = formatEntries(recentEntries, maxChars: Int(Double(maxChars) * 0.72))
         let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28))
 
+        let today = Date().formatted(date: .abbreviated, time: .omitted)
         return """
         \(title)
+
+        Today: \(today)
 
         Long-term context:
         \(backgroundBlock)
@@ -363,7 +376,7 @@ enum InsightService {
         Most relevant entries:
         \(entryBlock)
 
-        My question: \(question)
+        Question: \(question)
         """
     }
 
@@ -479,6 +492,7 @@ private extension String {
     func cleanedInsightOutput() -> String {
         replacingOccurrences(of: "###", with: "")
             .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "*", with: "")
             .replacingOccurrences(of: "[", with: "")
             .replacingOccurrences(of: "]", with: "")
             .replacingOccurrences(of: #"\bI seem\b"#, with: "You seem", options: [.regularExpression, .caseInsensitive])
@@ -534,6 +548,8 @@ private extension String {
 
     func cleanedDigestOutput() -> String {
         var result = cleanedInsightOutput()
+            .replacingOccurrences(of: "\u{2019}", with: "'")  // curly → straight apostrophe
+            .replacingOccurrences(of: "\u{2018}", with: "'")
         let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
 
         for header in headers {

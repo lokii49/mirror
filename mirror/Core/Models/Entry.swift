@@ -9,11 +9,13 @@ enum EntrySource: String, Codable {
     var id: UUID = UUID()
     var encryptedText: String = ""
     var encryptedTextStyleData: Data? = nil
+    var encryptedInlineStyleData: Data? = nil
     var createdAt: Date = Date()
     var wordCount: Int = 0
     var encryptedMood: String? = nil
     var source: EntrySource = EntrySource.typed
     var encryptedPhotoData: Data? = nil
+    var encryptedAdditionalPhotoDataStorage: Data? = nil
     var encryptedVoiceNoteData: Data? = nil
     var voiceNoteDuration: Double = 0
     var encryptedVoiceNoteTranscript: String? = nil
@@ -32,7 +34,7 @@ enum EntrySource: String, Codable {
         get { decryptedText ?? "" }
         set {
             encryptedText = MirrorEncryption.encryptString(newValue)
-            wordCount = newValue.split(separator: " ").count
+            wordCount = strippedWordCount(newValue)
         }
     }
 
@@ -49,6 +51,11 @@ enum EntrySource: String, Codable {
         set { encryptedTextStyleData = MirrorEncryption.encryptOptionalData(newValue) }
     }
 
+    var inlineStyleData: Data? {
+        get { MirrorEncryption.decryptOptionalData(encryptedInlineStyleData) }
+        set { encryptedInlineStyleData = MirrorEncryption.encryptOptionalData(newValue) }
+    }
+
     var mood: String? {
         get { MirrorEncryption.decryptOptionalString(encryptedMood) }
         set { encryptedMood = MirrorEncryption.encryptOptionalString(newValue) }
@@ -61,6 +68,25 @@ enum EntrySource: String, Codable {
 
     var hasPhoto: Bool {
         encryptedPhotoData != nil
+    }
+
+    var additionalPhotoData: [Data] {
+        get { MirrorEncryption.decryptDataArray(Self.decodedDataArray(from: encryptedAdditionalPhotoDataStorage)) }
+        set { encryptedAdditionalPhotoDataStorage = Self.encoded(MirrorEncryption.encryptDataArray(newValue)) }
+    }
+
+    // All photos in insertion order: [photoData (index 0), additionalPhotoData...]
+    var photoDataArray: [Data] {
+        get {
+            var arr: [Data] = []
+            if let p = photoData { arr.append(p) }
+            arr.append(contentsOf: additionalPhotoData)
+            return arr
+        }
+        set {
+            photoData = newValue.first
+            additionalPhotoData = newValue.count > 1 ? Array(newValue.dropFirst()) : []
+        }
     }
 
     var voiceNoteData: Data? {
@@ -180,11 +206,13 @@ enum EntrySource: String, Codable {
         self.id = UUID()
         self.encryptedText = MirrorEncryption.encryptString(text)
         self.encryptedTextStyleData = nil
+        self.encryptedInlineStyleData = nil
         self.createdAt = Date()
-        self.wordCount = text.split(separator: " ").count
+        self.wordCount = strippedWordCount(text)
         self.encryptedMood = MirrorEncryption.encryptOptionalString(mood)
         self.source = source
         self.encryptedPhotoData = nil
+        self.encryptedAdditionalPhotoDataStorage = nil
         self.encryptedVoiceNoteData = nil
         self.voiceNoteDuration = 0
         self.encryptedVoiceNoteTranscript = nil

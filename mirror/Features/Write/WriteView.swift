@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Photos
 import PhotosUI
 import UIKit
 import ImageIO
@@ -7,55 +8,19 @@ import UniformTypeIdentifiers
 
 private let moodLabels = MirrorTheme.moodOptions
 
-enum NoteTextCommand: Equatable {
-    case checklist
-    case title
-    case heading
-    case subheading
-    case body
-    case monospaced
-    case photo
-
-    var prefix: String {
-        switch self {
-        case .checklist: return ""
-        case .title, .heading, .subheading: return ""
-        case .body: return ""
-        case .monospaced: return "    "
-        case .photo: return ""
-        }
-    }
-}
-
-enum NoteParagraphTextStyle: String, Codable {
-    case body
-    case title
-    case heading
-    case subheading
-    case monospaced
-    case checklistUnchecked
-    case checklistChecked
-}
-
-struct NoteTextStyleDocument: Codable {
-    var paragraphStyles: [NoteParagraphTextStyle]
-}
-
-nonisolated let inlinePhotoToken = "[[mirror-photo]]"
-
-private enum InlinePhotoSegment {
-    case before
-    case after
-}
-
 struct NoteEditorTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var textStyleData: Data?
-    @Binding var photoData: Data?
+    @Binding var inlineStyleData: Data?
+    @Binding var photoDataArray: [Data]
     @Binding var command: NoteTextCommand?
     @Binding var commandRevision: Int
     @Binding var isFocused: Bool
     @Binding var activeParagraphStyle: NoteParagraphTextStyle
+    @Binding var activeInlineStyles: InlineStyleSet
+    @Binding var showFormattingPanel: Bool
+    var panelState: FormattingPanelState
+    var onPhotoTapped: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -90,6 +55,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         tapGesture.delegate = context.coordinator
         textView.addGestureRecognizer(tapGesture)
 
+        textView.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
+
         return textView
     }
 
@@ -117,25 +84,34 @@ struct NoteEditorTextView: UIViewRepresentable {
                 self.command = nil
             }
         }
+
+        context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
         static let placeholderTag = 701
 
         var parent: NoteEditorTextView
         private static let paragraphStyleAttribute = NSAttributedString.Key("mirror.paragraphStyle")
+        private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
+        private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
         private var isApplyingStyledText = false
         private var lastRenderedText: String?
         private var lastRenderedStyleSignature: Int?
+        private var lastRenderedInlineSignature: Int?
         private var lastRenderedPhotoSignature: Int?
         private var lastRenderedWidth: CGFloat = 0
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
         private var lastKnownCursorLocation: Int = 0
         var lastAppliedCommandRevision = 0
+        // marker lengths per paragraph index, populated during render for coord mapping
+        private var paragraphMarkerLengths: [Int: Int] = [:]
+        // formatting panel hosted in UITextView.inputView
+        private var formattingPanelHost: UIHostingController<FormattingPanelView>?
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
@@ -144,8 +120,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let textView = gesture.view as? UITextView else { return }
             let location = gesture.location(in: textView)
-            let markerWidth = textView.textContainerInset.left + 34
-            guard location.x <= markerWidth else { return }
             let textLayout = textView.layoutManager
             let containerOrigin = textView.textContainerInset
             let adjustedPoint = CGPoint(x: location.x - containerOrigin.left, y: location.y - containerOrigin.top)
@@ -157,15 +131,39 @@ struct NoteEditorTextView: UIViewRepresentable {
             let text = textView.text ?? ""
             let nsText = text as NSString
             guard charIndex < nsText.length else { return }
+
+            // Photo attachment tap
+            let char = nsText.character(at: charIndex)
+            if char == 0xFFFC {
+                // Find which photo token this corresponds to
+                let displayed = textView.attributedText?.string ?? ""
+                let photoTokens = allPhotoTokens(in: parent.text)
+                // Match by object replacement char count (position among multiple attachments)
+                var attachCount = 0
+                for i in 0..<charIndex {
+                    if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
+                }
+                let sortedTokens = photoTokens.sorted { parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) < parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound) }
+                if attachCount < sortedTokens.count {
+                    parent.onPhotoTapped?(sortedTokens[attachCount].index)
+                }
+                return
+            }
+
             let paraRange = nsText.paragraphRange(for: NSRange(location: charIndex, length: 0))
             let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
+            let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let markerStart = textView.textContainerInset.left + CGFloat(iLevel) * 20
+            let markerEnd = textView.textContainerInset.left + 44 + CGFloat(iLevel) * 20
+            guard location.x >= markerStart && location.x <= markerEnd else { return }
             guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
 
             let nextStyle: NoteParagraphTextStyle = currentStyle == .checklistUnchecked ? .checklistChecked : .checklistUnchecked
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             mutable.removeAttribute(Self.paragraphStyleAttribute, range: paraRange)
-            mutable.addAttributes(attributes(for: nextStyle), range: paraRange)
+            mutable.addAttributes(attributes(for: nextStyle, level: iLevel), range: paraRange)
             mutable.addAttribute(Self.paragraphStyleAttribute, value: nextStyle.rawValue, range: paraRange)
+            if iLevel > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: iLevel, range: paraRange) }
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
@@ -175,6 +173,57 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.textStyleData = encodedTextStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
+        }
+
+        // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
+
+        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
+            guard let textView = interaction.view as? UITextView,
+                  let photoIndex = photoAttachmentIndex(at: location, in: textView),
+                  photoIndex < parent.photoDataArray.count else { return nil }
+            let data = parent.photoDataArray[photoIndex]
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+                let copy = UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in
+                    if let image = UIImage(data: data) { UIPasteboard.general.image = image }
+                }
+                let save = UIAction(title: "Save to Photos", image: UIImage(systemName: "square.and.arrow.down")) { _ in
+                    guard let image = UIImage(data: data) else { return }
+                    PHPhotoLibrary.shared().performChanges({
+                        PHAssetChangeRequest.creationRequestForAsset(from: image)
+                    }, completionHandler: nil)
+                }
+                let share = UIAction(title: "Share", image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                    guard let image = UIImage(data: data) else { return }
+                    let vc = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+                    UIApplication.shared.connectedScenes
+                        .compactMap { $0 as? UIWindowScene }
+                        .first?.windows.first?.rootViewController?
+                        .present(vc, animated: true)
+                }
+                return UIMenu(title: "", children: [copy, save, share])
+            }
+        }
+
+        private func photoAttachmentIndex(at location: CGPoint, in textView: UITextView) -> Int? {
+            let origin = textView.textContainerInset
+            let adjusted = CGPoint(x: location.x - origin.left, y: location.y - origin.top)
+            let charIndex = textView.layoutManager.characterIndex(
+                for: adjusted, in: textView.textContainer,
+                fractionOfDistanceBetweenInsertionPoints: nil
+            )
+            let nsText = (textView.text ?? "") as NSString
+            guard charIndex < nsText.length, nsText.character(at: charIndex) == 0xFFFC else { return nil }
+            let displayed = textView.attributedText?.string ?? ""
+            let tokens = allPhotoTokens(in: parent.text).sorted {
+                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
+                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
+            }
+            var attachCount = 0
+            for i in 0..<charIndex {
+                if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
+            }
+            guard attachCount < tokens.count else { return nil }
+            return tokens[attachCount].index
         }
 
         var bodyAttributes: [NSAttributedString.Key: Any] {
@@ -189,9 +238,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard !isApplyingStyledText else { return }
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
+            refreshActiveInlineStyles(in: textView)
         }
 
         func textView(
@@ -201,17 +252,21 @@ struct NoteEditorTextView: UIViewRepresentable {
         ) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
-                removeInlinePhoto(from: textView)
+                // Find which attachment char is being deleted
+                let deleteTarget = range.length > 0 ? range.location : range.location - 1
+                if deleteTarget >= 0 {
+                    removeInlinePhoto(at: deleteTarget, from: textView)
+                }
                 return false
             }
 
-            if replacement.isEmpty, exitsEmptyChecklistAfterDeletion(in: rendered, range: range, textView: textView) {
+            if replacement.isEmpty, exitsEmptyListAfterDeletion(in: rendered, range: range, textView: textView) {
                 return false
             }
 
             if !replacement.isEmpty,
                replacement != "\n",
-               insertsTextAfterChecklistMarker(replacement, range: range, rendered: rendered, textView: textView) {
+               insertsTextAfterListMarker(replacement, range: range, rendered: rendered, textView: textView) {
                 return false
             }
 
@@ -220,12 +275,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, range.location - 1), length: 0))
                 let paragraph = nsText.substring(with: paragraphRange)
                 let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
-                if isChecklistStyle(style) {
-                    let content = checklistContent(fromDisplayedParagraph: paragraph, style: style)
+                if isListStyle(style) {
+                    let content = listContent(fromDisplayedParagraph: paragraph, style: style)
                     if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        exitChecklist(at: paragraphRange, in: textView)
+                        exitList(at: paragraphRange, in: textView)
                     } else {
-                        insertChecklistRow(replacing: range, in: textView)
+                        insertListRow(replacing: range, style: style, in: textView)
                     }
                     return false
                 }
@@ -234,7 +289,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             return true
         }
 
-        private func insertsTextAfterChecklistMarker(
+        private func insertsTextAfterListMarker(
             _ replacement: String,
             range: NSRange,
             rendered: String,
@@ -246,23 +301,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             let lookupLocation = min(max(0, range.location), max(0, nsText.length - 1))
             let paragraphRange = nsText.paragraphRange(for: NSRange(location: lookupLocation, length: 0))
             let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
-            guard isChecklistStyle(style),
-                  let marker = checklistMarkerPrefix(for: style) else {
-                return false
-            }
+            guard isListStyle(style) else { return false }
 
             let paragraph = nsText.substring(with: paragraphRange)
-            let markerLength = (marker as NSString).length
-            let markerEnd = paragraphRange.location + markerLength
-            guard paragraph.hasPrefix(marker), range.location < markerEnd else {
-                return false
+            let markerLength: Int
+            if style == .numberedList {
+                markerLength = numberedListMarkerLength(in: paragraph)
+            } else {
+                markerLength = (staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0
             }
+            let markerEnd = paragraphRange.location + markerLength
+            guard markerLength > 0, range.location < markerEnd else { return false }
 
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
+            let paraLevel = indentLevelValue(at: paragraphRange.location, in: mutable)
             let insertionRange = bounded(NSRange(location: markerEnd, length: 0), in: mutable.string)
             let attributedReplacement = NSAttributedString(
                 string: replacement,
-                attributes: styledAttributesForTyping(style)
+                attributes: styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel)
             )
             mutable.replaceCharacters(in: insertionRange, with: attributedReplacement)
 
@@ -276,27 +332,30 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
-            textView.typingAttributes = styledAttributesForTyping(style)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             refreshActiveParagraphStyle(in: textView)
             return true
         }
 
-        private func exitsEmptyChecklistAfterDeletion(in rendered: String, range: NSRange, textView: UITextView) -> Bool {
+        private func exitsEmptyListAfterDeletion(in rendered: String, range: NSRange, textView: UITextView) -> Bool {
             let nsText = rendered as NSString
             guard nsText.length > 0, range.location <= nsText.length else { return false }
 
             let lookupLocation = min(max(0, range.location), max(0, nsText.length - 1))
             let paragraphRange = nsText.paragraphRange(for: NSRange(location: lookupLocation, length: 0))
             let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
-            guard isChecklistStyle(style),
-                  let marker = checklistMarkerPrefix(for: style) else {
-                return false
-            }
+            guard isListStyle(style) else { return false }
 
             let paragraph = nsText.substring(with: paragraphRange)
-            guard paragraph.hasPrefix(marker) else { return false }
+            let markerLength: Int
+            if style == .numberedList {
+                markerLength = numberedListMarkerLength(in: paragraph)
+            } else {
+                markerLength = (staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0
+            }
+            guard markerLength > 0 else { return false }
 
             let boundedDeletion = bounded(range, in: rendered)
             let updatedRendered = nsText.replacingCharacters(in: boundedDeletion, with: "") as NSString
@@ -307,12 +366,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ? updatedRendered.substring(with: updatedParagraphRange)
                 : ""
 
-            let contentAfterDeletion = checklistContent(fromDisplayedParagraph: updatedParagraph, style: style)
-            guard contentAfterDeletion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return false
-            }
+            let content = listContent(fromDisplayedParagraph: updatedParagraph, style: style)
+            guard content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
 
-            exitChecklist(at: paragraphRange, in: textView)
+            exitList(at: paragraphRange, in: textView)
             return true
         }
 
@@ -324,12 +381,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
             refreshActiveParagraphStyle(in: textView)
+            refreshActiveInlineStyles(in: textView)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
             parent.isFocused = true
             lastKnownCursorLocation = textView.selectedRange.location
             refreshActiveParagraphStyle(in: textView)
+            refreshActiveInlineStyles(in: textView)
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
@@ -337,9 +396,36 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func apply(_ command: NoteTextCommand, to textView: UITextView) {
-            if command == .photo {
-                insertPhotoToken(in: textView)
+            // Inline style commands
+            switch command {
+            case .bold, .italic, .underline, .strikethrough:
+                toggleInlineStyle(command, in: textView)
                 return
+            case .highlight(let index):
+                applyHighlight(index, in: textView)
+                return
+            case .checkAllItems:
+                bulkSetChecklist(.checklistChecked, in: textView)
+                return
+            case .uncheckAllItems:
+                bulkSetChecklist(.checklistUnchecked, in: textView)
+                return
+            case .deleteCheckedItems:
+                deleteCheckedChecklistItems(in: textView)
+                return
+            case .sortCheckedToBottom:
+                sortCheckedToBottom(in: textView)
+                return
+            case .indentMore:
+                applyIndent(delta: +1, in: textView)
+                return
+            case .indentLess:
+                applyIndent(delta: -1, in: textView)
+                return
+            case .photo(let index):
+                insertPhotoToken(at: index, in: textView)
+                return
+            default: break
             }
 
             let nsText = (textView.text ?? "") as NSString
@@ -347,35 +433,45 @@ struct NoteEditorTextView: UIViewRepresentable {
             let cursorLocation = min(liveCursorLocation, max(0, nsText.length))
             lastKnownCursorLocation = cursorLocation
 
-            // Determine target style. Checklist toggles off when already active.
+            // Determine target style. List styles toggle off when already active.
             let currentStyle = textStyle(
                 at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
                 in: textView.attributedText
             )
             let targetStyle: NoteParagraphTextStyle
             if command == .checklist {
-                targetStyle = isChecklistStyle(currentStyle) ? .body : .checklistUnchecked
+                targetStyle = isListStyle(currentStyle) ? .body : .checklistUnchecked
+            } else if command == .bulletedList {
+                targetStyle = currentStyle == .bulletedList ? .body : .bulletedList
+            } else if command == .dashedList {
+                targetStyle = currentStyle == .dashedList ? .body : .dashedList
+            } else if command == .numberedList {
+                targetStyle = currentStyle == .numberedList ? .body : .numberedList
             } else {
                 targetStyle = paragraphStyle(for: command)
             }
+
+            let cursorLevel = isListStyle(targetStyle) ? indentLevelValue(at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)), in: textView.attributedText) : 0
 
             if nsText.length == 0 {
                 parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [targetStyle]))
                 invalidateRenderedCache()
                 applyStyledText(to: textView, preservingSelection: false)
-                if let marker = checklistMarkerPrefix(for: targetStyle) {
+                if let marker = staticListMarkerPrefix(for: targetStyle) {
                     textView.selectedRange = bounded(NSRange(location: marker.count, length: 0), in: textView.text)
+                } else if targetStyle == .numberedList {
+                    textView.selectedRange = bounded(NSRange(location: "1.  ".count, length: 0), in: textView.text)
                 }
-                textView.typingAttributes = styledAttributesForTyping(targetStyle)
+                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel)
                 updatePlaceholder(in: textView)
                 parent.activeParagraphStyle = targetStyle
                 return
             }
 
-            // Removing checklist: strip the visual "○  "/" ✓  " marker from display text first.
-            if isChecklistStyle(currentStyle) && targetStyle == .body {
-                removeChecklistAndApplyBody(at: cursorLocation, in: textView)
-                parent.activeParagraphStyle = .body
+            // Strip the visual list marker whenever transitioning from any list style to any non-list style.
+            if isListStyle(currentStyle) && !isListStyle(targetStyle) {
+                stripListMarkerAndApply(targetStyle, at: cursorLocation, in: textView)
+                parent.activeParagraphStyle = targetStyle
                 return
             }
 
@@ -385,25 +481,36 @@ struct NoteEditorTextView: UIViewRepresentable {
             nsText.enumerateSubstrings(in: paragraphRange, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
                 self.setParagraphStyle(targetStyle, range: range, in: textView)
             }
-            if checklistMarkerPrefix(for: targetStyle) != nil {
+            if staticListMarkerPrefix(for: targetStyle) != nil || targetStyle == .numberedList {
                 invalidateRenderedCache()
                 applyStyledText(to: textView, preservingSelection: false)
-                let marker = checklistMarkerPrefix(for: targetStyle) ?? ""
+                let markerLen: Int
+                if targetStyle == .numberedList {
+                    // After re-render the displayed marker is "1.  " or similar — measure it
+                    let displayText = textView.text ?? ""
+                    let nsDisplay = displayText as NSString
+                    let safePos = min(cursorLocation, max(0, nsDisplay.length - 1))
+                    let pRange = nsDisplay.paragraphRange(for: NSRange(location: safePos, length: 0))
+                    let pText = nsDisplay.substring(with: pRange)
+                    markerLen = numberedListMarkerLength(in: pText)
+                } else {
+                    markerLen = (staticListMarkerPrefix(for: targetStyle) as NSString?)?.length ?? 0
+                }
                 textView.selectedRange = bounded(
-                    NSRange(location: cursorLocation + marker.count, length: 0),
+                    NSRange(location: cursorLocation + markerLen, length: 0),
                     in: textView.text
                 )
             } else {
                 textView.selectedRange = bounded(NSRange(location: cursorLocation, length: 0), in: textView.text)
             }
-            textView.typingAttributes = styledAttributesForTyping(targetStyle)
+            textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
             updatePlaceholder(in: textView)
             parent.activeParagraphStyle = targetStyle
         }
 
-        // Strips the visual checklist marker ("○  "/"✓  ") from the attributed text and
-        // re-applies body style — needed because markers only exist in display, not parent.text.
-        private func removeChecklistAndApplyBody(at cursorLocation: Int, in textView: UITextView) {
+        // Strips the list marker from the current paragraph and applies targetStyle.
+        // Handles all transitions: list → body, list → heading, list → title, list → monospaced, etc.
+        private func stripListMarkerAndApply(_ targetStyle: NoteParagraphTextStyle, at cursorLocation: Int, in textView: UITextView) {
             guard let attributed = textView.attributedText else { return }
             let nsDisplay = attributed.string as NSString
             let safeLocation = min(cursorLocation, max(0, nsDisplay.length - 1))
@@ -411,12 +518,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             let displayPara = nsDisplay.substring(with: displayParaRange)
 
             let currentStyle = textStyle(at: displayParaRange.location, in: attributed)
-            let marker = checklistMarkerPrefix(for: currentStyle) ?? ""
-            let markerLen = (marker as NSString).length
+            let markerLen: Int
+            if currentStyle == .numberedList {
+                markerLen = numberedListMarkerLength(in: displayPara)
+            } else {
+                markerLen = (staticListMarkerPrefix(for: currentStyle) as NSString?)?.length ?? 0
+            }
 
             let mutable = NSMutableAttributedString(attributedString: attributed)
 
-            if markerLen > 0 && displayPara.hasPrefix(marker) {
+            if markerLen > 0 {
                 let markerRange = bounded(NSRange(location: displayParaRange.location, length: markerLen), in: mutable.string)
                 mutable.replaceCharacters(in: markerRange, with: "")
             }
@@ -424,8 +535,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             let newParaLen = max(0, displayParaRange.length - markerLen)
             let newParaRange = bounded(NSRange(location: displayParaRange.location, length: newParaLen), in: mutable.string)
             if newParaRange.length > 0 {
+                let level = indentLevelValue(at: displayParaRange.location, in: attributed)
                 mutable.removeAttribute(Self.paragraphStyleAttribute, range: newParaRange)
-                mutable.addAttributes(attributes(for: .body), range: newParaRange)
+                mutable.addAttributes(attributes(for: targetStyle, level: level), range: newParaRange)
+                if targetStyle != .body {
+                    mutable.addAttribute(Self.paragraphStyleAttribute, value: targetStyle.rawValue, range: newParaRange)
+                }
             }
 
             isApplyingStyledText = true
@@ -438,19 +553,27 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let newCursor = max(displayParaRange.location, cursorLocation - markerLen)
             textView.selectedRange = bounded(NSRange(location: newCursor, length: 0), in: textView.text)
-            textView.typingAttributes = bodyAttributes
+            textView.typingAttributes = targetStyle == .body
+                ? bodyAttributes
+                : styledAttributesForTyping(targetStyle, numberedIndex: nil)
             updatePlaceholder(in: textView)
+        }
+
+        private func removeListAndApplyBody(at cursorLocation: Int, in textView: UITextView) {
+            stripListMarkerAndApply(.body, at: cursorLocation, in: textView)
         }
 
         func applyStyledText(to textView: UITextView, preservingSelection: Bool) {
             let selectedRange = textView.selectedRange
             let rawText = parent.text
             let styleSignature = parent.textStyleData?.hashValue
-            let photoSignature = parent.photoData?.count
+            let inlineSignature = parent.inlineStyleData?.hashValue
+            let photoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             let width = textView.bounds.width.rounded()
 
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
+               lastRenderedInlineSignature == inlineSignature,
                lastRenderedPhotoSignature == photoSignature,
                lastRenderedWidth == width {
                 if preservingSelection {
@@ -461,12 +584,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let attributed = renderedAttributedText(for: rawText, width: textView.bounds.width)
+            applyInlineStyles(to: attributed, from: parent.inlineStyleData)
 
             isApplyingStyledText = true
             applyAttributedText(attributed, to: textView)
             isApplyingStyledText = false
             lastRenderedText = rawText
             lastRenderedStyleSignature = styleSignature
+            lastRenderedInlineSignature = inlineSignature
             lastRenderedPhotoSignature = photoSignature
             lastRenderedWidth = width
             if preservingSelection {
@@ -490,19 +615,39 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func logicalText(from textView: UITextView) -> String {
             let attributed = textView.attributedText ?? NSAttributedString()
-            let rendered = attributed.string.replacingOccurrences(of: "\u{fffc}", with: inlinePhotoToken)
-            let nsRendered = rendered as NSString
+            // Replace each attachment char with the correct indexed photo token
+            var displayString = attributed.string
+            var photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
+                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
+                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
+            }
+            var tokenIdx = 0
+            var rebuilt = ""
+            for ch in displayString {
+                if ch == "\u{fffc}" {
+                    let tok = tokenIdx < photoTokensSorted.count ? inlinePhotoToken(at: photoTokensSorted[tokenIdx].index) : inlinePhotoToken(at: tokenIdx)
+                    rebuilt += tok
+                    tokenIdx += 1
+                } else {
+                    rebuilt += String(ch)
+                }
+            }
+            displayString = rebuilt
+
+            let nsRendered = displayString as NSString
             guard nsRendered.length > 0 else { return "" }
 
             var result = ""
             // Use enclosingRange (3rd param) not substringRange (2nd param) — enclosingRange
-            // includes the paragraph separator (\n), substringRange does not. Without this,
-            // logicalText strips all newlines and applyStyledText collapses lines into one.
-            nsRendered.enumerateSubstrings(in: NSRange(location: 0, length: nsRendered.length), options: [.byParagraphs, .substringNotRequired]) { _, substringRange, enclosingRange, _ in
+            // includes the paragraph separator (\n), substringRange does not.
+            nsRendered.enumerateSubstrings(in: NSRange(location: 0, length: nsRendered.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
                 let paragraph = nsRendered.substring(with: enclosingRange)
                 let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                if let marker = self.checklistMarkerPrefix(for: style), paragraph.hasPrefix(marker) {
+                if let marker = self.staticListMarkerPrefix(for: style), paragraph.hasPrefix(marker) {
                     result += String(paragraph.dropFirst(marker.count))
+                } else if style == .numberedList {
+                    let markerLen = self.numberedListMarkerLength(in: paragraph)
+                    result += markerLen > 0 ? String(paragraph.dropFirst(markerLen)) : paragraph
                 } else {
                     result += paragraph
                 }
@@ -541,7 +686,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             return ""
         }
 
-        private func attributes(for style: NoteParagraphTextStyle) -> [NSAttributedString.Key: Any] {
+        private func attributes(for style: NoteParagraphTextStyle, level: Int = 0, numberedIndex: Int? = nil) -> [NSAttributedString.Key: Any] {
             switch style {
             case .subheading:
                 return [
@@ -568,52 +713,63 @@ struct NoteEditorTextView: UIViewRepresentable {
                     .paragraphStyle: paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
                 ]
             case .checklistUnchecked:
-                return checklistAttributes(checked: false)
+                return checklistAttributes(checked: false, level: level)
             case .checklistChecked:
-                return checklistAttributes(checked: true)
+                return checklistAttributes(checked: true, level: level)
+            case .bulletedList, .dashedList, .numberedList:
+                return listAttributes(level: level)
             case .body:
                 return bodyAttributes
             }
         }
 
-        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body) -> [NSAttributedString.Key: Any] {
+        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body, level: Int = 0) -> [NSAttributedString.Key: Any] {
             if storedStyle != .body {
-                return attributes(for: storedStyle)
+                return attributes(for: storedStyle, level: level)
             }
             if paragraph.hasPrefix("### ") { return attributes(for: .subheading) }
             if paragraph.hasPrefix("## ") { return attributes(for: .heading) }
             if paragraph.hasPrefix("# ") { return attributes(for: .title) }
             if paragraph.hasPrefix("    ") { return attributes(for: .monospaced) }
-            if paragraph.hasPrefix("○ ") {
-                return checklistAttributes(checked: false)
-            }
-            if paragraph.hasPrefix("✓ ") {
-                return checklistAttributes(checked: true)
-            }
+            if paragraph.hasPrefix("○ ") { return checklistAttributes(checked: false, level: level) }
+            if paragraph.hasPrefix("✓ ") { return checklistAttributes(checked: true, level: level) }
             return bodyAttributes
         }
 
-        private func checklistAttributes(checked: Bool) -> [NSAttributedString.Key: Any] {
+        private func checklistAttributes(checked: Bool, level: Int = 0) -> [NSAttributedString.Key: Any] {
+            let offset = CGFloat(level) * 20
             let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
-            ps.firstLineHeadIndent = 0
-            ps.headIndent = 44
-            var attributes: [NSAttributedString.Key: Any] = [
+            ps.firstLineHeadIndent = offset
+            ps.headIndent = 44 + offset
+            var attrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.preferredFont(forTextStyle: .body),
                 .foregroundColor: checked ? UIColor.tertiaryLabel : UIColor.label,
                 .paragraphStyle: ps
             ]
             if checked {
-                attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-                attributes[.strikethroughColor] = UIColor.tertiaryLabel
+                attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+                attrs[.strikethroughColor] = UIColor.tertiaryLabel
             }
-            return attributes
+            return attrs
         }
 
-        private func insertPhotoToken(in textView: UITextView) {
+        private func listAttributes(level: Int = 0) -> [NSAttributedString.Key: Any] {
+            let offset = CGFloat(level) * 20
+            let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
+            ps.firstLineHeadIndent = offset
+            ps.headIndent = 28 + offset
+            return [
+                .font: UIFont.preferredFont(forTextStyle: .body),
+                .foregroundColor: UIColor.label,
+                .paragraphStyle: ps
+            ]
+        }
+
+        private func insertPhotoToken(at photoIndex: Int, in textView: UITextView) {
             let logical = logicalText(from: textView)
             let selectedRange = bounded(textView.selectedRange, in: logical)
             let nsText = logical as NSString
-            var insertion = inlinePhotoToken
+            var insertion = inlinePhotoToken(at: photoIndex)
 
             if selectedRange.location > 0 {
                 let previous = nsText.substring(with: NSRange(location: selectedRange.location - 1, length: 1))
@@ -640,29 +796,44 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func renderedAttributedText(for rawText: String, width: CGFloat) -> NSMutableAttributedString {
+            paragraphMarkerLengths.removeAll()
             let attributed = NSMutableAttributedString()
+
             if rawText.isEmpty,
-               let firstStyle = decodedTextStyles().first,
-               let marker = checklistMarkerPrefix(for: firstStyle) {
-                let paragraph = NSMutableAttributedString(string: marker, attributes: attributes(for: firstStyle))
-                paragraph.addAttribute(Self.paragraphStyleAttribute, value: firstStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
-                attributed.append(paragraph)
+               let firstStyle = decodedTextStyles().first {
+                let marker = staticListMarkerPrefix(for: firstStyle) ?? (firstStyle == .numberedList ? "1.  " : nil)
+                if let marker {
+                    let paragraph = NSMutableAttributedString(string: marker, attributes: attributes(for: firstStyle))
+                    paragraph.addAttribute(Self.paragraphStyleAttribute, value: firstStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
+                    attributed.append(paragraph)
+                    paragraphMarkerLengths[0] = (marker as NSString).length
+                }
                 return attributed
             }
 
-            var remaining = rawText[...]
+            // Split on all photo tokens, render text segments between them
+            let regex = try? NSRegularExpression(pattern: #"\[\[mirror-photo(?:-(\d+))?\]\]"#)
+            let nsRaw = rawText as NSString
+            let allMatches = regex?.matches(in: rawText, range: NSRange(rawText.startIndex..., in: rawText)) ?? []
+
+            var lastEnd = 0
             var paragraphOffset = 0
 
-            while let tokenRange = remaining.range(of: inlinePhotoToken) {
-                let before = String(remaining[..<tokenRange.lowerBound])
-                let rendered = renderedTextWithoutMarkdownMarkers(for: before, startingParagraph: paragraphOffset)
+            for match in allMatches {
+                let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
+                let textSegment = nsRaw.substring(with: textRange)
+                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphOffset)
                 attributed.append(rendered.value)
                 paragraphOffset += rendered.paragraphCount
-                attributed.append(photoAttachmentString(width: width))
-                remaining = remaining[tokenRange.upperBound...]
+
+                let token = nsRaw.substring(with: match.range)
+                let photoIdx = inlinePhotoIndex(from: token) ?? 0
+                attributed.append(photoAttachmentString(at: photoIdx, width: width))
+                lastEnd = NSMaxRange(match.range)
             }
 
-            attributed.append(renderedTextWithoutMarkdownMarkers(for: String(remaining), startingParagraph: paragraphOffset).value)
+            let tail = nsRaw.substring(from: lastEnd)
+            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphOffset).value)
             return attributed
         }
 
@@ -671,25 +842,50 @@ struct NoteEditorTextView: UIViewRepresentable {
             let rawParagraphs = rawText.components(separatedBy: "\n")
             guard !rawParagraphs.isEmpty else { return (attributed, 0) }
             let storedStyles = decodedTextStyles()
+            let storedIndents = decodedIndentLevels()
             var paragraphIndex = startingParagraph
+            var numberedListCounter = 0
 
             for (offset, rawLine) in rawParagraphs.enumerated() {
                 let lineBreak = offset < rawParagraphs.count - 1 ? "\n" : ""
                 let rawParagraph = rawLine + lineBreak
                 let legacyStyle = self.legacyStyle(in: rawParagraph)
                 let storedStyle = storedStyles.indices.contains(paragraphIndex) ? storedStyles[paragraphIndex] : legacyStyle
+                let indentLevel = storedIndents.indices.contains(paragraphIndex) ? storedIndents[paragraphIndex] : 0
+
+                // Track numbered list counter for sequential numbering
+                if storedStyle == .numberedList {
+                    numberedListCounter += 1
+                } else {
+                    numberedListCounter = 0
+                }
+
                 let prefix = self.legacyMarkdownPrefix(in: rawParagraph)
                 let legacyChecklistPrefix = self.legacyChecklistPrefix(in: rawParagraph)
                 let rawDisplayParagraph = prefix.map { String(rawParagraph.dropFirst($0.count)) }
                     ?? legacyChecklistPrefix.map { String(rawParagraph.dropFirst($0.count)) }
                     ?? rawParagraph
-                let displayParagraph = self.checklistMarkerPrefix(for: storedStyle).map { $0 + rawDisplayParagraph } ?? rawDisplayParagraph
+
+                let listMarker: String
+                if storedStyle == .numberedList {
+                    listMarker = "\(numberedListCounter).  "
+                } else {
+                    listMarker = self.staticListMarkerPrefix(for: storedStyle) ?? ""
+                }
+                let displayParagraph = listMarker.isEmpty ? rawDisplayParagraph : listMarker + rawDisplayParagraph
+
+                let markerLen = (listMarker as NSString).length
+                if markerLen > 0 { paragraphMarkerLengths[paragraphIndex] = markerLen }
+
                 let paragraph = NSMutableAttributedString(
                     string: displayParagraph,
-                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle)
+                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle, level: indentLevel)
                 )
                 if storedStyle != .body, paragraph.length > 0 {
                     paragraph.addAttribute(Self.paragraphStyleAttribute, value: storedStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
+                }
+                if indentLevel > 0, paragraph.length > 0 {
+                    paragraph.addAttribute(Self.indentLevelAttribute, value: indentLevel, range: NSRange(location: 0, length: paragraph.length))
                 }
                 attributed.append(paragraph)
                 paragraphIndex += 1
@@ -697,9 +893,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             return (attributed, paragraphIndex - startingParagraph)
         }
 
-        private func photoAttachmentString(width: CGFloat) -> NSAttributedString {
-            guard let data = parent.photoData,
-                  let image = UIImage(data: data) else {
+        private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
+            guard photoIndex < parent.photoDataArray.count,
+                  let image = UIImage(data: parent.photoDataArray[photoIndex]) else {
                 return NSAttributedString(string: "")
             }
 
@@ -719,20 +915,54 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func deletesInlinePhoto(in rendered: String, range: NSRange) -> Bool {
-            guard parent.photoData != nil, let attachmentRange = rendered.range(of: "\u{fffc}") else { return false }
-            let nsRange = NSRange(attachmentRange, in: rendered)
-            if range.length > 0 {
-                return NSIntersectionRange(range, nsRange).length > 0
+            guard !parent.photoDataArray.isEmpty else { return false }
+            // Find all attachment chars in rendered
+            let nsRendered = rendered as NSString
+            var attachRanges: [NSRange] = []
+            for i in 0..<nsRendered.length {
+                if nsRendered.character(at: i) == 0xFFFC {
+                    attachRanges.append(NSRange(location: i, length: 1))
+                }
             }
-            return range.location == nsRange.location || range.location == NSMaxRange(nsRange)
+            guard !attachRanges.isEmpty else { return false }
+            if range.length > 0 {
+                return attachRanges.contains { NSIntersectionRange(range, $0).length > 0 }
+            }
+            return attachRanges.contains { range.location == $0.location || range.location == NSMaxRange($0) }
         }
 
-        private func removeInlinePhoto(from textView: UITextView) {
-            parent.photoData = nil
-            parent.text = parent.text
-                .replacingOccurrences(of: "\n\(inlinePhotoToken)", with: "")
-                .replacingOccurrences(of: "\(inlinePhotoToken)\n", with: "")
-                .replacingOccurrences(of: inlinePhotoToken, with: "")
+        private func removeInlinePhoto(at displayCharIndex: Int, from textView: UITextView) {
+            // Determine which photo token this corresponds to
+            let displayed = textView.text ?? ""
+            var attachCount = 0
+            let nsDisplayed = displayed as NSString
+            for i in 0..<displayCharIndex {
+                if nsDisplayed.character(at: i) == 0xFFFC { attachCount += 1 }
+            }
+
+            let photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
+                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
+                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
+            }
+            guard attachCount < photoTokensSorted.count else { return }
+            let token = photoTokensSorted[attachCount]
+            let tokenStr = inlinePhotoToken(at: token.index)
+
+            // Remove from photoDataArray
+            var photos = parent.photoDataArray
+            if token.index < photos.count { photos.remove(at: token.index) }
+            // Renumber remaining tokens in text
+            var updatedText = parent.text
+            updatedText = updatedText
+                .replacingOccurrences(of: "\n" + tokenStr, with: "")
+                .replacingOccurrences(of: tokenStr + "\n", with: "")
+                .replacingOccurrences(of: tokenStr, with: "")
+            // Renumber subsequent tokens (indices shift down by 1)
+            for i in (token.index + 1)..<(parent.photoDataArray.count) {
+                updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1))
+            }
+            parent.photoDataArray = photos
+            parent.text = updatedText
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             updatePlaceholder(in: textView)
@@ -771,24 +1001,31 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let location = min(textView.selectedRange.location, max(0, nsText.length - 1))
             let style = textStyle(at: location, in: textView.attributedText)
-            textView.typingAttributes = styledAttributesForTyping(style)
+            let level = indentLevelValue(at: location, in: textView.attributedText)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level)
         }
 
         private func paragraphStyle(for command: NoteTextCommand) -> NoteParagraphTextStyle {
             switch command {
-            case .checklist: return .checklistUnchecked
-            case .title: return .title
-            case .heading: return .heading
-            case .subheading: return .subheading
-            case .monospaced: return .monospaced
-            default: return .body
+            case .checklist:    return .checklistUnchecked
+            case .bulletedList: return .bulletedList
+            case .dashedList:   return .dashedList
+            case .numberedList: return .numberedList
+            case .title:        return .title
+            case .heading:      return .heading
+            case .subheading:   return .subheading
+            case .monospaced:   return .monospaced
+            default:            return .body
             }
         }
 
-        private func styledAttributesForTyping(_ style: NoteParagraphTextStyle) -> [NSAttributedString.Key: Any] {
-            var result = attributes(for: style)
+        private func styledAttributesForTyping(_ style: NoteParagraphTextStyle, numberedIndex: Int?, level: Int = 0) -> [NSAttributedString.Key: Any] {
+            var result = attributes(for: style, level: level)
             if style != .body {
                 result[Self.paragraphStyleAttribute] = style.rawValue
+            }
+            if level > 0 {
+                result[Self.indentLevelAttribute] = level
             }
             return result
         }
@@ -806,11 +1043,14 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func setParagraphStyle(_ style: NoteParagraphTextStyle, range: NSRange, in textView: UITextView) {
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let boundedRange = bounded(range, in: mutable.string)
+            let level = indentLevelValue(at: boundedRange.location, in: mutable)
             mutable.removeAttribute(Self.paragraphStyleAttribute, range: boundedRange)
-            mutable.addAttributes(attributes(for: style), range: boundedRange)
+            mutable.addAttributes(attributes(for: style, level: level), range: boundedRange)
             if style != .body {
                 mutable.addAttribute(Self.paragraphStyleAttribute, value: style.rawValue, range: boundedRange)
             }
+            // Re-stamp indent level (attributes(for:level:) sets paragraphStyle but not the custom key)
+            if level > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: level, range: boundedRange) }
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
@@ -821,19 +1061,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             updateTypingAttributes(for: textView)
         }
 
-        private func insertChecklistRow(replacing range: NSRange, in textView: UITextView) {
-            let marker = checklistMarkerPrefix(for: .checklistUnchecked) ?? ""
+        // Insert a new row with the same list style after pressing Return on a non-empty list item
+        private func insertListRow(replacing range: NSRange, style: NoteParagraphTextStyle, in textView: UITextView) {
+            // For numbered lists, the new row will be numbered after render; just insert unchecked for checklist
+            let newStyle: NoteParagraphTextStyle = (style == .checklistChecked) ? .checklistUnchecked : style
+            let rowLevel = indentLevelValue(at: max(0, range.location - 1), in: textView.attributedText)
+            let marker = staticListMarkerPrefix(for: newStyle) ?? (newStyle == .numberedList ? "N.  " : "")
             let insertion = "\n" + marker
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let insertionRange = bounded(range, in: mutable.string)
             let attributedInsertion = NSMutableAttributedString(
                 string: insertion,
-                attributes: styledAttributesForTyping(.checklistUnchecked)
+                attributes: styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel)
             )
             mutable.replaceCharacters(in: insertionRange, with: attributedInsertion)
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
+            // For numbered lists, cursor goes after the placeholder "N." (will be re-rendered with real number)
             textView.selectedRange = bounded(
                 NSRange(location: insertionRange.location + insertion.count, length: 0),
                 in: textView.text
@@ -841,12 +1086,15 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = false
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
-            textView.typingAttributes = styledAttributesForTyping(.checklistUnchecked)
+            // Re-render to show correct number
+            if newStyle == .numberedList { invalidateRenderedCache() }
+            applyStyledText(to: textView, preservingSelection: false)
+            textView.typingAttributes = styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
         }
 
-        private func exitChecklist(at paragraphRange: NSRange, in textView: UITextView) {
+        private func exitList(at paragraphRange: NSRange, in textView: UITextView) {
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let boundedRange = bounded(paragraphRange, in: mutable.string)
             let paragraph = (mutable.string as NSString).substring(with: boundedRange)
@@ -867,23 +1115,51 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
         }
 
-        private func isChecklistStyle(_ style: NoteParagraphTextStyle) -> Bool {
-            style == .checklistUnchecked || style == .checklistChecked
+        private func isListStyle(_ style: NoteParagraphTextStyle) -> Bool {
+            switch style {
+            case .checklistUnchecked, .checklistChecked, .bulletedList, .dashedList, .numberedList: return true
+            default: return false
+            }
         }
 
-        private func checklistContent(fromDisplayedParagraph paragraph: String, style: NoteParagraphTextStyle) -> String {
-            guard let marker = checklistMarkerPrefix(for: style), paragraph.hasPrefix(marker) else {
+        private func listContent(fromDisplayedParagraph paragraph: String, style: NoteParagraphTextStyle) -> String {
+            if style == .numberedList {
+                let markerLen = numberedListMarkerLength(in: paragraph)
+                return markerLen > 0 ? String(paragraph.dropFirst(markerLen)) : paragraph
+            }
+            guard let marker = staticListMarkerPrefix(for: style), paragraph.hasPrefix(marker) else {
                 return paragraph
             }
             return String(paragraph.dropFirst(marker.count))
         }
 
-        private func checklistMarkerPrefix(for style: NoteParagraphTextStyle) -> String? {
+        // Returns static (non-numbered) marker prefix for a list style, nil for numbered/non-list
+        private func staticListMarkerPrefix(for style: NoteParagraphTextStyle) -> String? {
             switch style {
             case .checklistUnchecked: return "○  "
-            case .checklistChecked: return "✓  "
+            case .checklistChecked:   return "✓  "
+            case .bulletedList:       return "•  "
+            case .dashedList:         return "–  "
             default: return nil
             }
+        }
+
+        private func numberedListMarkerLength(in paragraph: String) -> Int {
+            // Matches "1.  ", "10.  ", "100.  " etc.
+            let ns = paragraph as NSString
+            var i = 0
+            while i < ns.length {
+                let c = ns.character(at: i)
+                if c >= 48 && c <= 57 { i += 1 } // digit
+                else { break }
+            }
+            // Must have at least one digit, then "." and at least two spaces
+            guard i > 0, i < ns.length, ns.character(at: i) == 46 else { return 0 } // "."
+            i += 1
+            guard i < ns.length, ns.character(at: i) == 32 else { return 0 } // " "
+            i += 1
+            guard i < ns.length, ns.character(at: i) == 32 else { return 0 } // "  "
+            return i + 1
         }
 
         private func decodedTextStyles() -> [NoteParagraphTextStyle] {
@@ -892,6 +1168,21 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return []
             }
             return document.paragraphStyles
+        }
+
+        private func decodedIndentLevels() -> [Int] {
+            guard let data = parent.textStyleData,
+                  let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data),
+                  let levels = document.indentLevels else {
+                return []
+            }
+            return levels
+        }
+
+        private func indentLevelValue(at location: Int, in attributed: NSAttributedString?) -> Int {
+            guard let attributed, attributed.length > 0 else { return 0 }
+            let loc = min(max(0, location), attributed.length - 1)
+            return attributed.attribute(Self.indentLevelAttribute, at: loc, effectiveRange: nil) as? Int ?? 0
         }
 
         private func applyAttributedText(_ attr: NSAttributedString, to textView: UITextView) {
@@ -911,16 +1202,23 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard nsText.length > 0 else { return nil }
 
             var styles: [NoteParagraphTextStyle] = []
+            var levels: [Int] = []
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
                 styles.append(self.textStyle(at: range.location, in: attributed))
+                levels.append(self.indentLevelValue(at: range.location, in: attributed))
             }
             guard styles.contains(where: { $0 != .body }) else { return nil }
-            return try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles))
+            let hasIndent = levels.contains(where: { $0 > 0 })
+            return try? JSONEncoder().encode(NoteTextStyleDocument(
+                paragraphStyles: styles,
+                indentLevels: hasIndent ? levels : nil
+            ))
         }
 
         private func invalidateRenderedCache() {
             lastRenderedText = nil
             lastRenderedStyleSignature = nil
+            lastRenderedInlineSignature = nil
             lastRenderedPhotoSignature = nil
             lastRenderedWidth = 0
         }
@@ -928,7 +1226,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func syncRenderedCache(from textView: UITextView) {
             lastRenderedText = parent.text
             lastRenderedStyleSignature = parent.textStyleData?.hashValue
-            lastRenderedPhotoSignature = parent.photoData?.count
+            lastRenderedInlineSignature = parent.inlineStyleData?.hashValue
+            lastRenderedPhotoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             lastRenderedWidth = textView.bounds.width.rounded()
         }
 
@@ -938,14 +1237,509 @@ struct NoteEditorTextView: UIViewRepresentable {
             style.paragraphSpacing = paragraphSpacing
             return style
         }
+
+        // MARK: - Inline style toggle
+
+        func toggleInlineStyle(_ command: NoteTextCommand, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let effectiveRange = selRange.length > 0
+                ? selRange
+                : NSRange(location: min(selRange.location, max(0, attributed.length - 1)), length: min(1, attributed.length))
+
+            let hasBold       = command == .bold          && isStyleApplied(.bold,          in: effectiveRange, of: attributed)
+            let hasItalic     = command == .italic        && isStyleApplied(.italic,        in: effectiveRange, of: attributed)
+            let hasUnderline  = command == .underline     && isStyleApplied(.underline,     in: effectiveRange, of: attributed)
+            let hasStrike     = command == .strikethrough && isStyleApplied(.strikethrough, in: effectiveRange, of: attributed)
+            let shouldRemove = hasBold || hasItalic || hasUnderline || hasStrike
+
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: mutable.string)
+                switch command {
+                case .bold:
+                    mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
+                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        mutable.addAttribute(.font, value: font.withTrait(.traitBold, add: !shouldRemove), range: range)
+                    }
+                case .italic:
+                    mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
+                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        mutable.addAttribute(.font, value: font.withTrait(.traitItalic, add: !shouldRemove), range: range)
+                    }
+                case .underline:
+                    if shouldRemove {
+                        mutable.removeAttribute(.underlineStyle, range: applyRange)
+                    } else {
+                        mutable.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: applyRange)
+                    }
+                case .strikethrough:
+                    if shouldRemove {
+                        mutable.removeAttribute(.strikethroughStyle, range: applyRange)
+                    } else {
+                        mutable.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: applyRange)
+                    }
+                default: break
+                }
+
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                // No selection — toggle typing attributes
+                var typing = textView.typingAttributes
+                switch command {
+                case .bold:
+                    let font = (typing[.font] as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                    typing[.font] = font.withTrait(.traitBold, add: !shouldRemove)
+                case .italic:
+                    let font = (typing[.font] as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                    typing[.font] = font.withTrait(.traitItalic, add: !shouldRemove)
+                case .underline:
+                    if shouldRemove { typing.removeValue(forKey: .underlineStyle) }
+                    else { typing[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+                case .strikethrough:
+                    if shouldRemove { typing.removeValue(forKey: .strikethroughStyle) }
+                    else { typing[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+                default: break
+                }
+                textView.typingAttributes = typing
+            }
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        func applyHighlight(_ index: Int?, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: mutable.string)
+                mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
+                mutable.removeAttribute(.backgroundColor, range: applyRange)
+                if let idx = index {
+                    let uiColor = UIColor(highlightColors[idx])
+                    mutable.addAttribute(.backgroundColor, value: uiColor, range: applyRange)
+                    mutable.addAttribute(Self.highlightIndexAttribute, value: idx, range: applyRange)
+                }
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                var typing = textView.typingAttributes
+                typing.removeValue(forKey: Self.highlightIndexAttribute)
+                typing.removeValue(forKey: .backgroundColor)
+                if let idx = index {
+                    typing[.backgroundColor] = UIColor(highlightColors[idx])
+                    typing[Self.highlightIndexAttribute] = idx
+                }
+                textView.typingAttributes = typing
+            }
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        // MARK: - Bulk checklist operations
+
+        func bulkSetChecklist(_ targetStyle: NoteParagraphTextStyle, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let nsText = attributed.string as NSString
+            var styles: [NoteParagraphTextStyle] = []
+            var levels: [Int] = []
+            var changed = false
+            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+                let current = self.textStyle(at: enclosing.location, in: attributed)
+                let isChecklist = current == .checklistUnchecked || current == .checklistChecked
+                let newStyle = isChecklist ? targetStyle : current
+                if isChecklist && current != targetStyle { changed = true }
+                styles.append(newStyle)
+                levels.append(self.indentLevelValue(at: enclosing.location, in: attributed))
+            }
+            guard changed else { return }
+            let hasIndent = levels.contains(where: { $0 > 0 })
+            parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
+                paragraphStyles: styles,
+                indentLevels: hasIndent ? levels : nil
+            ))
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            refreshActiveInlineStyles(in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        func sortCheckedToBottom(in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let nsText = attributed.string as NSString
+            var paraInfos: [(style: NoteParagraphTextStyle, level: Int)] = []
+            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+                paraInfos.append((
+                    self.textStyle(at: enclosing.location, in: attributed),
+                    self.indentLevelValue(at: enclosing.location, in: attributed)
+                ))
+            }
+            let logicalParas = parent.text.components(separatedBy: "\n")
+            guard logicalParas.count == paraInfos.count else { return }
+
+            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int)
+            var rows: [Row] = zip(logicalParas, paraInfos).map { ($0, $1.style, $1.level) }
+            let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
+            var i = 0
+            var changed = false
+            while i < rows.count {
+                guard isChecklist(rows[i].style) else { i += 1; continue }
+                var j = i
+                while j < rows.count && isChecklist(rows[j].style) { j += 1 }
+                let block = Array(rows[i..<j])
+                let sorted = block.sorted { a, b in
+                    let aChecked = a.style == .checklistChecked
+                    let bChecked = b.style == .checklistChecked
+                    if aChecked != bChecked { return !aChecked }
+                    return false
+                }
+                if sorted.map({ $0.style }) != block.map({ $0.style }) {
+                    changed = true
+                    rows.replaceSubrange(i..<j, with: sorted)
+                }
+                i = j
+            }
+            guard changed else { return }
+
+            parent.text = rows.map { $0.text }.joined(separator: "\n")
+            let styles = rows.map { $0.style }
+            let levels = rows.map { $0.level }
+            let hasIndent = levels.contains(where: { $0 > 0 })
+            parent.textStyleData = styles.allSatisfy({ $0 == .body }) ? nil :
+                try? JSONEncoder().encode(NoteTextStyleDocument(
+                    paragraphStyles: styles,
+                    indentLevels: hasIndent ? levels : nil
+                ))
+            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            refreshActiveInlineStyles(in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        func deleteCheckedChecklistItems(in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let nsText = attributed.string as NSString
+            var paraInfos: [(style: NoteParagraphTextStyle, level: Int)] = []
+            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+                paraInfos.append((
+                    self.textStyle(at: enclosing.location, in: attributed),
+                    self.indentLevelValue(at: enclosing.location, in: attributed)
+                ))
+            }
+            let logicalParas = parent.text.components(separatedBy: "\n")
+            guard logicalParas.count == paraInfos.count else { return }
+
+            let kept = zip(logicalParas, paraInfos).filter { $0.1.style != .checklistChecked }
+            guard kept.count < logicalParas.count else { return }
+
+            parent.text = kept.map { $0.0 }.joined(separator: "\n")
+            let styles = kept.map { $0.1.style }
+            let levels = kept.map { $0.1.level }
+            let hasIndent = levels.contains(where: { $0 > 0 })
+            parent.textStyleData = styles.allSatisfy({ $0 == .body }) ? nil :
+                try? JSONEncoder().encode(NoteTextStyleDocument(
+                    paragraphStyles: styles,
+                    indentLevels: hasIndent ? levels : nil
+                ))
+            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            refreshActiveInlineStyles(in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        func applyIndent(delta: Int, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+            let cursorLocation = min(textView.selectedRange.location, max(0, attributed.length - 1))
+            let nsText = mutable.string as NSString
+            let paraRange = nsText.paragraphRange(for: NSRange(location: cursorLocation, length: 0))
+
+            let style = textStyle(at: paraRange.location, in: mutable)
+            guard isListStyle(style) else { return }
+
+            let currentLevel = indentLevelValue(at: paraRange.location, in: mutable)
+            let newLevel = max(0, min(4, currentLevel + delta))
+            guard newLevel != currentLevel else { return }
+            mutable.removeAttribute(Self.indentLevelAttribute, range: paraRange)
+            mutable.addAttributes(attributes(for: style, level: newLevel), range: paraRange)
+            if style != .body {
+                mutable.addAttribute(Self.paragraphStyleAttribute, value: style.rawValue, range: paraRange)
+            }
+            if newLevel > 0 {
+                mutable.addAttribute(Self.indentLevelAttribute, value: newLevel, range: paraRange)
+            }
+
+            invalidateRenderedCache()
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
+            isApplyingStyledText = false
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        private func isStyleApplied(_ style: InlineTextStyle, in range: NSRange, of attributed: NSAttributedString) -> Bool {
+            guard range.length > 0, attributed.length > 0 else {
+                // cursor: check typing attrs via current attributed position
+                return false
+            }
+            var allApplied = true
+            let checkRange = bounded(range, in: attributed.string)
+            attributed.enumerateAttributes(in: checkRange) { attrs, _, stop in
+                switch style {
+                case .bold:
+                    let font = attrs[.font] as? UIFont ?? UIFont.preferredFont(forTextStyle: .body)
+                    if !font.fontDescriptor.symbolicTraits.contains(.traitBold) { allApplied = false; stop.pointee = true }
+                case .italic:
+                    let font = attrs[.font] as? UIFont ?? UIFont.preferredFont(forTextStyle: .body)
+                    if !font.fontDescriptor.symbolicTraits.contains(.traitItalic) { allApplied = false; stop.pointee = true }
+                case .underline:
+                    if attrs[.underlineStyle] == nil { allApplied = false; stop.pointee = true }
+                case .strikethrough:
+                    if attrs[.strikethroughStyle] == nil { allApplied = false; stop.pointee = true }
+                }
+            }
+            return allApplied
+        }
+
+        // MARK: - Inline style extraction / application
+
+        func extractedInlineStyleData(from textView: UITextView) -> Data? {
+            guard let attributed = textView.attributedText, attributed.length > 0 else { return nil }
+            var ranges: [InlineStyleRange] = []
+
+            // Build logical offset map for display→logical coordinate mapping
+            let logicalOffsets = buildLogicalOffsetMap(from: attributed)
+
+            attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attrs, range, _ in
+                let font = attrs[.font] as? UIFont
+                let bold = font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false
+                let italic = font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false
+                let underline = attrs[.underlineStyle] != nil
+                let strikethrough = attrs[.strikethroughStyle] != nil
+                let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
+
+                // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
+                let style = self.textStyle(at: range.location, in: attributed)
+                let isParaBold = (style == .heading || style == .title)
+                let effectiveBold = bold && !isParaBold
+
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil else { return }
+
+                let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
+                let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
+                let logicalLen = logicalEnd - logicalStart
+                guard logicalLen > 0 else { return }
+
+                ranges.append(InlineStyleRange(
+                    location: logicalStart,
+                    length: logicalLen,
+                    bold: effectiveBold,
+                    italic: italic,
+                    underline: underline,
+                    strikethrough: strikethrough,
+                    highlightIndex: highlightIndex
+                ))
+            }
+
+            // Merge adjacent/overlapping ranges with same attrs
+            let merged = mergeInlineRanges(ranges)
+            guard !merged.isEmpty else { return nil }
+            return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+        }
+
+        func applyInlineStyles(to attributed: NSMutableAttributedString, from data: Data?) {
+            guard let data,
+                  let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: data),
+                  !doc.ranges.isEmpty else { return }
+
+            let logicalOffsets = buildLogicalOffsetMap(from: attributed)
+
+            for styleRange in doc.ranges {
+                let displayStart = logicalToDisplay(logical: styleRange.location, map: logicalOffsets)
+                let displayEnd = logicalToDisplay(logical: styleRange.location + styleRange.length, map: logicalOffsets)
+                let displayRange = bounded(NSRange(location: displayStart, length: displayEnd - displayStart), in: attributed.string)
+                guard displayRange.length > 0 else { continue }
+
+                if styleRange.bold || styleRange.italic {
+                    attributed.enumerateAttribute(.font, in: displayRange) { value, range, _ in
+                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        var modified = font
+                        if styleRange.bold   { modified = modified.withTrait(.traitBold, add: true) }
+                        if styleRange.italic { modified = modified.withTrait(.traitItalic, add: true) }
+                        attributed.addAttribute(.font, value: modified, range: range)
+                    }
+                }
+                if styleRange.underline {
+                    attributed.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: displayRange)
+                }
+                if styleRange.strikethrough {
+                    // Don't override checklist's own strikethrough
+                    let style = textStyle(at: displayRange.location, in: attributed)
+                    if style != .checklistChecked {
+                        attributed.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: displayRange)
+                    }
+                }
+                if let idx = styleRange.highlightIndex, idx < highlightColors.count {
+                    attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
+                    attributed.addAttribute(Self.highlightIndexAttribute, value: idx, range: displayRange)
+                }
+            }
+        }
+
+        // MARK: - Logical ↔ display coordinate mapping
+
+        private func buildLogicalOffsetMap(from attributed: NSAttributedString) -> [(displayStart: Int, logicalStart: Int, markerLen: Int)] {
+            var result: [(Int, Int, Int)] = []
+            var displayOff = 0
+            var logicalOff = 0
+            let nsDisplay = attributed.string as NSString
+
+            nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                let style = self.textStyle(at: enclosingRange.location, in: attributed)
+                let markerLen: Int
+                if style == .numberedList {
+                    let para = nsDisplay.substring(with: enclosingRange)
+                    markerLen = self.numberedListMarkerLength(in: para)
+                } else {
+                    markerLen = (self.staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0
+                }
+                result.append((displayOff, logicalOff, markerLen))
+                logicalOff += enclosingRange.length - markerLen
+                displayOff += enclosingRange.length
+            }
+            return result
+        }
+
+        private func displayToLogical(display: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
+            for (i, entry) in map.enumerated() {
+                let nextDisplay = i + 1 < map.count ? map[i + 1].displayStart : Int.max
+                if display >= entry.displayStart && display < nextDisplay {
+                    let offsetInPara = display - entry.displayStart
+                    let logicalOffset = max(0, offsetInPara - entry.markerLen)
+                    return entry.logicalStart + logicalOffset
+                }
+            }
+            return display
+        }
+
+        private func logicalToDisplay(logical: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
+            for (i, entry) in map.enumerated() {
+                let nextLogical = i + 1 < map.count ? map[i + 1].logicalStart : Int.max
+                if logical >= entry.logicalStart && logical < nextLogical {
+                    let offsetInPara = logical - entry.logicalStart
+                    return entry.displayStart + entry.markerLen + offsetInPara
+                }
+            }
+            return logical
+        }
+
+        private func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
+            guard !ranges.isEmpty else { return [] }
+            let sorted = ranges.sorted { $0.location < $1.location }
+            var result: [InlineStyleRange] = [sorted[0]]
+            for range in sorted.dropFirst() {
+                let last = result[result.count - 1]
+                let lastEnd = last.location + last.length
+                if range.location <= lastEnd
+                    && range.bold == last.bold
+                    && range.italic == last.italic
+                    && range.underline == last.underline
+                    && range.strikethrough == last.strikethrough
+                    && range.highlightIndex == last.highlightIndex {
+                    result[result.count - 1] = InlineStyleRange(
+                        location: last.location,
+                        length: max(lastEnd, range.location + range.length) - last.location,
+                        bold: last.bold, italic: last.italic,
+                        underline: last.underline, strikethrough: last.strikethrough,
+                        highlightIndex: last.highlightIndex
+                    )
+                } else {
+                    result.append(range)
+                }
+            }
+            return result
+        }
+
+        // MARK: - Active inline style refresh
+
+        private func refreshActiveInlineStyles(in textView: UITextView) {
+            guard let attributed = textView.attributedText, attributed.length > 0 else {
+                parent.activeInlineStyles = InlineStyleSet()
+                parent.panelState.activeInlineStyles = InlineStyleSet()
+                return
+            }
+            let loc = min(lastKnownCursorLocation, attributed.length - 1)
+            var styles = InlineStyleSet()
+            let font = attributed.attribute(.font, at: loc, effectiveRange: nil) as? UIFont
+            let paraStyle = textStyle(at: loc, in: attributed)
+            let isParaBold = (paraStyle == .heading || paraStyle == .title)
+            styles.bold = (font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false) && !isParaBold
+            styles.italic = font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false
+            styles.underline = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
+            styles.strikethrough = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
+                && paraStyle != .checklistChecked
+            let highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+            parent.activeInlineStyles = styles
+            parent.panelState.activeInlineStyles = styles
+            parent.panelState.activeParagraphStyle = paraStyle
+            parent.panelState.activeHighlightIndex = highlightIndex
+        }
+
+        // MARK: - Formatting panel (keyboard replacement)
+
+        func updateFormattingPanel(textView: UITextView, visible: Bool) {
+            if visible {
+                // Refresh panel state to current cursor position before the panel renders
+                refreshActiveInlineStyles(in: textView)
+                let panelView = FormattingPanelView(state: parent.panelState)
+                if formattingPanelHost == nil {
+                    let hc = UIHostingController(rootView: panelView)
+                    hc.view.backgroundColor = .secondarySystemBackground
+                    formattingPanelHost = hc
+                } else {
+                    formattingPanelHost?.rootView = panelView
+                }
+                let panelUIView = formattingPanelHost?.view
+                panelUIView?.frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 310)
+                if textView.inputView !== panelUIView {
+                    textView.inputView = panelUIView
+                    textView.reloadInputViews()
+                    if !textView.isFirstResponder { textView.becomeFirstResponder() }
+                }
+            } else {
+                if textView.inputView != nil {
+                    textView.inputView = nil
+                    textView.reloadInputViews()
+                }
+            }
+        }
     }
 }
 
 private extension UIFont {
     func bolded() -> UIFont {
-        guard let descriptor = fontDescriptor.withSymbolicTraits(.traitBold) else {
-            return self
-        }
+        return withTrait(.traitBold, add: true)
+    }
+
+    func withTrait(_ trait: UIFontDescriptor.SymbolicTraits, add: Bool) -> UIFont {
+        var traits = fontDescriptor.symbolicTraits
+        if add { traits.insert(trait) } else { traits.remove(trait) }
+        guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else { return self }
         return UIFont(descriptor: descriptor, size: pointSize)
     }
 }
@@ -1020,10 +1814,11 @@ nonisolated func preparedInlinePhotoData(fromFileAt url: URL) throws -> Data {
     return prepared
 }
 
-nonisolated func textWithInlinePhotoToken(_ text: String) -> String {
-    guard !text.contains(inlinePhotoToken) else { return text }
+nonisolated func textWithInlinePhotoToken(_ text: String, at index: Int) -> String {
+    let token = inlinePhotoToken(at: index)
+    guard !text.contains(token) else { return text }
     let trimmed = text.trimmingCharacters(in: .newlines)
-    return trimmed.isEmpty ? inlinePhotoToken : "\(trimmed)\n\(inlinePhotoToken)\n"
+    return trimmed.isEmpty ? token : "\(trimmed)\n\(token)\n"
 }
 
 private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
@@ -1099,6 +1894,58 @@ struct NativePhotoPicker: UIViewControllerRepresentable {
     }
 }
 
+struct CameraPickerController: UIViewControllerRepresentable {
+    let onPicked: (Result<URL, Error>) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = ["public.image"]
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPicked: onPicked) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        private let onPicked: (Result<URL, Error>) -> Void
+
+        init(onPicked: @escaping (Result<URL, Error>) -> Void) {
+            self.onPicked = onPicked
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            picker.dismiss(animated: true)
+            guard let image = info[.originalImage] as? UIImage,
+                  let data = image.jpegData(compressionQuality: 0.92) else {
+                onPicked(.failure(PhotoAttachError.unreadableImage))
+                return
+            }
+            do {
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension("jpg")
+                try data.write(to: tempURL)
+                onPicked(.success(tempURL))
+            } catch {
+                onPicked(.failure(error))
+            }
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
+        }
+    }
+}
+
+struct IdentifiableIndex: Identifiable {
+    let id: Int
+    var value: Int { id }
+    init(value: Int) { id = value }
+}
+
 struct WriteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -1115,9 +1962,15 @@ struct WriteView: View {
     @State private var showDiscardConfirm = false
     @State private var showVoiceInput = false
     @State private var showPhotoPicker = false
+    @State private var showCameraPicker = false
     @State private var photoAttachError: String? = nil
     @State private var isAttachingPhoto = false
-    @State private var photoData: Data? = nil
+    @State private var photoDataArray: [Data] = []
+    @State private var inlineStyleData: Data? = nil
+    @State private var activeInlineStyles = InlineStyleSet()
+    @State private var showFormattingPanel = false
+    @State private var panelState = FormattingPanelState()
+    @State private var fullscreenPhotoIndex: Int? = nil
     @State private var voiceNoteData: Data? = nil
     @State private var voiceNoteDuration: TimeInterval = 0
     @State private var voiceNoteTranscript: String? = nil
@@ -1134,20 +1987,12 @@ struct WriteView: View {
     @State private var isDetectingMood = false
     @State private var pendingTextCommand: NoteTextCommand?
     @State private var textCommandRevision = 0
-    @State private var pendingBeforePhotoCommand: NoteTextCommand?
-    @State private var pendingAfterPhotoCommand: NoteTextCommand?
-    @State private var activePhotoSegment: InlinePhotoSegment = .before
-    @State private var beforePhotoFocused = false
-    @State private var afterPhotoFocused = false
     @State private var activeParagraphStyle: NoteParagraphTextStyle = .body
     @FocusState private var editorFocused: Bool
 
     private var noteDate: Date { entry?.createdAt ?? Date() }
     private var hasDraftContent: Bool {
-        viewModel.hasContent || photoData != nil || !draftVoiceNotes.isEmpty
-    }
-    private var hasInlinePhoto: Bool {
-        photoData != nil && viewModel.text.contains(inlinePhotoToken)
+        viewModel.hasContent || !photoDataArray.isEmpty || !draftVoiceNotes.isEmpty
     }
     private var isTranscribingVoiceNotes: Bool {
         !transcribingVoiceNoteIndexes.isEmpty
@@ -1189,12 +2034,13 @@ struct WriteView: View {
                 if !draftVoiceNotes.isEmpty {
                     VStack(spacing: 8) {
                         ForEach(draftVoiceNotes.indices, id: \.self) { index in
+                            let note = draftVoiceNotes[index]
                             VoiceNoteAttachmentView(
-                                data: draftVoiceNotes[index].data,
-                                duration: draftVoiceNotes[index].duration,
+                                data: note.data,
+                                duration: note.duration,
                                 title: "Voice note \(index + 1)",
-                                transcript: draftVoiceNotes[index].transcript,
-                                languageName: draftVoiceNotes[index].languageName,
+                                transcript: note.transcript,
+                                languageName: note.languageName,
                                 isTranscribing: transcribingVoiceNoteIndexes.contains(index),
                                 onDelete: { removeVoiceNote(at: index) }
                             )
@@ -1208,14 +2054,19 @@ struct WriteView: View {
                 NoteEditorTextView(
                     text: $viewModel.text,
                     textStyleData: $viewModel.textStyleData,
-                    photoData: $photoData,
+                    inlineStyleData: $inlineStyleData,
+                    photoDataArray: $photoDataArray,
                     command: $pendingTextCommand,
                     commandRevision: $textCommandRevision,
                     isFocused: Binding(
                         get: { editorFocused },
                         set: { editorFocused = $0 }
                     ),
-                    activeParagraphStyle: $activeParagraphStyle
+                    activeParagraphStyle: $activeParagraphStyle,
+                    activeInlineStyles: $activeInlineStyles,
+                    showFormattingPanel: $showFormattingPanel,
+                    panelState: panelState,
+                    onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                 )
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
@@ -1267,11 +2118,8 @@ struct WriteView: View {
         .onAppear {
             viewModel.configure(entry: entry)
             if let entry {
-                photoData = entry.photoData
-                if entry.photoData != nil, !viewModel.text.contains(inlinePhotoToken) {
-                    let trimmed = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    viewModel.text = trimmed.isEmpty ? inlinePhotoToken : "\(trimmed)\n\(inlinePhotoToken)"
-                }
+                photoDataArray = entry.photoDataArray
+                inlineStyleData = entry.inlineStyleData
                 voiceNoteData = entry.voiceNoteData
                 voiceNoteDuration = entry.voiceNoteDuration
                 voiceNoteTranscript = entry.voiceNoteTranscript
@@ -1285,6 +2133,8 @@ struct WriteView: View {
                 additionalVoiceNoteLanguageNames = entry.additionalVoiceNoteLanguageNames
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
             }
+            panelState.onCommand = { cmd in applyTextCommand(cmd) }
+            panelState.onDismiss = { showFormattingPanel = false }
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true
@@ -1296,6 +2146,20 @@ struct WriteView: View {
                 handlePickedPhoto(result)
             }
             .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showCameraPicker) {
+            CameraPickerController { result in
+                handlePickedPhoto(result)
+            }
+            .ignoresSafeArea()
+        }
+        .fullScreenCover(item: Binding(
+            get: { fullscreenPhotoIndex.map { IdentifiableIndex(value: $0) } },
+            set: { fullscreenPhotoIndex = $0?.value }
+        )) { item in
+            if item.value < photoDataArray.count {
+                FullscreenPhotoView(photoData: photoDataArray[item.value])
+            }
         }
         .alert("Photo not attached", isPresented: Binding(
             get: { photoAttachError != nil },
@@ -1513,14 +2377,43 @@ struct WriteView: View {
                 Spacer(minLength: 0)
 
                 // Photo button
-                Button {
-                    presentPhotoPicker()
+                Menu {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            editorFocused = false
+                            isKeyboardVisible = false
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showCameraPicker = true }
+                        } label: {
+                            Label("Camera", systemImage: "camera")
+                        }
+                    }
+                    Button {
+                        editorFocused = false
+                        isKeyboardVisible = false
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showPhotoPicker = true }
+                    } label: {
+                        Label("Photo Library", systemImage: "photo.on.rectangle")
+                    }
                 } label: {
-                    Image(systemName: photoData != nil ? "photo.fill" : "photo")
+                    Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
                         .font(.system(size: 20))
-                        .foregroundStyle(photoData != nil ? Color.accentColor : .primary)
+                        .foregroundStyle(!photoDataArray.isEmpty ? Color.accentColor : .primary)
                         .frame(width: 44, height: 44)
+                        .overlay(alignment: .topTrailing) {
+                            if photoDataArray.count > 1 {
+                                Text("\(photoDataArray.count)")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor, in: Capsule())
+                                    .offset(x: 4, y: -2)
+                            }
+                        }
                 }
+                .menuStyle(.button)
                 .buttonStyle(.plain)
 
                 // Voice button
@@ -1531,101 +2424,23 @@ struct WriteView: View {
                         .font(.system(size: 20))
                         .foregroundStyle(!draftVoiceNotes.isEmpty ? Color.accentColor : .primary)
                         .frame(width: 44, height: 44)
+                        .overlay(alignment: .topTrailing) {
+                            if draftVoiceNotes.count > 1 {
+                                Text("\(draftVoiceNotes.count)")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor, in: Capsule())
+                                    .offset(x: 4, y: -2)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
-
-                // Checklist button — highlighted when cursor is on a checklist line, tap toggles
-                Button {
-                    applyTextCommand(.checklist)
-                } label: {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 20))
-                        .foregroundStyle(
-                            (activeParagraphStyle == .checklistUnchecked || activeParagraphStyle == .checklistChecked)
-                                ? Color.accentColor : .primary
-                        )
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-
-                formatMenu
             }
             .padding(.horizontal, 8)
         }
         .background(.bar)
-    }
-
-    private var formatMenu: some View {
-        Menu {
-            Button { applyTextCommand(.title) } label: {
-                Label("Title", systemImage: activeParagraphStyle == .title ? "checkmark" : "textformat.size.larger")
-            }
-            Button { applyTextCommand(.heading) } label: {
-                Label("Heading", systemImage: activeParagraphStyle == .heading ? "checkmark" : "textformat.size")
-            }
-            Button { applyTextCommand(.subheading) } label: {
-                Label("Subheading", systemImage: activeParagraphStyle == .subheading ? "checkmark" : "textformat")
-            }
-            Button { applyTextCommand(.body) } label: {
-                Label("Body", systemImage: activeParagraphStyle == .body ? "checkmark" : "text.alignleft")
-            }
-            Button { applyTextCommand(.monospaced) } label: {
-                Label("Monostyled", systemImage: activeParagraphStyle == .monospaced ? "checkmark" : "curlybraces")
-            }
-        } label: {
-            Image(systemName: "textformat")
-                .font(.system(size: 20))
-                .foregroundStyle(
-                    (activeParagraphStyle != .body && activeParagraphStyle != .checklistUnchecked && activeParagraphStyle != .checklistChecked)
-                        ? Color.accentColor : .primary
-                )
-                .frame(width: 44, height: 44)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Text formatting")
-    }
-
-    private var beforePhotoTextBinding: Binding<String> {
-        Binding(
-            get: { splitInlinePhotoText().before },
-            set: { newValue in
-                let split = splitInlinePhotoText()
-                viewModel.text = composeInlinePhotoText(before: newValue, after: split.after)
-            }
-        )
-    }
-
-    private var afterPhotoTextBinding: Binding<String> {
-        Binding(
-            get: { splitInlinePhotoText().after },
-            set: { newValue in
-                let split = splitInlinePhotoText()
-                viewModel.text = composeInlinePhotoText(before: split.before, after: newValue)
-            }
-        )
-    }
-
-    private func splitInlinePhotoText() -> (before: String, after: String) {
-        guard let tokenRange = viewModel.text.range(of: inlinePhotoToken) else {
-            return (viewModel.text, "")
-        }
-        let before = String(viewModel.text[..<tokenRange.lowerBound])
-            .trimmingCharacters(in: CharacterSet.newlines)
-        let after = String(viewModel.text[tokenRange.upperBound...])
-            .trimmingCharacters(in: CharacterSet.newlines)
-        return (before, after)
-    }
-
-    private func composeInlinePhotoText(before: String, after: String) -> String {
-        let before = before.trimmingCharacters(in: CharacterSet.newlines)
-        let after = after.trimmingCharacters(in: CharacterSet.newlines)
-        if after.isEmpty {
-            return before.isEmpty ? inlinePhotoToken : "\(before)\n\(inlinePhotoToken)"
-        }
-        if before.isEmpty {
-            return "\(inlinePhotoToken)\n\(after)"
-        }
-        return "\(before)\n\(inlinePhotoToken)\n\(after)"
     }
 
     private func applyTextCommand(_ command: NoteTextCommand) {
@@ -1644,7 +2459,7 @@ struct WriteView: View {
             }
             if hasDraftContent {
                 update(entry)
-                entry.photoData = photoData
+                entry.photoDataArray = photoDataArray
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
                 entry.voiceNoteTranscript = voiceNoteTranscript
@@ -1666,7 +2481,9 @@ struct WriteView: View {
                 let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let entry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
                 entry.textStyleData = viewModel.textStyleData
-                entry.photoData = photoData
+                entry.photoDataArray = photoDataArray
+                entry.inlineStyleData = inlineStyleData
+                entry.wordCount = strippedWordCount(plain)
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
                 entry.voiceNoteTranscript = voiceNoteTranscript
@@ -1700,7 +2517,9 @@ struct WriteView: View {
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
         savedEntry.textStyleData = viewModel.textStyleData
-        savedEntry.photoData = photoData
+        savedEntry.photoDataArray = photoDataArray
+        savedEntry.inlineStyleData = inlineStyleData
+        savedEntry.wordCount = strippedWordCount(plain)
         savedEntry.voiceNoteData = voiceNoteData
         savedEntry.voiceNoteDuration = voiceNoteDuration
         savedEntry.voiceNoteTranscript = voiceNoteTranscript
@@ -1728,7 +2547,10 @@ struct WriteView: View {
         viewModel.text = ""
         viewModel.textStyleData = nil
         viewModel.selectedMood = nil
-        photoData = nil
+        photoDataArray = []
+        inlineStyleData = nil
+        activeInlineStyles = InlineStyleSet()
+        showFormattingPanel = false
         voiceNoteData = nil
         voiceNoteDuration = 0
         voiceNoteTranscript = nil
@@ -1748,10 +2570,8 @@ struct WriteView: View {
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.text = plain
         entry.textStyleData = viewModel.textStyleData
-        entry.wordCount = plain.replacingOccurrences(of: inlinePhotoToken, with: "")
-            .split { $0.isWhitespace }
-            .filter { !$0.isEmpty }
-            .count
+        entry.inlineStyleData = inlineStyleData
+        entry.wordCount = strippedWordCount(plain)
         entry.mood = viewModel.selectedMood
         entry.source = !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -1862,15 +2682,6 @@ struct WriteView: View {
         }
     }
 
-    private func presentPhotoPicker() {
-        editorFocused = false
-        isKeyboardVisible = false
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            showPhotoPicker = true
-        }
-    }
-
     private func handlePickedPhoto(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
@@ -1881,8 +2692,9 @@ struct WriteView: View {
                     let preparedData = try await Task.detached(priority: .userInitiated) {
                         try preparedInlinePhotoData(fromFileAt: url)
                     }.value
-                    photoData = preparedData
-                    viewModel.text = textWithInlinePhotoToken(viewModel.text)
+                    let index = photoDataArray.count
+                    photoDataArray.append(preparedData)
+                    viewModel.text = textWithInlinePhotoToken(viewModel.text, at: index)
                     isAttachingPhoto = false
                 } catch {
                     isAttachingPhoto = false

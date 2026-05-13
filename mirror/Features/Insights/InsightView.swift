@@ -71,8 +71,15 @@ struct InsightView: View {
             _ = await (showChart, load)
         }
         .onChange(of: entries.count) { _, _ in
-            Task(priority: .background) {
+            Task {
                 await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+            }
+        }
+        .onChange(of: insights.count) { _, _ in
+            // Re-check when background pre-gen inserts a new insight
+            Task {
+                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
             }
         }
         .onChange(of: viewModel.nudgeState) { _, newState in
