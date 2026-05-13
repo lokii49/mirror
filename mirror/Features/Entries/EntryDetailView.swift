@@ -64,8 +64,8 @@ struct EntryDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if !entry.text.replacingOccurrences(of: inlinePhotoToken, with: "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.photoData != nil {
-                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoData: entry.photoData)
+                    } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray)
                     } else {
                         Text("No text")
                             .font(.system(size: 17, weight: .regular))
@@ -120,11 +120,7 @@ struct EntryDetailView: View {
             relatedInsight = insights.first { insight in
                 insight.content.localizedCaseInsensitiveContains(prefix)
             }
-            displayedWordCount = text
-                .replacingOccurrences(of: inlinePhotoToken, with: "")
-                .split { $0.isWhitespace }
-                .filter { !$0.isEmpty }
-                .count
+            displayedWordCount = strippedWordCount(text)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -175,7 +171,7 @@ struct EntryDetailView: View {
 private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
-    let photoData: Data?
+    let photoDataArray: [Data]
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
         guard let textStyleData,
@@ -186,17 +182,15 @@ private struct InlineEntryContent: View {
     }
 
     private var displayLines: [String] {
-        if photoData != nil, !text.contains(inlinePhotoToken) {
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return (trimmed.isEmpty ? inlinePhotoToken : "\(trimmed)\n\(inlinePhotoToken)").components(separatedBy: .newlines)
-        }
-        return text.components(separatedBy: .newlines)
+        text.components(separatedBy: .newlines)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(displayLines.enumerated()), id: \.offset) { index, line in
-                if line == inlinePhotoToken, let photoData, let uiImage = UIImage(data: photoData) {
+                if let photoIndex = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)),
+                   photoIndex < photoDataArray.count,
+                   let uiImage = UIImage(data: photoDataArray[photoIndex]) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()

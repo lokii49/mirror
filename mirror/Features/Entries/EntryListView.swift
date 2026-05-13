@@ -10,6 +10,7 @@ struct EntriesTabView: View {
     @State private var debouncedSearchText = ""
     @State private var showSearch = false
     @State private var selectedMoodFilter: String? = nil
+    @State private var selectedDateFilter: Date? = nil
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
 
@@ -29,6 +30,9 @@ struct EntriesTabView: View {
         var result = entries
         let usedMoods = usedMoods(in: entries)
 
+        if let date = selectedDateFilter {
+            result = result.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: date) }
+        }
         if let mood = selectedMoodFilter {
             result = result.filter { $0.mood == mood }
         }
@@ -54,9 +58,8 @@ struct EntriesTabView: View {
             Group {
                 if entries.isEmpty {
                     emptyState
-                } else if snapshot.filteredEntries.isEmpty {
-                    ContentUnavailableView.search(text: debouncedSearchText)
                 } else {
+                    // Always show the list (heatmap stays visible even when filters produce 0 results)
                     entryList(snapshot)
                 }
             }
@@ -95,6 +98,60 @@ struct EntriesTabView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var activeFiltersRow: some View {
+        HStack(spacing: 8) {
+            if let date = selectedDateFilter {
+                filterChip(
+                    label: date.formatted(.dateTime.month(.abbreviated).day().year()),
+                    systemImage: "calendar"
+                ) { selectedDateFilter = nil }
+            }
+            if let mood = selectedMoodFilter {
+                filterChip(
+                    label: mood,
+                    systemImage: "circle.fill",
+                    color: MirrorTheme.moodColor(for: mood)
+                ) { selectedMoodFilter = nil }
+            }
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedDateFilter = nil
+                    selectedMoodFilter = nil
+                }
+            } label: {
+                Text("Clear")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func filterChip(
+        label: String,
+        systemImage: String,
+        color: Color = MirrorTheme.primary,
+        onRemove: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.primary)
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.10), in: Capsule())
     }
 
     private func usedMoods(in entries: [Entry]) -> [String] {
@@ -163,12 +220,50 @@ struct EntriesTabView: View {
 
     private func entryList(_ snapshot: EntryListSnapshot) -> some View {
         List {
-            Text("\(snapshot.filteredEntries.count) \(snapshot.filteredEntries.count == 1 ? "entry" : "entries")")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.tertiary)
-                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            // Activity heatmap
+            Section {
+                CalendarHeatmap(
+                    entries: entries,
+                    selectedDate: selectedDateFilter,
+                    onDaySelected: { date in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedDateFilter = date
+                            selectedMoodFilter = nil
+                        }
+                    }
+                )
+                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            }
+
+            // Active filters row
+            if selectedDateFilter != nil || selectedMoodFilter != nil {
+                Section {
+                    activeFiltersRow
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if snapshot.filteredEntries.isEmpty {
+                Text(emptyFilteredMessage)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 32)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else {
+                Text("\(snapshot.filteredEntries.count) \(snapshot.filteredEntries.count == 1 ? "entry" : "entries")")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
 
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
                 Section {
@@ -211,6 +306,16 @@ struct EntriesTabView: View {
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
         .background(MirrorTheme.bgBase)
+    }
+
+    private var emptyFilteredMessage: String {
+        if let date = selectedDateFilter {
+            return "No entries on \(date.formatted(.dateTime.month(.wide).day()))"
+        }
+        if let mood = selectedMoodFilter {
+            return "No \(mood.lowercased()) entries"
+        }
+        return "No entries match your search"
     }
 
     private var emptyState: some View {
@@ -327,8 +432,9 @@ private struct EntryRow: View {
         guard !entry.textDecryptionFailed else {
             return ("Encrypted entry unavailable", 0, false, entry.hasVoiceNotes)
         }
-        let textPreview = entry.text
-            .replacingOccurrences(of: inlinePhotoToken, with: "")
+        var entryTextStripped = entry.text
+        for (r, _) in allPhotoTokens(in: entryTextStripped).reversed() { entryTextStripped.removeSubrange(r) }
+        let textPreview = entryTextStripped
             .components(separatedBy: .newlines)
             .map { strippedLine($0) }
             .filter { !$0.isEmpty }

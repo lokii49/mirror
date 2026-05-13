@@ -19,6 +19,7 @@ enum DigestState {
     case error(String)
 }
 
+@MainActor
 @Observable
 final class InsightViewModel {
     var nudgeState: NudgeState = .idle
@@ -27,8 +28,14 @@ final class InsightViewModel {
     // MARK: - Daily Nudge
 
     func loadNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let coordinatorKey = "nudge_\(today)"
+
         if case .loading = nudgeState {
-            return
+            // If WE own the generation, keep waiting.
+            // If someone else (pre-gen) is generating, fall through so a fresh
+            // insights array passed from onChange can hit the cache check below.
+            guard !InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) else { return }
         }
 
         guard entries.count >= 3 else {
@@ -37,19 +44,23 @@ final class InsightViewModel {
         }
 
         let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge }
-
-        // First nudge is always free — subsequent nudges require subscription
         if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
             nudgeState = .subscriptionRequired
             return
         }
 
-        // Cache check — one nudge per day
-        let today = DateHelpers.dayIdentifier(for: Date())
         if let cached = insights.first(where: {
             $0.type == .dailyNudge && $0.periodIdentifier == today
         }) {
             nudgeState = .loaded(cached)
+            return
+        }
+
+        // If another caller (pre-gen) is generating, show spinner and wait for it
+        // to insert the insight — InsightView's onChange(of: insights.count) will
+        // re-call this function with fresh insights once it lands.
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+            nudgeState = .loading
             return
         }
 
@@ -67,13 +78,18 @@ final class InsightViewModel {
         } catch {
             nudgeState = .error(error.localizedDescription)
         }
+
+        InsightGenerationCoordinator.shared.release(key: coordinatorKey)
     }
 
     // MARK: - Weekly Digest
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let coordinatorKey = "digest_\(thisWeek)"
+
         if case .loading = digestState {
-            return
+            guard !InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) else { return }
         }
 
         guard entries.count >= 5 else {
@@ -86,12 +102,15 @@ final class InsightViewModel {
             return
         }
 
-        // Cache check — one digest per week
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
         if let cached = insights.first(where: {
             $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek
         }) {
             digestState = .loaded(cached)
+            return
+        }
+
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+            digestState = .loading
             return
         }
 
@@ -109,5 +128,7 @@ final class InsightViewModel {
         } catch {
             digestState = .error(error.localizedDescription)
         }
+
+        InsightGenerationCoordinator.shared.release(key: coordinatorKey)
     }
 }

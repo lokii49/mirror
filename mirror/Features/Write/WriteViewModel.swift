@@ -45,18 +45,12 @@ class WriteViewModel {
         guard !plain.isEmpty else { return }
         entry.text = plain
         entry.textStyleData = textStyleData
-        entry.wordCount = plain.replacingOccurrences(of: inlinePhotoToken, with: "")
-            .split { $0.isWhitespace }
-            .filter { !$0.isEmpty }
-            .count
+        entry.wordCount = strippedWordCount(plain)
         entry.mood = selectedMood
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func updateWordCount() {
-        wordCount = text.replacingOccurrences(of: inlinePhotoToken, with: "")
-            .split { $0.isWhitespace }
-            .filter { !$0.isEmpty }
-            .count
+        wordCount = strippedWordCount(text)
     }
 }

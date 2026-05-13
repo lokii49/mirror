@@ -8,7 +8,7 @@ enum LocalLLMError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelMissing(let url):
-            return "Local AI model not installed. Add Qwen2.5-1.5B-Instruct-Q4_K_M.gguf to \(url.path)."
+            return "Local AI model not installed. Add gemma-3-1b-it-Q4_K_M.gguf to \(url.path)."
         case .emptyResponse:
             return "Local AI returned an empty response."
         }
@@ -34,7 +34,7 @@ enum LocalLLMTask {
 actor LocalLLMService {
     static let shared = LocalLLMService()
 
-    static let modelFileName = "Qwen2.5-1.5B-Instruct-Q4_K_M"
+    static let modelFileName = "gemma-3-1b-it-Q4_K_M"
     static let modelExtension = "gguf"
 
     private var service: LlamaService?
@@ -117,15 +117,18 @@ actor LocalLLMService {
 
     private func clean(_ text: String) -> String {
         let cleaned = text
-            .replacingOccurrences(of: "<|im_end|>", with: "")
-            .replacingOccurrences(of: "<|endoftext|>", with: "")
+            .replacingOccurrences(of: "<end_of_turn>", with: "")
+            .replacingOccurrences(of: "<start_of_turn>model", with: "")
+            .replacingOccurrences(of: "<start_of_turn>user", with: "")
+            .replacingOccurrences(of: "<eos>", with: "")
+            .replacingOccurrences(of: "<bos>", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return stripAssistantPreamble(cleaned)
     }
 
     private func stripAssistantPreamble(_ text: String) -> String {
-        let markers = ["assistant\n", "assistant:", "<|assistant|>", "<|im_start|>assistant"]
+        let markers = ["model\n", "model:", "<start_of_turn>model"]
         var result = text
         for marker in markers where result.lowercased().hasPrefix(marker) {
             result = String(result.dropFirst(marker.count))

@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Mirror uses the camera so you can capture photos, videos, and scanned documents in your notes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Mirror saves photos from your journal entries to your photo library.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mirror uses the microphone so you can attach voice notes to journal entries.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
@@ -11,6 +13,16 @@
 <key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.lokesh.mirror.weeklyDigest</string>
+		<string>com.lokesh.mirror.nightlyInsights</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mirror</string>
+			</array>
+		</dict>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

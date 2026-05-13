@@ -6,6 +6,10 @@ struct ContentView: View {
     @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
     @State private var insightViewModel = InsightViewModel()
 
+    private var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains("--uitesting")
+    }
+
     private var onboardingComplete: Bool {
         profiles.first?.onboardingComplete ?? false
     }
@@ -24,7 +28,7 @@ struct ContentView: View {
                 .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
-        .fullScreenCover(isPresented: .constant(!onboardingComplete)) {
+        .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }
         .onChange(of: onboardingComplete) { _, complete in
@@ -33,6 +37,14 @@ struct ContentView: View {
         .onAppear {
             // Don't open Write tab (and its keyboard) while onboarding is showing
             if !onboardingComplete { selectedTab = 0 }
+        }
+        .onOpenURL { url in
+            guard url.scheme == "mirror" else { return }
+            switch url.host {
+            case "write":   selectedTab = 1
+            case "entries": selectedTab = 0
+            default:        break
+            }
         }
     }
 }
