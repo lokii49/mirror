@@ -6,6 +6,8 @@ struct AskView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
+    @State private var subscriptionService = SubscriptionService.shared
+    @State private var showPaywall = false
     @State private var question = ""
     @State private var pendingQuestion = ""
     @State private var isLoading = false
@@ -35,38 +37,82 @@ struct AskView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            inputBar
+        Group {
+            if subscriptionService.isSubscribed {
+                VStack(spacing: 0) {
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    inputBar
+                }
+                .padding(.bottom, keyboardHeight)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if remaining <= 3 {
+                            Text("\(remaining) left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                                .monospacedDigit()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
+                                    in: Capsule()
+                                )
+                        }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+                    updateKeyboardHeight(from: notification)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+                }
+            } else {
+                askLockedState
+            }
         }
-        .padding(.bottom, keyboardHeight)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .background(MirrorTheme.bgBase)
         .navigationTitle("Ask")
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if remaining <= 3 {
-                    Text("\(remaining) left")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(remaining <= 2 ? .orange : .secondary)
-                        .monospacedDigit()
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
-                            in: Capsule()
-                        )
-                }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+    }
+
+    private var askLockedState: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(Color.secondary.opacity(0.10))
+                    .frame(width: 88, height: 88)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
+            VStack(spacing: 8) {
+                Text("Ask is a Core feature")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("Ask up to 60 questions per month,\nanswered only from your own journal.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                showPaywall = true
+            } label: {
+                Text("Unlock with Core")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 14)
+                    .background(MirrorTheme.accentGradient, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+            Spacer()
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
-            updateKeyboardHeight(from: notification)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
-        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -176,7 +222,7 @@ struct AskView: View {
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Ask Mirror")
+                Text("Ask MirrorNotes")
                     .font(.system(size: 15, weight: .semibold))
                 Text("\(remaining) of \(monthLimit) questions this month")
                     .font(.system(size: 12, weight: .medium))

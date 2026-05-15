@@ -127,6 +127,7 @@ struct EntriesTabView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -136,22 +137,23 @@ struct EntriesTabView: View {
         color: Color = MirrorTheme.primary,
         onRemove: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.primary)
-            Button(action: onRemove) {
+        Button(action: onRemove) {
+            HStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.secondary)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.10), in: Capsule())
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.10), in: Capsule())
+        .buttonStyle(.plain)
     }
 
     private func usedMoods(in entries: [Entry]) -> [String] {
@@ -228,7 +230,7 @@ struct EntriesTabView: View {
                     onDaySelected: { date in
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedDateFilter = date
-                            selectedMoodFilter = nil
+                            if date != nil { selectedMoodFilter = nil }
                         }
                     }
                 )

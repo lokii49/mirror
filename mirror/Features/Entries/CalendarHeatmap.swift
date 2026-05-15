@@ -5,7 +5,7 @@ struct CalendarHeatmap: View {
     var selectedDate: Date?
     var onDaySelected: ((Date?) -> Void)?
 
-    private let cellSize: CGFloat = 10
+    private let cellSize: CGFloat = 12
     private let cellGap: CGFloat = 3
     private let weeksToShow = 53
 
@@ -17,12 +17,11 @@ struct CalendarHeatmap: View {
 
     private struct WeekColumn: Identifiable {
         let id: Int
-        let days: [Date?]       // 7 entries, Sun=0 … Sat=6
-        let monthLabel: String? // non-nil on first week of a new month
+        let days: [Date?]
+        let monthLabel: String?
     }
 
     private var weeks: [WeekColumn] {
-        // Anchor: start of the week that contains today (Sunday).
         var startComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
         startComps.weekday = 1
         guard
@@ -59,6 +58,25 @@ struct CalendarHeatmap: View {
         return dict
     }
 
+    // MARK: - Stats
+
+    private var streakCount: Int {
+        let days = Set(entries.map { cal.startOfDay(for: $0.createdAt) })
+        var day = today
+        if !days.contains(day) {
+            guard let yesterday = cal.date(byAdding: .day, value: -1, to: today),
+                  days.contains(yesterday) else { return 0 }
+            day = yesterday
+        }
+        var count = 0
+        while days.contains(day) {
+            count += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
+            day = prev
+        }
+        return count
+    }
+
     // MARK: - Cell color
 
     private func color(for date: Date?) -> Color {
@@ -85,33 +103,75 @@ struct CalendarHeatmap: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 0) {
-                    dayLabels
-                    LazyHStack(alignment: .top, spacing: cellGap) {
-                        ForEach(weeks) { week in
-                            column(week)
+        VStack(alignment: .leading, spacing: 10) {
+            summaryRow
+
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 0) {
+                        dayLabels
+                        LazyHStack(alignment: .top, spacing: cellGap) {
+                            ForEach(weeks) { week in
+                                column(week)
+                            }
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 2)
+                    .padding(.bottom, 2)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 2)
-                .padding(.bottom, 2)
-            }
-            .onAppear {
-                if let last = weeks.last {
-                    proxy.scrollTo(last.id, anchor: .trailing)
+                .onAppear {
+                    if let last = weeks.last {
+                        proxy.scrollTo(last.id, anchor: .trailing)
+                    }
                 }
             }
+
         }
     }
 
-    // MARK: - Day-of-week labels (M W F on left)
+    // MARK: - Summary Row
+
+    private var summaryRow: some View {
+        HStack(spacing: 0) {
+            statChip(
+                value: "\(entries.count)",
+                label: entries.count == 1 ? "entry" : "entries",
+                icon: "book.pages",
+                color: MirrorTheme.primary
+            )
+            Spacer()
+            if streakCount > 0 {
+                statChip(
+                    value: "\(streakCount)",
+                    label: "day streak",
+                    icon: "flame.fill",
+                    color: .orange
+                )
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func statChip(value: String, label: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Day-of-week labels
 
     private var dayLabels: some View {
         VStack(spacing: cellGap) {
-            Color.clear.frame(height: 14) // month label row
+            Color.clear.frame(height: 14)
             ForEach(0..<7, id: \.self) { i in
                 Group {
                     switch i {
@@ -133,7 +193,6 @@ struct CalendarHeatmap: View {
 
     private func column(_ week: WeekColumn) -> some View {
         VStack(alignment: .leading, spacing: cellGap) {
-            // Month label
             if let label = week.monthLabel {
                 Text(label)
                     .font(.system(size: 8, weight: .semibold))
@@ -156,12 +215,12 @@ struct CalendarHeatmap: View {
         let isSelected = date.map { cal.isDate($0, inSameDayAs: selectedDate ?? .distantPast) } ?? false
         let isToday = date.map { cal.isDateInToday($0) } ?? false
 
-        return RoundedRectangle(cornerRadius: 2, style: .continuous)
+        return RoundedRectangle(cornerRadius: 3, style: .continuous)
             .fill(color(for: date))
             .frame(width: cellSize, height: cellSize)
             .overlay {
                 if isToday || isSelected {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .stroke(
                             isSelected ? MirrorTheme.primary : Color.primary.opacity(0.45),
                             lineWidth: isSelected ? 1.5 : 1
