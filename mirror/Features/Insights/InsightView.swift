@@ -172,7 +172,7 @@ struct InsightView: View {
             NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
             UpgradePromptCard(
-                title: "Mirror Core",
+                title: "MirrorNotes Core",
                 subtitle: "Daily reflections are part of Core.",
                 onUpgrade: { showPaywall = true }
             )
@@ -265,7 +265,7 @@ struct InsightView: View {
         case .subscriptionRequired:
             UpgradePromptCard(
                 title: "Core required",
-                subtitle: "Weekly digests are part of Mirror Core.",
+                subtitle: "Weekly digests are part of MirrorNotes Core.",
                 onUpgrade: { showPaywall = true }
             )
         case .error(let message):

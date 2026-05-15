@@ -1,5 +1,5 @@
 import SwiftUI
-import StoreKit
+import RevenueCat
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
@@ -85,7 +85,7 @@ struct PaywallView: View {
                 .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Mirror Core")
+                    Text("MirrorNotes Core")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text("Private journal intelligence,\nbuilt around your writing.")
@@ -158,7 +158,7 @@ struct PaywallView: View {
                 .tracking(0.8)
                 .padding(.bottom, 14)
 
-            if subscriptionService.products.isEmpty {
+            if subscriptionService.packages.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView().scaleEffect(0.9)
                     Text("Loading plans…")
@@ -168,11 +168,11 @@ struct PaywallView: View {
                 .padding(.vertical, 8)
             } else {
                 VStack(spacing: 10) {
-                    ForEach(subscriptionService.products, id: \.id) { product in
+                    ForEach(subscriptionService.packages, id: \.storeProduct.productIdentifier) { package in
                         PlanCard(
-                            product: product,
-                            isSelected: selectedProductID == product.id,
-                            onTap: { selectedProductID = product.id }
+                            package: package,
+                            isSelected: selectedProductID == package.storeProduct.productIdentifier,
+                            onTap: { selectedProductID = package.storeProduct.productIdentifier }
                         )
                     }
                 }
@@ -185,8 +185,8 @@ struct PaywallView: View {
     private var ctaSection: some View {
         VStack(spacing: 12) {
             Button {
-                guard let product = subscriptionService.products.first(where: { $0.id == selectedProductID }) else { return }
-                Task { await subscriptionService.purchase(product) }
+                guard let package = subscriptionService.packages.first(where: { $0.storeProduct.productIdentifier == selectedProductID }) else { return }
+                Task { await subscriptionService.purchase(package) }
             } label: {
                 HStack {
                     Spacer()
@@ -201,14 +201,14 @@ struct PaywallView: View {
                 }
                 .frame(height: 54)
                 .background(
-                    subscriptionService.isPurchasing || subscriptionService.products.isEmpty
+                    subscriptionService.isPurchasing || subscriptionService.packages.isEmpty
                         ? AnyShapeStyle(Color.secondary.opacity(0.3))
                         : AnyShapeStyle(MirrorTheme.accentGradient),
                     in: Capsule()
                 )
             }
             .buttonStyle(.plain)
-            .disabled(subscriptionService.isPurchasing || subscriptionService.products.isEmpty)
+            .disabled(subscriptionService.isPurchasing || subscriptionService.packages.isEmpty)
             .shadow(color: MirrorTheme.primary.opacity(0.30), radius: 16, x: 0, y: 6)
 
             Button("Restore Purchases") {
@@ -233,11 +233,11 @@ struct PaywallView: View {
 }
 
 private struct PlanCard: View {
-    let product: Product
+    let package: Package
     let isSelected: Bool
     let onTap: () -> Void
 
-    private var isYearly: Bool { product.id.contains("yearly") }
+    private var isYearly: Bool { package.storeProduct.productIdentifier.contains("yearly") }
 
     var body: some View {
         Button(action: onTap) {
@@ -269,7 +269,7 @@ private struct PlanCard: View {
                                 .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
                         }
                     }
-                    Text(isYearly ? "\(product.displayPrice) / year" : "\(product.displayPrice) / month")
+                    Text(isYearly ? "\(package.storeProduct.localizedPriceString) / year" : "\(package.storeProduct.localizedPriceString) / month")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }

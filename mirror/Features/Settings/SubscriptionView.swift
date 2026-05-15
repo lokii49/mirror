@@ -1,5 +1,5 @@
 import SwiftUI
-import StoreKit
+import RevenueCat
 
 struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +45,7 @@ struct SubscriptionView: View {
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
-                Text(subscriptionService.isSubscribed ? "Mirror Core" : "Free Plan")
+                Text(subscriptionService.isSubscribed ? "MirrorNotes Core" : "Free Plan")
                     .font(.system(size: 17, weight: .semibold))
                 Text(subscriptionService.isSubscribed
                      ? "Daily nudges, weekly digest, 60 Ask questions/month"
@@ -73,7 +73,7 @@ struct SubscriptionView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("60 Ask questions per month")
                         .font(.system(size: 15, weight: .semibold))
-                    Text("Ask Mirror about patterns in your journal, grounded only in your entries.")
+                    Text("Ask MirrorNotes about patterns in your journal, grounded only in your entries.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
@@ -82,24 +82,24 @@ struct SubscriptionView: View {
             .padding(16)
             .futureSurface(cornerRadius: 16)
 
-            ForEach(subscriptionService.products, id: \.id) { product in
+            ForEach(subscriptionService.packages, id: \.storeProduct.productIdentifier) { package in
                 Button {
                     Task {
                         isLoading = true
-                        await subscriptionService.purchase(product)
+                        await subscriptionService.purchase(package)
                         isLoading = false
                     }
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(product.displayName)
+                            Text(packageLabel(package))
                                 .font(.system(size: 16, weight: .semibold))
-                            Text(product.description)
+                            Text(packageSubtitle(package))
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text(product.displayPrice)
+                        Text(package.storeProduct.localizedPriceString)
                             .font(.system(size: 16, weight: .bold))
                     }
                     .padding(16)
@@ -124,6 +124,28 @@ struct SubscriptionView: View {
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(.secondary)
             .padding(.top, 4)
+        }
+    }
+
+    private func packageLabel(_ package: Package) -> String {
+        switch package.packageType {
+        case .monthly:  return "Monthly"
+        case .annual:   return "Yearly"
+        case .weekly:   return "Weekly"
+        case .lifetime: return "Lifetime"
+        default:
+            let id = package.storeProduct.productIdentifier
+            if id.contains("month") { return "Monthly" }
+            if id.contains("year") || id.contains("annual") { return "Yearly" }
+            return id
+        }
+    }
+
+    private func packageSubtitle(_ package: Package) -> String {
+        switch package.packageType {
+        case .monthly:  return "Billed monthly · cancel anytime"
+        case .annual:   return "Billed yearly · save ~33%"
+        default:        return "MirrorNotes Core"
         }
     }
 

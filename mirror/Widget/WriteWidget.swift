@@ -35,7 +35,7 @@ struct MirrorWriteWidget: Widget {
             WriteWidgetView(entry: entry)
         }
         .configurationDisplayName("Quick Write")
-        .description("Tap to open mirror and start writing.")
+        .description("Tap to open MirrorNotes and start writing.")
         .supportedFamilies([.accessoryCircular])
     }
 }

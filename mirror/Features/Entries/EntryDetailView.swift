@@ -94,7 +94,7 @@ struct EntryDetailView: View {
                 // "mirror noticed" card — only if a past insight references this entry
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("mirror noticed:")
+                        Text("MirrorNotes noticed:")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.secondary)
                         Text(insight.content)

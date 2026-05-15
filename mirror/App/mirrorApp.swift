@@ -3,6 +3,7 @@ import SwiftData
 import BackgroundTasks
 import UIKit
 import WidgetKit
+import RevenueCat
 
 @main
 struct mirrorApp: App {
@@ -26,6 +27,10 @@ struct mirrorApp: App {
     }()
 
     init() {
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #endif
+        Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
         registerNightlyInsightsTask()
     }
 
@@ -162,6 +167,14 @@ struct mirrorApp: App {
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try? context.save()
+            let hour = NotificationService.nudgeHour()
+            let minute = NotificationService.nudgeMinute()
+            if SubscriptionService.shared.isSubscribed {
+                await NotificationService.scheduleRepeatingNudge(hour: hour, minute: minute)
+            } else {
+                // First nudge for free users — one-time hook to drive paywall conversion
+                await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
+            }
         } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
     }
 
@@ -190,6 +203,7 @@ struct mirrorApp: App {
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             try? context.save()
+            await NotificationService.scheduleWeeklyDigest()
         } catch { /* Non-fatal */ }
     }
 
