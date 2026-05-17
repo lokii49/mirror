@@ -16,14 +16,25 @@ struct WriteWidgetProvider: TimelineProvider {
 struct WriteWidgetView: View {
     let entry: WriteTimelineEntry
 
+    private var isUnlocked: Bool {
+        let tier = UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.tier") ?? "free"
+        return tier == "core" || tier == "deep"
+    }
+
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 18, weight: .semibold))
+            if isUnlocked {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 18, weight: .semibold))
+            } else {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
         }
         .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(URL(string: "mirror://write"))
+        .widgetURL(URL(string: isUnlocked ? "mirror://write" : "mirror://upgrade"))
     }
 }
 

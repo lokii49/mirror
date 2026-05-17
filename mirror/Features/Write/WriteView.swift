@@ -1984,6 +1984,8 @@ struct WriteView: View {
     @State private var additionalVoiceNoteLanguageNames: [String] = []
     @State private var additionalVoiceNoteEnglishTranslations: [String] = []
     @State private var transcribingVoiceNoteIndexes: Set<Int> = []
+    @State private var failedTranscriptionIndexes: Set<Int> = []
+    @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
     @State private var isDetectingMood = false
     @State private var pendingTextCommand: NoteTextCommand?
     @State private var textCommandRevision = 0
@@ -2042,7 +2044,9 @@ struct WriteView: View {
                                 transcript: note.transcript,
                                 languageName: note.languageName,
                                 isTranscribing: transcribingVoiceNoteIndexes.contains(index),
-                                onDelete: { removeVoiceNote(at: index) }
+                                transcriptionFailed: failedTranscriptionIndexes.contains(index),
+                                onDelete: { removeVoiceNote(at: index) },
+                                onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
                             )
                         }
                     }
@@ -2132,6 +2136,9 @@ struct WriteView: View {
                 additionalVoiceNoteLanguageCodes = entry.additionalVoiceNoteLanguageCodes
                 additionalVoiceNoteLanguageNames = entry.additionalVoiceNoteLanguageNames
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
+                if entry.voiceNoteTranscriptionFailed && entry.voiceNoteData != nil {
+                    failedTranscriptionIndexes.insert(0)
+                }
             }
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
             panelState.onDismiss = { showFormattingPanel = false }
@@ -2472,6 +2479,7 @@ struct WriteView: View {
                 entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
                 entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
                 entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
+                entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
                 // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
                 let ctx = modelContext
                 Task { @MainActor in try? ctx.save() }
@@ -2496,6 +2504,7 @@ struct WriteView: View {
                 entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
                 entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
                 entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
+                entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
                 modelContext.insert(entry)
                 try? modelContext.save()
                 withAnimation { showSaved = true }
@@ -2601,16 +2610,20 @@ struct WriteView: View {
 
     private func transcribeVoiceNote(data: Data, index: Int) {
         transcribingVoiceNoteIndexes.insert(index)
+        failedTranscriptionIndexes.remove(index)
+        let preferred = transcriptionLanguage.isEmpty ? nil : transcriptionLanguage
         Task {
             do {
-                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: "")
+                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: "", preferredLocaleId: preferred)
                 await MainActor.run {
                     applyTranscription(result, toVoiceNoteAt: index)
                     transcribingVoiceNoteIndexes.remove(index)
+                    failedTranscriptionIndexes.remove(index)
                 }
             } catch {
-                let _: Void = await MainActor.run {
+                await MainActor.run {
                     transcribingVoiceNoteIndexes.remove(index)
+                    failedTranscriptionIndexes.insert(index)
                 }
             }
         }

@@ -84,12 +84,8 @@ struct CalendarHeatmap: View {
         let dayEntries = entriesByDay[date] ?? []
         guard !dayEntries.isEmpty else { return Color(.systemFill) }
 
-        let moods = dayEntries.compactMap(\.mood).filter { !$0.isEmpty }
-        let firstMood = moods.first
-        let allSameMood = firstMood != nil && moods.allSatisfy { $0 == firstMood }
-
         let count = dayEntries.count
-        if allSameMood, let mood = firstMood {
+        if let mood = representativeMood(for: dayEntries) {
             let base = MirrorTheme.moodColor(for: mood)
             return count >= 3 ? base : base.opacity(0.35 + Double(count) * 0.25)
         }
@@ -98,6 +94,24 @@ struct CalendarHeatmap: View {
         case 2: return MirrorTheme.primary.opacity(0.60)
         default: return MirrorTheme.primary
         }
+    }
+
+    private func representativeMood(for dayEntries: [Entry]) -> String? {
+        let moodEntries = dayEntries
+            .compactMap { entry -> (mood: String, createdAt: Date)? in
+                guard let mood = entry.mood, !mood.isEmpty else { return nil }
+                return (mood, entry.createdAt)
+            }
+        guard !moodEntries.isEmpty else { return nil }
+
+        let counts = Dictionary(grouping: moodEntries, by: \.mood).mapValues(\.count)
+        let highestCount = counts.values.max() ?? 0
+        let topMoods = Set(counts.filter { $0.value == highestCount }.map(\.key))
+
+        return moodEntries
+            .filter { topMoods.contains($0.mood) }
+            .max { $0.createdAt < $1.createdAt }?
+            .mood
     }
 
     // MARK: - Body

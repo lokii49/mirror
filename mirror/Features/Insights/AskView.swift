@@ -15,7 +15,9 @@ struct AskView: View {
     @State private var keyboardHeight: CGFloat = 0
     @FocusState private var isInputFocused: Bool
 
-    private let monthLimit = 60
+    private var monthLimit: Int {
+        subscriptionService.isDeep ? Int.max : 15
+    }
     private let bottomAnchorID = "ask-bottom-anchor"
 
     private var askHistory: [Insight] {
@@ -48,7 +50,7 @@ struct AskView: View {
                 .ignoresSafeArea(.keyboard, edges: .bottom)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        if remaining <= 3 {
+                        if remaining <= 3 && !subscriptionService.isDeep {
                             Text("\(remaining) left")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(remaining <= 2 ? .orange : .secondary)
@@ -92,7 +94,7 @@ struct AskView: View {
             VStack(spacing: 8) {
                 Text("Ask is a Core feature")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                Text("Ask up to 60 questions per month,\nanswered only from your own journal.")
+                Text("Ask up to 15 questions per month on Core,\nor unlimited on Deep.")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -224,9 +226,9 @@ struct AskView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Ask MirrorNotes")
                     .font(.system(size: 15, weight: .semibold))
-                Text("\(remaining) of \(monthLimit) questions this month")
+                Text(subscriptionService.isDeep ? "Unlimited questions" : "\(remaining) of 15 questions this month")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                    .foregroundStyle(remaining <= 2 && !subscriptionService.isDeep ? .orange : .secondary)
             }
             Spacer()
         }

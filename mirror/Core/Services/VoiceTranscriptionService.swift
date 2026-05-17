@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 import Speech
 
 struct VoiceTranscription: Codable {
@@ -9,7 +10,8 @@ struct VoiceTranscription: Codable {
 }
 
 enum VoiceTranscriptionService {
-    static func transcribe(audioData: Data, token: String) async throws -> VoiceTranscription {
+    /// - Parameter preferredLocaleId: locale identifier from user settings (e.g. "te-IN"). nil = auto-detect order.
+    static func transcribe(audioData: Data, token: String, preferredLocaleId: String? = nil) async throws -> VoiceTranscription {
         let authStatus = await requestAuthorization()
         guard authStatus == .authorized else {
             throw InsightError.serviceUnavailable("Speech recognition permission is required for local transcription.")
@@ -21,9 +23,14 @@ enum VoiceTranscriptionService {
         try audioData.write(to: url, options: .atomic)
         defer { try? FileManager.default.removeItem(at: url) }
 
+        let preferred: Locale? = preferredLocaleId.flatMap {
+            $0.isEmpty ? nil : Locale(identifier: $0)
+        }
+
         var lastError: Error?
         let supported = SFSpeechRecognizer.supportedLocales()
-        for locale in recognitionLocales where supported.contains(locale) {
+
+        for locale in localeList(preferred: preferred) where supported.contains(locale) {
             guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else { continue }
 
             let request = SFSpeechURLRecognitionRequest(url: url)
@@ -32,13 +39,31 @@ enum VoiceTranscriptionService {
 
             do {
                 let transcript = try await recognize(request: request, recognizer: recognizer)
+
+                // Skip NL validation when the user explicitly chose this locale.
+                let isUserPreferred = preferred.map { $0.identifier == locale.identifier } ?? false
+                if !isUserPreferred && transcript.count >= 20 {
+                    let nlDetected = detectLanguage(in: transcript)
+                    let localeLanguage = locale.language.languageCode?.identifier ?? ""
+                    if !localeLanguage.isEmpty, let detected = nlDetected, detected != localeLanguage {
+                        continue
+                    }
+                }
+
+                let langName = Locale.current.localizedString(forIdentifier: locale.identifier)
+                    ?? locale.localizedString(forIdentifier: locale.identifier)
+                    ?? locale.identifier
                 return VoiceTranscription(
                     transcript: transcript,
                     languageCode: locale.identifier,
-                    languageName: Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier,
+                    languageName: langName,
                     englishTranslation: transcript
                 )
             } catch {
+                // User explicitly picked this locale — don't silently fall back to another language.
+                if let preferred, preferred.identifier == locale.identifier {
+                    throw error
+                }
                 lastError = error
                 continue
             }
@@ -47,17 +72,32 @@ enum VoiceTranscriptionService {
         throw lastError ?? InsightError.serviceUnavailable("Speech recognition is not available for the configured languages on this device.")
     }
 
-    private static var recognitionLocales: [Locale] {
-        let identifiers = [
-            Locale.current.identifier,
-            "en-US", "en-IN", "hi-IN", "te-IN", "ta-IN", "bn-IN", "mr-IN", "gu-IN", "kn-IN", "ml-IN",
-            "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR", "ru-RU", "ja-JP", "ko-KR", "zh-Hans",
-            "ar-SA", "id-ID", "tr-TR", "vi-VN", "th-TH", "nl-NL"
+    private static func detectLanguage(in text: String) -> String? {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        return recognizer.dominantLanguage?.rawValue
+    }
+
+    // If user picked a language, it goes first; indic block precedes English to prevent
+    // en-US recognizer from winning on Indian-script audio via Latin phonetics.
+    private static func localeList(preferred: Locale?) -> [Locale] {
+        let indic = ["hi-IN", "te-IN", "ta-IN", "bn-IN", "mr-IN", "gu-IN", "kn-IN", "ml-IN"]
+        let rest = [
+            "en-IN", "en-US",
+            "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR", "ru-RU",
+            "ja-JP", "ko-KR", "zh-Hans", "ar-SA", "id-ID", "tr-TR", "vi-VN", "th-TH", "nl-NL"
         ]
+        let identifiers = Locale.preferredLanguages + indic + rest
         var seen = Set<String>()
-        return identifiers
+        var locales = identifiers
             .map(Locale.init(identifier:))
             .filter { seen.insert($0.identifier).inserted }
+
+        if let preferred {
+            locales.removeAll { $0.identifier == preferred.identifier }
+            locales.insert(preferred, at: 0)
+        }
+        return locales
     }
 
     private static func recognize(
@@ -96,4 +136,43 @@ enum VoiceTranscriptionService {
             }
         }
     }
+
+    // MARK: - Supported languages for the Settings picker
+
+    struct SupportedLanguage: Identifiable {
+        let id: String        // locale identifier, "" = automatic
+        let displayName: String
+    }
+
+    static let pickerLanguages: [SupportedLanguage] = {
+        let ids: [(String, String)] = [
+            ("", "Automatic"),
+            ("te-IN", "Telugu (India)"),
+            ("hi-IN", "Hindi (India)"),
+            ("ta-IN", "Tamil (India)"),
+            ("kn-IN", "Kannada (India)"),
+            ("ml-IN", "Malayalam (India)"),
+            ("mr-IN", "Marathi (India)"),
+            ("gu-IN", "Gujarati (India)"),
+            ("bn-IN", "Bengali (India)"),
+            ("en-IN", "English (India)"),
+            ("en-US", "English (US)"),
+            ("es-ES", "Spanish (Spain)"),
+            ("es-MX", "Spanish (Mexico)"),
+            ("fr-FR", "French"),
+            ("de-DE", "German"),
+            ("it-IT", "Italian"),
+            ("pt-BR", "Portuguese (Brazil)"),
+            ("ru-RU", "Russian"),
+            ("ja-JP", "Japanese"),
+            ("ko-KR", "Korean"),
+            ("zh-Hans", "Chinese (Simplified)"),
+            ("ar-SA", "Arabic"),
+            ("id-ID", "Indonesian"),
+            ("tr-TR", "Turkish"),
+            ("vi-VN", "Vietnamese"),
+            ("nl-NL", "Dutch"),
+        ]
+        return ids.map { SupportedLanguage(id: $0.0, displayName: $0.1) }
+    }()
 }

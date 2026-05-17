@@ -30,6 +30,14 @@ struct InsightView: View {
 
                     Divider().padding(.horizontal, 4)
                     askSection
+
+                    if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
+                        Divider().padding(.horizontal, 4)
+                        moodTimelineSection
+
+                        Divider().padding(.horizontal, 4)
+                        monthlyReportSection
+                    }
                 }
                 .padding(16)
                 .padding(.bottom, 16)
@@ -103,6 +111,13 @@ struct InsightView: View {
         return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
     }
 
+    private var thisMonthEntries: [Entry] {
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
+        return entries.filter { $0.createdAt >= start }
+    }
+
     private var hasSeenMoreThanOneNudge: Bool {
         insights.filter { $0.type == .dailyNudge }.count > 1
     }
@@ -116,6 +131,24 @@ struct InsightView: View {
     private func refreshInsights() async {
         await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
         await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+    }
+
+    private var nightlyPendingNudgeCard: some View {
+        NightlyPendingCard(
+            label: "Preparing in the background",
+            sublabel: "Generates overnight while your phone charges.",
+            icon: "sparkles",
+            iconColor: MirrorTheme.primary
+        )
+    }
+
+    private var nightlyPendingDigestCard: some View {
+        NightlyPendingCard(
+            label: "Available each Sunday morning",
+            sublabel: "Generates overnight while your phone charges.",
+            icon: "calendar.badge.clock",
+            iconColor: .indigo
+        )
     }
 
     private func showChartAfterInitialRender() async {
@@ -176,6 +209,8 @@ struct InsightView: View {
                 subtitle: "Daily reflections are part of Core.",
                 onUpgrade: { showPaywall = true }
             )
+        case .pendingNightlyGeneration:
+            nightlyPendingNudgeCard
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
@@ -200,6 +235,82 @@ struct InsightView: View {
                         .foregroundStyle(.primary)
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .futureSurface(cornerRadius: 22)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Mood Timeline
+
+    private var moodTimelineSection: some View {
+        NavigationLink {
+            MoodTimelineView()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MOOD TIMELINE")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.8)
+                    Text("Your mood patterns over time")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if !SubscriptionService.shared.isDeep {
+                        Text("Deep")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.purple, in: Capsule())
+                    }
+                }
+                Spacer()
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .futureSurface(cornerRadius: 22)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Monthly Report
+
+    private var monthlyReportSection: some View {
+        NavigationLink {
+            MonthlyReportView(viewModel: viewModel)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MONTHLY REPORT")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.8)
+                    Text("A deep look at this month")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if !SubscriptionService.shared.isDeep {
+                        Text("Deep")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.purple, in: Capsule())
+                    }
+                }
+                Spacer()
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)
@@ -268,6 +379,8 @@ struct InsightView: View {
                 subtitle: "Weekly digests are part of MirrorNotes Core.",
                 onUpgrade: { showPaywall = true }
             )
+        case .pendingNightlyGeneration:
+            nightlyPendingDigestCard
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
@@ -277,6 +390,39 @@ struct InsightView: View {
 }
 
 // MARK: - Shared Card Components
+
+struct NightlyPendingCard: View {
+    let label: String
+    let sublabel: String
+    let icon: String
+    var iconColor: Color = MirrorTheme.primary
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.10))
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(iconColor)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.system(size: 15, weight: .medium))
+                Text(sublabel)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.quaternary)
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 22)
+    }
+}
 
 private struct LoadingInsightCard: View {
     let label: String

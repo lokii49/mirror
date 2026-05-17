@@ -4,6 +4,7 @@ import SwiftLlama
 enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
     case emptyResponse
+    case contextExhausted
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum LocalLLMError: LocalizedError {
             return "Local AI model not installed. Add gemma-3-1b-it-Q4_K_M.gguf to \(url.path)."
         case .emptyResponse:
             return "Local AI returned an empty response."
+        case .contextExhausted:
+            return "Not enough device memory right now. Mirror will generate this overnight while your phone is charging."
         }
     }
 }
@@ -18,6 +21,7 @@ enum LocalLLMError: LocalizedError {
 enum LocalLLMTask {
     case dailyNudge
     case weeklyDigest
+    case monthlyReport
     case ask
     case emotion
 
@@ -27,6 +31,7 @@ enum LocalLLMTask {
         case .dailyNudge: return 0.45
         case .ask: return 0.45
         case .weeklyDigest: return 0.55
+        case .monthlyReport: return 0.55
         }
     }
 }
@@ -56,6 +61,10 @@ actor LocalLLMService {
         let response: String
         do {
             response = try await service.respond(to: messages, samplingConfig: sampling)
+        } catch let error as LlamaContextError {
+            self.service = nil
+            _ = error
+            throw LocalLLMError.contextExhausted
         } catch {
             self.service = nil
             throw error

@@ -82,7 +82,8 @@ struct EntryDetailView: View {
                                     duration: note.duration,
                                     title: "Voice note \(index + 1)",
                                     transcript: note.transcript,
-                                    languageName: note.languageName
+                                    languageName: note.languageName,
+                                    transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
                             }
                         }

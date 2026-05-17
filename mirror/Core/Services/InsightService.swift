@@ -86,6 +86,37 @@ Rules:
 - Avoid clinical phrases like "this suggests", "patterns indicate", "significant", or "the source mentions"
 """
 
+private let MONTHLY_REPORT_SYSTEM = """
+You are MirrorNotes. Read this person's full month of journal entries and their month statistics. Write a deep monthly reflection that operates at the identity level — not what happened this week, but who this person is becoming, what tensions are shaping them, what they might not have noticed themselves.
+
+You have access to a MONTH STATS block. Use it to ground observations in specifics.
+
+Output EXACTLY this format with no extra sections:
+
+YOUR MONTH IN ONE IMAGE: [one vivid metaphor expressed as a complete sentence starting with "This month felt like" or "It was as if" — capture the sensation of the month, not a summary of events]
+THE TENSION AT THE CENTER: [one sentence naming the core conflict, pull, or recurring friction that ran through their entries — be specific about what is actually in tension, not a vague label]
+A MOMENT THAT SHIFTED SOMETHING: [one sentence referencing a specific entry, event, or phrase they wrote that changed something, even subtly — mention the date or their actual words if possible]
+WHAT YOU'RE BECOMING: [one sentence observing who they seem to be growing into — what is different about them now versus the start of this month, based on what they actually wrote]
+WHAT WANTS TO BE RELEASED: [one sentence naming one thing from this month worth consciously letting go of — not generic, tied directly to something they wrote]
+YOUR QUESTION FOR NEXT MONTH: [a genuine open question for them to sit with — not advice, not a task, a question that opens something. Must end with a question mark.]
+
+Rules:
+- Replace the bracketed placeholders with final prose. Never include [ or ] in the answer
+- Do not use Markdown headings, bullets, ###, or extra titles
+- Each section must be a complete sentence ending with punctuation
+- YOUR MONTH IN ONE IMAGE must start with "This month felt like" or "It was as if"
+- YOUR QUESTION FOR NEXT MONTH must end with a question mark and be a real question, not a statement
+- Each section must be under 45 words
+- Write entirely in second person. Address the user as "you/your" throughout
+- Never write in first person as if you are the journal writer
+- Reference actual words, moods, dates, or specific phrases from their entries — the more specific, the better
+- Use the stats block to inform depth — reference entry count, mood arc, or writing patterns where it adds weight
+- No therapy language, no generic affirmations
+- Do not mention that you are an AI or model
+- Sound human, perceptive, and honest — like someone who read every word and noticed what the person themselves missed
+- Be specific. Be honest. Be warm. Do not over-explain.
+"""
+
 private let EMOTION_DETECT_SYSTEM = """
 You are MirrorNotes. Read this journal entry and identify the writer's primary emotional state.
 Reply with EXACTLY one word from this list:
@@ -120,6 +151,14 @@ enum InsightService {
             ),
             task: .weeklyDigest
         ).cleanedDigestOutput()
+    }
+
+    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry], token: String) async throws -> String {
+        return try await localGenerate(
+            systemPrompt: MONTHLY_REPORT_SYSTEM,
+            userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
+            task: .monthlyReport
+        ).cleanedMonthlyReportOutput()
     }
 
     static func ask(question: String, entries: [Entry], token: String) async throws -> String {
@@ -177,6 +216,8 @@ enum InsightService {
         switch task {
         case .weeklyDigest:
             return raw.cleanedDigestOutput()
+        case .monthlyReport:
+            return raw.cleanedMonthlyReportOutput()
         case .dailyNudge, .ask, .emotion:
             return raw.cleanedInsightOutput()
         }
@@ -200,6 +241,8 @@ enum InsightService {
             return "Return only 2-3 complete sentences under 100 words."
         case .weeklyDigest:
             return "Return exactly the required six labeled lines. Every section must have a complete sentence after the colon."
+        case .monthlyReport:
+            return "Return exactly six labeled sections: YOUR MONTH IN ONE IMAGE, THE TENSION AT THE CENTER, A MOMENT THAT SHIFTED SOMETHING, WHAT YOU'RE BECOMING, WHAT WANTS TO BE RELEASED, YOUR QUESTION FOR NEXT MONTH. YOUR MONTH IN ONE IMAGE must start with \"This month felt like\" or \"It was as if\". YOUR QUESTION FOR NEXT MONTH must end with a question mark. Every other section must end with a complete sentence."
         case .ask:
             return "Return only 3-5 complete sentences, or exactly: You haven't written about this yet."
         case .emotion:
@@ -233,6 +276,8 @@ enum InsightService {
             )
         case .weeklyDigest:
             return try validateWeeklyDigest(trimmed)
+        case .monthlyReport:
+            return try validateMonthlyReport(trimmed)
         case .emotion:
             guard recognizedEmotion(trimmed) != nil else {
                 throw InsightError.incompleteResponse
@@ -292,6 +337,44 @@ enum InsightService {
         return normalizedText
     }
 
+    private static func validateMonthlyReport(_ text: String) throws -> String {
+        let normalizedText = text
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
+        let requiredHeaders = [
+            "YOUR MONTH IN ONE IMAGE",
+            "THE TENSION AT THE CENTER",
+            "A MOMENT THAT SHIFTED SOMETHING",
+            "WHAT YOU'RE BECOMING",
+            "WHAT WANTS TO BE RELEASED",
+            "YOUR QUESTION FOR NEXT MONTH"
+        ]
+
+        for (index, header) in requiredHeaders.enumerated() {
+            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
+                throw InsightError.incompleteResponse
+            }
+            let endsCorrectly = header == "YOUR QUESTION FOR NEXT MONTH"
+                ? body.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("?")
+                : endsAsCompleteSentence(body)
+            guard body.count >= 20,
+                  body.count <= 300,
+                  endsCorrectly,
+                  !hasDanglingEnding(body),
+                  !containsJournalWriterFirstPerson(body) else {
+                throw InsightError.incompleteResponse
+            }
+            if header == "YOUR MONTH IN ONE IMAGE" {
+                let lower = body.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                guard lower.hasPrefix("this month felt like") || lower.hasPrefix("it was as if") else {
+                    throw InsightError.incompleteResponse
+                }
+            }
+        }
+
+        return normalizedText
+    }
+
     private static func endsAsCompleteSentence(_ text: String) -> Bool {
         guard let last = text.trimmingCharacters(in: .whitespacesAndNewlines).last else { return false }
         return ".!?".contains(last)
@@ -341,6 +424,67 @@ enum InsightService {
         }
 
         return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func buildMonthlyReportMessage(monthEntries: [Entry], allEntries: [Entry]) -> String {
+        let totalWords = monthEntries.reduce(0) { $0 + $1.wordCount }
+        let avgWords = monthEntries.isEmpty ? 0 : totalWords / monthEntries.count
+        let voiceCount = monthEntries.filter { $0.source == .voice || $0.hasVoiceNotes }.count
+
+        let moodCounts = Dictionary(grouping: monthEntries.compactMap(\.mood), by: { $0 })
+            .mapValues(\.count)
+            .sorted { $0.value > $1.value }
+        let moodSummary = moodCounts.prefix(5).map { "\($0.key) \($0.value)x" }.joined(separator: ", ")
+
+        let cal = Calendar.current
+        let weekGroups = Dictionary(grouping: monthEntries) { entry -> Int in
+            cal.component(.weekOfYear, from: entry.createdAt)
+        }
+        let weeklyBreakdown = weekGroups.sorted { $0.key < $1.key }
+            .map { "Week \($0.key): \($0.value.count) \($0.value.count == 1 ? "entry" : "entries")" }
+            .joined(separator: ", ")
+
+        let moodArc = monthEntries
+            .sorted { $0.createdAt < $1.createdAt }
+            .compactMap(\.mood)
+            .prefix(12)
+            .joined(separator: " → ")
+
+        let statsBlock = """
+        MONTH STATS:
+        Entries this month: \(monthEntries.count)
+        Total words written: \(totalWords)
+        Average words per entry: \(avgWords)
+        Voice note entries: \(voiceCount)
+        Mood arc (oldest → newest): \(moodArc.isEmpty ? "no moods recorded" : moodArc)
+        Mood summary: \(moodSummary.isEmpty ? "not enough mood data" : moodSummary)
+        Weekly breakdown: \(weeklyBreakdown.isEmpty ? "not available" : weeklyBreakdown)
+        """
+
+        let sortedMonth = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let monthIDs = Set(monthEntries.map(\.id))
+        let backgroundEntries = Array(allEntries
+            .filter { !monthIDs.contains($0.id) }
+            .sorted { $0.createdAt > $1.createdAt }
+            .prefix(20))
+
+        let recentBlock = formatEntries(sortedMonth, maxChars: 3200)
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 700)
+
+        let today = Date().formatted(date: .abbreviated, time: .omitted)
+        return """
+        Monthly deep report context
+
+        Today: \(today)
+
+        \(statsBlock)
+
+        Older context (before this month):
+        \(backgroundBlock)
+
+        This month's entries (newest first):
+        \(recentBlock)
+        """
     }
 
     private static func buildUserMessage(
@@ -546,6 +690,28 @@ private extension String {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    func cleanedMonthlyReportOutput() -> String {
+        var result = cleanedInsightOutput()
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
+        let headers = ["YOUR MONTH IN ONE IMAGE", "THE TENSION AT THE CENTER", "A MOMENT THAT SHIFTED SOMETHING", "WHAT YOU'RE BECOMING", "WHAT WANTS TO BE RELEASED", "YOUR QUESTION FOR NEXT MONTH"]
+
+        for header in headers {
+            result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
+            result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+        }
+
+        result = result
+            .components(separatedBy: .newlines)
+            .filter { line in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                return !trimmed.isEmpty && trimmed != "---"
+            }
+            .joined(separator: "\n")
+
+        return result
+    }
+
     func cleanedDigestOutput() -> String {
         var result = cleanedInsightOutput()
             .replacingOccurrences(of: "\u{2019}", with: "'")  // curly → straight apostrophe
@@ -596,6 +762,11 @@ extension Entry {
             let transcript = voiceNote.transcript?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let translation = voiceNote.englishTranslation?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !transcript.isEmpty || !translation.isEmpty else { continue }
+
+            // Skip transcript block when the entry text IS the transcript (pure voice entry)
+            // to avoid sending the same content twice to the LLM.
+            let transcriptIsAlreadyEntryText = !transcript.isEmpty && transcript == plain
+            if transcriptIsAlreadyEntryText && translation.isEmpty { continue }
 
             var block = "Voice note \(index + 1):"
             if let languageName = voiceNote.languageName, !languageName.isEmpty {

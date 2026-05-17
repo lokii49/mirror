@@ -48,6 +48,11 @@ struct EntriesMapProvider: TimelineProvider {
 struct EntriesMapWidgetView: View {
     let entry: EntriesMapEntry
 
+    private var isUnlocked: Bool {
+        let tier = UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+        return tier == "core" || tier == "deep"
+    }
+
     private var days: [Date] {
         let today = Calendar.current.startOfDay(for: .now)
         return (0..<35).reversed().compactMap {
@@ -86,25 +91,39 @@ struct EntriesMapWidgetView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Entries")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7),
-                spacing: 3
-            ) {
-                ForEach(days, id: \.self) { day in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(cellColor(for: day))
-                        .aspectRatio(1, contentMode: .fit)
+        if isUnlocked {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Entries")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7),
+                    spacing: 3
+                ) {
+                    ForEach(days, id: \.self) { day in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(cellColor(for: day))
+                            .aspectRatio(1, contentMode: .fit)
+                    }
                 }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(12)
+            .containerBackground(.fill.tertiary, for: .widget)
+            .widgetURL(URL(string: "mirror://entries"))
+        } else {
+            VStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Core required")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .containerBackground(.fill.tertiary, for: .widget)
+            .widgetURL(URL(string: "mirror://upgrade"))
         }
-        .padding(12)
-        .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(URL(string: "mirror://entries"))
     }
 }
 

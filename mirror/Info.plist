@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>MirrorNotes</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>MirrorNotes uses the camera to attach a photo to your journal entry.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -16,8 +18,10 @@
 	<string>MirrorNotes uses on-device speech recognition to transcribe your voice entries without sending audio off your device.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
+		<string>com.lokesh.mirror.dailyNudge</string>
 		<string>com.lokesh.mirror.weeklyDigest</string>
 		<string>com.lokesh.mirror.nightlyInsights</string>
+		<string>com.lokesh.mirror.monthlyReport</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

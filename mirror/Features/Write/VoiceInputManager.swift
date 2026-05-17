@@ -148,7 +148,9 @@ struct VoiceNoteAttachmentView: View {
     var transcript: String? = nil
     var languageName: String? = nil
     var isTranscribing: Bool = false
+    var transcriptionFailed: Bool = false
     var onDelete: (() -> Void)? = nil
+    var onRetryTranscription: (() -> Void)? = nil
 
     @State private var player = VoiceNotePlayer()
 
@@ -219,6 +221,24 @@ struct VoiceNoteAttachmentView: View {
                     .lineLimit(4)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
+            } else if transcriptionFailed {
+                Divider().padding(.horizontal, 14)
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.orange)
+                    Text("Transcription failed — AI won't reflect on this note.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let onRetryTranscription {
+                        Button("Retry", action: onRetryTranscription)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
             }
         }
         .background {

@@ -5,6 +5,7 @@ struct ContentView: View {
     @Query private var profiles: [UserProfile]
     @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
     @State private var insightViewModel = InsightViewModel()
+    @State private var showPaywall = false
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -31,6 +32,9 @@ struct ContentView: View {
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+        }
         .onChange(of: onboardingComplete) { _, complete in
             if complete { selectedTab = 1 }
         }
@@ -43,6 +47,7 @@ struct ContentView: View {
             switch url.host {
             case "write":   selectedTab = 1
             case "entries": selectedTab = 0
+            case "upgrade": showPaywall = true
             default:        break
             }
         }
