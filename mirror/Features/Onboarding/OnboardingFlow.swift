@@ -92,7 +92,7 @@ struct OnboardingFlow: View {
                 }
                 .padding(.bottom, 8)
 
-                Text("Welcome to Mirror")
+                Text("Welcome to MirrorNotes")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
 
                 Text("A private space to understand yourself through writing. No audience. No performance. Just you.")
@@ -133,7 +133,7 @@ struct OnboardingFlow: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("When do you reflect?")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text("Mirror will learn your rhythm.")
+                Text("MirrorNotes will learn your rhythm.")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
             }

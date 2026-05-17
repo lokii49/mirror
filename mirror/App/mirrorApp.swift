@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import BackgroundTasks
+import UIKit
+import WidgetKit
+import RevenueCat
 
 @main
 struct mirrorApp: App {
@@ -23,34 +26,383 @@ struct mirrorApp: App {
         }
     }()
 
+    init() {
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #endif
+        Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
+        registerNightlyInsightsTask()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background {
-                scheduleWeeklyDigestTask()
+            switch phase {
+            case .active:
+                // Proactively generate so content is ready before user opens Insights tab.
+                Task(priority: .background) {
+                    await preGenerateInsightsIfNeeded()
+                }
+            case .background:
+                scheduleDailyNudgeFallback()
+                generateDailyNudgeInBackgroundIfNeeded()
+                scheduleNightlyInsights()
+                // If LLM is mid-generation when backgrounded, request ~30s grace so iOS
+                // doesn't suspend before the current inference completes.
+                extendBackgroundForPendingGeneration()
+            default:
+                break
             }
         }
+        // Keep BGAppRefreshTask as a lightweight fallback for weekly digest on devices
+        // that don't charge overnight (power requirement not met for nightly task).
         .backgroundTask(.appRefresh("com.lokesh.mirror.weeklyDigest")) {
-            await runWeeklyDigestIfNeeded()
+            await runWeeklyDigestFallback()
+        }
+        .backgroundTask(.appRefresh("com.lokesh.mirror.dailyNudge")) {
+            await runDailyNudgeFallback()
+        }
+        .backgroundTask(.appRefresh("com.lokesh.mirror.monthlyReport")) {
+            await runMonthlyReportFallback()
         }
     }
 
-    // MARK: - BGAppRefreshTask scheduling
+    // MARK: - BGProcessingTask: nightly at ~3AM while charging
 
-    private func scheduleWeeklyDigestTask() {
+    private func registerNightlyInsightsTask() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.lokesh.mirror.nightlyInsights",
+            using: nil
+        ) { task in
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            let work = Task { @MainActor in
+                await mirrorApp.runNightlyInsights(container: self.sharedModelContainer)
+            }
+            processingTask.expirationHandler = {
+                work.cancel()
+                processingTask.setTaskCompleted(success: false)
+            }
+            Task {
+                _ = await work.result
+                processingTask.setTaskCompleted(success: true)
+                // Re-schedule for the next night
+                scheduleNightlyInsights()
+            }
+        }
+    }
+
+    private func scheduleNightlyInsights() {
+        let request = BGProcessingTaskRequest(identifier: "com.lokesh.mirror.nightlyInsights")
+        // Only run while charging → no thermal impact on the user.
+        request.requiresExternalPower = true
+        request.requiresNetworkConnectivity = false
+        // Target ~3AM local time; iOS fires it opportunistically after that.
+        request.earliestBeginDate = next3AM()
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    private func next3AM() -> Date {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+        components.hour = 3
+        components.minute = 0
+        components.second = 0
+        guard var target = calendar.date(from: components) else { return Date() }
+        if target <= Date() {
+            target = calendar.date(byAdding: .day, value: 1, to: target) ?? target
+        }
+        return target
+    }
+
+    // MARK: - Nightly task body (static so the BGTask closure can call it without capturing self)
+
+    @MainActor
+    private static func runNightlyInsights(container: ModelContainer) async {
+        let context = container.mainContext
+        await runDailyNudgeIfNeeded(context: context)
+        // Weekly digest only on Sunday
+        if Calendar.current.component(.weekday, from: Date()) == 1 {
+            await runWeeklyDigestIfNeeded(context: context)
+        }
+        // Monthly report: generate once 20+ entries exist (Deep only)
+        await runMonthlyReportIfNeeded(context: context)
+        // Mood alert check every night (Deep only)
+        await checkMoodAlertIfNeeded(context: context)
+    }
+
+    // MARK: - Proactive generation on app active
+
+    @MainActor
+    private func preGenerateInsightsIfNeeded() async {
+        let context = sharedModelContainer.mainContext
+        await mirrorApp.runDailyNudgeIfNeeded(context: context)
+        mirrorApp.updateWidgetHeatmaps(context: context)
+        // Generate monthly report as soon as 20+ entries exist, not only on the 1st.
+        await mirrorApp.runMonthlyReportIfNeeded(context: context)
+        await mirrorApp.checkMoodAlertIfNeeded(context: context)
+    }
+
+    // MARK: - Shared generation helpers (also called from BGAppRefreshTask fallback)
+
+    @MainActor
+    static func runDailyNudgeIfNeeded(context: ModelContext) async {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let coordinatorKey = "nudge_\(today)"
+
+        // Check SwiftData cache
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        let todayInsights = (try? context.fetch(descriptor)) ?? []
+        guard !todayInsights.contains(where: { $0.type == .dailyNudge }) else { return }
+
+        let entryDescriptor = FetchDescriptor<Entry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let entries = (try? context.fetch(entryDescriptor)) ?? []
+        guard entries.count >= 3 else { return }
+
+        // First nudge is free; subsequent require subscription
+        let allInsightsDescriptor = FetchDescriptor<Insight>()
+        let allInsights = (try? context.fetch(allInsightsDescriptor)) ?? []
+        let hasSeenFirst = allInsights.contains { $0.type == .dailyNudge }
+        if hasSeenFirst && !SubscriptionService.shared.isSubscribed { return }
+
+        guard modelAvailable() else { return }
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
+        defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
+
+        do {
+            let text = try await InsightService.generateNudge(entries: entries, token: "")
+            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
+            context.insert(insight)
+            try? context.save()
+            let hour = NotificationService.nudgeHour()
+            let minute = NotificationService.nudgeMinute()
+            if SubscriptionService.shared.isSubscribed {
+                await NotificationService.scheduleRepeatingNudge(hour: hour, minute: minute)
+            } else {
+                // First nudge for free users — one-time hook to drive paywall conversion
+                await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
+            }
+        } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
+    }
+
+    @MainActor
+    static func hasDailyNudgeForToday(context: ModelContext) -> Bool {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        let todayInsights = (try? context.fetch(descriptor)) ?? []
+        return todayInsights.contains { $0.type == .dailyNudge }
+    }
+
+    @MainActor
+    static func runWeeklyDigestIfNeeded(context: ModelContext) async {
+        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let coordinatorKey = "digest_\(thisWeek)"
+
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == thisWeek }
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        guard !existing.contains(where: { $0.type == .weeklyDigest }) else { return }
+
+        let entryDescriptor = FetchDescriptor<Entry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let entries = (try? context.fetch(entryDescriptor)) ?? []
+        guard entries.count >= 5, SubscriptionService.shared.isSubscribed else { return }
+        guard modelAvailable() else { return }
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
+        defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
+
+        do {
+            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: "")
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            context.insert(insight)
+            try? context.save()
+            await NotificationService.scheduleWeeklyDigest()
+        } catch { /* Non-fatal */ }
+    }
+
+    // MARK: - Monthly Report (Deep only)
+
+    @MainActor
+    static func runMonthlyReportIfNeeded(context: ModelContext) async {
+        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        let coordinatorKey = "monthlyReport_\(thisMonth)"
+
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == thisMonth }
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        // Respect 24h cache — only auto-generate once per month
+        guard !existing.contains(where: { $0.type == .monthlyReport }) else { return }
+
+        let entryDescriptor = FetchDescriptor<Entry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let allEntries = (try? context.fetch(entryDescriptor)) ?? []
+        let cal = Calendar.current
+        let now = Date()
+        let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
+        let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
+        guard monthEntries.count >= 20, SubscriptionService.shared.isDeep else { return }
+        guard modelAvailable() else { return }
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
+        defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
+
+        do {
+            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries, token: "")
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            context.insert(insight)
+            try? context.save()
+            await NotificationService.scheduleMonthlyReportReminder()
+        } catch { /* Non-fatal */ }
+    }
+
+    // MARK: - Model availability
+
+    static func modelAvailable() -> Bool {
+        if Bundle.main.url(forResource: LocalLLMService.modelFileName, withExtension: LocalLLMService.modelExtension) != nil {
+            return true
+        }
+        guard let url = try? LocalLLMService.preferredModelURL() else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    // MARK: - Mood Alert (Deep only — 3 consecutive negative moods within 7 days)
+
+    private static let negativeMoods: Set<String> = [
+        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
+    ]
+    private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
+
+    @MainActor
+    static func checkMoodAlertIfNeeded(context: ModelContext) async {
+        guard SubscriptionService.shared.isDeep else { return }
+
+        // Cooldown: at most one alert per 24h
+        if let last = UserDefaults.standard.object(forKey: moodAlertCooldownKey) as? Date,
+           Date().timeIntervalSince(last) < 86400 { return }
+
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let descriptor = FetchDescriptor<Entry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let entries = (try? context.fetch(descriptor)) ?? []
+        let recentEntries = entries.filter { $0.createdAt >= sevenDaysAgo }
+
+        var consecutiveNegative = 0
+        for entry in recentEntries {
+            guard let mood = entry.mood else { break }
+            if negativeMoods.contains(mood) {
+                consecutiveNegative += 1
+            } else {
+                break
+            }
+        }
+
+        if consecutiveNegative >= 3 {
+            UserDefaults.standard.set(Date(), forKey: moodAlertCooldownKey)
+            await NotificationService.sendMoodAlert(consecutiveCount: consecutiveNegative)
+        }
+    }
+
+    // MARK: - BGAppRefreshTask fallback for daily reflection
+
+    @MainActor
+    private func runDailyNudgeFallback() async {
+        let context = sharedModelContainer.mainContext
+        await mirrorApp.runDailyNudgeIfNeeded(context: context)
+        scheduleDailyNudgeFallback()
+    }
+
+    private func scheduleDailyNudgeFallback() {
+        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.dailyNudge")
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 10 * 60)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    private func generateDailyNudgeInBackgroundIfNeeded() {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        guard !InsightGenerationCoordinator.shared.isInFlight("nudge_\(today)") else { return }
+
+        let app = UIApplication.shared
+        let bgTask = BackgroundTaskReference()
+        bgTask.id = app.beginBackgroundTask(withName: "mirror.dailyNudge.catchup") {
+            Task { @MainActor in
+                app.endBackgroundTask(bgTask.id)
+            }
+        }
+
+        Task { @MainActor in
+            let context = sharedModelContainer.mainContext
+            if !mirrorApp.hasDailyNudgeForToday(context: context) {
+                await mirrorApp.runDailyNudgeIfNeeded(context: context)
+            }
+            app.endBackgroundTask(bgTask.id)
+        }
+    }
+
+    // MARK: - BGAppRefreshTask fallback for weekly digest
+
+    @MainActor
+    private func runWeeklyDigestFallback() async {
+        let context = sharedModelContainer.mainContext
+        await mirrorApp.runWeeklyDigestIfNeeded(context: context)
+        scheduleWeeklyDigestFallback()
+    }
+
+    private func scheduleWeeklyDigestFallback() {
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
         request.earliestBeginDate = nextSunday7AM()
         try? BGTaskScheduler.shared.submit(request)
+    }
+
+    // MARK: - Monthly report BGAppRefreshTask (fallback for 1st of month)
+
+    @MainActor
+    private func runMonthlyReportFallback() async {
+        let context = sharedModelContainer.mainContext
+        await mirrorApp.runMonthlyReportIfNeeded(context: context)
+        scheduleMonthlyReportFallback()
+    }
+
+    private func scheduleMonthlyReportFallback() {
+        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
+        request.earliestBeginDate = nextFirstOfMonth9AM()
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    private func nextFirstOfMonth9AM() -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        var components = calendar.dateComponents([.year, .month], from: now)
+        components.day = 1
+        components.hour = 9
+        components.minute = 0
+        components.second = 0
+        guard var target = calendar.date(from: components) else { return now }
+        if target <= now {
+            target = calendar.date(byAdding: .month, value: 1, to: target) ?? target
+        }
+        return target
     }
 
     private func nextSunday7AM() -> Date {
         let calendar = Calendar.current
         let now = Date()
         var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
-        components.weekday = 1 // Sunday
+        components.weekday = 1
         components.hour = 7
         components.minute = 0
         components.second = 0
@@ -61,44 +413,56 @@ struct mirrorApp: App {
         return next
     }
 
-    // MARK: - Background digest generation
+    // MARK: - Widget data bridge
+
+    private static let widgetDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     @MainActor
-    private func runWeeklyDigestIfNeeded() async {
-        let context = sharedModelContainer.mainContext
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+    static func updateWidgetHeatmaps(context: ModelContext) {
+        let descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
+        let entries = (try? context.fetch(descriptor)) ?? []
 
-        // Skip if digest already exists this week
-        let descriptor = FetchDescriptor<Insight>(
-            predicate: #Predicate { $0.periodIdentifier == thisWeek }
-        )
-        let existing = (try? context.fetch(descriptor)) ?? []
-        guard !existing.contains(where: { $0.type == .weeklyDigest }) else {
-            scheduleWeeklyDigestTask()
-            return
+        var countByDay: [String: Int] = [:]
+        var moodByDay: [String: String] = [:]
+
+        for entry in entries {
+            let key = widgetDayFormatter.string(from: entry.createdAt)
+            countByDay[key, default: 0] += 1
+            if let mood = entry.mood {
+                moodByDay[key] = mood
+            }
         }
 
-        let entryDescriptor = FetchDescriptor<Entry>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let entries = (try? context.fetch(entryDescriptor)) ?? []
-
-        guard entries.count >= 5,
-              SubscriptionService.shared.isSubscribed,
-              let token = KeychainManager.load() else {
-            scheduleWeeklyDigestTask()
-            return
-        }
-
-        do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: token)
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
-            context.insert(insight)
-            try? context.save()
-        } catch {
-            // Non-fatal — retry next week
-        }
-
-        scheduleWeeklyDigestTask()
+        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        defaults?.set(try? JSONEncoder().encode(countByDay), forKey: "widget.entries.heatmap")
+        defaults?.set(try? JSONEncoder().encode(moodByDay),  forKey: "widget.mood.heatmap")
+        WidgetCenter.shared.reloadAllTimelines()
     }
+
+    // MARK: - Background time extension for mid-session generation
+
+    private func extendBackgroundForPendingGeneration() {
+        guard InsightGenerationCoordinator.shared.isAnyGenerating else { return }
+        let app = UIApplication.shared
+        let bgTask = BackgroundTaskReference()
+        bgTask.id = app.beginBackgroundTask(withName: "mirror.insight.completion") {
+            Task { @MainActor in
+                app.endBackgroundTask(bgTask.id)
+            }
+        }
+        Task { @MainActor in
+            while InsightGenerationCoordinator.shared.isAnyGenerating {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            app.endBackgroundTask(bgTask.id)
+        }
+    }
+}
+
+private final class BackgroundTaskReference: @unchecked Sendable {
+    var id: UIBackgroundTaskIdentifier = .invalid
 }

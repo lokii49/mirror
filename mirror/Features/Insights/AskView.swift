@@ -6,15 +6,26 @@ struct AskView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
+    @State private var subscriptionService = SubscriptionService.shared
+    @State private var showPaywall = false
     @State private var question = ""
+    @State private var pendingQuestion = ""
     @State private var isLoading = false
     @State private var error: String?
+    @State private var keyboardHeight: CGFloat = 0
     @FocusState private var isInputFocused: Bool
 
-    private let monthLimit = 10
+    private var monthLimit: Int {
+        subscriptionService.isDeep ? Int.max : 15
+    }
+    private let bottomAnchorID = "ask-bottom-anchor"
 
     private var askHistory: [Insight] {
         allInsights.filter { $0.type == .askResponse }
+    }
+
+    private var chatHistory: [Insight] {
+        askHistory.sorted { $0.generatedAt < $1.generatedAt }
     }
 
     private var thisMonthCount: Int {
@@ -28,30 +39,82 @@ struct AskView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                content
-                inputBar
-            }
-            .background(MirrorTheme.bgBase)
-            .navigationTitle("Ask")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if remaining <= 3 {
-                        Text("\(remaining) left")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(remaining <= 2 ? .orange : .secondary)
-                            .monospacedDigit()
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(
-                                (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
-                                in: Capsule()
-                            )
+        Group {
+            if subscriptionService.isSubscribed {
+                VStack(spacing: 0) {
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    inputBar
+                }
+                .padding(.bottom, keyboardHeight)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if remaining <= 3 && !subscriptionService.isDeep {
+                            Text("\(remaining) left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                                .monospacedDigit()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
+                                    in: Capsule()
+                                )
+                        }
                     }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+                    updateKeyboardHeight(from: notification)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+                }
+            } else {
+                askLockedState
             }
         }
+        .background(MirrorTheme.bgBase)
+        .navigationTitle("Ask")
+        .toolbar(.hidden, for: .tabBar)
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+    }
+
+    private var askLockedState: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(Color.secondary.opacity(0.10))
+                    .frame(width: 88, height: 88)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            VStack(spacing: 8) {
+                Text("Ask is a Core feature")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("Ask up to 15 questions per month on Core,\nor unlimited on Deep.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                showPaywall = true
+            } label: {
+                Text("Unlock with Core")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 14)
+                    .background(MirrorTheme.accentGradient, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+            Spacer()
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -59,22 +122,46 @@ struct AskView: View {
         if askHistory.isEmpty && !isLoading {
             askEmptyState
         } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    askHeader
-                        .padding(.bottom, 8)
-                    if isLoading {
-                        LoadingAskBubble(question: question)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        askHeader
+                            .padding(.bottom, 8)
+
+                        Spacer(minLength: 12)
+
+                        ForEach(chatHistory) { insight in
+                            AskBubblePair(insight: insight)
+                        }
+
+                        if isLoading {
+                            LoadingAskBubble(question: pendingQuestion)
+                        }
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id(bottomAnchorID)
                     }
-                    ForEach(askHistory) { insight in
-                        AskBubblePair(insight: insight)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .background(MirrorTheme.bgBase)
+                .onAppear {
+                    proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+                }
+                .onChange(of: chatHistory.count) { _, _ in
+                    scrollToLatest(proxy)
+                }
+                .onChange(of: isLoading) { _, _ in
+                    scrollToLatest(proxy)
+                }
+                .onChange(of: isInputFocused) { _, focused in
+                    if focused {
+                        scrollToLatest(proxy)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(MirrorTheme.bgBase)
         }
     }
 
@@ -137,11 +224,11 @@ struct AskView: View {
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Ask Mirror")
+                Text("Ask MirrorNotes")
                     .font(.system(size: 15, weight: .semibold))
-                Text("\(remaining) of \(monthLimit) questions this month")
+                Text(subscriptionService.isDeep ? "Unlimited questions" : "\(remaining) of 15 questions this month")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                    .foregroundStyle(remaining <= 2 && !subscriptionService.isDeep ? .orange : .secondary)
             }
             Spacer()
         }
@@ -199,19 +286,15 @@ struct AskView: View {
     private func submitQuestion() async {
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, remaining > 0 else { return }
-        guard let token = KeychainManager.load() else {
-            error = "Sign in to use Ask."
-            return
-        }
-
         isLoading = true
         error = nil
         let submitted = q
+        pendingQuestion = submitted
         question = ""
         isInputFocused = false
 
         do {
-            let answer = try await InsightService.ask(question: submitted, entries: entries, token: token)
+            let answer = try await InsightService.ask(question: submitted, entries: entries, token: "")
             let insight = Insight(
                 type: .askResponse,
                 content: answer,
@@ -226,7 +309,35 @@ struct AskView: View {
         }
 
         isLoading = false
+        pendingQuestion = ""
     }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.22)) {
+                proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+            }
+        }
+    }
+
+    private func updateKeyboardHeight(from notification: Notification) {
+        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+            return
+        }
+        // TabView forces .ignoresSafeArea(.keyboard) on all descendants.
+        // The view's bottom edge stops at the home indicator safe area, not the physical screen bottom.
+        // Raw keyboard height includes the home indicator inset (~34pt), so subtract it to avoid a gap.
+        let bottomInset = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first(where: { $0.isKeyWindow })?.safeAreaInsets.bottom ?? 0
+        let rawHeight = max(0, UIScreen.main.bounds.height - frame.minY)
+        let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        withAnimation(.easeOut(duration: duration)) {
+            keyboardHeight = rawHeight > 0 ? rawHeight - bottomInset : 0
+        }
+    }
+
 }
 
 private struct AskBubblePair: View {
