@@ -143,6 +143,7 @@ struct mirrorApp: App {
         let context = sharedModelContainer.mainContext
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
+        mirrorApp.syncNudgeToWidget(context: context)
         // Generate monthly report as soon as 20+ entries exist, not only on the 1st.
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
         await mirrorApp.checkMoodAlertIfNeeded(context: context)
@@ -183,6 +184,10 @@ struct mirrorApp: App {
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try? context.save()
+            let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            wDefaults?.set(text, forKey: "widget.nudge.text")
+            wDefaults?.set(today, forKey: "widget.nudge.date")
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
             if SubscriptionService.shared.isSubscribed {
@@ -440,7 +445,47 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(try? JSONEncoder().encode(countByDay), forKey: "widget.entries.heatmap")
         defaults?.set(try? JSONEncoder().encode(moodByDay),  forKey: "widget.mood.heatmap")
+
+        // Streak + wrote-today for WriteWidget / EntriesMapWidget
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let fmt = widgetDayFormatter
+        let todayKey = fmt.string(from: today)
+        let wroteToday = (countByDay[todayKey] ?? 0) > 0
+        var streakDay = today
+        if !wroteToday {
+            if let yesterday = cal.date(byAdding: .day, value: -1, to: today),
+               (countByDay[fmt.string(from: yesterday)] ?? 0) > 0 {
+                streakDay = yesterday
+            } else {
+                streakDay = Date.distantPast
+            }
+        }
+        var streak = 0
+        while (countByDay[fmt.string(from: streakDay)] ?? 0) > 0 {
+            streak += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: streakDay) else { break }
+            streakDay = prev
+        }
+        defaults?.set(streak, forKey: "widget.streak")
+        defaults?.set(wroteToday, forKey: "widget.wrote.today")
+
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // Writes today's nudge text to AppGroup so NudgeWidget can read it even if the
+    // nudge was generated in a previous app session (runDailyNudgeIfNeeded bails early then).
+    @MainActor
+    static func syncNudgeToWidget(context: ModelContext) {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        guard let insights = try? context.fetch(descriptor),
+              let nudge = insights.first(where: { $0.type == .dailyNudge }) else { return }
+        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        defaults?.set(nudge.content, forKey: "widget.nudge.text")
+        defaults?.set(today, forKey: "widget.nudge.date")
     }
 
     // MARK: - Background time extension for mid-session generation
