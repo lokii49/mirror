@@ -7,5 +7,7 @@ struct MirrorWidgetExtensionBundle: WidgetBundle {
         MirrorWriteWidget()
         MirrorEntriesMapWidget()
         MirrorMoodMapWidget()
+        MirrorNudgeWidget()
+        MirrorPromptWidget()
     }
 }

@@ -45,10 +45,11 @@ struct ContentView: View {
         .onOpenURL { url in
             guard url.scheme == "mirror" else { return }
             switch url.host {
-            case "write":   selectedTab = 1
-            case "entries": selectedTab = 0
-            case "upgrade": showPaywall = true
-            default:        break
+            case "write":    selectedTab = 1
+            case "entries":  selectedTab = 0
+            case "insights": selectedTab = 2
+            case "upgrade":  showPaywall = true
+            default:         break
             }
         }
     }
