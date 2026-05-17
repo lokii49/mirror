@@ -7,10 +7,15 @@ enum KeychainManager {
 
     static func save(token: String) {
         guard let data = token.data(using: .utf8) else { return }
+        save(data: data, account: account)
+    }
+
+    static func save(data: Data, account: String, synchronizable: Bool = false) {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any
         ]
         SecItemDelete(query as CFDictionary)
         var item = query
@@ -19,24 +24,42 @@ enum KeychainManager {
     }
 
     static func load() -> String? {
+        guard let data = loadData(account: account) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func loadData(account: String, synchronizable: Bool = false) -> Data? {
+        if let exact = loadData(account: account, synchronizableValue: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any) {
+            return exact
+        }
+        return loadData(account: account, synchronizableValue: kSecAttrSynchronizableAny)
+    }
+
+    private static func loadData(account: String, synchronizableValue: Any) -> Data? {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: synchronizableValue,
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        return data
     }
 
     static func delete() {
+        delete(account: account)
+    }
+
+    static func delete(account: String) {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny
         ]
         SecItemDelete(query as CFDictionary)
     }

@@ -1,22 +1,37 @@
 import SwiftUI
-import StoreKit
+import RevenueCat
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var subscriptionService = SubscriptionService.shared
-    @State private var selectedProductID = "mirror_core_yearly"
+    @State private var selectedTier: PaywallTier
+    @State private var selectedProductID = ""
 
-    private let features: [(String, String, String, Color)] = [
-        ("sparkles", "Daily Reflection", "One focused observation from your recent entries.", MirrorTheme.primary),
-        ("bubble.left.and.bubble.right", "Ask", "Ten grounded questions per month — answered from your own writing.", .blue),
-        ("calendar.badge.clock", "Weekly Digest", "A deeper pattern summary delivered each Sunday.", .indigo),
-    ]
+    init(initialTier: PaywallTier = .core) {
+        _selectedTier = State(initialValue: initialTier)
+    }
+
+    enum PaywallTier: String, CaseIterable {
+        case core = "Core"
+        case deep = "Deep"
+    }
+
+    private var currentPackages: [Package] {
+        selectedTier == .core ? subscriptionService.corePackages : subscriptionService.deepPackages
+    }
+
+    private var defaultProductID: String {
+        currentPackages.first(where: { $0.storeProduct.productIdentifier.contains("yearly") })?.storeProduct.productIdentifier
+            ?? currentPackages.first?.storeProduct.productIdentifier
+            ?? ""
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
                     heroSection
+                    tierPicker
                     featuresSection
                     planSection
                     ctaSection
@@ -43,26 +58,31 @@ struct PaywallView: View {
             .onChange(of: subscriptionService.isSubscribed) { _, subscribed in
                 if subscribed { dismiss() }
             }
+            .onChange(of: selectedTier) { _, _ in
+                selectedProductID = defaultProductID
+            }
+            .onChange(of: subscriptionService.corePackages) { _, _ in
+                if selectedProductID.isEmpty { selectedProductID = defaultProductID }
+            }
+            .onChange(of: subscriptionService.deepPackages) { _, _ in
+                if selectedProductID.isEmpty { selectedProductID = defaultProductID }
+            }
         }
     }
 
     private var heroSection: some View {
         ZStack(alignment: .bottomLeading) {
-            // Gradient background
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            Color.indigo,
-                            MirrorTheme.primary,
-                            Color.purple.opacity(0.85),
-                        ],
+                        colors: selectedTier == .core
+                            ? [Color.indigo, MirrorTheme.primary, Color.purple.opacity(0.85)]
+                            : [Color.purple, Color.indigo, Color.blue.opacity(0.85)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
 
-            // Decorative circles
             Circle()
                 .fill(Color.white.opacity(0.06))
                 .frame(width: 160, height: 160)
@@ -73,27 +93,27 @@ struct PaywallView: View {
                 .offset(x: 240, y: 20)
 
             VStack(alignment: .leading, spacing: 14) {
-                // Icon
                 ZStack {
                     Circle()
                         .fill(Color.white.opacity(0.18))
                         .frame(width: 64, height: 64)
-                    Image(systemName: "sparkles")
+                    Image(systemName: selectedTier == .core ? "sparkles" : "flame.fill")
                         .font(.system(size: 28, weight: .semibold))
                         .foregroundStyle(.white)
                 }
                 .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Mirror Core")
+                    Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("Private journal intelligence,\nbuilt around your writing.")
+                    Text(selectedTier == .core
+                         ? "Private journal intelligence,\nbuilt around your writing."
+                         : "The full picture — mood, patterns,\nand monthly deep reflection.")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(0.75))
                 }
 
-                // Trial badge
                 HStack(spacing: 6) {
                     Image(systemName: "gift")
                         .font(.system(size: 12, weight: .semibold))
@@ -110,6 +130,66 @@ struct PaywallView: View {
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: MirrorTheme.primary.opacity(0.3), radius: 30, x: 0, y: 12)
+        .animation(.easeInOut(duration: 0.25), value: selectedTier)
+    }
+
+    private var tierPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(PaywallTier.allCases, id: \.self) { tier in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        selectedTier = tier
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Text(tier.rawValue)
+                            .font(.system(size: 15, weight: selectedTier == tier ? .bold : .medium))
+                            .foregroundStyle(selectedTier == tier ? MirrorTheme.primary : .secondary)
+                        if tier == .deep {
+                            Text("More AI")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(selectedTier == .deep ? MirrorTheme.primary : .secondary)
+                                .opacity(0.7)
+                        } else {
+                            Text("Most popular")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(selectedTier == .core ? MirrorTheme.primary : .secondary)
+                                .opacity(0.7)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        selectedTier == tier
+                            ? MirrorTheme.primary.opacity(0.08)
+                            : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .futureSurface(cornerRadius: 18)
+    }
+
+    private var coreFeatures: [(String, String, Color)] {
+        [
+            ("sparkles", "Daily Reflection — personal observations from your recent entries.", MirrorTheme.primary),
+            ("bubble.left.and.bubble.right", "Ask — 15 grounded questions per month from your own writing.", .blue),
+            ("calendar.badge.clock", "Weekly Digest — a pattern summary every Sunday.", .indigo),
+            ("square.grid.2x2", "Home screen widget", .orange),
+        ]
+    }
+
+    private var deepFeatures: [(String, String, Color)] {
+        [
+            ("checkmark.circle", "Everything in Core", .green),
+            ("bubble.left.and.bubble.right.fill", "Ask — unlimited questions, no monthly cap.", .blue),
+            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", .purple),
+            ("waveform.path.ecg", "Mood Timeline — 30/90/all-time chart + analytics.", .pink),
+            ("bell.badge", "Mood Alerts — notified when your mood drops for 3 entries.", .orange),
+        ]
     }
 
     private var featuresSection: some View {
@@ -122,7 +202,8 @@ struct PaywallView: View {
                 .padding(.bottom, 14)
 
             VStack(spacing: 12) {
-                ForEach(features, id: \.1) { icon, title, detail, color in
+                let features = selectedTier == .core ? coreFeatures : deepFeatures
+                ForEach(features, id: \.1) { icon, detail, color in
                     HStack(alignment: .top, spacing: 14) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -132,21 +213,18 @@ struct PaywallView: View {
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(color)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(title)
-                                .font(.system(size: 15, weight: .semibold))
-                            Text(detail)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
+                        Text(detail)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
         }
         .padding(20)
         .futureSurface(cornerRadius: 24)
+        .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
     private var planSection: some View {
@@ -158,7 +236,7 @@ struct PaywallView: View {
                 .tracking(0.8)
                 .padding(.bottom, 14)
 
-            if subscriptionService.products.isEmpty {
+            if currentPackages.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView().scaleEffect(0.9)
                     Text("Loading plans…")
@@ -168,11 +246,11 @@ struct PaywallView: View {
                 .padding(.vertical, 8)
             } else {
                 VStack(spacing: 10) {
-                    ForEach(subscriptionService.products, id: \.id) { product in
+                    ForEach(currentPackages, id: \.storeProduct.productIdentifier) { package in
                         PlanCard(
-                            product: product,
-                            isSelected: selectedProductID == product.id,
-                            onTap: { selectedProductID = product.id }
+                            package: package,
+                            isSelected: selectedProductID == package.storeProduct.productIdentifier,
+                            onTap: { selectedProductID = package.storeProduct.productIdentifier }
                         )
                     }
                 }
@@ -185,8 +263,8 @@ struct PaywallView: View {
     private var ctaSection: some View {
         VStack(spacing: 12) {
             Button {
-                guard let product = subscriptionService.products.first(where: { $0.id == selectedProductID }) else { return }
-                Task { await subscriptionService.purchase(product) }
+                guard let package = currentPackages.first(where: { $0.storeProduct.productIdentifier == selectedProductID }) else { return }
+                Task { await subscriptionService.purchase(package) }
             } label: {
                 HStack {
                     Spacer()
@@ -201,14 +279,14 @@ struct PaywallView: View {
                 }
                 .frame(height: 54)
                 .background(
-                    subscriptionService.isPurchasing || subscriptionService.products.isEmpty
+                    subscriptionService.isPurchasing || currentPackages.isEmpty
                         ? AnyShapeStyle(Color.secondary.opacity(0.3))
                         : AnyShapeStyle(MirrorTheme.accentGradient),
                     in: Capsule()
                 )
             }
             .buttonStyle(.plain)
-            .disabled(subscriptionService.isPurchasing || subscriptionService.products.isEmpty)
+            .disabled(subscriptionService.isPurchasing || currentPackages.isEmpty)
             .shadow(color: MirrorTheme.primary.opacity(0.30), radius: 16, x: 0, y: 6)
 
             Button("Restore Purchases") {
@@ -233,16 +311,17 @@ struct PaywallView: View {
 }
 
 private struct PlanCard: View {
-    let product: Product
+    let package: Package
     let isSelected: Bool
     let onTap: () -> Void
 
-    private var isYearly: Bool { product.id.contains("yearly") }
+    private var isYearly: Bool { package.storeProduct.productIdentifier.contains("yearly") || package.storeProduct.productIdentifier.contains("annual") }
+    private var isDeepProduct: Bool { package.storeProduct.productIdentifier.contains("deep") }
+    private var yearlySavings: String { isDeepProduct ? "save ~17%" : "save ~16%" }
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 14) {
-                // Selection ring
                 ZStack {
                     Circle()
                         .stroke(isSelected ? MirrorTheme.primary : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
@@ -269,7 +348,7 @@ private struct PlanCard: View {
                                 .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
                         }
                     }
-                    Text(isYearly ? "\(product.displayPrice) / year" : "\(product.displayPrice) / month")
+                    Text(isYearly ? "\(package.storeProduct.localizedPriceString) / year · \(yearlySavings)" : "\(package.storeProduct.localizedPriceString) / month")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }

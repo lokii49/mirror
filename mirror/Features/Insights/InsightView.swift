@@ -1,20 +1,27 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
-    @State private var viewModel = InsightViewModel()
+    var viewModel: InsightViewModel
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
+    @State private var chartVisible = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     nudgeSection
+
+                    if moodEntries.count >= 2, chartVisible {
+                        Divider().padding(.horizontal, 4)
+                        MoodWeekChartView(entries: moodEntries)
+                    }
 
                     if SubscriptionService.shared.isSubscribed || hasSeenFirstNudge {
                         Divider().padding(.horizontal, 4)
@@ -23,6 +30,14 @@ struct InsightView: View {
 
                     Divider().padding(.horizontal, 4)
                     askSection
+
+                    if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
+                        Divider().padding(.horizontal, 4)
+                        moodTimelineSection
+
+                        Divider().padding(.horizontal, 4)
+                        monthlyReportSection
+                    }
                 }
                 .padding(16)
                 .padding(.bottom, 16)
@@ -44,8 +59,7 @@ struct InsightView: View {
                     if shouldShowRefresh {
                         Button {
                             Task {
-                                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
-                                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+                                await refreshInsights()
                             }
                         } label: {
                             Image(systemName: "arrow.clockwise")
@@ -60,8 +74,21 @@ struct InsightView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
         }
         .task {
-            await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
-            await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+            async let showChart: Void = showChartAfterInitialRender()
+            async let load: Void = refreshInsights()
+            _ = await (showChart, load)
+        }
+        .onChange(of: entries.count) { _, _ in
+            Task {
+                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+            }
+        }
+        .onChange(of: insights.count) { _, _ in
+            // Re-check when background pre-gen inserts a new insight
+            Task {
+                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+            }
         }
         .onChange(of: viewModel.nudgeState) { _, newState in
             // Show paywall after first nudge if not subscribed
@@ -79,6 +106,18 @@ struct InsightView: View {
         insights.contains { $0.type == .dailyNudge }
     }
 
+    private var moodEntries: [Entry] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
+    }
+
+    private var thisMonthEntries: [Entry] {
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
+        return entries.filter { $0.createdAt >= start }
+    }
+
     private var hasSeenMoreThanOneNudge: Bool {
         insights.filter { $0.type == .dailyNudge }.count > 1
     }
@@ -87,6 +126,35 @@ struct InsightView: View {
         if case .error = viewModel.nudgeState { return true }
         if case .error = viewModel.digestState { return true }
         return false
+    }
+
+    private func refreshInsights() async {
+        await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+        await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+    }
+
+    private var nightlyPendingNudgeCard: some View {
+        NightlyPendingCard(
+            label: "Preparing in the background",
+            sublabel: "Generates overnight while your phone charges.",
+            icon: "sparkles",
+            iconColor: MirrorTheme.primary
+        )
+    }
+
+    private var nightlyPendingDigestCard: some View {
+        NightlyPendingCard(
+            label: "Available each Sunday morning",
+            sublabel: "Generates overnight while your phone charges.",
+            icon: "calendar.badge.clock",
+            iconColor: .indigo
+        )
+    }
+
+    private func showChartAfterInitialRender() async {
+        guard !chartVisible else { return }
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        chartVisible = true
     }
 
     // MARK: - Daily Nudge
@@ -137,10 +205,12 @@ struct InsightView: View {
             NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
             UpgradePromptCard(
-                title: "Mirror Core",
+                title: "MirrorNotes Core",
                 subtitle: "Daily reflections are part of Core.",
                 onUpgrade: { showPaywall = true }
             )
+        case .pendingNightlyGeneration:
+            nightlyPendingNudgeCard
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
@@ -165,6 +235,82 @@ struct InsightView: View {
                         .foregroundStyle(.primary)
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .futureSurface(cornerRadius: 22)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Mood Timeline
+
+    private var moodTimelineSection: some View {
+        NavigationLink {
+            MoodTimelineView()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MOOD TIMELINE")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.8)
+                    Text("Your mood patterns over time")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if !SubscriptionService.shared.isDeep {
+                        Text("Deep")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.purple, in: Capsule())
+                    }
+                }
+                Spacer()
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(20)
+            .futureSurface(cornerRadius: 22)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Monthly Report
+
+    private var monthlyReportSection: some View {
+        NavigationLink {
+            MonthlyReportView(viewModel: viewModel)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MONTHLY REPORT")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.8)
+                    Text("A deep look at this month")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if !SubscriptionService.shared.isDeep {
+                        Text("Deep")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.purple, in: Capsule())
+                    }
+                }
+                Spacer()
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)
@@ -230,9 +376,11 @@ struct InsightView: View {
         case .subscriptionRequired:
             UpgradePromptCard(
                 title: "Core required",
-                subtitle: "Weekly digests are part of Mirror Core.",
+                subtitle: "Weekly digests are part of MirrorNotes Core.",
                 onUpgrade: { showPaywall = true }
             )
+        case .pendingNightlyGeneration:
+            nightlyPendingDigestCard
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
@@ -242,6 +390,39 @@ struct InsightView: View {
 }
 
 // MARK: - Shared Card Components
+
+struct NightlyPendingCard: View {
+    let label: String
+    let sublabel: String
+    let icon: String
+    var iconColor: Color = MirrorTheme.primary
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.10))
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(iconColor)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.system(size: 15, weight: .medium))
+                Text(sublabel)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.quaternary)
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 22)
+    }
+}
 
 private struct LoadingInsightCard: View {
     let label: String
@@ -396,6 +577,76 @@ private struct InsightTextView: View {
     }
 }
 
+
+// MARK: - Mood Week Chart
+
+private struct MoodWeekChartView: View {
+    let entries: [Entry]
+
+    private static let moodScore: [String: Double] = [
+        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
+        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
+    ]
+
+    private struct MoodPoint: Identifiable {
+        let id: UUID
+        let date: Date
+        let mood: String
+        let score: Double
+    }
+
+    private var points: [MoodPoint] {
+        entries.compactMap { entry in
+            guard let mood = entry.mood, let score = Self.moodScore[mood] else { return nil }
+            return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Chart(points) { point in
+                PointMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                .symbolSize(120)
+
+                LineMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.primary.opacity(0.25))
+                .interpolationMethod(.catmullRom)
+            }
+            .chartYScale(domain: 0...6)
+            .chartYAxis {
+                AxisMarks(values: [1, 3, 5]) { value in
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                        .font(.system(size: 10))
+                }
+            }
+            .frame(height: 130)
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
+    }
+}
 
 // Make NudgeState Equatable for onChange
 extension NudgeState: Equatable {

@@ -1,13 +1,46 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
+import CloudKit
 
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Environment(\.modelContext) private var modelContext
     @State private var authService = AuthService.shared
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showSubscription = false
+
+    // Stats cache
+    @State private var cachedTotalWords: Int = 0
+    @State private var cachedStreak: Int = 0
+    @State private var cachedLatestEntryText: String = "None"
+
+    // MIRROR settings
+    @AppStorage("nudgeHour") private var nudgeHour: Int = 8
+    @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
+    @State private var showNudgeTimePicker = false
+    @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
+    @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
+    @State private var showLanguagePicker = false
+    @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
+
+    // Display name editing
+    @State private var showEditName = false
+    @State private var editingName = ""
+
+    // YOUR DATA
+    @State private var iCloudStatus: String = "Checking..."
+    @State private var showDeleteConfirmation = false
+    @State private var showHowItWorks = false
+
+    var nudgeTime: Date {
+        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        c.hour = nudgeHour
+        c.minute = nudgeMinute
+        return Calendar.current.date(from: c) ?? Date()
+    }
 
     var body: some View {
         NavigationStack {
@@ -16,7 +49,9 @@ struct SettingsView: View {
                     profileCard
                     statsGrid
                     accountSection
-                    appSection
+                    mirrorSection
+                    dataSection
+                    aboutSection
                     #if DEBUG
                     debugSection
                     #endif
@@ -26,16 +61,25 @@ struct SettingsView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
-            .navigationTitle("Profile")
+            .navigationTitle("Settings")
             .alert("Something went wrong", isPresented: .constant(error != nil)) {
                 Button("OK") { error = nil }
             } message: {
                 Text(error?.localizedDescription ?? "")
             }
+            .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
             .task {
                 await authService.checkSession()
                 await subscriptionService.refresh()
                 await subscriptionService.loadProducts()
+                await checkNotificationPermission()
+                await checkiCloudStatus()
+            }
+            .task(id: entries.count) {
+                let snapshot = entries
+                cachedTotalWords = snapshot.reduce(0) { $0 + $1.wordCount }
+                cachedStreak = computeStreak(from: snapshot)
+                cachedLatestEntryText = computeLatestEntryText(from: snapshot)
             }
         }
     }
@@ -44,32 +88,35 @@ struct SettingsView: View {
 
     private var profileCard: some View {
         HStack(spacing: 16) {
-            // Avatar with gradient
-            ZStack {
-                Circle()
-                    .fill(MirrorTheme.accentGradient)
-                    .frame(width: 58, height: 58)
-                Image(systemName: "person.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
+            avatarView
+                .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Mirror Journal")
+                Text(authService.isAuthenticated ? (authService.userName ?? "MirrorNotes") : "MirrorNotes")
                     .font(.system(size: 17, weight: .semibold))
-                HStack(spacing: 6) {
-                    if subscriptionService.isSubscribed {
-                        Label("Core", systemImage: "checkmark.seal.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
-                    } else {
-                        Text(authService.isAuthenticated ? "Signed in" : "Local only")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if authService.isAuthenticated, let email = authService.userEmail {
+                    Text(email)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    HStack(spacing: 6) {
+                        if subscriptionService.isSubscribed {
+                            let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
+                            let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                            Label(tierLabel, systemImage: "checkmark.seal.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(tierColor)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(tierColor.opacity(0.12), in: Capsule())
+                        } else {
+                            Text("Local only")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -86,6 +133,30 @@ struct SettingsView: View {
         .futureSurface(cornerRadius: 26)
     }
 
+    @ViewBuilder
+    private var avatarView: some View {
+        ZStack {
+            Circle()
+                .fill(MirrorTheme.accentGradient)
+                .frame(width: 58, height: 58)
+
+            if authService.isAuthenticated, let name = authService.userName, !name.isEmpty {
+                Text(initials(from: name))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    private func initials(from name: String) -> String {
+        let parts = name.split(separator: " ").prefix(2)
+        return parts.compactMap { $0.first }.map { String($0).uppercased() }.joined()
+    }
+
     // MARK: - Stats Grid
 
     private var statsGrid: some View {
@@ -97,11 +168,14 @@ struct SettingsView: View {
                 .tracking(0.8)
                 .padding(.bottom, 14)
 
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                spacing: 10
+            ) {
                 statCard(value: "\(entries.count)", label: "Entries", icon: "book.pages", color: MirrorTheme.primary)
-                statCard(value: totalWords.formatted(), label: "Words", icon: "text.word.spacing", color: .blue)
-                statCard(value: "\(currentStreak)", label: currentStreak == 1 ? "Day streak" : "Day streak", icon: "flame.fill", color: .orange)
-                statCard(value: latestEntryText, label: "Last entry", icon: "clock.fill", color: .green)
+                statCard(value: cachedTotalWords.formatted(), label: "Words", icon: "text.word.spacing", color: .blue)
+                statCard(value: "\(cachedStreak)", label: "Day streak", icon: "flame.fill", color: .orange)
+                statCard(value: cachedLatestEntryText, label: "Last entry", icon: "clock.fill", color: .green)
             }
         }
         .padding(18)
@@ -138,25 +212,68 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         settingsGroup("Account") {
+            if authService.isAuthenticated {
+                Button {
+                    editingName = authService.userName ?? ""
+                    showEditName = true
+                } label: {
+                    HStack {
+                        settingsRowLabel(
+                            authService.userName.map { _ in "Display name" } ?? "Add display name",
+                            systemImage: "person.fill",
+                            iconColor: MirrorTheme.primary
+                        )
+                        Spacer()
+                        if let name = authService.userName {
+                            Text(name)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        chevron
+                    }
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showEditName) { editNameSheet }
+
+                Divider().padding(.leading, 48)
+
+                settingsRow("Signed in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
+            } else {
+                Button {
+                    Task { await signIn() }
+                } label: {
+                    HStack {
+                        settingsRowLabel("Sign in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
+                        Spacer()
+                        if isLoading { ProgressView() } else { chevron }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider().padding(.leading, 48)
+
             Button { showSubscription = true } label: {
                 HStack {
                     settingsRowLabel(
-                        subscriptionService.isSubscribed ? "Core · Active" : "Free plan",
+                        "Subscription",
                         systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
                         iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
                     )
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                    Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    chevron
                 }
             }
             .buttonStyle(.plain)
             .sheet(isPresented: $showSubscription) { SubscriptionView() }
 
-            Divider().padding(.leading, 48)
-
             if authService.isAuthenticated {
+                Divider().padding(.leading, 48)
+
                 Button(role: .destructive) {
                     Task { await signOut() }
                 } label: {
@@ -167,43 +284,378 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
-            } else {
-                Button {
-                    Task { await signIn() }
-                } label: {
-                    HStack {
-                        settingsRowLabel("Sign in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
-                        Spacer()
-                        if isLoading { ProgressView() }
-                    }
-                }
-                .buttonStyle(.plain)
             }
         }
     }
 
-    // MARK: - App Section
+    // MARK: - Mirror Section
 
-    private var appSection: some View {
-        settingsGroup("App") {
-            settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .blue)
+    private var mirrorSection: some View {
+        settingsGroup("MirrorNotes") {
+            // Daily nudge time — Core only
+            if subscriptionService.isSubscribed {
+                Button { withAnimation { showNudgeTimePicker.toggle() } } label: {
+                    HStack {
+                        settingsRowLabel("Daily nudge time", systemImage: "bell.fill", iconColor: .orange)
+                        Spacer()
+                        Text(nudgeTime, style: .time)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                        chevron
+                            .rotationEffect(.degrees(showNudgeTimePicker ? 90 : 0))
+                            .animation(.easeInOut(duration: 0.2), value: showNudgeTimePicker)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if showNudgeTimePicker {
+                    DatePicker(
+                        "",
+                        selection: Binding(
+                            get: { nudgeTime },
+                            set: { date in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                nudgeHour = c.hour ?? 8
+                                nudgeMinute = c.minute ?? 0
+                                Task {
+                                    await NotificationService.scheduleRepeatingNudge(
+                                        hour: nudgeHour,
+                                        minute: nudgeMinute
+                                    )
+                                }
+                            }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            } else {
+                Button { showSubscription = true } label: {
+                    HStack {
+                        settingsRowLabel("Daily nudge time", systemImage: "bell.fill", iconColor: .orange)
+                            .opacity(0.45)
+                        Spacer()
+                        Label("Core", systemImage: "lock.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.primary)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                    }
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showSubscription) { SubscriptionView() }
+            }
+
             Divider().padding(.leading, 48)
-            settingsRow("Data stored on device", systemImage: "lock.shield.fill", iconColor: .green)
+
+            HStack {
+                settingsRowLabel("Weekly digest day", systemImage: "calendar", iconColor: .blue)
+                    .opacity(subscriptionService.isSubscribed ? 1 : 0.45)
+                Spacer()
+                if subscriptionService.isSubscribed {
+                    Text("Sunday")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("Core", systemImage: "lock.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                }
+            }
+
+            Divider().padding(.leading, 48)
+
+            Button { showLanguagePicker = true } label: {
+                HStack {
+                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: .purple)
+                    Spacer()
+                    let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
+                    Text(langName)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showLanguagePicker) {
+                TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
+            }
+
+            Divider().padding(.leading, 48)
+
+            HStack {
+                settingsRowLabel("Notifications", systemImage: "bell.badge.fill", iconColor: MirrorTheme.primary)
+                Spacer()
+                if notificationPermission == .denied {
+                    Text("Disabled in Settings")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Toggle("", isOn: $notificationsEnabled)
+                        .labelsHidden()
+                        .onChange(of: notificationsEnabled) { _, enabled in
+                            if enabled {
+                                requestNotificationPermission()
+                            } else {
+                                NotificationService.cancelAll()
+                            }
+                        }
+                }
+            }
         }
+    }
+
+    // MARK: - Your Data Section
+
+    private var dataSection: some View {
+        settingsGroup("Your Data") {
+            ShareLink(
+                item: exportedText,
+                subject: Text("MirrorNotes Export"),
+                message: Text("My journal entries from Mirror")
+            ) {
+                HStack {
+                    settingsRowLabel("Export all entries", systemImage: "square.and.arrow.up", iconColor: .green)
+                    Spacer()
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            HStack {
+                settingsRowLabel("iCloud sync", systemImage: "icloud.fill", iconColor: .blue)
+                Spacer()
+                Text(iCloudStatus)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider().padding(.leading, 48)
+
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                HStack {
+                    settingsRowLabel("Delete all data", systemImage: "trash.fill", iconColor: .red)
+                }
+            }
+            .buttonStyle(.plain)
+            .confirmationDialog(
+                "Delete all journal data?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Everything", role: .destructive) { deleteAllData() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Permanently deletes all entries and insights from this device and iCloud. Cannot be undone.")
+            }
+        }
+    }
+
+    // MARK: - About Section
+
+    private var aboutSection: some View {
+        settingsGroup("About") {
+            Button { showHowItWorks = true } label: {
+                HStack {
+                    settingsRowLabel("How mirror works", systemImage: "sparkles", iconColor: MirrorTheme.primary)
+                    Spacer()
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            if let privacyURL = AppConstants.privacyPolicyURL {
+                Link(destination: privacyURL) {
+                    HStack {
+                        settingsRowLabel("Privacy policy", systemImage: "hand.raised.fill", iconColor: .green)
+                        Spacer()
+                        chevron
+                    }
+                }
+                .foregroundStyle(.primary)
+            } else {
+                settingsRow("Privacy policy", systemImage: "hand.raised.fill", iconColor: .green)
+            }
+
+            Divider().padding(.leading, 48)
+
+            if let reviewURL = AppConstants.appStoreReviewURL {
+                Button {
+                    UIApplication.shared.open(reviewURL)
+                } label: {
+                    HStack {
+                        settingsRowLabel("Rate mirror", systemImage: "star.fill", iconColor: .yellow)
+                        Spacer()
+                        chevron
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                settingsRow("Rate mirror", systemImage: "star.fill", iconColor: .yellow)
+                    .opacity(0.4)
+            }
+
+            Divider().padding(.leading, 48)
+
+            settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .blue)
+        }
+    }
+
+    // MARK: - How Mirror Works Sheet
+
+    private var howMirrorWorksSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    privacyStep(
+                        number: "1",
+                        title: "You write on your device",
+                        body: "Your entries are stored locally using SwiftData and backed up privately to your iCloud. Nothing leaves your device without your action.",
+                        icon: "pencil.and.outline",
+                        color: MirrorTheme.primary
+                    )
+                    privacyStep(
+                        number: "2",
+                        title: "AI runs on your device",
+                        body: "mirror uses an on-device language model to generate insights. Your journal text never touches our servers. Ever.",
+                        icon: "cpu.fill",
+                        color: .blue
+                    )
+                    privacyStep(
+                        number: "3",
+                        title: "Only the insight is saved",
+                        body: "The generated nudge or reflection is saved to your device. Not what you wrote — only what MirrorNotes noticed.",
+                        icon: "sparkles",
+                        color: .orange
+                    )
+                    privacyStep(
+                        number: "4",
+                        title: "Your data is always yours",
+                        body: "Free users keep full access to all their entries forever. Cancelling a subscription never deletes your journal.",
+                        icon: "lock.shield.fill",
+                        color: .green
+                    )
+                }
+                .padding(20)
+            }
+            .background(MirrorTheme.bgBase)
+            .navigationTitle("How mirror works")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showHowItWorks = false }
+                }
+            }
+        }
+    }
+
+    private func privacyStep(number: String, title: String, body: String, icon: String, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.12))
+                    .frame(width: 44, height: 44)
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(body)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 20)
+    }
+
+    // MARK: - Edit Name Sheet
+
+    private var editNameSheet: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Display name")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                    TextField("Your name", text: $editingName)
+                        .font(.system(size: 17))
+                        .padding(14)
+                        .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .autocorrectionDisabled()
+                }
+                Text("Only visible to you. Used in the profile card.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+            }
+            .padding(20)
+            .background(MirrorTheme.bgBase)
+            .navigationTitle("Display name")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showEditName = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task { await saveDisplayName(editingName.trimmingCharacters(in: .whitespaces)) }
+                        showEditName = false
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(editingName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.height(260)])
+    }
+
+    private func saveDisplayName(_ name: String) async {
+        guard !name.isEmpty else { return }
+        await authService.updateDisplayName(name)
     }
 
     // MARK: - Debug
 
     #if DEBUG
-    @Environment(\.modelContext) private var debugModelContext
-
     private var debugSection: some View {
         settingsGroup("Developer") {
             Button {
-                SampleData.seed(into: debugModelContext)
+                SampleData.seed(into: modelContext)
             } label: {
                 HStack {
-                    settingsRowLabel("Load Sample Entries", systemImage: "doc.badge.plus", iconColor: .orange)
+                    settingsRowLabel("Load Sample Entries (Mixed)", systemImage: "doc.badge.plus", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button {
+                SampleData.seedVoiceOnly(into: modelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Load Voice Notes Only", systemImage: "mic.badge.plus", iconColor: .orange)
                     Spacer()
                 }
             }
@@ -212,7 +664,7 @@ struct SettingsView: View {
             Divider().padding(.leading, 48)
 
             Button(role: .destructive) {
-                SampleData.clearInsights(from: debugModelContext)
+                SampleData.clearInsights(from: modelContext)
             } label: {
                 HStack {
                     settingsRowLabel("Clear Insight Cache", systemImage: "sparkles.slash", iconColor: .orange)
@@ -224,7 +676,7 @@ struct SettingsView: View {
             Divider().padding(.leading, 48)
 
             Button(role: .destructive) {
-                SampleData.clear(from: debugModelContext)
+                SampleData.clear(from: modelContext)
             } label: {
                 HStack {
                     settingsRowLabel("Clear All Data", systemImage: "trash", iconColor: .red)
@@ -237,6 +689,66 @@ struct SettingsView: View {
     #endif
 
     // MARK: - Helpers
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.tertiary)
+    }
+
+    private var exportedText: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .short
+        return entries.map { "[\(formatter.string(from: $0.createdAt))]\n\($0.text)" }
+            .joined(separator: "\n\n---\n\n")
+    }
+
+    private func deleteAllData() {
+        if let all = try? modelContext.fetch(FetchDescriptor<Entry>()) {
+            all.forEach { modelContext.delete($0) }
+        }
+        if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
+            all.forEach { modelContext.delete($0) }
+        }
+        try? modelContext.save()
+    }
+
+    private func checkNotificationPermission() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationPermission = settings.authorizationStatus
+        if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+            // keep AppStorage value as-is
+        } else if settings.authorizationStatus == .denied {
+            notificationsEnabled = false
+        }
+    }
+
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            Task { @MainActor in
+                notificationPermission = granted ? .authorized : .denied
+                if !granted { notificationsEnabled = false }
+            }
+        }
+    }
+
+    private func checkiCloudStatus() async {
+        do {
+            let status = try await CKContainer.default().accountStatus()
+            await MainActor.run {
+                switch status {
+                case .available: iCloudStatus = "Active"
+                case .noAccount: iCloudStatus = "No account"
+                case .restricted: iCloudStatus = "Restricted"
+                case .temporarilyUnavailable: iCloudStatus = "Unavailable"
+                default: iCloudStatus = "Unknown"
+                }
+            }
+        } catch {
+            await MainActor.run { iCloudStatus = "Error" }
+        }
+    }
 
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -299,20 +811,16 @@ struct SettingsView: View {
         }
     }
 
-    private var totalWords: Int {
-        entries.reduce(0) { $0 + $1.wordCount }
-    }
-
-    private var latestEntryText: String {
-        guard let latest = entries.first?.createdAt else { return "None" }
+    private func computeLatestEntryText(from snapshot: [Entry]) -> String {
+        guard let latest = snapshot.first?.createdAt else { return "None" }
         if Calendar.current.isDateInToday(latest) { return "Today" }
         if Calendar.current.isDateInYesterday(latest) { return "Yesterday" }
         return latest.formatted(date: .abbreviated, time: .omitted)
     }
 
-    private var currentStreak: Int {
+    private func computeStreak(from snapshot: [Entry]) -> Int {
         let calendar = Calendar.current
-        let days = Set(entries.map { calendar.startOfDay(for: $0.createdAt) })
+        let days = Set(snapshot.map { calendar.startOfDay(for: $0.createdAt) })
         let today = calendar.startOfDay(for: Date())
         var day = days.contains(today) ? today : calendar.date(byAdding: .day, value: -1, to: today) ?? today
         var count = 0
@@ -329,5 +837,58 @@ struct SettingsView: View {
         let version = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String
         return build.map { "\(version) (\($0))" } ?? version
+    }
+}
+
+struct TranscriptionLanguagePickerView: View {
+    @Binding var selected: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Download language models", systemImage: "info.circle")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Some languages (e.g. Telugu, Tamil, Kannada) use Apple's on-device speech model. If transcription fails, the model may not be downloaded yet.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                        Text("To download: **iOS Settings → General → Language & Region → Add Language**")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    ForEach(VoiceTranscriptionService.pickerLanguages) { lang in
+                        Button {
+                            selected = lang.id
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(lang.displayName)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selected == lang.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Voice Language")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }

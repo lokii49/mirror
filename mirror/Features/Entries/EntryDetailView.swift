@@ -1,33 +1,23 @@
 import SwiftUI
 import SwiftData
 
-private let moodLabels = MirrorTheme.moodOptions
-
 struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var insights: [Insight]
 
     let entry: Entry
+    var onDone: (() -> Void)? = nil
 
-    @State private var isEditing = false
-    @State private var draftText = ""
-    @State private var draftMood: String? = nil
+    @State private var showEditor = false
     @State private var showDeleteConfirm = false
-    @FocusState private var editorFocused: Bool
+    @State private var relatedInsight: Insight? = nil
+    @State private var displayedWordCount: Int = 0
 
     private var moodLabel: String? {
-        let mood = isEditing ? draftMood : entry.mood
+        let mood = entry.mood
         guard let mood, !mood.isEmpty else { return nil }
         return mood
-    }
-
-    private var relatedInsight: Insight? {
-        insights.first { insight in
-            insight.content.localizedCaseInsensitiveContains(
-                entry.text.components(separatedBy: .whitespacesAndNewlines).prefix(6).joined(separator: " ")
-            )
-        }
     }
 
     var body: some View {
@@ -44,23 +34,19 @@ struct EntryDetailView: View {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
                                 .font(.system(size: 14))
                                 .foregroundStyle(.secondary)
-                            if isEditing {
+                            if let label = moodLabel {
                                 Text("·")
                                     .foregroundStyle(.tertiary)
-                                moodMenu
-                            } else if let label = moodLabel {
-                                    Text("·")
-                                        .foregroundStyle(.tertiary)
-                                    Text(label)
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(Color(.tertiarySystemFill), in: Capsule())
+                                Text(label)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color(.tertiarySystemFill), in: Capsule())
                             }
                             Text("·")
                                 .foregroundStyle(.tertiary)
-                            Text("\(currentWordCount) words")
+                            Text("\(displayedWordCount) words")
                                 .font(.system(size: 14))
                                 .foregroundStyle(.secondary)
                         }
@@ -68,19 +54,18 @@ struct EntryDetailView: View {
 
                     Divider()
 
-                    if isEditing {
-                        TextEditor(text: $draftText)
-                            .focused($editorFocused)
-                            .font(.system(size: 17, weight: .regular))
-                            .lineSpacing(6)
-                            .scrollContentBackground(.hidden)
-                            .frame(minHeight: 260)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(entry.text)
-                            .font(.system(size: 17, weight: .regular))
-                            .lineSpacing(6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    if entry.textDecryptionFailed {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Encrypted entry unavailable")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray)
                     } else {
                         Text("No text")
                             .font(.system(size: 17, weight: .regular))
@@ -88,27 +73,17 @@ struct EntryDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    // Photo if attached
-                    if let data = entry.photoData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                            }
-                    }
-
                     if !entry.voiceNotes.isEmpty {
                         VStack(spacing: 8) {
                             ForEach(entry.voiceNotes.indices, id: \.self) { index in
+                                let note = entry.voiceNotes[index]
                                 VoiceNoteAttachmentView(
-                                    data: entry.voiceNotes[index].data,
-                                    duration: entry.voiceNotes[index].duration,
+                                    data: note.data,
+                                    duration: note.duration,
                                     title: "Voice note \(index + 1)",
-                                    transcript: entry.voiceNotes[index].transcript,
-                                    languageName: entry.voiceNotes[index].languageName
+                                    transcript: note.transcript,
+                                    languageName: note.languageName,
+                                    transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
                             }
                         }
@@ -120,7 +95,7 @@ struct EntryDetailView: View {
                 // "mirror noticed" card — only if a past insight references this entry
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("mirror noticed:")
+                        Text("MirrorNotes noticed:")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.secondary)
                         Text(insight.content)
@@ -137,112 +112,50 @@ struct EntryDetailView: View {
             .padding(.bottom, 32)
         }
         .background(MirrorTheme.bgBase)
+        .task(id: entry.id) {
+            let text = entry.text
+            let prefix = text
+                .components(separatedBy: .whitespacesAndNewlines)
+                .prefix(6)
+                .joined(separator: " ")
+            relatedInsight = insights.first { insight in
+                insight.content.localizedCaseInsensitiveContains(prefix)
+            }
+            displayedWordCount = strippedWordCount(text)
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
-                    if isEditing {
-                        Button {
-                            saveInlineEdits()
-                        } label: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                        .accessibilityLabel("Save changes")
-                    } else {
-                        Button("Edit") { beginInlineEditing() }
-                            .font(.system(size: 16, weight: .medium))
+                    Button("Edit") { showEditor = true }
+                        .font(.system(size: 16, weight: .medium))
+                        .disabled(entry.textDecryptionFailed)
 
-                        Menu {
-                            Button("Share as text") { shareText() }
-                            Button("Delete Entry", systemImage: "trash", role: .destructive) {
-                                showDeleteConfirm = true
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 16, weight: .semibold))
+                    Menu {
+                        Button("Share as text") { shareText() }
+                        Button("Delete Entry", systemImage: "trash", role: .destructive) {
+                            showDeleteConfirm = true
                         }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
                     }
                 }
             }
         }
-        .onAppear { resetDrafts() }
+        .navigationDestination(isPresented: $showEditor) {
+            WriteView(entry: entry, autoFocus: true, showsBackButton: true) {
+                onDone?()
+            }
+        }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(entry)
-                dismiss()
+                try? modelContext.save()
+                onDone?()
             }
             Button("Cancel", role: .cancel) {}
         }
-    }
-
-    private var currentWordCount: Int {
-        let text = isEditing ? draftText : entry.text
-        return text.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
-    }
-
-    private var moodMenu: some View {
-        Menu {
-            ForEach(moodLabels, id: \.self) { mood in
-                Button {
-                    draftMood = draftMood == mood ? nil : mood
-                } label: {
-                    if draftMood == mood {
-                        Label(mood, systemImage: "checkmark")
-                    } else {
-                        Text(mood)
-                    }
-                }
-            }
-
-            if draftMood != nil {
-                Divider()
-                Button("Clear Mood", role: .destructive) {
-                    draftMood = nil
-                }
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Text(draftMood ?? "Mood")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(draftMood == nil ? .secondary : Color.accentColor)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(
-                draftMood == nil ? Color(.tertiarySystemFill) : Color.accentColor.opacity(0.12),
-                in: Capsule()
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func beginInlineEditing() {
-        resetDrafts()
-        isEditing = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            editorFocused = true
-        }
-    }
-
-    private func saveInlineEdits() {
-        let plain = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
-        entry.text = plain
-        entry.wordCount = plain.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
-        entry.mood = draftMood
-        entry.source = !entry.voiceNotes.isEmpty && plain.isEmpty ? .voice : .typed
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        editorFocused = false
-        isEditing = false
-    }
-
-    private func resetDrafts() {
-        draftText = entry.text
-        draftMood = entry.mood
     }
 
     private func shareText() {
@@ -253,5 +166,102 @@ struct EntryDetailView: View {
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.rootViewController?
             .present(av, animated: true)
+    }
+}
+
+private struct InlineEntryContent: View {
+    let text: String
+    let textStyleData: Data?
+    let photoDataArray: [Data]
+
+    private var paragraphStyles: [NoteParagraphTextStyle] {
+        guard let textStyleData,
+              let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: textStyleData) else {
+            return []
+        }
+        return document.paragraphStyles
+    }
+
+    private var displayLines: [String] {
+        text.components(separatedBy: .newlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(displayLines.enumerated()), id: \.offset) { index, line in
+                if let photoIndex = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)),
+                   photoIndex < photoDataArray.count,
+                   let uiImage = UIImage(data: photoDataArray[photoIndex]) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        }
+                        .padding(.vertical, 4)
+                } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    styledText(for: line, at: index)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func styledText(for line: String, at index: Int) -> some View {
+        let style = paragraphStyles.indices.contains(index) ? paragraphStyles[index] : legacyStyle(for: line)
+        let displayLine = lineWithoutLegacyPrefix(line)
+        if style == .title {
+            Text(displayLine)
+                .font(.system(size: 30, weight: .bold))
+        } else if style == .heading {
+            Text(displayLine)
+                .font(.system(size: 22, weight: .bold))
+        } else if style == .subheading {
+            Text(displayLine)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.secondary)
+        } else if style == .monospaced {
+            Text(displayLine)
+                .font(.system(size: 16, weight: .regular, design: .monospaced))
+        } else if style == .checklistUnchecked || style == .checklistChecked {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(style == .checklistChecked ? "✓" : "○")
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
+                    .frame(width: 24, alignment: .center)
+                Text(displayLine)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
+                    .strikethrough(style == .checklistChecked, color: .secondary)
+            }
+        } else {
+            Text(line)
+                .font(.system(size: 17, weight: .regular))
+                .lineSpacing(6)
+        }
+    }
+
+    private func lineWithoutLegacyPrefix(_ line: String) -> String {
+        if line.hasPrefix("### ") { return String(line.dropFirst(4)) }
+        if line.hasPrefix("## ") { return String(line.dropFirst(3)) }
+        if line.hasPrefix("# ") { return String(line.dropFirst(2)) }
+        if line.hasPrefix("    ") { return String(line.dropFirst(4)) }
+        if line.hasPrefix("○ ") { return String(line.dropFirst(2)) }
+        if line.hasPrefix("✓ ") { return String(line.dropFirst(2)) }
+        return line
+    }
+
+    private func legacyStyle(for line: String) -> NoteParagraphTextStyle {
+        if line.hasPrefix("### ") { return .subheading }
+        if line.hasPrefix("## ") { return .heading }
+        if line.hasPrefix("# ") { return .title }
+        if line.hasPrefix("    ") { return .monospaced }
+        if line.hasPrefix("✓ ") { return .checklistChecked }
+        if line.hasPrefix("○ ") { return .checklistUnchecked }
+        return .body
     }
 }

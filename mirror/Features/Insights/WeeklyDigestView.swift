@@ -53,23 +53,29 @@ struct WeeklyDigestView: View {
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
-        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "NEXT WEEK"]
+        let normalized = text
+            .replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
         var results: [(title: String, body: String)] = []
-        var remaining = text
 
         for (i, header) in headers.enumerated() {
-            guard let headerRange = remaining.range(of: header + ":") else { continue }
-            let afterHeader = String(remaining[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let headerRange = normalized.range(of: header + ":", options: [.caseInsensitive]) else { continue }
+            let afterHeader = String(normalized[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
 
             var bodyEnd = afterHeader.endIndex
             for nextHeader in headers[(i+1)...] {
-                if let nextRange = afterHeader.range(of: nextHeader + ":") {
+                if let nextRange = afterHeader.range(of: nextHeader + ":", options: [.caseInsensitive]) {
                     bodyEnd = nextRange.lowerBound
                     break
                 }
             }
 
-            let body = String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = String(afterHeader[..<bodyEnd])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n\n", with: "\n")
             results.append((title: header, body: body))
         }
 
@@ -87,6 +93,7 @@ struct DigestSectionView: View {
         case "YOUR ENERGY": return .orange
         case "WHAT'S BUILDING": return .green
         case "WATCH OUT FOR": return .red
+        case "MOOD BOOST": return .purple
         default: return .accentColor
         }
     }
@@ -97,6 +104,7 @@ struct DigestSectionView: View {
         case "YOUR ENERGY": return "bolt"
         case "WHAT'S BUILDING": return "arrow.up.forward"
         case "WATCH OUT FOR": return "eye"
+        case "MOOD BOOST": return "heart"
         case "NEXT WEEK": return "arrow.right.circle"
         default: return "circle"
         }

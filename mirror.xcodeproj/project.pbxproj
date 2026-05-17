@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		471288812F9CFB7F00812160 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 471288802F9CFB7F00812160 /* Supabase */; };
+		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
+		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
+		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
+		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A72FB47F4F00C6362E /* RevenueCat */; };
+		47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A92FB47F4F00C6362E /* RevenueCatUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,12 +31,37 @@
 			remoteGlobalIDString = 471287F52F9CF11200812160;
 			remoteInfo = mirror;
 		};
+		47E752912FB44FE800C6362E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 471287EE2F9CF11200812160 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47E752802FB44FE800C6362E;
+			remoteInfo = MirrorWidgetExtensionExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		47E752942FB44FE800C6362E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		471287F62F9CF11200812160 /* mirror.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mirror.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		471288052F9CF11300812160 /* mirrorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4712880F2F9CF11300812160 /* mirrorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MirrorWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		47E752832FB44FE800C6362E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		47E752852FB44FE800C6362E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		47E7529D2FB4507600C6362E /* MirrorWidgetExtensionExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MirrorWidgetExtensionExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -38,8 +69,27 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Widget/EntriesMapWidget.swift,
+				Widget/MoodMapWidget.swift,
+				Widget/WriteWidget.swift,
 			);
 			target = 471287F52F9CF11200812160 /* mirror */;
+		};
+		47E752982FB44FE800C6362E /* Exceptions for "MirrorWidgetExtension" folder in "MirrorWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
+		};
+		47E7529A2FB4505400C6362E /* Exceptions for "mirror" folder in "MirrorWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Widget/EntriesMapWidget.swift,
+				Widget/MoodMapWidget.swift,
+				Widget/WriteWidget.swift,
+			);
+			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -48,6 +98,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				471288762F9CF48D00812160 /* Exceptions for "mirror" folder in "mirror" target */,
+				47E7529A2FB4505400C6362E /* Exceptions for "mirror" folder in "MirrorWidgetExtensionExtension" target */,
 			);
 			path = mirror;
 			sourceTree = "<group>";
@@ -62,6 +113,14 @@
 			path = mirrorUITests;
 			sourceTree = "<group>";
 		};
+		47E752872FB44FE800C6362E /* MirrorWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				47E752982FB44FE800C6362E /* Exceptions for "MirrorWidgetExtension" folder in "MirrorWidgetExtensionExtension" target */,
+			);
+			path = MirrorWidgetExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,7 +128,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */,
 				471288812F9CFB7F00812160 /* Supabase in Frameworks */,
+				471288832F9D300100812160 /* SwiftLlama in Frameworks */,
+				47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,15 +149,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47E7527E2FB44FE800C6362E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */,
+				47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		471287ED2F9CF11200812160 = {
 			isa = PBXGroup;
 			children = (
+				47E7529D2FB4507600C6362E /* MirrorWidgetExtensionExtension.entitlements */,
 				471287F82F9CF11200812160 /* mirror */,
 				471288082F9CF11300812160 /* mirrorTests */,
 				471288122F9CF11300812160 /* mirrorUITests */,
+				47E752872FB44FE800C6362E /* MirrorWidgetExtension */,
+				47E752822FB44FE800C6362E /* Frameworks */,
 				471287F72F9CF11200812160 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,8 +180,18 @@
 				471287F62F9CF11200812160 /* mirror.app */,
 				471288052F9CF11300812160 /* mirrorTests.xctest */,
 				4712880F2F9CF11300812160 /* mirrorUITests.xctest */,
+				47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		47E752822FB44FE800C6362E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				47E752832FB44FE800C6362E /* WidgetKit.framework */,
+				47E752852FB44FE800C6362E /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -120,10 +204,12 @@
 				471287F22F9CF11200812160 /* Sources */,
 				471287F32F9CF11200812160 /* Frameworks */,
 				471287F42F9CF11200812160 /* Resources */,
+				47E752942FB44FE800C6362E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				47E752922FB44FE800C6362E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				471287F82F9CF11200812160 /* mirror */,
@@ -131,6 +217,9 @@
 			name = mirror;
 			packageProductDependencies = (
 				471288802F9CFB7F00812160 /* Supabase */,
+				471288822F9D300100812160 /* SwiftLlama */,
+				47E752A72FB47F4F00C6362E /* RevenueCat */,
+				47E752A92FB47F4F00C6362E /* RevenueCatUI */,
 			);
 			productName = mirror;
 			productReference = 471287F62F9CF11200812160 /* mirror.app */;
@@ -182,6 +271,28 @@
 			productReference = 4712880F2F9CF11300812160 /* mirrorUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47E752972FB44FE800C6362E /* Build configuration list for PBXNativeTarget "MirrorWidgetExtensionExtension" */;
+			buildPhases = (
+				47E7527D2FB44FE800C6362E /* Sources */,
+				47E7527E2FB44FE800C6362E /* Frameworks */,
+				47E7527F2FB44FE800C6362E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47E752872FB44FE800C6362E /* MirrorWidgetExtension */,
+			);
+			name = MirrorWidgetExtensionExtension;
+			packageProductDependencies = (
+			);
+			productName = MirrorWidgetExtensionExtension;
+			productReference = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,7 +300,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					471287F52F9CF11200812160 = {
@@ -202,6 +313,9 @@
 					4712880E2F9CF11300812160 = {
 						CreatedOnToolsVersion = 26.4.1;
 						TestTargetID = 471287F52F9CF11200812160;
+					};
+					47E752802FB44FE800C6362E = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -216,6 +330,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */,
+				47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 471287F72F9CF11200812160 /* Products */;
@@ -225,6 +341,7 @@
 				471287F52F9CF11200812160 /* mirror */,
 				471288042F9CF11300812160 /* mirrorTests */,
 				4712880E2F9CF11300812160 /* mirrorUITests */,
+				47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -245,6 +362,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4712880D2F9CF11300812160 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47E7527F2FB44FE800C6362E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -275,6 +399,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47E7527D2FB44FE800C6362E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -287,6 +418,11 @@
 			isa = PBXTargetDependency;
 			target = 471287F52F9CF11200812160 /* mirror */;
 			targetProxy = 471288102F9CF11300812160 /* PBXContainerItemProxy */;
+		};
+		47E752922FB44FE800C6362E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
+			targetProxy = 47E752912FB44FE800C6362E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -566,6 +702,70 @@
 			};
 			name = Release;
 		};
+		47E752952FB44FE800C6362E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MirrorWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MirrorWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		47E752962FB44FE800C6362E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MirrorWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MirrorWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -605,6 +805,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		47E752972FB44FE800C6362E /* Build configuration list for PBXNativeTarget "MirrorWidgetExtensionExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47E752952FB44FE800C6362E /* Debug */,
+				47E752962FB44FE800C6362E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -616,6 +825,22 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pgorzelany/swift-llama-cpp";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+		47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.72.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -623,6 +848,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		471288822F9D300100812160 /* SwiftLlama */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */;
+			productName = SwiftLlama;
+		};
+		47E752A72FB47F4F00C6362E /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		47E752A92FB47F4F00C6362E /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
