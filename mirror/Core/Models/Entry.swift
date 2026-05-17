@@ -29,6 +29,7 @@ enum EntrySource: String, Codable {
     var encryptedAdditionalVoiceNoteLanguageNamesStorage: Data? = nil
     var encryptedAdditionalVoiceNoteEnglishTranslationsStorage: Data? = nil
     var weekIdentifier: String = ""
+    var voiceNoteTranscriptionFailed: Bool = false
 
     var text: String {
         get { decryptedText ?? "" }
@@ -226,6 +227,7 @@ enum EntrySource: String, Codable {
         self.encryptedAdditionalVoiceNoteLanguageNamesStorage = nil
         self.encryptedAdditionalVoiceNoteEnglishTranslationsStorage = nil
         self.weekIdentifier = DateHelpers.weekIdentifier(for: Date())
+        self.voiceNoteTranscriptionFailed = false
     }
 
     private static func encoded<T: Encodable>(_ value: T) -> Data? {

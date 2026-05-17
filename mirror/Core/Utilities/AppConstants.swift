@@ -13,6 +13,6 @@ enum AppConstants {
     // MARK: - Legal
     // Host a simple privacy policy page (GitHub Pages, Notion, or any static site).
     static var privacyPolicyURL: URL? {
-        URL(string: "https://mirror.app/privacy") // replace before App Store submission
+        URL(string: "https://mirrornotes.org/privacy.html")
     }
 }

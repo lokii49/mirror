@@ -57,6 +57,10 @@ private struct MoodPoint: Identifiable {
 struct MoodMapWidgetView: View {
     let entry: MoodMapEntry
 
+    private var isUnlocked: Bool {
+        UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.tier") == "deep"
+    }
+
     private var points: [MoodPoint] {
         let today = Calendar.current.startOfDay(for: .now)
         return (0..<7).reversed().compactMap { offset -> MoodPoint? in
@@ -68,40 +72,54 @@ struct MoodMapWidgetView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Moods")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            if points.isEmpty {
-                Text("Log a mood to see your chart.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                Chart(points) { point in
-                    PointMark(
-                        x: .value("Day", point.date, unit: .day),
-                        y: .value("Mood", point.score)
-                    )
-                    .foregroundStyle(moodColor(point.mood))
-                    .symbolSize(100)
+        if isUnlocked {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Moods")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                if points.isEmpty {
+                    Text("Log a mood to see your chart.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else {
+                    Chart(points) { point in
+                        PointMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Mood", point.score)
+                        )
+                        .foregroundStyle(moodColor(point.mood))
+                        .symbolSize(100)
 
-                    LineMark(
-                        x: .value("Day", point.date, unit: .day),
-                        y: .value("Mood", point.score)
-                    )
-                    .foregroundStyle(Color.accentColor.opacity(0.25))
-                    .interpolationMethod(.catmullRom)
+                        LineMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Mood", point.score)
+                        )
+                        .foregroundStyle(Color.accentColor.opacity(0.25))
+                        .interpolationMethod(.catmullRom)
+                    }
+                    .chartYScale(domain: 0...6)
+                    .chartYAxis(.hidden)
+                    .chartXAxis(.hidden)
                 }
-                .chartYScale(domain: 0...6)
-                .chartYAxis(.hidden)
-                .chartXAxis(.hidden)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(12)
+            .containerBackground(.fill.tertiary, for: .widget)
+            .widgetURL(URL(string: "mirror://entries"))
+        } else {
+            VStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Deep required")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .containerBackground(.fill.tertiary, for: .widget)
+            .widgetURL(URL(string: "mirror://upgrade"))
         }
-        .padding(12)
-        .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(URL(string: "mirror://entries"))
     }
 
     private func moodColor(_ mood: String) -> Color {

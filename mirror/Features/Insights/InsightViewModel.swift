@@ -7,6 +7,7 @@ enum NudgeState {
     case loaded(Insight)
     case needsMoreEntries(Int)
     case subscriptionRequired
+    case pendingNightlyGeneration
     case error(String)
 }
 
@@ -16,6 +17,17 @@ enum DigestState {
     case loaded(Insight)
     case notEnoughEntries
     case subscriptionRequired
+    case pendingNightlyGeneration
+    case error(String)
+}
+
+enum MonthlyReportState {
+    case idle
+    case loading
+    case loaded(Insight)
+    case notEnoughEntries(remaining: Int)
+    case subscriptionRequired
+    case pendingNightlyGeneration
     case error(String)
 }
 
@@ -24,19 +36,15 @@ enum DigestState {
 final class InsightViewModel {
     var nudgeState: NudgeState = .idle
     var digestState: DigestState = .idle
+    var monthlyReportState: MonthlyReportState = .idle
 
     // MARK: - Daily Nudge
+    // Cache-read-only: generation happens in mirrorApp.preGenerateInsightsIfNeeded (app-active)
+    // and the nightly BGProcessingTask. Views never trigger LLM directly.
 
     func loadNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
-
-        if case .loading = nudgeState {
-            // If WE own the generation, keep waiting.
-            // If someone else (pre-gen) is generating, fall through so a fresh
-            // insights array passed from onChange can hit the cache check below.
-            guard !InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) else { return }
-        }
 
         guard entries.count >= 3 else {
             nudgeState = .needsMoreEntries(3 - entries.count)
@@ -56,41 +64,27 @@ final class InsightViewModel {
             return
         }
 
-        // If another caller (pre-gen) is generating, show spinner and wait for it
-        // to insert the insight — InsightView's onChange(of: insights.count) will
-        // re-call this function with fresh insights once it lands.
-        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+        // Pre-gen (mirrorApp.preGenerateInsightsIfNeeded) is actively running — show spinner.
+        // onChange(of: insights.count) will re-call once it lands.
+        if InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) {
             nudgeState = .loading
             return
         }
 
-        nudgeState = .loading
-        do {
-            let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
-            let text = try await Task.detached(priority: .background) {
-                try await InsightService.generateNudge(entries: sortedEntries, token: "")
-            }.value
-            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
-            context.insert(insight)
-            nudgeState = .loaded(insight)
-        } catch InsightError.subscriptionRequired {
-            nudgeState = .subscriptionRequired
-        } catch {
-            nudgeState = .error(error.localizedDescription)
+        guard mirrorApp.modelAvailable() else {
+            nudgeState = .error("AI model not installed. Add the Gemma model to the app bundle in Xcode.")
+            return
         }
 
-        InsightGenerationCoordinator.shared.release(key: coordinatorKey)
+        nudgeState = .pendingNightlyGeneration
     }
 
     // MARK: - Weekly Digest
+    // Cache-read-only. Generates nightly on Sunday via BGProcessingTask / BGAppRefreshTask.
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
         let coordinatorKey = "digest_\(thisWeek)"
-
-        if case .loading = digestState {
-            guard !InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) else { return }
-        }
 
         guard entries.count >= 5 else {
             digestState = .notEnoughEntries
@@ -109,26 +103,59 @@ final class InsightViewModel {
             return
         }
 
-        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+        if InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) {
             digestState = .loading
             return
         }
 
-        digestState = .loading
-        do {
-            let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
-            let text = try await Task.detached(priority: .background) {
-                try await InsightService.generateWeeklyDigest(entries: sortedEntries, token: "")
-            }.value
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
-            context.insert(insight)
-            digestState = .loaded(insight)
-        } catch InsightError.subscriptionRequired {
-            digestState = .subscriptionRequired
-        } catch {
-            digestState = .error(error.localizedDescription)
+        guard mirrorApp.modelAvailable() else {
+            digestState = .error("AI model not installed.")
+            return
         }
 
-        InsightGenerationCoordinator.shared.release(key: coordinatorKey)
+        digestState = .pendingNightlyGeneration
+    }
+
+    // MARK: - Monthly Report
+    // Cache-read-only. Generates nightly once 20+ entries exist via BGProcessingTask.
+
+    func loadMonthlyReport(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
+        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        let coordinatorKey = "monthlyReport_\(thisMonth)"
+
+        let cal = Calendar.current
+        let now = Date()
+        let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
+        let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
+
+        guard thisMonthEntries.count >= 20 else {
+            monthlyReportState = .notEnoughEntries(remaining: 20 - thisMonthEntries.count)
+            return
+        }
+
+        guard SubscriptionService.shared.isDeep else {
+            monthlyReportState = .subscriptionRequired
+            return
+        }
+
+        if !forceRegenerate, let cached = insights.first(where: {
+            $0.type == .monthlyReport && $0.periodIdentifier == thisMonth
+                && Date().timeIntervalSince($0.generatedAt) < 86400
+        }) {
+            monthlyReportState = .loaded(cached)
+            return
+        }
+
+        if InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) {
+            monthlyReportState = .loading
+            return
+        }
+
+        guard mirrorApp.modelAvailable() else {
+            monthlyReportState = .error("AI model not installed.")
+            return
+        }
+
+        monthlyReportState = .pendingNightlyGeneration
     }
 }

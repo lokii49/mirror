@@ -22,6 +22,8 @@ struct SettingsView: View {
     @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
     @State private var showNudgeTimePicker = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
+    @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
+    @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
 
     // Display name editing
@@ -102,12 +104,14 @@ struct SettingsView: View {
                 } else {
                     HStack(spacing: 6) {
                         if subscriptionService.isSubscribed {
-                            Label("Core", systemImage: "checkmark.seal.fill")
+                            let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
+                            let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                            Label(tierLabel, systemImage: "checkmark.seal.fill")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(MirrorTheme.primary)
+                                .foregroundStyle(tierColor)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                                .background(tierColor.opacity(0.12), in: Capsule())
                         } else {
                             Text("Local only")
                                 .font(.system(size: 13))
@@ -258,7 +262,7 @@ struct SettingsView: View {
                         iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
                     )
                     Spacer()
-                    Text(subscriptionService.isSubscribed ? "Core" : "Free")
+                    Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                     chevron
@@ -364,6 +368,24 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                         .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
                 }
+            }
+
+            Divider().padding(.leading, 48)
+
+            Button { showLanguagePicker = true } label: {
+                HStack {
+                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: .purple)
+                    Spacer()
+                    let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
+                    Text(langName)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showLanguagePicker) {
+                TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
             }
 
             Divider().padding(.leading, 48)
@@ -621,7 +643,19 @@ struct SettingsView: View {
                 SampleData.seed(into: modelContext)
             } label: {
                 HStack {
-                    settingsRowLabel("Load Sample Entries", systemImage: "doc.badge.plus", iconColor: .orange)
+                    settingsRowLabel("Load Sample Entries (Mixed)", systemImage: "doc.badge.plus", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button {
+                SampleData.seedVoiceOnly(into: modelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Load Voice Notes Only", systemImage: "mic.badge.plus", iconColor: .orange)
                     Spacer()
                 }
             }
@@ -803,5 +837,58 @@ struct SettingsView: View {
         let version = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String
         return build.map { "\(version) (\($0))" } ?? version
+    }
+}
+
+struct TranscriptionLanguagePickerView: View {
+    @Binding var selected: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Download language models", systemImage: "info.circle")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Some languages (e.g. Telugu, Tamil, Kannada) use Apple's on-device speech model. If transcription fails, the model may not be downloaded yet.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                        Text("To download: **iOS Settings → General → Language & Region → Add Language**")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    ForEach(VoiceTranscriptionService.pickerLanguages) { lang in
+                        Button {
+                            selected = lang.id
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(lang.displayName)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selected == lang.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Voice Language")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
