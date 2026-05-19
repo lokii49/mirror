@@ -184,7 +184,7 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateNudge(entries: entries, token: "")
+            let text = try await InsightService.generateNudge(entries: entries)
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try? context.save()
@@ -234,7 +234,7 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: "")
+            let text = try await InsightService.generateWeeklyDigest(entries: entries)
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             try? context.save()
@@ -270,7 +270,7 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries, token: "")
+            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
             context.insert(insight)
             try? context.save()

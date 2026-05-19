@@ -11,7 +11,7 @@ struct VoiceTranscription: Codable {
 
 enum VoiceTranscriptionService {
     /// - Parameter preferredLocaleId: locale identifier from user settings (e.g. "te-IN"). nil = auto-detect order.
-    static func transcribe(audioData: Data, token: String, preferredLocaleId: String? = nil) async throws -> VoiceTranscription {
+    static func transcribe(audioData: Data, preferredLocaleId: String? = nil) async throws -> VoiceTranscription {
         let authStatus = await requestAuthorization()
         guard authStatus == .authorized else {
             throw InsightError.serviceUnavailable("Speech recognition permission is required for local transcription.")

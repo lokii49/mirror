@@ -1,7 +1,6 @@
 import Foundation
 
 enum InsightError: LocalizedError {
-    case unauthorized
     case subscriptionRequired
     case serverError(Int, String)
     case emptyResponse
@@ -10,7 +9,6 @@ enum InsightError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: return "Sign in to generate insights."
         case .subscriptionRequired: return "Core subscription required."
         case .serverError(let code, let detail):
             return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
@@ -116,7 +114,7 @@ No explanation. No punctuation. One word only.
 """
 
 enum InsightService {
-    static func generateNudge(entries: [Entry], token: String) async throws -> String {
+    static func generateNudge(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         return try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
@@ -130,7 +128,7 @@ enum InsightService {
         )
     }
 
-    static func generateWeeklyDigest(entries: [Entry], token: String) async throws -> String {
+    static func generateWeeklyDigest(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         return try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
@@ -144,7 +142,7 @@ enum InsightService {
         ).cleanedDigestOutput()
     }
 
-    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry], token: String) async throws -> String {
+    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
         return try await localGenerate(
             systemPrompt: MONTHLY_REPORT_SYSTEM,
             userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
@@ -152,7 +150,7 @@ enum InsightService {
         ).cleanedMonthlyReportOutput()
     }
 
-    static func ask(question: String, entries: [Entry], token: String) async throws -> String {
+    static func ask(question: String, entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 6)
         let relevantIDs = Set(relevant.map(\.id))
@@ -168,7 +166,7 @@ enum InsightService {
         ).cleanedInsightOutput()
     }
 
-    static func detectEmotion(text: String, token: String) async throws -> String {
+    static func detectEmotion(text: String) async throws -> String {
         let trimmed = String(text.prefix(3000))
         let response = try await localGenerate(
             systemPrompt: EMOTION_DETECT_SYSTEM,
