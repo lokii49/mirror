@@ -3,6 +3,7 @@ import RevenueCat
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedTier: PaywallTier
     @State private var selectedProductID = ""
@@ -56,7 +57,15 @@ struct PaywallView: View {
             }
             .task { await subscriptionService.loadProducts() }
             .onChange(of: subscriptionService.isSubscribed) { _, subscribed in
-                if subscribed { dismiss() }
+                if subscribed {
+                    // Generate immediately — don't wait for Sunday/1st of month
+                    let ctx = modelContext
+                    Task { @MainActor in
+                        await mirrorApp.runWeeklyDigestIfNeeded(context: ctx)
+                        await mirrorApp.runMonthlyReportIfNeeded(context: ctx)
+                    }
+                    dismiss()
+                }
             }
             .onChange(of: selectedTier) { _, _ in
                 selectedProductID = defaultProductID
