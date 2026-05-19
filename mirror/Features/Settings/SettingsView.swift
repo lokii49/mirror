@@ -6,9 +6,7 @@ import CloudKit
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Environment(\.modelContext) private var modelContext
-    @State private var authService = AuthService.shared
     @State private var subscriptionService = SubscriptionService.shared
-    @State private var isLoading = false
     @State private var error: Error?
     @State private var showSubscription = false
 
@@ -25,10 +23,6 @@ struct SettingsView: View {
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
     @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
-
-    // Display name editing
-    @State private var showEditName = false
-    @State private var editingName = ""
 
     // YOUR DATA
     @State private var iCloudStatus: String = "Checking..."
@@ -69,7 +63,6 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
             .task {
-                await authService.checkSession()
                 await subscriptionService.refresh()
                 await subscriptionService.loadProducts()
                 await checkNotificationPermission()
@@ -92,31 +85,24 @@ struct SettingsView: View {
                 .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(authService.isAuthenticated ? (authService.userName ?? "MirrorNotes") : "MirrorNotes")
+                Text("MirrorNotes")
                     .font(.system(size: 17, weight: .semibold))
                     .lineLimit(1)
 
-                if authService.isAuthenticated, let email = authService.userEmail {
-                    Text(email)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                } else {
-                    HStack(spacing: 6) {
-                        if subscriptionService.isSubscribed {
-                            let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
-                            let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
-                            Label(tierLabel, systemImage: "checkmark.seal.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(tierColor)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(tierColor.opacity(0.12), in: Capsule())
-                        } else {
-                            Text("Local only")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                        }
+                HStack(spacing: 6) {
+                    if subscriptionService.isSubscribed {
+                        let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
+                        let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                        Label(tierLabel, systemImage: "checkmark.seal.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(tierColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(tierColor.opacity(0.12), in: Capsule())
+                    } else {
+                        Text("Local only")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -139,22 +125,10 @@ struct SettingsView: View {
             Circle()
                 .fill(MirrorTheme.accentGradient)
                 .frame(width: 58, height: 58)
-
-            if authService.isAuthenticated, let name = authService.userName, !name.isEmpty {
-                Text(initials(from: name))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            } else {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
+            Image(systemName: "person.fill")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
         }
-    }
-
-    private func initials(from name: String) -> String {
-        let parts = name.split(separator: " ").prefix(2)
-        return parts.compactMap { $0.first }.map { String($0).uppercased() }.joined()
     }
 
     // MARK: - Stats Grid
@@ -212,48 +186,6 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         settingsGroup("Account") {
-            if authService.isAuthenticated {
-                Button {
-                    editingName = authService.userName ?? ""
-                    showEditName = true
-                } label: {
-                    HStack {
-                        settingsRowLabel(
-                            authService.userName.map { _ in "Display name" } ?? "Add display name",
-                            systemImage: "person.fill",
-                            iconColor: MirrorTheme.primary
-                        )
-                        Spacer()
-                        if let name = authService.userName {
-                            Text(name)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        chevron
-                    }
-                }
-                .buttonStyle(.plain)
-                .sheet(isPresented: $showEditName) { editNameSheet }
-
-                Divider().padding(.leading, 48)
-
-                settingsRow("Signed in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
-            } else {
-                Button {
-                    Task { await signIn() }
-                } label: {
-                    HStack {
-                        settingsRowLabel("Sign in with Apple", systemImage: "apple.logo", iconColor: MirrorTheme.primary)
-                        Spacer()
-                        if isLoading { ProgressView() } else { chevron }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-
-            Divider().padding(.leading, 48)
-
             Button { showSubscription = true } label: {
                 HStack {
                     settingsRowLabel(
@@ -270,21 +202,6 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .sheet(isPresented: $showSubscription) { SubscriptionView() }
-
-            if authService.isAuthenticated {
-                Divider().padding(.leading, 48)
-
-                Button(role: .destructive) {
-                    Task { await signOut() }
-                } label: {
-                    HStack {
-                        settingsRowLabel("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", iconColor: .red)
-                        Spacer()
-                        if isLoading { ProgressView() }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
@@ -585,55 +502,6 @@ struct SettingsView: View {
         .futureSurface(cornerRadius: 20)
     }
 
-    // MARK: - Edit Name Sheet
-
-    private var editNameSheet: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Display name")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.6)
-                    TextField("Your name", text: $editingName)
-                        .font(.system(size: 17))
-                        .padding(14)
-                        .background(MirrorTheme.bgCard, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .autocorrectionDisabled()
-                }
-                Text("Only visible to you. Used in the profile card.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer()
-            }
-            .padding(20)
-            .background(MirrorTheme.bgBase)
-            .navigationTitle("Display name")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showEditName = false }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task { await saveDisplayName(editingName.trimmingCharacters(in: .whitespaces)) }
-                        showEditName = false
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(editingName.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-        }
-        .presentationDetents([.height(260)])
-    }
-
-    private func saveDisplayName(_ name: String) async {
-        guard !name.isEmpty else { return }
-        await authService.updateDisplayName(name)
-    }
-
     // MARK: - Debug
 
     #if DEBUG
@@ -787,28 +655,6 @@ struct SettingsView: View {
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func signIn() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await authService.signInWithApple()
-            await subscriptionService.refresh()
-        } catch {
-            self.error = error
-        }
-    }
-
-    private func signOut() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await authService.signOut()
-            await subscriptionService.refresh()
-        } catch {
-            self.error = error
-        }
     }
 
     private func computeLatestEntryText(from snapshot: [Entry]) -> String {

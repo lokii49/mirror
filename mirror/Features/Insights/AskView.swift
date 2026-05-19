@@ -294,7 +294,7 @@ struct AskView: View {
         isInputFocused = false
 
         do {
-            let answer = try await InsightService.ask(question: submitted, entries: entries, token: "")
+            let answer = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(
                 type: .askResponse,
                 content: answer,

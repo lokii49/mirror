@@ -3,12 +3,6 @@ import Security
 
 enum KeychainManager {
     private static let service = "com.lokesh.mirror"
-    private static let account = "supabase_jwt"
-
-    static func save(token: String) {
-        guard let data = token.data(using: .utf8) else { return }
-        save(data: data, account: account)
-    }
 
     static func save(data: Data, account: String, synchronizable: Bool = false) {
         let query: [CFString: Any] = [
@@ -21,11 +15,6 @@ enum KeychainManager {
         var item = query
         item[kSecValueData] = data
         SecItemAdd(item as CFDictionary, nil)
-    }
-
-    static func load() -> String? {
-        guard let data = loadData(account: account) else { return nil }
-        return String(data: data, encoding: .utf8)
     }
 
     static func loadData(account: String, synchronizable: Bool = false) -> Data? {
@@ -48,10 +37,6 @@ enum KeychainManager {
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
         return data
-    }
-
-    static func delete() {
-        delete(account: account)
     }
 
     static func delete(account: String) {
