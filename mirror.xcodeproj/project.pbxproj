@@ -85,9 +85,11 @@
 		47E7529A2FB4505400C6362E /* Exceptions for "mirror" folder in "MirrorWidgetExtensionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Widget/DailyNudgeWidget.swift,
 				Widget/EntriesMapWidget.swift,
 				Widget/MoodMapWidget.swift,
 				Widget/WriteWidget.swift,
+				Widget/WritingPromptWidget.swift,
 			);
 			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
 		};

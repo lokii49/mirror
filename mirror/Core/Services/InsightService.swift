@@ -44,18 +44,17 @@ private let WEEKLY_DIGEST_SYSTEM = """
 You are MirrorNotes. Read this person's local journal context and write a structured weekly reflection in the voice of a close friend who understands them.
 Output EXACTLY this format with no extra sections:
 
-THIS WEEK'S THEME: [one sentence]
-YOUR ENERGY: [one sentence about when you seemed most alive or most drained]
-WHAT'S BUILDING: [one sentence about one real thing growing in you or your life]
-WATCH OUT FOR: [one gentle honest sentence about something that may be costing you]
-MOOD BOOST: [one specific, small action tied to something they wrote that could help their mood next week]
-NEXT WEEK: [one practical, kind sentence for next week]
+THIS WEEK'S THEME: [1-2 sentences naming the theme and why it dominated]
+YOUR ENERGY: [1-2 sentences about when you seemed most alive or most drained, with a specific detail]
+WHAT'S BUILDING: [1-2 sentences about one real thing growing in you or your life and what it might mean]
+WATCH OUT FOR: [1-2 honest sentences about something that may be quietly costing you]
+MOOD BOOST: [1-2 sentences with a specific, small action tied directly to something they wrote]
+NEXT WEEK: [1-2 practical, kind sentences grounded in where they are right now]
 
 Rules:
 - Replace the bracketed placeholders with final prose. Never include [ or ] in the answer
 - Do not use Markdown headings, bullets, ###, or extra titles
-- Each section must be a complete, natural sentence, not a label or fragment
-- Each sentence must be under 35 words. Be concise.
+- Each section must be 1-2 complete, natural sentences. Under 70 words per section. Be specific, not generic.
 - Write entirely in second person. Address the user as "you/your" throughout. Never write in first person ("I", "me", "myself", "my") as if you are the journal writer — you are MirrorNotes, observing them from outside
 - Use Long-term context only to notice continuity; the digest must mainly reflect This week's entries
 - Reference actual words, moods, dates, or phrases they used
@@ -87,34 +86,26 @@ Rules:
 """
 
 private let MONTHLY_REPORT_SYSTEM = """
-You are MirrorNotes. Read this person's full month of journal entries and their month statistics. Write a deep monthly reflection that operates at the identity level — not what happened this week, but who this person is becoming, what tensions are shaping them, what they might not have noticed themselves.
+You are MirrorNotes. Read this person's full month of journal entries and write a deep monthly reflection about who they are becoming, what tensions are shaping them, and what they might not have noticed themselves.
 
-You have access to a MONTH STATS block. Use it to ground observations in specifics.
+Write exactly these six sections, each label followed by a colon and one complete sentence:
 
-Output EXACTLY this format with no extra sections:
-
-YOUR MONTH IN ONE IMAGE: [one vivid metaphor expressed as a complete sentence starting with "This month felt like" or "It was as if" — capture the sensation of the month, not a summary of events]
-THE TENSION AT THE CENTER: [one sentence naming the core conflict, pull, or recurring friction that ran through their entries — be specific about what is actually in tension, not a vague label]
-A MOMENT THAT SHIFTED SOMETHING: [one sentence referencing a specific entry, event, or phrase they wrote that changed something, even subtly — mention the date or their actual words if possible]
-WHAT YOU'RE BECOMING: [one sentence observing who they seem to be growing into — what is different about them now versus the start of this month, based on what they actually wrote]
-WHAT WANTS TO BE RELEASED: [one sentence naming one thing from this month worth consciously letting go of — not generic, tied directly to something they wrote]
-YOUR QUESTION FOR NEXT MONTH: [a genuine open question for them to sit with — not advice, not a task, a question that opens something. Must end with a question mark.]
+YOUR MONTH IN ONE IMAGE: One vivid metaphor for the feeling or texture of this month.
+THE TENSION AT THE CENTER: The main recurring conflict or friction that ran through their entries.
+A MOMENT THAT SHIFTED SOMETHING: One specific entry or phrase that changed something, even subtly.
+WHAT YOU'RE BECOMING: Who they seem to be growing into, based on what they wrote.
+WHAT WANTS TO BE RELEASED: One thing from this month worth consciously letting go.
+YOUR QUESTION FOR NEXT MONTH: An honest open question for them to sit with, ending with a question mark.
 
 Rules:
-- Replace the bracketed placeholders with final prose. Never include [ or ] in the answer
-- Do not use Markdown headings, bullets, ###, or extra titles
-- Each section must be a complete sentence ending with punctuation
-- YOUR MONTH IN ONE IMAGE must start with "This month felt like" or "It was as if"
-- YOUR QUESTION FOR NEXT MONTH must end with a question mark and be a real question, not a statement
-- Each section must be under 45 words
-- Write entirely in second person. Address the user as "you/your" throughout
-- Never write in first person as if you are the journal writer
-- Reference actual words, moods, dates, or specific phrases from their entries — the more specific, the better
-- Use the stats block to inform depth — reference entry count, mood arc, or writing patterns where it adds weight
-- No therapy language, no generic affirmations
-- Do not mention that you are an AI or model
-- Sound human, perceptive, and honest — like someone who read every word and noticed what the person themselves missed
-- Be specific. Be honest. Be warm. Do not over-explain.
+- Write entirely in second person — use "you" and "your" throughout. Never write as the journal writer
+- Each section is one complete sentence, under 45 words
+- Reference actual words, moods, dates, or phrases from their entries where possible
+- Use the MONTH STATS block to ground observations in specifics
+- No therapy language, no generic affirmations, no Markdown, no bullets
+- Do not add any text outside these six sections
+- Do not mention that you are an AI
+- Be warm, specific, and honest
 """
 
 private let EMOTION_DETECT_SYSTEM = """
@@ -240,7 +231,7 @@ enum InsightService {
         case .dailyNudge:
             return "Return only 2-3 complete sentences under 100 words."
         case .weeklyDigest:
-            return "Return exactly the required six labeled lines. Every section must have a complete sentence after the colon."
+            return "Return exactly the required six labeled lines. Every section must have 1-2 complete sentences after the colon, under 70 words per section."
         case .monthlyReport:
             return "Return exactly six labeled sections: YOUR MONTH IN ONE IMAGE, THE TENSION AT THE CENTER, A MOMENT THAT SHIFTED SOMETHING, WHAT YOU'RE BECOMING, WHAT WANTS TO BE RELEASED, YOUR QUESTION FOR NEXT MONTH. YOUR MONTH IN ONE IMAGE must start with \"This month felt like\" or \"It was as if\". YOUR QUESTION FOR NEXT MONTH must end with a question mark. Every other section must end with a complete sentence."
         case .ask:
@@ -326,7 +317,7 @@ enum InsightService {
                 throw InsightError.incompleteResponse
             }
             guard body.count >= 20,
-                  body.count <= 200,
+                  body.count <= 400,
                   endsAsCompleteSentence(body),
                   !hasDanglingEnding(body),
                   !containsJournalWriterFirstPerson(body) else {
@@ -341,6 +332,9 @@ enum InsightService {
         let normalizedText = text
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{2018}", with: "'")
+
+        guard normalizedText.count >= 80 else { throw InsightError.incompleteResponse }
+
         let requiredHeaders = [
             "YOUR MONTH IN ONE IMAGE",
             "THE TENSION AT THE CENTER",
@@ -350,27 +344,11 @@ enum InsightService {
             "YOUR QUESTION FOR NEXT MONTH"
         ]
 
-        for (index, header) in requiredHeaders.enumerated() {
-            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
-                throw InsightError.incompleteResponse
-            }
-            let endsCorrectly = header == "YOUR QUESTION FOR NEXT MONTH"
-                ? body.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("?")
-                : endsAsCompleteSentence(body)
-            guard body.count >= 20,
-                  body.count <= 300,
-                  endsCorrectly,
-                  !hasDanglingEnding(body),
-                  !containsJournalWriterFirstPerson(body) else {
-                throw InsightError.incompleteResponse
-            }
-            if header == "YOUR MONTH IN ONE IMAGE" {
-                let lower = body.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                guard lower.hasPrefix("this month felt like") || lower.hasPrefix("it was as if") else {
-                    throw InsightError.incompleteResponse
-                }
-            }
-        }
+        let presentCount = requiredHeaders.filter { header in
+            normalizedText.range(of: "\(header):", options: [.caseInsensitive]) != nil
+        }.count
+
+        guard presentCount >= 4 else { throw InsightError.incompleteResponse }
 
         return normalizedText
     }
