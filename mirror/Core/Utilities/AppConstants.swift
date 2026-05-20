@@ -15,4 +15,8 @@ enum AppConstants {
     static var privacyPolicyURL: URL? {
         URL(string: "https://mirrornotes.org/privacy.html")
     }
+
+    static var termsOfUseURL: URL? {
+        URL(string: "https://mirrornotes.org/terms.html")
+    }
 }
