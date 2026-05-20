@@ -120,6 +120,17 @@ struct SubscriptionView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 4)
 
+            HStack(spacing: 16) {
+                if let privacyURL = AppConstants.privacyPolicyURL {
+                    Link("Privacy Policy", destination: privacyURL)
+                }
+                if let termsURL = AppConstants.termsOfUseURL {
+                    Link("Terms of Use", destination: termsURL)
+                }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+
             if isLoading {
                 ProgressView().padding(.top, 4)
             }
