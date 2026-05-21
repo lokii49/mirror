@@ -15,7 +15,7 @@ enum DigestState {
     case idle
     case loading
     case loaded(Insight)
-    case notEnoughEntries
+    case notEnoughEntries(Int)
     case subscriptionRequired
     case pendingNightlyGeneration
     case error(String)
@@ -87,7 +87,7 @@ final class InsightViewModel {
         let coordinatorKey = "digest_\(thisWeek)"
 
         guard entries.count >= 5 else {
-            digestState = .notEnoughEntries
+            digestState = .notEnoughEntries(5 - entries.count)
             return
         }
 
