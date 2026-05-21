@@ -63,7 +63,7 @@ struct MoodMapWidgetView: View {
 
     private var points: [MoodPoint] {
         let today = Calendar.current.startOfDay(for: .now)
-        return (0..<7).reversed().compactMap { offset -> MoodPoint? in
+        return (0..<14).reversed().compactMap { offset -> MoodPoint? in
             guard let day = Calendar.current.date(byAdding: .day, value: -offset, to: today) else { return nil }
             let key = moodDayFormatter.string(from: day)
             guard let mood = entry.moodByDay[key], let score = widgetMoodScore[mood] else { return nil }
@@ -71,12 +71,33 @@ struct MoodMapWidgetView: View {
         }
     }
 
+    private var trend: String {
+        guard points.count >= 4 else { return "" }
+        let recent = points.suffix(3).map(\.score)
+        let earlier = points.dropLast(3).suffix(3).map(\.score)
+        guard !earlier.isEmpty else { return "" }
+        let recentAvg = recent.reduce(0, +) / Double(recent.count)
+        let earlierAvg = earlier.reduce(0, +) / Double(earlier.count)
+        let delta = recentAvg - earlierAvg
+        if delta > 0.3 { return "↑ Improving" }
+        if delta < -0.3 { return "↓ Declining" }
+        return "→ Steady"
+    }
+
     var body: some View {
         if isUnlocked {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Moods")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Moods")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !trend.isEmpty {
+                        Text(trend)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(trendColor)
+                    }
+                }
                 if points.isEmpty {
                     Text("Log a mood to see your chart.")
                         .font(.system(size: 12))
@@ -84,19 +105,32 @@ struct MoodMapWidgetView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
                     Chart(points) { point in
-                        PointMark(
+                        AreaMark(
                             x: .value("Day", point.date, unit: .day),
                             y: .value("Mood", point.score)
                         )
-                        .foregroundStyle(moodColor(point.mood))
-                        .symbolSize(100)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0.05)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(.catmullRom)
 
                         LineMark(
                             x: .value("Day", point.date, unit: .day),
                             y: .value("Mood", point.score)
                         )
-                        .foregroundStyle(Color.accentColor.opacity(0.25))
+                        .foregroundStyle(Color.accentColor.opacity(0.6))
                         .interpolationMethod(.catmullRom)
+
+                        PointMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Mood", point.score)
+                        )
+                        .foregroundStyle(moodColor(point.mood))
+                        .symbolSize(60)
                     }
                     .chartYScale(domain: 0...6)
                     .chartYAxis(.hidden)
@@ -106,7 +140,7 @@ struct MoodMapWidgetView: View {
             }
             .padding(12)
             .containerBackground(.fill.tertiary, for: .widget)
-            .widgetURL(URL(string: "mirror://entries"))
+            .widgetURL(URL(string: "mirror://mood-timeline"))
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "lock.fill")
@@ -120,6 +154,12 @@ struct MoodMapWidgetView: View {
             .containerBackground(.fill.tertiary, for: .widget)
             .widgetURL(URL(string: "mirror://upgrade"))
         }
+    }
+
+    private var trendColor: Color {
+        if trend.hasPrefix("↑") { return .green }
+        if trend.hasPrefix("↓") { return .red }
+        return .secondary
     }
 
     private func moodColor(_ mood: String) -> Color {
@@ -151,7 +191,7 @@ struct MirrorMoodMapWidget: Widget {
             MoodMapWidgetView(entry: entry)
         }
         .configurationDisplayName("Mood Map")
-        .description("Your mood trend over the last 1 weeks.")
+        .description("Your mood trend over the last 2 weeks.")
         .supportedFamilies([.systemSmall])
     }
 }

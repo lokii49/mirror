@@ -34,6 +34,18 @@ enum LocalLLMTask {
         case .monthlyReport: return 0.55
         }
     }
+
+    // Hard cap on accumulated output chars — prevents infinite generation when
+    // Gemma's <end_of_turn> token isn't recognised as EOG by llama.cpp.
+    nonisolated var maxOutputChars: Int {
+        switch self {
+        case .emotion: return 30
+        case .dailyNudge: return 700
+        case .ask: return 1000
+        case .weeklyDigest: return 2800
+        case .monthlyReport: return 2800
+        }
+    }
 }
 
 actor LocalLLMService {
@@ -47,7 +59,7 @@ actor LocalLLMService {
     private init() {}
 
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
-        let service = try llamaService()
+        let svc = try llamaService()
         let messages = [
             LlamaChatMessage(role: .system, content: systemPrompt),
             LlamaChatMessage(role: .user, content: userMessage)
@@ -58,9 +70,12 @@ actor LocalLLMService {
             topP: 0.9,
             topK: 40
         )
-        let response: String
+        // Use streaming so we can stop immediately when Gemma emits <end_of_turn>.
+        // Without this, llama.cpp doesn't recognise the token as EOG and keeps
+        // generating until the full 4096-token context is exhausted (1+ hours).
+        let stream: AsyncThrowingStream<String, Error>
         do {
-            response = try await service.respond(to: messages, samplingConfig: sampling)
+            stream = try await svc.streamCompletion(of: messages, samplingConfig: sampling)
         } catch let error as LlamaContextError {
             self.service = nil
             _ = error
@@ -69,7 +84,25 @@ actor LocalLLMService {
             self.service = nil
             throw error
         }
-        let cleaned = clean(response)
+        var output = ""
+        do {
+            for try await token in stream {
+                output += token
+                if output.contains("<end_of_turn>") || output.contains("<eos>")
+                    || output.count > task.maxOutputChars {
+                    await svc.stopCompletion()
+                    break
+                }
+            }
+        } catch let error as LlamaContextError {
+            self.service = nil
+            _ = error
+            throw LocalLLMError.contextExhausted
+        } catch {
+            self.service = nil
+            throw error
+        }
+        let cleaned = clean(output)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
         return cleaned
     }

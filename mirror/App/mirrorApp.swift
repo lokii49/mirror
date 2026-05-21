@@ -143,7 +143,12 @@ struct mirrorApp: App {
         let context = sharedModelContainer.mainContext
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
-        // Generate monthly report as soon as 20+ entries exist, not only on the 1st.
+        mirrorApp.syncNudgeToWidget(context: context)
+        // Weekly digest: generate on Sundays proactively (fallback if nightly BGProcessingTask missed)
+        if Calendar.current.component(.weekday, from: Date()) == 1 {
+            await mirrorApp.runWeeklyDigestIfNeeded(context: context)
+        }
+        // Monthly report: generate as soon as 20+ entries exist, not only on the 1st.
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
         await mirrorApp.checkMoodAlertIfNeeded(context: context)
     }
@@ -179,10 +184,14 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateNudge(entries: entries, token: "")
+            let text = try await InsightService.generateNudge(entries: entries)
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try? context.save()
+            let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            wDefaults?.set(text, forKey: "widget.nudge.text")
+            wDefaults?.set(today, forKey: "widget.nudge.date")
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
             if SubscriptionService.shared.isSubscribed {
@@ -225,7 +234,7 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries, token: "")
+            let text = try await InsightService.generateWeeklyDigest(entries: entries)
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             try? context.save()
@@ -261,7 +270,7 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries, token: "")
+            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
             context.insert(insight)
             try? context.save()
@@ -379,21 +388,28 @@ struct mirrorApp: App {
 
     private func scheduleMonthlyReportFallback() {
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
-        request.earliestBeginDate = nextFirstOfMonth9AM()
+        request.earliestBeginDate = lastDayOfCurrentMonth9PM()
         try? BGTaskScheduler.shared.submit(request)
     }
 
-    private func nextFirstOfMonth9AM() -> Date {
-        let calendar = Calendar.current
+    private func lastDayOfCurrentMonth9PM() -> Date {
+        let cal = Calendar.current
         let now = Date()
-        var components = calendar.dateComponents([.year, .month], from: now)
-        components.day = 1
-        components.hour = 9
-        components.minute = 0
-        components.second = 0
-        guard var target = calendar.date(from: components) else { return now }
+        // Last day of current month = first day of next month minus 1 day
+        guard let nextMonthAny = cal.date(byAdding: .month, value: 1, to: now),
+              let nextMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: nextMonthAny)),
+              let lastDay = cal.date(byAdding: .day, value: -1, to: nextMonthStart) else { return now }
+        var comps = cal.dateComponents([.year, .month, .day], from: lastDay)
+        comps.hour = 21; comps.minute = 0; comps.second = 0
+        guard var target = cal.date(from: comps) else { return now }
         if target <= now {
-            target = calendar.date(byAdding: .month, value: 1, to: target) ?? target
+            // Already past end of this month — target last day of next month
+            guard let twoMonthsAny = cal.date(byAdding: .month, value: 2, to: now),
+                  let twoMonthsStart = cal.date(from: cal.dateComponents([.year, .month], from: twoMonthsAny)),
+                  let nextLastDay = cal.date(byAdding: .day, value: -1, to: twoMonthsStart) else { return target }
+            var nextComps = cal.dateComponents([.year, .month, .day], from: nextLastDay)
+            nextComps.hour = 21; nextComps.minute = 0; nextComps.second = 0
+            target = cal.date(from: nextComps) ?? target
         }
         return target
     }
@@ -440,7 +456,47 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(try? JSONEncoder().encode(countByDay), forKey: "widget.entries.heatmap")
         defaults?.set(try? JSONEncoder().encode(moodByDay),  forKey: "widget.mood.heatmap")
+
+        // Streak + wrote-today for WriteWidget / EntriesMapWidget
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let fmt = widgetDayFormatter
+        let todayKey = fmt.string(from: today)
+        let wroteToday = (countByDay[todayKey] ?? 0) > 0
+        var streakDay = today
+        if !wroteToday {
+            if let yesterday = cal.date(byAdding: .day, value: -1, to: today),
+               (countByDay[fmt.string(from: yesterday)] ?? 0) > 0 {
+                streakDay = yesterday
+            } else {
+                streakDay = Date.distantPast
+            }
+        }
+        var streak = 0
+        while (countByDay[fmt.string(from: streakDay)] ?? 0) > 0 {
+            streak += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: streakDay) else { break }
+            streakDay = prev
+        }
+        defaults?.set(streak, forKey: "widget.streak")
+        defaults?.set(wroteToday, forKey: "widget.wrote.today")
+
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // Writes today's nudge text to AppGroup so NudgeWidget can read it even if the
+    // nudge was generated in a previous app session (runDailyNudgeIfNeeded bails early then).
+    @MainActor
+    static func syncNudgeToWidget(context: ModelContext) {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        guard let insights = try? context.fetch(descriptor),
+              let nudge = insights.first(where: { $0.type == .dailyNudge }) else { return }
+        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        defaults?.set(nudge.content, forKey: "widget.nudge.text")
+        defaults?.set(today, forKey: "widget.nudge.date")
     }
 
     // MARK: - Background time extension for mid-session generation

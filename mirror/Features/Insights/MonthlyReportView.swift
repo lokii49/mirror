@@ -92,24 +92,35 @@ struct MonthlyReportView: View {
     }
 
     private var reportLoadingCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.purple.opacity(0.10))
-                    .frame(width: 40, height: 40)
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.purple)
-                    .symbolEffect(.variableColor.iterative, isActive: true)
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.purple.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.purple)
+                        .symbolEffect(.variableColor.iterative, isActive: true)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Building your monthly report")
+                        .font(.system(size: 15, weight: .medium))
+                    Text("Reading all your entries this month…")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Building your monthly report")
-                    .font(.system(size: 15, weight: .medium))
-                Text("Reading all your entries this month…")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.orange)
+                Text("Keep mirror open — this takes 1–2 minutes")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.orange)
+                Spacer()
             }
-            Spacer()
         }
         .padding(20)
         .futureSurface(cornerRadius: 22)
@@ -181,7 +192,7 @@ struct MonthlyReportView: View {
     private var nightlyPendingCard: some View {
         NightlyPendingCard(
             label: "Report generates overnight",
-            sublabel: "Mirror will prepare this while your phone is charging. To protect device performance, generate reports overnight.",
+            sublabel: "Mirror will prepare this while your phone is charging. To protect device performance.",
             icon: "doc.text.magnifyingglass",
             iconColor: .purple
         )

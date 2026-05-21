@@ -60,6 +60,29 @@ struct EntriesMapWidgetView: View {
         }
     }
 
+    private var todayKey: String { entryDayFormatter.string(from: Calendar.current.startOfDay(for: .now)) }
+
+    private var streak: Int {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: .now)
+        let fmt = entryDayFormatter
+        var day = today
+        if (entry.countByDay[fmt.string(from: day)] ?? 0) == 0 {
+            guard let yesterday = cal.date(byAdding: .day, value: -1, to: today),
+                  (entry.countByDay[fmt.string(from: yesterday)] ?? 0) > 0 else { return 0 }
+            day = yesterday
+        }
+        var count = 0
+        while (entry.countByDay[fmt.string(from: day)] ?? 0) > 0 {
+            count += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
+            day = prev
+        }
+        return count
+    }
+
+    private var wroteToday: Bool { (entry.countByDay[todayKey] ?? 0) > 0 }
+
     private func key(_ day: Date) -> String { entryDayFormatter.string(from: day) }
 
     private func cellColor(for day: Date) -> Color {
@@ -93,17 +116,40 @@ struct EntriesMapWidgetView: View {
     var body: some View {
         if isUnlocked {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Entries")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Entries")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if streak > 0 {
+                        HStack(spacing: 2) {
+                            Text("🔥")
+                                .font(.system(size: 10))
+                            Text("\(streak)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.primary)
+                        }
+                    } else if wroteToday {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.green)
+                    }
+                }
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7),
-                    spacing: 3
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7),
+                    spacing: 2
                 ) {
                     ForEach(days, id: \.self) { day in
+                        let isToday = key(day) == todayKey
                         RoundedRectangle(cornerRadius: 2)
                             .fill(cellColor(for: day))
                             .aspectRatio(1, contentMode: .fit)
+                            .overlay(
+                                isToday
+                                    ? RoundedRectangle(cornerRadius: 2)
+                                        .strokeBorder(Color.primary.opacity(0.5), lineWidth: 1)
+                                    : nil
+                            )
                     }
                 }
                 Spacer(minLength: 0)

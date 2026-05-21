@@ -80,7 +80,7 @@ final class InsightViewModel {
     }
 
     // MARK: - Weekly Digest
-    // Cache-read-only. Generates nightly on Sunday via BGProcessingTask / BGAppRefreshTask.
+    // On-demand if no cache. Background Sunday task pre-generates so it's ready on wake.
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
@@ -113,11 +113,27 @@ final class InsightViewModel {
             return
         }
 
-        digestState = .pendingNightlyGeneration
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+            digestState = .loading
+            return
+        }
+        defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
+
+        digestState = .loading
+        do {
+            let text = try await InsightService.generateWeeklyDigest(entries: entries)
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            context.insert(insight)
+            try? context.save()
+            digestState = .loaded(insight)
+            await NotificationService.scheduleWeeklyDigest()
+        } catch {
+            digestState = .error(error.localizedDescription)
+        }
     }
 
     // MARK: - Monthly Report
-    // Cache-read-only. Generates nightly once 20+ entries exist via BGProcessingTask.
+    // On-demand if no cache. Background end-of-month task pre-generates so it's ready on wake.
 
     func loadMonthlyReport(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
         let thisMonth = DateHelpers.monthIdentifier(for: Date())
@@ -156,6 +172,24 @@ final class InsightViewModel {
             return
         }
 
-        monthlyReportState = .pendingNightlyGeneration
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+            monthlyReportState = .loading
+            return
+        }
+        defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
+
+        monthlyReportState = .loading
+        do {
+            let text = try await InsightService.generateMonthlyReport(
+                monthEntries: thisMonthEntries, allEntries: entries
+            )
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            context.insert(insight)
+            try? context.save()
+            monthlyReportState = .loaded(insight)
+            await NotificationService.scheduleMonthlyReportReminder()
+        } catch {
+            monthlyReportState = .error(error.localizedDescription)
+        }
     }
 }
