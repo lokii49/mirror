@@ -369,14 +369,14 @@ struct InsightView: View {
         case .loaded(let insight):
             WeeklyDigestView(insight: insight)
                 .glowShadow(color: .indigo, radius: 28)
-        case .notEnoughEntries:
-            VStack(alignment: .leading, spacing: 10) {
-                Label("5 entries needed for a weekly digest", systemImage: "calendar")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(18)
-            .futureSurface(cornerRadius: 20)
+        case .notEnoughEntries(let remaining):
+            NeedsMoreEntriesCard(
+                remaining: remaining,
+                total: 5,
+                icon: "calendar.badge.clock",
+                iconColor: .indigo,
+                unlockLabel: "Weekly digest unlocks after 5 entries."
+            )
         case .subscriptionRequired:
             UpgradePromptCard(
                 title: "Core required",
@@ -460,17 +460,21 @@ private struct LoadingInsightCard: View {
 
 private struct NeedsMoreEntriesCard: View {
     let remaining: Int
+    var total: Int = 3
+    var icon: String = "book.pages"
+    var iconColor: Color = MirrorTheme.primary
+    var unlockLabel: String = "First reflection unlocks after 3 entries."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.primary.opacity(0.10))
+                        .fill(iconColor.opacity(0.10))
                         .frame(width: 40, height: 40)
-                    Image(systemName: "book.pages")
+                    Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(iconColor)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
@@ -480,10 +484,10 @@ private struct NeedsMoreEntriesCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            ProgressView(value: Double(max(0, 3 - remaining)), total: 3)
-                .tint(MirrorTheme.primary)
+            ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
+                .tint(iconColor)
                 .scaleEffect(x: 1, y: 1.4)
-            Text("First reflection unlocks after 3 entries.")
+            Text(unlockLabel)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.tertiary)
         }
