@@ -90,6 +90,10 @@ struct InsightView: View {
                 await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
             }
         }
+        .onChange(of: SubscriptionService.shared.tier) { _, _ in
+            // Re-evaluate when subscription status settles after cold launch
+            Task { await refreshInsights() }
+        }
         .onChange(of: viewModel.nudgeState) { _, newState in
             // Show paywall after first nudge if not subscribed
             if case .loaded = newState,

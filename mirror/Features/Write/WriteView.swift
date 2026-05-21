@@ -2298,7 +2298,7 @@ struct WriteView: View {
         guard !text.isEmpty else { return }
         isDetectingMood = true
         Task {
-            let detected = try? await InsightService.detectEmotion(text: text, token: "")
+            let detected = try? await InsightService.detectEmotion(text: text)
             await MainActor.run {
                 if let detected, MirrorTheme.moodOptions.contains(detected) {
                     viewModel.selectedMood = detected
@@ -2614,7 +2614,7 @@ struct WriteView: View {
         let preferred = transcriptionLanguage.isEmpty ? nil : transcriptionLanguage
         Task {
             do {
-                let result = try await VoiceTranscriptionService.transcribe(audioData: data, token: "", preferredLocaleId: preferred)
+                let result = try await VoiceTranscriptionService.transcribe(audioData: data, preferredLocaleId: preferred)
                 await MainActor.run {
                     applyTranscription(result, toVoiceNoteAt: index)
                     transcribingVoiceNoteIndexes.remove(index)
