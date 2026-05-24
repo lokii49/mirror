@@ -60,6 +60,58 @@ struct MoodTimelineView: View {
             .sorted { $0.date < $1.date }
     }
 
+    // Full unfiltered history for the heatmap
+    private var allMoodPoints: [MoodPoint] {
+        entries
+            .compactMap { entry in
+                guard let mood = entry.mood,
+                      let score = MoodTimelineView.moodScore[mood] else { return nil }
+                return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    // Most recent mood per calendar day (points sorted asc → last write wins)
+    private var dayMoodMap: [String: String] {
+        let cal = Calendar.current
+        var result: [String: String] = [:]
+        for point in allMoodPoints {
+            let c = cal.dateComponents([.year, .month, .day], from: point.date)
+            let key = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+            result[key] = point.mood
+        }
+        return result
+    }
+
+    // Array of weeks [[Date?]] from first entry's week to today. Each week = 7 slots (Mon–Sun).
+    private var heatmapWeeks: [[Date?]] {
+        guard let earliest = allMoodPoints.first?.date else { return [] }
+        let cal = Calendar.current
+        let today = Date()
+
+        var startComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: earliest)
+        startComps.weekday = 2 // Monday
+        guard var weekStart = cal.date(from: startComps) else { return [] }
+        if weekStart > earliest {
+            weekStart = cal.date(byAdding: .weekOfYear, value: -1, to: weekStart) ?? weekStart
+        }
+
+        var weeks: [[Date?]] = []
+        while weekStart <= today {
+            var week: [Date?] = []
+            for offset in 0..<7 {
+                if let d = cal.date(byAdding: .day, value: offset, to: weekStart), d <= today {
+                    week.append(d)
+                } else {
+                    week.append(nil)
+                }
+            }
+            weeks.append(week)
+            weekStart = cal.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart
+        }
+        return weeks
+    }
+
     private var moodDistribution: [(mood: String, count: Int, color: Color)] {
         let counts = Dictionary(grouping: moodEntries.compactMap(\.mood), by: { $0 })
             .mapValues(\.count)
@@ -68,12 +120,17 @@ struct MoodTimelineView: View {
     }
 
     private var currentStreak: Int {
-        var streak = 0
-        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        guard let mostRecentEntry = entries.first else { return 0 }
         let calendar = Calendar.current
-        var checkDate = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: Date())
+        let mostRecentDay = calendar.startOfDay(for: mostRecentEntry.createdAt)
+        // Gap of 2+ days = streak broken
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+              mostRecentDay >= yesterday else { return 0 }
 
-        for entry in sorted {
+        var checkDate = mostRecentDay
+        var streak = 0
+        for entry in entries {
             let entryDay = calendar.startOfDay(for: entry.createdAt)
             if entryDay == checkDate {
                 streak += 1
@@ -87,9 +144,9 @@ struct MoodTimelineView: View {
 
     private var consecutiveNegativeCount: Int {
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let sorted = entries.filter { $0.createdAt >= sevenDaysAgo }.sorted { $0.createdAt > $1.createdAt }
         var count = 0
-        for entry in sorted {
+        for entry in entries {
+            guard entry.createdAt >= sevenDaysAgo else { break }
             guard let mood = entry.mood else { break }
             if MoodTimelineView.negativeMoods.contains(mood) {
                 count += 1
@@ -129,11 +186,20 @@ struct MoodTimelineView: View {
 
                 rangeSelector
                 statsRow
+                moodScaleRow
 
-                if points.count >= 2 {
-                    moodChartCard
+                if selectedRange == .allTime {
+                    if !allMoodPoints.isEmpty {
+                        heatmapCard
+                    } else {
+                        noDataCard
+                    }
                 } else {
-                    noDataCard
+                    if points.count >= 2 {
+                        moodChartCard
+                    } else {
+                        noDataCard
+                    }
                 }
 
                 if !moodDistribution.isEmpty {
@@ -202,6 +268,7 @@ struct MoodTimelineView: View {
             )
             statPill(
                 value: averageMoodScore > 0 ? String(format: "%.1f", averageMoodScore) : "—",
+                valueSuffix: averageMoodScore > 0 ? "/5" : "",
                 label: "Avg. score",
                 icon: "chart.bar",
                 color: averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
@@ -215,14 +282,21 @@ struct MoodTimelineView: View {
         }
     }
 
-    private func statPill(value: String, label: String, icon: String, color: Color) -> some View {
+    private func statPill(value: String, valueSuffix: String = "", label: String, icon: String, color: Color) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(color)
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                if !valueSuffix.isEmpty {
+                    Text(valueSuffix)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -232,6 +306,58 @@ struct MoodTimelineView: View {
         .padding(.vertical, 16)
         .futureSurface(cornerRadius: 18)
     }
+
+    @ViewBuilder
+    private var moodScaleRow: some View {
+        if averageMoodScore > 0 {
+            let fraction = CGFloat((averageMoodScore - 1.0) / 4.0)
+            let interpretation: String = {
+                if averageMoodScore >= 4.5 { return "Thriving" }
+                if averageMoodScore >= 3.5 { return "Positive" }
+                if averageMoodScore >= 2.5 { return "Mixed, leaning neutral" }
+                if averageMoodScore >= 1.5 { return "Mixed, leaning low" }
+                return "Low mood"
+            }()
+            let barColor: Color = averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
+
+            VStack(spacing: 5) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        LinearGradient(
+                            colors: [.red, .orange, .yellow, .green],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                        .opacity(0.35)
+                        .clipShape(Capsule())
+
+                        Circle()
+                            .fill(barColor)
+                            .frame(width: 11, height: 11)
+                            .shadow(color: barColor.opacity(0.5), radius: 3, x: 0, y: 1)
+                            .offset(x: max(0, min(geo.size.width - 11, geo.size.width * fraction - 5.5)))
+                    }
+                }
+                .frame(height: 11)
+
+                HStack {
+                    Text("1 · Low")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(interpretation)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(barColor)
+                    Spacer()
+                    Text("5 · High")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Scatter chart (30D / 90D)
 
     private var moodChartCard: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -288,6 +414,93 @@ struct MoodTimelineView: View {
         .padding(18)
         .futureSurface(cornerRadius: 22)
     }
+
+    // MARK: - Calendar heatmap (All)
+
+    private var heatmapCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Mood calendar", systemImage: "calendar")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    heatmapGrid
+                        .id("end")
+                        .padding(.vertical, 2)
+                }
+                .onAppear {
+                    proxy.scrollTo("end", anchor: .trailing)
+                }
+            }
+
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.secondary.opacity(0.12))
+                    .frame(width: 11, height: 11)
+                Text("No entry")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Color = mood")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
+    }
+
+    @ViewBuilder
+    private var heatmapGrid: some View {
+        let cal = Calendar.current
+        let weeks = heatmapWeeks
+        let moodMap = dayMoodMap
+        let cell: CGFloat = 13
+        let gap: CGFloat = 2
+
+        // One VStack column per week — month label on top overflows its frame to the right
+        HStack(alignment: .top, spacing: gap) {
+            ForEach(weeks.indices, id: \.self) { wi in
+                let first = weeks[wi].compactMap { $0 }.first
+                let showMonth: Bool = {
+                    guard let d = first else { return false }
+                    return wi == 0 || cal.component(.day, from: d) <= 7
+                }()
+                let monthLabel = showMonth
+                    ? (first.map { $0.formatted(.dateTime.month(.abbreviated)) } ?? "")
+                    : ""
+
+                VStack(alignment: .leading, spacing: gap) {
+                    // fixedSize lets "Aug" render beyond the 13pt column width
+                    Text(monthLabel)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(height: 12)
+
+                    ForEach(0..<7, id: \.self) { di in
+                        if let date = weeks[wi][di] {
+                            let c = cal.dateComponents([.year, .month, .day], from: date)
+                            let key = String(format: "%04d-%02d-%02d",
+                                             c.year ?? 0, c.month ?? 0, c.day ?? 0)
+                            let mood = moodMap[key]
+                            RoundedRectangle(cornerRadius: 2.5)
+                                .fill(mood != nil
+                                      ? MirrorTheme.moodColor(for: mood!).opacity(0.85)
+                                      : Color.secondary.opacity(0.12))
+                                .frame(width: cell, height: cell)
+                        } else {
+                            Color.clear.frame(width: cell, height: cell)
+                        }
+                    }
+                }
+                .frame(width: cell) // HStack sees 13pt per column; label overflows visually
+            }
+        }
+    }
+
+    // MARK: - Empty state
 
     private var noDataCard: some View {
         VStack(spacing: 10) {
