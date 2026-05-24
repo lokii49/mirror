@@ -58,8 +58,19 @@ actor LocalLLMService {
 
     private init() {}
 
+    func resetContext() async {
+        if let service {
+            await service.stopCompletion()
+        }
+        service = nil
+    }
+
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+        await resetContext()
         let svc = try llamaService()
+        defer {
+            service = nil
+        }
         let messages = [
             LlamaChatMessage(role: .system, content: systemPrompt),
             LlamaChatMessage(role: .user, content: userMessage)
@@ -77,10 +88,12 @@ actor LocalLLMService {
         do {
             stream = try await svc.streamCompletion(of: messages, samplingConfig: sampling)
         } catch let error as LlamaContextError {
+            await svc.stopCompletion()
             self.service = nil
             _ = error
             throw LocalLLMError.contextExhausted
         } catch {
+            await svc.stopCompletion()
             self.service = nil
             throw error
         }
@@ -95,13 +108,16 @@ actor LocalLLMService {
                 }
             }
         } catch let error as LlamaContextError {
+            await svc.stopCompletion()
             self.service = nil
             _ = error
             throw LocalLLMError.contextExhausted
         } catch {
+            await svc.stopCompletion()
             self.service = nil
             throw error
         }
+        await svc.stopCompletion()
         let cleaned = clean(output)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
         return cleaned
