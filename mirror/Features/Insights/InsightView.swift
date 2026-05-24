@@ -11,6 +11,8 @@ struct InsightView: View {
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
     @State private var chartVisible = false
+    @State private var promptIndex: Int = Int.random(in: 0..<WritingPrompts.all.count)
+    @State private var showWriteFromPrompt = false
 
     var body: some View {
         NavigationStack {
@@ -72,6 +74,11 @@ struct InsightView: View {
             .sheet(isPresented: $showPaywall) { PaywallView() }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView() }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showWriteFromPrompt) {
+                NavigationStack {
+                    WriteView(autoFocus: true, initialText: WritingPrompts.all[promptIndex])
+                }
+            }
         }
         .task {
             async let showChart: Void = showChartAfterInitialRender()
@@ -206,7 +213,22 @@ struct InsightView: View {
             InsightTextView(insight: insight, label: "Daily Reflection", icon: "sparkles")
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
-            NeedsMoreEntriesCard(remaining: remaining)
+            VStack(spacing: 12) {
+                NeedsMoreEntriesCard(remaining: remaining)
+                WritingPromptCard(
+                    prompt: WritingPrompts.all[promptIndex],
+                    onShuffle: {
+                        var next = Int.random(in: 0..<WritingPrompts.all.count)
+                        if WritingPrompts.all.count > 1 {
+                            while next == promptIndex { next = Int.random(in: 0..<WritingPrompts.all.count) }
+                        }
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            promptIndex = next
+                        }
+                    },
+                    onUse: { showWriteFromPrompt = true }
+                )
+            }
         case .subscriptionRequired:
             UpgradePromptCard(
                 title: "MirrorNotes Core",

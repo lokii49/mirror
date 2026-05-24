@@ -125,7 +125,7 @@ struct mirrorApp: App {
     @MainActor
     private static func runNightlyInsights(container: ModelContainer) async {
         let context = container.mainContext
-        await runDailyNudgeIfNeeded(context: context)
+        await runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
         // Weekly digest only on Sunday
         if Calendar.current.component(.weekday, from: Date()) == 1 {
             await runWeeklyDigestIfNeeded(context: context)
@@ -156,7 +156,7 @@ struct mirrorApp: App {
     // MARK: - Shared generation helpers (also called from BGAppRefreshTask fallback)
 
     @MainActor
-    static func runDailyNudgeIfNeeded(context: ModelContext) async {
+    static func runDailyNudgeIfNeeded(context: ModelContext, bypassTimeGate: Bool = false) async {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
 
@@ -178,6 +178,23 @@ struct mirrorApp: App {
         let allInsights = (try? context.fetch(allInsightsDescriptor)) ?? []
         let hasSeenFirst = allInsights.contains { $0.type == .dailyNudge }
         if hasSeenFirst && !SubscriptionService.shared.isSubscribed { return }
+
+        // Only generate if there are entries written after the last nudge.
+        // No new writing → no new reflection.
+        if let lastNudge = allInsights
+            .filter({ $0.type == .dailyNudge })
+            .max(by: { $0.generatedAt < $1.generatedAt }) {
+            guard entries.contains(where: { $0.createdAt > lastNudge.generatedAt }) else { return }
+        }
+
+        // Respect the user's preferred nudge time so a full day of writing informs the reflection.
+        // Nightly background tasks bypass this gate — they're the fallback for users who never
+        // opened the app at their preferred hour.
+        if !bypassTimeGate {
+            let preferredHour = NotificationService.nudgeHour()
+            let currentHour = Calendar.current.component(.hour, from: Date())
+            guard currentHour >= preferredHour else { return }
+        }
 
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
@@ -331,7 +348,7 @@ struct mirrorApp: App {
     @MainActor
     private func runDailyNudgeFallback() async {
         let context = sharedModelContainer.mainContext
-        await mirrorApp.runDailyNudgeIfNeeded(context: context)
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
         scheduleDailyNudgeFallback()
     }
 

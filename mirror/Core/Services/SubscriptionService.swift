@@ -21,7 +21,10 @@ final class SubscriptionService {
     var isDeep: Bool { tier == .deep }
 
     private init() {
-        Task { await refresh() }
+        Task {
+            await restorePurchases()
+            await refresh()
+        }
     }
 
     func loadProducts() async {

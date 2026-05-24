@@ -520,6 +520,18 @@ struct SettingsView: View {
             Divider().padding(.leading, 48)
 
             Button {
+                SampleData.seedYearLongMixed(into: modelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Load Year Long Entries (Mixed)", systemImage: "calendar.badge.plus", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button {
                 SampleData.seedVoiceOnly(into: modelContext)
             } label: {
                 HStack {
