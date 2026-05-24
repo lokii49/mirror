@@ -24,6 +24,8 @@ enum NoteTextCommand: Equatable {
     case indentMore
     case indentLess
     case photo(index: Int)
+    case undo
+    case redo
 }
 
 // MARK: - Paragraph styles

@@ -13,16 +13,46 @@ struct EntriesTabView: View {
     @State private var selectedDateFilter: Date? = nil
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
+    @State private var snapshotCache: EntryListSnapshot? = nil
 
     private struct EntryMonthGroup {
         let date: Date
         let entries: [Entry]
     }
 
+    // Precomputed at task time — zero AES decrypts during scroll
+    struct EntryRowPreview {
+        let moodLabel: String?
+        let preview: String
+        let wordCount: Int
+        let hasReadablePreview: Bool
+        let hasVoiceNotes: Bool
+        let textDecryptionFailed: Bool
+    }
+
     private struct EntryListSnapshot {
         let filteredEntries: [Entry]
         let usedMoods: [String]
         let groupedByMonth: [EntryMonthGroup]
+        let rowPreviews: [UUID: EntryRowPreview]
+    }
+
+    private struct SnapshotDeps: Equatable {
+        let search: String
+        let mood: String?
+        let date: Date?
+        let entryCount: Int
+        let moodHash: Int
+    }
+
+    private var snapshotDeps: SnapshotDeps {
+        SnapshotDeps(
+            search: debouncedSearchText,
+            mood: selectedMoodFilter,
+            date: selectedDateFilter,
+            entryCount: entries.count,
+            moodHash: entries.map(\.encryptedMood).hashValue
+        )
     }
 
     private var listSnapshot: EntryListSnapshot {
@@ -49,11 +79,25 @@ struct EntriesTabView: View {
             EntryMonthGroup(date: month, entries: groups[month, default: []].sorted { $0.createdAt > $1.createdAt })
         }
 
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, groupedByMonth: groupedByMonth)
+        // Precompute all row display data (mood + text decrypts) so EntryRow.init does zero decrypts
+        var rowPreviews: [UUID: EntryRowPreview] = [:]
+        for entry in entries {
+            let p = EntryRow.makePreview(for: entry)
+            rowPreviews[entry.id] = EntryRowPreview(
+                moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
+                preview: p.preview,
+                wordCount: p.wordCount,
+                hasReadablePreview: p.hasReadablePreview,
+                hasVoiceNotes: p.hasVoiceNotes,
+                textDecryptionFailed: entry.textDecryptionFailed
+            )
+        }
+
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
     var body: some View {
-        let snapshot = listSnapshot
+        let snapshot = snapshotCache ?? listSnapshot
         NavigationStack {
             Group {
                 if entries.isEmpty {
@@ -96,6 +140,9 @@ struct EntriesTabView: View {
                         self.selectedEntry = nil
                     }
                 }
+            }
+            .task(id: snapshotDeps) {
+                snapshotCache = listSnapshot
             }
         }
     }
@@ -270,7 +317,7 @@ struct EntriesTabView: View {
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
                 Section {
                     ForEach(group.entries) { entry in
-                        EntryRow(entry: entry)
+                        EntryRow(entry: entry, rowPreview: snapshot.rowPreviews[entry.id])
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedEntry = entry
@@ -348,19 +395,32 @@ private struct EntryRow: View {
     private let displayWordCount: Int
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
+    private let decryptFailed: Bool
 
-    init(entry: Entry) {
+    // rowPreview is precomputed in .task — zero decrypts during scroll.
+    // Falls back to inline decryption only on first render before cache is ready.
+    init(entry: Entry, rowPreview: EntriesTabView.EntryRowPreview? = nil) {
         self.entry = entry
-        self.moodLabel = entry.mood.flatMap { $0.isEmpty ? nil : $0 }
-        let snapshot = Self.makePreview(for: entry)
-        self.preview = snapshot.preview
-        self.displayWordCount = snapshot.wordCount
-        self.hasReadablePreview = snapshot.hasReadablePreview
-        self.hasVoiceNotes = snapshot.hasVoiceNotes
+        if let rp = rowPreview {
+            self.moodLabel = rp.moodLabel
+            self.preview = rp.preview
+            self.displayWordCount = rp.wordCount
+            self.hasReadablePreview = rp.hasReadablePreview
+            self.hasVoiceNotes = rp.hasVoiceNotes
+            self.decryptFailed = rp.textDecryptionFailed
+        } else {
+            self.decryptFailed = entry.textDecryptionFailed
+            self.moodLabel = entry.mood.flatMap { $0.isEmpty ? nil : $0 }
+            let snapshot = Self.makePreview(for: entry)
+            self.preview = snapshot.preview
+            self.displayWordCount = snapshot.wordCount
+            self.hasReadablePreview = snapshot.hasReadablePreview
+            self.hasVoiceNotes = snapshot.hasVoiceNotes
+        }
     }
 
     private var previewTextColor: Color {
-        hasReadablePreview && !entry.textDecryptionFailed ? .primary : .secondary
+        hasReadablePreview && !decryptFailed ? .primary : .secondary
     }
 
     var body: some View {
@@ -430,7 +490,7 @@ private struct EntryRow: View {
         return trimmed
     }
 
-    private static func makePreview(for entry: Entry) -> (preview: String, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
+    fileprivate static func makePreview(for entry: Entry) -> (preview: String, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
         guard !entry.textDecryptionFailed else {
             return ("Encrypted entry unavailable", 0, false, entry.hasVoiceNotes)
         }
