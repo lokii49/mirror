@@ -63,6 +63,10 @@ struct NoteEditorTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.parent = self
 
+        let dbgFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+        let dbgPara = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
+        print("[updateUIView] ENTER cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgFont) para=\(dbgPara)")
+
         if context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text) {
             let selectedRange = textView.selectedRange
             context.coordinator.applyStyledText(to: textView, preservingSelection: false)
@@ -70,6 +74,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         } else {
             context.coordinator.applyStyledText(to: textView, preservingSelection: true)
         }
+
+        let dbgFont2 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+        let dbgPara2 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
+        print("[updateUIView] after-applyStyledText cursor=\(textView.selectedRange.location) font=\(dbgFont2) para=\(dbgPara2)")
 
         context.coordinator.updatePlaceholder(in: textView)
 
@@ -80,10 +88,17 @@ struct NoteEditorTextView: UIViewRepresentable {
         if let command, context.coordinator.lastAppliedCommandRevision != commandRevision {
             context.coordinator.lastAppliedCommandRevision = commandRevision
             context.coordinator.apply(command, to: textView)
+            let dbgFont3 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+            let dbgPara3 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
+            print("[updateUIView] after-apply(cmd=\(command)) cursor=\(textView.selectedRange.location) font=\(dbgFont3) para=\(dbgPara3)")
             DispatchQueue.main.async {
                 self.command = nil
             }
         }
+
+        let dbgFont4 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+        let dbgPara4 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
+        print("[updateUIView] EXIT cursor=\(textView.selectedRange.location) font=\(dbgFont4) para=\(dbgPara4)")
 
         context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
     }
@@ -235,6 +250,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
+            let dbgTDCFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+            let dbgTDCPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
+            print("[textViewDidChange] cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgTDCFont) para=\(dbgTDCPara)")
             guard !isApplyingStyledText else { return }
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
@@ -250,6 +268,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText replacement: String
         ) -> Bool {
+            let dbgSCFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+            let dbgSCPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
+            print("[shouldChangeTextIn] range=\(range) replacement=\(replacement.debugDescription) cursor=\(textView.selectedRange.location) font=\(dbgSCFont) para=\(dbgSCPara)")
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
                 // Find which attachment char is being deleted
@@ -396,6 +417,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func apply(_ command: NoteTextCommand, to textView: UITextView) {
+            let dbgApplyFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+            let dbgApplyPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
+            print("[apply] ENTER cmd=\(command) cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgApplyFont) para=\(dbgApplyPara)")
             // Inline style commands
             switch command {
             case .bold, .italic, .underline, .strikethrough:
@@ -424,6 +448,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             case .photo(let index):
                 insertPhotoToken(at: index, in: textView)
+                return
+            case .undo:
+                textView.undoManager?.undo()
+                return
+            case .redo:
+                textView.undoManager?.redo()
                 return
             default: break
             }
@@ -472,6 +502,51 @@ struct NoteEditorTextView: UIViewRepresentable {
             if isListStyle(currentStyle) && !isListStyle(targetStyle) {
                 stripListMarkerAndApply(targetStyle, at: cursorLocation, in: textView)
                 parent.activeParagraphStyle = targetStyle
+                return
+            }
+
+            // Cursor is in a virtual empty paragraph past the last character (e.g. "Hello\n", cursor at 6).
+            // paragraphRange(for: {length, 0}) returns an empty range that enumerateSubstrings never visits,
+            // so the style change silently no-ops. Handle it explicitly.
+            if cursorLocation >= nsText.length {
+                if isListStyle(targetStyle) {
+                    // Extend textStyleData to cover the virtual paragraph, then re-render to insert the marker.
+                    var styles = decodedTextStyles()
+                    if styles.isEmpty {
+                        var count = 0
+                        nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length),
+                                                   options: [.byParagraphs, .substringNotRequired]) { _, _, _, _ in count += 1 }
+                        styles = Array(repeating: .body, count: count)
+                    }
+                    styles.append(targetStyle)
+                    parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles))
+                    invalidateRenderedCache()
+                    applyStyledText(to: textView, preservingSelection: false)
+                    let markerLen: Int
+                    if targetStyle == .numberedList {
+                        let nsDisplay = (textView.text ?? "") as NSString
+                        let safePos = max(0, nsDisplay.length - 1)
+                        let pRange = nsDisplay.paragraphRange(for: NSRange(location: safePos, length: 0))
+                        markerLen = numberedListMarkerLength(in: nsDisplay.substring(with: pRange))
+                    } else {
+                        markerLen = (staticListMarkerPrefix(for: targetStyle) as NSString?)?.length ?? 0
+                    }
+                    textView.selectedRange = bounded(
+                        NSRange(location: cursorLocation + markerLen, length: 0),
+                        in: textView.text
+                    )
+                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                } else {
+                    // Non-list style: typing attributes alone are sufficient; no re-render needed.
+                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                    let dbgVEFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
+                    let dbgVEPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
+                    print("[apply] virtual-end non-list: set typingAttrs targetStyle=\(targetStyle) font=\(dbgVEFont) para=\(dbgVEPara)")
+                }
+                updatePlaceholder(in: textView)
+                parent.activeParagraphStyle = targetStyle
+                parent.panelState.activeParagraphStyle = targetStyle
+                refreshActiveInlineStyles(in: textView)
                 return
             }
 
@@ -607,6 +682,15 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func refreshActiveParagraphStyle(in textView: UITextView) {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
                 parent.activeParagraphStyle = .body
+                return
+            }
+            if lastKnownCursorLocation >= attributed.length {
+                if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
+                   let style = NoteParagraphTextStyle(rawValue: raw) {
+                    parent.activeParagraphStyle = style
+                } else {
+                    parent.activeParagraphStyle = .body
+                }
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
@@ -999,9 +1083,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             }
 
-            let location = min(textView.selectedRange.location, max(0, nsText.length - 1))
-            let style = textStyle(at: location, in: textView.attributedText)
-            let level = indentLevelValue(at: location, in: textView.attributedText)
+            let cursorLoc = textView.selectedRange.location
+            // Cursor is in a virtual empty paragraph past the last character (e.g. after "Hello\n").
+            // Reading attributed text at length-1 would return the \n's style (the *previous* paragraph),
+            // which would wrongly overwrite typing attrs the user just set via the format panel.
+            if cursorLoc >= nsText.length { return }
+
+            let style = textStyle(at: cursorLoc, in: textView.attributedText)
+            let level = indentLevelValue(at: cursorLoc, in: textView.attributedText)
             textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level)
         }
 
@@ -1571,8 +1660,17 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             for styleRange in doc.ranges {
                 let displayStart = logicalToDisplay(logical: styleRange.location, map: logicalOffsets)
-                let displayEnd = logicalToDisplay(logical: styleRange.location + styleRange.length, map: logicalOffsets)
-                let displayRange = bounded(NSRange(location: displayStart, length: displayEnd - displayStart), in: attributed.string)
+                // When a range ends exactly at a paragraph boundary (logicalEnd == paragraph's logicalStart),
+                // logicalToDisplay() would add the next paragraph's markerLen and land *inside* the marker.
+                // Detect that case and use the paragraph's displayStart instead (before its marker).
+                let logicalEnd = styleRange.location + styleRange.length
+                let displayEnd: Int
+                if let boundary = logicalOffsets.first(where: { $0.logicalStart == logicalEnd && logicalEnd > 0 }) {
+                    displayEnd = boundary.displayStart
+                } else {
+                    displayEnd = logicalToDisplay(logical: logicalEnd, map: logicalOffsets)
+                }
+                let displayRange = bounded(NSRange(location: displayStart, length: max(0, displayEnd - displayStart)), in: attributed.string)
                 guard displayRange.length > 0 else { continue }
 
                 if styleRange.bold || styleRange.italic {
@@ -1685,15 +1783,37 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
             var styles = InlineStyleSet()
-            let font = attributed.attribute(.font, at: loc, effectiveRange: nil) as? UIFont
-            let paraStyle = textStyle(at: loc, in: attributed)
+            // When cursor is in the virtual empty paragraph past the last character, the attributed
+            // text position (length-1) belongs to the *previous* paragraph's \n. Read ALL inline
+            // attributes from typing attrs so the panel reflects the style the user just selected.
+            let paraStyle: NoteParagraphTextStyle
+            let font: UIFont?
+            let underlineActive: Bool
+            let strikethroughActive: Bool
+            let highlightIndex: Int?
+            if lastKnownCursorLocation >= attributed.length {
+                if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
+                   let style = NoteParagraphTextStyle(rawValue: raw) {
+                    paraStyle = style
+                } else {
+                    paraStyle = .body
+                }
+                font = textView.typingAttributes[.font] as? UIFont
+                underlineActive = textView.typingAttributes[.underlineStyle] != nil
+                strikethroughActive = textView.typingAttributes[.strikethroughStyle] != nil
+                highlightIndex = textView.typingAttributes[Self.highlightIndexAttribute] as? Int
+            } else {
+                paraStyle = textStyle(at: loc, in: attributed)
+                font = attributed.attribute(.font, at: loc, effectiveRange: nil) as? UIFont
+                underlineActive = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
+                strikethroughActive = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
+                highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+            }
             let isParaBold = (paraStyle == .heading || paraStyle == .title)
             styles.bold = (font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false) && !isParaBold
             styles.italic = font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false
-            styles.underline = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
-            styles.strikethrough = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
-                && paraStyle != .checklistChecked
-            let highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+            styles.underline = underlineActive
+            styles.strikethrough = strikethroughActive && paraStyle != .checklistChecked
             parent.activeInlineStyles = styles
             parent.panelState.activeInlineStyles = styles
             parent.panelState.activeParagraphStyle = paraStyle
@@ -1706,16 +1826,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             if visible {
                 // Refresh panel state to current cursor position before the panel renders
                 refreshActiveInlineStyles(in: textView)
-                let panelView = FormattingPanelView(state: parent.panelState)
+                // Create host controller once only. FormattingPanelState is @Observable so the
+                // existing view auto-updates — replacing rootView on every updateUIView call
+                // tears down the SwiftUI tree and drops in-flight button taps.
                 if formattingPanelHost == nil {
-                    let hc = UIHostingController(rootView: panelView)
+                    let hc = UIHostingController(rootView: FormattingPanelView(state: parent.panelState))
                     hc.view.backgroundColor = .secondarySystemBackground
                     formattingPanelHost = hc
-                } else {
-                    formattingPanelHost?.rootView = panelView
                 }
                 let panelUIView = formattingPanelHost?.view
-                panelUIView?.frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 310)
+                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 290)
+                if panelUIView?.frame != newFrame { panelUIView?.frame = newFrame }
                 if textView.inputView !== panelUIView {
                     textView.inputView = panelUIView
                     textView.reloadInputViews()
@@ -1949,10 +2070,12 @@ struct IdentifiableIndex: Identifiable {
 struct WriteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
     var showsBackButton: Bool = false
+    var initialText: String = ""
     var onSaveComplete: (() -> Void)? = nil
 
     @State private var viewModel = WriteViewModel()
@@ -1990,9 +2113,16 @@ struct WriteView: View {
     @State private var pendingTextCommand: NoteTextCommand?
     @State private var textCommandRevision = 0
     @State private var activeParagraphStyle: NoteParagraphTextStyle = .body
+    @State private var entryDate: Date = Date()
+    @State private var showDatePicker = false
+    @State private var focusMode = false
+    @State private var entryTags: [String] = []
+    @State private var tagText: String = ""
+    @State private var showTagInput = false
+    @AppStorage("dailyWordGoal") private var dailyWordGoal: Int = 200
     @FocusState private var editorFocused: Bool
 
-    private var noteDate: Date { entry?.createdAt ?? Date() }
+    private var noteDate: Date { entryDate }
     private var hasDraftContent: Bool {
         viewModel.hasContent || !photoDataArray.isEmpty || !draftVoiceNotes.isEmpty
     }
@@ -2031,7 +2161,11 @@ struct WriteView: View {
             Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                dateHeader
+                if !focusMode { dateHeader }
+
+                if !focusMode && (!entryTags.isEmpty || showTagInput) {
+                    tagsBar
+                }
 
                 if !draftVoiceNotes.isEmpty {
                     VStack(spacing: 8) {
@@ -2103,13 +2237,13 @@ struct WriteView: View {
         .navigationBarBackButtonHidden(true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { toolbarItems }
+        .toolbar { toolbarItems; focusModeToolbarItem }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { deleteAndDismiss() }
             Button("Cancel", role: .cancel) {}
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if isKeyboardVisible || editorFocused {
+            if (isKeyboardVisible || editorFocused) && !focusMode {
                 toolRow
             }
         }
@@ -2138,6 +2272,14 @@ struct WriteView: View {
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
                 if entry.voiceNoteTranscriptionFailed && entry.voiceNoteData != nil {
                     failedTranscriptionIndexes.insert(0)
+                }
+            }
+            entryDate = entry?.createdAt ?? Date()
+            entryTags = entry?.tags ?? []
+            if entry == nil {
+                restoreDraftFromStorage()
+                if !initialText.isEmpty && viewModel.text.isEmpty {
+                    viewModel.text = initialText
                 }
             }
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
@@ -2181,22 +2323,66 @@ struct WriteView: View {
                 appendVoiceNote(data: data, duration: duration)
             }
         }
+        .sheet(isPresented: $showDatePicker) {
+            NavigationStack {
+                DatePicker(
+                    "Entry date",
+                    selection: $entryDate,
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .padding(.horizontal)
+                .navigationTitle("Entry Date")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showDatePicker = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+        .onChange(of: viewModel.text) { _, _ in
+            if entry == nil { saveDraftToStorage() }
+        }
+        .onChange(of: viewModel.selectedMood) { _, _ in
+            if entry == nil { saveDraftToStorage() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background, entry == nil { saveDraftToStorage() }
+        }
     }
 
     private var dateHeader: some View {
         HStack(alignment: .center, spacing: 12) {
-            HStack(spacing: 10) {
-                Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.secondary)
-                if viewModel.wordCount > 0 {
-                    Text("·")
+            Button {
+                showDatePicker = true
+            } label: {
+                HStack(spacing: 6) {
+                    Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.quaternary)
-                    Text("\(viewModel.wordCount)w")
-                        .font(.system(size: 13, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                    if viewModel.wordCount > 0 {
+                        Text("·")
+                            .foregroundStyle(.quaternary)
+                        Text("\(viewModel.wordCount)w")
+                            .font(.system(size: 13, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                        if viewModel.wordCount >= 50 {
+                            Text("·")
+                                .foregroundStyle(.quaternary)
+                            Text("~\(max(1, viewModel.wordCount / 200))m")
+                                .font(.system(size: 13, weight: .regular, design: .monospaced))
+                                .foregroundStyle(.quaternary)
+                        }
+                    }
                 }
             }
+            .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             moodMenu
@@ -2366,6 +2552,93 @@ struct WriteView: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private var focusModeToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
+                if focusMode { editorFocused = true }
+            } label: {
+                Image(systemName: focusMode
+                      ? "arrow.down.right.and.arrow.up.left"
+                      : "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
+        }
+    }
+
+    private var tagsBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(entryTags, id: \.self) { tag in
+                    HStack(spacing: 3) {
+                        Text("#\(tag)")
+                            .font(.system(size: 12, weight: .medium))
+                        Button {
+                            entryTags.removeAll { $0 == tag }
+                            if entry == nil { saveDraftToStorage() }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(.secondarySystemFill), in: Capsule())
+                }
+
+                if showTagInput {
+                    TextField("tag", text: $tagText)
+                        .font(.system(size: 12))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .frame(minWidth: 60)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.secondarySystemFill), in: Capsule())
+                        .onSubmit { commitTag() }
+                        .submitLabel(.done)
+                } else {
+                    Button {
+                        showTagInput = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("tag")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.tertiarySystemFill), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func commitTag() {
+        let tag = tagText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        if !tag.isEmpty && !entryTags.contains(tag) {
+            entryTags.append(tag)
+        }
+        tagText = ""
+        showTagInput = false
+        if entry == nil { saveDraftToStorage() }
+    }
+
     private var toolRow: some View {
         VStack(spacing: 0) {
             Divider()
@@ -2376,10 +2649,53 @@ struct WriteView: View {
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
                         .font(.system(size: 20))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+
+                // Undo
+                Button {
+                    applyTextCommand(.undo)
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 44)
+                }
+                .buttonStyle(.plain)
+
+                // Redo
+                Button {
+                    applyTextCommand(.redo)
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 44)
+                }
+                .buttonStyle(.plain)
+
+                // Formatting panel
+                Button {
+                    showFormattingPanel.toggle()
+                } label: {
+                    Text("Aa")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(showFormattingPanel ? Color.accentColor : Color.secondary)
+                        .frame(width: 38, height: 44)
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                // Word goal progress
+                if viewModel.wordCount > 0 {
+                    let goalMet = viewModel.wordCount >= dailyWordGoal
+                    Text(goalMet ? "\(viewModel.wordCount)w ✓" : "\(viewModel.wordCount)/\(dailyWordGoal)w")
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(goalMet ? Color.green : Color(.quaternaryLabel))
+                }
 
                 Spacer(minLength: 0)
 
@@ -2466,6 +2782,9 @@ struct WriteView: View {
             }
             if hasDraftContent {
                 update(entry)
+                entry.createdAt = entryDate
+                entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
+                entry.tags = entryTags
                 entry.photoDataArray = photoDataArray
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
@@ -2488,6 +2807,9 @@ struct WriteView: View {
             if hasDraftContent {
                 let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let entry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
+                entry.createdAt = entryDate
+                entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
+                entry.tags = entryTags
                 entry.textStyleData = viewModel.textStyleData
                 entry.photoDataArray = photoDataArray
                 entry.inlineStyleData = inlineStyleData
@@ -2507,6 +2829,7 @@ struct WriteView: View {
                 entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
                 modelContext.insert(entry)
                 try? modelContext.save()
+                clearDraftStorage()
                 withAnimation { showSaved = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     withAnimation { showSaved = false }
@@ -2525,6 +2848,9 @@ struct WriteView: View {
         guard entry == nil, hasDraftContent, !isTranscribingVoiceNotes else { return }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
+        savedEntry.createdAt = entryDate
+        savedEntry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
+        savedEntry.tags = entryTags
         savedEntry.textStyleData = viewModel.textStyleData
         savedEntry.photoDataArray = photoDataArray
         savedEntry.inlineStyleData = inlineStyleData
@@ -2545,6 +2871,7 @@ struct WriteView: View {
         try? modelContext.save()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
+        clearDraftStorage()
         withAnimation { showSaved = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation { showSaved = false }
@@ -2730,6 +3057,48 @@ struct WriteView: View {
 
     private func discardDraft() {
         clearDraft()
+        clearDraftStorage()
+    }
+
+    // MARK: - Draft persistence (new entries only, text + style + mood)
+
+    private static let draftTextKey = "mirror.writeDraft.text"
+    private static let draftTextStyleKey = "mirror.writeDraft.textStyleData"
+    private static let draftInlineStyleKey = "mirror.writeDraft.inlineStyleData"
+    private static let draftMoodKey = "mirror.writeDraft.mood"
+    private static let draftTagsKey = "mirror.writeDraft.tags"
+
+    private func saveDraftToStorage() {
+        let ud = UserDefaults.standard
+        ud.set(MirrorEncryption.encryptString(viewModel.text), forKey: Self.draftTextKey)
+        ud.set(viewModel.textStyleData, forKey: Self.draftTextStyleKey)
+        ud.set(inlineStyleData, forKey: Self.draftInlineStyleKey)
+        ud.set(viewModel.selectedMood, forKey: Self.draftMoodKey)
+        let encryptedTags = entryTags.map { MirrorEncryption.encryptString($0) }
+        ud.set(try? JSONEncoder().encode(encryptedTags), forKey: Self.draftTagsKey)
+    }
+
+    private func restoreDraftFromStorage() {
+        let ud = UserDefaults.standard
+        let saved = ud.string(forKey: Self.draftTextKey) ?? ""
+        guard !saved.isEmpty else { return }
+        viewModel.text = MirrorEncryption.decryptString(saved)
+        viewModel.textStyleData = ud.data(forKey: Self.draftTextStyleKey)
+        inlineStyleData = ud.data(forKey: Self.draftInlineStyleKey)
+        viewModel.selectedMood = ud.string(forKey: Self.draftMoodKey)
+        if let tagsData = ud.data(forKey: Self.draftTagsKey) {
+            let encrypted = (try? JSONDecoder().decode([String].self, from: tagsData)) ?? []
+            entryTags = encrypted.map { MirrorEncryption.decryptString($0) }
+        }
+    }
+
+    private func clearDraftStorage() {
+        let ud = UserDefaults.standard
+        ud.removeObject(forKey: Self.draftTextKey)
+        ud.removeObject(forKey: Self.draftTextStyleKey)
+        ud.removeObject(forKey: Self.draftInlineStyleKey)
+        ud.removeObject(forKey: Self.draftMoodKey)
+        ud.removeObject(forKey: Self.draftTagsKey)
     }
 }
 

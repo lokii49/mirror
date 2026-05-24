@@ -1,4 +1,6 @@
 import Testing
+import SwiftUI
+import UIKit
 @testable import mirror
 
 // MARK: - InlineStyleSet
@@ -75,6 +77,64 @@ struct InlineStyleSetTests {
         a.set(.bold, true)
         b.set(.italic, true)
         #expect(a != b)
+    }
+}
+
+// MARK: - Inline style rendering
+
+@MainActor
+struct InlineStyleRenderingTests {
+
+    @Test func strikethroughEndingAtChecklistBoundaryDoesNotStyleMarker() throws {
+        var text = "Hello\nTask"
+        var textStyleData: Data? = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.body, .checklistUnchecked],
+            indentLevels: nil
+        ))
+        var inlineStyleData: Data? = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(
+                location: 0,
+                length: 6,
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: true,
+                highlightIndex: nil
+            )
+        ]))
+        var photos: [Data] = []
+        var command: NoteTextCommand?
+        var commandRevision = 0
+        var isFocused = false
+        var activeParagraphStyle: NoteParagraphTextStyle = .body
+        var activeInlineStyles = InlineStyleSet()
+        var showFormattingPanel = false
+
+        let editor = NoteEditorTextView(
+            text: Binding(get: { text }, set: { text = $0 }),
+            textStyleData: Binding(get: { textStyleData }, set: { textStyleData = $0 }),
+            inlineStyleData: Binding(get: { inlineStyleData }, set: { inlineStyleData = $0 }),
+            photoDataArray: Binding(get: { photos }, set: { photos = $0 }),
+            command: Binding(get: { command }, set: { command = $0 }),
+            commandRevision: Binding(get: { commandRevision }, set: { commandRevision = $0 }),
+            isFocused: Binding(get: { isFocused }, set: { isFocused = $0 }),
+            activeParagraphStyle: Binding(get: { activeParagraphStyle }, set: { activeParagraphStyle = $0 }),
+            activeInlineStyles: Binding(get: { activeInlineStyles }, set: { activeInlineStyles = $0 }),
+            showFormattingPanel: Binding(get: { showFormattingPanel }, set: { showFormattingPanel = $0 }),
+            panelState: FormattingPanelState()
+        )
+        let coordinator = editor.makeCoordinator()
+        let textView = UITextView()
+
+        coordinator.applyStyledText(to: textView, preservingSelection: false)
+
+        let rendered = try #require(textView.attributedText)
+        #expect(rendered.string == "Hello\n○  Task")
+        #expect(rendered.attribute(.strikethroughStyle, at: 5, effectiveRange: nil) != nil)
+        #expect(rendered.attribute(.strikethroughStyle, at: 6, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.strikethroughStyle, at: 7, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.strikethroughStyle, at: 8, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.strikethroughStyle, at: 9, effectiveRange: nil) == nil)
     }
 }
 

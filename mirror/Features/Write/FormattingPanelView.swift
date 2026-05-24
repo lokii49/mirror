@@ -8,7 +8,6 @@ let highlightColors: [Color] = [
     Color(red: 0.68, green: 0.85, blue: 1.0),   // blue
 ]
 
-// Observable state shared between WriteView and the formatting panel.
 @Observable final class FormattingPanelState {
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
@@ -21,136 +20,134 @@ struct FormattingPanelView: View {
     var state: FormattingPanelState
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Drag handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(.tertiaryLabel))
+        VStack(alignment: .leading, spacing: 0) {
+
+            // Handle bar (Apple Notes style — tap Aa again to dismiss)
+            Capsule()
+                .fill(Color(.systemGray4))
                 .frame(width: 36, height: 5)
+                .frame(maxWidth: .infinity)
                 .padding(.top, 8)
-                .padding(.bottom, 12)
+                .padding(.bottom, 10)
 
-            // Row 1: Paragraph styles
-            HStack(spacing: 6) {
-                paragraphButton("Title",      style: .title,      font: .title3.bold())
-                paragraphButton("Heading",    style: .heading,    font: .headline)
-                paragraphButton("Subheading", style: .subheading, font: .subheadline)
-                paragraphButton("Body",       style: .body,       font: .body)
-                paragraphButton("Mono",       style: .monospaced, font: .system(.footnote, design: .monospaced))
+            // Row 1: Paragraph styles — horizontal scroll, each in its own font
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 22, weight: .black))
+                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18, weight: .bold))
+                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15, weight: .semibold))
+                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14, weight: .regular))
+                    paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13, design: .monospaced))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 2)
             }
-            .padding(.horizontal, 12)
 
-            Divider().padding(.vertical, 10)
-
-            // Row 2: Inline styles
-            HStack(spacing: 6) {
+            // Row 2: Inline styles (fixed-size square buttons, left-aligned)
+            HStack(spacing: 8) {
                 inlineButton("B",  style: .bold,          font: .system(size: 17, weight: .bold))
                 inlineButton("I",  style: .italic,        font: .system(size: 17).italic())
-                inlineButton("U",  style: .underline,     font: .system(size: 17),         underline: true)
-                inlineButton("S",  style: .strikethrough, font: .system(size: 17),         strikethrough: true)
+                inlineButton("U",  style: .underline,     font: .system(size: 17), underline: true)
+                inlineButton("S",  style: .strikethrough, font: .system(size: 17), strikethrough: true)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
-
-            Divider().padding(.vertical, 10)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
             // Row 3: List types + indent controls
-            HStack(spacing: 6) {
-                listButton(icon: "list.bullet",           command: .bulletedList)
-                listButton(icon: "list.dash",             command: .dashedList)
-                listButton(icon: "list.number",           command: .numberedList)
-                listButton(icon: "checklist",             command: .checklist)
-                listButton(icon: "decrease.indent",       command: .indentLess)
-                listButton(icon: "increase.indent",       command: .indentMore)
+            HStack(spacing: 8) {
+                listButton(icon: "list.bullet", command: .bulletedList)
+                listButton(icon: "list.dash",   command: .dashedList)
+                listButton(icon: "list.number", command: .numberedList)
+                listButton(icon: "checklist",   command: .checklist)
+                Spacer(minLength: 0)
+                listButton(icon: "decrease.indent", command: .indentLess)
+                listButton(icon: "increase.indent", command: .indentMore)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
-            // Row 3b: Checklist bulk ops (contextual — only when cursor is on a checklist line)
+            // Row 3b: Checklist bulk ops — only when cursor is on a checklist line
             if state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked {
-                Divider().padding(.vertical, 6)
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     bulkChecklistButton("Check All",   command: .checkAllItems)
                     bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
                     bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
                     bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
             }
 
-            Divider().padding(.vertical, 10)
-
             // Row 4: Highlight colors
-            HStack(spacing: 6) {
-                // Clear button
+            HStack(spacing: 8) {
                 Button {
-                    state.onCommand?(.highlight(index: nil))
+                    DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
                 } label: {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 10)
                             .fill(Color(.tertiarySystemFill))
-                            .frame(height: 32)
+                            .frame(width: 44, height: 36)
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(state.activeHighlightIndex == nil ? Color.accentColor : Color.secondary)
                     }
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 10)
                             .stroke(state.activeHighlightIndex == nil ? Color.accentColor : Color.clear, lineWidth: 2)
                     )
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
 
                 ForEach(0..<highlightColors.count, id: \.self) { idx in
                     highlightButton(index: idx)
                 }
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 12)
         }
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemBackground))
-        .overlay(alignment: .topTrailing) {
-            Button {
-                state.onDismiss?()
-            } label: {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
-            .padding(.trailing, 4)
-        }
     }
 
-    // MARK: - Paragraph button
+    // MARK: - Paragraph style button
 
     @ViewBuilder
-    private func paragraphButton(_ label: String, style: NoteParagraphTextStyle, font: Font) -> some View {
+    private func paragraphStyleButton(_ label: String, style: NoteParagraphTextStyle, labelFont: Font) -> some View {
         let isActive = state.activeParagraphStyle == style
         Button {
-            state.onCommand?(paragraphCommand(for: style))
+            let cmd = paragraphCommand(for: style)
+            DispatchQueue.main.async { state.onCommand?(cmd) }
         } label: {
             Text(label)
-                .font(font)
+                .font(labelFont)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity)
-                .frame(height: 40)
                 .foregroundStyle(isActive ? Color.accentColor : Color.primary)
-                .background(isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal, 16)
+                .frame(height: 50)
+                .background(
+                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
+                    in: RoundedRectangle(cornerRadius: 10)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isActive ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                )
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Inline button
+    // MARK: - Inline style button (fixed square)
 
     @ViewBuilder
     private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false) -> some View {
         let isActive = state.activeInlineStyles.contains(style)
         Button {
-            state.onCommand?(inlineCommand(for: style))
+            let cmd = inlineCommand(for: style)
+            DispatchQueue.main.async { state.onCommand?(cmd) }
         } label: {
             Group {
                 if strikethrough {
@@ -162,10 +159,32 @@ struct FormattingPanelView: View {
                 }
             }
             .font(font)
-            .frame(maxWidth: .infinity)
-            .frame(height: 40)
             .foregroundStyle(isActive ? Color.accentColor : Color.primary)
-            .background(isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            .frame(width: 50, height: 44)
+            .background(
+                isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
+                in: RoundedRectangle(cornerRadius: 10)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - List button (fixed square icon)
+
+    @ViewBuilder
+    private func listButton(icon: String, command: NoteTextCommand) -> some View {
+        let isActive = listIsActive(command: command)
+        Button {
+            DispatchQueue.main.async { state.onCommand?(command) }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .frame(width: 50, height: 44)
+                .background(
+                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
+                    in: RoundedRectangle(cornerRadius: 10)
+                )
         }
         .buttonStyle(.plain)
     }
@@ -175,15 +194,15 @@ struct FormattingPanelView: View {
     @ViewBuilder
     private func bulkChecklistButton(_ label: String, command: NoteTextCommand) -> some View {
         Button {
-            state.onCommand?(command)
+            DispatchQueue.main.async { state.onCommand?(command) }
         } label: {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity)
-                .frame(height: 36)
                 .foregroundStyle(Color.primary)
+                .padding(.horizontal, 10)
+                .frame(height: 36)
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -195,38 +214,21 @@ struct FormattingPanelView: View {
     private func highlightButton(index: Int) -> some View {
         let isActive = state.activeHighlightIndex == index
         Button {
-            state.onCommand?(.highlight(index: isActive ? nil : index))
+            let newIndex = isActive ? nil : index
+            DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
-            highlightColors[index]
-                .frame(maxWidth: .infinity)
-                .frame(height: 32)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(highlightColors[index])
+                .frame(width: 44, height: 36)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(isActive ? Color.accentColor : Color.clear, lineWidth: 2)
                 )
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - List button
-
-    @ViewBuilder
-    private func listButton(icon: String, command: NoteTextCommand) -> some View {
-        let isActive = listIsActive(command: command)
-        Button {
-            state.onCommand?(command)
-        } label: {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .frame(maxWidth: .infinity)
-                .frame(height: 40)
-                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
-                .background(isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-    }
+    // MARK: - Helpers
 
     private func listIsActive(command: NoteTextCommand) -> Bool {
         switch command {

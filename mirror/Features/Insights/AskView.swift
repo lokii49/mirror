@@ -305,7 +305,7 @@ struct AskView: View {
         } catch InsightError.subscriptionRequired {
             error = "Core subscription required."
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Something went wrong. Try your question again."
         }
 
         isLoading = false

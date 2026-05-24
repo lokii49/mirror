@@ -13,6 +13,16 @@ struct CalendarHeatmap: View {
     private var cal: Calendar { Calendar.current }
     private var today: Date { cal.startOfDay(for: Date()) }
 
+    // MARK: - Cache
+
+    private struct DayCacheEntry {
+        let count: Int
+        let mood: String?
+    }
+
+    @State private var dayCache: [Date: DayCacheEntry] = [:]
+    @State private var cachedStreak: Int = 0
+
     // MARK: - Data model
 
     private struct WeekColumn: Identifiable {
@@ -49,43 +59,15 @@ struct CalendarHeatmap: View {
         return result
     }
 
-    private var entriesByDay: [Date: [Entry]] {
-        var dict: [Date: [Entry]] = [:]
-        for e in entries {
-            let day = cal.startOfDay(for: e.createdAt)
-            dict[day, default: []].append(e)
-        }
-        return dict
-    }
-
-    // MARK: - Stats
-
-    private var streakCount: Int {
-        let days = Set(entries.map { cal.startOfDay(for: $0.createdAt) })
-        var day = today
-        if !days.contains(day) {
-            guard let yesterday = cal.date(byAdding: .day, value: -1, to: today),
-                  days.contains(yesterday) else { return 0 }
-            day = yesterday
-        }
-        var count = 0
-        while days.contains(day) {
-            count += 1
-            guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
-            day = prev
-        }
-        return count
-    }
+    // MARK: - Stats (cached — rebuilt only when entry count changes, not per-frame)
 
     // MARK: - Cell color
 
     private func color(for date: Date?) -> Color {
         guard let date else { return Color(.systemFill).opacity(0.4) }
-        let dayEntries = entriesByDay[date] ?? []
-        guard !dayEntries.isEmpty else { return Color(.systemFill) }
-
-        let count = dayEntries.count
-        if let mood = representativeMood(for: dayEntries) {
+        guard let cached = dayCache[date] else { return Color(.systemFill) }
+        let count = cached.count
+        if let mood = cached.mood {
             let base = MirrorTheme.moodColor(for: mood)
             return count >= 3 ? base : base.opacity(0.35 + Double(count) * 0.25)
         }
@@ -121,6 +103,7 @@ struct CalendarHeatmap: View {
             summaryRow
 
             ScrollViewReader { proxy in
+
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 0) {
                         dayLabels
@@ -140,7 +123,36 @@ struct CalendarHeatmap: View {
                     }
                 }
             }
+        }
+        .task(id: entries.map(\.encryptedMood).hashValue) {
+            var dict: [Date: [Entry]] = [:]
+            for e in entries {
+                let day = cal.startOfDay(for: e.createdAt)
+                dict[day, default: []].append(e)
+            }
+            var newCache: [Date: DayCacheEntry] = [:]
+            for (day, dayEntries) in dict {
+                newCache[day] = DayCacheEntry(count: dayEntries.count, mood: representativeMood(for: dayEntries))
+            }
+            dayCache = newCache
 
+            let days = Set(dict.keys)
+            var day = today
+            if !days.contains(day) {
+                guard let yesterday = cal.date(byAdding: .day, value: -1, to: today),
+                      days.contains(yesterday) else {
+                    cachedStreak = 0
+                    return
+                }
+                day = yesterday
+            }
+            var streak = 0
+            while days.contains(day) {
+                streak += 1
+                guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
+                day = prev
+            }
+            cachedStreak = streak
         }
     }
 
@@ -155,9 +167,9 @@ struct CalendarHeatmap: View {
                 color: MirrorTheme.primary
             )
             Spacer()
-            if streakCount > 0 {
+            if cachedStreak > 0 {
                 statChip(
-                    value: "\(streakCount)",
+                    value: "\(cachedStreak)",
                     label: "day streak",
                     icon: "flame.fill",
                     color: .orange

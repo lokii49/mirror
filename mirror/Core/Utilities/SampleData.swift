@@ -93,6 +93,135 @@ enum SampleData {
         }
     }
 
+    // MARK: - Year Long Mixed (365 entries: typed + voice)
+
+    static func seedYearLongMixed(into context: ModelContext) {
+        let calendar = Calendar.current
+        let now = Date()
+
+        struct Theme {
+            let mood: String
+            let typed: String
+            let voice: String
+        }
+
+        let themes: [Theme] = [
+            Theme(
+                mood: "Calm",
+                typed: "A quieter day than expected. I kept the work simple, answered the things that needed answering, and let a few non-urgent items stay non-urgent. The best part was noticing that nothing fell apart when I moved at a normal pace.",
+                voice: "quiet check-in today. kept things simple and did not chase every loose thread. that helped more than I expected."
+            ),
+            Theme(
+                mood: "Energized",
+                typed: "Had real momentum today. Started with the task I had been avoiding and that changed the tone of the whole morning. By the afternoon I was still busy, but it felt directed instead of scattered.",
+                voice: "good momentum today. I started with the hard thing first and the rest of the day felt cleaner because of it."
+            ),
+            Theme(
+                mood: "Anxious",
+                typed: "There was a low hum of worry most of the day. Nothing dramatic happened, but I kept trying to solve three future problems at once. Writing this down because naming the feeling usually makes it less slippery.",
+                voice: "anxious day. nothing specific exploded, but my brain kept rehearsing problems that are not actually here yet."
+            ),
+            Theme(
+                mood: "Grateful",
+                typed: "Small good things carried the day: a message from a friend, a meal that turned out better than expected, and a moment where I caught myself smiling before I had a reason to explain it.",
+                voice: "grateful for small things today. a kind message, decent food, and a little bit of space in the evening."
+            ),
+            Theme(
+                mood: "Drained",
+                typed: "I got through the essentials, but everything took more effort than it should have. The day was not a disaster, just heavy. I need to treat sleep like a real commitment tonight.",
+                voice: "tired today. not a crisis, just heavy. I did the necessary things and now I need to stop."
+            ),
+            Theme(
+                mood: "Peaceful",
+                typed: "Made room for a walk and it changed the texture of the day. I came back with the same responsibilities, but they felt less tangled. It is annoying how often the obvious thing works.",
+                voice: "walked for a while and felt my shoulders drop. same problems afterward, but they felt easier to hold."
+            ),
+            Theme(
+                mood: "Frustrated",
+                typed: "A lot of little blockers stacked up today. I handled most of them, but not with as much patience as I would have liked. I am trying to separate being right from being useful.",
+                voice: "frustrating day. too many small blockers, and I was sharper than I wanted to be. noting it and moving on."
+            ),
+            Theme(
+                mood: "Hopeful",
+                typed: "Something about today felt like a small turn in the right direction. No dramatic breakthrough, just a clearer next step and enough energy to take it. That counts.",
+                voice: "feeling hopeful. not because everything is fixed, but because the next step is clearer than it was yesterday."
+            ),
+            Theme(
+                mood: "Joyful",
+                typed: "There was an easy laugh today that stayed with me longer than I expected. I forget how much lighter everything feels when I am not only measuring the day by what got finished.",
+                voice: "good day. laughed properly, got outside, and felt like I was actually in my life instead of managing it."
+            ),
+            Theme(
+                mood: "Sad",
+                typed: "A tender day. I missed people, and a few ordinary things reminded me of distance more than I wanted them to. I let myself feel it instead of turning it into a productivity problem.",
+                voice: "sad today. missing people and feeling the distance. nothing to solve tonight, just letting it be true."
+            ),
+            Theme(
+                mood: "Overwhelmed",
+                typed: "Too many inputs today. Messages, decisions, errands, context switching. I eventually made a tiny list and followed only that. It did not fix everything, but it gave the day edges.",
+                voice: "overwhelmed most of the day. made a tiny list and followed it. that was enough structure to get through."
+            ),
+            Theme(
+                mood: "Numb",
+                typed: "Everything felt muted today. I was present enough to do what needed doing, but not much more. I am not going to force a big interpretation out of it. Some days are low volume.",
+                voice: "kind of numb today. not terrible, just muted. I did what needed doing and I am leaving it there."
+            ),
+        ]
+
+        let anchors = [
+            "work", "family", "health", "friendship", "money", "home", "creative energy",
+            "rest", "exercise", "focus", "travel plans", "therapy", "cooking", "reading"
+        ]
+        let closingNotes = [
+            "I want to remember that this was a real day, not just a bridge to the next one.",
+            "The pattern is easier to see when I write it down instead of carrying it around.",
+            "Tomorrow does not need a perfect plan; it needs one honest next step.",
+            "I am trying to notice the signal without turning every feeling into a verdict.",
+            "There is more room here than I thought when the day started.",
+            "This is enough of a record for tonight."
+        ]
+
+        for offset in stride(from: 364, through: 0, by: -1) {
+            guard let baseDate = calendar.date(byAdding: .day, value: -offset, to: now) else { continue }
+            let dayIndex = 364 - offset
+            let theme = themes[dayIndex % themes.count]
+            let anchor = anchors[(dayIndex / 3 + offset) % anchors.count]
+            let closing = closingNotes[(dayIndex / 5 + offset) % closingNotes.count]
+            let isVoice = dayIndex % 4 == 1 || dayIndex % 11 == 0
+            let hour = 7 + (dayIndex * 5) % 15
+            let minute = (dayIndex * 13) % 60
+            let createdAt = calendar.date(
+                bySettingHour: hour,
+                minute: minute,
+                second: 0,
+                of: baseDate
+            ) ?? baseDate
+
+            if isVoice {
+                let transcript = "\(theme.voice) today mostly circled around \(anchor). \(closing)"
+                let entry = Entry(text: "", mood: theme.mood, source: .voice)
+                entry.createdAt = createdAt
+                entry.weekIdentifier = DateHelpers.weekIdentifier(for: createdAt)
+                let wc = transcript.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+                let (audio, dur) = syntheticVoiceAudio(words: wc)
+                entry.voiceNoteData = audio
+                entry.voiceNoteDuration = dur
+                entry.voiceNoteTranscript = transcript
+                context.insert(entry)
+            } else {
+                let text = """
+                    \(theme.typed)
+
+                    The thread running through it was \(anchor). \(closing)
+                    """
+                let entry = Entry(text: text.trimmingCharacters(in: .whitespacesAndNewlines), mood: theme.mood, source: .typed)
+                entry.createdAt = createdAt
+                entry.weekIdentifier = DateHelpers.weekIdentifier(for: createdAt)
+                context.insert(entry)
+            }
+        }
+    }
+
     // MARK: - Voice Only (22 entries)
 
     static func seedVoiceOnly(into context: ModelContext) {

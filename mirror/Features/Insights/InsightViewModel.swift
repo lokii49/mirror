@@ -72,7 +72,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            nudgeState = .error("AI model not installed. Add the Gemma model to the app bundle in Xcode.")
+            nudgeState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
             return
         }
 
@@ -109,7 +109,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            digestState = .error("AI model not installed.")
+            digestState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
             return
         }
 
@@ -128,7 +128,7 @@ final class InsightViewModel {
             digestState = .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
-            digestState = .error(error.localizedDescription)
+            digestState = .error(friendlyLLMError(error))
         }
     }
 
@@ -168,7 +168,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            monthlyReportState = .error("AI model not installed.")
+            monthlyReportState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
             return
         }
 
@@ -189,7 +189,20 @@ final class InsightViewModel {
             monthlyReportState = .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {
-            monthlyReportState = .error(error.localizedDescription)
+            monthlyReportState = .error(friendlyLLMError(error))
         }
+    }
+}
+
+private func friendlyLLMError(_ error: Error) -> String {
+    switch error {
+    case InsightError.incompleteResponse:
+        return "Mirror couldn't finish the reflection. Tap retry — it usually works on the next try."
+    case InsightError.emptyResponse:
+        return "Mirror didn't get a response. Tap retry in a moment."
+    case InsightError.serviceUnavailable:
+        return "Something went wrong. Mirror will try again tonight while your phone charges."
+    default:
+        return "Something went wrong. Tap retry or come back in a moment."
     }
 }
