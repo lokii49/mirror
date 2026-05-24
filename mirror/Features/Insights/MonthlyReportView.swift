@@ -87,7 +87,16 @@ struct MonthlyReportView: View {
         case .pendingNightlyGeneration:
             nightlyPendingCard
         case .error(let message):
-            errorCard(message: message)
+            errorCard(message: message) {
+                Task {
+                    await viewModel.loadMonthlyReport(
+                        entries: entries,
+                        insights: insights,
+                        context: modelContext,
+                        forceRegenerate: true
+                    )
+                }
+            }
         }
     }
 
@@ -198,7 +207,7 @@ struct MonthlyReportView: View {
         )
     }
 
-    private func errorCard(message: String) -> some View {
+    private func errorCard(message: String, onRetry: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Couldn't generate report", systemImage: "exclamationmark.triangle")
                 .font(.system(size: 15, weight: .semibold))
@@ -209,6 +218,12 @@ struct MonthlyReportView: View {
             Text("Mirror will retry automatically tonight while your phone charges.")
                 .font(.system(size: 13))
                 .foregroundStyle(.tertiary)
+            Button(action: onRetry) {
+                Label("Try Again", systemImage: "arrow.clockwise")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.purple)
+            }
+            .buttonStyle(.plain)
         }
         .padding(20)
         .futureSurface(cornerRadius: 22)
