@@ -113,6 +113,11 @@ No explanation. No punctuation. One word only.
 """
 
 enum InsightService {
+    private static let dailyNudgePromptBudget = 4_600
+    private static let weeklyDigestPromptBudget = 4_800
+    private static let monthlyReportPromptBudget = 6_200
+    private static let askPromptBudget = 5_700
+
     static func generateNudge(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         return try await localGenerate(
@@ -121,7 +126,7 @@ enum InsightService {
                 title: "Daily reflection context",
                 recentEntries: Array(sorted.prefix(7)),
                 backgroundEntries: Array(sorted.dropFirst(7).prefix(16)),
-                maxChars: 5600
+                maxChars: dailyNudgePromptBudget
             ),
             task: .dailyNudge
         )
@@ -135,7 +140,7 @@ enum InsightService {
                 title: "Weekly digest context",
                 recentEntries: Array(sorted.prefix(10)),
                 backgroundEntries: Array(sorted.dropFirst(10).prefix(14)),
-                maxChars: 5600
+                maxChars: weeklyDigestPromptBudget
             ),
             task: .weeklyDigest
         ).cleanedDigestOutput()
@@ -183,6 +188,10 @@ enum InsightService {
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
                 let second = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: retryMessage, task: task)
+                return try validate(second, for: task)
+            } catch LocalLLMError.contextExhausted {
+                await LocalLLMService.shared.resetContext()
+                let second = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: userMessage, task: task)
                 return try validate(second, for: task)
             }
         } catch let error as InsightError {
@@ -443,11 +452,11 @@ enum InsightService {
             .sorted { $0.createdAt > $1.createdAt }
             .prefix(20))
 
-        let recentBlock = formatEntries(sortedMonth, maxChars: 3200)
-        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 700)
+        let recentBlock = formatEntries(sortedMonth, maxChars: 3_600)
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 600)
 
         let today = Date().formatted(date: .abbreviated, time: .omitted)
-        return """
+        let message = """
         Monthly deep report context
 
         Today: \(today)
@@ -460,6 +469,7 @@ enum InsightService {
         This month's entries (newest first):
         \(recentBlock)
         """
+        return clipped(message, maxChars: monthlyReportPromptBudget)
     }
 
     private static func buildUserMessage(
@@ -486,9 +496,9 @@ enum InsightService {
     }
 
     private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {
-        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 1800)
-        let entryBlock = formatEntries(entries, maxChars: 6500)
-        return """
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 1_300)
+        let entryBlock = formatEntries(entries, maxChars: 3_800)
+        let message = """
         Long-term context:
         \(backgroundBlock)
 
@@ -497,6 +507,7 @@ enum InsightService {
 
         Question: \(question)
         """
+        return clipped(message, maxChars: askPromptBudget)
     }
 
     private static func formatEntries(_ entries: [Entry], maxChars: Int) -> String {
