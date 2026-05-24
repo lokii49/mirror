@@ -99,6 +99,18 @@ struct OnboardingFlow: View {
                     .font(.system(size: 17, weight: .regular))
                     .foregroundStyle(.secondary)
                     .lineSpacing(4)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Your writing never leaves this device")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(MirrorTheme.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(MirrorTheme.primary.opacity(0.10), in: Capsule())
+                .padding(.top, 4)
             }
             Spacer()
             Spacer()
@@ -150,12 +162,27 @@ struct OnboardingFlow: View {
         .padding(.horizontal, 24)
     }
 
+    private var writePrompt: String {
+        switch selectedReason {
+        case "Understand myself better":
+            return "What's something you've been trying to figure out about yourself lately?"
+        case "Process stress and emotions":
+            return "What's weighing on you most right now? Even a few words helps."
+        case "Track goals and habits":
+            return "What are you working toward? Where are you at with it today?"
+        case "Build a reflection practice":
+            return "What happened today that's worth remembering?"
+        default:
+            return "What's on your mind right now?"
+        }
+    }
+
     private var writeStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Write your first entry")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text("Anything on your mind — a sentence is enough.")
+                Text("A sentence is enough. Mirror learns from everything you write.")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
             }
@@ -170,7 +197,7 @@ struct OnboardingFlow: View {
                     }
 
                 if firstEntryText.isEmpty {
-                    Text("What's on your mind right now?")
+                    Text(writePrompt)
                         .foregroundStyle(.tertiary)
                         .font(.system(size: 16))
                         .padding(.horizontal, 18)
@@ -351,6 +378,17 @@ struct OnboardingFlow: View {
     }
 
     private func completeOnboarding() {
+        // Save preferred nudge time based on user selection
+        let nudgeHour: Int
+        switch selectedTime {
+        case "Morning":   nudgeHour = 8
+        case "Afternoon": nudgeHour = 13
+        case "Evening":   nudgeHour = 20
+        default:          nudgeHour = 20  // "Whenever" → evening default
+        }
+        UserDefaults.standard.set(nudgeHour, forKey: "nudgeHour")
+        UserDefaults.standard.set(0, forKey: "nudgeMinute")
+
         // Save first entry if written
         let text = firstEntryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty {

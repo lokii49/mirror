@@ -30,6 +30,7 @@ enum EntrySource: String, Codable {
     var encryptedAdditionalVoiceNoteEnglishTranslationsStorage: Data? = nil
     var weekIdentifier: String = ""
     var voiceNoteTranscriptionFailed: Bool = false
+    var encryptedTagsStorage: Data? = nil
 
     var text: String {
         get { decryptedText ?? "" }
@@ -170,8 +171,15 @@ enum EntrySource: String, Codable {
         return notes
     }
 
+    var tags: [String] {
+        get { Self.decodedStringArray(from: encryptedTagsStorage).map { MirrorEncryption.decryptString($0) } }
+        set { encryptedTagsStorage = Self.encoded(newValue.map { MirrorEncryption.encryptString($0) }) }
+    }
+
     var voiceNoteCount: Int {
-        (encryptedVoiceNoteData == nil ? 0 : 1) + Self.decodedDataArray(from: encryptedAdditionalVoiceNoteDataStorage).count
+        let primary = encryptedVoiceNoteData == nil ? 0 : 1
+        guard encryptedAdditionalVoiceNoteDataStorage != nil else { return primary }
+        return primary + Self.decodedDataArray(from: encryptedAdditionalVoiceNoteDataStorage).count
     }
 
     var hasVoiceNotes: Bool {
@@ -179,6 +187,9 @@ enum EntrySource: String, Codable {
     }
 
     var voiceNotePreview: (count: Int, duration: Double, transcript: String?) {
+        guard encryptedVoiceNoteData != nil || encryptedAdditionalVoiceNoteDataStorage != nil else {
+            return (0, 0, nil)
+        }
         let additionalCount = Self.decodedDataArray(from: encryptedAdditionalVoiceNoteDataStorage).count
         let count = (encryptedVoiceNoteData == nil ? 0 : 1) + additionalCount
         let fallbackDuration = encryptedVoiceNoteData == nil
@@ -228,6 +239,7 @@ enum EntrySource: String, Codable {
         self.encryptedAdditionalVoiceNoteEnglishTranslationsStorage = nil
         self.weekIdentifier = DateHelpers.weekIdentifier(for: Date())
         self.voiceNoteTranscriptionFailed = false
+        self.encryptedTagsStorage = nil
     }
 
     private static func encoded<T: Encodable>(_ value: T) -> Data? {

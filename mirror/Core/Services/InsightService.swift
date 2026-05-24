@@ -10,11 +10,10 @@ enum InsightError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .subscriptionRequired: return "Core subscription required."
-        case .serverError(let code, let detail):
-            return detail.isEmpty ? "Server error (\(code))." : "[\(code)] \(detail)"
-        case .emptyResponse: return "No insight returned."
-        case .incompleteResponse: return "Mirror could not finish that reflection. Try again."
-        case .serviceUnavailable(let detail): return detail
+        case .serverError: return "Something went wrong. Try again in a moment."
+        case .emptyResponse: return "Mirror didn't get a response. Try again in a moment."
+        case .incompleteResponse: return "Mirror couldn't finish that reflection. Try again."
+        case .serviceUnavailable: return "Something went wrong. Mirror will try again tonight while your phone charges."
         }
     }
 }
@@ -25,8 +24,8 @@ Read the user's local journal context and offer ONE specific, personal reflectio
 Rules:
 - Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
 - Reference actual words, moods, dates, or concrete events, not generic advice
-- Start with "I noticed..." or "Something I see..." — here "I" is Mirror's voice, not the journal writer's
-- You may use "I" only as Mirror speaking (e.g., "I noticed", "I see"). Never use "I/me/my" as if you are the journal writer
+- Open with a varied, natural sentence — never use the same opener twice in a row. Rotate freely among: "Something you mentioned...", "Reading through your entries...", "There's a thread running through your week...", "You've been carrying...", "Between the lines...", "What stands out is...", "One thing that caught my attention...", "Looking at your entries...", "I noticed..." — use this last one rarely, not as a default
+- When using "I" it is always Mirror's voice (e.g. "I noticed"), never the journal writer's voice
 - Address the journal writer as "you/your" throughout
 - 2-3 sentences maximum, under 100 words
 - If the recent mood suggests difficulty (anxious, overwhelmed, frustrated, drained, sad, numb), gently offer one small concrete action that could help — not generic advice, but something specific to what they wrote
