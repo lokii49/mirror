@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 import CloudKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
@@ -28,6 +29,9 @@ struct SettingsView: View {
     @State private var iCloudStatus: String = "Checking..."
     @State private var showDeleteConfirmation = false
     @State private var showHowItWorks = false
+    @State private var showImportPicker = false
+    @State private var importResultMessage: String?
+    @State private var showImportResult = false
 
     var nudgeTime: Date {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
@@ -62,6 +66,29 @@ struct SettingsView: View {
                 Text(error?.localizedDescription ?? "")
             }
             .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
+            .fileImporter(
+                isPresented: $showImportPicker,
+                allowedContentTypes: [.plainText],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    let count = importEntries(from: url)
+                    importResultMessage = count > 0
+                        ? "Imported \(count) entr\(count == 1 ? "y" : "ies")."
+                        : "No entries found in file."
+                    showImportResult = true
+                case .failure:
+                    importResultMessage = "Could not read file."
+                    showImportResult = true
+                }
+            }
+            .alert("Import", isPresented: $showImportResult) {
+                Button("OK") { importResultMessage = nil }
+            } message: {
+                Text(importResultMessage ?? "")
+            }
             .task {
                 await subscriptionService.refresh()
                 await subscriptionService.loadProducts()
@@ -348,6 +375,17 @@ struct SettingsView: View {
 
             Divider().padding(.leading, 48)
 
+            Button { showImportPicker = true } label: {
+                HStack {
+                    settingsRowLabel("Import entries", systemImage: "square.and.arrow.down", iconColor: .blue)
+                    Spacer()
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
             HStack {
                 settingsRowLabel("iCloud sync", systemImage: "icloud.fill", iconColor: .blue)
                 Spacer()
@@ -544,6 +582,18 @@ struct SettingsView: View {
             Divider().padding(.leading, 48)
 
             Button(role: .destructive) {
+                SampleData.clearSampleEntries(from: modelContext)
+            } label: {
+                HStack {
+                    settingsRowLabel("Clear Sample Entries Only", systemImage: "doc.badge.minus", iconColor: .red)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button(role: .destructive) {
                 SampleData.clearInsights(from: modelContext)
             } label: {
                 HStack {
@@ -580,8 +630,13 @@ struct SettingsView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
         formatter.timeStyle = .short
-        return entries.map { "[\(formatter.string(from: $0.createdAt))]\n\($0.text)" }
-            .joined(separator: "\n\n---\n\n")
+        return entries.map { entry in
+            var block = "[\(formatter.string(from: entry.createdAt))]"
+            if let mood = entry.mood { block += "\n[Mood: \(mood)]" }
+            block += "\n\(entry.text)"
+            return block
+        }
+        .joined(separator: "\n\n---\n\n")
     }
 
     private func deleteAllData() {
@@ -695,6 +750,81 @@ struct SettingsView: View {
         let version = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String
         return build.map { "\(version) (\($0))" } ?? version
+    }
+
+    // MARK: - Import
+
+    @discardableResult
+    private func importEntries(from url: URL) -> Int {
+        guard url.startAccessingSecurityScopedResource() else { return 0 }
+        defer { url.stopAccessingSecurityScopedResource() }
+        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+
+        let separator = "\n\n---\n\n"
+        var count = 0
+
+        if raw.contains(separator) {
+            // Mirror export format: split by separator, parse each block
+            let blocks = raw.components(separatedBy: separator)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            for block in blocks {
+                if insertEntry(fromBlock: block) { count += 1 }
+            }
+        } else {
+            // Plain text — whole file becomes one entry dated today
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                let entry = Entry(text: trimmed, source: .typed)
+                modelContext.insert(entry)
+                count = 1
+            }
+        }
+
+        try? modelContext.save()
+        return count
+    }
+
+    /// Returns `true` if an entry was successfully inserted.
+    private func insertEntry(fromBlock block: String) -> Bool {
+        var lines = block.components(separatedBy: "\n")
+        var date = Date()
+        var mood: String? = nil
+
+        // Parse date header: "[May 27, 2026 at 6:07 PM]"
+        if let header = lines.first, header.hasPrefix("["), header.hasSuffix("]") {
+            let inner = String(header.dropFirst().dropLast())
+            if !inner.hasPrefix("Mood:") {
+                date = parseMirrorDate(inner) ?? Date()
+                lines.removeFirst()
+            }
+        }
+
+        // Parse optional mood line: "[Mood: Hopeful]"
+        if let moodLine = lines.first,
+           moodLine.hasPrefix("[Mood: "), moodLine.hasSuffix("]") {
+            let moodStr = String(moodLine.dropFirst("[Mood: ".count).dropLast())
+            if MirrorTheme.moodOptions.contains(moodStr) {
+                mood = moodStr
+                lines.removeFirst()
+            }
+        }
+
+        let text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return false }
+        let entry = Entry(text: text, mood: mood, source: .typed)
+        entry.createdAt = date
+        entry.weekIdentifier = DateHelpers.weekIdentifier(for: date)
+        modelContext.insert(entry)
+        return true
+    }
+
+    private func parseMirrorDate(_ string: String) -> Date? {
+        // Use the same style as exportedText — locale-matched round-trip
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .short
+        return formatter.date(from: string)
     }
 }
 

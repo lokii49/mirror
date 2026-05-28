@@ -167,7 +167,7 @@ struct MoodTimelineView: View {
             if subscriptionService.isDeep {
                 mainContent
             } else {
-                deepLockedState
+                blurredDeepPreview
             }
         }
         .background(MirrorTheme.bgBase)
@@ -553,43 +553,203 @@ struct MoodTimelineView: View {
         .futureSurface(cornerRadius: 22)
     }
 
-    private var deepLockedState: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.purple.opacity(0.10))
-                    .frame(width: 88, height: 88)
-                Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.purple)
+    // MARK: - Blurred preview (free users)
+
+    // Fake data matching the screenshot: Hopeful ×2, Anxious ×2, avg 3.0, 3d streak
+    private var previewPoints: [MoodPoint] {
+        let cal = Calendar.current
+        let today = Date()
+        func d(_ offset: Int) -> Date { cal.date(byAdding: .day, value: offset, to: today) ?? today }
+        return [
+            MoodPoint(id: UUID(), date: d(-4), mood: "Hopeful",  score: 4),
+            MoodPoint(id: UUID(), date: d(-3), mood: "Anxious",  score: 2),
+            MoodPoint(id: UUID(), date: d(-2), mood: "Hopeful",  score: 4),
+            MoodPoint(id: UUID(), date: d(-1), mood: "Anxious",  score: 2),
+        ]
+    }
+
+    private var blurredDeepPreview: some View {
+        ZStack {
+            // Blurred mock content behind the overlay
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    previewRangeSelector
+                    previewStatsRow
+                    previewMoodScaleRow
+                    previewMoodChartCard
+                    previewMoodDistributionCard
+                }
+                .padding(16)
+                .padding(.bottom, 24)
             }
-            VStack(spacing: 8) {
-                Text("Mood Timeline")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                Text("Full mood analytics, trend charts,\nand low-mood alerts are part of Deep.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            .blur(radius: 8)
+            .allowsHitTesting(false)
+
+            // Lock overlay card
+            VStack(spacing: 20) {
+                ZStack {
+                    Circle()
+                        .fill(Color.purple.opacity(0.18))
+                        .frame(width: 72, height: 72)
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(.purple)
+                }
+                VStack(spacing: 8) {
+                    Text("Mood Timeline")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text("Trend charts, analytics, and low-mood\nalerts are part of Deep.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                Button { showPaywall = true } label: {
+                    Text("Unlock with Deep")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing),
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
+                .shadow(color: Color.purple.opacity(0.28), radius: 16, x: 0, y: 6)
             }
-            Button {
-                showPaywall = true
-            } label: {
-                Text("Upgrade to Deep")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 14)
+            .padding(28)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(.horizontal, 28)
+            .shadow(color: .black.opacity(0.06), radius: 24, x: 0, y: 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Preview sub-views (static mock data, blurred)
+
+    private var previewRangeSelector: some View {
+        HStack(spacing: 0) {
+            ForEach(TimeRange.allCases, id: \.self) { range in
+                Text(range.rawValue)
+                    .font(.system(size: 14, weight: range == .thirtyDays ? .bold : .medium))
+                    .foregroundStyle(range == .thirtyDays ? MirrorTheme.primary : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                     .background(
-                        LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing),
-                        in: Capsule()
+                        range == .thirtyDays ? MirrorTheme.primary.opacity(0.08) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                     )
             }
-            .buttonStyle(.plain)
-            .shadow(color: Color.purple.opacity(0.28), radius: 16, x: 0, y: 6)
-            Spacer()
         }
-        .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(4)
+        .futureSurface(cornerRadius: 16)
+    }
+
+    private var previewStatsRow: some View {
+        HStack(spacing: 12) {
+            statPill(value: "4", label: "Moods logged", icon: "face.smiling", color: MirrorTheme.primary)
+            statPill(value: "3.0", valueSuffix: "/5", label: "Avg. score", icon: "chart.bar", color: .orange)
+            statPill(value: "3d", label: "Streak", icon: "flame.fill", color: .orange)
+        }
+    }
+
+    @ViewBuilder
+    private var previewMoodScaleRow: some View {
+        let fraction: CGFloat = 0.5
+        let barColor: Color = .orange
+        VStack(spacing: 5) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    LinearGradient(colors: [.red, .orange, .yellow, .green], startPoint: .leading, endPoint: .trailing)
+                        .opacity(0.35)
+                        .clipShape(Capsule())
+                    Circle()
+                        .fill(barColor)
+                        .frame(width: 11, height: 11)
+                        .shadow(color: barColor.opacity(0.5), radius: 3, x: 0, y: 1)
+                        .offset(x: max(0, min(geo.size.width - 11, geo.size.width * fraction - 5.5)))
+                }
+            }
+            .frame(height: 11)
+            HStack {
+                Text("1 · Low").font(.system(size: 10)).foregroundStyle(.secondary)
+                Spacer()
+                Text("Mixed, leaning neutral").font(.system(size: 11, weight: .semibold)).foregroundStyle(barColor)
+                Spacer()
+                Text("5 · High").font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var previewMoodChartCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Chart(previewPoints) { point in
+                AreaMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
+                    .foregroundStyle(LinearGradient(
+                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
+                        startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.catmullRom)
+                LineMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
+                    .foregroundStyle(MirrorTheme.primary.opacity(0.6))
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                PointMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
+                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                    .symbolSize(80)
+            }
+            .chartYScale(domain: 0...6)
+            .chartYAxis {
+                AxisMarks(values: [1, 3, 5]) { value in
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                                .font(.system(size: 10)).foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+            }
+            .chartXAxis { AxisMarks(format: .dateTime.month(.abbreviated).day()) }
+            .frame(height: 160)
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
+    }
+
+    @ViewBuilder
+    private var previewMoodDistributionCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Mood breakdown", systemImage: "chart.pie.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                ForEach(["Hopeful", "Anxious"], id: \.self) { mood in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(MirrorTheme.moodColor(for: mood))
+                            .frame(width: 10, height: 10)
+                        Text(mood)
+                            .font(.system(size: 14, weight: .medium))
+                        Spacer()
+                        Text("2×")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(MirrorTheme.moodColor(for: mood).opacity(0.3))
+                                .frame(width: geo.size.width * 0.5)
+                                .frame(maxHeight: .infinity)
+                        }
+                        .frame(width: 60, height: 6)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
     }
 }
