@@ -40,6 +40,15 @@ struct SettingsView: View {
         return Calendar.current.date(from: c) ?? Date()
     }
 
+    private var iCloudStatusColor: Color {
+        switch iCloudStatus {
+        case "Active":    return .green
+        case "No account": return .orange
+        case "Restricted", "Error": return .red
+        default:          return .secondary
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -107,16 +116,16 @@ struct SettingsView: View {
     // MARK: - Profile Card
 
     private var profileCard: some View {
-        HStack(spacing: 16) {
-            avatarView
-                .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                avatarView
+                    .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("MirrorNotes")
-                    .font(.system(size: 17, weight: .semibold))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MirrorNotes")
+                        .font(.system(size: 17, weight: .semibold))
+                        .lineLimit(1)
 
-                HStack(spacing: 6) {
                     if subscriptionService.isSubscribed {
                         let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
                         let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
@@ -127,19 +136,43 @@ struct SettingsView: View {
                             .padding(.vertical, 4)
                             .background(tierColor.opacity(0.12), in: Capsule())
                     } else {
-                        Text("Local only")
+                        Text("Free plan")
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                Spacer()
+
+                if subscriptionService.isSubscribed {
+                    let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(tierColor)
+                }
             }
 
-            Spacer()
+            if !subscriptionService.isSubscribed {
+                Divider()
+                    .padding(.top, 16)
+                    .padding(.bottom, 12)
 
-            if subscriptionService.isSubscribed {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 22))
+                Button { showSubscription = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Unlock daily reflections with Core")
+                            .font(.system(size: 14, weight: .semibold))
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                    }
                     .foregroundStyle(MirrorTheme.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(MirrorTheme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(20)
@@ -389,9 +422,14 @@ struct SettingsView: View {
             HStack {
                 settingsRowLabel("iCloud sync", systemImage: "icloud.fill", iconColor: .blue)
                 Spacer()
-                Text(iCloudStatus)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(iCloudStatusColor)
+                        .frame(width: 7, height: 7)
+                    Text(iCloudStatus)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Divider().padding(.leading, 48)

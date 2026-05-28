@@ -6,7 +6,7 @@ struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
-    var viewModel: InsightViewModel
+    let viewModel: InsightViewModel
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
