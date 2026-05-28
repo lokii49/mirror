@@ -63,10 +63,6 @@ struct NoteEditorTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.parent = self
 
-        let dbgFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-        let dbgPara = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
-        print("[updateUIView] ENTER cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgFont) para=\(dbgPara)")
-
         if context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text) {
             let selectedRange = textView.selectedRange
             context.coordinator.applyStyledText(to: textView, preservingSelection: false)
@@ -74,10 +70,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         } else {
             context.coordinator.applyStyledText(to: textView, preservingSelection: true)
         }
-
-        let dbgFont2 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-        let dbgPara2 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
-        print("[updateUIView] after-applyStyledText cursor=\(textView.selectedRange.location) font=\(dbgFont2) para=\(dbgPara2)")
 
         context.coordinator.updatePlaceholder(in: textView)
 
@@ -88,17 +80,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         if let command, context.coordinator.lastAppliedCommandRevision != commandRevision {
             context.coordinator.lastAppliedCommandRevision = commandRevision
             context.coordinator.apply(command, to: textView)
-            let dbgFont3 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-            let dbgPara3 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
-            print("[updateUIView] after-apply(cmd=\(command)) cursor=\(textView.selectedRange.location) font=\(dbgFont3) para=\(dbgPara3)")
             DispatchQueue.main.async {
                 self.command = nil
             }
         }
-
-        let dbgFont4 = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-        let dbgPara4 = (textView.typingAttributes[NSAttributedString.Key("mirror.paragraphStyle")] as? String) ?? "nil"
-        print("[updateUIView] EXIT cursor=\(textView.selectedRange.location) font=\(dbgFont4) para=\(dbgPara4)")
 
         context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
     }
@@ -250,9 +235,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            let dbgTDCFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-            let dbgTDCPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
-            print("[textViewDidChange] cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgTDCFont) para=\(dbgTDCPara)")
             guard !isApplyingStyledText else { return }
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
@@ -268,9 +250,6 @@ struct NoteEditorTextView: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText replacement: String
         ) -> Bool {
-            let dbgSCFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-            let dbgSCPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
-            print("[shouldChangeTextIn] range=\(range) replacement=\(replacement.debugDescription) cursor=\(textView.selectedRange.location) font=\(dbgSCFont) para=\(dbgSCPara)")
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
                 // Find which attachment char is being deleted
@@ -417,9 +396,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func apply(_ command: NoteTextCommand, to textView: UITextView) {
-            let dbgApplyFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-            let dbgApplyPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
-            print("[apply] ENTER cmd=\(command) cursor=\(textView.selectedRange.location) textLen=\(textView.text?.count ?? 0) font=\(dbgApplyFont) para=\(dbgApplyPara)")
             // Inline style commands
             switch command {
             case .bold, .italic, .underline, .strikethrough:
@@ -539,9 +515,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                 } else {
                     // Non-list style: typing attributes alone are sufficient; no re-render needed.
                     textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
-                    let dbgVEFont = (textView.typingAttributes[.font] as? UIFont)?.fontName ?? "nil"
-                    let dbgVEPara = (textView.typingAttributes[Self.paragraphStyleAttribute] as? String) ?? "nil"
-                    print("[apply] virtual-end non-list: set typingAttrs targetStyle=\(targetStyle) font=\(dbgVEFont) para=\(dbgVEPara)")
                 }
                 updatePlaceholder(in: textView)
                 parent.activeParagraphStyle = targetStyle
@@ -2227,25 +2200,29 @@ struct WriteView: View {
             }
 
             if showSaved {
-                Text("Saved")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                Label("Saved", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
                     .background(.bar, in: Capsule())
-                    .transition(.opacity.animation(.easeOut(duration: 0.3)))
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                    .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
             if isAttachingPhoto {
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text("Attaching photo")
+                        .tint(.secondary)
+                    Text("Attaching photo…")
                         .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 18)
                 .padding(.vertical, 10)
                 .background(.bar, in: Capsule())
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
@@ -2394,41 +2371,51 @@ struct WriteView: View {
     }
 
     private var dateHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             Button {
                 showDatePicker = true
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.secondary)
-                    Image(systemName: "pencil")
-                        .font(.system(size: 9, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.quaternary)
-                    if viewModel.wordCount > 0 {
-                        Text("·")
-                            .foregroundStyle(.quaternary)
-                        Text("\(viewModel.wordCount)w")
-                            .font(.system(size: 13, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                        if viewModel.wordCount >= 50 {
-                            Text("·")
-                                .foregroundStyle(.quaternary)
-                            Text("~\(max(1, viewModel.wordCount / 200))m")
-                                .font(.system(size: 13, weight: .regular, design: .monospaced))
-                                .foregroundStyle(.quaternary)
-                        }
-                    }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(.tertiarySystemFill), in: Capsule())
             }
             .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if viewModel.wordCount > 0 {
+                let goalMet = viewModel.wordCount >= dailyWordGoal
+                HStack(spacing: 4) {
+                    Text("\(viewModel.wordCount)w")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
+                    if goalMet {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else if viewModel.wordCount >= 50 {
+                        Text("/ \(dailyWordGoal)w")
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.quaternary)
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.wordCount)
+            }
+
+            Spacer(minLength: 0)
 
             moodMenu
         }
-            .padding(.horizontal, 22)
-            .padding(.top, 12)
-            .padding(.bottom, 4)
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     private var moodMenu: some View {
@@ -2734,16 +2721,6 @@ struct WriteView: View {
                         .frame(width: 38, height: 44)
                 }
                 .buttonStyle(.plain)
-
-                Spacer(minLength: 0)
-
-                // Word goal progress
-                if viewModel.wordCount > 0 {
-                    let goalMet = viewModel.wordCount >= dailyWordGoal
-                    Text(goalMet ? "\(viewModel.wordCount)w ✓" : "\(viewModel.wordCount)/\(dailyWordGoal)w")
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(goalMet ? Color.green : Color(.quaternaryLabel))
-                }
 
                 Spacer(minLength: 0)
 
