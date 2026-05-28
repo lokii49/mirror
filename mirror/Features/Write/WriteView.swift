@@ -2083,6 +2083,21 @@ struct WriteView: View {
     @State private var showSaved = false
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
+    @State private var pendingDelete = false
+    @State private var deleteUndoTask: Task<Void, Never>? = nil
+    @State private var deleteCountdown: Int = 10
+    @State private var undoTextSnapshot: String = ""
+    @State private var undoTextStyleSnapshot: Data? = nil
+    @State private var undoInlineStyleSnapshot: Data? = nil
+    @State private var undoPhotoSnapshot: [Data] = []
+    @State private var undoMoodSnapshot: String? = nil
+    @State private var undoTagsSnapshot: [String] = []
+    @State private var undoVoiceNoteData: Data? = nil
+    @State private var undoVoiceNoteDuration: TimeInterval = 0
+    @State private var undoVoiceNoteTranscript: String? = nil
+    @State private var undoAdditionalVoiceNoteData: [Data] = []
+    @State private var undoAdditionalVoiceNoteDurations: [TimeInterval] = []
+    @State private var undoAdditionalVoiceNoteTranscripts: [String] = []
     @State private var showVoiceInput = false
     @State private var showPhotoPicker = false
     @State private var showCameraPicker = false
@@ -2233,15 +2248,39 @@ struct WriteView: View {
                 .background(.bar, in: Capsule())
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
+
+            if pendingDelete {
+                HStack(spacing: 12) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text("Entry will be deleted")
+                        .font(.system(size: 14, weight: .medium))
+                    Spacer()
+                    Text("\(deleteCountdown)s")
+                        .font(.system(size: 13, weight: .medium).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText(countsDown: true))
+                        .animation(.easeInOut(duration: 0.3), value: deleteCountdown)
+                    Button("Undo") {
+                        cancelPendingDelete()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.bar, in: RoundedRectangle(cornerRadius: 14))
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .navigationBarBackButtonHidden(true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarItems; focusModeToolbarItem }
-        .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { deleteAndDismiss() }
-            Button("Cancel", role: .cancel) {}
-        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if (isKeyboardVisible || editorFocused) && !focusMode {
                 toolRow
@@ -2499,11 +2538,11 @@ struct WriteView: View {
         if entry != nil {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    showDeleteConfirm = true
+                    startDeleteWithUndo()
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(pendingDelete ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete entry")
@@ -2525,14 +2564,14 @@ struct WriteView: View {
         } else {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    discardDraft()
+                    startDeleteWithUndo()
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(hasDraftContent ? .secondary : .tertiary)
+                        .foregroundStyle(pendingDelete ? AnyShapeStyle(Color.accentColor) : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)))
                 }
                 .buttonStyle(.plain)
-                .disabled(!hasDraftContent)
+                .disabled(!hasDraftContent && !pendingDelete)
                 .accessibilityLabel("Discard draft")
             }
 
@@ -2680,9 +2719,18 @@ struct WriteView: View {
                 Button {
                     showFormattingPanel.toggle()
                 } label: {
+                    let inlineStyles = panelState.activeInlineStyles
+                    let paraStyle = panelState.activeParagraphStyle
+                    let hasActive = !inlineStyles.isEmpty || paraStyle != .body
+                    let aaSize: CGFloat = paraStyle == .title ? 19 : paraStyle == .heading ? 18 : 16
+                    let aaWeight: Font.Weight = (inlineStyles.bold || paraStyle == .heading || paraStyle == .title) ? .bold : (paraStyle == .subheading ? .semibold : .regular)
+                    let aaDesign: Font.Design = paraStyle == .monospaced ? .monospaced : .default
                     Text("Aa")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(showFormattingPanel ? Color.accentColor : Color.secondary)
+                        .font(.system(size: aaSize, weight: aaWeight, design: aaDesign))
+                        .italic(inlineStyles.italic)
+                        .strikethrough(inlineStyles.strikethrough)
+                        .underline(inlineStyles.underline)
+                        .foregroundStyle(showFormattingPanel ? Color.accentColor : hasActive ? Color.primary : Color.secondary)
                         .frame(width: 38, height: 44)
                 }
                 .buttonStyle(.plain)
@@ -3044,6 +3092,62 @@ struct WriteView: View {
         case .failure:
             photoAttachError = "This image could not be attached. Try a different image or export it as JPEG first."
         }
+    }
+
+    private func startDeleteWithUndo() {
+        // Snapshot all content before clearing
+        undoTextSnapshot = viewModel.text
+        undoTextStyleSnapshot = viewModel.textStyleData
+        undoInlineStyleSnapshot = inlineStyleData
+        undoPhotoSnapshot = photoDataArray
+        undoMoodSnapshot = viewModel.selectedMood
+        undoTagsSnapshot = entryTags
+        undoVoiceNoteData = voiceNoteData
+        undoVoiceNoteDuration = voiceNoteDuration
+        undoVoiceNoteTranscript = voiceNoteTranscript
+        undoAdditionalVoiceNoteData = additionalVoiceNoteData
+        undoAdditionalVoiceNoteDurations = additionalVoiceNoteDurations
+        undoAdditionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+
+        // Clear content immediately so the view looks empty
+        clearDraft()
+
+        deleteCountdown = 10
+        withAnimation(.easeInOut(duration: 0.25)) { pendingDelete = true }
+        let isExistingEntry = entry != nil
+        deleteUndoTask = Task { @MainActor in
+            for remaining in stride(from: 9, through: 0, by: -1) {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                deleteCountdown = remaining
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { pendingDelete = false }
+            if isExistingEntry {
+                deleteAndDismiss()
+            } else {
+                clearDraftStorage()
+            }
+        }
+    }
+
+    private func cancelPendingDelete() {
+        deleteUndoTask?.cancel()
+        deleteUndoTask = nil
+        withAnimation(.easeInOut(duration: 0.25)) { pendingDelete = false }
+        // Restore snapshotted content
+        viewModel.text = undoTextSnapshot
+        viewModel.textStyleData = undoTextStyleSnapshot
+        inlineStyleData = undoInlineStyleSnapshot
+        photoDataArray = undoPhotoSnapshot
+        viewModel.selectedMood = undoMoodSnapshot
+        entryTags = undoTagsSnapshot
+        voiceNoteData = undoVoiceNoteData
+        voiceNoteDuration = undoVoiceNoteDuration
+        voiceNoteTranscript = undoVoiceNoteTranscript
+        additionalVoiceNoteData = undoAdditionalVoiceNoteData
+        additionalVoiceNoteDurations = undoAdditionalVoiceNoteDurations
+        additionalVoiceNoteTranscripts = undoAdditionalVoiceNoteTranscripts
     }
 
     private func deleteAndDismiss() {
