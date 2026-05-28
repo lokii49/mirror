@@ -281,7 +281,7 @@ struct EntriesTabView: View {
                         }
                     }
                 )
-                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             }
@@ -306,12 +306,7 @@ struct EntriesTabView: View {
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             } else {
-                Text("\(snapshot.filteredEntries.count) \(snapshot.filteredEntries.count == 1 ? "entry" : "entries")")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                EmptyView()
             }
 
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
@@ -336,21 +331,27 @@ struct EntriesTabView: View {
                             }
                         }
                 } header: {
-                    Text(monthTitle(for: group.date))
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .textCase(.uppercase)
-                        .tracking(0.8)
-                        .padding(.horizontal, 4)
-                        .padding(.top, 0)
-                        .padding(.bottom, 2)
+                    HStack {
+                        Text(monthTitle(for: group.date))
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(0.8)
+                        Spacer()
+                        Text("\(group.entries.count) \(group.entries.count == 1 ? "entry" : "entries")")
+                            .font(.system(size: 12, weight: .semibold))
+                            .textCase(nil)
+                    }
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 0)
                 }
             }
         }
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .contentMargins(.bottom, 96, for: .scrollContent)
-        .listSectionSpacing(8)
+        .listSectionSpacing(4)
         .environment(\.defaultMinListHeaderHeight, 0)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
@@ -423,57 +424,89 @@ private struct EntryRow: View {
         hasReadablePreview && !decryptFailed ? .primary : .secondary
     }
 
+    private var moodColor: Color {
+        moodLabel.map { MirrorTheme.moodColor(for: $0) } ?? MirrorTheme.primary
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                Text(preview)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(previewTextColor)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if hasVoiceNotes {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                }
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(entry.createdAt, format: .dateTime.weekday(.wide).day())
-                    .font(.system(size: 13, weight: .medium))
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 6) {
+                Text(entry.createdAt, format: .dateTime.day())
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.secondary)
-                if displayWordCount > 0 {
-                    Text("\(displayWordCount)w")
+                    .textCase(.uppercase)
+            }
+            .frame(width: 42)
+            .padding(.vertical, 10)
+            .background(moodColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    Text(preview)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(previewTextColor)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 6) {
+                        if entry.hasPhoto {
+                            Image(systemName: "photo")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        if hasVoiceNotes {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(entry.createdAt, format: .dateTime.hour().minute())
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                Spacer(minLength: 8)
-                if let label = moodLabel {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(MirrorTheme.moodColor(for: label))
-                            .frame(width: 7, height: 7)
-                        Text(label)
-                            .font(.system(size: 12, weight: .medium))
+                    if displayWordCount > 0 {
+                        Text("\(displayWordCount)w")
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color(.tertiarySystemFill), in: Capsule())
+                    Spacer(minLength: 8)
+                    if let label = moodLabel {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(MirrorTheme.moodColor(for: label))
+                                .frame(width: 7, height: 7)
+                            Text(label)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(MirrorTheme.moodColor(for: label).opacity(0.10), in: Capsule())
+                    }
                 }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(moodColor.opacity(moodLabel == nil ? 0.12 : 0.32))
+                .frame(width: 3)
+                .padding(.vertical, 12)
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         }
     }
 
