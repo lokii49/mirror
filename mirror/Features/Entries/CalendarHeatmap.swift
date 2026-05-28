@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum HeatmapMode: String, CaseIterable {
+    case week = "Week"
+    case month = "Month"
+    case year = "Year"
+}
+
 struct CalendarHeatmap: View {
     let entries: [Entry]
     var selectedDate: Date?
@@ -13,6 +19,11 @@ struct CalendarHeatmap: View {
     private var cal: Calendar { Calendar.current }
     private var today: Date { cal.startOfDay(for: Date()) }
 
+    // MARK: - Mode & Navigation
+
+    @State private var mode: HeatmapMode = .year
+    @State private var viewDate: Date = Date()
+
     // MARK: - Cache
 
     private struct DayCacheEntry {
@@ -23,12 +34,24 @@ struct CalendarHeatmap: View {
     @State private var dayCache: [Date: DayCacheEntry] = [:]
     @State private var cachedStreak: Int = 0
 
-    // MARK: - Data model
+    // MARK: - Haptic
+
+    private func haptic() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    // MARK: - Data model (Year view)
 
     private struct WeekColumn: Identifiable {
         let id: Int
         let days: [Date?]
         let monthLabel: String?
+        let monthDate: Date?
+    }
+
+    private struct MonthWeek: Identifiable {
+        let id: Date
+        let days: [Date]
     }
 
     private var weeks: [WeekColumn] {
@@ -51,15 +74,37 @@ struct CalendarHeatmap: View {
             }
 
             let monthStr = sunday.formatted(.dateTime.month(.abbreviated))
-            let label: String? = (monthStr != lastMonthLabel) ? monthStr : nil
-            if label != nil { lastMonthLabel = monthStr }
+            let isNewMonth = monthStr != lastMonthLabel
+            if isNewMonth { lastMonthLabel = monthStr }
 
-            result.append(WeekColumn(id: i, days: days, monthLabel: label))
+            var monthDate: Date? = nil
+            if isNewMonth {
+                let comps = cal.dateComponents([.year, .month], from: sunday)
+                monthDate = cal.date(from: comps)
+            }
+
+            result.append(WeekColumn(id: i, days: days, monthLabel: isNewMonth ? monthStr : nil, monthDate: monthDate))
         }
         return result
     }
 
-    // MARK: - Stats (cached — rebuilt only when entry count changes, not per-frame)
+    // MARK: - Period entry counts (from cache, no re-filtering)
+
+    private var weekEntryCount: Int {
+        weekDays.reduce(0) { $0 + (dayCache[cal.startOfDay(for: $1)]?.count ?? 0) }
+    }
+
+    private var monthEntryCount: Int {
+        monthDays.reduce(0) { $0 + (dayCache[cal.startOfDay(for: $1)]?.count ?? 0) }
+    }
+
+    private func periodSubtitle(_ count: Int) -> String {
+        switch count {
+        case 0: return "no entries"
+        case 1: return "1 entry"
+        default: return "\(count) entries"
+        }
+    }
 
     // MARK: - Cell color
 
@@ -102,27 +147,17 @@ struct CalendarHeatmap: View {
         VStack(alignment: .leading, spacing: 10) {
             summaryRow
 
-            ScrollViewReader { proxy in
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 0) {
-                        dayLabels
-                        LazyHStack(alignment: .top, spacing: cellGap) {
-                            ForEach(weeks) { week in
-                                column(week)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 2)
-                    .padding(.bottom, 2)
-                }
-                .onAppear {
-                    if let last = weeks.last {
-                        proxy.scrollTo(last.id, anchor: .trailing)
-                    }
+            Group {
+                switch mode {
+                case .week:  weekView
+                case .month: monthView
+                case .year:  yearView
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: mode)
+        }
+        .onChange(of: selectedDate) { _, newDate in
+            if let newDate { viewDate = newDate }
         }
         .task(id: entries.map(\.encryptedMood).hashValue) {
             var dict: [Date: [Entry]] = [:]
@@ -167,7 +202,9 @@ struct CalendarHeatmap: View {
                 color: MirrorTheme.primary
             )
             Spacer()
+            modeMenu
             if cachedStreak > 0 {
+                Spacer().frame(width: 12)
                 statChip(
                     value: "\(cachedStreak)",
                     label: "day streak",
@@ -177,6 +214,34 @@ struct CalendarHeatmap: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+
+    private var modeMenu: some View {
+        Menu {
+            ForEach(HeatmapMode.allCases, id: \.self) { m in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { mode = m }
+                } label: {
+                    if mode == m {
+                        Label(m.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(m.rawValue)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(mode.rawValue)
+                    .font(.system(size: 12, weight: .semibold))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(Color(.tertiarySystemFill), in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func statChip(value: String, label: String, icon: String, color: Color) -> some View {
@@ -193,7 +258,340 @@ struct CalendarHeatmap: View {
         }
     }
 
-    // MARK: - Day-of-week labels
+    // MARK: - Shared nav header
+
+    private func navHeader(
+        title: String,
+        subtitle: String? = nil,
+        canGoBack: Bool,
+        canGoForward: Bool,
+        onBack: @escaping () -> Void,
+        onForward: @escaping () -> Void
+    ) -> some View {
+        HStack {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(canGoBack ? .secondary : Color(.systemFill))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canGoBack)
+
+            Spacer()
+
+            VStack(spacing: 1) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onForward) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(canGoForward ? .secondary : Color(.systemFill))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canGoForward)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Week View
+
+    private var weekDays: [Date] {
+        var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: viewDate)
+        comps.weekday = 1
+        guard let sunday = cal.date(from: comps) else { return [] }
+        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: sunday) }
+    }
+
+    private var canGoForwardWeek: Bool {
+        var todayComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+        todayComps.weekday = 1
+        var viewComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: viewDate)
+        viewComps.weekday = 1
+        guard let thisSunday = cal.date(from: todayComps),
+              let viewSunday = cal.date(from: viewComps) else { return false }
+        return viewSunday < thisSunday
+    }
+
+    private var weekRangeTitle: String {
+        let days = weekDays
+        guard let first = days.first, let last = days.last else { return "" }
+        let start = first.formatted(.dateTime.month(.abbreviated).day())
+        let end = last.formatted(.dateTime.month(.abbreviated).day().year())
+        return "\(start) – \(end)"
+    }
+
+    private var weekView: some View {
+        VStack(spacing: 10) {
+            navHeader(
+                title: weekRangeTitle,
+                subtitle: periodSubtitle(weekEntryCount),
+                canGoBack: true,
+                canGoForward: canGoForwardWeek,
+                onBack: { viewDate = cal.date(byAdding: .weekOfYear, value: -1, to: viewDate) ?? viewDate },
+                onForward: { viewDate = cal.date(byAdding: .weekOfYear, value: 1, to: viewDate) ?? viewDate }
+            )
+
+            HStack(spacing: 6) {
+                ForEach(weekDays, id: \.self) { day in
+                    weekDayCell(for: day)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        // Swipe left/right to change week
+        .gesture(
+            DragGesture(minimumDistance: 40, coordinateSpace: .local)
+                .onEnded { value in
+                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                    if value.translation.width < 0, canGoForwardWeek {
+                        viewDate = cal.date(byAdding: .weekOfYear, value: 1, to: viewDate) ?? viewDate
+                        haptic()
+                    } else if value.translation.width > 0 {
+                        viewDate = cal.date(byAdding: .weekOfYear, value: -1, to: viewDate) ?? viewDate
+                        haptic()
+                    }
+                }
+        )
+    }
+
+    private func weekDayCell(for date: Date) -> some View {
+        let startOfDay = cal.startOfDay(for: date)
+        let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
+        let isToday = cal.isDateInToday(date)
+        let isFuture = date > today
+        let isWeekend = cal.isDateInWeekend(date)
+        let count = dayCache[startOfDay]?.count ?? 0
+
+        return VStack(spacing: 4) {
+            Text(date.formatted(.dateTime.weekday(.narrow)))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(isFuture ? .quaternary : .tertiary)
+                .opacity(isWeekend ? 0.55 : 1)
+
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay))
+                .frame(height: 46)
+                .overlay {
+                    VStack(spacing: 2) {
+                        Text(date.formatted(.dateTime.day()))
+                            .font(.system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
+                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                        if count > 0 {
+                            Text("\(count)")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                    }
+                }
+                .overlay {
+                    if isToday || isSelected {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(
+                                isSelected ? MirrorTheme.primary : Color.primary.opacity(0.4),
+                                lineWidth: isSelected ? 1.5 : 1
+                            )
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !isFuture else { return }
+                    haptic()
+                    onDaySelected?(isSelected ? nil : startOfDay)
+                }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Month View (week-separated strip)
+
+    private var monthDays: [Date] {
+        let comps = cal.dateComponents([.year, .month], from: viewDate)
+        guard let firstOfMonth = cal.date(from: comps),
+              let range = cal.range(of: .day, in: .month, for: firstOfMonth) else { return [] }
+        return range.compactMap { cal.date(byAdding: .day, value: $0 - 1, to: firstOfMonth) }
+    }
+
+    private var monthWeeks: [MonthWeek] {
+        var weeks: [MonthWeek] = []
+        var currentWeek: [Date] = []
+
+        for day in monthDays {
+            let weekday = cal.component(.weekday, from: day)
+            if weekday == 1, !currentWeek.isEmpty {
+                weeks.append(MonthWeek(id: currentWeek[0], days: currentWeek))
+                currentWeek = []
+            }
+            currentWeek.append(day)
+        }
+
+        if !currentWeek.isEmpty {
+            weeks.append(MonthWeek(id: currentWeek[0], days: currentWeek))
+        }
+        return weeks
+    }
+
+    private var canGoForwardMonth: Bool {
+        let todayComps = cal.dateComponents([.year, .month], from: today)
+        let viewComps = cal.dateComponents([.year, .month], from: viewDate)
+        guard let todayMonth = cal.date(from: todayComps),
+              let viewMonth = cal.date(from: viewComps) else { return false }
+        return viewMonth < todayMonth
+    }
+
+    private var monthView: some View {
+        VStack(spacing: 10) {
+            navHeader(
+                title: viewDate.formatted(.dateTime.month(.wide).year()),
+                subtitle: periodSubtitle(monthEntryCount),
+                canGoBack: true,
+                canGoForward: canGoForwardMonth,
+                onBack: { viewDate = cal.date(byAdding: .month, value: -1, to: viewDate) ?? viewDate },
+                onForward: { viewDate = cal.date(byAdding: .month, value: 1, to: viewDate) ?? viewDate }
+            )
+
+            let weeks = monthWeeks
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(weeks) { week in
+                            HStack(spacing: 6) {
+                                ForEach(week.days, id: \.self) { day in
+                                    monthStripCell(for: day)
+                                        .id(day)
+                                }
+                            }
+
+                            if week.id != weeks.last?.id {
+                                weekSeparator(for: week)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 2)
+                }
+                .onAppear {
+                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
+                        proxy.scrollTo(todayInMonth, anchor: .center)
+                    }
+                }
+                .onChange(of: viewDate) { _, _ in
+                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
+                        proxy.scrollTo(todayInMonth, anchor: .center)
+                    } else if let first = monthDays.first {
+                        proxy.scrollTo(first, anchor: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    private func weekEntryCount(for week: MonthWeek) -> Int {
+        week.days.reduce(0) { total, day in
+            total + (dayCache[cal.startOfDay(for: day)]?.count ?? 0)
+        }
+    }
+
+    private func weekSeparator(for week: MonthWeek) -> some View {
+        let count = weekEntryCount(for: week)
+
+        return VStack(spacing: 4) {
+            Text("\(count)")
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(count > 0 ? .secondary : .tertiary)
+                .frame(minWidth: 14, minHeight: 12)
+                .padding(.horizontal, 3)
+                .background(Color(.tertiarySystemFill).opacity(count > 0 ? 1 : 0.55), in: Capsule())
+
+            Rectangle()
+                .fill(Color(.separator).opacity(0.35))
+                .frame(width: 1, height: 44)
+        }
+        .padding(.horizontal, 7)
+    }
+
+    private func monthStripCell(for date: Date) -> some View {
+        let startOfDay = cal.startOfDay(for: date)
+        let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
+        let isToday = cal.isDateInToday(date)
+        let isFuture = date > today
+        let isWeekend = cal.isDateInWeekend(date)
+        let count = dayCache[startOfDay]?.count ?? 0
+
+        return VStack(spacing: 4) {
+            Text(date.formatted(.dateTime.weekday(.narrow)))
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(isFuture ? .quaternary : .tertiary)
+                .opacity(isWeekend ? 0.55 : 1)
+
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay))
+                .frame(width: 36, height: 44)
+                .overlay {
+                    VStack(spacing: 2) {
+                        Text(date.formatted(.dateTime.day()))
+                            .font(.system(size: 13, weight: isToday ? .bold : .semibold, design: .rounded))
+                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                        if count > 0 {
+                            Text("\(count)")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                    }
+                }
+                .overlay {
+                    if isToday || isSelected {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .stroke(
+                                isSelected ? MirrorTheme.primary : Color.primary.opacity(0.4),
+                                lineWidth: isSelected ? 1.5 : 1
+                            )
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !isFuture else { return }
+                    haptic()
+                    onDaySelected?(isSelected ? nil : startOfDay)
+                }
+        }
+    }
+
+    // MARK: - Year View
+
+    private var yearView: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    dayLabels
+                    LazyHStack(alignment: .top, spacing: cellGap) {
+                        ForEach(weeks) { week in
+                            column(week)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 2)
+                .padding(.bottom, 2)
+            }
+            .onAppear {
+                if let last = weeks.last {
+                    proxy.scrollTo(last.id, anchor: .trailing)
+                }
+            }
+        }
+    }
+
+    // MARK: - Day-of-week labels (Year view)
 
     private var dayLabels: some View {
         VStack(spacing: cellGap) {
@@ -215,16 +613,28 @@ struct CalendarHeatmap: View {
         .padding(.trailing, 4)
     }
 
-    // MARK: - Week column
+    // MARK: - Week column (Year view)
 
     private func column(_ week: WeekColumn) -> some View {
         VStack(alignment: .leading, spacing: cellGap) {
             if let label = week.monthLabel {
-                Text(label)
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(height: 14, alignment: .bottomLeading)
-                    .lineLimit(1)
+                // Tap month label → jump to that month in Month mode
+                Button {
+                    if let monthDate = week.monthDate {
+                        haptic()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewDate = monthDate
+                            mode = .month
+                        }
+                    }
+                } label: {
+                    Text(label)
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(height: 14, alignment: .bottomLeading)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
             } else {
                 Color.clear.frame(height: 14)
             }
@@ -235,7 +645,7 @@ struct CalendarHeatmap: View {
         .id(week.id)
     }
 
-    // MARK: - Individual day cell
+    // MARK: - Individual day cell (Year view)
 
     private func cell(for date: Date?) -> some View {
         let isSelected = date.map { cal.isDate($0, inSameDayAs: selectedDate ?? .distantPast) } ?? false
@@ -256,6 +666,7 @@ struct CalendarHeatmap: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 guard let date else { return }
+                haptic()
                 onDaySelected?(isSelected ? nil : date)
             }
     }
