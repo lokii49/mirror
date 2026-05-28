@@ -82,6 +82,7 @@ enum SampleData {
             let entry = Entry(text: trimmed, mood: e.mood, source: e.source)
             entry.createdAt = daysAgo(e.days)
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
+            entry.tags = [sampleTag]
             if e.source == .voice {
                 let wc = trimmed.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
                 let (audio, dur) = syntheticVoiceAudio(words: wc)
@@ -202,6 +203,7 @@ enum SampleData {
                 let entry = Entry(text: "", mood: theme.mood, source: .voice)
                 entry.createdAt = createdAt
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: createdAt)
+                entry.tags = [sampleTag]
                 let wc = transcript.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
                 let (audio, dur) = syntheticVoiceAudio(words: wc)
                 entry.voiceNoteData = audio
@@ -217,6 +219,7 @@ enum SampleData {
                 let entry = Entry(text: text.trimmingCharacters(in: .whitespacesAndNewlines), mood: theme.mood, source: .typed)
                 entry.createdAt = createdAt
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: createdAt)
+                entry.tags = [sampleTag]
                 context.insert(entry)
             }
         }
@@ -258,6 +261,7 @@ enum SampleData {
             let entry = Entry(text: "", mood: mood, source: .voice)
             entry.createdAt = daysAgo(days)
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
+            entry.tags = [sampleTag]
             let wc = text.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
             let (audio, dur) = syntheticVoiceAudio(words: wc)
             entry.voiceNoteData = audio
@@ -268,6 +272,18 @@ enum SampleData {
     }
 
     // MARK: - Helpers
+
+    /// Hidden tag applied to every seeded entry so they can be cleared without touching real entries.
+    static let sampleTag = "__sample__"
+
+    static func clearSampleEntries(from context: ModelContext) {
+        let descriptor = FetchDescriptor<Entry>()
+        let all = (try? context.fetch(descriptor)) ?? []
+        for entry in all where entry.tags.contains(sampleTag) {
+            context.delete(entry)
+        }
+        try? context.save()
+    }
 
     static func clearInsights(from context: ModelContext) {
         try? context.delete(model: Insight.self)
