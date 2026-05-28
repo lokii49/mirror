@@ -6,39 +6,30 @@ struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
-    var viewModel: InsightViewModel
+    let viewModel: InsightViewModel
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
     @State private var chartVisible = false
     @State private var promptIndex: Int = Int.random(in: 0..<WritingPrompts.all.count)
     @State private var showWriteFromPrompt = false
+    @State private var nudgeExpanded = false
+    @State private var digestExpanded = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    nudgeSection
+                VStack(alignment: .leading, spacing: 18) {
+                    explorationSection
 
                     if moodEntries.count >= 2, chartVisible {
-                        Divider().padding(.horizontal, 4)
                         MoodWeekChartView(entries: moodEntries)
                     }
 
+                    nudgeSection
+
                     if SubscriptionService.shared.isSubscribed || hasSeenFirstNudge {
-                        Divider().padding(.horizontal, 4)
                         digestSection
-                    }
-
-                    Divider().padding(.horizontal, 4)
-                    askSection
-
-                    if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
-                        Divider().padding(.horizontal, 4)
-                        moodTimelineSection
-
-                        Divider().padding(.horizontal, 4)
-                        monthlyReportSection
                     }
                 }
                 .padding(16)
@@ -86,12 +77,16 @@ struct InsightView: View {
             _ = await (showChart, load)
         }
         .onChange(of: entries.count) { _, _ in
+            nudgeExpanded = false
+            digestExpanded = false
             Task {
                 await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
             }
         }
         .onChange(of: insights.count) { _, _ in
             // Re-check when background pre-gen inserts a new insight
+            nudgeExpanded = false
+            digestExpanded = false
             Task {
                 await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
                 await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
@@ -172,34 +167,14 @@ struct InsightView: View {
 
     private var nudgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            nudgeHeroCard
+            SectionHeader(
+                title: "Today",
+                subtitle: nudgeExpanded ? "Full daily reflection" : "A short read first; expand when you want depth",
+                icon: "sparkles",
+                color: MirrorTheme.primary
+            )
             nudgeStatusContent
         }
-    }
-
-    private var nudgeHeroCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Daily Reflection", systemImage: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
-                Text("Patterns from your recent entries.")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-            }
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(MirrorTheme.accentGradient)
-                    .frame(width: 46, height: 46)
-                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 14, x: 0, y: 6)
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding(20)
-        .futureSurface(cornerRadius: 26)
     }
 
     @ViewBuilder
@@ -210,7 +185,19 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing your reflection", sublabel: "Reading recent entries…", icon: "sparkles")
         case .loaded(let insight):
-            InsightTextView(insight: insight, label: "Daily Reflection", icon: "sparkles")
+            InsightTextView(
+                insight: insight,
+                label: "Daily Reflection",
+                icon: "sparkles",
+                accentColor: MirrorTheme.primary,
+                isExpanded: nudgeExpanded,
+                collapsedLineLimit: 5,
+                onToggleExpanded: {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        nudgeExpanded.toggle()
+                    }
+                }
+            )
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             VStack(spacing: 12) {
@@ -250,23 +237,13 @@ struct InsightView: View {
         NavigationLink {
             AskView()
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("ASK MIRROR")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .tracking(0.8)
-                    Text("Ask anything about your journal")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(20)
-            .futureSurface(cornerRadius: 22)
+            ExplorationTile(
+                title: "Ask Mirror",
+                subtitle: "Search your patterns",
+                icon: "bubble.left.and.text.bubble.right.fill",
+                color: MirrorTheme.primary,
+                badge: nil
+            )
         }
         .buttonStyle(.plain)
     }
@@ -277,34 +254,13 @@ struct InsightView: View {
         NavigationLink {
             MoodTimelineView()
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("MOOD TIMELINE")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .tracking(0.8)
-                    Text("Your mood patterns over time")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                    if !SubscriptionService.shared.isDeep {
-                        Text("Deep")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.purple, in: Capsule())
-                    }
-                }
-                Spacer()
-                Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(20)
-            .futureSurface(cornerRadius: 22)
+            ExplorationTile(
+                title: "Mood Timeline",
+                subtitle: "See long arcs",
+                icon: "waveform.path.ecg",
+                color: .teal,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep"
+            )
         }
         .buttonStyle(.plain)
     }
@@ -315,34 +271,14 @@ struct InsightView: View {
         NavigationLink {
             MonthlyReportView(viewModel: viewModel)
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("MONTHLY REPORT")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .tracking(0.8)
-                    Text("A deep look at this month")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                    if !SubscriptionService.shared.isDeep {
-                        Text("Deep")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.purple, in: Capsule())
-                    }
-                }
-                Spacer()
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(SubscriptionService.shared.isDeep ? Color.purple : Color.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(20)
-            .futureSurface(cornerRadius: 22)
+            ExplorationTile(
+                title: "Monthly Report",
+                subtitle: "\(thisMonthEntries.count) \(thisMonthEntries.count == 1 ? "entry" : "entries") this month",
+                icon: "doc.text.magnifyingglass",
+                color: .indigo,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep",
+                isProminent: true
+            )
         }
         .buttonStyle(.plain)
     }
@@ -351,34 +287,14 @@ struct InsightView: View {
 
     private var digestSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            digestHeroCard
+            SectionHeader(
+                title: "This Week",
+                subtitle: digestExpanded ? "Full weekly digest" : "Collapsed so deeper reports stay within reach",
+                icon: "calendar.badge.clock",
+                color: .indigo
+            )
             digestStatusContent
         }
-    }
-
-    private var digestHeroCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Weekly Digest", systemImage: "calendar.badge.clock")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.indigo)
-                Text("Your week, shaped into five themes.")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-            }
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 46, height: 46)
-                    .shadow(color: Color.indigo.opacity(0.35), radius: 14, x: 0, y: 6)
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding(20)
-        .futureSurface(cornerRadius: 26)
     }
 
     @ViewBuilder
@@ -389,7 +305,15 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
         case .loaded(let insight):
-            WeeklyDigestView(insight: insight)
+            WeeklyDigestView(
+                insight: insight,
+                isExpanded: digestExpanded,
+                onToggleExpanded: {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        digestExpanded.toggle()
+                    }
+                }
+            )
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
@@ -413,9 +337,127 @@ struct InsightView: View {
             }
         }
     }
+
+    // MARK: - Explore
+
+    private var explorationSection: some View {
+        VStack(spacing: 12) {
+            if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
+                VStack(spacing: 12) {
+                    monthlyReportSection
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                        askSection
+                        moodTimelineSection
+                    }
+                }
+            } else {
+                askSection
+            }
+        }
+    }
 }
 
 // MARK: - Shared Card Components
+
+private struct SectionHeader: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(color)
+                .frame(width: 28, height: 28)
+                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding(.top, 2)
+    }
+}
+
+private struct ExplorationTile: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let badge: String?
+    var isProminent: Bool = false
+
+    var body: some View {
+        Group {
+            if isProminent {
+                HStack(spacing: 14) {
+                    tileIcon(size: 44, iconSize: 20)
+                    textBlock(titleSize: 17, subtitleSize: 13)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top) {
+                        tileIcon(size: 38, iconSize: 18)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    textBlock(titleSize: 15, subtitleSize: 12)
+                }
+                .frame(maxWidth: .infinity, minHeight: 126, alignment: .topLeading)
+            }
+        }
+        .padding(16)
+        .futureSurface(cornerRadius: 22)
+    }
+
+    private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: iconSize, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: size, height: size)
+            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func textBlock(titleSize: CGFloat, subtitleSize: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: titleSize, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                if let badge {
+                    Text(badge)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(color, in: Capsule())
+                }
+            }
+            Text(subtitle)
+                .font(.system(size: subtitleSize, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+    }
+}
 
 struct NightlyPendingCard: View {
     let label: String
@@ -583,24 +625,45 @@ private struct InsightTextView: View {
     let insight: Insight
     let label: String
     let icon: String
+    var accentColor: Color = MirrorTheme.primary
+    var isExpanded: Bool = true
+    var collapsedLineLimit: Int = 5
+    var onToggleExpanded: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Label(label, systemImage: icon)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
+                    .foregroundStyle(accentColor)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.tertiary)
             }
-            Divider().overlay(MirrorTheme.primary.opacity(0.15))
+            Divider().overlay(accentColor.opacity(0.15))
             Text(insight.content)
                 .font(.system(size: 17, weight: .regular, design: .serif))
                 .lineSpacing(7)
                 .foregroundStyle(.primary)
+                .lineLimit(isExpanded ? nil : collapsedLineLimit)
                 .textSelection(.enabled)
+
+            if let onToggleExpanded {
+                Button(action: onToggleExpanded) {
+                    HStack(spacing: 6) {
+                        Text(isExpanded ? "Show Less" : "Read Full Reflection")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accentColor)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .background(accentColor.opacity(0.10), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(22)
         .accentCard(cornerRadius: 26)
