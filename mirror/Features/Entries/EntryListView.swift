@@ -4,6 +4,8 @@ import SwiftData
 private let moodLabels = MirrorTheme.moodOptions
 
 struct EntriesTabView: View {
+    var navResetID: UUID = UUID()
+
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
@@ -143,6 +145,10 @@ struct EntriesTabView: View {
             }
             .task(id: snapshotDeps) {
                 snapshotCache = listSnapshot
+            }
+            .onChange(of: navResetID) { _, _ in
+                showEntryDetail = false
+                selectedEntry = nil
             }
         }
     }
