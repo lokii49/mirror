@@ -103,3 +103,13 @@ Build from command line:
 xcodebuild -scheme mirror -project mirror.xcodeproj \
   -destination 'generic/platform=iOS Simulator' build
 ```
+
+## License
+
+Copyright (C) 2026 Pudari Lokesh
+
+Mirror is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+This means: you can use, study, and modify the source freely — but any modified version you distribute or run as a service **must also be released under AGPL-3.0**. Commercial forks must open-source their entire modified codebase.
+
+See [LICENSE](LICENSE) for full terms.
