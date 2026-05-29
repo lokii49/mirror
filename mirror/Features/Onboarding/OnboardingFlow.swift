@@ -1,33 +1,76 @@
 import SwiftUI
 import SwiftData
 
+private enum NudgePreset: String, CaseIterable {
+    case morning = "Morning"
+    case afternoon = "Afternoon"
+    case evening = "Evening"
+    case custom = "Custom"
+
+    var hour: Int {
+        switch self {
+        case .morning:   return 8
+        case .afternoon: return 13
+        case .evening:   return 20
+        case .custom:    return -1
+        }
+    }
+
+    var timeLabel: String {
+        switch self {
+        case .morning:   return "8:00 AM"
+        case .afternoon: return "1:00 PM"
+        case .evening:   return "8:00 PM"
+        case .custom:    return "Pick a time"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .morning:   return "sunrise.fill"
+        case .afternoon: return "sun.max.fill"
+        case .evening:   return "moon.stars.fill"
+        case .custom:    return "slider.horizontal.3"
+        }
+    }
+}
+
 struct OnboardingFlow: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
 
     @State private var step: Int = 0
     @State private var selectedReason: String? = nil
-    @State private var selectedTime: String? = nil
+    @State private var nudgePreset: NudgePreset = .evening
+    @State private var customNudgeTime: Date = {
+        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        c.hour = 20
+        c.minute = 0
+        return Calendar.current.date(from: c) ?? Date()
+    }()
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
 
     private let reasons = [
         ("brain.head.profile", "Understand myself better"),
-        ("moon.stars", "Process stress and emotions"),
+        ("moon.stars",         "Process stress and emotions"),
         ("target",             "Track goals and habits"),
         ("sparkles",           "Build a reflection practice"),
     ]
 
-    private let times = [
-        ("sunrise",    "Morning",    "Before the day starts"),
-        ("sun.max",    "Afternoon",  "Mid-day reset"),
-        ("moon",       "Evening",    "After everything settles"),
-        ("questionmark.circle", "Whenever",  "No set routine"),
-    ]
+    // Derive suggested preset from selected reason
+    private var suggestedPreset: NudgePreset {
+        selectedReason == "Track goals and habits" ? .morning : .evening
+    }
+
+    private var suggestedRationale: String {
+        nudgePreset == .morning
+            ? "Great for intention-setting before the day starts."
+            : "Best for capturing the full day before it fades."
+    }
 
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 colors: [
                     Color(.systemBackground),
@@ -39,12 +82,10 @@ struct OnboardingFlow: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress dots
                 progressIndicator
                     .padding(.top, 20)
                     .padding(.bottom, 8)
 
-                // Animated step content
                 ZStack {
                     if step == 0 { welcomeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                     if step == 1 { reasonStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
@@ -54,7 +95,6 @@ struct OnboardingFlow: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: step)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // CTA button
                 ctaButton
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)
@@ -141,25 +181,49 @@ struct OnboardingFlow: View {
     }
 
     private var timeStep: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("When do you reflect?")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text("MirrorNotes will learn your rhythm.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 12)
-
-            VStack(spacing: 10) {
-                ForEach(times, id: \.1) { icon, label, caption in
-                    timeButton(icon: icon, label: label, caption: caption)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("When should mirror nudge you?")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text("One gentle reminder a day to reflect.")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
                 }
-            }
+                .padding(.top, 12)
 
-            Spacer()
+                // Recommended banner
+                HStack(spacing: 10) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                    Text("Suggested: **\(suggestedPreset.rawValue)** (\(suggestedPreset.timeLabel)) — \(suggestedRationale)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(MirrorTheme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                VStack(spacing: 10) {
+                    ForEach(NudgePreset.allCases, id: \.self) { preset in
+                        nudgePresetButton(preset)
+                    }
+                }
+
+                if nudgePreset == .custom {
+                    DatePicker("", selection: $customNudgeTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: nudgePreset)
+                }
+
+                Spacer(minLength: 16)
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
     }
 
     private var writePrompt: String {
@@ -279,32 +343,57 @@ struct OnboardingFlow: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedReason)
     }
 
-    private func timeButton(icon: String, label: String, caption: String) -> some View {
+    @ViewBuilder
+    private func nudgePresetButton(_ preset: NudgePreset) -> some View {
+        let isSelected = nudgePreset == preset
+        let isRecommended = preset == suggestedPreset
+
         Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                selectedTime = label
+                nudgePreset = preset
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(selectedTime == label ? MirrorTheme.primary.opacity(0.15) : Color.secondary.opacity(0.08))
+                        .fill(isSelected ? MirrorTheme.primary.opacity(0.15) : Color.secondary.opacity(0.08))
                         .frame(width: 40, height: 40)
-                    Image(systemName: icon)
+                    Image(systemName: preset.icon)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(selectedTime == label ? MirrorTheme.primary : .secondary)
+                        .foregroundStyle(isSelected ? MirrorTheme.primary : .secondary)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(size: 16, weight: selectedTime == label ? .semibold : .regular))
-                        .foregroundStyle(selectedTime == label ? .primary : .secondary)
-                    Text(caption)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(preset.rawValue)
+                            .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? .primary : .secondary)
+                        if isRecommended {
+                            Text("Suggested")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.primary)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                        }
+                    }
+                    if preset != .custom {
+                        Text(preset.timeLabel)
+                            .font(.system(size: 13))
+                            .foregroundStyle(isSelected ? AnyShapeStyle(MirrorTheme.primary.opacity(0.7)) : AnyShapeStyle(.tertiary))
+                    }
+                    if isRecommended && isSelected {
+                        Text(suggestedRationale)
+                            .font(.system(size: 12))
+                            .foregroundStyle(MirrorTheme.primary.opacity(0.8))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
+
                 Spacer()
-                if selectedTime == label {
+
+                if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(MirrorTheme.primary)
@@ -314,19 +403,19 @@ struct OnboardingFlow: View {
             .padding(16)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .background(
-                selectedTime == label ? MirrorTheme.primary.opacity(0.08) : Color.clear,
+                isSelected ? MirrorTheme.primary.opacity(0.08) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        selectedTime == label ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.10),
-                        lineWidth: selectedTime == label ? 1.5 : 0.75
+                        isSelected ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.10),
+                        lineWidth: isSelected ? 1.5 : 0.75
                     )
             }
         }
         .buttonStyle(.plain)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedTime)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
     }
 
     // MARK: - CTA
@@ -358,7 +447,7 @@ struct OnboardingFlow: View {
         switch step {
         case 0: return true
         case 1: return selectedReason != nil
-        case 2: return selectedTime != nil
+        case 2: return true
         case 3: return true
         default: return false
         }
@@ -368,6 +457,10 @@ struct OnboardingFlow: View {
 
     private func advanceStep() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if step == 1 {
+            // Pre-select suggested preset based on reason
+            nudgePreset = suggestedPreset
+        }
         if step < 3 {
             withAnimation {
                 step += 1
@@ -378,25 +471,27 @@ struct OnboardingFlow: View {
     }
 
     private func completeOnboarding() {
-        // Save preferred nudge time based on user selection
         let nudgeHour: Int
-        switch selectedTime {
-        case "Morning":   nudgeHour = 8
-        case "Afternoon": nudgeHour = 13
-        case "Evening":   nudgeHour = 20
-        default:          nudgeHour = 20  // "Whenever" → evening default
-        }
-        UserDefaults.standard.set(nudgeHour, forKey: "nudgeHour")
-        UserDefaults.standard.set(0, forKey: "nudgeMinute")
+        let nudgeMinute: Int
 
-        // Save first entry if written
+        if nudgePreset == .custom {
+            let c = Calendar.current.dateComponents([.hour, .minute], from: customNudgeTime)
+            nudgeHour = c.hour ?? 20
+            nudgeMinute = c.minute ?? 0
+        } else {
+            nudgeHour = nudgePreset.hour
+            nudgeMinute = 0
+        }
+
+        UserDefaults.standard.set(nudgeHour, forKey: "nudgeHour")
+        UserDefaults.standard.set(nudgeMinute, forKey: "nudgeMinute")
+
         let text = firstEntryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty {
             let entry = Entry(text: text, source: .typed)
             modelContext.insert(entry)
         }
 
-        // Mark onboarding complete
         let profile: UserProfile
         if let existing = profiles.first {
             profile = existing
@@ -408,4 +503,13 @@ struct OnboardingFlow: View {
 
         try? modelContext.save()
     }
+}
+
+#Preview {
+    let container = try! ModelContainer(
+        for: UserProfile.self, Entry.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    return OnboardingFlow()
+        .modelContainer(container)
 }

@@ -115,7 +115,7 @@ private struct NudgeMediumView: View {
                         .lineLimit(5)
                         .lineSpacing(3)
                 } else {
-                    Text("Your nudge is being prepared…")
+                    Text("Your nudge arrives soon…")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white.opacity(0.55))
                         .italic()
