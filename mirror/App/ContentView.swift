@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
+    @State private var entriesNavResetID = UUID()
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -17,11 +18,14 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            EntriesTabView()
+            EntriesTabView(navResetID: entriesNavResetID)
                 .tabItem { Label("Entries", systemImage: "book.closed") }
                 .tag(0)
 
-            WriteTabView(selectedTab: $selectedTab)
+            WriteTabView(selectedTab: $selectedTab, onSave: {
+                selectedTab = 0
+                entriesNavResetID = UUID()
+            })
                 .tabItem { Label("Write", systemImage: "square.and.pencil") }
                 .tag(1)
 
@@ -58,11 +62,12 @@ struct ContentView: View {
 // Write tab wraps WriteView in a NavigationStack so it can push VoiceInputSheet
 private struct WriteTabView: View {
     @Binding var selectedTab: Int
+    var onSave: (() -> Void)? = nil
 
     var body: some View {
         NavigationStack {
             WriteView(autoFocus: true) {
-                selectedTab = 0
+                onSave?()
             }
         }
     }
