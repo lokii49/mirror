@@ -140,9 +140,19 @@ struct InsightView: View {
     }
 
     private var nightlyPendingNudgeCard: some View {
-        NightlyPendingCard(
-            label: "Preparing in the background",
-            sublabel: "Generates overnight while your phone charges.",
+        let hour = NotificationService.nudgeHour()
+        let timeLabel: String = {
+            var comps = DateComponents()
+            comps.hour = hour
+            comps.minute = NotificationService.nudgeMinute()
+            if let date = Calendar.current.date(from: comps) {
+                return date.formatted(.dateTime.hour().minute())
+            }
+            return "\(hour):00"
+        }()
+        return NightlyPendingCard(
+            label: "Reflection generates at \(timeLabel)",
+            sublabel: "Write today and open Mirror at your chosen time for your daily insight.",
             icon: "sparkles",
             iconColor: MirrorTheme.primary
         )

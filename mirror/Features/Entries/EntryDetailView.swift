@@ -144,9 +144,7 @@ struct EntryDetailView: View {
             }
         }
         .navigationDestination(isPresented: $showEditor) {
-            WriteView(entry: entry, autoFocus: true, showsBackButton: true) {
-                onDone?()
-            }
+            WriteView(entry: entry, autoFocus: true, showsBackButton: true)
         }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
