@@ -295,7 +295,11 @@ struct SettingsView: View {
                                 nudgeHour = c.hour ?? 8
                                 nudgeMinute = c.minute ?? 0
                                 Task {
-                                    await NotificationService.scheduleRepeatingNudge(
+                                    let insightReady = mirrorApp.hasDailyNudgeForToday(context: modelContext)
+                                    let hasWritten = mirrorApp.hasEntryToday(context: modelContext)
+                                    await NotificationService.rescheduleContextualNudge(
+                                        hasWrittenToday: hasWritten,
+                                        insightReady: insightReady,
                                         hour: nudgeHour,
                                         minute: nudgeMinute
                                     )
