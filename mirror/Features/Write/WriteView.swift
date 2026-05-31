@@ -674,7 +674,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let attributed = textView.attributedText ?? NSAttributedString()
             // Replace each attachment char with the correct indexed photo token
             var displayString = attributed.string
-            var photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
+            let photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
                 parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
                 parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
             }
