@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import BackgroundTasks
 import UIKit
+import UserNotifications
 import WidgetKit
 import RevenueCat
 
@@ -42,6 +43,11 @@ struct mirrorApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                // Request notification permission for users who completed onboarding before
+                // the permission prompt was added (status .notDetermined = never asked).
+                Task {
+                    await requestNotificationPermissionIfNeeded()
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 Task(priority: .background) {
                     await preGenerateInsightsIfNeeded()
@@ -565,6 +571,26 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(nudge.content, forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
+    }
+
+    // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
+
+    private func requestNotificationPermissionIfNeeded() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        let granted = (try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        if granted, SubscriptionService.shared.isSubscribed {
+            let context = sharedModelContainer.mainContext
+            let insightReady = mirrorApp.hasDailyNudgeForToday(context: context)
+            let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+            await NotificationService.rescheduleContextualNudge(
+                hasWrittenToday: hasWrittenToday,
+                insightReady: insightReady,
+                hour: NotificationService.nudgeHour(),
+                minute: NotificationService.nudgeMinute()
+            )
+        }
     }
 
     // MARK: - Background time extension for mid-session generation
