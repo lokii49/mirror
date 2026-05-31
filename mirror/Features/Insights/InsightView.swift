@@ -488,6 +488,8 @@ struct NightlyPendingCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(label)
                     .font(.system(size: 15, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Text(sublabel)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
