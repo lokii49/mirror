@@ -7,16 +7,25 @@ enum NotificationService {
     private static let moodAlertID = "mirror.moodAlert"
     private static let monthlyReportID = "mirror.monthlyReport"
 
-    /// Core subscribers only — repeats daily at the user's configured time.
-    static func scheduleRepeatingNudge(hour: Int, minute: Int) async {
+    /// Context-aware daily nudge — single repeating notification whose content is
+    /// refreshed on every app-active and every nightly background task run.
+    /// Three states: reflection ready / wrote but not ready yet / nothing written.
+    static func rescheduleContextualNudge(
+        hasWrittenToday: Bool,
+        insightReady: Bool,
+        hour: Int,
+        minute: Int
+    ) async {
         guard await isAuthorized() else { return }
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [nudgeID])
 
         let content = UNMutableNotificationContent()
         content.title = "MirrorNotes"
-        content.body = "Your daily reflection is ready."
         content.sound = .default
+        content.body = hasWrittenToday
+            ? (insightReady ? "Your daily reflection is ready." : "Come check your daily reflection.")
+            : "What's on your mind? Take a moment to write."
 
         var components = DateComponents()
         components.hour = hour
@@ -49,7 +58,8 @@ enum NotificationService {
         try? await center.add(request)
     }
 
-    /// Core subscribers only — repeats weekly on Sunday at 7AM.
+    /// Core subscribers only — Sunday 7AM repeating. Schedules (or re-schedules)
+    /// whenever the weekly digest generates so it's always armed for the next Sunday.
     static func scheduleWeeklyDigest() async {
         guard await isAuthorized() else { return }
         let center = UNUserNotificationCenter.current()

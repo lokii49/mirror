@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import BackgroundTasks
 import UIKit
+import UserNotifications
 import WidgetKit
 import RevenueCat
 
@@ -42,6 +43,11 @@ struct mirrorApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                // Request notification permission for users who completed onboarding before
+                // the permission prompt was added (status .notDetermined = never asked).
+                Task {
+                    await requestNotificationPermissionIfNeeded()
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 Task(priority: .background) {
                     await preGenerateInsightsIfNeeded()
@@ -126,6 +132,23 @@ struct mirrorApp: App {
     private static func runNightlyInsights(container: ModelContainer) async {
         let context = container.mainContext
         await runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+
+        // Refresh contextual nudge notification so it reflects tonight's generation result.
+        // Covers the case where no writing happened: resets to "write" message so user
+        // isn't reminded of a stale "ready" from yesterday.
+        if SubscriptionService.shared.isSubscribed {
+            let insightReady = hasDailyNudgeForToday(context: context)
+            let hasWrittenToday = hasEntryToday(context: context)
+            let hour = NotificationService.nudgeHour()
+            let minute = NotificationService.nudgeMinute()
+            await NotificationService.rescheduleContextualNudge(
+                hasWrittenToday: hasWrittenToday,
+                insightReady: insightReady,
+                hour: hour,
+                minute: minute
+            )
+        }
+
         // Weekly digest only on Sunday
         if Calendar.current.component(.weekday, from: Date()) == 1 {
             await runWeeklyDigestIfNeeded(context: context)
@@ -144,6 +167,22 @@ struct mirrorApp: App {
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
+
+        // Update the daily nudge notification to reflect current state.
+        // Content resets on every app open so the message matches today's context.
+        if SubscriptionService.shared.isSubscribed {
+            let insightReady = mirrorApp.hasDailyNudgeForToday(context: context)
+            let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+            let hour = NotificationService.nudgeHour()
+            let minute = NotificationService.nudgeMinute()
+            await NotificationService.rescheduleContextualNudge(
+                hasWrittenToday: hasWrittenToday,
+                insightReady: insightReady,
+                hour: hour,
+                minute: minute
+            )
+        }
+
         // Weekly digest: generate on Sundays proactively (fallback if nightly BGProcessingTask missed)
         if Calendar.current.component(.weekday, from: Date()) == 1 {
             await mirrorApp.runWeeklyDigestIfNeeded(context: context)
@@ -212,7 +251,14 @@ struct mirrorApp: App {
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
             if SubscriptionService.shared.isSubscribed {
-                await NotificationService.scheduleRepeatingNudge(hour: hour, minute: minute)
+                // Update the repeating nudge content to "ready" so it fires correctly at nudge time.
+                // No second one-time notification — that would double-fire at the same minute.
+                await NotificationService.rescheduleContextualNudge(
+                    hasWrittenToday: true,
+                    insightReady: true,
+                    hour: hour,
+                    minute: minute
+                )
             } else {
                 // First nudge for free users — one-time hook to drive paywall conversion
                 await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
@@ -228,6 +274,15 @@ struct mirrorApp: App {
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
         return todayInsights.contains { $0.type == .dailyNudge }
+    }
+
+    @MainActor
+    static func hasEntryToday(context: ModelContext) -> Bool {
+        let start = Calendar.current.startOfDay(for: Date())
+        let descriptor = FetchDescriptor<Entry>(
+            predicate: #Predicate { $0.createdAt >= start }
+        )
+        return ((try? context.fetch(descriptor)) ?? []).count > 0
     }
 
     @MainActor
@@ -255,6 +310,8 @@ struct mirrorApp: App {
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
             try? context.save()
+            // scheduleWeeklyDigest is the sole fire — no separate one-time notification
+            // to avoid double-banner on Sunday at 7am.
             await NotificationService.scheduleWeeklyDigest()
         } catch { /* Non-fatal */ }
     }
@@ -514,6 +571,26 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(nudge.content, forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
+    }
+
+    // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
+
+    private func requestNotificationPermissionIfNeeded() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        let granted = (try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        if granted, SubscriptionService.shared.isSubscribed {
+            let context = sharedModelContainer.mainContext
+            let insightReady = mirrorApp.hasDailyNudgeForToday(context: context)
+            let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+            await NotificationService.rescheduleContextualNudge(
+                hasWrittenToday: hasWrittenToday,
+                insightReady: insightReady,
+                hour: NotificationService.nudgeHour(),
+                minute: NotificationService.nudgeMinute()
+            )
+        }
     }
 
     // MARK: - Background time extension for mid-session generation

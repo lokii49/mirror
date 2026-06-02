@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import SwiftData
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss

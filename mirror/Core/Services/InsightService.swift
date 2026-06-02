@@ -118,15 +118,37 @@ enum InsightService {
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
 
+    // Cycles daily so the reflection never starts with the same phrase two days in a row.
+    // All openers are free of I/me/my to survive cleanedInsightOutput without corruption.
+    private static let nudgeOpeners: [String] = [
+        "Reading through your entries",
+        "There's a thread running through your week",
+        "You've been carrying something",
+        "Between the lines of what you wrote",
+        "What stands out across your entries",
+        "One thing that stood out",
+        "Looking at your entries",
+        "Something you mentioned",
+        "What keeps showing up in your writing",
+        "A detail worth sitting with"
+    ]
+
+    private static func todayOpener() -> String {
+        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
+        return nudgeOpeners[dayOfYear % nudgeOpeners.count]
+    }
+
     static func generateNudge(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        let opener = todayOpener()
         return try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: buildUserMessage(
                 title: "Daily reflection context",
                 recentEntries: Array(sorted.prefix(7)),
                 backgroundEntries: Array(sorted.dropFirst(7).prefix(16)),
-                maxChars: dailyNudgePromptBudget
+                maxChars: dailyNudgePromptBudget,
+                requiredOpener: opener
             ),
             task: .dailyNudge
         )
@@ -476,13 +498,14 @@ enum InsightService {
         title: String,
         recentEntries: [Entry],
         backgroundEntries: [Entry],
-        maxChars: Int
+        maxChars: Int,
+        requiredOpener: String? = nil
     ) -> String {
         let recentBlock = formatEntries(recentEntries, maxChars: Int(Double(maxChars) * 0.72))
         let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28))
 
         let today = Date().formatted(date: .abbreviated, time: .omitted)
-        return """
+        var message = """
         \(title)
 
         Today: \(today)
@@ -493,6 +516,12 @@ enum InsightService {
         Recent entries:
         \(recentBlock)
         """
+
+        if let opener = requiredOpener {
+            message += "\n\nStart your response with: \"\(opener)...\""
+        }
+
+        return message
     }
 
     private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {
