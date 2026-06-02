@@ -25,7 +25,8 @@ enum MonthlyReportState {
     case idle
     case loading
     case loaded(Insight)
-    case notEnoughEntries(remaining: Int)
+    case notEnoughEntries(remaining: Int, total: Int)
+    case endOfMonthTooFewEntries(count: Int)
     case subscriptionRequired
     case pendingNightlyGeneration
     case error(String)
@@ -144,8 +145,16 @@ final class InsightViewModel {
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
-        guard thisMonthEntries.count >= 20 else {
-            monthlyReportState = .notEnoughEntries(remaining: 20 - thisMonthEntries.count)
+        let isMonthEnd = isInLastThreeDaysOfMonth(cal: cal, now: now)
+        let minimumEntries = isMonthEnd ? 10 : 20
+
+        if isMonthEnd && thisMonthEntries.count < 10 {
+            monthlyReportState = .endOfMonthTooFewEntries(count: thisMonthEntries.count)
+            return
+        }
+
+        guard thisMonthEntries.count >= minimumEntries else {
+            monthlyReportState = .notEnoughEntries(remaining: minimumEntries - thisMonthEntries.count, total: minimumEntries)
             return
         }
 
@@ -192,6 +201,12 @@ final class InsightViewModel {
             monthlyReportState = .error(friendlyLLMError(error))
         }
     }
+}
+
+private func isInLastThreeDaysOfMonth(cal: Calendar, now: Date) -> Bool {
+    guard let range = cal.range(of: .day, in: .month, for: now),
+          let day = cal.dateComponents([.day], from: now).day else { return false }
+    return day >= range.count - 2
 }
 
 private func friendlyLLMError(_ error: Error) -> String {

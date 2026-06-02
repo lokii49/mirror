@@ -2520,6 +2520,21 @@ struct WriteView: View {
         }
     }
 
+    private func autoDetectMoodIfNeeded(for entry: Entry) {
+        guard entry.mood == nil else { return }
+        let context = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !context.isEmpty else { return }
+        let ctx = modelContext
+        Task {
+            guard let detected = try? await InsightService.detectEmotion(text: context),
+                  MirrorTheme.moodOptions.contains(detected) else { return }
+            await MainActor.run {
+                entry.mood = detected
+                try? ctx.save()
+            }
+        }
+    }
+
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -2824,6 +2839,7 @@ struct WriteView: View {
                 entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
                 entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
                 entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
+                autoDetectMoodIfNeeded(for: entry)
                 // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
                 let ctx = modelContext
                 Task { @MainActor in try? ctx.save() }
@@ -2854,6 +2870,7 @@ struct WriteView: View {
                 entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
                 modelContext.insert(entry)
                 try? modelContext.save()
+                autoDetectMoodIfNeeded(for: entry)
                 clearDraftStorage()
                 withAnimation { showSaved = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -2894,6 +2911,7 @@ struct WriteView: View {
         savedEntry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
         modelContext.insert(savedEntry)
         try? modelContext.save()
+        autoDetectMoodIfNeeded(for: savedEntry)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
         clearDraftStorage()
