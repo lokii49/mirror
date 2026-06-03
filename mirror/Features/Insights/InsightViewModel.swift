@@ -44,40 +44,43 @@ final class InsightViewModel {
     // and the nightly BGProcessingTask. Views never trigger LLM directly.
 
     func loadNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        let newState = resolvedNudgeState(entries: entries, insights: insights)
+        // Both entries.count and insights.count onChange fire in the same frame,
+        // producing two back-to-back synchronous calls. Only write if state actually changed
+        // to avoid "tried to update multiple times per frame" warnings.
+        if nudgeState != newState { nudgeState = newState }
+    }
+
+    private func resolvedNudgeState(entries: [Entry], insights: [Insight]) -> NudgeState {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
 
         guard entries.count >= 3 else {
-            nudgeState = .needsMoreEntries(3 - entries.count)
-            return
+            return .needsMoreEntries(3 - entries.count)
         }
 
         let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge }
         if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
-            nudgeState = .subscriptionRequired
-            return
+            return .subscriptionRequired
         }
 
         if let cached = insights.first(where: {
             $0.type == .dailyNudge && $0.periodIdentifier == today
         }) {
-            nudgeState = .loaded(cached)
-            return
+            return .loaded(cached)
         }
 
         // Pre-gen (mirrorApp.preGenerateInsightsIfNeeded) is actively running — show spinner.
         // onChange(of: insights.count) will re-call once it lands.
         if InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) {
-            nudgeState = .loading
-            return
+            return .loading
         }
 
         guard mirrorApp.modelAvailable() else {
-            nudgeState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
-            return
+            return .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
         }
 
-        nudgeState = .pendingNightlyGeneration
+        return .pendingNightlyGeneration
     }
 
     // MARK: - Weekly Digest
