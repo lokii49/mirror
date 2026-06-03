@@ -69,6 +69,8 @@ struct FeatureCard: Identifiable {
     let tier: CardTier
     /// Version tag — card appears in the "What's New" auto-sheet only for this exact version.
     let sinceVersion: String
+    /// False for changelog/update cards that shouldn't appear in the Feature Guide.
+    var showInFeatureGuide: Bool = true
 }
 
 // MARK: - Registry — add new cards here when releasing features
@@ -179,13 +181,24 @@ enum FeatureCardRegistry {
         ),
         // 1.0.7
         .init(
-            id: "feature-guide",
-            title: "Feature Guide",
-            body: "Explore everything mirror can do — free, Core, and Deep — anytime from Settings → About → What's New.",
-            symbolName: "square.grid.3x3",
-            accentColor: MirrorTheme.primary,
-            tier: .free,
-            sinceVersion: "1.0.7"
+            id: "auto-mood-detection",
+            title: "Auto Mood Detection",
+            body: "mirror now detects mood automatically when you save an entry — no manual tagging needed. Your Mood Timeline fills in on its own.",
+            symbolName: "face.smiling",
+            accentColor: .pink,
+            tier: .core,
+            sinceVersion: "1.0.7",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "monthly-report-update",
+            title: "Smarter Monthly Report",
+            body: "In the last 3 days of the month, the report unlocks at 10 entries instead of 20 — so you don't miss it over a quiet month. A dedicated end-of-month card explains when there still isn't enough.",
+            symbolName: "doc.text.magnifyingglass",
+            accentColor: .purple,
+            tier: .deep,
+            sinceVersion: "1.0.7",
+            showInFeatureGuide: false
         ),
     ]
 }
@@ -198,29 +211,26 @@ final class FeatureCardService {
 
     private let lastSeenVersionKey = "mirror.whatsNew.lastSeenVersion"
 
-    var allCards: [FeatureCard] { FeatureCardRegistry.all }
+    var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide } }
 
     var whatsNewCards: [FeatureCard] {
-        #if DEBUG
-        return FeatureCardRegistry.all
-        #else
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return [] }
-        return FeatureCardRegistry.all.filter {
+        let newSinceUpgrade = FeatureCardRegistry.all.filter {
             guard let cardVersion = AppVersion($0.sinceVersion) else { return false }
             return cardVersion > last && cardVersion <= current
         }
-        #endif
+        // Fallback: if already seen this version, still show current version's cards
+        if newSinceUpgrade.isEmpty {
+            return FeatureCardRegistry.all.filter { $0.sinceVersion == currentAppVersion }
+        }
+        return newSinceUpgrade
     }
 
     var shouldShowWhatsNew: Bool {
-        #if DEBUG
-        return true
-        #else
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return false }
         return current > last && !whatsNewCards.isEmpty
-        #endif
     }
 
     func markWhatsNewSeen() {

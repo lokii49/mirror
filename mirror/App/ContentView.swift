@@ -9,6 +9,15 @@ struct ContentView: View {
     @State private var entriesNavResetID = UUID()
     @State private var showWhatsNew = false
     private let featureCardService = FeatureCardService.shared
+    @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
+
+    private var preferredScheme: ColorScheme? {
+        switch appearanceMode {
+        case "light": return .light
+        case "dark":  return .dark
+        default:      return nil
+        }
+    }
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -35,6 +44,7 @@ struct ContentView: View {
                 .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
+        .preferredColorScheme(preferredScheme)
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }

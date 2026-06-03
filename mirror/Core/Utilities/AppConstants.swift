@@ -19,4 +19,9 @@ enum AppConstants {
     static var termsOfUseURL: URL? {
         URL(string: "https://mirrornotes.org/terms.html")
     }
+
+    // MARK: - Support
+    static var feedbackURL: URL? {
+        URL(string: "mailto:hello@mirrornotes.org?subject=MirrorNotes%20Feedback")
+    }
 }

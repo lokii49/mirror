@@ -249,7 +249,7 @@ struct InsightView: View {
         } label: {
             ExplorationTile(
                 title: "Ask Mirror",
-                subtitle: "Search your patterns",
+                subtitle: entries.isEmpty ? "Start writing to ask questions" : "Search \(entries.count) \(entries.count == 1 ? "entry" : "entries")",
                 icon: "bubble.left.and.text.bubble.right.fill",
                 color: MirrorTheme.primary,
                 badge: nil
@@ -266,7 +266,7 @@ struct InsightView: View {
         } label: {
             ExplorationTile(
                 title: "Mood Timeline",
-                subtitle: "See long arcs",
+                subtitle: dominantMoodThisWeek.map { "Mostly \($0) this week" } ?? "See long arcs",
                 icon: "waveform.path.ecg",
                 color: .teal,
                 badge: SubscriptionService.shared.isDeep ? nil : "Deep"
@@ -278,12 +278,17 @@ struct InsightView: View {
     // MARK: - Monthly Report
 
     private var monthlyReportSection: some View {
-        NavigationLink {
+        let count = thisMonthEntries.count
+        let daysLeft = daysRemainingInMonth
+        let contextLabel = daysLeft <= 3
+            ? "\(count) entries · \(daysLeft) day\(daysLeft == 1 ? "" : "s") left"
+            : "\(count) \(count == 1 ? "entry" : "entries") this month"
+        return NavigationLink {
             MonthlyReportView(viewModel: viewModel)
         } label: {
             ExplorationTile(
                 title: "Monthly Report",
-                subtitle: "\(thisMonthEntries.count) \(thisMonthEntries.count == 1 ? "entry" : "entries") this month",
+                subtitle: contextLabel,
                 icon: "doc.text.magnifyingglass",
                 color: .indigo,
                 badge: SubscriptionService.shared.isDeep ? nil : "Deep",
@@ -291,6 +296,20 @@ struct InsightView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private var dominantMoodThisWeek: String? {
+        guard !moodEntries.isEmpty else { return nil }
+        let counts = Dictionary(grouping: moodEntries, by: { $0.mood ?? "" }).mapValues { $0.count }
+        return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    private var daysRemainingInMonth: Int {
+        let cal = Calendar.current
+        let now = Date()
+        guard let range = cal.range(of: .day, in: .month, for: now),
+              let day = cal.dateComponents([.day], from: now).day else { return 30 }
+        return range.count - day
     }
 
     // MARK: - Weekly Digest
@@ -351,7 +370,7 @@ struct InsightView: View {
     // MARK: - Explore
 
     private var explorationSection: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
                 VStack(spacing: 12) {
                     monthlyReportSection
@@ -434,6 +453,10 @@ private struct ExplorationTile: View {
         }
         .padding(16)
         .futureSurface(cornerRadius: 22)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(color.opacity(0.18), lineWidth: 1)
+        )
     }
 
     private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
@@ -707,11 +730,37 @@ private struct MoodWeekChartView: View {
         }
     }
 
+    private var dominantMood: String? {
+        let counts = Dictionary(grouping: points, by: { $0.mood }).mapValues { $0.count }
+        return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    private var avgScore: Double {
+        guard !points.isEmpty else { return 0 }
+        return points.map { $0.score }.reduce(0, +) / Double(points.count)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+            HStack {
+                Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let mood = dominantMood {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(MirrorTheme.moodColor(for: mood))
+                            .frame(width: 7, height: 7)
+                        Text("Mostly \(mood)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(MirrorTheme.moodColor(for: mood).opacity(0.1), in: Capsule())
+                }
+            }
 
             Chart(points) { point in
                 PointMark(
@@ -750,6 +799,10 @@ private struct MoodWeekChartView: View {
         }
         .padding(18)
         .futureSurface(cornerRadius: 22)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+        )
     }
 }
 
