@@ -29,6 +29,7 @@ struct SettingsView: View {
     @State private var iCloudStatus: String = "Checking..."
     @State private var showDeleteConfirmation = false
     @State private var showHowItWorks = false
+    @State private var showFeatureGuide = false
     @State private var showImportPicker = false
     @State private var importResultMessage: String?
     @State private var showImportResult = false
@@ -75,6 +76,7 @@ struct SettingsView: View {
                 Text(error?.localizedDescription ?? "")
             }
             .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
+            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
             .fileImporter(
                 isPresented: $showImportPicker,
                 allowedContentTypes: [.plainText],
@@ -466,6 +468,17 @@ struct SettingsView: View {
             Button { showHowItWorks = true } label: {
                 HStack {
                     settingsRowLabel("How mirror works", systemImage: "sparkles", iconColor: MirrorTheme.primary)
+                    Spacer()
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 48)
+
+            Button { showFeatureGuide = true } label: {
+                HStack {
+                    settingsRowLabel("What's New & features", systemImage: "square.grid.3x3", iconColor: MirrorTheme.primary)
                     Spacer()
                     chevron
                 }
