@@ -197,6 +197,15 @@ struct SettingsView: View {
         }
         .padding(20)
         .futureSurface(cornerRadius: 26)
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(
+                    subscriptionService.isDeep ? Color.purple.opacity(0.22)
+                    : subscriptionService.isSubscribed ? MirrorTheme.primary.opacity(0.22)
+                    : Color.primary.opacity(0.07),
+                    lineWidth: 1
+                )
+        )
     }
 
     @ViewBuilder
@@ -262,6 +271,10 @@ struct SettingsView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .futureSurface(cornerRadius: 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(color.opacity(0.18), lineWidth: 1)
+        )
     }
 
     // MARK: - Account Section
