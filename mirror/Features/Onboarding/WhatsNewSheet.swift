@@ -18,8 +18,7 @@ struct WhatsNewSheet: View {
                     if mode == .whatsNew {
                         whatsNewHero
                     } else {
-                        featureGuideHeader
-                        tierFilter
+                        tierFilter.padding(.top, 4)
                     }
                     cardsList
                 }
@@ -29,7 +28,7 @@ struct WhatsNewSheet: View {
             }
             .background(MirrorTheme.bgBase)
             .navigationTitle(mode == .whatsNew ? "" : "Feature Guide")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(mode == .whatsNew ? .inline : .large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
@@ -102,20 +101,6 @@ struct WhatsNewSheet: View {
         .shadow(color: MirrorTheme.primary.opacity(0.3), radius: 28, x: 0, y: 12)
     }
 
-    // MARK: - Feature Guide header (allFeatures mode)
-
-    private var featureGuideHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Feature Guide")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("Everything mirror can do, organized by plan.")
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 8)
-    }
-
     // MARK: - Tier filter chips (allFeatures mode)
 
     private var tierFilter: some View {
@@ -147,7 +132,7 @@ struct WhatsNewSheet: View {
             }
         } else if let tier = selectedTier {
             VStack(spacing: 12) {
-                ForEach(service.allCards.filter { $0.tier == tier }) { card in
+                ForEach(service.allCards.filter { $0.tier == tier && $0.id != "feature-guide" }) { card in
                     FeatureCardRow(card: card, showTierBadge: false)
                 }
             }
@@ -162,7 +147,8 @@ struct WhatsNewSheet: View {
 
     @ViewBuilder
     private func tierSection(_ tier: CardTier) -> some View {
-        let cards = service.allCards.filter { $0.tier == tier }
+        // Exclude meta-cards that describe the feature guide itself — self-referential here
+        let cards = service.allCards.filter { $0.tier == tier && $0.id != "feature-guide" }
         if !cards.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 // Section header

@@ -52,11 +52,11 @@ struct OnboardingFlow: View {
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
 
-    private let reasons = [
-        ("brain.head.profile", "Understand myself better"),
-        ("moon.stars",         "Process stress and emotions"),
-        ("target",             "Track goals and habits"),
-        ("sparkles",           "Build a reflection practice"),
+    private let reasons: [(String, String, Color)] = [
+        ("brain.head.profile", "Understand myself better",   .blue),
+        ("moon.stars",         "Process stress and emotions", .purple),
+        ("target",             "Track goals and habits",      .orange),
+        ("sparkles",           "Build a reflection practice", .green),
     ]
 
     // Derive suggested preset from selected reason
@@ -162,33 +162,80 @@ struct OnboardingFlow: View {
                     .foregroundStyle(.secondary)
                     .lineSpacing(5)
 
-                // Privacy guarantee pill
-                HStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .fill(MirrorTheme.primary.opacity(0.12))
-                            .frame(width: 28, height: 28)
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.primary)
-                    }
-                    Text("Your writing never leaves this device")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(MirrorTheme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(MirrorTheme.primary.opacity(0.18), lineWidth: 1)
-                }
-                .padding(.top, 4)
+                // Sample nudge preview
+                sampleNudgePreview
+
+                // Feature chips
+                welcomeFeatureChips
             }
             Spacer()
             Spacer()
         }
         .padding(.horizontal, 28)
+    }
+
+    private var sampleNudgePreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary)
+                Text("Daily Reflection")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary)
+                Spacer()
+                Text("Today")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+            Text("\"You've mentioned feeling overwhelmed three times this week. What would make tomorrow feel lighter?\"")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+                .italic()
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(MirrorTheme.primary.opacity(0.15), lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(MirrorTheme.accentGradient)
+                .frame(width: 3)
+                .padding(.vertical, 12)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var welcomeFeatureChips: some View {
+        let chips: [(String, String, Color)] = [
+            ("lock.shield.fill", "100% on-device AI", .green),
+            ("icloud.fill",      "iCloud backup",     .blue),
+            ("bell.fill",        "Daily nudge",        MirrorTheme.primary),
+            ("magnifyingglass",  "Full-text search",  .orange),
+        ]
+        return LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+            spacing: 8
+        ) {
+            ForEach(chips, id: \.1) { icon, label, color in
+                HStack(spacing: 7) {
+                    Image(systemName: icon)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(color)
+                    Text(label)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
     }
 
     private var reasonStep: some View {
@@ -203,8 +250,8 @@ struct OnboardingFlow: View {
             .padding(.top, 12)
 
             VStack(spacing: 10) {
-                ForEach(reasons, id: \.1) { icon, label in
-                    reasonButton(icon: icon, label: label)
+                ForEach(reasons, id: \.1) { icon, label, color in
+                    reasonButton(icon: icon, label: label, color: color)
                 }
             }
 
@@ -349,7 +396,7 @@ struct OnboardingFlow: View {
 
     // MARK: - Choice Buttons
 
-    private func reasonButton(icon: String, label: String) -> some View {
+    private func reasonButton(icon: String, label: String, color: Color) -> some View {
         let isSelected = selectedReason == label
         return Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -360,15 +407,13 @@ struct OnboardingFlow: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected
-                              ? AnyShapeStyle(MirrorTheme.accentGradient)
-                              : AnyShapeStyle(Color.secondary.opacity(0.09)))
+                        .fill(isSelected ? color : Color.secondary.opacity(0.09))
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : .secondary)
+                        .foregroundStyle(isSelected ? .white : color.opacity(0.7))
                 }
-                .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
+                .shadow(color: isSelected ? color.opacity(0.35) : .clear, radius: 8, x: 0, y: 3)
 
                 Text(label)
                     .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
@@ -377,28 +422,26 @@ struct OnboardingFlow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 22))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(color)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
             .padding(16)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .background(
-                isSelected ? MirrorTheme.primary.opacity(0.06) : Color.clear,
+                isSelected ? color.opacity(0.06) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 18, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(
-                        isSelected
-                            ? AnyShapeStyle(MirrorTheme.accentGradient.opacity(0.5))
-                            : AnyShapeStyle(Color.primary.opacity(0.07)),
+                        isSelected ? color.opacity(0.4) : Color.primary.opacity(0.07),
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }
         .buttonStyle(.plain)
-        .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.08) : .clear, radius: 12, x: 0, y: 4)
+        .shadow(color: isSelected ? color.opacity(0.08) : .clear, radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedReason)
     }
 
