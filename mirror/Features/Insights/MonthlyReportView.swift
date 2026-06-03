@@ -80,8 +80,10 @@ struct MonthlyReportView: View {
             MonthlyStatsStrip(entries: thisMonthEntries)
             MonthlyReportCard(insight: insight)
                 .glowShadow(color: .purple, radius: 28)
-        case .notEnoughEntries(let remaining):
-            notEnoughEntriesCard(remaining: remaining)
+        case .notEnoughEntries(let remaining, let total):
+            notEnoughEntriesCard(remaining: remaining, total: total)
+        case .endOfMonthTooFewEntries(let count):
+            endOfMonthTooFewEntriesCard(count: count)
         case .subscriptionRequired:
             deepLockedCard
         case .pendingNightlyGeneration:
@@ -135,7 +137,7 @@ struct MonthlyReportView: View {
         .futureSurface(cornerRadius: 22)
     }
 
-    private func notEnoughEntriesCard(remaining: Int) -> some View {
+    private func notEnoughEntriesCard(remaining: Int, total: Int) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
@@ -149,15 +151,46 @@ struct MonthlyReportView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Your deep monthly report unlocks at 20 entries.")
+                    Text("Your deep monthly report unlocks at \(total) entries.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
             }
-            ProgressView(value: Double(max(0, 20 - remaining)), total: 20)
+            ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
                 .tint(.purple)
                 .scaleEffect(x: 1, y: 1.4)
             Text("Keep writing — generates automatically when ready.")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 24)
+    }
+
+    private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.orange)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Not enough entries this month")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Only \(count) \(count == 1 ? "entry" : "entries") written so far.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text("The monthly report needs at least 10 entries to reflect your month meaningfully. With just a few days left, there isn't enough to generate one for this month.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Keep writing — your report will be ready next month.")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.tertiary)
         }

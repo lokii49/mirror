@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		471288812F9CFB7F00812160 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 471288802F9CFB7F00812160 /* Supabase */; };
 		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
 		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
 		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
@@ -131,7 +130,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */,
-				471288812F9CFB7F00812160 /* Supabase in Frameworks */,
 				471288832F9D300100812160 /* SwiftLlama in Frameworks */,
 				47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */,
 			);
@@ -218,7 +216,6 @@
 			);
 			name = mirror;
 			packageProductDependencies = (
-				471288802F9CFB7F00812160 /* Supabase */,
 				471288822F9D300100812160 /* SwiftLlama */,
 				47E752A72FB47F4F00C6362E /* RevenueCat */,
 				47E752A92FB47F4F00C6362E /* RevenueCatUI */,
@@ -331,7 +328,6 @@
 			mainGroup = 471287ED2F9CF11200812160;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */,
 				47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
@@ -559,7 +555,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -574,7 +570,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -594,7 +590,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -609,7 +605,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -821,14 +817,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
-			};
-		};
 		471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pgorzelany/swift-llama-cpp";
@@ -848,11 +836,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		471288802F9CFB7F00812160 /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4712887F2F9CFB7F00812160 /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
 		471288822F9D300100812160 /* SwiftLlama */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */;
