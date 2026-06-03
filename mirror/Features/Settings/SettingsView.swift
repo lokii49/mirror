@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var cachedLatestEntryText: String = "None"
 
     // MIRROR settings
+    @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
     @AppStorage("nudgeHour") private var nudgeHour: Int = 8
     @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
     @State private var showNudgeTimePicker = false
@@ -158,20 +159,38 @@ struct SettingsView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 7) {
+                        upgradeChip("Daily Reflection", icon: "sparkles")
+                        upgradeChip("Ask", icon: "bubble.left.and.bubble.right")
+                        upgradeChip("Weekly Digest", icon: "calendar.badge.clock")
+                        upgradeChip("Auto Mood", icon: "face.smiling")
+                    }
+                    .padding(.horizontal, 1)
+                }
+                .padding(.bottom, 10)
+
                 Button { showSubscription = true } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("Unlock daily reflections with Core")
+                        Text("Start 7-day free trial")
                             .font(.system(size: 14, weight: .semibold))
                         Spacer(minLength: 4)
+                        Text("Core · $2.99/mo")
+                            .font(.system(size: 12, weight: .medium))
+                            .opacity(0.65)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
                     }
                     .foregroundStyle(MirrorTheme.primary)
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 11)
                     .background(MirrorTheme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(MirrorTheme.primary.opacity(0.18), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -184,7 +203,9 @@ struct SettingsView: View {
     private var avatarView: some View {
         ZStack {
             Circle()
-                .fill(MirrorTheme.accentGradient)
+                .fill(subscriptionService.isDeep
+                    ? LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    : MirrorTheme.accentGradient)
                 .frame(width: 58, height: 58)
             Image(systemName: "person.fill")
                 .font(.system(size: 26, weight: .semibold))
@@ -270,6 +291,21 @@ struct SettingsView: View {
 
     private var mirrorSection: some View {
         settingsGroup("MirrorNotes") {
+            // Appearance
+            HStack {
+                settingsRowLabel("Appearance", systemImage: "circle.lefthalf.filled", iconColor: .indigo)
+                Spacer()
+                Picker("", selection: $appearanceMode) {
+                    Text("System").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+                .pickerStyle(.menu)
+                .tint(.secondary)
+            }
+
+            Divider().padding(.leading, 48)
+
             // Daily nudge time — Core only
             if subscriptionService.isSubscribed {
                 Button { withAnimation { showNudgeTimePicker.toggle() } } label: {
@@ -466,7 +502,7 @@ struct SettingsView: View {
         settingsGroup("About") {
             Button { showHowItWorks = true } label: {
                 HStack {
-                    settingsRowLabel("How mirror works", systemImage: "sparkles", iconColor: MirrorTheme.primary)
+                    settingsRowLabel("How mirror works", systemImage: "info.circle.fill", iconColor: .blue)
                     Spacer()
                     chevron
                 }
@@ -477,13 +513,21 @@ struct SettingsView: View {
 
             Button { showFeatureGuide = true } label: {
                 HStack {
-                    settingsRowLabel("What's New & features", systemImage: "square.grid.3x3", iconColor: MirrorTheme.primary)
+                    settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: .purple)
                     Spacer()
+                    if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                        Text("v\(v)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.purple.opacity(0.08), in: Capsule())
+                    }
                     chevron
                 }
             }
             .buttonStyle(.plain)
-            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
+            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
 
             Divider().padding(.leading, 48)
 
@@ -520,7 +564,22 @@ struct SettingsView: View {
 
             Divider().padding(.leading, 48)
 
-            settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .blue)
+            if let feedbackURL = AppConstants.feedbackURL {
+                Button {
+                    UIApplication.shared.open(feedbackURL)
+                } label: {
+                    HStack {
+                        settingsRowLabel("Send feedback", systemImage: "envelope.fill", iconColor: .teal)
+                        Spacer()
+                        chevron
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider().padding(.leading, 48)
+
+            settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .secondary)
         }
     }
 
@@ -674,6 +733,19 @@ struct SettingsView: View {
     #endif
 
     // MARK: - Helpers
+
+    private func upgradeChip(_ label: String, icon: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+        }
+        .foregroundStyle(MirrorTheme.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(MirrorTheme.primary.opacity(0.08), in: Capsule())
+    }
 
     private var chevron: some View {
         Image(systemName: "chevron.right")
