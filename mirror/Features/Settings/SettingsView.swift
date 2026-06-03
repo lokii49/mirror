@@ -76,7 +76,6 @@ struct SettingsView: View {
                 Text(error?.localizedDescription ?? "")
             }
             .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
-            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
             .fileImporter(
                 isPresented: $showImportPicker,
                 allowedContentTypes: [.plainText],
@@ -113,6 +112,8 @@ struct SettingsView: View {
                 cachedLatestEntryText = computeLatestEntryText(from: snapshot)
             }
         }
+        // Separate from NavigationStack to avoid SwiftUI multiple-sheet conflict
+        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
     }
 
     // MARK: - Profile Card
