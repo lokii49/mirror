@@ -112,8 +112,6 @@ struct SettingsView: View {
                 cachedLatestEntryText = computeLatestEntryText(from: snapshot)
             }
         }
-        // Separate from NavigationStack to avoid SwiftUI multiple-sheet conflict
-        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
     }
 
     // MARK: - Profile Card
@@ -485,6 +483,7 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .allFeatures) }
 
             Divider().padding(.leading, 48)
 
