@@ -205,9 +205,13 @@ final class FeatureCardService {
     }
 
     var shouldShowWhatsNew: Bool {
+        #if DEBUG
+        return !whatsNewCards.isEmpty
+        #else
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return false }
         return current > last && !whatsNewCards.isEmpty
+        #endif
     }
 
     func markWhatsNewSeen() {
