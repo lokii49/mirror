@@ -7,6 +7,8 @@ struct ContentView: View {
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
+    @State private var showWhatsNew = false
+    private let featureCardService = FeatureCardService.shared
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -39,12 +41,30 @@ struct ContentView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView()
         }
+        .sheet(isPresented: $showWhatsNew) {
+            WhatsNewSheet(mode: .whatsNew)
+        }
         .onChange(of: onboardingComplete) { _, complete in
-            if complete { selectedTab = 1 }
+            if complete {
+                selectedTab = 1
+                // Brief delay so onboarding dismissal animation completes before sheet appears
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    if featureCardService.shouldShowWhatsNew {
+                        showWhatsNew = true
+                    }
+                }
+            }
         }
         .onAppear {
             // Don't open Write tab (and its keyboard) while onboarding is showing
             if !onboardingComplete { selectedTab = 0 }
+            if onboardingComplete && !isUITesting && featureCardService.shouldShowWhatsNew {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    showWhatsNew = true
+                }
+            }
         }
         .onOpenURL { url in
             guard url.scheme == "mirror" else { return }
