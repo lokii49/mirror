@@ -569,6 +569,9 @@ struct OnboardingFlow: View {
 
         try? modelContext.save()
 
+        // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
+        FeatureCardService.shared.markWhatsNewSeen()
+
         // Request notification permission now — user just set their nudge time so
         // they understand why the prompt appears. Schedule the write-reminder immediately
         // after permission is granted so the first nudge fires at their chosen time.

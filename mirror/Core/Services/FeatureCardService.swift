@@ -201,12 +201,21 @@ final class FeatureCardService {
     var allCards: [FeatureCard] { FeatureCardRegistry.all }
 
     var whatsNewCards: [FeatureCard] {
-        FeatureCardRegistry.all.filter { $0.sinceVersion == currentAppVersion }
+        #if DEBUG
+        return FeatureCardRegistry.all
+        #else
+        guard let last = AppVersion(lastSeenVersion),
+              let current = AppVersion(currentAppVersion) else { return [] }
+        return FeatureCardRegistry.all.filter {
+            guard let cardVersion = AppVersion($0.sinceVersion) else { return false }
+            return cardVersion > last && cardVersion <= current
+        }
+        #endif
     }
 
     var shouldShowWhatsNew: Bool {
         #if DEBUG
-        return !whatsNewCards.isEmpty
+        return true
         #else
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return false }

@@ -759,7 +759,8 @@ extension NudgeState: Equatable {
         switch (lhs, rhs) {
         case (.idle, .idle), (.loading, .loading),
              (.subscriptionRequired, .subscriptionRequired),
-             (.needsMoreEntries, .needsMoreEntries): return true
+             (.needsMoreEntries, .needsMoreEntries),
+             (.pendingNightlyGeneration, .pendingNightlyGeneration): return true
         case (.loaded(let a), .loaded(let b)): return a.id == b.id
         case (.error(let a), .error(let b)): return a == b
         default: return false
