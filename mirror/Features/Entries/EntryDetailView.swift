@@ -88,6 +88,21 @@ struct EntryDetailView: View {
                             }
                         }
                     }
+
+                    if !entry.tags.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(entry.tags, id: \.self) { tag in
+                                    Text("#\(tag)")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.tertiarySystemFill), in: Capsule())
+                                }
+                            }
+                        }
+                    }
                 }
                 .padding(22)
                 .futureSurface(cornerRadius: 22)
