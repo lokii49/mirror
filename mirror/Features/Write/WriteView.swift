@@ -2506,6 +2506,8 @@ struct WriteView: View {
     }
 
     private func detectMoodWithMirror() {
+        let sub = SubscriptionService.shared
+        guard sub.tier == .core || sub.tier == .deep else { return }
         let text = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         isDetectingMood = true
@@ -2521,6 +2523,8 @@ struct WriteView: View {
     }
 
     private func autoDetectMoodIfNeeded(for entry: Entry) {
+        let sub = SubscriptionService.shared
+        guard sub.tier == .core || sub.tier == .deep else { return }
         guard entry.mood == nil else { return }
         let context = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !context.isEmpty else { return }
