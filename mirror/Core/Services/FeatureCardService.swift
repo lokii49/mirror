@@ -179,6 +179,26 @@ enum FeatureCardRegistry {
             tier: .deep,
             sinceVersion: "1.0.0"
         ),
+        // 1.0.8
+        .init(
+            id: "tags",
+            title: "#Tags",
+            body: "Add tags to any entry while writing. Filter your journal by tag to find related entries instantly — workouts, therapy sessions, dreams, anything.",
+            symbolName: "number",
+            accentColor: MirrorTheme.primary,
+            tier: .free,
+            sinceVersion: "1.0.8"
+        ),
+        .init(
+            id: "writing-improvements-108",
+            title: "Smarter lists & toolbar",
+            body: "Bullet lists now nest visually (•, ◦, ▸). Tab indents a list item from the keyboard. Switching between checklist, numbered, and bullet works in one tap. Undo and redo show when they're available.",
+            symbolName: "list.bullet.indent",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "1.0.8",
+            showInFeatureGuide: false
+        ),
         // 1.0.7
         .init(
             id: "auto-mood-detection",
