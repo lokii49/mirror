@@ -19,6 +19,8 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var activeParagraphStyle: NoteParagraphTextStyle
     @Binding var activeInlineStyles: InlineStyleSet
     @Binding var showFormattingPanel: Bool
+    @Binding var canUndo: Bool
+    @Binding var canRedo: Bool
     var panelState: FormattingPanelState
     var onPhotoTapped: ((Int) -> Void)?
 
@@ -173,6 +175,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.textStyleData = encodedTextStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
         // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
@@ -243,6 +246,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
             refreshActiveInlineStyles(in: textView)
+            parent.canUndo = textView.undoManager?.canUndo ?? false
+            parent.canRedo = textView.undoManager?.canRedo ?? false
         }
 
         func textView(
@@ -270,13 +275,25 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return false
             }
 
+            if replacement == "\t" {
+                let nsText = rendered as NSString
+                let lookupLoc = min(max(0, range.location), max(0, nsText.length - 1))
+                let paraRange = nsText.paragraphRange(for: NSRange(location: lookupLoc, length: 0))
+                let style = textStyle(at: paraRange.location, in: textView.attributedText)
+                if isListStyle(style) {
+                    applyIndent(delta: +1, in: textView)
+                    return false
+                }
+            }
+
             if replacement == "\n" {
                 let nsText = rendered as NSString
                 let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, range.location - 1), length: 0))
                 let paragraph = nsText.substring(with: paragraphRange)
                 let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
                 if isListStyle(style) {
-                    let content = listContent(fromDisplayedParagraph: paragraph, style: style)
+                    let level = indentLevelValue(at: paragraphRange.location, in: textView.attributedText)
+                    let content = listContent(fromDisplayedParagraph: paragraph, style: style, level: level)
                     if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         exitList(at: paragraphRange, in: textView)
                     } else {
@@ -366,7 +383,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ? updatedRendered.substring(with: updatedParagraphRange)
                 : ""
 
-            let content = listContent(fromDisplayedParagraph: updatedParagraph, style: style)
+            let paraLevel = indentLevelValue(at: paragraphRange.location, in: textView.attributedText)
+            let content = listContent(fromDisplayedParagraph: updatedParagraph, style: style, level: paraLevel)
             guard content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
 
             exitList(at: paragraphRange, in: textView)
@@ -380,8 +398,38 @@ struct NoteEditorTextView: UIViewRepresentable {
         func textViewDidChangeSelection(_ textView: UITextView) {
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
+            clampCursorPastListMarker(in: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveInlineStyles(in: textView)
+        }
+
+        // Moves cursor to after the list marker when it lands inside the glyph prefix.
+        // Async dispatch avoids re-entrancy; the follow-up textViewDidChangeSelection
+        // will see the corrected position and hit the early-return guard.
+        private func clampCursorPastListMarker(in textView: UITextView) {
+            let selRange = textView.selectedRange
+            guard selRange.length == 0 else { return }
+            let nsText = (textView.text ?? "") as NSString
+            guard nsText.length > 0, selRange.location < nsText.length else { return }
+
+            let paraRange = nsText.paragraphRange(for: NSRange(location: selRange.location, length: 0))
+            let style = textStyle(at: paraRange.location, in: textView.attributedText)
+            guard isListStyle(style) else { return }
+
+            let level = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let markerLen: Int
+            if style == .numberedList {
+                markerLen = numberedListMarkerLength(in: nsText.substring(with: paraRange))
+            } else {
+                markerLen = (staticListMarkerPrefix(for: style, level: level) as NSString?)?.length ?? 0
+            }
+            let markerEnd = paraRange.location + markerLen
+            guard selRange.location < markerEnd else { return }
+
+            DispatchQueue.main.async {
+                guard textView.isFirstResponder else { return }
+                textView.selectedRange = self.bounded(NSRange(location: markerEnd, length: 0), in: textView.text)
+            }
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
@@ -427,9 +475,17 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             case .undo:
                 textView.undoManager?.undo()
+                DispatchQueue.main.async {
+                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
+                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
+                }
                 return
             case .redo:
                 textView.undoManager?.redo()
+                DispatchQueue.main.async {
+                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
+                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
+                }
                 return
             default: break
             }
@@ -494,7 +550,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                                                    options: [.byParagraphs, .substringNotRequired]) { _, _, _, _ in count += 1 }
                         styles = Array(repeating: .body, count: count)
                     }
-                    styles.append(targetStyle)
+                    // Only append when cursor is in a true ghost paragraph (text ends with a line break).
+                    // When the last paragraph just has no trailing newline (e.g. "○  " clamped to end),
+                    // the last styles entry already covers it — update it instead of appending.
+                    let lastChar = nsText.length > 0 ? nsText.character(at: nsText.length - 1) : 0
+                    let endsWithLineBreak = lastChar == 10 || lastChar == 13
+                    if endsWithLineBreak || styles.isEmpty {
+                        styles.append(targetStyle)
+                    } else {
+                        styles[styles.count - 1] = targetStyle
+                    }
                     parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles))
                     invalidateRenderedCache()
                     applyStyledText(to: textView, preservingSelection: false)
@@ -525,6 +590,36 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let cursorRange = NSRange(location: cursorLocation, length: 0)
             let paragraphRange = nsText.paragraphRange(for: cursorRange)
+
+            // List A → different List B: setParagraphStyle changes the attribute first, then calls
+            // logicalText which can no longer match the old marker prefix → parent.text gets the old
+            // marker baked in → re-render double-prefixes (e.g. "1.  ○  hello"). Strip the old marker
+            // explicitly before applying the new style.
+            if isListStyle(currentStyle) && isListStyle(targetStyle) && currentStyle != targetStyle {
+                stripListMarkerAndApply(targetStyle, at: cursorLocation, in: textView)
+                if staticListMarkerPrefix(for: targetStyle, level: cursorLevel) != nil || targetStyle == .numberedList {
+                    invalidateRenderedCache()
+                    applyStyledText(to: textView, preservingSelection: false)
+                    let nsPost = (textView.text ?? "") as NSString
+                    let safeLoc = min(cursorLocation, max(0, nsPost.length - 1))
+                    let postPara = nsPost.paragraphRange(for: NSRange(location: safeLoc, length: 0))
+                    let newMarkerLen: Int
+                    if targetStyle == .numberedList {
+                        newMarkerLen = numberedListMarkerLength(in: nsPost.substring(with: postPara))
+                    } else {
+                        newMarkerLen = (staticListMarkerPrefix(for: targetStyle, level: cursorLevel) as NSString?)?.length ?? 0
+                    }
+                    textView.selectedRange = bounded(
+                        NSRange(location: postPara.location + newMarkerLen, length: 0),
+                        in: textView.text
+                    )
+                }
+                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                parent.activeParagraphStyle = targetStyle
+                parent.panelState.activeParagraphStyle = targetStyle
+                refreshActiveInlineStyles(in: textView)
+                return
+            }
 
             nsText.enumerateSubstrings(in: paragraphRange, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
                 self.setParagraphStyle(targetStyle, range: range, in: textView)
@@ -700,7 +795,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             nsRendered.enumerateSubstrings(in: NSRange(location: 0, length: nsRendered.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
                 let paragraph = nsRendered.substring(with: enclosingRange)
                 let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                if let marker = self.staticListMarkerPrefix(for: style), paragraph.hasPrefix(marker) {
+                let level = self.indentLevelValue(at: enclosingRange.location, in: attributed)
+                if let marker = self.staticListMarkerPrefix(for: style, level: level), paragraph.hasPrefix(marker) {
                     result += String(paragraph.dropFirst(marker.count))
                 } else if style == .numberedList {
                     let markerLen = self.numberedListMarkerLength(in: paragraph)
@@ -927,7 +1023,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if storedStyle == .numberedList {
                     listMarker = "\(numberedListCounter).  "
                 } else {
-                    listMarker = self.staticListMarkerPrefix(for: storedStyle) ?? ""
+                    listMarker = self.staticListMarkerPrefix(for: storedStyle, level: indentLevel) ?? ""
                 }
                 let displayParagraph = listMarker.isEmpty ? rawDisplayParagraph : listMarker + rawDisplayParagraph
 
@@ -1128,7 +1224,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             // For numbered lists, the new row will be numbered after render; just insert unchecked for checklist
             let newStyle: NoteParagraphTextStyle = (style == .checklistChecked) ? .checklistUnchecked : style
             let rowLevel = indentLevelValue(at: max(0, range.location - 1), in: textView.attributedText)
-            let marker = staticListMarkerPrefix(for: newStyle) ?? (newStyle == .numberedList ? "N.  " : "")
+            let marker = staticListMarkerPrefix(for: newStyle, level: rowLevel) ?? (newStyle == .numberedList ? "N.  " : "")
             let insertion = "\n" + marker
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let insertionRange = bounded(range, in: mutable.string)
@@ -1184,24 +1280,35 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
 
-        private func listContent(fromDisplayedParagraph paragraph: String, style: NoteParagraphTextStyle) -> String {
+        private func listContent(fromDisplayedParagraph paragraph: String, style: NoteParagraphTextStyle, level: Int = 0) -> String {
             if style == .numberedList {
                 let markerLen = numberedListMarkerLength(in: paragraph)
                 return markerLen > 0 ? String(paragraph.dropFirst(markerLen)) : paragraph
             }
-            guard let marker = staticListMarkerPrefix(for: style), paragraph.hasPrefix(marker) else {
+            guard let marker = staticListMarkerPrefix(for: style, level: level), paragraph.hasPrefix(marker) else {
                 return paragraph
             }
             return String(paragraph.dropFirst(marker.count))
         }
 
-        // Returns static (non-numbered) marker prefix for a list style, nil for numbered/non-list
-        private func staticListMarkerPrefix(for style: NoteParagraphTextStyle) -> String? {
+        // Returns static (non-numbered) marker prefix for a list style, nil for numbered/non-list.
+        // Bullet/dash markers use nested visual hierarchy per indent level (all variants are 3 chars).
+        private func staticListMarkerPrefix(for style: NoteParagraphTextStyle, level: Int = 0) -> String? {
             switch style {
             case .checklistUnchecked: return "○  "
             case .checklistChecked:   return "✓  "
-            case .bulletedList:       return "•  "
-            case .dashedList:         return "–  "
+            case .bulletedList:
+                switch level {
+                case 0:  return "•  "
+                case 1:  return "◦  "
+                default: return "▸  "
+                }
+            case .dashedList:
+                switch level {
+                case 0:  return "–  "
+                case 1:  return "·  "
+                default: return "–  "
+                }
             default: return nil
             }
         }
@@ -1542,6 +1649,22 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             if newLevel > 0 {
                 mutable.addAttribute(Self.indentLevelAttribute, value: newLevel, range: paraRange)
+            }
+
+            // Swap bullet/dash marker glyph to match new indent level.
+            // Attributes are updated above but the marker character in the string is still the old glyph.
+            // syncRenderedCache below produces a cache hit on the next updateUIView, so without this swap
+            // the new glyph (◦, ▸, etc.) would never appear until the next text edit triggers a cache miss.
+            if (style == .bulletedList || style == .dashedList),
+               let oldMarker = staticListMarkerPrefix(for: style, level: currentLevel),
+               let newMarker = staticListMarkerPrefix(for: style, level: newLevel) {
+                let oldNS = oldMarker as NSString
+                let markerRange = bounded(NSRange(location: paraRange.location, length: oldNS.length), in: mutable.string)
+                if markerRange.length == oldNS.length,
+                   (mutable.string as NSString).substring(with: markerRange) == oldMarker {
+                    let existingAttrs = mutable.attributes(at: markerRange.location, effectiveRange: nil)
+                    mutable.replaceCharacters(in: markerRange, with: NSAttributedString(string: newMarker, attributes: existingAttrs))
+                }
             }
 
             invalidateRenderedCache()
@@ -2081,6 +2204,8 @@ struct WriteView: View {
     @State private var inlineStyleData: Data? = nil
     @State private var activeInlineStyles = InlineStyleSet()
     @State private var showFormattingPanel = false
+    @State private var canUndo = false
+    @State private var canRedo = false
     @State private var panelState = FormattingPanelState()
     @State private var fullscreenPhotoIndex: Int? = nil
     @State private var voiceNoteData: Data? = nil
@@ -2194,6 +2319,8 @@ struct WriteView: View {
                     activeParagraphStyle: $activeParagraphStyle,
                     activeInlineStyles: $activeInlineStyles,
                     showFormattingPanel: $showFormattingPanel,
+                    canUndo: $canUndo,
+                    canRedo: $canRedo,
                     panelState: panelState,
                     onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                 )
@@ -2773,10 +2900,12 @@ struct WriteView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
                         .font(.system(size: 18))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(canUndo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
                 .buttonStyle(.plain)
+                .disabled(!canUndo)
+                .accessibilityLabel("Undo")
 
                 // Redo
                 Button {
@@ -2784,32 +2913,48 @@ struct WriteView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.forward")
                         .font(.system(size: 18))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(canRedo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
                 .buttonStyle(.plain)
+                .disabled(!canRedo)
+                .accessibilityLabel("Redo")
 
                 // Formatting panel
-                Button {
+                FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showFormattingPanel.toggle()
-                } label: {
-                    let inlineStyles = panelState.activeInlineStyles
-                    let paraStyle = panelState.activeParagraphStyle
-                    let hasActive = !inlineStyles.isEmpty || paraStyle != .body
-                    let aaSize: CGFloat = paraStyle == .title ? 19 : paraStyle == .heading ? 18 : 16
-                    let aaWeight: Font.Weight = (inlineStyles.bold || paraStyle == .heading || paraStyle == .title) ? .bold : (paraStyle == .subheading ? .semibold : .regular)
-                    let aaDesign: Font.Design = paraStyle == .monospaced ? .monospaced : .default
-                    Text("Aa")
-                        .font(.system(size: aaSize, weight: aaWeight, design: aaDesign))
-                        .italic(inlineStyles.italic)
-                        .strikethrough(inlineStyles.strikethrough)
-                        .underline(inlineStyles.underline)
-                        .foregroundStyle(showFormattingPanel ? Color.accentColor : hasActive ? Color.primary : Color.secondary)
-                        .frame(width: 38, height: 44)
                 }
-                .buttonStyle(.plain)
 
                 Spacer(minLength: 0)
+
+                // Checklist quick-ops — appear only when cursor is on a checklist paragraph
+                let isInChecklist = activeParagraphStyle == .checklistUnchecked || activeParagraphStyle == .checklistChecked
+                if isInChecklist {
+                    Button {
+                        applyTextCommand(.checkAllItems)
+                    } label: {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.primary)
+                            .frame(width: 40, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Check all items")
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+
+                    Button {
+                        applyTextCommand(.deleteCheckedItems)
+                    } label: {
+                        Image(systemName: "trash.circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Delete checked items")
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
 
                 // Photo button
                 Menu {
@@ -2857,10 +3002,16 @@ struct WriteView: View {
                 } label: {
                     Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
                         .font(.system(size: 20))
-                        .foregroundStyle(!draftVoiceNotes.isEmpty ? Color.accentColor : .primary)
+                        .foregroundStyle(!draftVoiceNotes.isEmpty ? Color.accentColor : Color.primary)
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
-                            if draftVoiceNotes.count > 1 {
+                            if isTranscribingVoiceNotes {
+                                ProgressView()
+                                    .scaleEffect(0.55)
+                                    .frame(width: 16, height: 16)
+                                    .background(Color(.systemBackground).opacity(0.85), in: Circle())
+                                    .offset(x: 6, y: -6)
+                            } else if draftVoiceNotes.count > 1 {
                                 Text("\(draftVoiceNotes.count)")
                                     .font(.system(size: 9, weight: .bold))
                                     .foregroundStyle(.white)
@@ -2872,7 +3023,9 @@ struct WriteView: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isTranscribingVoiceNotes ? "Transcribing voice note" : (!draftVoiceNotes.isEmpty ? "Voice notes" : "Add voice note"))
             }
+            .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
             .padding(.horizontal, 8)
         }
         .background(.bar)
@@ -3277,6 +3430,31 @@ enum PhotoAttachError: Error {
     case unreadableImage
 }
 
+private struct FormatToggleButton: View {
+    var panelState: FormattingPanelState
+    var isShowingPanel: Bool
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            let inlineStyles = panelState.activeInlineStyles
+            let paraStyle = panelState.activeParagraphStyle
+            let hasActive = !inlineStyles.isEmpty || paraStyle != .body
+            let aaSize: CGFloat = paraStyle == .title ? 19 : paraStyle == .heading ? 18 : 16
+            let aaWeight: Font.Weight = (inlineStyles.bold || paraStyle == .heading || paraStyle == .title) ? .bold : (paraStyle == .subheading ? .semibold : .regular)
+            let aaDesign: Font.Design = paraStyle == .monospaced ? .monospaced : .default
+            Text("Aa")
+                .font(.system(size: aaSize, weight: aaWeight, design: aaDesign))
+                .italic(inlineStyles.italic)
+                .strikethrough(inlineStyles.strikethrough)
+                .underline(inlineStyles.underline)
+                .foregroundStyle(isShowingPanel ? Color.accentColor : hasActive ? Color.primary : Color.secondary)
+                .frame(width: 38, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isShowingPanel ? "Hide formatting" : "Formatting")
+    }
+}
 
 #Preview {
     NavigationStack {
