@@ -2044,6 +2044,7 @@ struct WriteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
@@ -2107,8 +2108,10 @@ struct WriteView: View {
     @State private var entryTags: [String] = []
     @State private var tagText: String = ""
     @State private var showTagInput = false
+    @State private var existingTagSuggestions: [String] = []
     @AppStorage("dailyWordGoal") private var dailyWordGoal: Int = 200
     @FocusState private var editorFocused: Bool
+    @FocusState private var tagFieldFocused: Bool
 
     private var noteDate: Date { entryDate }
     private var hasDraftContent: Bool {
@@ -2151,7 +2154,7 @@ struct WriteView: View {
             VStack(spacing: 0) {
                 if !focusMode { dateHeader }
 
-                if !focusMode && (!entryTags.isEmpty || showTagInput) {
+                if !focusMode {
                     tagsBar
                 }
 
@@ -2361,6 +2364,9 @@ struct WriteView: View {
         }
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { saveDraftToStorage() }
+        }
+        .onChange(of: showTagInput) { _, open in
+            if open { computeTagSuggestions() }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             if entry == nil { saveDraftToStorage() }
@@ -2648,6 +2654,41 @@ struct WriteView: View {
                         .background(Color(.secondarySystemFill), in: Capsule())
                         .onSubmit { commitTag() }
                         .submitLabel(.done)
+                        .focused($tagFieldFocused)
+                        .onAppear { DispatchQueue.main.async { tagFieldFocused = true } }
+                        .onChange(of: tagFieldFocused) { _, focused in
+                            if !focused {
+                                DispatchQueue.main.async {
+                                    if !tagFieldFocused && tagText.isEmpty {
+                                        showTagInput = false
+                                    }
+                                }
+                            }
+                        }
+
+                    if !filteredTagSuggestions.isEmpty {
+                        Rectangle()
+                            .fill(Color(.separator))
+                            .frame(width: 1, height: 16)
+                            .padding(.horizontal, 2)
+
+                        ForEach(filteredTagSuggestions, id: \.self) { tag in
+                            Button {
+                                entryTags.append(tag)
+                                tagText = ""
+                                showTagInput = false
+                                if entry == nil { saveDraftToStorage() }
+                            } label: {
+                                Text("#\(tag)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(MirrorTheme.primary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(MirrorTheme.primary.opacity(0.10), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 } else {
                     Button {
                         showTagInput = true
@@ -2669,6 +2710,33 @@ struct WriteView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 6)
         }
+    }
+
+    private static let defaultTagSuggestions = [
+        "therapy", "work", "personal", "idea", "dream"
+    ]
+
+    private var filteredTagSuggestions: [String] {
+        let query = tagText.lowercased()
+        var seen = Set<String>()
+        var combined: [String] = []
+        for tag in existingTagSuggestions + Self.defaultTagSuggestions {
+            if seen.insert(tag).inserted { combined.append(tag) }
+        }
+        let available = combined.filter { !entryTags.contains($0) }
+        if query.isEmpty { return Array(available.prefix(15)) }
+        return available.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    private func computeTagSuggestions() {
+        var seen = Set<String>()
+        var result: [String] = []
+        for e in allEntries {
+            for tag in e.tags where seen.insert(tag).inserted {
+                result.append(tag)
+            }
+        }
+        existingTagSuggestions = result
     }
 
     private func commitTag() {
