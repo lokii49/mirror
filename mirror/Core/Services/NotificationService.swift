@@ -1,5 +1,23 @@
 import UserNotifications
 
+// Shows mood alert banner even when app is in foreground; suppresses all others.
+final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = MirrorNotificationDelegate()
+    private override init() {}
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if notification.request.identifier == "mirror.moodAlert" {
+            completionHandler([.banner, .sound])
+        } else {
+            completionHandler([])
+        }
+    }
+}
+
 enum NotificationService {
     private static let nudgeID = "mirror.dailyNudge"
     private static let firstNudgeID = "mirror.firstNudge"
@@ -88,7 +106,7 @@ enum NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "MirrorNotes"
-        content.body = "You've logged low mood \(consecutiveCount) times in a row. Take a moment to check in."
+        content.body = "You've been carrying a lot lately. Take a gentle moment for yourself."
         content.sound = .default
 
         let request = UNNotificationRequest(identifier: moodAlertID, content: content, trigger: nil)
