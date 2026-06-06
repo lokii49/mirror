@@ -148,7 +148,7 @@ final class InsightViewModel {
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
-        let isMonthEnd = isInLastThreeDaysOfMonth(cal: cal, now: now)
+        let isMonthEnd = DateHelpers.isInLastThreeDaysOfMonth(now)
         let minimumEntries = isMonthEnd ? 10 : 20
 
         if isMonthEnd && thisMonthEntries.count < 10 {
@@ -204,12 +204,6 @@ final class InsightViewModel {
             monthlyReportState = .error(friendlyLLMError(error))
         }
     }
-}
-
-private func isInLastThreeDaysOfMonth(cal: Calendar, now: Date) -> Bool {
-    guard let range = cal.range(of: .day, in: .month, for: now),
-          let day = cal.dateComponents([.day], from: now).day else { return false }
-    return day >= range.count - 2
 }
 
 private func friendlyLLMError(_ error: Error) -> String {

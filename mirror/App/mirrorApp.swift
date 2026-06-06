@@ -338,7 +338,8 @@ struct mirrorApp: App {
         let now = Date()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
-        guard monthEntries.count >= 20, SubscriptionService.shared.isDeep else { return }
+        let minEntries = DateHelpers.isInLastThreeDaysOfMonth(now) ? 10 : 20
+        guard monthEntries.count >= minEntries, SubscriptionService.shared.isDeep else { return }
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }

@@ -163,7 +163,7 @@ enum InsightService {
                 maxChars: weeklyDigestPromptBudget
             ),
             task: .weeklyDigest
-        ).cleanedDigestOutput()
+        )
     }
 
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
@@ -171,7 +171,7 @@ enum InsightService {
             systemPrompt: MONTHLY_REPORT_SYSTEM,
             userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
             task: .monthlyReport
-        ).cleanedMonthlyReportOutput()
+        )
     }
 
     static func ask(question: String, entries: [Entry]) async throws -> String {
@@ -187,7 +187,7 @@ enum InsightService {
                 question: question
             ),
             task: .ask
-        ).cleanedInsightOutput()
+        )
     }
 
     static func detectEmotion(text: String) async throws -> String {
@@ -567,7 +567,7 @@ enum InsightService {
         guard !entries.isEmpty else { return "No older context available yet." }
 
         let total = entries.count
-        let dated = entries.compactMap(\.createdAt).sorted()
+        let dated = entries.map(\.createdAt).sorted()
         let dateRange: String
         if let first = dated.first, let last = dated.last {
             dateRange = "\(first.formatted(date: .abbreviated, time: .omitted)) to \(last.formatted(date: .abbreviated, time: .omitted))"
@@ -670,8 +670,7 @@ private extension String {
             .replacingOccurrences(of: #"\bI will\b"#, with: "you will", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: #"\bI would\b"#, with: "you would", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: #"\bI should\b"#, with: "you should", options: [.regularExpression, .caseInsensitive])
-            .replacingOccurrences(of: "I’ve been", with: "you've been", options: .caseInsensitive)
-            .replacingOccurrences(of: "I've been", with: "you've been", options: .caseInsensitive)
+            .replacingOccurrences(of: "I’ve been", with: "you’ve been", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I’ll", with: "you could", options: .caseInsensitive)
