@@ -121,6 +121,9 @@ actor LocalLLMService {
             throw error
         }
         await svc.stopCompletion()
+        // Guard against partial output if the stream drained normally while the task was cancelled
+        // (stream producer may return nil rather than throw on cancellation).
+        try Task.checkCancellation()
         let cleaned = clean(output)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
         return cleaned
