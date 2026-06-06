@@ -69,7 +69,8 @@ actor LocalLLMService {
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         await resetContext()
         let isBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
-        let svc = try llamaService(useGPU: !isBackground)
+        let usingGPU = !isBackground
+        let svc = try llamaService(useGPU: usingGPU)
         defer {
             service = nil
         }
@@ -100,9 +101,19 @@ actor LocalLLMService {
             throw error
         }
         var output = ""
+        var tokenCount = 0
         do {
             for try await token in stream {
                 output += token
+                tokenCount += 1
+                if usingGPU && tokenCount % 50 == 0 {
+                    let nowBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
+                    if nowBackground {
+                        await svc.stopCompletion()
+                        self.service = nil
+                        throw LocalLLMError.contextExhausted
+                    }
+                }
                 if output.contains("<end_of_turn>") || output.contains("<eos>")
                     || output.count > task.maxOutputChars {
                     await svc.stopCompletion()
