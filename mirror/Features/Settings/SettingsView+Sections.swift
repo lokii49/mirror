@@ -412,25 +412,27 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            if FeatureCardService.shared.shouldShowWhatsNew {
+                Divider().padding(.leading, 48)
 
-            Button { showFeatureGuide = true } label: {
-                HStack {
-                    settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: .purple)
-                    Spacer()
-                    if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-                        Text("v\(v)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.purple.opacity(0.08), in: Capsule())
+                Button { showFeatureGuide = true } label: {
+                    HStack {
+                        settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: .purple)
+                        Spacer()
+                        if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                            Text("v\(v)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.purple.opacity(0.08), in: Capsule())
+                        }
+                        chevron
                     }
-                    chevron
                 }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
             }
-            .buttonStyle(.plain)
-            .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
 
             Divider().padding(.leading, 48)
 
