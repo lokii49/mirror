@@ -10,6 +10,10 @@ import RevenueCat
 struct mirrorApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
+    // Foreground proactive generation task — cancelled immediately when app backgrounds
+    // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
+    nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Entry.self,
@@ -49,15 +53,21 @@ struct mirrorApp: App {
                     await requestNotificationPermissionIfNeeded()
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
-                Task(priority: .background) {
+                // Store task so we can cancel it immediately if the app backgrounds.
+                mirrorApp.activeGenerationTask?.cancel()
+                mirrorApp.activeGenerationTask = Task(priority: .background) {
                     await preGenerateInsightsIfNeeded()
                 }
             case .background:
+                // Cancel any foreground GPU generation immediately — LocalLLMService will
+                // stop at the next Task.checkCancellation() and the nightly BGProcessingTask
+                // will retry on CPU.
+                mirrorApp.activeGenerationTask?.cancel()
+                mirrorApp.activeGenerationTask = nil
                 scheduleDailyNudgeFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
-                // If LLM is mid-generation when backgrounded, request ~30s grace so iOS
-                // doesn't suspend before the current inference completes.
+                // Give any remaining in-flight generation (BGProcessingTask path) ~30s grace.
                 extendBackgroundForPendingGeneration()
             default:
                 break
