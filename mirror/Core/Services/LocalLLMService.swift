@@ -1,5 +1,6 @@
 import Foundation
 import SwiftLlama
+import UIKit
 
 enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
@@ -67,7 +68,8 @@ actor LocalLLMService {
 
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         await resetContext()
-        let svc = try llamaService()
+        let isBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
+        let svc = try llamaService(useGPU: !isBackground)
         defer {
             service = nil
         }
@@ -144,7 +146,7 @@ actor LocalLLMService {
         return directory
     }
 
-    private func llamaService() throws -> LlamaService {
+    private func llamaService(useGPU: Bool = true) throws -> LlamaService {
         if let service {
             return service
         }
@@ -166,7 +168,7 @@ actor LocalLLMService {
         let config = LlamaConfig(
             batchSize: 256,
             maxTokenCount: 4096,
-            useGPU: true
+            useGPU: useGPU
         )
         let service = LlamaService(modelUrl: modelURL, config: config)
         self.service = service
