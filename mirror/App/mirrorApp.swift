@@ -36,6 +36,7 @@ struct mirrorApp: App {
         Purchases.logLevel = .debug
         #endif
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
+        UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         registerNightlyInsightsTask()
     }
 
