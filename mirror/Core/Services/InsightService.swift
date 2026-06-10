@@ -66,20 +66,18 @@ Rules:
 """
 
 private let ASK_SYSTEM = """
-You are MirrorNotes, a private journaling companion. Someone is asking a question about their own journal.
-Answer using ONLY the entries provided. Speak directly to them as "you/your".
+You are MirrorNotes, a private journaling companion. Read the journal entries and answer the question based on what the person actually wrote.
 Rules:
-- Write entirely in second person. Address the user as "you/your". Never write in first person ("I", "me", "my") as if you are the journal writer
-- Reference specific things the user wrote — say "you wrote..." or "you mentioned..." not "they wrote"
-- If the answer is not in their entries, say "You haven't written about this yet."
-- No internet advice, no generic tips
-- Use older context only to connect patterns; do not invent facts beyond the entries
+- Address the person as "you/your" only. Never use "I/me/my" as if you are the journal writer
+- Reference specific things they wrote — say "you wrote..." or "you mentioned..."
+- Look for related themes, emotions, and events — not just exact keyword matches. If someone asks about stress and entries mention feeling exhausted, overwhelmed, or under pressure, that is relevant
+- No internet advice, no generic tips. Base your answer only on the entries
 - Quote or closely paraphrase their own words when relevant
 - 3-5 sentences maximum
-- Write directly to "you", not "the person" or "the user"
+- Sound human, warm, and direct
 - Do not mention that you are an AI or model
-- Sound human, warm, and direct — like a close friend who read their journal
-- Avoid clinical phrases like "this suggests", "patterns indicate", "significant", or "the source mentions"
+- Avoid clinical phrases like "this suggests", "patterns indicate", or "the source mentions"
+- Only if the entries truly contain nothing at all related to the question, respond with exactly: You haven't written about this yet.
 """
 
 private let MONTHLY_REPORT_SYSTEM = """
@@ -165,7 +163,7 @@ enum InsightService {
                 maxChars: weeklyDigestPromptBudget
             ),
             task: .weeklyDigest
-        ).cleanedDigestOutput()
+        )
     }
 
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
@@ -173,14 +171,14 @@ enum InsightService {
             systemPrompt: MONTHLY_REPORT_SYSTEM,
             userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
             task: .monthlyReport
-        ).cleanedMonthlyReportOutput()
+        )
     }
 
     static func ask(question: String, entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let relevant = SearchService.search(query: question, in: sorted, limit: 6)
+        let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))
-        let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(12)
+        let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         return try await localGenerate(
             systemPrompt: ASK_SYSTEM,
             userMessage: buildAskMessage(
@@ -189,7 +187,7 @@ enum InsightService {
                 question: question
             ),
             task: .ask
-        ).cleanedInsightOutput()
+        )
     }
 
     static func detectEmotion(text: String) async throws -> String {
@@ -263,7 +261,7 @@ enum InsightService {
         case .monthlyReport:
             return "Return exactly six labeled sections: YOUR MONTH IN ONE IMAGE, THE TENSION AT THE CENTER, A MOMENT THAT SHIFTED SOMETHING, WHAT YOU'RE BECOMING, WHAT WANTS TO BE RELEASED, YOUR QUESTION FOR NEXT MONTH. YOUR MONTH IN ONE IMAGE must start with \"This month felt like\" or \"It was as if\". YOUR QUESTION FOR NEXT MONTH must end with a question mark. Every other section must end with a complete sentence."
         case .ask:
-            return "Return only 3-5 complete sentences, or exactly: You haven't written about this yet."
+            return "Return only 3-5 complete sentences. Do not invent facts not in the entries."
         case .emotion:
             return "Return exactly one allowed mood word and nothing else."
         }
@@ -535,6 +533,7 @@ enum InsightService {
         \(entryBlock)
 
         Question: \(question)
+        Look carefully at all the entries above for related themes, emotions, or events before answering.
         """
         return clipped(message, maxChars: askPromptBudget)
     }
@@ -568,7 +567,7 @@ enum InsightService {
         guard !entries.isEmpty else { return "No older context available yet." }
 
         let total = entries.count
-        let dated = entries.compactMap(\.createdAt).sorted()
+        let dated = entries.map(\.createdAt).sorted()
         let dateRange: String
         if let first = dated.first, let last = dated.last {
             dateRange = "\(first.formatted(date: .abbreviated, time: .omitted)) to \(last.formatted(date: .abbreviated, time: .omitted))"
@@ -671,8 +670,7 @@ private extension String {
             .replacingOccurrences(of: #"\bI will\b"#, with: "you will", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: #"\bI would\b"#, with: "you would", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: #"\bI should\b"#, with: "you should", options: [.regularExpression, .caseInsensitive])
-            .replacingOccurrences(of: "I’ve been", with: "you've been", options: .caseInsensitive)
-            .replacingOccurrences(of: "I've been", with: "you've been", options: .caseInsensitive)
+            .replacingOccurrences(of: "I’ve been", with: "you’ve been", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I’ll", with: "you could", options: .caseInsensitive)

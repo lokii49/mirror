@@ -382,6 +382,7 @@ struct AskView: View {
                 question: submitted
             )
             modelContext.insert(insight)
+            try? modelContext.save()
         } catch InsightError.subscriptionRequired {
             error = "Core subscription required."
         } catch {

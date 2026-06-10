@@ -12,6 +12,7 @@ struct EntriesTabView: View {
     @State private var debouncedSearchText = ""
     @State private var showSearch = false
     @State private var selectedMoodFilter: String? = nil
+    @State private var selectedTagFilter: String? = nil
     @State private var selectedDateFilter: Date? = nil
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
@@ -35,6 +36,7 @@ struct EntriesTabView: View {
     private struct EntryListSnapshot {
         let filteredEntries: [Entry]
         let usedMoods: [String]
+        let usedTags: [String]
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
     }
@@ -42,18 +44,22 @@ struct EntriesTabView: View {
     private struct SnapshotDeps: Equatable {
         let search: String
         let mood: String?
+        let tag: String?
         let date: Date?
         let entryCount: Int
         let moodHash: Int
+        let tagsHash: Int
     }
 
     private var snapshotDeps: SnapshotDeps {
         SnapshotDeps(
             search: debouncedSearchText,
             mood: selectedMoodFilter,
+            tag: selectedTagFilter,
             date: selectedDateFilter,
             entryCount: entries.count,
-            moodHash: entries.map(\.encryptedMood).hashValue
+            moodHash: entries.map(\.encryptedMood).hashValue,
+            tagsHash: entries.map(\.encryptedTagsStorage).hashValue
         )
     }
 
@@ -61,12 +67,16 @@ struct EntriesTabView: View {
         let query = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = entries
         let usedMoods = usedMoods(in: entries)
+        let usedTags = usedTags(in: entries)
 
         if let date = selectedDateFilter {
             result = result.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: date) }
         }
         if let mood = selectedMoodFilter {
             result = result.filter { $0.mood == mood }
+        }
+        if let tag = selectedTagFilter {
+            result = result.filter { $0.tags.contains(tag) }
         }
         if !query.isEmpty {
             result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
@@ -95,7 +105,7 @@ struct EntriesTabView: View {
             )
         }
 
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
     var body: some View {
@@ -125,6 +135,7 @@ struct EntriesTabView: View {
                 VStack(spacing: 0) {
                     if showSearch { searchBar }
                     if !snapshot.usedMoods.isEmpty { moodFilterBar(snapshot.usedMoods) }
+                    if !snapshot.usedTags.isEmpty { tagFilterBar(snapshot.usedTags) }
                 }
             }
             .onChange(of: searchText) { _, newValue in
@@ -169,11 +180,15 @@ struct EntriesTabView: View {
                     color: MirrorTheme.moodColor(for: mood)
                 ) { selectedMoodFilter = nil }
             }
+            if let tag = selectedTagFilter {
+                filterChip(label: "#\(tag)", systemImage: "tag") { selectedTagFilter = nil }
+            }
             Spacer()
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedDateFilter = nil
                     selectedMoodFilter = nil
+                    selectedTagFilter = nil
                 }
             } label: {
                 Text("Clear")
@@ -215,6 +230,47 @@ struct EntriesTabView: View {
         return all.filter { seen.insert($0).inserted }
     }
 
+    private func usedTags(in entries: [Entry]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for entry in entries {
+            for tag in entry.tags where seen.insert(tag).inserted {
+                result.append(tag)
+            }
+        }
+        return result
+    }
+
+    private func tagFilterBar(_ usedTags: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(usedTags, id: \.self) { tag in
+                    let isSelected = selectedTagFilter == tag
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedTagFilter = isSelected ? nil : tag
+                            if !isSelected { selectedMoodFilter = nil; selectedDateFilter = nil }
+                        }
+                    } label: {
+                        Text("#\(tag)")
+                            .font(.system(size: 12, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                isSelected ? MirrorTheme.primary.opacity(0.18) : Color(.tertiarySystemFill),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(isSelected ? MirrorTheme.primary : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(MirrorTheme.bgBase)
+    }
+
     private func moodFilterBar(_ usedMoods: [String]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -223,6 +279,7 @@ struct EntriesTabView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedMoodFilter = isSelected ? nil : mood
+                            if !isSelected { selectedTagFilter = nil }
                         }
                     } label: {
                         HStack(spacing: 5) {
@@ -283,7 +340,7 @@ struct EntriesTabView: View {
                     onDaySelected: { date in
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedDateFilter = date
-                            if date != nil { selectedMoodFilter = nil }
+                            if date != nil { selectedMoodFilter = nil; selectedTagFilter = nil }
                         }
                     }
                 )
@@ -293,7 +350,7 @@ struct EntriesTabView: View {
             }
 
             // Active filters row
-            if selectedDateFilter != nil || selectedMoodFilter != nil {
+            if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
                 Section {
                     activeFiltersRow
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
@@ -370,6 +427,9 @@ struct EntriesTabView: View {
         }
         if let mood = selectedMoodFilter {
             return "No \(mood.lowercased()) entries"
+        }
+        if let tag = selectedTagFilter {
+            return "No entries tagged #\(tag)"
         }
         return "No entries match your search"
     }

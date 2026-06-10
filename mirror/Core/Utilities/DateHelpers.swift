@@ -17,4 +17,11 @@ enum DateHelpers {
         let components = Calendar.current.dateComponents([.year, .month], from: date)
         return String(format: "%04d-%02d", components.year ?? 0, components.month ?? 0)
     }
+
+    static func isInLastThreeDaysOfMonth(_ date: Date = Date()) -> Bool {
+        let cal = Calendar.current
+        guard let range = cal.range(of: .day, in: .month, for: date),
+              let day = cal.dateComponents([.day], from: date).day else { return false }
+        return day >= range.count - 2
+    }
 }
