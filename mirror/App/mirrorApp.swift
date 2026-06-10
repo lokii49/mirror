@@ -254,7 +254,7 @@ struct mirrorApp: App {
             let text = try await InsightService.generateNudge(entries: entries)
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
-            try? context.save()
+            try context.save()
             let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
             wDefaults?.set(text, forKey: "widget.nudge.text")
             wDefaults?.set(today, forKey: "widget.nudge.date")
@@ -320,7 +320,7 @@ struct mirrorApp: App {
             let text = try await InsightService.generateWeeklyDigest(entries: entries)
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
             context.insert(insight)
-            try? context.save()
+            try context.save()
             // scheduleWeeklyDigest is the sole fire — no separate one-time notification
             // to avoid double-banner on Sunday at 7am.
             await NotificationService.scheduleWeeklyDigest()
@@ -359,7 +359,7 @@ struct mirrorApp: App {
             let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
             context.insert(insight)
-            try? context.save()
+            try context.save()
             await NotificationService.scheduleMonthlyReportReminder()
         } catch { /* Non-fatal */ }
     }

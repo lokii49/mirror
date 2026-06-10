@@ -139,12 +139,17 @@ enum InsightService {
     static func generateNudge(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let opener = todayOpener()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        let withinWindow = sorted.filter { $0.createdAt >= cutoff }
+        let recent = withinWindow.isEmpty ? Array(sorted.prefix(1)) : Array(withinWindow.prefix(3))
+        let recentIDs = Set(recent.map(\.id))
+        let background = Array(sorted.filter { !recentIDs.contains($0.id) }.prefix(20))
         return try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: buildUserMessage(
                 title: "Daily reflection context",
-                recentEntries: Array(sorted.prefix(7)),
-                backgroundEntries: Array(sorted.dropFirst(7).prefix(16)),
+                recentEntries: recent,
+                backgroundEntries: background,
                 maxChars: dailyNudgePromptBudget,
                 requiredOpener: opener
             ),
@@ -692,8 +697,8 @@ private extension String {
             .replacingOccurrences(of: "they feel", with: "you feel", options: .caseInsensitive)
             .replacingOccurrences(of: "they felt", with: "you felt", options: .caseInsensitive)
             .replacingOccurrences(of: "they wrote", with: "you wrote", options: .caseInsensitive)
-            .replacingOccurrences(of: "their", with: "your", options: .caseInsensitive)
-            .replacingOccurrences(of: "they", with: "you", options: .caseInsensitive)
+            .replacingOccurrences(of: #"\btheir\b"#, with: "your", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bthey\b"#, with: "you", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: "the source mentions", with: "you wrote", options: .caseInsensitive)
             .replacingOccurrences(of: "this suggests that you are", with: "it sounds like you're", options: .caseInsensitive)
             .replacingOccurrences(of: "this suggests you are", with: "it sounds like you're", options: .caseInsensitive)
