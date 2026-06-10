@@ -1,5 +1,6 @@
 import Foundation
 import SwiftLlama
+import UIKit
 
 enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
@@ -67,7 +68,8 @@ actor LocalLLMService {
 
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         await resetContext()
-        let svc = try llamaService()
+        let isBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
+        let svc = try llamaService(useGPU: !isBackground)
         defer {
             service = nil
         }
@@ -100,6 +102,7 @@ actor LocalLLMService {
         var output = ""
         do {
             for try await token in stream {
+                try Task.checkCancellation()
                 output += token
                 if output.contains("<end_of_turn>") || output.contains("<eos>")
                     || output.count > task.maxOutputChars {
@@ -118,6 +121,9 @@ actor LocalLLMService {
             throw error
         }
         await svc.stopCompletion()
+        // Guard against partial output if the stream drained normally while the task was cancelled
+        // (stream producer may return nil rather than throw on cancellation).
+        try Task.checkCancellation()
         let cleaned = clean(output)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
         return cleaned
@@ -144,7 +150,7 @@ actor LocalLLMService {
         return directory
     }
 
-    private func llamaService() throws -> LlamaService {
+    private func llamaService(useGPU: Bool = true) throws -> LlamaService {
         if let service {
             return service
         }
@@ -166,7 +172,7 @@ actor LocalLLMService {
         let config = LlamaConfig(
             batchSize: 256,
             maxTokenCount: 4096,
-            useGPU: true
+            useGPU: useGPU
         )
         let service = LlamaService(modelUrl: modelURL, config: config)
         self.service = service

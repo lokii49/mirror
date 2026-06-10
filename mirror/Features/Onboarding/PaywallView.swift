@@ -188,6 +188,7 @@ struct PaywallView: View {
             ("sparkles", "Daily Reflection — personal observations from your recent entries.", MirrorTheme.primary),
             ("bubble.left.and.bubble.right", "Ask — 15 grounded questions per month from your own writing.", .blue),
             ("calendar.badge.clock", "Weekly Digest — a pattern summary every Sunday.", .indigo),
+            ("face.smiling", "Auto Mood Detection — mood tagged automatically on every save.", .pink),
             ("square.grid.2x2", "Home screen widget", .orange),
         ]
     }
