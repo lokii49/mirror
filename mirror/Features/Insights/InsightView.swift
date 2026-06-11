@@ -28,9 +28,7 @@ struct InsightView: View {
 
                     nudgeSection
 
-                    if SubscriptionService.shared.isSubscribed || hasSeenFirstNudge {
-                        digestSection
-                    }
+                    digestSection
                 }
                 .padding(16)
                 .padding(.bottom, 16)
@@ -252,7 +250,7 @@ struct InsightView: View {
                 subtitle: entries.isEmpty ? "Start writing to ask questions" : "Search \(entries.count) \(entries.count == 1 ? "entry" : "entries")",
                 icon: "bubble.left.and.text.bubble.right.fill",
                 color: MirrorTheme.primary,
-                badge: nil
+                badge: SubscriptionService.shared.isSubscribed ? nil : "Core"
             )
         }
         .buttonStyle(.plain)
@@ -370,17 +368,11 @@ struct InsightView: View {
     // MARK: - Explore
 
     private var explorationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if hasSeenFirstNudge || SubscriptionService.shared.isSubscribed {
-                VStack(spacing: 12) {
-                    monthlyReportSection
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                        askSection
-                        moodTimelineSection
-                    }
-                }
-            } else {
+        VStack(spacing: 12) {
+            monthlyReportSection
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 askSection
+                moodTimelineSection
             }
         }
     }

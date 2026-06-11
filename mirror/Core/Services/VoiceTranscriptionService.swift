@@ -33,8 +33,9 @@ enum VoiceTranscriptionService {
         for locale in localeList(preferred: preferred) where supported.contains(locale) {
             guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else { continue }
 
+            guard recognizer.supportsOnDeviceRecognition else { continue }
             let request = SFSpeechURLRecognitionRequest(url: url)
-            request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+            request.requiresOnDeviceRecognition = true
             request.shouldReportPartialResults = false
 
             do {
