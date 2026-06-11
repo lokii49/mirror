@@ -21,7 +21,7 @@ struct CalendarHeatmap: View {
 
     // MARK: - Mode & Navigation
 
-    @AppStorage("heatmapMode") private var mode: HeatmapMode = .year
+    @AppStorage("heatmapMode") private var mode: HeatmapMode = .month
     @State private var viewDate: Date = Date()
 
     // MARK: - Cache
