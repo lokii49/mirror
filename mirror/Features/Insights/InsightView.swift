@@ -106,10 +106,6 @@ struct InsightView: View {
         }
     }
 
-    private var hasSeenFirstNudge: Bool {
-        insights.contains { $0.type == .dailyNudge }
-    }
-
     private var moodEntries: [Entry] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
