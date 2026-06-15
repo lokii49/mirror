@@ -70,34 +70,41 @@ extension View {
     /// Standard glass surface — used for most cards.
     func futureSurface(cornerRadius: CGFloat = 22) -> some View {
         self
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: .black.opacity(0.07), radius: 14, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(glassBorderGradient, lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             }
     }
 
     /// Accent-bordered card — used for the active/highlighted insight.
     func accentCard(cornerRadius: CGFloat = 22) -> some View {
         self
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [MirrorTheme.primary.opacity(0.07), Color(.secondarySystemGroupedBackground)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: MirrorTheme.primary.opacity(0.22), radius: 22, x: 0, y: 6)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(MirrorTheme.accentGradient, lineWidth: 1.5)
-                    .opacity(0.55)
+                    .stroke(MirrorTheme.accentGradient, lineWidth: 2.0)
+                    .opacity(0.80)
             }
     }
 
     /// Soft ambient glow beneath a card.
     func glowShadow(color: Color = MirrorTheme.primary, radius: CGFloat = 28) -> some View {
-        self.shadow(color: color.opacity(0.18), radius: radius, x: 0, y: 10)
-    }
-
-    private var glassBorderGradient: LinearGradient {
-        LinearGradient(
-            colors: [Color(white: 1, opacity: 0.22), Color(white: 0, opacity: 0.06)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        self.shadow(color: color.opacity(0.25), radius: radius, x: 0, y: 8)
     }
 }

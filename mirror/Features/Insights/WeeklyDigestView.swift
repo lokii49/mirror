@@ -33,7 +33,16 @@ struct WeeklyDigestView: View {
             }
             .padding(.bottom, 14)
 
-            Divider().overlay(Color.indigo.opacity(0.18)).padding(.bottom, 16)
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.indigo.opacity(0.35), Color.indigo.opacity(0.06)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+                .padding(.bottom, 16)
 
             if isExpanded {
                 if sections.isEmpty {
@@ -50,13 +59,16 @@ struct WeeklyDigestView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         ForEach(Array(sections.prefix(3)), id: \.title) { section in
                             Label(shortTitle(for: section.title), systemImage: iconName(for: section.title))
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(color(for: section.title))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(color(for: section.title).opacity(0.12), in: Capsule())
                         }
                     }
 
@@ -87,18 +99,27 @@ struct WeeklyDigestView: View {
             }
         }
         .padding(22)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.indigo.opacity(0.07), Color(.secondarySystemGroupedBackground)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color.indigo.opacity(0.20), radius: 20, x: 0, y: 6)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .stroke(
                     LinearGradient(
-                        colors: [Color.indigo.opacity(0.4), Color.purple.opacity(0.2)],
+                        colors: [Color.indigo.opacity(0.55), Color.purple.opacity(0.28)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.5
+                    lineWidth: 2.0
                 )
-                .opacity(0.55)
         }
     }
 
@@ -196,15 +217,18 @@ struct DigestSectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
                 Image(systemName: sectionIcon)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                 Text(title)
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(0.5)
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(0.6)
             }
             .foregroundStyle(sectionColor)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(sectionColor.opacity(0.12), in: Capsule())
 
             Text(content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
