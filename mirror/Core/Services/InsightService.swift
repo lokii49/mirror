@@ -375,11 +375,23 @@ enum InsightService {
             "YOUR QUESTION FOR NEXT MONTH"
         ]
 
-        let presentCount = requiredHeaders.filter { header in
-            normalizedText.range(of: "\(header):", options: [.caseInsensitive]) != nil
-        }.count
-
-        guard presentCount >= 4 else { throw InsightError.incompleteResponse }
+        for (index, header) in requiredHeaders.enumerated() {
+            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
+                throw InsightError.incompleteResponse
+            }
+            guard body.count >= 15,
+                  body.count <= 350,
+                  endsAsCompleteSentence(body),
+                  !hasDanglingEnding(body) else {
+                throw InsightError.incompleteResponse
+            }
+            // The closing question must end with "?"
+            if header == "YOUR QUESTION FOR NEXT MONTH" {
+                guard body.trimmingCharacters(in: .whitespacesAndNewlines).last == "?" else {
+                    throw InsightError.incompleteResponse
+                }
+            }
+        }
 
         return normalizedText
     }
