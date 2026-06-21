@@ -19,16 +19,16 @@ struct InsightView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    explorationSection
+                VStack(alignment: .leading, spacing: 20) {
+                    nudgeSection
 
                     if moodEntries.count >= 2, chartVisible {
                         MoodWeekChartView(entries: moodEntries)
                     }
 
-                    nudgeSection
-
                     digestSection
+
+                    explorationSection
                 }
                 .padding(16)
                 .padding(.bottom, 16)
@@ -104,10 +104,6 @@ struct InsightView: View {
                 }
             }
         }
-    }
-
-    private var hasSeenFirstNudge: Bool {
-        insights.contains { $0.type == .dailyNudge }
     }
 
     private var moodEntries: [Entry] {
@@ -368,7 +364,13 @@ struct InsightView: View {
     // MARK: - Explore
 
     private var explorationSection: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(
+                title: "Explore",
+                subtitle: "Deep dives into your patterns",
+                icon: "square.grid.2x2",
+                color: .orange
+            )
             monthlyReportSection
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 askSection
@@ -391,11 +393,11 @@ private struct SectionHeader: View {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(color)
-                .frame(width: 28, height: 28)
-                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: 30, height: 30)
+                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                 Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
@@ -447,7 +449,7 @@ private struct ExplorationTile: View {
         .futureSurface(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(color.opacity(0.18), lineWidth: 1)
+                .stroke(color.opacity(0.30), lineWidth: 1)
         )
     }
 
@@ -456,7 +458,7 @@ private struct ExplorationTile: View {
             .font(.system(size: iconSize, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: size, height: size)
-            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func textBlock(titleSize: CGFloat, subtitleSize: CGFloat) -> some View {
@@ -512,7 +514,7 @@ struct NightlyPendingCard: View {
             Spacer()
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.quaternary)
+                .foregroundStyle(iconColor.opacity(0.35))
         }
         .padding(20)
         .futureSurface(cornerRadius: 22)
@@ -575,9 +577,17 @@ private struct NeedsMoreEntriesCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
-                .tint(iconColor)
-                .scaleEffect(x: 1, y: 1.4)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(iconColor.opacity(0.25))
+                        .frame(height: 6)
+                    Capsule()
+                        .fill(iconColor.opacity(0.75))
+                        .frame(width: geo.size.width * CGFloat(max(0, total - remaining)) / CGFloat(total), height: 6)
+                }
+            }
+            .frame(height: 6)
             Text(unlockLabel)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.tertiary)
@@ -668,7 +678,15 @@ private struct InsightTextView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.tertiary)
             }
-            Divider().overlay(accentColor.opacity(0.15))
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [accentColor.opacity(0.35), accentColor.opacity(0.08)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
             Text(insight.content)
                 .font(.system(size: 17, weight: .regular, design: .serif))
                 .lineSpacing(7)
@@ -686,7 +704,7 @@ private struct InsightTextView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(accentColor)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 38)
+                    .frame(height: 40)
                     .background(accentColor.opacity(0.10), in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -694,6 +712,13 @@ private struct InsightTextView: View {
         }
         .padding(22)
         .accentCard(cornerRadius: 26)
+        .overlay(alignment: .topTrailing) {
+            Text("\u{201C}")
+                .font(.system(size: 80, weight: .bold, design: .serif))
+                .foregroundStyle(accentColor.opacity(0.09))
+                .offset(x: -18, y: 8)
+                .allowsHitTesting(false)
+        }
     }
 }
 
