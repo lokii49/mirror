@@ -60,10 +60,10 @@ struct WritingPromptCard: View {
             }
 
             Text(prompt)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(.primary.opacity(0.75))
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(4)
+                .lineSpacing(5)
                 .id(prompt)
                 .transition(.asymmetric(
                     insertion: .push(from: .trailing),
@@ -82,12 +82,14 @@ struct WritingPromptCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.accentColor.opacity(0.45))
-                .frame(width: 2)
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Color.accentColor)
+                .frame(width: 3)
+                .padding(.vertical, 12)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
