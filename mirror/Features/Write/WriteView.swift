@@ -314,15 +314,27 @@ struct WriteView: View {
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
-                DatePicker(
-                    "Entry date",
-                    selection: $entryDate,
-                    in: ...Date(),
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .padding(.horizontal)
-                .navigationTitle("Entry Date")
+                VStack(spacing: 0) {
+                    DatePicker(
+                        "Entry date",
+                        selection: $entryDate,
+                        in: ...Date(),
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .padding(.horizontal)
+                    Divider()
+                    DatePicker(
+                        "Entry time",
+                        selection: $entryDate,
+                        in: ...Date(),
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .padding(.horizontal)
+                }
+                .navigationTitle("Entry Date & Time")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -330,7 +342,7 @@ struct WriteView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
         }
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { saveDraftToStorage() }

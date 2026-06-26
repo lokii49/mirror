@@ -12,9 +12,9 @@
 - [x] **Streak visible to all tiers** — flame pill in "Today" section header (all tiers, uses fixed day-counting logic)
 - [x] **Ask usage counter always shown** — toolbar pill visible always for Core; colors escalate secondary → orange → red at ≤3/≤1
 
-## Week 2 — History & Editing
-- [ ] **Past monthly reports** — add month picker to MonthlyReportView; reports already cached by `periodIdentifier`
-- [ ] **Entry time editing** — add time component to DatePicker in WriteView (currently date-only)
+## Week 2 — History & Editing ✓
+- [x] **Past monthly reports** — left/right month nav in heroCard; past months show cached report or "no report" card; current month uses full generation flow unchanged
+- [x] **Entry time editing** — DatePicker sheet now shows graphical date + wheel time picker; presentationDetent expanded to .large
 
 ## Week 3 — Share & Memory
 - [ ] **Share single entry** — add `ShareLink` to EntryDetailView (plain text export)
