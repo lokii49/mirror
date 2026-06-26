@@ -33,4 +33,4 @@
 - [x] **Blurred preview dedup** — `MoodChartCard(points:)` extracted; `moodChartCard` and `previewMoodChartCard` both delegate to it; ~37 lines removed
 - [x] **Reduce WriteView @State sprawl** — undo snapshot vars (12×) consolidated into `DraftUndoSnapshot` struct; `@State var undoSnapshot` replaces all; sort toolbar extracted to `trailingToolbar` computed var
 - [x] **Export to plain text / PDF** — bulk text export (Settings ShareLink already shipped); per-entry text share (EntryDetailView already shipped); PDF export added via `UIMarkupTextPrintFormatter`+`UIPrintPageRenderer`; "Export as PDF" in entry ellipsis menu
-- [ ] **iPad split view layout**
+- [x] **iPad split view layout** — `NavigationSplitView` on `.regular` size class; sidebar lists all 4 sections (Entries/Write/Insights/Settings); TabView preserved for iPhone; Settings surfaced as first-class sidebar item on iPad (no longer sheet-only)
