@@ -728,11 +728,6 @@ private struct InsightTextView: View {
 private struct MoodWeekChartView: View {
     let entries: [Entry]
 
-    private static let moodScore: [String: Double] = [
-        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
-        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
-    ]
-
     private struct MoodPoint: Identifiable {
         let id: UUID
         let date: Date
@@ -742,7 +737,7 @@ private struct MoodWeekChartView: View {
 
     private var points: [MoodPoint] {
         entries.compactMap { entry in
-            guard let mood = entry.mood, let score = Self.moodScore[mood] else { return nil }
+            guard let mood = entry.mood, let score = MirrorTheme.moodScore[mood] else { return nil }
             return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
         }
     }
