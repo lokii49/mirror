@@ -5,6 +5,7 @@ struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var insights: [Insight]
+    @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
 
     let entry: Entry
     var onDone: (() -> Void)? = nil
@@ -13,6 +14,19 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+
+    private var onThisDayEntries: [Entry] {
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.month, .day], from: entry.createdAt)
+        let thisYear = cal.component(.year, from: entry.createdAt)
+        return allEntries.filter { other in
+            guard other.id != entry.id else { return false }
+            let otherComps = cal.dateComponents([.year, .month, .day], from: other.createdAt)
+            return otherComps.month == comps.month
+                && otherComps.day == comps.day
+                && otherComps.year != thisYear
+        }
+    }
 
     private var moodLabel: String? {
         let mood = entry.mood
@@ -122,6 +136,11 @@ struct EntryDetailView: View {
                     .accentCard(cornerRadius: 18)
                     .glowShadow(color: MirrorTheme.primary, radius: 20)
                 }
+
+                // On This Day
+                if !onThisDayEntries.isEmpty {
+                    OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
+                }
             }
             .padding(16)
             .padding(.bottom, 32)
@@ -179,6 +198,65 @@ struct EntryDetailView: View {
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.rootViewController?
             .present(av, animated: true)
+    }
+}
+
+// MARK: - On This Day
+
+private struct OnThisDaySection: View {
+    let entries: [Entry]
+    let referenceDate: Date
+
+    private var dayMonthLabel: String {
+        referenceDate.formatted(.dateTime.month(.wide).day())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("On this day", systemImage: "calendar.badge.clock")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+
+            ForEach(entries.prefix(3)) { past in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(past.createdAt, format: .dateTime.year())
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(MirrorTheme.primary)
+                        if let mood = past.mood {
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(MirrorTheme.moodColor(for: mood))
+                                    .frame(width: 6, height: 6)
+                                Text(mood)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Text(past.createdAt, format: .dateTime.hour().minute())
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    let preview = past.text
+                        .components(separatedBy: .newlines)
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                        .first ?? ""
+                    if !preview.isEmpty {
+                        Text(preview)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(.primary.opacity(0.75))
+                            .lineLimit(3)
+                    }
+                }
+                .padding(14)
+                .futureSurface(cornerRadius: 16)
+            }
+        }
     }
 }
 

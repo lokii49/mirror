@@ -20,17 +20,17 @@
 - [x] **Share single entry** — already shipped (UIActivityViewController menu in EntryDetailView); marked done
 - [x] **Daily nudge history** — collapsible "Past reflections (N)" row in Insights tab; shows last 14 nudges; each card expands inline; Core/Deep only
 
-## Week 4 — Discovery & Habits
-- [ ] **"On This Day"** — surface entries from same date in past years in EntryDetailView or Insights
-- [ ] **Writing reminder notification** — daily "time to write" push if user hasn't written today (separate from nudge)
+## Week 4 — Discovery & Habits ✓
+- [x] **"On This Day"** — `EntryDetailView` shows past entries on same month+day in prior years (up to 3); shows year pill, mood dot, time, and first-line preview
+- [x] **Writing reminder notification** — `NotificationService.scheduleWritingReminder(hour:minute:)` added; all-tier toggle + time picker in Settings → MirrorNotes section; separate from Core nudge
 
 ---
 
 ## Phase 2
-- [ ] **Sort options in Entries** — sort by word count, mood, oldest-first (currently newest-first only)
-- [ ] **Daily word goal progress** — `dailyWordGoal` AppStorage exists; surface progress bar in write toolbar
+- [x] **Sort options in Entries** — sort menu in toolbar: Newest, Oldest, Most Words, By Mood; applied within each month group; filter icon fills when non-default
+- [x] **Daily word goal progress** — thin 2px progress bar above toolRow Divider; tracks total words written today across all entries + current draft; fills green on completion
 - [ ] **In-app model guidance** — if Gemma missing, guide user to download instead of raw error path
-- [ ] **Blurred preview dedup** — `blurredDeepPreview` in MoodTimelineView has ~200 lines of duplicated mock views; parameterize real views
+- [x] **Blurred preview dedup** — `MoodChartCard(points:)` extracted; `moodChartCard` and `previewMoodChartCard` both delegate to it; ~37 lines removed
 - [ ] **Reduce WriteView @State sprawl** — 40+ @State vars; extract draft state into a struct
 - [ ] **Export to plain text / PDF** — per-entry and bulk export (Notion/Obsidian Phase 2 per CLAUDE.md)
 - [ ] **iPad split view layout**
