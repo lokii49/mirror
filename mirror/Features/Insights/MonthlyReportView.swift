@@ -70,7 +70,7 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoBack ? .purple : .tertiary)
+                    .foregroundStyle(canGoBack ? Color.purple : Color(uiColor: .tertiaryLabel))
                     .frame(width: 32, height: 32)
                     .background(canGoBack ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
             }
@@ -94,7 +94,7 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoForward ? .purple : .tertiary)
+                    .foregroundStyle(canGoForward ? Color.purple : Color(uiColor: .tertiaryLabel))
                     .frame(width: 32, height: 32)
                     .background(canGoForward ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
             }
