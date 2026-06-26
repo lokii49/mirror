@@ -16,9 +16,9 @@
 - [x] **Past monthly reports** — left/right month nav in heroCard; past months show cached report or "no report" card; current month uses full generation flow unchanged
 - [x] **Entry time editing** — DatePicker sheet now shows graphical date + wheel time picker; presentationDetent expanded to .large
 
-## Week 3 — Share & Memory
-- [ ] **Share single entry** — add `ShareLink` to EntryDetailView (plain text export)
-- [ ] **Daily nudge history** — past nudges browsable below today's card; already stored in SwiftData
+## Week 3 — Share & Memory ✓
+- [x] **Share single entry** — already shipped (UIActivityViewController menu in EntryDetailView); marked done
+- [x] **Daily nudge history** — collapsible "Past reflections (N)" row in Insights tab; shows last 14 nudges; each card expands inline; Core/Deep only
 
 ## Week 4 — Discovery & Habits
 - [ ] **"On This Day"** — surface entries from same date in past years in EntryDetailView or Insights
