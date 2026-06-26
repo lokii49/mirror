@@ -21,6 +21,10 @@ struct SettingsView: View {
     @AppStorage("nudgeHour") var nudgeHour: Int = 8
     @AppStorage("nudgeMinute") var nudgeMinute: Int = 0
     @State var showNudgeTimePicker = false
+    @AppStorage("writingReminderEnabled") var writingReminderEnabled: Bool = false
+    @AppStorage("writingReminderHour") var writingReminderHour: Int = 9
+    @AppStorage("writingReminderMinute") var writingReminderMinute: Int = 0
+    @State var showWritingReminderPicker = false
     @AppStorage("notificationsEnabled") var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var showLanguagePicker = false
@@ -39,6 +43,13 @@ struct SettingsView: View {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         c.hour = nudgeHour
         c.minute = nudgeMinute
+        return Calendar.current.date(from: c) ?? Date()
+    }
+
+    var writingReminderTime: Date {
+        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        c.hour = writingReminderHour
+        c.minute = writingReminderMinute
         return Calendar.current.date(from: c) ?? Date()
     }
 
