@@ -113,7 +113,8 @@ struct EntriesTabView: View {
         case .byMood:      result = result.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
         }
 
-        let groupedByMonth = groups.keys.sorted(by: >).map { month in
+        let monthSortAscending = sortOrder == .oldestFirst
+        let groupedByMonth = groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
             let monthEntries = groups[month, default: []]
             let sortedMonthEntries: [Entry]
             switch sortOrder {
@@ -142,6 +143,29 @@ struct EntriesTabView: View {
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
+    private var trailingToolbar: some View {
+        HStack(spacing: 16) {
+            Menu {
+                ForEach(EntrySortOrder.allCases, id: \.self) { order in
+                    Button {
+                        withAnimation { sortOrder = order }
+                    } label: {
+                        Label(order.rawValue, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                    }
+                }
+            } label: {
+                Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            Button {
+                withAnimation { showSearch.toggle() }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+        }
+    }
+
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
         NavigationStack {
@@ -157,27 +181,7 @@ struct EntriesTabView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        Menu {
-                            ForEach(EntrySortOrder.allCases, id: \.self) { order in
-                                Button {
-                                    withAnimation { sortOrder = order }
-                                } label: {
-                                    Label(order.rawValue, systemImage: sortOrder == order ? "checkmark" : order.icon)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
-
-                        Button {
-                            withAnimation { showSearch.toggle() }
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
-                    }
+                    trailingToolbar
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {

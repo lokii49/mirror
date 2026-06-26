@@ -199,9 +199,12 @@ extension WriteView {
         let savedToday = allEntries
             .filter { cal.startOfDay(for: $0.createdAt) == today }
             .reduce(0) { $0 + $1.wordCount }
-        // If editing an existing entry, subtract its saved count and add live count
-        let baseline = entry.map { cal.startOfDay(for: $0.createdAt) == today ? savedToday - ($0.wordCount) : savedToday } ?? savedToday
-        return baseline + viewModel.wordCount
+        if let existing = entry {
+            guard cal.startOfDay(for: existing.createdAt) == today else { return savedToday }
+            return savedToday - existing.wordCount + viewModel.wordCount
+        }
+        guard cal.startOfDay(for: noteDate) == today else { return savedToday }
+        return savedToday + viewModel.wordCount
     }
 
     var toolRow: some View {

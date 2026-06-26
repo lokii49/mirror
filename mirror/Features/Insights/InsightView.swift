@@ -320,6 +320,8 @@ struct InsightView: View {
             )
         case .pendingNightlyGeneration:
             nightlyPendingNudgeCard
+        case .modelNotInstalled:
+            ModelNotInstalledCard()
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
@@ -446,6 +448,8 @@ struct InsightView: View {
             )
         case .pendingNightlyGeneration:
             nightlyPendingDigestCard
+        case .modelNotInstalled:
+            ModelNotInstalledCard()
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
@@ -807,6 +811,36 @@ private struct ErrorCard: View {
     }
 }
 
+struct ModelNotInstalledCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("AI model not installed", systemImage: "brain.head.profile")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.purple)
+            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device. The model file needs to be added once.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Download **gemma-3-1b-it-Q4_K_M.gguf** from Hugging Face (bartowski/gemma-3-1b-it-GGUF)", systemImage: "1.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                Label("Copy it to the app via Files or iTunes File Sharing", systemImage: "2.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                Label("Reopen MirrorNotes — AI features activate automatically", systemImage: "3.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 22)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.purple.opacity(0.18), lineWidth: 1)
+        )
+    }
+}
+
 private struct InsightTextView: View {
     let insight: Insight
     let label: String
@@ -974,7 +1008,8 @@ extension NudgeState: Equatable {
         case (.idle, .idle), (.loading, .loading),
              (.subscriptionRequired, .subscriptionRequired),
              (.needsMoreEntries, .needsMoreEntries),
-             (.pendingNightlyGeneration, .pendingNightlyGeneration): return true
+             (.pendingNightlyGeneration, .pendingNightlyGeneration),
+             (.modelNotInstalled, .modelNotInstalled): return true
         case (.loaded(let a), .loaded(let b)): return a.id == b.id
         case (.error(let a), .error(let b)): return a == b
         default: return false

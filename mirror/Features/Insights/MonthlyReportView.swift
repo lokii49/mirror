@@ -135,6 +135,8 @@ struct MonthlyReportView: View {
                 deepLockedCard
             case .pendingNightlyGeneration:
                 nightlyPendingCard
+            case .modelNotInstalled:
+                ModelNotInstalledCard()
             case .error(let message):
                 errorCard(message: message) {
                     Task {
