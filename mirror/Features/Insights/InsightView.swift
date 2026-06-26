@@ -15,12 +15,17 @@ struct InsightView: View {
     @State private var showWriteFromPrompt = false
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
+    @State private var pastNudgesExpanded = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     nudgeSection
+
+                    if !pastNudges.isEmpty {
+                        pastNudgesSection
+                    }
 
                     if moodEntries.count >= 2, chartVisible {
                         MoodWeekChartView(entries: moodEntries)
@@ -147,6 +152,52 @@ struct InsightView: View {
 
     private var hasSeenMoreThanOneNudge: Bool {
         insights.filter { $0.type == .dailyNudge }.count > 1
+    }
+
+    private var pastNudges: [Insight] {
+        guard SubscriptionService.shared.isSubscribed else { return [] }
+        let today = DateHelpers.dayIdentifier(for: Date())
+        return insights
+            .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
+            .sorted { $0.generatedAt > $1.generatedAt }
+    }
+
+    private var pastNudgesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                    pastNudgesExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(pastNudgesExpanded
+                         ? "Hide past reflections"
+                         : "Past reflections (\(pastNudges.count))")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .futureSurface(cornerRadius: 16)
+            }
+            .buttonStyle(.plain)
+
+            if pastNudgesExpanded {
+                VStack(spacing: 10) {
+                    ForEach(pastNudges.prefix(14)) { insight in
+                        PastNudgeCard(insight: insight)
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
     }
 
     private var shouldShowRefresh: Bool {
@@ -418,6 +469,47 @@ struct InsightView: View {
                 moodTimelineSection
             }
         }
+    }
+}
+
+// MARK: - Past Nudge Card
+
+private struct PastNudgeCard: View {
+    let insight: Insight
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(insight.generatedAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary.opacity(0.5))
+            }
+            Text(insight.content)
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .lineSpacing(5)
+                .foregroundStyle(.primary.opacity(0.85))
+                .lineLimit(isExpanded ? nil : 3)
+                .textSelection(.enabled)
+            if insight.content.count > 120 {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Text(isExpanded ? "Show less" : "Read more")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(16)
+        .futureSurface(cornerRadius: 18)
     }
 }
 
