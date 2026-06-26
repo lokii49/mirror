@@ -24,14 +24,6 @@ struct MoodTimelineView: View {
         }
     }
 
-    private static let moodScore: [String: Double] = [
-        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
-        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2,
-    ]
-
-    private static let negativeMoods: Set<String> = [
-        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
-    ]
 
     private var filteredEntries: [Entry] {
         guard let days = selectedRange.days else { return entries }
@@ -54,7 +46,7 @@ struct MoodTimelineView: View {
         moodEntries
             .compactMap { entry in
                 guard let mood = entry.mood,
-                      let score = MoodTimelineView.moodScore[mood] else { return nil }
+                      let score = MirrorTheme.moodScore[mood] else { return nil }
                 return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
             }
             .sorted { $0.date < $1.date }
@@ -65,7 +57,7 @@ struct MoodTimelineView: View {
         entries
             .compactMap { entry in
                 guard let mood = entry.mood,
-                      let score = MoodTimelineView.moodScore[mood] else { return nil }
+                      let score = MirrorTheme.moodScore[mood] else { return nil }
                 return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
             }
             .sorted { $0.date < $1.date }
@@ -120,22 +112,29 @@ struct MoodTimelineView: View {
     }
 
     private var currentStreak: Int {
-        guard let mostRecentEntry = entries.first else { return 0 }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let mostRecentDay = calendar.startOfDay(for: mostRecentEntry.createdAt)
-        // Gap of 2+ days = streak broken
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
-              mostRecentDay >= yesterday else { return 0 }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
 
-        var checkDate = mostRecentDay
-        var streak = 0
+        // Collect unique written days (newest first)
+        var writtenDays: [Date] = []
+        var seen = Set<Date>()
         for entry in entries {
-            let entryDay = calendar.startOfDay(for: entry.createdAt)
-            if entryDay == checkDate {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if seen.insert(day).inserted {
+                writtenDays.append(day)
+            }
+        }
+
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+
+        var streak = 0
+        var checkDate = mostRecentDay
+        for day in writtenDays {
+            if day == checkDate {
                 streak += 1
                 checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
-            } else if entryDay < checkDate {
+            } else if day < checkDate {
                 break
             }
         }
@@ -147,8 +146,8 @@ struct MoodTimelineView: View {
         var count = 0
         for entry in entries {
             guard entry.createdAt >= sevenDaysAgo else { break }
-            guard let mood = entry.mood else { break }
-            if MoodTimelineView.negativeMoods.contains(mood) {
+            guard let mood = entry.mood else { continue }
+            if MirrorTheme.negativeMoods.contains(mood) {
                 count += 1
             } else {
                 break
