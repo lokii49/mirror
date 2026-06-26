@@ -63,15 +63,17 @@ struct AskView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 10) {
-                            if remaining <= 3 && !subscriptionService.isDeep {
+                            if !subscriptionService.isDeep {
+                                let isLow = remaining <= 3
+                                let isCritical = remaining <= 1
                                 Text("\(remaining) left")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(remaining <= 2 ? .orange : .secondary)
+                                    .foregroundStyle(isCritical ? .red : isLow ? .orange : .secondary)
                                     .monospacedDigit()
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
                                     .background(
-                                        (remaining <= 2 ? Color.orange : Color.secondary).opacity(0.10),
+                                        (isCritical ? Color.red : isLow ? Color.orange : Color.secondary).opacity(0.10),
                                         in: Capsule()
                                     )
                             }

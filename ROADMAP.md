@@ -8,9 +8,9 @@
 
 ---
 
-## Week 1 — Visibility & Polish
-- [ ] **Streak visible to all tiers** — add streak pill to Insights tab header (currently Deep-only via MoodTimeline)
-- [ ] **Ask usage counter always shown** — show "X/15 used" in askHeader always, not only at ≤3 remaining
+## Week 1 — Visibility & Polish ✓
+- [x] **Streak visible to all tiers** — flame pill in "Today" section header (all tiers, uses fixed day-counting logic)
+- [x] **Ask usage counter always shown** — toolbar pill visible always for Core; colors escalate secondary → orange → red at ≤3/≤1
 
 ## Week 2 — History & Editing
 - [ ] **Past monthly reports** — add month picker to MonthlyReportView; reports already cached by `periodIdentifier`

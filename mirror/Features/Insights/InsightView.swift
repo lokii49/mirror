@@ -111,6 +111,33 @@ struct InsightView: View {
         return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
     }
 
+    private var currentStreak: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+
+        var seen = Set<Date>()
+        var writtenDays: [Date] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if seen.insert(day).inserted { writtenDays.append(day) }
+        }
+
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+
+        var streak = 0
+        var checkDate = mostRecentDay
+        for day in writtenDays {
+            if day == checkDate {
+                streak += 1
+                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+            } else if day < checkDate {
+                break
+            }
+        }
+        return streak
+    }
+
     private var thisMonthEntries: [Entry] {
         let cal = Calendar.current
         let now = Date()
@@ -176,7 +203,21 @@ struct InsightView: View {
                 subtitle: nudgeExpanded ? "Full daily reflection" : "A short read first; expand when you want depth",
                 icon: "sparkles",
                 color: MirrorTheme.primary
-            )
+            ) {
+                if currentStreak > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.orange)
+                        Text("\(currentStreak)d")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+                }
+            }
             nudgeStatusContent
         }
     }
@@ -382,11 +423,26 @@ struct InsightView: View {
 
 // MARK: - Shared Card Components
 
-private struct SectionHeader: View {
+private struct SectionHeader<Trailing: View>: View {
     let title: String
     let subtitle: String
     let icon: String
     let color: Color
+    var trailing: Trailing
+
+    init(
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.color = color
+        self.trailing = trailing()
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -405,6 +461,7 @@ private struct SectionHeader: View {
                     .lineLimit(2)
             }
             Spacer()
+            trailing
         }
         .padding(.top, 2)
     }
