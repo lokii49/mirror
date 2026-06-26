@@ -29,8 +29,8 @@
 ## Phase 2
 - [x] **Sort options in Entries** — sort menu in toolbar: Newest, Oldest, Most Words, By Mood; applied within each month group; filter icon fills when non-default
 - [x] **Daily word goal progress** — thin 2px progress bar above toolRow Divider; tracks total words written today across all entries + current draft; fills green on completion
-- [ ] **In-app model guidance** — if Gemma missing, guide user to download instead of raw error path
+- [x] **In-app model guidance** — `modelNotInstalled` state added to NudgeState/DigestState/MonthlyReportState; `ModelNotInstalledCard` rendered instead of generic error; step-by-step Gemma install instructions shown
 - [x] **Blurred preview dedup** — `MoodChartCard(points:)` extracted; `moodChartCard` and `previewMoodChartCard` both delegate to it; ~37 lines removed
-- [ ] **Reduce WriteView @State sprawl** — 40+ @State vars; extract draft state into a struct
-- [ ] **Export to plain text / PDF** — per-entry and bulk export (Notion/Obsidian Phase 2 per CLAUDE.md)
+- [x] **Reduce WriteView @State sprawl** — undo snapshot vars (12×) consolidated into `DraftUndoSnapshot` struct; `@State var undoSnapshot` replaces all; sort toolbar extracted to `trailingToolbar` computed var
+- [x] **Export to plain text / PDF** — bulk text export (Settings ShareLink already shipped); per-entry text share (EntryDetailView already shipped); PDF export added via `UIMarkupTextPrintFormatter`+`UIPrintPageRenderer`; "Export as PDF" in entry ellipsis menu
 - [ ] **iPad split view layout**
