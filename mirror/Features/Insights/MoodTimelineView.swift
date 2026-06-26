@@ -35,13 +35,6 @@ struct MoodTimelineView: View {
         filteredEntries.filter { $0.mood != nil && !($0.mood!.isEmpty) }
     }
 
-    private struct MoodPoint: Identifiable {
-        let id: UUID
-        let date: Date
-        let mood: String
-        let score: Double
-    }
-
     private var points: [MoodPoint] {
         moodEntries
             .compactMap { entry in
@@ -668,6 +661,13 @@ struct MoodTimelineView: View {
 }
 
 // MARK: - Shared chart card (used by both real view and blurred preview)
+
+private struct MoodPoint: Identifiable {
+    let id: UUID
+    let date: Date
+    let mood: String
+    let score: Double
+}
 
 private struct MoodChartCard: View {
     let points: [MoodPoint]

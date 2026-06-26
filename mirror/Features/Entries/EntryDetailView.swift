@@ -224,7 +224,7 @@ struct EntryDetailView: View {
         html += "<p style='line-height: 1.8;'>\(escaped)</p></body></html>"
         let formatter = UIMarkupTextPrintFormatter(markupText: html)
         let renderer = UIPrintPageRenderer()
-        renderer.addPrintFormatter(formatter, startingAtPageAtIndex: 0)
+        renderer.addPrintFormatter(formatter, startingAtPageAt: 0)
         let pageSize = CGSize(width: 595, height: 842) // A4
         let margin: CGFloat = 57
         let printable = CGRect(x: margin, y: margin, width: pageSize.width - margin * 2, height: pageSize.height - margin * 2)
@@ -240,7 +240,7 @@ struct EntryDetailView: View {
         UIGraphicsEndPDFContext()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("mirror-entry-\(entry.id.uuidString.prefix(8)).pdf")
-        (data as Data).write(to: url, atomically: true)  // ignore write error — if fail, av gets bad url
+        try? (data as Data).write(to: url)
         return url
     }
 }
