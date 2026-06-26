@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2CB2F37AB2B349659532EC01 /* MirrorNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D674E52CEF446BAED78D9A /* MirrorNotifications.swift */; };
 		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
 		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
 		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
@@ -54,6 +55,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		45D674E52CEF446BAED78D9A /* MirrorNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MirrorNotifications.swift; path = mirror/Core/Services/MirrorNotifications.swift; sourceTree = SOURCE_ROOT; };
 		471287F62F9CF11200812160 /* mirror.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mirror.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		471288052F9CF11300812160 /* mirrorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4712880F2F9CF11300812160 /* mirrorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -67,6 +69,7 @@
 		471288762F9CF48D00812160 /* Exceptions for "mirror" folder in "mirror" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Core/Services/MirrorNotifications.swift,
 				Info.plist,
 				Widget/EntriesMapWidget.swift,
 				Widget/MoodMapWidget.swift,
@@ -380,6 +383,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2CB2F37AB2B349659532EC01 /* MirrorNotifications.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
