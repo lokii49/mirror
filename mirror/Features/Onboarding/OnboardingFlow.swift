@@ -130,48 +130,134 @@ struct OnboardingFlow: View {
     // MARK: - Steps
 
     private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Spacer()
-            VStack(alignment: .leading, spacing: 20) {
-                // Icon hero
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 80, height: 80)
-                        .shadow(color: MirrorTheme.primary.opacity(0.4), radius: 24, x: 0, y: 10)
-                    Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.bottom, 4)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Welcome to")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                    Text("MirrorNotes")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                }
-
-                Text("A private space to understand yourself through writing. No audience. No performance. Just you.")
-                    .font(.system(size: 16, weight: .regular, design: .serif))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .lineSpacing(5)
-
-                // Sample nudge preview
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                welcomeHeroCard
+                welcomeFeatureRows
                 sampleNudgePreview
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+        }
+    }
 
-                // Feature chips
-                welcomeFeatureChips
+    private var welcomeHeroCard: some View {
+        ZStack(alignment: .bottomLeading) {
+            // Background
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [MirrorTheme.inkBase, Color(red: 0.10, green: 0.08, blue: 0.18)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+
+            // Ambient glow — violet
+            Circle()
+                .fill(MirrorTheme.violet.opacity(0.28))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 160, y: -90)
+
+            // Ambient glow — primary
+            Circle()
+                .fill(MirrorTheme.primary.opacity(0.22))
+                .frame(width: 160, height: 160)
+                .blur(radius: 45)
+                .offset(x: -30, y: 30)
+
+            // Content
+            VStack(alignment: .leading, spacing: 18) {
+                // Sparkle mark
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.primary, MirrorTheme.violetLight],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+
+                // Wordmark
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("mirror")
+                        .font(.system(size: 58, weight: .bold, design: .serif))
+                        .italic()
+                        .foregroundStyle(.white)
+                        .tracking(-1)
+
+                    Text("your private thinking space")
+                        .font(.system(size: 18, weight: .medium, design: .serif))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .italic()
+                }
+
+                // Privacy pill
+                HStack(spacing: 6) {
+                    Image(systemName: "cpu.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                    Text("All AI runs on your phone. Nothing leaves.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.60))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(0.10), in: Capsule())
+            }
+            .padding(28)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 290)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: MirrorTheme.primary.opacity(0.18), radius: 32, x: 0, y: 14)
+    }
+
+    private var welcomeFeatureRows: some View {
+        VStack(spacing: 10) {
+            welcomeFeatureRow(
+                icon: "sparkles",
+                title: "Daily reflections",
+                subtitle: "Insights drawn from your own writing",
+                color: MirrorTheme.primary
+            )
+            welcomeFeatureRow(
+                icon: "icloud.fill",
+                title: "Private iCloud sync",
+                subtitle: "Encrypted — only accessible by you",
+                color: .blue
+            )
+            welcomeFeatureRow(
+                icon: "lock.shield.fill",
+                title: "On-device AI",
+                subtitle: "Your words never leave your phone",
+                color: .green
+            )
+        }
+    }
+
+    private func welcomeFeatureRow(icon: String, title: String, subtitle: String, color: Color) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(color.opacity(0.12))
+                    .frame(width: 46, height: 46)
+                Image(systemName: icon)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
-            Spacer()
         }
-        .padding(.horizontal, 28)
+        .padding(14)
+        .inkSurface(cornerRadius: 16)
     }
 
     private var sampleNudgePreview: some View {
@@ -207,35 +293,6 @@ struct OnboardingFlow: View {
                 .padding(.vertical, 12)
         }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var welcomeFeatureChips: some View {
-        let chips: [(String, String, Color)] = [
-            ("lock.shield.fill", "100% on-device AI", .green),
-            ("icloud.fill",      "iCloud backup",     .blue),
-            ("bell.fill",        "Daily nudge",        MirrorTheme.primary),
-            ("magnifyingglass",  "Full-text search",  .orange),
-        ]
-        return LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-            spacing: 8
-        ) {
-            ForEach(chips, id: \.1) { icon, label, color in
-                HStack(spacing: 7) {
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(color)
-                    Text(label)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-        }
     }
 
     private var reasonStep: some View {
