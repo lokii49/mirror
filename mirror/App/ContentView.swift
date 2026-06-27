@@ -156,6 +156,8 @@ struct ContentView: View {
                 .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
+        .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 
     // MARK: - iPad layout (NavigationSplitView)
