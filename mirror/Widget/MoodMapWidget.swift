@@ -4,6 +4,12 @@ import Charts
 
 private let moodHeatmapKey = "widget.mood.heatmap"
 
+// Shared dark ink palette
+private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
+private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
+private let wViolet   = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
+private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
+
 private let widgetMoodScore: [String: Double] = [
     "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
     "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
@@ -90,8 +96,8 @@ struct MoodMapWidgetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Moods")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.50))
                     Spacer()
                     if !trend.isEmpty {
                         Text(trend)
@@ -101,8 +107,8 @@ struct MoodMapWidgetView: View {
                 }
                 if points.isEmpty {
                     Text("Log a mood to see your chart.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 12, weight: .regular, design: .serif))
+                        .foregroundStyle(.white.opacity(0.40))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
                     Chart(points) { point in
@@ -112,7 +118,7 @@ struct MoodMapWidgetView: View {
                         )
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0.05)],
+                                colors: [wViolet.opacity(0.25), wViolet.opacity(0.03)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -123,7 +129,14 @@ struct MoodMapWidgetView: View {
                             x: .value("Day", point.date, unit: .day),
                             y: .value("Mood", point.score)
                         )
-                        .foregroundStyle(Color.accentColor.opacity(0.6))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [wViolet, wViLight],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 2))
                         .interpolationMethod(.catmullRom)
 
                         PointMark(
@@ -140,27 +153,31 @@ struct MoodMapWidgetView: View {
                 Spacer(minLength: 0)
             }
             .padding(12)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
             .widgetURL(URL(string: "mirror://mood-timeline"))
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Core required")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.white.opacity(0.35))
+                Text("Core · $2.99/mo")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
             .widgetURL(URL(string: "mirror://upgrade"))
         }
     }
 
     private var trendColor: Color {
         if trend.hasPrefix("↑") { return .green }
-        if trend.hasPrefix("↓") { return .red }
-        return .secondary
+        if trend.hasPrefix("↓") { return Color(red: 0.976, green: 0.482, blue: 0.545) } // ember
+        return wViLight.opacity(0.60)
     }
 
     private func moodColor(_ mood: String) -> Color {

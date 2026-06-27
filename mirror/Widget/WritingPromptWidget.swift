@@ -3,8 +3,10 @@ import SwiftUI
 
 private let appGroupID = "group.com.lokesh.mirror"
 
-private let promptTop    = Color(red: 0.70, green: 0.38, blue: 0.08)
-private let promptBottom = Color(red: 0.42, green: 0.20, blue: 0.02)
+// Shared dark ink palette
+private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
+private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
+private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 
 private let writingPrompts: [String] = [
     "What made you smile today?",
@@ -72,7 +74,7 @@ private struct PromptUnlockedView: View {
         ZStack(alignment: .bottomTrailing) {
             Text("?")
                 .font(.system(size: 110, weight: .black))
-                .foregroundStyle(.white.opacity(0.08))
+                .foregroundStyle(wViLight.opacity(0.10))
                 .offset(x: 14, y: 18)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -83,15 +85,15 @@ private struct PromptUnlockedView: View {
                         .font(.system(size: 8, weight: .bold))
                         .tracking(1.8)
                 }
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(wViLight.opacity(0.60))
 
                 Spacer(minLength: 8)
 
                 Text(entry.prompt)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 15, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
                     .lineLimit(5)
-                    .lineSpacing(2)
+                    .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: false)
 
                 Spacer(minLength: 0)
@@ -99,14 +101,14 @@ private struct PromptUnlockedView: View {
                 HStack {
                     Spacer()
                     Text("Tap to write →")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(wViLight.opacity(0.55))
                 }
             }
             .padding(14)
         }
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [promptTop, promptBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://write"))
     }
@@ -129,7 +131,7 @@ private struct PromptLockedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [promptTop.opacity(0.7), promptBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://upgrade"))
     }

@@ -3,6 +3,12 @@ import SwiftUI
 
 private let appGroupID        = "group.com.lokesh.mirror"
 private let entriesHeatmapKey = "widget.entries.heatmap"
+
+// Shared dark ink palette
+private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
+private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
+private let wViolet   = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
+private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 private let moodHeatmapKey2   = "widget.mood.heatmap"
 
 private let entryDayFormatter: DateFormatter = {
@@ -87,10 +93,10 @@ struct EntriesMapWidgetView: View {
 
     private func cellColor(for day: Date) -> Color {
         guard (entry.countByDay[key(day)] ?? 0) > 0 else {
-            return Color.primary.opacity(0.07)
+            return Color.white.opacity(0.08)
         }
         guard let mood = entry.moodByDay[key(day)] else {
-            return Color.accentColor.opacity(0.5)
+            return wViolet.opacity(0.70)
         }
         return moodColor(mood)
     }
@@ -118,21 +124,21 @@ struct EntriesMapWidgetView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Entries")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.50))
                     Spacer()
                     if streak > 0 {
-                        HStack(spacing: 2) {
+                        HStack(spacing: 3) {
                             Text("🔥")
                                 .font(.system(size: 10))
                             Text("\(streak)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.primary)
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
                         }
                     } else if wroteToday {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(wViLight)
                     }
                 }
                 LazyVGrid(
@@ -141,13 +147,13 @@ struct EntriesMapWidgetView: View {
                 ) {
                     ForEach(days, id: \.self) { day in
                         let isToday = key(day) == todayKey
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(cellColor(for: day))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 isToday
-                                    ? RoundedRectangle(cornerRadius: 2)
-                                        .strokeBorder(Color.primary.opacity(0.5), lineWidth: 1)
+                                    ? RoundedRectangle(cornerRadius: 3)
+                                        .strokeBorder(wViLight, lineWidth: 1.5)
                                     : nil
                             )
                     }
@@ -155,19 +161,23 @@ struct EntriesMapWidgetView: View {
                 Spacer(minLength: 0)
             }
             .padding(12)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
             .widgetURL(URL(string: "mirror://entries"))
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Core required")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.white.opacity(0.35))
+                Text("Core · $2.99/mo")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
             .widgetURL(URL(string: "mirror://upgrade"))
         }
     }
