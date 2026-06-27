@@ -854,26 +854,27 @@ private struct InsightTextView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Label(label, systemImage: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(accentColor)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(MirrorTheme.violetLight)
+                    .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
             }
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [accentColor.opacity(0.35), accentColor.opacity(0.08)],
+                        colors: [MirrorTheme.violet.opacity(0.40), MirrorTheme.violet.opacity(0.06)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .frame(height: 1)
             Text(insight.content)
-                .font(.system(size: 17, weight: .regular, design: .serif))
-                .lineSpacing(7)
-                .foregroundStyle(.primary)
+                .font(.system(size: 18, weight: .regular, design: .serif))
+                .lineSpacing(8)
+                .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
                 .textSelection(.enabled)
 
@@ -885,20 +886,30 @@ private struct InsightTextView: View {
                             .font(.system(size: 11, weight: .bold))
                     }
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(MirrorTheme.violetLight)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
-                    .background(accentColor.opacity(0.10), in: Capsule())
+                    .background(MirrorTheme.violetDim, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(22)
-        .accentCard(cornerRadius: 26)
+        .inkHero(cornerRadius: 26)
+        .overlay {
+            RadialGradient(
+                colors: [accentColor.opacity(0.16), .clear],
+                center: .init(x: 0.90, y: 0.10),
+                startRadius: 0,
+                endRadius: 200
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .allowsHitTesting(false)
+        }
         .overlay(alignment: .topTrailing) {
             Text("\u{201C}")
                 .font(.system(size: 80, weight: .bold, design: .serif))
-                .foregroundStyle(accentColor.opacity(0.09))
+                .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
                 .offset(x: -18, y: 8)
                 .allowsHitTesting(false)
         }
@@ -969,7 +980,14 @@ private struct MoodWeekChartView: View {
                     x: .value("Day", point.date, unit: .day),
                     y: .value("Mood", point.score)
                 )
-                .foregroundStyle(MirrorTheme.primary.opacity(0.25))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [MirrorTheme.violet, MirrorTheme.violetLight],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2))
                 .interpolationMethod(.catmullRom)
             }
             .chartYScale(domain: 0...6)
