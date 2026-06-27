@@ -224,7 +224,7 @@ extension WriteView {
                 }
                 .frame(height: 2)
             }
-            Divider()
+            Divider().overlay(MirrorTheme.inkBorder)
             HStack(spacing: 0) {
                 // Keyboard dismiss
                 Button {
