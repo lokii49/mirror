@@ -24,14 +24,6 @@ struct MoodTimelineView: View {
         }
     }
 
-    private static let moodScore: [String: Double] = [
-        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
-        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2,
-    ]
-
-    private static let negativeMoods: Set<String> = [
-        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
-    ]
 
     private var filteredEntries: [Entry] {
         guard let days = selectedRange.days else { return entries }
@@ -43,18 +35,11 @@ struct MoodTimelineView: View {
         filteredEntries.filter { $0.mood != nil && !($0.mood!.isEmpty) }
     }
 
-    private struct MoodPoint: Identifiable {
-        let id: UUID
-        let date: Date
-        let mood: String
-        let score: Double
-    }
-
     private var points: [MoodPoint] {
         moodEntries
             .compactMap { entry in
                 guard let mood = entry.mood,
-                      let score = MoodTimelineView.moodScore[mood] else { return nil }
+                      let score = MirrorTheme.moodScore[mood] else { return nil }
                 return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
             }
             .sorted { $0.date < $1.date }
@@ -65,7 +50,7 @@ struct MoodTimelineView: View {
         entries
             .compactMap { entry in
                 guard let mood = entry.mood,
-                      let score = MoodTimelineView.moodScore[mood] else { return nil }
+                      let score = MirrorTheme.moodScore[mood] else { return nil }
                 return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
             }
             .sorted { $0.date < $1.date }
@@ -120,22 +105,29 @@ struct MoodTimelineView: View {
     }
 
     private var currentStreak: Int {
-        guard let mostRecentEntry = entries.first else { return 0 }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let mostRecentDay = calendar.startOfDay(for: mostRecentEntry.createdAt)
-        // Gap of 2+ days = streak broken
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
-              mostRecentDay >= yesterday else { return 0 }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
 
-        var checkDate = mostRecentDay
-        var streak = 0
+        // Collect unique written days (newest first)
+        var writtenDays: [Date] = []
+        var seen = Set<Date>()
         for entry in entries {
-            let entryDay = calendar.startOfDay(for: entry.createdAt)
-            if entryDay == checkDate {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if seen.insert(day).inserted {
+                writtenDays.append(day)
+            }
+        }
+
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+
+        var streak = 0
+        var checkDate = mostRecentDay
+        for day in writtenDays {
+            if day == checkDate {
                 streak += 1
                 checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
-            } else if entryDay < checkDate {
+            } else if day < checkDate {
                 break
             }
         }
@@ -147,8 +139,8 @@ struct MoodTimelineView: View {
         var count = 0
         for entry in entries {
             guard entry.createdAt >= sevenDaysAgo else { break }
-            guard let mood = entry.mood else { break }
-            if MoodTimelineView.negativeMoods.contains(mood) {
+            guard let mood = entry.mood else { continue }
+            if MirrorTheme.negativeMoods.contains(mood) {
                 count += 1
             } else {
                 break
@@ -360,59 +352,7 @@ struct MoodTimelineView: View {
     // MARK: - Scatter chart (30D / 90D)
 
     private var moodChartCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Chart(points) { point in
-                AreaMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .interpolationMethod(.catmullRom)
-
-                LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.primary.opacity(0.6))
-                .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2))
-
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                .symbolSize(80)
-            }
-            .chartYScale(domain: 0...6)
-            .chartYAxis {
-                AxisMarks(values: [1, 3, 5]) { value in
-                    AxisValueLabel {
-                        if let v = value.as(Int.self) {
-                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
-                                .font(.system(size: 10))
-                                .foregroundStyle(Color.secondary)
-                        }
-                    }
-                }
-            }
-            .chartXAxis {
-                AxisMarks(format: .dateTime.month(.abbreviated).day())
-            }
-            .frame(height: 160)
-        }
-        .padding(18)
-        .futureSurface(cornerRadius: 22)
+        MoodChartCard(points: points)
     }
 
     // MARK: - Calendar heatmap (All)
@@ -683,41 +623,7 @@ struct MoodTimelineView: View {
     }
 
     private var previewMoodChartCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Chart(previewPoints) { point in
-                AreaMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
-                    .foregroundStyle(LinearGradient(
-                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
-                        startPoint: .top, endPoint: .bottom))
-                    .interpolationMethod(.catmullRom)
-                LineMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
-                    .foregroundStyle(MirrorTheme.primary.opacity(0.6))
-                    .interpolationMethod(.catmullRom)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                PointMark(x: .value("Day", point.date, unit: .day), y: .value("Mood", point.score))
-                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                    .symbolSize(80)
-            }
-            .chartYScale(domain: 0...6)
-            .chartYAxis {
-                AxisMarks(values: [1, 3, 5]) { value in
-                    AxisValueLabel {
-                        if let v = value.as(Int.self) {
-                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
-                                .font(.system(size: 10)).foregroundStyle(Color.secondary)
-                        }
-                    }
-                }
-            }
-            .chartXAxis { AxisMarks(format: .dateTime.month(.abbreviated).day()) }
-            .frame(height: 160)
-        }
-        .padding(18)
-        .futureSurface(cornerRadius: 22)
+        MoodChartCard(points: previewPoints)
     }
 
     @ViewBuilder
@@ -748,6 +654,75 @@ struct MoodTimelineView: View {
                     }
                 }
             }
+        }
+        .padding(18)
+        .futureSurface(cornerRadius: 22)
+    }
+}
+
+// MARK: - Shared chart card (used by both real view and blurred preview)
+
+private struct MoodPoint: Identifiable {
+    let id: UUID
+    let date: Date
+    let mood: String
+    let score: Double
+}
+
+private struct MoodChartCard: View {
+    let points: [MoodPoint]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Chart(points) { point in
+                AreaMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .interpolationMethod(.catmullRom)
+
+                LineMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.primary.opacity(0.6))
+                .interpolationMethod(.catmullRom)
+                .lineStyle(StrokeStyle(lineWidth: 2))
+
+                PointMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Mood", point.score)
+                )
+                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                .symbolSize(80)
+            }
+            .chartYScale(domain: 0...6)
+            .chartYAxis {
+                AxisMarks(values: [1, 3, 5]) { value in
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(format: .dateTime.month(.abbreviated).day())
+            }
+            .frame(height: 160)
         }
         .padding(18)
         .futureSurface(cornerRadius: 22)

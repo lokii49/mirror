@@ -1,5 +1,12 @@
 import Foundation
 
+extension Calendar {
+    func startOfMonth(_ date: Date) -> Date {
+        let comps = dateComponents([.year, .month], from: date)
+        return self.date(from: comps) ?? date
+    }
+}
+
 enum DateHelpers {
     static func weekIdentifier(for date: Date) -> String {
         let cal = Calendar.current

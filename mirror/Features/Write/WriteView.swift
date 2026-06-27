@@ -6,6 +6,21 @@ import UIKit
 import ImageIO
 import UniformTypeIdentifiers
 
+struct DraftUndoSnapshot {
+    var text: String = ""
+    var textStyleData: Data? = nil
+    var inlineStyleData: Data? = nil
+    var photos: [Data] = []
+    var mood: String? = nil
+    var tags: [String] = []
+    var voiceNoteData: Data? = nil
+    var voiceNoteDuration: TimeInterval = 0
+    var voiceNoteTranscript: String? = nil
+    var additionalVoiceNoteData: [Data] = []
+    var additionalVoiceNoteDurations: [TimeInterval] = []
+    var additionalVoiceNoteTranscripts: [String] = []
+}
+
 struct WriteView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
@@ -26,18 +41,7 @@ struct WriteView: View {
     @State var pendingDelete = false
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
-    @State var undoTextSnapshot: String = ""
-    @State var undoTextStyleSnapshot: Data? = nil
-    @State var undoInlineStyleSnapshot: Data? = nil
-    @State var undoPhotoSnapshot: [Data] = []
-    @State var undoMoodSnapshot: String? = nil
-    @State var undoTagsSnapshot: [String] = []
-    @State var undoVoiceNoteData: Data? = nil
-    @State var undoVoiceNoteDuration: TimeInterval = 0
-    @State var undoVoiceNoteTranscript: String? = nil
-    @State var undoAdditionalVoiceNoteData: [Data] = []
-    @State var undoAdditionalVoiceNoteDurations: [TimeInterval] = []
-    @State var undoAdditionalVoiceNoteTranscripts: [String] = []
+    @State var undoSnapshot = DraftUndoSnapshot()
     @State var showVoiceInput = false
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
@@ -314,15 +318,27 @@ struct WriteView: View {
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
-                DatePicker(
-                    "Entry date",
-                    selection: $entryDate,
-                    in: ...Date(),
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .padding(.horizontal)
-                .navigationTitle("Entry Date")
+                VStack(spacing: 0) {
+                    DatePicker(
+                        "Entry date",
+                        selection: $entryDate,
+                        in: ...Date(),
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .padding(.horizontal)
+                    Divider()
+                    DatePicker(
+                        "Entry time",
+                        selection: $entryDate,
+                        in: ...Date(),
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .padding(.horizontal)
+                }
+                .navigationTitle("Entry Date & Time")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -330,7 +346,7 @@ struct WriteView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
         }
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { saveDraftToStorage() }

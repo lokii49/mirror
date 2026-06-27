@@ -17,6 +17,23 @@ struct EntriesTabView: View {
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
     @State private var snapshotCache: EntryListSnapshot? = nil
+    @State private var sortOrder: EntrySortOrder = .newestFirst
+
+    private enum EntrySortOrder: String, CaseIterable {
+        case newestFirst = "Newest First"
+        case oldestFirst = "Oldest First"
+        case mostWords   = "Most Words"
+        case byMood      = "By Mood"
+
+        var icon: String {
+            switch self {
+            case .newestFirst: return "arrow.down.circle"
+            case .oldestFirst: return "arrow.up.circle"
+            case .mostWords:   return "text.word.spacing"
+            case .byMood:      return "face.smiling"
+            }
+        }
+    }
 
     private struct EntryMonthGroup {
         let date: Date
@@ -49,6 +66,7 @@ struct EntriesTabView: View {
         let entryCount: Int
         let moodHash: Int
         let tagsHash: Int
+        let sort: String
     }
 
     private var snapshotDeps: SnapshotDeps {
@@ -59,7 +77,8 @@ struct EntriesTabView: View {
             date: selectedDateFilter,
             entryCount: entries.count,
             moodHash: entries.map(\.encryptedMood).hashValue,
-            tagsHash: entries.map(\.encryptedTagsStorage).hashValue
+            tagsHash: entries.map(\.encryptedTagsStorage).hashValue,
+            sort: sortOrder.rawValue
         )
     }
 
@@ -87,8 +106,24 @@ struct EntriesTabView: View {
             let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
             return calendar.date(from: comps) ?? entry.createdAt
         }
-        let groupedByMonth = groups.keys.sorted(by: >).map { month in
-            EntryMonthGroup(date: month, entries: groups[month, default: []].sorted { $0.createdAt > $1.createdAt })
+        switch sortOrder {
+        case .newestFirst: break  // already sorted by @Query
+        case .oldestFirst: result = result.sorted { $0.createdAt < $1.createdAt }
+        case .mostWords:   result = result.sorted { $0.wordCount > $1.wordCount }
+        case .byMood:      result = result.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
+        }
+
+        let monthSortAscending = sortOrder == .oldestFirst
+        let groupedByMonth = groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
+            let monthEntries = groups[month, default: []]
+            let sortedMonthEntries: [Entry]
+            switch sortOrder {
+            case .newestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+            case .oldestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt < $1.createdAt }
+            case .mostWords:   sortedMonthEntries = monthEntries.sorted { $0.wordCount > $1.wordCount }
+            case .byMood:      sortedMonthEntries = monthEntries.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
+            }
+            return EntryMonthGroup(date: month, entries: sortedMonthEntries)
         }
 
         // Precompute all row display data (mood + text decrypts) so EntryRow.init does zero decrypts
@@ -108,6 +143,29 @@ struct EntriesTabView: View {
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
+    private var trailingToolbar: some View {
+        HStack(spacing: 16) {
+            Menu {
+                ForEach(EntrySortOrder.allCases, id: \.self) { order in
+                    Button {
+                        withAnimation { sortOrder = order }
+                    } label: {
+                        Label(order.rawValue, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                    }
+                }
+            } label: {
+                Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            Button {
+                withAnimation { showSearch.toggle() }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+        }
+    }
+
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
         NavigationStack {
@@ -123,12 +181,7 @@ struct EntriesTabView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation { showSearch.toggle() }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
+                    trailingToolbar
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {

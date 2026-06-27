@@ -24,6 +24,7 @@ enum NotificationService {
     private static let digestID = "mirror.weeklyDigest"
     private static let moodAlertID = "mirror.moodAlert"
     private static let monthlyReportID = "mirror.monthlyReport"
+    private static let writingReminderID = "mirror.writingReminder"
 
     /// Context-aware daily nudge — single repeating notification whose content is
     /// refreshed on every app-active and every nightly background task run.
@@ -132,6 +133,31 @@ enum NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: monthlyReportID, content: content, trigger: trigger)
         try? await center.add(request)
+    }
+
+    /// All tiers — daily "time to write" reminder at user-chosen time, separate from Core nudge.
+    static func scheduleWritingReminder(hour: Int, minute: Int) async {
+        guard await isAuthorized() else { return }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [writingReminderID])
+
+        let content = UNMutableNotificationContent()
+        content.title = "MirrorNotes"
+        content.body = "Time to write. What's on your mind today?"
+        content.sound = .default
+
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = minute
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(identifier: writingReminderID, content: content, trigger: trigger)
+        try? await center.add(request)
+    }
+
+    static func cancelWritingReminder() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [writingReminderID])
     }
 
     static func cancelNudge() {

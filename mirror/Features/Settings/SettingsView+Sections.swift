@@ -311,6 +311,73 @@ extension SettingsView {
 
             Divider().padding(.leading, 48)
 
+            // Writing reminder — all tiers
+            Button { withAnimation { showWritingReminderPicker.toggle() } } label: {
+                HStack {
+                    settingsRowLabel("Writing reminder", systemImage: "pencil.circle.fill", iconColor: .teal)
+                    Spacer()
+                    if writingReminderEnabled {
+                        Text(writingReminderTime, style: .time)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Off")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    chevron
+                        .rotationEffect(.degrees(showWritingReminderPicker ? 90 : 0))
+                        .animation(.easeInOut(duration: 0.2), value: showWritingReminderPicker)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showWritingReminderPicker {
+                VStack(spacing: 12) {
+                    Toggle("Enable daily writing reminder", isOn: $writingReminderEnabled)
+                        .font(.system(size: 14))
+                        .onChange(of: writingReminderEnabled) { _, enabled in
+                            Task {
+                                if enabled {
+                                    await NotificationService.scheduleWritingReminder(
+                                        hour: writingReminderHour,
+                                        minute: writingReminderMinute
+                                    )
+                                } else {
+                                    NotificationService.cancelWritingReminder()
+                                }
+                            }
+                        }
+                    if writingReminderEnabled {
+                        DatePicker(
+                            "",
+                            selection: Binding(
+                                get: { writingReminderTime },
+                                set: { date in
+                                    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                    writingReminderHour = c.hour ?? 9
+                                    writingReminderMinute = c.minute ?? 0
+                                    Task {
+                                        await NotificationService.scheduleWritingReminder(
+                                            hour: writingReminderHour,
+                                            minute: writingReminderMinute
+                                        )
+                                    }
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Divider().padding(.leading, 48)
+
             HStack {
                 settingsRowLabel("Notifications", systemImage: "bell.badge.fill", iconColor: MirrorTheme.primary)
                 Spacer()

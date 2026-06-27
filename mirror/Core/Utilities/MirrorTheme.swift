@@ -24,6 +24,15 @@ enum MirrorTheme {
         "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
     ]
 
+    static let moodScore: [String: Double] = [
+        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
+        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
+    ]
+
+    static let negativeMoods: Set<String> = [
+        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
+    ]
+
     static func moodColor(for mood: String) -> Color {
         switch mood {
         case "Joyful":      return Color(red: 1.000, green: 0.835, blue: 0.310) // #FFD54F
