@@ -8,6 +8,7 @@ enum NudgeState {
     case needsMoreEntries(Int)
     case subscriptionRequired
     case pendingNightlyGeneration
+    case modelNotInstalled
     case error(String)
 }
 
@@ -18,6 +19,7 @@ enum DigestState {
     case notEnoughEntries(Int)
     case subscriptionRequired
     case pendingNightlyGeneration
+    case modelNotInstalled
     case error(String)
 }
 
@@ -29,6 +31,7 @@ enum MonthlyReportState {
     case endOfMonthTooFewEntries(count: Int)
     case subscriptionRequired
     case pendingNightlyGeneration
+    case modelNotInstalled
     case error(String)
 }
 
@@ -77,7 +80,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            return .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
+            return .modelNotInstalled
         }
 
         return .pendingNightlyGeneration
@@ -113,7 +116,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            digestState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
+            digestState = .modelNotInstalled
             return
         }
 
@@ -180,7 +183,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            monthlyReportState = .error("Mirror's AI couldn't start. Try force-closing and reopening the app.")
+            monthlyReportState = .modelNotInstalled
             return
         }
 

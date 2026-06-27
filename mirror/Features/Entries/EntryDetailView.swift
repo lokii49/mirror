@@ -5,6 +5,7 @@ struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var insights: [Insight]
+    @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
 
     let entry: Entry
     var onDone: (() -> Void)? = nil
@@ -13,6 +14,19 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+
+    private var onThisDayEntries: [Entry] {
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.month, .day], from: entry.createdAt)
+        let thisYear = cal.component(.year, from: entry.createdAt)
+        return allEntries.filter { other in
+            guard other.id != entry.id else { return false }
+            let otherComps = cal.dateComponents([.year, .month, .day], from: other.createdAt)
+            return otherComps.month == comps.month
+                && otherComps.day == comps.day
+                && otherComps.year != thisYear
+        }
+    }
 
     private var moodLabel: String? {
         let mood = entry.mood
@@ -122,6 +136,11 @@ struct EntryDetailView: View {
                     .accentCard(cornerRadius: 18)
                     .glowShadow(color: MirrorTheme.primary, radius: 20)
                 }
+
+                // On This Day
+                if !onThisDayEntries.isEmpty {
+                    OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
+                }
             }
             .padding(16)
             .padding(.bottom, 32)
@@ -148,6 +167,7 @@ struct EntryDetailView: View {
 
                     Menu {
                         Button("Share as text") { shareText() }
+                        Button("Export as PDF") { sharePDF() }
                         Button("Delete Entry", systemImage: "trash", role: .destructive) {
                             showDeleteConfirm = true
                         }
@@ -179,6 +199,108 @@ struct EntryDetailView: View {
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.rootViewController?
             .present(av, animated: true)
+    }
+
+    private func sharePDF() {
+        guard let url = makePDF() else { return }
+        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.rootViewController?
+            .present(av, animated: true)
+    }
+
+    private func makePDF() -> URL? {
+        let dateStr = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        var html = "<html><body style='font-family: -apple-system; font-size: 14px; margin: 40px;'>"
+        html += "<p style='color: #666; font-size: 12px;'>\(dateStr)"
+        if let mood = entry.mood { html += " · \(mood)" }
+        html += "</p><hr style='border-color: #eee;'>"
+        let escaped = entry.text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\n", with: "<br>")
+        html += "<p style='line-height: 1.8;'>\(escaped)</p></body></html>"
+        let formatter = UIMarkupTextPrintFormatter(markupText: html)
+        let renderer = UIPrintPageRenderer()
+        renderer.addPrintFormatter(formatter, startingAtPageAt: 0)
+        let pageSize = CGSize(width: 595, height: 842) // A4
+        let margin: CGFloat = 57
+        let printable = CGRect(x: margin, y: margin, width: pageSize.width - margin * 2, height: pageSize.height - margin * 2)
+        renderer.setValue(NSValue(cgRect: CGRect(origin: .zero, size: pageSize)), forKey: "paperRect")
+        renderer.setValue(NSValue(cgRect: printable), forKey: "printableRect")
+        let data = NSMutableData()
+        UIGraphicsBeginPDFContextToData(data, .zero, nil)
+        renderer.prepare(forDrawingPages: NSRange(location: 0, length: renderer.numberOfPages))
+        for i in 0..<renderer.numberOfPages {
+            UIGraphicsBeginPDFPage()
+            renderer.drawPage(at: i, in: UIGraphicsGetPDFContextBounds())
+        }
+        UIGraphicsEndPDFContext()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mirror-entry-\(entry.id.uuidString.prefix(8)).pdf")
+        try? (data as Data).write(to: url)
+        return url
+    }
+}
+
+// MARK: - On This Day
+
+private struct OnThisDaySection: View {
+    let entries: [Entry]
+    let referenceDate: Date
+
+    private var dayMonthLabel: String {
+        referenceDate.formatted(.dateTime.month(.wide).day())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("On this day", systemImage: "calendar.badge.clock")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+
+            ForEach(entries.prefix(3)) { past in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(past.createdAt, format: .dateTime.year())
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(MirrorTheme.primary)
+                        if let mood = past.mood {
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(MirrorTheme.moodColor(for: mood))
+                                    .frame(width: 6, height: 6)
+                                Text(mood)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Text(past.createdAt, format: .dateTime.hour().minute())
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    let preview = past.text
+                        .components(separatedBy: .newlines)
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                        .first ?? ""
+                    if !preview.isEmpty {
+                        Text(preview)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(.primary.opacity(0.75))
+                            .lineLimit(3)
+                    }
+                }
+                .padding(14)
+                .futureSurface(cornerRadius: 16)
+            }
+        }
     }
 }
 

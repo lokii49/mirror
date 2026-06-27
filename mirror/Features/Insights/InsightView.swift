@@ -15,12 +15,17 @@ struct InsightView: View {
     @State private var showWriteFromPrompt = false
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
+    @State private var pastNudgesExpanded = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     nudgeSection
+
+                    if !pastNudges.isEmpty {
+                        pastNudgesSection
+                    }
 
                     if moodEntries.count >= 2, chartVisible {
                         MoodWeekChartView(entries: moodEntries)
@@ -111,6 +116,33 @@ struct InsightView: View {
         return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
     }
 
+    private var currentStreak: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+
+        var seen = Set<Date>()
+        var writtenDays: [Date] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if seen.insert(day).inserted { writtenDays.append(day) }
+        }
+
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+
+        var streak = 0
+        var checkDate = mostRecentDay
+        for day in writtenDays {
+            if day == checkDate {
+                streak += 1
+                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+            } else if day < checkDate {
+                break
+            }
+        }
+        return streak
+    }
+
     private var thisMonthEntries: [Entry] {
         let cal = Calendar.current
         let now = Date()
@@ -120,6 +152,52 @@ struct InsightView: View {
 
     private var hasSeenMoreThanOneNudge: Bool {
         insights.filter { $0.type == .dailyNudge }.count > 1
+    }
+
+    private var pastNudges: [Insight] {
+        guard SubscriptionService.shared.isSubscribed else { return [] }
+        let today = DateHelpers.dayIdentifier(for: Date())
+        return insights
+            .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
+            .sorted { $0.generatedAt > $1.generatedAt }
+    }
+
+    private var pastNudgesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                    pastNudgesExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(pastNudgesExpanded
+                         ? "Hide past reflections"
+                         : "Past reflections (\(pastNudges.count))")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .futureSurface(cornerRadius: 16)
+            }
+            .buttonStyle(.plain)
+
+            if pastNudgesExpanded {
+                VStack(spacing: 10) {
+                    ForEach(pastNudges.prefix(14)) { insight in
+                        PastNudgeCard(insight: insight)
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
     }
 
     private var shouldShowRefresh: Bool {
@@ -176,7 +254,21 @@ struct InsightView: View {
                 subtitle: nudgeExpanded ? "Full daily reflection" : "A short read first; expand when you want depth",
                 icon: "sparkles",
                 color: MirrorTheme.primary
-            )
+            ) {
+                if currentStreak > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.orange)
+                        Text("\(currentStreak)d")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+                }
+            }
             nudgeStatusContent
         }
     }
@@ -228,6 +320,8 @@ struct InsightView: View {
             )
         case .pendingNightlyGeneration:
             nightlyPendingNudgeCard
+        case .modelNotInstalled:
+            ModelNotInstalledCard()
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
@@ -354,6 +448,8 @@ struct InsightView: View {
             )
         case .pendingNightlyGeneration:
             nightlyPendingDigestCard
+        case .modelNotInstalled:
+            ModelNotInstalledCard()
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
@@ -380,13 +476,69 @@ struct InsightView: View {
     }
 }
 
+// MARK: - Past Nudge Card
+
+private struct PastNudgeCard: View {
+    let insight: Insight
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(insight.generatedAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary.opacity(0.5))
+            }
+            Text(insight.content)
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .lineSpacing(5)
+                .foregroundStyle(.primary.opacity(0.85))
+                .lineLimit(isExpanded ? nil : 3)
+                .textSelection(.enabled)
+            if insight.content.count > 120 {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Text(isExpanded ? "Show less" : "Read more")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(16)
+        .futureSurface(cornerRadius: 18)
+    }
+}
+
 // MARK: - Shared Card Components
 
-private struct SectionHeader: View {
+private struct SectionHeader<Trailing: View>: View {
     let title: String
     let subtitle: String
     let icon: String
     let color: Color
+    var trailing: Trailing
+
+    init(
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.color = color
+        self.trailing = trailing()
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -405,6 +557,7 @@ private struct SectionHeader: View {
                     .lineLimit(2)
             }
             Spacer()
+            trailing
         }
         .padding(.top, 2)
     }
@@ -658,6 +811,36 @@ private struct ErrorCard: View {
     }
 }
 
+struct ModelNotInstalledCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("AI model not installed", systemImage: "brain.head.profile")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.purple)
+            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device. The model file needs to be added once.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Download **gemma-3-1b-it-Q4_K_M.gguf** from Hugging Face (bartowski/gemma-3-1b-it-GGUF)", systemImage: "1.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                Label("Copy it to the app via Files or iTunes File Sharing", systemImage: "2.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                Label("Reopen MirrorNotes — AI features activate automatically", systemImage: "3.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(20)
+        .futureSurface(cornerRadius: 22)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.purple.opacity(0.18), lineWidth: 1)
+        )
+    }
+}
+
 private struct InsightTextView: View {
     let insight: Insight
     let label: String
@@ -728,11 +911,6 @@ private struct InsightTextView: View {
 private struct MoodWeekChartView: View {
     let entries: [Entry]
 
-    private static let moodScore: [String: Double] = [
-        "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
-        "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
-    ]
-
     private struct MoodPoint: Identifiable {
         let id: UUID
         let date: Date
@@ -742,7 +920,7 @@ private struct MoodWeekChartView: View {
 
     private var points: [MoodPoint] {
         entries.compactMap { entry in
-            guard let mood = entry.mood, let score = Self.moodScore[mood] else { return nil }
+            guard let mood = entry.mood, let score = MirrorTheme.moodScore[mood] else { return nil }
             return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
         }
     }
@@ -830,7 +1008,8 @@ extension NudgeState: Equatable {
         case (.idle, .idle), (.loading, .loading),
              (.subscriptionRequired, .subscriptionRequired),
              (.needsMoreEntries, .needsMoreEntries),
-             (.pendingNightlyGeneration, .pendingNightlyGeneration): return true
+             (.pendingNightlyGeneration, .pendingNightlyGeneration),
+             (.modelNotInstalled, .modelNotInstalled): return true
         case (.loaded(let a), .loaded(let b)): return a.id == b.id
         case (.error(let a), .error(let b)): return a == b
         default: return false

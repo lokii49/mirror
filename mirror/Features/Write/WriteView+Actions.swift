@@ -161,19 +161,20 @@ extension WriteView {
     }
 
     func startDeleteWithUndo() {
-        // Snapshot all content before clearing
-        undoTextSnapshot = viewModel.text
-        undoTextStyleSnapshot = viewModel.textStyleData
-        undoInlineStyleSnapshot = inlineStyleData
-        undoPhotoSnapshot = photoDataArray
-        undoMoodSnapshot = viewModel.selectedMood
-        undoTagsSnapshot = entryTags
-        undoVoiceNoteData = voiceNoteData
-        undoVoiceNoteDuration = voiceNoteDuration
-        undoVoiceNoteTranscript = voiceNoteTranscript
-        undoAdditionalVoiceNoteData = additionalVoiceNoteData
-        undoAdditionalVoiceNoteDurations = additionalVoiceNoteDurations
-        undoAdditionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+        undoSnapshot = DraftUndoSnapshot(
+            text: viewModel.text,
+            textStyleData: viewModel.textStyleData,
+            inlineStyleData: inlineStyleData,
+            photos: photoDataArray,
+            mood: viewModel.selectedMood,
+            tags: entryTags,
+            voiceNoteData: voiceNoteData,
+            voiceNoteDuration: voiceNoteDuration,
+            voiceNoteTranscript: voiceNoteTranscript,
+            additionalVoiceNoteData: additionalVoiceNoteData,
+            additionalVoiceNoteDurations: additionalVoiceNoteDurations,
+            additionalVoiceNoteTranscripts: additionalVoiceNoteTranscripts
+        )
 
         // Clear content immediately so the view looks empty
         clearDraft()
@@ -201,19 +202,18 @@ extension WriteView {
         deleteUndoTask?.cancel()
         deleteUndoTask = nil
         withAnimation(.easeInOut(duration: 0.25)) { pendingDelete = false }
-        // Restore snapshotted content
-        viewModel.text = undoTextSnapshot
-        viewModel.textStyleData = undoTextStyleSnapshot
-        inlineStyleData = undoInlineStyleSnapshot
-        photoDataArray = undoPhotoSnapshot
-        viewModel.selectedMood = undoMoodSnapshot
-        entryTags = undoTagsSnapshot
-        voiceNoteData = undoVoiceNoteData
-        voiceNoteDuration = undoVoiceNoteDuration
-        voiceNoteTranscript = undoVoiceNoteTranscript
-        additionalVoiceNoteData = undoAdditionalVoiceNoteData
-        additionalVoiceNoteDurations = undoAdditionalVoiceNoteDurations
-        additionalVoiceNoteTranscripts = undoAdditionalVoiceNoteTranscripts
+        viewModel.text = undoSnapshot.text
+        viewModel.textStyleData = undoSnapshot.textStyleData
+        inlineStyleData = undoSnapshot.inlineStyleData
+        photoDataArray = undoSnapshot.photos
+        viewModel.selectedMood = undoSnapshot.mood
+        entryTags = undoSnapshot.tags
+        voiceNoteData = undoSnapshot.voiceNoteData
+        voiceNoteDuration = undoSnapshot.voiceNoteDuration
+        voiceNoteTranscript = undoSnapshot.voiceNoteTranscript
+        additionalVoiceNoteData = undoSnapshot.additionalVoiceNoteData
+        additionalVoiceNoteDurations = undoSnapshot.additionalVoiceNoteDurations
+        additionalVoiceNoteTranscripts = undoSnapshot.additionalVoiceNoteTranscripts
     }
 
     func deleteAndDismiss() {

@@ -7,20 +7,38 @@ struct MonthlyReportView: View {
     @Query private var insights: [Insight]
 
     @State private var showPaywall = false
+    @State private var selectedMonth: Date = Calendar.current.startOfMonth(Date())
     var viewModel: InsightViewModel
-
-    private var thisMonthEntries: [Entry] {
-        let cal = Calendar.current
-        let now = Date()
-        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
-        return entries.filter { $0.createdAt >= start }
-    }
 
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMMM yyyy"
         return f
     }()
+
+    private var isCurrentMonth: Bool {
+        DateHelpers.monthIdentifier(for: selectedMonth) == DateHelpers.monthIdentifier(for: Date())
+    }
+
+    private var selectedMonthEntries: [Entry] {
+        let cal = Calendar.current
+        let start = cal.startOfMonth(selectedMonth)
+        guard let end = cal.date(byAdding: .month, value: 1, to: start) else { return [] }
+        return entries.filter { $0.createdAt >= start && $0.createdAt < end }
+    }
+
+    private var cachedReportForSelectedMonth: Insight? {
+        let period = DateHelpers.monthIdentifier(for: selectedMonth)
+        return insights.first { $0.type == .monthlyReport && $0.periodIdentifier == period }
+    }
+
+    private var earliestAllowedMonth: Date {
+        guard let oldest = entries.last else { return Calendar.current.startOfMonth(Date()) }
+        return Calendar.current.startOfMonth(oldest.createdAt)
+    }
+
+    private var canGoBack: Bool { selectedMonth > earliestAllowedMonth }
+    private var canGoForward: Bool { !isCurrentMonth }
 
     var body: some View {
         ScrollView {
@@ -45,25 +63,43 @@ struct MonthlyReportView: View {
     }
 
     private var heroCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .center, spacing: 14) {
+            Button {
+                guard canGoBack else { return }
+                selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(canGoBack ? Color.purple : Color(uiColor: .tertiaryLabel))
+                    .frame(width: 32, height: 32)
+                    .background(canGoBack ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canGoBack)
+
+            VStack(alignment: .center, spacing: 4) {
                 Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.purple)
-                Text(Self.monthFormatter.string(from: Date()))
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text(Self.monthFormatter.string(from: selectedMonth))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
+                    .animation(.none, value: selectedMonth)
             }
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 46, height: 46)
-                    .shadow(color: Color.purple.opacity(0.35), radius: 14, x: 0, y: 6)
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+
+            Button {
+                guard canGoForward else { return }
+                selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(canGoForward ? Color.purple : Color(uiColor: .tertiaryLabel))
+                    .frame(width: 32, height: 32)
+                    .background(canGoForward ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
             }
+            .buttonStyle(.plain)
+            .disabled(!canGoForward)
         }
         .padding(20)
         .futureSurface(cornerRadius: 26)
@@ -71,35 +107,67 @@ struct MonthlyReportView: View {
 
     @ViewBuilder
     private var reportContent: some View {
-        switch viewModel.monthlyReportState {
-        case .idle:
-            EmptyView()
-        case .loading:
-            reportLoadingCard
-        case .loaded(let insight):
-            MonthlyStatsStrip(entries: thisMonthEntries)
-            MonthlyReportCard(insight: insight)
-                .glowShadow(color: .purple, radius: 28)
-        case .notEnoughEntries(let remaining, let total):
-            notEnoughEntriesCard(remaining: remaining, total: total)
-        case .endOfMonthTooFewEntries(let count):
-            endOfMonthTooFewEntriesCard(count: count)
-        case .subscriptionRequired:
-            deepLockedCard
-        case .pendingNightlyGeneration:
-            nightlyPendingCard
-        case .error(let message):
-            errorCard(message: message) {
-                Task {
-                    await viewModel.loadMonthlyReport(
-                        entries: entries,
-                        insights: insights,
-                        context: modelContext,
-                        forceRegenerate: true
-                    )
+        if !isCurrentMonth {
+            // Past month: show cached report only, no generation
+            if let cached = cachedReportForSelectedMonth {
+                MonthlyStatsStrip(entries: selectedMonthEntries)
+                MonthlyReportCard(insight: cached)
+                    .glowShadow(color: .purple, radius: 28)
+            } else {
+                pastMonthNoReportCard
+            }
+        } else {
+            // Current month: full generation flow via ViewModel
+            switch viewModel.monthlyReportState {
+            case .idle:
+                EmptyView()
+            case .loading:
+                reportLoadingCard
+            case .loaded(let insight):
+                MonthlyStatsStrip(entries: selectedMonthEntries)
+                MonthlyReportCard(insight: insight)
+                    .glowShadow(color: .purple, radius: 28)
+            case .notEnoughEntries(let remaining, let total):
+                notEnoughEntriesCard(remaining: remaining, total: total)
+            case .endOfMonthTooFewEntries(let count):
+                endOfMonthTooFewEntriesCard(count: count)
+            case .subscriptionRequired:
+                deepLockedCard
+            case .pendingNightlyGeneration:
+                nightlyPendingCard
+            case .modelNotInstalled:
+                ModelNotInstalledCard()
+            case .error(let message):
+                errorCard(message: message) {
+                    Task {
+                        await viewModel.loadMonthlyReport(
+                            entries: entries,
+                            insights: insights,
+                            context: modelContext,
+                            forceRegenerate: true
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private var pastMonthNoReportCard: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundStyle(.purple.opacity(0.4))
+            Text("No report for \(Self.monthFormatter.string(from: selectedMonth))")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text("Reports generate automatically during the month. This month didn't have one.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(28)
+        .futureSurface(cornerRadius: 22)
     }
 
     private var reportLoadingCard: some View {
