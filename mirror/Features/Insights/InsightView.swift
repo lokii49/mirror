@@ -816,7 +816,7 @@ struct ModelNotInstalledCard: View {
         VStack(alignment: .leading, spacing: 14) {
             Label("AI model not installed", systemImage: "brain.head.profile")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.purple)
+                .foregroundStyle(MirrorTheme.violetLight)
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device. The model file needs to be added once.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -836,7 +836,7 @@ struct ModelNotInstalledCard: View {
         .futureSurface(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.purple.opacity(0.18), lineWidth: 1)
+                .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
         )
     }
 }

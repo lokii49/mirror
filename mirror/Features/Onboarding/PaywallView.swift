@@ -86,8 +86,8 @@ struct PaywallView: View {
                 .fill(
                     LinearGradient(
                         colors: selectedTier == .core
-                            ? [Color.indigo, MirrorTheme.primary, Color.purple.opacity(0.85)]
-                            : [Color.purple, Color.indigo, Color.blue.opacity(0.85)],
+                            ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
+                            : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -197,7 +197,7 @@ struct PaywallView: View {
         [
             ("checkmark.circle", "Everything in Core", .green),
             ("bubble.left.and.bubble.right.fill", "Ask — unlimited questions, no monthly cap.", .blue),
-            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", .purple),
+            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", MirrorTheme.violet),
             ("waveform.path.ecg", "Mood Timeline — 30/90/all-time chart + analytics.", .pink),
             ("bell.badge", "Mood Alerts — notified when your mood drops for 3 entries.", .orange),
         ]

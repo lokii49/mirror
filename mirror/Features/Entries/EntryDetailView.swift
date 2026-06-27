@@ -73,10 +73,10 @@ struct EntryDetailView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
                                 .font(.system(size: 15))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MirrorTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -274,20 +274,20 @@ private struct OnThisDaySection: View {
                             .foregroundStyle(MirrorTheme.violetLight)
                         if let mood = past.mood {
                             Text("·")
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(MirrorTheme.textTertiary)
                             HStack(spacing: 4) {
                                 Circle()
                                     .fill(MirrorTheme.moodColor(for: mood))
                                     .frame(width: 6, height: 6)
                                 Text(mood)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(MirrorTheme.textSecondary)
                             }
                         }
                         Spacer()
                         Text(past.createdAt, format: .dateTime.hour().minute())
                             .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(MirrorTheme.textTertiary)
                     }
                     let preview = past.text
                         .components(separatedBy: .newlines)
@@ -380,7 +380,7 @@ private struct InlineEntryContent: View {
             }
         } else {
             Text(line)
-                .font(.system(size: 17, weight: .regular, design: .serif))
+                .font(.system(.body, design: .serif))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }

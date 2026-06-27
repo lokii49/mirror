@@ -152,7 +152,7 @@ struct WeeklyDigestView: View {
         case "YOUR ENERGY": return .orange
         case "WHAT'S BUILDING": return .green
         case "WATCH OUT FOR": return .red
-        case "MOOD BOOST": return .purple
+        case "MOOD BOOST": return MirrorTheme.violetLight
         default: return .accentColor
         }
     }
@@ -180,7 +180,7 @@ struct DigestSectionView: View {
         case "YOUR ENERGY": return .orange
         case "WHAT'S BUILDING": return .green
         case "WATCH OUT FOR": return .red
-        case "MOOD BOOST": return .purple
+        case "MOOD BOOST": return MirrorTheme.violetLight
         default: return .accentColor
         }
     }

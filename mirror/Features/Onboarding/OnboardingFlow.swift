@@ -54,7 +54,7 @@ struct OnboardingFlow: View {
 
     private let reasons: [(String, String, Color)] = [
         ("brain.head.profile", "Understand myself better",   .blue),
-        ("moon.stars",         "Process stress and emotions", .purple),
+        ("moon.stars",         "Process stress and emotions", MirrorTheme.violet),
         ("target",             "Track goals and habits",      .orange),
         ("sparkles",           "Build a reflection practice", .green),
     ]
@@ -151,10 +151,10 @@ struct OnboardingFlow: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Welcome to")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     Text("MirrorNotes")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(MirrorTheme.textPrimary)
                 }
 
                 Text("A private space to understand yourself through writing. No audience. No performance. Just you.")

@@ -536,11 +536,11 @@ struct MoodTimelineView: View {
             VStack(spacing: 20) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.18))
+                        .fill(MirrorTheme.violetDim)
                         .frame(width: 72, height: 72)
                     Image(systemName: "waveform.path.ecg")
                         .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(spacing: 8) {
                     Text("Mood Timeline")
@@ -557,12 +557,12 @@ struct MoodTimelineView: View {
                         .padding(.horizontal, 32)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing),
+                            LinearGradient(colors: [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
                             in: Capsule()
                         )
                 }
                 .buttonStyle(.plain)
-                .shadow(color: Color.purple.opacity(0.28), radius: 16, x: 0, y: 6)
+                .shadow(color: MirrorTheme.violet.opacity(0.28), radius: 16, x: 0, y: 6)
             }
             .padding(28)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
