@@ -207,22 +207,29 @@ struct MoodTimelineView: View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(MirrorTheme.ember)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your last \(consecutiveNegativeCount) entries show low mood")
                     .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textPrimary)
                 Text("Consider taking a moment to check in with yourself.")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
         }
         .padding(16)
-        .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
+        .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
+                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(MirrorTheme.ember)
+                .frame(width: 3)
+                .padding(.vertical, 10)
+        }
     }
 
     private var rangeSelector: some View {
@@ -685,7 +692,7 @@ private struct MoodChartCard: View {
                 )
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
+                        colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -696,9 +703,15 @@ private struct MoodChartCard: View {
                     x: .value("Day", point.date, unit: .day),
                     y: .value("Mood", point.score)
                 )
-                .foregroundStyle(MirrorTheme.primary.opacity(0.6))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [MirrorTheme.violet, MirrorTheme.ember],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
                 .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2))
+                .lineStyle(StrokeStyle(lineWidth: 2.5))
 
                 PointMark(
                     x: .value("Day", point.date, unit: .day),
