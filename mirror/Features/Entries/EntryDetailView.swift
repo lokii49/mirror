@@ -231,7 +231,7 @@ struct EntryDetailView: View {
         renderer.setValue(NSValue(cgRect: CGRect(origin: .zero, size: pageSize)), forKey: "paperRect")
         renderer.setValue(NSValue(cgRect: printable), forKey: "printableRect")
         let data = NSMutableData()
-        UIGraphicsBeginPDFContextToData(data, .zero, nil)
+        UIGraphicsBeginPDFContextToData(data, CGRect(origin: .zero, size: pageSize), nil)
         renderer.prepare(forDrawingPages: NSRange(location: 0, length: renderer.numberOfPages))
         for i in 0..<renderer.numberOfPages {
             UIGraphicsBeginPDFPage()

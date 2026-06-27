@@ -5,6 +5,7 @@ private let moodLabels = MirrorTheme.moodOptions
 
 struct EntriesTabView: View {
     var navResetID: UUID = UUID()
+    var deepLinkEntryID: Binding<UUID?> = .constant(nil)
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
@@ -213,6 +214,13 @@ struct EntriesTabView: View {
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
                 selectedEntry = nil
+            }
+            .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
+                guard let id = newID,
+                      let match = entries.first(where: { $0.id == id }) else { return }
+                selectedEntry = match
+                showEntryDetail = true
+                deepLinkEntryID.wrappedValue = nil
             }
         }
     }

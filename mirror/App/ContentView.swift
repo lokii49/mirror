@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
     @State private var showWhatsNew = false
+    @State private var deepLinkEntryID: UUID? = nil
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
 
@@ -69,6 +70,22 @@ struct ContentView: View {
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewSheet(mode: .whatsNew)
         }
+        .onChange(of: sizeClass) { _, newClass in
+            if newClass == .regular {
+                switch selectedTab {
+                case 0: selectedSidebarItem = .entries
+                case 2: selectedSidebarItem = .insights
+                default: selectedSidebarItem = .write
+                }
+            } else {
+                switch selectedSidebarItem {
+                case .entries:  selectedTab = 0
+                case .insights: selectedTab = 2
+                case .settings: selectedTab = 1
+                default:        selectedTab = 1
+                }
+            }
+        }
         .onChange(of: onboardingComplete) { _, complete in
             if complete {
                 selectedTab = 1
@@ -102,11 +119,18 @@ struct ContentView: View {
             case "entries":
                 selectedTab = 0
                 selectedSidebarItem = .entries
-            case "insights":
+            case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
             case "upgrade":
                 showPaywall = true
+            case "entry":
+                if let idString = url.pathComponents.dropFirst().first,
+                   let uuid = UUID(uuidString: idString) {
+                    deepLinkEntryID = uuid
+                    selectedTab = 0
+                    selectedSidebarItem = .entries
+                }
             default:
                 break
             }
@@ -117,7 +141,7 @@ struct ContentView: View {
 
     private var phoneLayout: some View {
         TabView(selection: $selectedTab) {
-            EntriesTabView(navResetID: entriesNavResetID)
+            EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
                 .tabItem { Label("Entries", systemImage: "book.closed") }
                 .tag(0)
 
@@ -152,7 +176,7 @@ struct ContentView: View {
     private var ipadDetailView: some View {
         switch selectedSidebarItem ?? .write {
         case .entries:
-            EntriesTabView(navResetID: entriesNavResetID)
+            EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
         case .write:
             WriteTabView(onSave: {
                 selectedSidebarItem = .entries
