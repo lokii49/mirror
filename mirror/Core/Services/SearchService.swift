@@ -20,7 +20,10 @@ enum SearchService {
 
         let matched = entries.filter { entry in
             let lower = entry.insightContext.lowercased()
-            return keywords.contains { lower.contains($0) }
+            let tags = entry.tags.map { $0.lowercased() }
+            return keywords.contains { kw in
+                lower.contains(kw) || tags.contains { $0.contains(kw) }
+            }
         }
 
         let results = matched.isEmpty ? Array(entries) : matched
@@ -29,8 +32,12 @@ enum SearchService {
 
     static func filter(query: String, in entries: [Entry]) -> [Entry] {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return entries }
-        let lower = query.lowercased()
-        return entries.filter { $0.insightContext.lowercased().contains(lower) }
+        let raw = query.lowercased()
+        let tagQuery = raw.hasPrefix("#") ? String(raw.dropFirst()) : raw
+        return entries.filter {
+            $0.insightContext.lowercased().contains(raw)
+            || (!tagQuery.isEmpty && $0.tags.contains { $0.lowercased().contains(tagQuery) })
+        }
     }
 
     private static func extractKeywords(from text: String) -> [String] {
