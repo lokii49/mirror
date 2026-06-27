@@ -241,10 +241,10 @@ struct AskView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 11)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
                         }
                     }
                     .buttonStyle(.plain)
@@ -300,8 +300,8 @@ struct AskView: View {
                             .lineLimit(1)
                             .padding(.horizontal, 13)
                             .padding(.vertical, 8)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                            .background(MirrorTheme.inkRaised, in: Capsule())
+                            .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
@@ -433,40 +433,37 @@ private struct AskBubblePair: View {
                     Spacer(minLength: 48)
                     Text(question)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(MirrorTheme.accentGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .background(MirrorTheme.violetDim, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(MirrorTheme.violet.opacity(0.3), lineWidth: 1)
+                        }
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+            HStack(alignment: .top, spacing: 0) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .frame(width: 2)
+                    .padding(.vertical, 3)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(insight.content)
-                        .font(.system(size: 15))
-                        .lineSpacing(5)
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .lineSpacing(6)
+                        .foregroundStyle(MirrorTheme.textPrimary)
                         .textSelection(.enabled)
 
                     Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(MirrorTheme.textTertiary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .futureSurface(cornerRadius: 18)
-
-                Spacer(minLength: 28)
+                .padding(.leading, 14)
             }
+            .padding(.top, 4)
         }
         .padding(.vertical, 4)
     }
@@ -489,30 +486,23 @@ private struct LoadingAskBubble: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.variableColor.iterative, isActive: true)
-                }
+            HStack(alignment: .top, spacing: 0) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .frame(width: 2)
+                    .padding(.vertical, 3)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
+                        .tint(MirrorTheme.violetLight)
                     Text("Searching your journal")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .futureSurface(cornerRadius: 18)
-
-                Spacer(minLength: 28)
+                .padding(.leading, 14)
             }
+            .padding(.top, 4)
         }
         .padding(.vertical, 4)
     }

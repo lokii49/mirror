@@ -158,20 +158,20 @@ struct PaywallView: View {
                         if tier == .deep {
                             Text("More AI")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(selectedTier == .deep ? MirrorTheme.primary : .secondary)
-                                .opacity(0.7)
+                                .foregroundStyle(selectedTier == .deep ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
+                                .opacity(0.85)
                         } else {
                             Text("Most popular")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(selectedTier == .core ? MirrorTheme.primary : .secondary)
-                                .opacity(0.7)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(selectedTier == .core ? MirrorTheme.ember : MirrorTheme.textTertiary)
+                                .opacity(selectedTier == .core ? 1.0 : 0.6)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
                         selectedTier == tier
-                            ? MirrorTheme.primary.opacity(0.08)
+                            ? MirrorTheme.violetDim
                             : Color.clear,
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
@@ -292,13 +292,13 @@ struct PaywallView: View {
                 .background(
                     subscriptionService.isPurchasing || currentPackages.isEmpty
                         ? AnyShapeStyle(Color.secondary.opacity(0.3))
-                        : AnyShapeStyle(MirrorTheme.accentGradient),
+                        : AnyShapeStyle(MirrorTheme.ember),
                     in: Capsule()
                 )
             }
             .buttonStyle(.plain)
             .disabled(subscriptionService.isPurchasing || currentPackages.isEmpty)
-            .shadow(color: MirrorTheme.primary.opacity(0.30), radius: 16, x: 0, y: 6)
+            .shadow(color: MirrorTheme.ember.opacity(0.40), radius: 16, x: 0, y: 6)
 
             Button("Restore Purchases") {
                 Task { await subscriptionService.restorePurchases() }
@@ -379,14 +379,14 @@ private struct PlanCard: View {
             }
             .padding(16)
             .background(
-                isSelected ? MirrorTheme.primary.opacity(0.06) : MirrorTheme.bgCard,
+                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        isSelected ? MirrorTheme.primary.opacity(0.3) : Color.primary.opacity(0.07),
-                        lineWidth: isSelected ? 1.5 : 0.5
+                        isSelected ? MirrorTheme.violet.opacity(0.45) : MirrorTheme.inkBorder,
+                        lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }
