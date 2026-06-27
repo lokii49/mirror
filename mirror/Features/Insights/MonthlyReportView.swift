@@ -70,20 +70,21 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoBack ? Color.purple : Color(uiColor: .tertiaryLabel))
+                    .foregroundStyle(canGoBack ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
                     .frame(width: 32, height: 32)
-                    .background(canGoBack ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
+                    .background(canGoBack ? MirrorTheme.violetDim : Color.clear, in: Circle())
             }
             .buttonStyle(.plain)
             .disabled(!canGoBack)
 
             VStack(alignment: .center, spacing: 4) {
                 Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.purple)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(MirrorTheme.violetLight)
+                    .tracking(0.8)
                 Text(Self.monthFormatter.string(from: selectedMonth))
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .animation(.none, value: selectedMonth)
             }
             .frame(maxWidth: .infinity)
@@ -94,9 +95,9 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoForward ? Color.purple : Color(uiColor: .tertiaryLabel))
+                    .foregroundStyle(canGoForward ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
                     .frame(width: 32, height: 32)
-                    .background(canGoForward ? Color.purple.opacity(0.10) : Color.clear, in: Circle())
+                    .background(canGoForward ? MirrorTheme.violetDim : Color.clear, in: Circle())
             }
             .buttonStyle(.plain)
             .disabled(!canGoForward)
@@ -112,7 +113,7 @@ struct MonthlyReportView: View {
             if let cached = cachedReportForSelectedMonth {
                 MonthlyStatsStrip(entries: selectedMonthEntries)
                 MonthlyReportCard(insight: cached)
-                    .glowShadow(color: .purple, radius: 28)
+                    .glowShadow(color: MirrorTheme.violet, radius: 28)
             } else {
                 pastMonthNoReportCard
             }
@@ -126,7 +127,7 @@ struct MonthlyReportView: View {
             case .loaded(let insight):
                 MonthlyStatsStrip(entries: selectedMonthEntries)
                 MonthlyReportCard(insight: insight)
-                    .glowShadow(color: .purple, radius: 28)
+                    .glowShadow(color: MirrorTheme.violet, radius: 28)
             case .notEnoughEntries(let remaining, let total):
                 notEnoughEntriesCard(remaining: remaining, total: total)
             case .endOfMonthTooFewEntries(let count):
@@ -156,7 +157,7 @@ struct MonthlyReportView: View {
         VStack(spacing: 12) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(.purple.opacity(0.4))
+                .foregroundStyle(MirrorTheme.violetLight.opacity(0.5))
             Text("No report for \(Self.monthFormatter.string(from: selectedMonth))")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.primary)
@@ -175,11 +176,11 @@ struct MonthlyReportView: View {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.10))
+                        .fill(MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MirrorTheme.violetLight)
                         .symbolEffect(.variableColor.iterative, isActive: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
@@ -210,11 +211,11 @@ struct MonthlyReportView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.10))
+                        .fill(MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
@@ -225,7 +226,7 @@ struct MonthlyReportView: View {
                 }
             }
             ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
-                .tint(.purple)
+                .tint(MirrorTheme.violet)
                 .scaleEffect(x: 1, y: 1.4)
             Text("Keep writing — generates automatically when ready.")
                 .font(.system(size: 12, weight: .medium))
@@ -271,11 +272,11 @@ struct MonthlyReportView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.12))
+                        .fill(MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "flame.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Deep required")
@@ -292,7 +293,7 @@ struct MonthlyReportView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
             }
-            .background(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing), in: Capsule())
+            .background(LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .leading, endPoint: .trailing), in: Capsule())
             .buttonStyle(.plain)
         }
         .padding(20)
@@ -304,7 +305,7 @@ struct MonthlyReportView: View {
             label: "Report generates overnight",
             sublabel: "Mirror will prepare this while your phone is charging. To protect device performance.",
             icon: "doc.text.magnifyingglass",
-            iconColor: .purple
+            iconColor: MirrorTheme.violet
         )
     }
 
@@ -322,12 +323,12 @@ struct MonthlyReportView: View {
             Button(action: onRetry) {
                 Label("Try Again", systemImage: "arrow.clockwise")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.purple)
+                    .foregroundStyle(MirrorTheme.violetLight)
             }
             .buttonStyle(.plain)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 }
 
@@ -378,7 +379,7 @@ private struct MonthlyStatsStrip: View {
         VStack(spacing: 3) {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(.purple)
+                .foregroundStyle(MirrorTheme.violet)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
@@ -402,7 +403,7 @@ private struct MonthlyReportCard: View {
     ]
 
     private let headerIcons: [String: (String, Color)] = [
-        "YOUR MONTH IN ONE IMAGE": ("moon.stars.fill", .purple),
+        "YOUR MONTH IN ONE IMAGE": ("moon.stars.fill", MirrorTheme.violet),
         "THE TENSION AT THE CENTER": ("arrow.left.arrow.right", .orange),
         "A MOMENT THAT SHIFTED SOMETHING": ("sparkles", .blue),
         "WHAT YOU'RE BECOMING": ("leaf.fill", .green),
@@ -430,23 +431,24 @@ private struct MonthlyReportCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.purple)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(MirrorTheme.violetLight)
+                    .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
             }
             .padding(.bottom, 16)
 
-            Divider().overlay(Color.purple.opacity(0.15))
+            Divider().overlay(MirrorTheme.violet.opacity(0.25))
                 .padding(.bottom, 16)
 
             if sections.isEmpty {
                 Text(insight.content)
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(7)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .textSelection(.enabled)
             } else {
                 VStack(alignment: .leading, spacing: 18) {
@@ -457,13 +459,10 @@ private struct MonthlyReportCard: View {
             }
         }
         .padding(22)
-        .background(
+        .inkCard(cornerRadius: 26)
+        .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(MirrorTheme.bgCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .stroke(Color.purple.opacity(0.15), lineWidth: 1)
-                )
+                .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
         )
     }
 
@@ -484,14 +483,14 @@ private struct MonthlyReportCard: View {
                     .font(.system(size: 17, weight: .regular, design: .serif))
                     .italic()
                     .lineSpacing(5)
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
                     .textSelection(.enabled)
                     .padding(.top, 2)
             } else {
                 Text(section.body)
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(5)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .textSelection(.enabled)
             }
         }
