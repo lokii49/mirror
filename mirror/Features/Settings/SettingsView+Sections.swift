@@ -20,7 +20,7 @@ extension SettingsView {
 
                     if subscriptionService.isSubscribed {
                         let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
-                        let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                        let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                         Label(tierLabel, systemImage: "checkmark.seal.fill")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(tierColor)
@@ -37,7 +37,7 @@ extension SettingsView {
                 Spacer()
 
                 if subscriptionService.isSubscribed {
-                    let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                    let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 22))
                         .foregroundStyle(tierColor)
@@ -90,7 +90,7 @@ extension SettingsView {
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .stroke(
-                    subscriptionService.isDeep ? Color.purple.opacity(0.22)
+                    subscriptionService.isDeep ? MirrorTheme.violet.opacity(0.22)
                     : subscriptionService.isSubscribed ? MirrorTheme.primary.opacity(0.22)
                     : Color.primary.opacity(0.07),
                     lineWidth: 1
@@ -103,7 +103,7 @@ extension SettingsView {
         ZStack {
             Circle()
                 .fill(subscriptionService.isDeep
-                    ? LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    ? LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .topLeading, endPoint: .bottomTrailing)
                     : MirrorTheme.accentGradient)
                 .frame(width: 58, height: 58)
             Image(systemName: "person.fill")
@@ -118,9 +118,9 @@ extension SettingsView {
         VStack(alignment: .leading, spacing: 0) {
             Text("Your journal")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(0.8)
+                .tracking(1.0)
                 .padding(.bottom, 14)
 
             LazyVGrid(
@@ -295,7 +295,7 @@ extension SettingsView {
 
             Button { showLanguagePicker = true } label: {
                 HStack {
-                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: .purple)
+                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: MirrorTheme.violet)
                     Spacer()
                     let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
                     Text(langName)
@@ -484,7 +484,7 @@ extension SettingsView {
 
                 Button { showFeatureGuide = true } label: {
                     HStack {
-                        settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: .purple)
+                        settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: MirrorTheme.violet)
                         Spacer()
                         if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                             Text("v\(v)")
@@ -492,7 +492,7 @@ extension SettingsView {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Color.purple.opacity(0.08), in: Capsule())
+                                .background(MirrorTheme.violetDim, in: Capsule())
                         }
                         chevron
                     }
@@ -788,9 +788,9 @@ extension SettingsView {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(0.8)
+                .tracking(1.0)
                 .padding(.bottom, 14)
             VStack(spacing: 0) {
                 content()

@@ -83,7 +83,7 @@ struct OnboardingFlow: View {
                 .offset(x: 120, y: -180)
                 .ignoresSafeArea()
             Circle()
-                .fill(Color.purple.opacity(0.05))
+                .fill(MirrorTheme.violetDim.opacity(0.6))
                 .frame(width: 260, height: 260)
                 .blur(radius: 50)
                 .offset(x: -100, y: 300)
@@ -158,8 +158,8 @@ struct OnboardingFlow: View {
                 }
 
                 Text("A private space to understand yourself through writing. No audience. No performance. Just you.")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .lineSpacing(5)
 
                 // Sample nudge preview
@@ -189,16 +189,16 @@ struct OnboardingFlow: View {
                     .foregroundStyle(.tertiary)
             }
             Text("\"You've mentioned feeling overwhelmed three times this week. What would make tomorrow feel lighter?\"")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(3)
+                .font(.system(size: 14, weight: .regular, design: .serif))
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .lineSpacing(4)
                 .italic()
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .inkSurface(cornerRadius: 16)
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(MirrorTheme.primary.opacity(0.15), lineWidth: 1)
+                .stroke(MirrorTheme.violet.opacity(0.20), lineWidth: 1)
         }
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 2)
@@ -245,7 +245,7 @@ struct OnboardingFlow: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                 Text("Pick the one that resonates most.")
                     .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.top, 12)
 
@@ -268,7 +268,7 @@ struct OnboardingFlow: View {
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                     Text("One gentle reminder a day to reflect.")
                         .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.top, 12)
 
@@ -288,10 +288,10 @@ struct OnboardingFlow: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(MirrorTheme.primary.opacity(0.15), lineWidth: 1)
+                        .stroke(MirrorTheme.violet.opacity(0.20), lineWidth: 1)
                 }
 
                 VStack(spacing: 10) {
@@ -337,38 +337,38 @@ struct OnboardingFlow: View {
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                 Text("A sentence is enough. Mirror learns from everything you write.")
                     .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.top, 12)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(MirrorTheme.inkMid)
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(
                                 editorFocused
-                                    ? AnyShapeStyle(MirrorTheme.accentGradient.opacity(0.5))
-                                    : AnyShapeStyle(Color.primary.opacity(0.08)),
+                                    ? AnyShapeStyle(MirrorTheme.violet.opacity(0.45))
+                                    : AnyShapeStyle(MirrorTheme.inkBorder),
                                 lineWidth: editorFocused ? 1.5 : 1
                             )
                     }
                     .shadow(
-                        color: editorFocused ? MirrorTheme.primary.opacity(0.12) : .clear,
+                        color: editorFocused ? MirrorTheme.violet.opacity(0.15) : .clear,
                         radius: 16, x: 0, y: 4
                     )
 
                 if firstEntryText.isEmpty {
                     Text(writePrompt)
-                        .foregroundStyle(.tertiary)
-                        .font(.system(size: 16))
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
                 }
 
                 TextEditor(text: $firstEntryText)
                     .focused($editorFocused)
-                    .font(.system(size: 16))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -379,8 +379,8 @@ struct OnboardingFlow: View {
             HStack {
                 Spacer()
                 Text("\(firstEntryText.split(separator: " ").count) words")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
             }
 
             Spacer()
@@ -427,15 +427,11 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background(
-                isSelected ? color.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
+            .background(isSelected ? color.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(
-                        isSelected ? color.opacity(0.4) : Color.primary.opacity(0.07),
+                        isSelected ? color.opacity(0.45) : MirrorTheme.inkBorder,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
@@ -507,23 +503,19 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background(
-                isSelected ? MirrorTheme.primary.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
+            .background(isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(
                         isSelected
-                            ? AnyShapeStyle(MirrorTheme.accentGradient.opacity(0.5))
-                            : AnyShapeStyle(Color.primary.opacity(0.07)),
+                            ? AnyShapeStyle(MirrorTheme.violet.opacity(0.50))
+                            : AnyShapeStyle(MirrorTheme.inkBorder),
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }
         .buttonStyle(.plain)
-        .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.08) : .clear, radius: 12, x: 0, y: 4)
+        .shadow(color: isSelected ? MirrorTheme.violet.opacity(0.10) : .clear, radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
     }
 
