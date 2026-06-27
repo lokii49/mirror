@@ -132,61 +132,57 @@ struct OnboardingFlow: View {
     private var welcomeStep: some View {
         VStack(spacing: 0) {
             Spacer()
-            VStack(spacing: 36) {
-                // App icon
-                Group {
-                    if let icon = UIImage(named: "AppIcon") {
-                        Image(uiImage: icon)
-                            .resizable()
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(MirrorTheme.accentGradient)
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 44, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-                .frame(width: 100, height: 100)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 10)
 
-                // Name + tagline
-                VStack(spacing: 12) {
-                    Text("MirrorNotes")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(MirrorTheme.textPrimary)
+            // App icon
+            Image("AppIconDisplay")
+                .resizable()
+                .frame(width: 110, height: 110)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
 
-                    Text("A private space to understand\nyourself through writing.")
-                        .font(.system(size: 17, weight: .regular, design: .serif))
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(5)
-                }
+            // Title — New York serif, tight tracking, strong weight
+            Text("MirrorNotes")
+                .font(.system(size: 44, weight: .bold, design: .serif))
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .tracking(-0.5)
+                .padding(.top, 32)
 
-                // Feature list
-                VStack(alignment: .leading, spacing: 18) {
-                    welcomeFeatureItem(icon: "sparkles",      text: "Daily AI reflections from your own writing", color: MirrorTheme.primary)
-                    welcomeFeatureItem(icon: "cpu.fill",       text: "All AI stays on your device — nothing leaves", color: .green)
-                    welcomeFeatureItem(icon: "icloud.fill",    text: "iCloud backup, private and encrypted",        color: .blue)
-                }
-                .padding(.horizontal, 8)
+            // Tagline — same serif family, lighter, italic
+            Text("Understand yourself\nthrough writing.")
+                .font(.system(size: 18, weight: .regular, design: .serif))
+                .italic()
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(5)
+                .padding(.top, 10)
+
+            // Divider — visual rhythm break
+            Divider()
+                .overlay(MirrorTheme.inkBorder)
+                .padding(.top, 40)
+                .padding(.bottom, 36)
+                .padding(.horizontal, 4)
+
+            // Feature list
+            VStack(alignment: .leading, spacing: 22) {
+                welcomeFeatureItem(icon: "sparkles",     text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                welcomeFeatureItem(icon: "cpu.fill",      text: "All AI runs on device — nothing leaves", color: .green)
+                welcomeFeatureItem(icon: "icloud.fill",   text: "iCloud backup, private and encrypted",   color: .blue)
             }
-            Spacer()
+
             Spacer()
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, 36)
     }
 
     private func welcomeFeatureItem(icon: String, text: String, color: Color) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(color)
-                .frame(width: 26)
+                .frame(width: 24)
             Text(text)
-                .font(.system(size: 15))
+                .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(MirrorTheme.textPrimary)
             Spacer()
         }
