@@ -58,7 +58,8 @@ struct MoodMapWidgetView: View {
     let entry: MoodMapEntry
 
     private var isUnlocked: Bool {
-        UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.tier") == "deep"
+        let tier = UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.tier") ?? "free"
+        return tier == "core" || tier == "deep"
     }
 
     private var points: [MoodPoint] {
@@ -146,7 +147,7 @@ struct MoodMapWidgetView: View {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.secondary)
-                Text("Deep required")
+                Text("Core required")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
