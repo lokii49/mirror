@@ -103,7 +103,7 @@ struct MonthlyReportView: View {
             .disabled(!canGoForward)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 26)
+        .inkSurface(cornerRadius: 26)
     }
 
     @ViewBuilder
@@ -160,15 +160,15 @@ struct MonthlyReportView: View {
                 .foregroundStyle(MirrorTheme.violetLight.opacity(0.5))
             Text("No report for \(Self.monthFormatter.string(from: selectedMonth))")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(MirrorTheme.textPrimary)
             Text("Reports generate automatically during the month. This month didn't have one.")
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(28)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 
     private var reportLoadingCard: some View {
@@ -188,7 +188,7 @@ struct MonthlyReportView: View {
                         .font(.system(size: 15, weight: .medium))
                     Text("Reading all your entries this month…")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 Spacer()
             }
@@ -203,7 +203,7 @@ struct MonthlyReportView: View {
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 
     private func notEnoughEntriesCard(remaining: Int, total: Int) -> some View {
@@ -222,7 +222,7 @@ struct MonthlyReportView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text("Your deep monthly report unlocks at \(total) entries.")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
@@ -230,10 +230,10 @@ struct MonthlyReportView: View {
                 .scaleEffect(x: 1, y: 1.4)
             Text("Keep writing — generates automatically when ready.")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 
     private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
@@ -252,19 +252,19 @@ struct MonthlyReportView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text("Only \(count) \(count == 1 ? "entry" : "entries") written so far.")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Text("The monthly report needs at least 10 entries to reflect your month meaningfully. With just a few days left, there isn't enough to generate one for this month.")
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Keep writing — your report will be ready next month.")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 
     private var deepLockedCard: some View {
@@ -283,7 +283,7 @@ struct MonthlyReportView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text("Monthly reports are part of MirrorNotes Deep.")
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Button(action: { showPaywall = true }) {
@@ -297,7 +297,7 @@ struct MonthlyReportView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 
     private var nightlyPendingCard: some View {
@@ -316,10 +316,10 @@ struct MonthlyReportView: View {
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
             Text("Mirror will retry automatically tonight while your phone charges.")
                 .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
             Button(action: onRetry) {
                 Label("Try Again", systemImage: "arrow.clockwise")
                     .font(.system(size: 14, weight: .semibold))
@@ -372,7 +372,7 @@ private struct MonthlyStatsStrip: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .futureSurface(cornerRadius: 18)
+        .inkSurface(cornerRadius: 18)
     }
 
     private func statCell(value: String, label: String) -> some View {
@@ -384,7 +384,7 @@ private struct MonthlyStatsStrip: View {
                 .minimumScaleFactor(0.7)
             Text(label)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -407,7 +407,7 @@ private struct MonthlyReportCard: View {
         "THE TENSION AT THE CENTER": ("arrow.left.arrow.right", .orange),
         "A MOMENT THAT SHIFTED SOMETHING": ("sparkles", .blue),
         "WHAT YOU'RE BECOMING": ("leaf.fill", .green),
-        "WHAT WANTS TO BE RELEASED": ("wind", .secondary),
+        "WHAT WANTS TO BE RELEASED": ("wind", MirrorTheme.textTertiary),
         "YOUR QUESTION FOR NEXT MONTH": ("questionmark.circle.fill", Color(red: 0.9, green: 0.7, blue: 0.1)),
     ]
 

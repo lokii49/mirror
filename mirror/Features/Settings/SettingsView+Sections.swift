@@ -30,7 +30,7 @@ extension SettingsView {
                     } else {
                         Text("Free plan")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                 }
 
@@ -150,12 +150,12 @@ extension SettingsView {
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Text(label)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
         .padding(16)
@@ -181,7 +181,7 @@ extension SettingsView {
                     Spacer()
                     Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     chevron
                 }
             }
@@ -217,7 +217,7 @@ extension SettingsView {
                         Spacer()
                         Text(nudgeTime, style: .time)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                         chevron
                             .rotationEffect(.degrees(showNudgeTimePicker ? 90 : 0))
                             .animation(.easeInOut(duration: 0.2), value: showNudgeTimePicker)
@@ -280,7 +280,7 @@ extension SettingsView {
                 if subscriptionService.isSubscribed {
                     Text("Sunday")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 } else {
                     Label("Core", systemImage: "lock.fill")
                         .font(.system(size: 12, weight: .semibold))
@@ -300,7 +300,7 @@ extension SettingsView {
                     let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
                     Text(langName)
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     chevron
                 }
             }
@@ -319,11 +319,11 @@ extension SettingsView {
                     if writingReminderEnabled {
                         Text(writingReminderTime, style: .time)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     } else {
                         Text("Off")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     chevron
                         .rotationEffect(.degrees(showWritingReminderPicker ? 90 : 0))
@@ -384,7 +384,7 @@ extension SettingsView {
                 if notificationPermission == .denied {
                     Text("Disabled in Settings")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 } else {
                     Toggle("", isOn: $notificationsEnabled)
                         .labelsHidden()
@@ -439,7 +439,7 @@ extension SettingsView {
                         .frame(width: 7, height: 7)
                     Text(iCloudStatus)
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
 
@@ -489,7 +489,7 @@ extension SettingsView {
                         if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                             Text("v\(v)")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MirrorTheme.violetLight)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .background(MirrorTheme.violetDim, in: Capsule())
@@ -511,7 +511,7 @@ extension SettingsView {
                         chevron
                     }
                 }
-                .foregroundStyle(.primary)
+                .foregroundStyle(MirrorTheme.textPrimary)
             } else {
                 settingsRow("Privacy policy", systemImage: "hand.raised.fill", iconColor: .green)
             }
@@ -618,12 +618,12 @@ extension SettingsView {
                     .font(.system(size: 15, weight: .semibold))
                 Text(body)
                     .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(18)
-        .futureSurface(cornerRadius: 20)
+        .inkSurface(cornerRadius: 20)
     }
 
     // MARK: - Debug
@@ -722,7 +722,7 @@ extension SettingsView {
     var chevron: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(MirrorTheme.textTertiary)
     }
 
     var exportedText: String {
@@ -816,7 +816,7 @@ extension SettingsView {
             }
             Text(title)
                 .font(.system(size: 15))
-                .foregroundStyle(.primary)
+                .foregroundStyle(MirrorTheme.textPrimary)
             Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
