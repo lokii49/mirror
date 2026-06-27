@@ -4,11 +4,14 @@ import Charts
 
 struct MoodTimelineView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
 
     @State private var subscriptionService = SubscriptionService.shared
     @State private var showPaywall = false
     @State private var selectedRange: TimeRange = .thirtyDays
+
+    private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
 
     enum TimeRange: String, CaseIterable {
         case thirtyDays = "30D"
@@ -200,6 +203,8 @@ struct MoodTimelineView: View {
             }
             .padding(16)
             .padding(.bottom, 24)
+            .frame(maxWidth: contentMaxWidth)
+            .frame(maxWidth: .infinity)
         }
     }
 

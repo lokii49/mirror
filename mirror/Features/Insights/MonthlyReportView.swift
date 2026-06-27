@@ -3,12 +3,15 @@ import SwiftData
 
 struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
 
     @State private var showPaywall = false
     @State private var selectedMonth: Date = Calendar.current.startOfMonth(Date())
     var viewModel: InsightViewModel
+
+    private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
 
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -48,6 +51,8 @@ struct MonthlyReportView: View {
             }
             .padding(16)
             .padding(.bottom, 24)
+            .frame(maxWidth: contentMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .background(MirrorTheme.bgBase)
         .navigationTitle("Monthly Report")
