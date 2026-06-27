@@ -46,6 +46,7 @@ extension SettingsView {
 
             if !subscriptionService.isSubscribed {
                 Divider()
+                    .overlay(MirrorTheme.inkBorder)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
@@ -207,7 +208,7 @@ extension SettingsView {
                 .tint(.secondary)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             // Daily nudge time — Core only
             if subscriptionService.isSubscribed {
@@ -271,7 +272,7 @@ extension SettingsView {
                 .sheet(isPresented: $showSubscription) { SubscriptionView() }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("Weekly digest day", systemImage: "calendar", iconColor: .blue)
@@ -291,7 +292,7 @@ extension SettingsView {
                 }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button { showLanguagePicker = true } label: {
                 HStack {
@@ -309,7 +310,7 @@ extension SettingsView {
                 TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             // Writing reminder — all tiers
             Button { withAnimation { showWritingReminderPicker.toggle() } } label: {
@@ -376,7 +377,7 @@ extension SettingsView {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("Notifications", systemImage: "bell.badge.fill", iconColor: MirrorTheme.primary)
@@ -417,7 +418,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button { showImportPicker = true } label: {
                 HStack {
@@ -428,7 +429,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("iCloud sync", systemImage: "icloud.fill", iconColor: .blue)
@@ -443,7 +444,7 @@ extension SettingsView {
                 }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 showDeleteConfirmation = true
@@ -480,7 +481,7 @@ extension SettingsView {
             .buttonStyle(.plain)
 
             if FeatureCardService.shared.shouldShowWhatsNew {
-                Divider().padding(.leading, 48)
+                Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
                 Button { showFeatureGuide = true } label: {
                     HStack {
@@ -501,7 +502,7 @@ extension SettingsView {
                 .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let privacyURL = AppConstants.privacyPolicyURL {
                 Link(destination: privacyURL) {
@@ -516,7 +517,7 @@ extension SettingsView {
                 settingsRow("Privacy policy", systemImage: "hand.raised.fill", iconColor: .green)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let reviewURL = AppConstants.appStoreReviewURL {
                 Button {
@@ -534,7 +535,7 @@ extension SettingsView {
                     .opacity(0.4)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let feedbackURL = AppConstants.feedbackURL {
                 Button {
@@ -549,7 +550,7 @@ extension SettingsView {
                 .buttonStyle(.plain)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .secondary)
         }
@@ -641,7 +642,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button {
                 SampleData.seedYearLongMixed(into: modelContext)
@@ -653,7 +654,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button {
                 SampleData.seedVoiceOnly(into: modelContext)
@@ -665,7 +666,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clearSampleEntries(from: modelContext)
@@ -677,7 +678,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clearInsights(from: modelContext)
@@ -689,7 +690,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clear(from: modelContext)

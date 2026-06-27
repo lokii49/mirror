@@ -38,6 +38,16 @@ struct mirrorApp: App {
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         registerNightlyInsightsTask()
+        configureNavigationBarAppearance()
+    }
+
+    private func configureNavigationBarAppearance() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
     }
 
     var body: some Scene {

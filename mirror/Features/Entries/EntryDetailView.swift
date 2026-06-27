@@ -67,7 +67,7 @@ struct EntryDetailView: View {
                         }
                     }
 
-                    Divider()
+                    Divider().overlay(MirrorTheme.inkBorder)
 
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
