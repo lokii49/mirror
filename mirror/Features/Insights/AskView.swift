@@ -70,12 +70,12 @@ struct AskView: View {
                             let isCritical = remaining <= 1
                             Text("\(remaining) left")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(isCritical ? .red : isLow ? .orange : .secondary)
+                                .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
                                 .monospacedDigit()
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
                                 .background(
-                                    (isCritical ? Color.red : isLow ? Color.orange : Color.secondary).opacity(0.10),
+                                    (isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.10),
                                     in: Capsule()
                                 )
                         }

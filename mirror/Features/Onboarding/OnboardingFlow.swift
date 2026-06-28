@@ -130,49 +130,51 @@ struct OnboardingFlow: View {
     // MARK: - Steps
 
     private var welcomeStep: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ScrollView {
+            VStack(spacing: 0) {
+                Spacer(minLength: 20)
 
-            // App icon
-            Image("AppIconDisplay")
-                .resizable()
-                .frame(width: 110, height: 110)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
+                // App icon
+                Image("AppIconDisplay")
+                    .resizable()
+                    .frame(width: 110, height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
 
-            // Title — New York serif, tight tracking, strong weight
-            Text("MirrorNotes")
-                .font(.system(size: 44, weight: .bold, design: .serif))
-                .foregroundStyle(MirrorTheme.textPrimary)
-                .tracking(-0.5)
-                .padding(.top, 32)
+                // Title — New York serif, tight tracking, strong weight
+                Text("MirrorNotes")
+                    .font(.system(size: 44, weight: .bold, design: .serif))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .tracking(-0.5)
+                    .padding(.top, 32)
 
-            // Tagline — same serif family, lighter, italic
-            Text("Understand yourself\nthrough writing.")
-                .font(.system(size: 18, weight: .regular, design: .serif))
-                .italic()
-                .foregroundStyle(MirrorTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(5)
-                .padding(.top, 10)
+                // Tagline — same serif family, lighter, italic
+                Text("Understand yourself\nthrough writing.")
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .italic()
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(5)
+                    .padding(.top, 10)
 
-            // Divider — visual rhythm break
-            Divider()
-                .overlay(MirrorTheme.inkBorder)
-                .padding(.top, 40)
-                .padding(.bottom, 36)
-                .padding(.horizontal, 4)
+                // Divider — visual rhythm break
+                Divider()
+                    .overlay(MirrorTheme.inkBorder)
+                    .padding(.top, 40)
+                    .padding(.bottom, 36)
+                    .padding(.horizontal, 4)
 
-            // Feature list
-            VStack(alignment: .leading, spacing: 22) {
-                welcomeFeatureItem(icon: "sparkles",     text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
-                welcomeFeatureItem(icon: "cpu.fill",      text: "All AI runs on device — nothing leaves", color: .green)
-                welcomeFeatureItem(icon: "icloud.fill",   text: "iCloud backup, private and encrypted",   color: .blue)
+                // Feature list
+                VStack(alignment: .leading, spacing: 22) {
+                    welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                    welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
+                    welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
+                }
+
+                Spacer(minLength: 20)
             }
-
-            Spacer()
+            .padding(.horizontal, 36)
         }
-        .padding(.horizontal, 36)
     }
 
     private func welcomeFeatureItem(icon: String, text: String, color: Color) -> some View {
@@ -552,7 +554,7 @@ struct OnboardingFlow: View {
         }
         profile.onboardingComplete = true
 
-        try? modelContext.save()
+        try? modelContext.save()  // non-fatal: SwiftData will persist on next autosave cycle
 
         // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
         FeatureCardService.shared.markWhatsNewSeen()

@@ -111,15 +111,18 @@ struct mirrorApp: App {
             let work = Task { @MainActor in
                 await mirrorApp.runNightlyInsights(container: self.sharedModelContainer)
             }
+            // Guard against calling setTaskCompleted twice if expiration fires before work finishes.
+            nonisolated(unsafe) var expired = false
             processingTask.expirationHandler = {
+                expired = true
                 work.cancel()
                 processingTask.setTaskCompleted(success: false)
             }
             Task {
                 _ = await work.result
+                scheduleNightlyInsights()  // always re-schedule, even if expired
+                guard !expired else { return }
                 processingTask.setTaskCompleted(success: true)
-                // Re-schedule for the next night
-                scheduleNightlyInsights()
             }
         }
     }
@@ -408,7 +411,7 @@ struct mirrorApp: App {
 
         var consecutiveNegative = 0
         for entry in recentEntries {
-            guard let mood = entry.mood else { break }
+            guard let mood = entry.mood else { continue }  // skip untagged entries, match MoodTimelineView logic
             if negativeMoods.contains(mood) {
                 consecutiveNegative += 1
             } else {

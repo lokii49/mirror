@@ -639,6 +639,7 @@ private struct ExplorationTile: View {
     }
 }
 
+// Used by MonthlyReportView — must stay internal (not private).
 struct NightlyPendingCard: View {
     let label: String
     let sublabel: String
@@ -811,6 +812,7 @@ private struct ErrorCard: View {
     }
 }
 
+// Used by MonthlyReportView — must stay internal (not private).
 struct ModelNotInstalledCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
