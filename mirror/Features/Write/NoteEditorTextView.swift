@@ -226,10 +226,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             return tokens[attachCount].index
         }
 
-        var serifBodyFont: UIFont {
+        // Cached — UIFontDescriptor.preferredFontDescriptor + withDesign(.serif) + UIFont init are not free;
+        // called on every keystroke/cursor movement across 13+ call sites.
+        lazy var serifBodyFont: UIFont = {
             let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
             return UIFont(descriptor: base.withDesign(.serif) ?? base, size: 0)
-        }
+        }()
 
         var bodyAttributes: [NSAttributedString.Key: Any] {
             [

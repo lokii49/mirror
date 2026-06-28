@@ -531,6 +531,8 @@ struct MoodTimelineView: View {
                     previewMoodChartCard
                     previewMoodDistributionCard
                 }
+                .frame(maxWidth: contentMaxWidth)
+                .frame(maxWidth: .infinity)
                 .padding(16)
                 .padding(.bottom, 24)
             }
