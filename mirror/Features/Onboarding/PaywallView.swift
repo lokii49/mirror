@@ -51,7 +51,7 @@ struct PaywallView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22))
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -180,7 +180,7 @@ struct PaywallView: View {
             }
         }
         .padding(4)
-        .futureSurface(cornerRadius: 18)
+        .inkSurface(cornerRadius: 18)
     }
 
     private var coreFeatures: [(String, String, Color)] {
@@ -207,7 +207,7 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("What's included")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.8)
                 .padding(.bottom, 14)
@@ -226,7 +226,7 @@ struct PaywallView: View {
                         }
                         Text(detail)
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -234,7 +234,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
         .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
@@ -242,7 +242,7 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Choose a plan")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.8)
                 .padding(.bottom, 14)
@@ -252,7 +252,7 @@ struct PaywallView: View {
                     ProgressView().scaleEffect(0.9)
                     Text("Loading plans…")
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.vertical, 8)
             } else {
@@ -268,7 +268,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 
     private var ctaSection: some View {
@@ -304,11 +304,11 @@ struct PaywallView: View {
                 Task { await subscriptionService.restorePurchases() }
             }
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(MirrorTheme.textSecondary)
 
             Text("Cancel anytime in App Store settings. No charge during trial.")
                 .font(.system(size: 12))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
@@ -320,7 +320,7 @@ struct PaywallView: View {
                 }
             }
             .font(.system(size: 12))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(MirrorTheme.textSecondary)
 
             if let error = subscriptionService.purchaseError {
                 Text(error)
@@ -360,7 +360,7 @@ private struct PlanCard: View {
                     HStack(spacing: 8) {
                         Text(isYearly ? "Yearly" : "Monthly")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(MirrorTheme.textPrimary)
                         if isYearly {
                             Text("Best value")
                                 .font(.system(size: 11, weight: .bold))
@@ -372,7 +372,7 @@ private struct PlanCard: View {
                     }
                     Text(isYearly ? "\(package.storeProduct.localizedPriceString) / year · \(yearlySavings)" : "\(package.storeProduct.localizedPriceString) / month")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
 
                 Spacer()

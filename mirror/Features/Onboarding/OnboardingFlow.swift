@@ -120,7 +120,7 @@ struct OnboardingFlow: View {
                           ? AnyShapeStyle(MirrorTheme.primary.opacity(0.5))
                           : i == step
                             ? AnyShapeStyle(MirrorTheme.accentGradient)
-                            : AnyShapeStyle(Color.secondary.opacity(0.15)))
+                            : AnyShapeStyle(MirrorTheme.inkBorder))
                     .frame(width: i == step ? 28 : 8, height: 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
             }
@@ -234,7 +234,7 @@ struct OnboardingFlow: View {
                     }
                     Text("Suggested: **\(suggestedPreset.rawValue)** (\(suggestedPreset.timeLabel)) — \(suggestedRationale)")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
@@ -357,7 +357,7 @@ struct OnboardingFlow: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? color : Color.secondary.opacity(0.09))
+                        .fill(isSelected ? color : MirrorTheme.inkRaised)
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
@@ -367,7 +367,7 @@ struct OnboardingFlow: View {
 
                 Text(label)
                     .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -407,11 +407,11 @@ struct OnboardingFlow: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(isSelected
                               ? AnyShapeStyle(MirrorTheme.accentGradient)
-                              : AnyShapeStyle(Color.secondary.opacity(0.09)))
+                              : AnyShapeStyle(MirrorTheme.inkRaised))
                         .frame(width: 44, height: 44)
                     Image(systemName: preset.icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : .secondary)
+                        .foregroundStyle(isSelected ? .white : MirrorTheme.textSecondary)
                 }
                 .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
 
@@ -419,7 +419,7 @@ struct OnboardingFlow: View {
                     HStack(spacing: 7) {
                         Text(preset.rawValue)
                             .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? .primary : .secondary)
+                            .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                         if isRecommended {
                             Text("Suggested")
                                 .font(.system(size: 11, weight: .semibold))

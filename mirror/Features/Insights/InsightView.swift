@@ -172,20 +172,20 @@ struct InsightView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     Text(pastNudgesExpanded
                          ? "Hide past reflections"
                          : "Past reflections (\(pastNudges.count))")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     Spacer()
                     Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .futureSurface(cornerRadius: 16)
+                .inkSurface(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -487,7 +487,7 @@ private struct PastNudgeCard: View {
             HStack {
                 Text(insight.generatedAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
@@ -496,7 +496,7 @@ private struct PastNudgeCard: View {
             Text(insight.content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
                 .lineSpacing(5)
-                .foregroundStyle(.primary.opacity(0.85))
+                .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
                 .lineLimit(isExpanded ? nil : 3)
                 .textSelection(.enabled)
             if insight.content.count > 120 {
@@ -513,7 +513,7 @@ private struct PastNudgeCard: View {
             }
         }
         .padding(16)
-        .futureSurface(cornerRadius: 18)
+        .inkSurface(cornerRadius: 18)
     }
 }
 
@@ -550,10 +550,10 @@ private struct SectionHeader<Trailing: View>: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                 Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
             }
             Spacer()
@@ -580,7 +580,7 @@ private struct ExplorationTile: View {
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
             } else {
@@ -590,7 +590,7 @@ private struct ExplorationTile: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(MirrorTheme.textTertiary)
                     }
 
                     textBlock(titleSize: 15, subtitleSize: 12)
@@ -599,7 +599,7 @@ private struct ExplorationTile: View {
             }
         }
         .padding(16)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(color.opacity(0.30), lineWidth: 1)
@@ -619,7 +619,7 @@ private struct ExplorationTile: View {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: titleSize, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                 if let badge {
@@ -633,7 +633,7 @@ private struct ExplorationTile: View {
             }
             Text(subtitle)
                 .font(.system(size: subtitleSize, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .lineLimit(2)
         }
     }
@@ -662,7 +662,7 @@ struct NightlyPendingCard: View {
                     .minimumScaleFactor(0.85)
                 Text(sublabel)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "moon.zzz.fill")
@@ -670,7 +670,7 @@ struct NightlyPendingCard: View {
                 .foregroundStyle(iconColor.opacity(0.35))
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 }
 
@@ -695,12 +695,12 @@ private struct LoadingInsightCard: View {
                     .font(.system(size: 15, weight: .medium))
                 Text(sublabel)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 }
 
@@ -727,7 +727,7 @@ private struct NeedsMoreEntriesCard: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text("Mirror learns from your writing patterns.")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             GeometryReader { geo in
@@ -743,10 +743,10 @@ private struct NeedsMoreEntriesCard: View {
             .frame(height: 6)
             Text(unlockLabel)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 }
 
@@ -771,7 +771,7 @@ private struct UpgradePromptCard: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text(subtitle)
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Button(action: onUpgrade) {
@@ -786,7 +786,7 @@ private struct UpgradePromptCard: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 }
 
@@ -801,13 +801,13 @@ private struct ErrorCard: View {
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
             Button("Try Again", action: onRetry)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(MirrorTheme.primary)
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
     }
 }
 
@@ -819,21 +819,21 @@ struct ModelNotInstalledCard: View {
                 .foregroundStyle(MirrorTheme.violetLight)
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device. The model file needs to be added once.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
             VStack(alignment: .leading, spacing: 8) {
                 Label("Download **gemma-3-1b-it-Q4_K_M.gguf** from Hugging Face (bartowski/gemma-3-1b-it-GGUF)", systemImage: "1.circle.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 Label("Copy it to the app via Files or iTunes File Sharing", systemImage: "2.circle.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 Label("Reopen MirrorNotes — AI features activate automatically", systemImage: "3.circle.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
@@ -951,7 +951,7 @@ private struct MoodWeekChartView: View {
             HStack {
                 Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
                 if let mood = dominantMood {
                     HStack(spacing: 4) {
@@ -960,7 +960,7 @@ private struct MoodWeekChartView: View {
                             .frame(width: 7, height: 7)
                         Text("Mostly \(mood)")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
@@ -997,7 +997,7 @@ private struct MoodWeekChartView: View {
                         if let v = value.as(Int.self) {
                             Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
                                 .font(.system(size: 10))
-                                .foregroundStyle(Color.secondary)
+                                .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }
                 }
@@ -1011,10 +1011,10 @@ private struct MoodWeekChartView: View {
             .frame(height: 130)
         }
         .padding(18)
-        .futureSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
         )
     }
 }
