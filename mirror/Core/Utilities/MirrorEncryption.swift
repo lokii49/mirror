@@ -90,7 +90,11 @@ enum MirrorEncryption {
 
             if let existing = KeychainManager.loadData(account: keyAccount), existing.count == 32 {
                 if !_didMigrateSession {
-                    KeychainManager.save(data: existing, account: keyAccount, synchronizable: true)
+                    // Only backfill the synced slot if it's empty — never clobber a key that's already there,
+                    // it may be the correct one this device just hasn't received yet.
+                    if KeychainManager.loadData(account: keyAccount, synchronizable: true) == nil {
+                        KeychainManager.save(data: existing, account: keyAccount, synchronizable: true)
+                    }
                     _didMigrateSession = true
                 }
                 let k = SymmetricKey(data: existing)
@@ -99,7 +103,9 @@ enum MirrorEncryption {
             }
             if let existing = KeychainManager.loadData(account: keyAccount, synchronizable: true), existing.count == 32 {
                 if !_didMigrateSession {
-                    KeychainManager.save(data: existing, account: keyAccount)
+                    if KeychainManager.loadData(account: keyAccount) == nil {
+                        KeychainManager.save(data: existing, account: keyAccount)
+                    }
                     _didMigrateSession = true
                 }
                 let k = SymmetricKey(data: existing)
@@ -109,6 +115,25 @@ enum MirrorEncryption {
 
             guard creatingIfNeeded else {
                 throw CryptoKitError.incorrectKeySize
+            }
+
+            // Neither slot has a key yet. If iCloud is signed in, give iCloud Keychain a short
+            // window to deliver an existing key from another device before minting a new one —
+            // generating here permanently strands ciphertext encrypted under a key that lived
+            // only in the cloud. Skip the wait entirely if there's no iCloud account (nothing to sync).
+            let iCloudSignedIn = FileManager.default.ubiquityIdentityToken != nil
+            let retryCount = iCloudSignedIn ? 8 : 0
+            for _ in 0..<retryCount {
+                Thread.sleep(forTimeInterval: 0.5)
+                if let existing = KeychainManager.loadData(account: keyAccount, synchronizable: true), existing.count == 32 {
+                    let k = SymmetricKey(data: existing)
+                    _cachedKey = k
+                    _didMigrateSession = true
+                    if KeychainManager.loadData(account: keyAccount) == nil {
+                        KeychainManager.save(data: existing, account: keyAccount)
+                    }
+                    return k
+                }
             }
 
             var bytes = [UInt8](repeating: 0, count: 32)
