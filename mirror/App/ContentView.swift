@@ -36,11 +36,15 @@ struct ContentView: View {
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
 
-    private var preferredScheme: ColorScheme? {
-        switch appearanceMode {
-        case "light": return .light
-        case "dark":  return .dark
-        default:      return nil
+    private func applyColorScheme(_ mode: String) {
+        let style: UIUserInterfaceStyle
+        switch mode {
+        case "light": style = .light
+        case "dark":  style = .dark
+        default:      style = .unspecified
+        }
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
     }
 
@@ -60,7 +64,8 @@ struct ContentView: View {
                 phoneLayout
             }
         }
-        .preferredColorScheme(preferredScheme)
+        .onAppear { applyColorScheme(appearanceMode) }
+        .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }
@@ -156,6 +161,8 @@ struct ContentView: View {
                 .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
+        .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 
     // MARK: - iPad layout (NavigationSplitView)

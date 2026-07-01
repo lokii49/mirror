@@ -318,10 +318,10 @@ struct EntriesTabView: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(
-                                isSelected ? MirrorTheme.primary.opacity(0.18) : Color(.tertiarySystemFill),
+                                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkRaised,
                                 in: Capsule()
                             )
-                            .foregroundStyle(isSelected ? MirrorTheme.primary : .secondary)
+                            .foregroundStyle(isSelected ? MirrorTheme.violetLight : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -354,11 +354,11 @@ struct EntriesTabView: View {
                         .padding(.vertical, 6)
                         .background(
                             isSelected
-                                ? MirrorTheme.moodColor(for: mood).opacity(0.18)
-                                : Color(.tertiarySystemFill),
+                                ? MirrorTheme.moodColor(for: mood).opacity(0.20)
+                                : MirrorTheme.inkRaised,
                             in: Capsule()
                         )
-                        .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : .secondary)
+                        .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -457,18 +457,18 @@ struct EntriesTabView: View {
                 } header: {
                     HStack {
                         Text(monthTitle(for: group.date))
-                            .font(.system(size: 12, weight: .bold))
-                            .tracking(0.8)
+                            .font(.system(size: 13, weight: .black, design: .rounded))
+                            .tracking(1.5)
                         Spacer()
                         Text("\(group.entries.count) \(group.entries.count == 1 ? "entry" : "entries")")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .textCase(nil)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textTertiary)
                     .textCase(.uppercase)
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 0)
+                    .padding(.top, 8)
+                    .padding(.bottom, 2)
                 }
             }
         }
@@ -548,7 +548,7 @@ private struct EntryRow: View {
     }
 
     private var previewTextColor: Color {
-        hasReadablePreview && !decryptFailed ? .primary : .secondary
+        hasReadablePreview && !decryptFailed ? MirrorTheme.textPrimary : MirrorTheme.textSecondary
     }
 
     private var moodColor: Color {
@@ -624,16 +624,17 @@ private struct EntryRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(moodColor.opacity(moodLabel == nil ? 0.12 : 0.32))
-                .frame(width: 3)
-                .padding(.vertical, 12)
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(moodColor.opacity(moodLabel == nil ? 0.20 : 0.65))
+                .frame(width: 4)
+                .padding(.vertical, 10)
+                .padding(.leading, 0)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
         }
     }
 

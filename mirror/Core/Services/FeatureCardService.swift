@@ -39,7 +39,7 @@ enum CardTier: CaseIterable, Equatable {
         switch self {
         case .free:  return .secondary
         case .core:  return MirrorTheme.primary
-        case .deep:  return .purple
+        case .deep:  return MirrorTheme.violet
         }
     }
 
@@ -157,7 +157,7 @@ enum FeatureCardRegistry {
             title: "Monthly Deep Report",
             body: "Once a month, mirror generates a full reflection on the previous month — emotional arc, recurring patterns, what shifted.",
             symbolName: "doc.text.magnifyingglass",
-            accentColor: .purple,
+            accentColor: MirrorTheme.violet,
             tier: .deep,
             sinceVersion: "1.0.0"
         ),
@@ -215,7 +215,7 @@ enum FeatureCardRegistry {
             title: "Smarter Monthly Report",
             body: "In the last 3 days of the month, the report unlocks at 10 entries instead of 20 — so you don't miss it over a quiet month. A dedicated end-of-month card explains when there still isn't enough.",
             symbolName: "doc.text.magnifyingglass",
-            accentColor: .purple,
+            accentColor: MirrorTheme.violet,
             tier: .deep,
             sinceVersion: "1.0.7",
             showInFeatureGuide: false

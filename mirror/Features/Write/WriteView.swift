@@ -121,7 +121,7 @@ struct WriteView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(.systemBackground).ignoresSafeArea()
+            MirrorTheme.inkMid.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 if !focusMode { dateHeader }

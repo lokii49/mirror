@@ -4,11 +4,14 @@ import Charts
 
 struct MoodTimelineView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
 
     @State private var subscriptionService = SubscriptionService.shared
     @State private var showPaywall = false
     @State private var selectedRange: TimeRange = .thirtyDays
+
+    private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
 
     enum TimeRange: String, CaseIterable {
         case thirtyDays = "30D"
@@ -200,6 +203,8 @@ struct MoodTimelineView: View {
             }
             .padding(16)
             .padding(.bottom, 24)
+            .frame(maxWidth: contentMaxWidth)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -207,22 +212,29 @@ struct MoodTimelineView: View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(MirrorTheme.ember)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your last \(consecutiveNegativeCount) entries show low mood")
                     .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textPrimary)
                 Text("Consider taking a moment to check in with yourself.")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
         }
         .padding(16)
-        .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
+        .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
+                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(MirrorTheme.ember)
+                .frame(width: 3)
+                .padding(.vertical, 10)
+        }
     }
 
     private var rangeSelector: some View {
@@ -519,6 +531,8 @@ struct MoodTimelineView: View {
                     previewMoodChartCard
                     previewMoodDistributionCard
                 }
+                .frame(maxWidth: contentMaxWidth)
+                .frame(maxWidth: .infinity)
                 .padding(16)
                 .padding(.bottom, 24)
             }
@@ -529,11 +543,11 @@ struct MoodTimelineView: View {
             VStack(spacing: 20) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.18))
+                        .fill(MirrorTheme.violetDim)
                         .frame(width: 72, height: 72)
                     Image(systemName: "waveform.path.ecg")
                         .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(spacing: 8) {
                     Text("Mood Timeline")
@@ -550,12 +564,12 @@ struct MoodTimelineView: View {
                         .padding(.horizontal, 32)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing),
+                            LinearGradient(colors: [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
                             in: Capsule()
                         )
                 }
                 .buttonStyle(.plain)
-                .shadow(color: Color.purple.opacity(0.28), radius: 16, x: 0, y: 6)
+                .shadow(color: MirrorTheme.violet.opacity(0.28), radius: 16, x: 0, y: 6)
             }
             .padding(28)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -685,7 +699,7 @@ private struct MoodChartCard: View {
                 )
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [MirrorTheme.primary.opacity(0.15), MirrorTheme.primary.opacity(0.02)],
+                        colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -696,9 +710,15 @@ private struct MoodChartCard: View {
                     x: .value("Day", point.date, unit: .day),
                     y: .value("Mood", point.score)
                 )
-                .foregroundStyle(MirrorTheme.primary.opacity(0.6))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [MirrorTheme.violet, MirrorTheme.ember],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
                 .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2))
+                .lineStyle(StrokeStyle(lineWidth: 2.5))
 
                 PointMark(
                     x: .value("Day", point.date, unit: .day),

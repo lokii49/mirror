@@ -24,19 +24,20 @@ struct WeeklyDigestView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Label("Weekly Digest", systemImage: "calendar.badge.clock")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.indigo)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(MirrorTheme.violetLight)
+                    .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
             }
             .padding(.bottom, 14)
 
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.indigo.opacity(0.35), Color.indigo.opacity(0.06)],
+                        colors: [MirrorTheme.violet.opacity(0.40), MirrorTheme.violet.opacity(0.06)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -47,8 +48,9 @@ struct WeeklyDigestView: View {
             if isExpanded {
                 if sections.isEmpty {
                     Text(insight.content)
-                        .font(.system(size: 15, weight: .regular))
-                        .lineSpacing(5)
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .lineSpacing(6)
+                        .foregroundStyle(MirrorTheme.textPrimary)
                         .textSelection(.enabled)
                 } else {
                     VStack(alignment: .leading, spacing: 18) {
@@ -74,8 +76,8 @@ struct WeeklyDigestView: View {
 
                     Text(previewText)
                         .font(.system(size: 15, weight: .regular, design: .serif))
-                        .lineSpacing(5)
-                        .foregroundStyle(.primary)
+                        .lineSpacing(6)
+                        .foregroundStyle(MirrorTheme.textPrimary)
                         .lineLimit(4)
                         .textSelection(.enabled)
                 }
@@ -89,38 +91,17 @@ struct WeeklyDigestView: View {
                             .font(.system(size: 11, weight: .bold))
                     }
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(MirrorTheme.violetLight)
                     .frame(maxWidth: .infinity)
                     .frame(height: 38)
-                    .background(Color.indigo.opacity(0.10), in: Capsule())
+                    .background(MirrorTheme.violetDim, in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 16)
             }
         }
         .padding(22)
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.indigo.opacity(0.07), Color(.secondarySystemGroupedBackground)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: Color.indigo.opacity(0.20), radius: 20, x: 0, y: 6)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.indigo.opacity(0.55), Color.purple.opacity(0.28)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 2.0
-                )
-        }
+        .inkCard(cornerRadius: 26)
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
@@ -171,7 +152,7 @@ struct WeeklyDigestView: View {
         case "YOUR ENERGY": return .orange
         case "WHAT'S BUILDING": return .green
         case "WATCH OUT FOR": return .red
-        case "MOOD BOOST": return .purple
+        case "MOOD BOOST": return MirrorTheme.violetLight
         default: return .accentColor
         }
     }
@@ -199,7 +180,7 @@ struct DigestSectionView: View {
         case "YOUR ENERGY": return .orange
         case "WHAT'S BUILDING": return .green
         case "WATCH OUT FOR": return .red
-        case "MOOD BOOST": return .purple
+        case "MOOD BOOST": return MirrorTheme.violetLight
         default: return .accentColor
         }
     }
@@ -232,8 +213,8 @@ struct DigestSectionView: View {
 
             Text(content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
-                .lineSpacing(5)
-                .foregroundStyle(.primary)
+                .lineSpacing(6)
+                .foregroundStyle(MirrorTheme.textPrimary)
                 .textSelection(.enabled)
         }
     }

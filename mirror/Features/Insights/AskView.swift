@@ -3,11 +3,14 @@ import SwiftData
 
 struct AskView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
     @State private var subscriptionService = SubscriptionService.shared
     @State private var showPaywall = false
+
+    private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
     @State private var showSuggestions = false
     @State private var question = ""
     @State private var pendingQuestion = ""
@@ -61,34 +64,34 @@ struct AskView: View {
                 .padding(.bottom, keyboardHeight)
                 .ignoresSafeArea(.keyboard, edges: .bottom)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 10) {
-                            if !subscriptionService.isDeep {
-                                let isLow = remaining <= 3
-                                let isCritical = remaining <= 1
-                                Text("\(remaining) left")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(isCritical ? .red : isLow ? .orange : .secondary)
-                                    .monospacedDigit()
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        (isCritical ? Color.red : isLow ? Color.orange : Color.secondary).opacity(0.10),
-                                        in: Capsule()
-                                    )
-                            }
-                            Button {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    showSuggestions.toggle()
-                                }
-                            } label: {
-                                Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundStyle(MirrorTheme.primary)
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(.plain)
+                    if !subscriptionService.isDeep {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            let isLow = remaining <= 3
+                            let isCritical = remaining <= 1
+                            Text("\(remaining) left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
+                                .monospacedDigit()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    (isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.10),
+                                    in: Capsule()
+                                )
                         }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                showSuggestions.toggle()
+                            }
+                        } label: {
+                            Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(MirrorTheme.primary)
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
@@ -171,6 +174,8 @@ struct AskView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
+                    .frame(maxWidth: contentMaxWidth)
+                    .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .background(MirrorTheme.bgBase)
@@ -241,10 +246,10 @@ struct AskView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 11)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
                         }
                     }
                     .buttonStyle(.plain)
@@ -300,8 +305,8 @@ struct AskView: View {
                             .lineLimit(1)
                             .padding(.horizontal, 13)
                             .padding(.vertical, 8)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                            .background(MirrorTheme.inkRaised, in: Capsule())
+                            .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
@@ -314,53 +319,57 @@ struct AskView: View {
 
     private var inputBar: some View {
         VStack(spacing: 0) {
-            if let error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-            }
-
-            if showSuggestions {
-                suggestionsRow
-            }
-
-            HStack(alignment: .bottom, spacing: 10) {
-                TextField(remaining == 0 ? "Monthly limit reached" : "Ask about your journal…", text: $question, axis: .vertical)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .focused($isInputFocused)
-                    .disabled(remaining == 0)
-                    .font(.system(size: 15))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(isInputFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1)
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: isInputFocused)
-
-                Button {
-                    Task { await submitQuestion() }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(canAsk ? MirrorTheme.accentGradient : LinearGradient(colors: [.secondary.opacity(0.3), .secondary.opacity(0.3)], startPoint: .top, endPoint: .bottom))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+            VStack(spacing: 0) {
+                if let error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
                 }
-                .disabled(!canAsk)
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: canAsk)
+
+                if showSuggestions {
+                    suggestionsRow
+                }
+
+                HStack(alignment: .bottom, spacing: 10) {
+                    TextField(remaining == 0 ? "Monthly limit reached" : "Ask about your journal…", text: $question, axis: .vertical)
+                        .lineLimit(1...5)
+                        .textFieldStyle(.plain)
+                        .focused($isInputFocused)
+                        .disabled(remaining == 0)
+                        .font(.system(size: 15))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(isInputFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1)
+                        }
+                        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
+
+                    Button {
+                        Task { await submitQuestion() }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(canAsk ? MirrorTheme.accentGradient : LinearGradient(colors: [.secondary.opacity(0.3), .secondary.opacity(0.3)], startPoint: .top, endPoint: .bottom))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .disabled(!canAsk)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: canAsk)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+            .frame(maxWidth: contentMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .background(.bar)
     }
@@ -433,40 +442,37 @@ private struct AskBubblePair: View {
                     Spacer(minLength: 48)
                     Text(question)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(MirrorTheme.accentGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .background(MirrorTheme.violetDim, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(MirrorTheme.violet.opacity(0.3), lineWidth: 1)
+                        }
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+            HStack(alignment: .top, spacing: 0) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .frame(width: 2)
+                    .padding(.vertical, 3)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(insight.content)
-                        .font(.system(size: 15))
-                        .lineSpacing(5)
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .lineSpacing(6)
+                        .foregroundStyle(MirrorTheme.textPrimary)
                         .textSelection(.enabled)
 
                     Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(MirrorTheme.textTertiary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .futureSurface(cornerRadius: 18)
-
-                Spacer(minLength: 28)
+                .padding(.leading, 14)
             }
+            .padding(.top, 4)
         }
         .padding(.vertical, 4)
     }
@@ -489,30 +495,23 @@ private struct LoadingAskBubble: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.variableColor.iterative, isActive: true)
-                }
+            HStack(alignment: .top, spacing: 0) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .frame(width: 2)
+                    .padding(.vertical, 3)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
+                        .tint(MirrorTheme.violetLight)
                     Text("Searching your journal")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .futureSurface(cornerRadius: 18)
-
-                Spacer(minLength: 28)
+                .padding(.leading, 14)
             }
+            .padding(.top, 4)
         }
         .padding(.vertical, 4)
     }

@@ -20,7 +20,7 @@ extension SettingsView {
 
                     if subscriptionService.isSubscribed {
                         let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
-                        let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                        let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                         Label(tierLabel, systemImage: "checkmark.seal.fill")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(tierColor)
@@ -30,14 +30,14 @@ extension SettingsView {
                     } else {
                         Text("Free plan")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                 }
 
                 Spacer()
 
                 if subscriptionService.isSubscribed {
-                    let tierColor = subscriptionService.isDeep ? Color.purple : MirrorTheme.primary
+                    let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 22))
                         .foregroundStyle(tierColor)
@@ -46,6 +46,7 @@ extension SettingsView {
 
             if !subscriptionService.isSubscribed {
                 Divider()
+                    .overlay(MirrorTheme.inkBorder)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
@@ -90,7 +91,7 @@ extension SettingsView {
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .stroke(
-                    subscriptionService.isDeep ? Color.purple.opacity(0.22)
+                    subscriptionService.isDeep ? MirrorTheme.violet.opacity(0.22)
                     : subscriptionService.isSubscribed ? MirrorTheme.primary.opacity(0.22)
                     : Color.primary.opacity(0.07),
                     lineWidth: 1
@@ -103,7 +104,7 @@ extension SettingsView {
         ZStack {
             Circle()
                 .fill(subscriptionService.isDeep
-                    ? LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    ? LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .topLeading, endPoint: .bottomTrailing)
                     : MirrorTheme.accentGradient)
                 .frame(width: 58, height: 58)
             Image(systemName: "person.fill")
@@ -118,9 +119,9 @@ extension SettingsView {
         VStack(alignment: .leading, spacing: 0) {
             Text("Your journal")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(0.8)
+                .tracking(1.0)
                 .padding(.bottom, 14)
 
             LazyVGrid(
@@ -150,12 +151,12 @@ extension SettingsView {
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Text(label)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
         .padding(16)
@@ -181,7 +182,7 @@ extension SettingsView {
                     Spacer()
                     Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     chevron
                 }
             }
@@ -207,7 +208,7 @@ extension SettingsView {
                 .tint(.secondary)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             // Daily nudge time — Core only
             if subscriptionService.isSubscribed {
@@ -217,7 +218,7 @@ extension SettingsView {
                         Spacer()
                         Text(nudgeTime, style: .time)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                         chevron
                             .rotationEffect(.degrees(showNudgeTimePicker ? 90 : 0))
                             .animation(.easeInOut(duration: 0.2), value: showNudgeTimePicker)
@@ -271,7 +272,7 @@ extension SettingsView {
                 .sheet(isPresented: $showSubscription) { SubscriptionView() }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("Weekly digest day", systemImage: "calendar", iconColor: .blue)
@@ -280,7 +281,7 @@ extension SettingsView {
                 if subscriptionService.isSubscribed {
                     Text("Sunday")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 } else {
                     Label("Core", systemImage: "lock.fill")
                         .font(.system(size: 12, weight: .semibold))
@@ -291,16 +292,16 @@ extension SettingsView {
                 }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button { showLanguagePicker = true } label: {
                 HStack {
-                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: .purple)
+                    settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: MirrorTheme.violet)
                     Spacer()
                     let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
                     Text(langName)
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                     chevron
                 }
             }
@@ -309,7 +310,7 @@ extension SettingsView {
                 TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             // Writing reminder — all tiers
             Button { withAnimation { showWritingReminderPicker.toggle() } } label: {
@@ -319,11 +320,11 @@ extension SettingsView {
                     if writingReminderEnabled {
                         Text(writingReminderTime, style: .time)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     } else {
                         Text("Off")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     chevron
                         .rotationEffect(.degrees(showWritingReminderPicker ? 90 : 0))
@@ -376,7 +377,7 @@ extension SettingsView {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("Notifications", systemImage: "bell.badge.fill", iconColor: MirrorTheme.primary)
@@ -384,7 +385,7 @@ extension SettingsView {
                 if notificationPermission == .denied {
                     Text("Disabled in Settings")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 } else {
                     Toggle("", isOn: $notificationsEnabled)
                         .labelsHidden()
@@ -417,7 +418,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button { showImportPicker = true } label: {
                 HStack {
@@ -428,7 +429,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             HStack {
                 settingsRowLabel("iCloud sync", systemImage: "icloud.fill", iconColor: .blue)
@@ -439,11 +440,11 @@ extension SettingsView {
                         .frame(width: 7, height: 7)
                     Text(iCloudStatus)
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 showDeleteConfirmation = true
@@ -480,19 +481,19 @@ extension SettingsView {
             .buttonStyle(.plain)
 
             if FeatureCardService.shared.shouldShowWhatsNew {
-                Divider().padding(.leading, 48)
+                Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
                 Button { showFeatureGuide = true } label: {
                     HStack {
-                        settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: .purple)
+                        settingsRowLabel("What's New", systemImage: "wand.and.stars", iconColor: MirrorTheme.violet)
                         Spacer()
                         if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                             Text("v\(v)")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MirrorTheme.violetLight)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Color.purple.opacity(0.08), in: Capsule())
+                                .background(MirrorTheme.violetDim, in: Capsule())
                         }
                         chevron
                     }
@@ -501,7 +502,7 @@ extension SettingsView {
                 .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let privacyURL = AppConstants.privacyPolicyURL {
                 Link(destination: privacyURL) {
@@ -511,12 +512,12 @@ extension SettingsView {
                         chevron
                     }
                 }
-                .foregroundStyle(.primary)
+                .foregroundStyle(MirrorTheme.textPrimary)
             } else {
                 settingsRow("Privacy policy", systemImage: "hand.raised.fill", iconColor: .green)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let reviewURL = AppConstants.appStoreReviewURL {
                 Button {
@@ -534,7 +535,7 @@ extension SettingsView {
                     .opacity(0.4)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             if let feedbackURL = AppConstants.feedbackURL {
                 Button {
@@ -549,7 +550,7 @@ extension SettingsView {
                 .buttonStyle(.plain)
             }
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             settingsRow("Version \(appVersion)", systemImage: "info.circle", iconColor: .secondary)
         }
@@ -618,12 +619,12 @@ extension SettingsView {
                     .font(.system(size: 15, weight: .semibold))
                 Text(body)
                     .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(18)
-        .futureSurface(cornerRadius: 20)
+        .inkSurface(cornerRadius: 20)
     }
 
     // MARK: - Debug
@@ -641,7 +642,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button {
                 SampleData.seedYearLongMixed(into: modelContext)
@@ -653,7 +654,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button {
                 SampleData.seedVoiceOnly(into: modelContext)
@@ -665,7 +666,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clearSampleEntries(from: modelContext)
@@ -677,7 +678,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clearInsights(from: modelContext)
@@ -689,7 +690,7 @@ extension SettingsView {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 48)
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             Button(role: .destructive) {
                 SampleData.clear(from: modelContext)
@@ -722,7 +723,7 @@ extension SettingsView {
     var chevron: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(MirrorTheme.textTertiary)
     }
 
     var exportedText: String {
@@ -788,9 +789,9 @@ extension SettingsView {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(0.8)
+                .tracking(1.0)
                 .padding(.bottom, 14)
             VStack(spacing: 0) {
                 content()
@@ -816,7 +817,7 @@ extension SettingsView {
             }
             Text(title)
                 .font(.system(size: 15))
-                .foregroundStyle(.primary)
+                .foregroundStyle(MirrorTheme.textPrimary)
             Spacer(minLength: 0)
         }
         .padding(.vertical, 2)

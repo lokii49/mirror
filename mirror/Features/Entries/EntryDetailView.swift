@@ -43,47 +43,48 @@ struct EntryDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
                             .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.textPrimary)
 
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundStyle(MirrorTheme.textTertiary)
                             if let label = moodLabel {
                                 Text("·")
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(MirrorTheme.textTertiary)
                                 Text(label)
                                     .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(MirrorTheme.textSecondary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(Color(.tertiarySystemFill), in: Capsule())
+                                    .background(MirrorTheme.inkRaised, in: Capsule())
                             }
                             Text("·")
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(MirrorTheme.textTertiary)
                             Text("\(displayedWordCount) words")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundStyle(MirrorTheme.textTertiary)
                         }
                     }
 
-                    Divider()
+                    Divider().overlay(MirrorTheme.inkBorder)
 
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
                                 .font(.system(size: 15))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MirrorTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray)
                     } else {
                         Text("No text")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 17, weight: .regular, design: .serif))
+                            .foregroundStyle(MirrorTheme.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -109,10 +110,10 @@ struct EntryDetailView: View {
                                 ForEach(entry.tags, id: \.self) { tag in
                                     Text("#\(tag)")
                                         .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(MirrorTheme.textSecondary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color(.tertiarySystemFill), in: Capsule())
+                                        .background(MirrorTheme.inkRaised, in: Capsule())
                                 }
                             }
                         }
@@ -124,17 +125,19 @@ struct EntryDetailView: View {
                 // "mirror noticed" card — only if a past insight references this entry
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("MirrorNotes noticed:")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                        Label("mirror noticed", systemImage: "sparkles")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(MirrorTheme.violetLight)
+                            .tracking(0.8)
                         Text(insight.content)
-                            .font(.system(size: 15))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 15, weight: .regular, design: .serif))
+                            .lineSpacing(5)
+                            .foregroundStyle(MirrorTheme.textPrimary)
                             .italic()
                     }
                     .padding(18)
-                    .accentCard(cornerRadius: 18)
-                    .glowShadow(color: MirrorTheme.primary, radius: 20)
+                    .inkCard(cornerRadius: 18)
+                    .glowShadow(color: MirrorTheme.violet, radius: 20)
                 }
 
                 // On This Day
@@ -212,8 +215,8 @@ struct EntryDetailView: View {
 
     private func makePDF() -> URL? {
         let dateStr = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
-        var html = "<html><body style='font-family: -apple-system; font-size: 14px; margin: 40px;'>"
-        html += "<p style='color: #666; font-size: 12px;'>\(dateStr)"
+        var html = "<html><body style='font-family: Georgia, serif; font-size: 15px; margin: 40px; line-height: 1.8;'>"
+        html += "<p style='color: #888; font-size: 12px; font-family: -apple-system; letter-spacing: 0.05em;'>\(dateStr)"
         if let mood = entry.mood { html += " · \(mood)" }
         html += "</p><hr style='border-color: #eee;'>"
         let escaped = entry.text
@@ -258,32 +261,33 @@ private struct OnThisDaySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("On this day", systemImage: "calendar.badge.clock")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(MirrorTheme.textTertiary)
+                .tracking(0.6)
                 .padding(.horizontal, 4)
 
             ForEach(entries.prefix(3)) { past in
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(past.createdAt, format: .dateTime.year())
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(MirrorTheme.primary)
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(MirrorTheme.violetLight)
                         if let mood = past.mood {
                             Text("·")
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(MirrorTheme.textTertiary)
                             HStack(spacing: 4) {
                                 Circle()
                                     .fill(MirrorTheme.moodColor(for: mood))
                                     .frame(width: 6, height: 6)
                                 Text(mood)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(MirrorTheme.textSecondary)
                             }
                         }
                         Spacer()
                         Text(past.createdAt, format: .dateTime.hour().minute())
                             .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(MirrorTheme.textTertiary)
                     }
                     let preview = past.text
                         .components(separatedBy: .newlines)
@@ -292,13 +296,14 @@ private struct OnThisDaySection: View {
                         .first ?? ""
                     if !preview.isEmpty {
                         Text(preview)
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundStyle(.primary.opacity(0.75))
+                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .foregroundStyle(MirrorTheme.textSecondary)
                             .lineLimit(3)
+                            .lineSpacing(4)
                     }
                 }
                 .padding(14)
-                .futureSurface(cornerRadius: 16)
+                .inkSurface(cornerRadius: 16)
             }
         }
     }
@@ -375,7 +380,8 @@ private struct InlineEntryContent: View {
             }
         } else {
             Text(line)
-                .font(.system(size: 17, weight: .regular))
+                .font(.system(.body, design: .serif))
+                .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }
     }

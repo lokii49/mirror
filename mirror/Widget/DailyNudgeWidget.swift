@@ -9,10 +9,12 @@ private let nudgeDayFormatter: DateFormatter = {
     return f
 }()
 
-// MARK: - Colors
+// MARK: - Colors (shared dark ink palette)
 
-private let nudgeTop    = Color(red: 0.42, green: 0.22, blue: 0.72)
-private let nudgeBottom = Color(red: 0.20, green: 0.10, blue: 0.44)
+private let wBgTop     = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
+private let wBgBottom  = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
+private let wViolet    = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
+private let wViLight   = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 
 // MARK: - Timeline
 
@@ -53,7 +55,7 @@ private struct NudgeSmallView: View {
         ZStack(alignment: .topLeading) {
             Text("\u{201C}")
                 .font(.system(size: 96, weight: .black, design: .serif))
-                .foregroundStyle(.white.opacity(0.12))
+                .foregroundStyle(wViLight.opacity(0.15))
                 .offset(x: -6, y: -18)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -61,15 +63,15 @@ private struct NudgeSmallView: View {
 
                 if let text = entry.nudgeText, entry.isToday {
                     Text(text)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 13, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .lineLimit(6)
-                        .lineSpacing(2)
+                        .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: false)
                 } else {
                     Text("Your nudge\narrives soon…")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .font(.system(size: 13, weight: .regular, design: .serif))
+                        .foregroundStyle(.white.opacity(0.50))
                         .italic()
                 }
 
@@ -82,12 +84,12 @@ private struct NudgeSmallView: View {
                         .font(.system(size: 8, weight: .bold))
                         .tracking(1.8)
                 }
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(wViLight.opacity(0.60))
             }
             .padding(14)
         }
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [nudgeTop, nudgeBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://insights"))
     }
@@ -102,7 +104,7 @@ private struct NudgeMediumView: View {
         ZStack(alignment: .topLeading) {
             Text("\u{201C}")
                 .font(.system(size: 120, weight: .black, design: .serif))
-                .foregroundStyle(.white.opacity(0.10))
+                .foregroundStyle(wViLight.opacity(0.13))
                 .offset(x: -8, y: -22)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -110,14 +112,14 @@ private struct NudgeMediumView: View {
 
                 if let text = entry.nudgeText, entry.isToday {
                     Text(text)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .lineLimit(5)
                         .lineSpacing(3)
                 } else {
                     Text("Your nudge arrives soon…")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(.white.opacity(0.50))
                         .italic()
                 }
 
@@ -131,19 +133,19 @@ private struct NudgeMediumView: View {
                             .font(.system(size: 9, weight: .bold))
                             .tracking(1.8)
                     }
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(wViLight.opacity(0.60))
 
                     Spacer()
 
-                    Text("Read more →")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.55))
+                    Text("Tap to reflect →")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(wViLight.opacity(0.55))
                 }
             }
             .padding(16)
         }
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [nudgeTop, nudgeBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://insights"))
     }
@@ -166,7 +168,7 @@ private struct NudgeLockedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [nudgeTop.opacity(0.7), nudgeBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://upgrade"))
     }

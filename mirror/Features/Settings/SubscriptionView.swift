@@ -43,7 +43,7 @@ struct SubscriptionView: View {
         HStack(spacing: 14) {
             Image(systemName: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal")
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(subscriptionService.isDeep ? Color.purple : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
+                .foregroundStyle(subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(tierName)
                     .font(.system(size: 17, weight: .semibold))
@@ -99,7 +99,7 @@ struct SubscriptionView: View {
             tierUpgradeCard(
                 title: "Deep",
                 icon: "flame.fill",
-                iconColor: .purple,
+                iconColor: MirrorTheme.violet,
                 bullets: [
                     "Everything in Core",
                     "Unlimited Ask questions",
@@ -245,7 +245,7 @@ struct SubscriptionView: View {
                         Spacer()
                         Image(systemName: "flame.fill")
                             .font(.system(size: 15))
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(MirrorTheme.violetLight)
                     }
                     .padding(16)
                     .futureSurface(cornerRadius: 16)
