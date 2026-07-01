@@ -37,7 +37,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         let placeholder = UILabel()
         placeholder.text = "What's on your mind?"
         placeholder.textColor = .tertiaryLabel
-        placeholder.font = UIFont.preferredFont(forTextStyle: .body)
+        placeholder.font = context.coordinator.serifBodyFont
         placeholder.adjustsFontForContentSizeCategory = true
         placeholder.tag = Coordinator.placeholderTag
         placeholder.translatesAutoresizingMaskIntoConstraints = false
@@ -226,9 +226,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             return tokens[attachCount].index
         }
 
+        // Cached — UIFontDescriptor.preferredFontDescriptor + withDesign(.serif) + UIFont init are not free;
+        // called on every keystroke/cursor movement across 13+ call sites.
+        lazy var serifBodyFont: UIFont = {
+            let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
+            return UIFont(descriptor: base.withDesign(.serif) ?? base, size: 0)
+        }()
+
         var bodyAttributes: [NSAttributedString.Key: Any] {
             [
-                .font: UIFont.preferredFont(forTextStyle: .body),
+                .font: serifBodyFont,
                 .foregroundColor: UIColor.label,
                 .paragraphStyle: paragraphStyle(lineSpacing: 6)
             ]
@@ -858,7 +865,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ]
             case .monospaced:
                 return [
-                    .font: UIFont.monospacedSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .regular),
+                    .font: UIFont.monospacedSystemFont(ofSize: serifBodyFont.pointSize, weight: .regular),
                     .foregroundColor: UIColor.label,
                     .paragraphStyle: paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
                 ]
@@ -892,7 +899,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             ps.firstLineHeadIndent = offset
             ps.headIndent = 44 + offset
             var attrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.preferredFont(forTextStyle: .body),
+                .font: serifBodyFont,
                 .foregroundColor: checked ? UIColor.tertiaryLabel : UIColor.label,
                 .paragraphStyle: ps
             ]
@@ -909,7 +916,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             ps.firstLineHeadIndent = offset
             ps.headIndent = 28 + offset
             return [
-                .font: UIFont.preferredFont(forTextStyle: .body),
+                .font: serifBodyFont,
                 .foregroundColor: UIColor.label,
                 .paragraphStyle: ps
             ]
@@ -1426,12 +1433,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 switch command {
                 case .bold:
                     mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
-                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        let font = (value as? UIFont) ?? serifBodyFont
                         mutable.addAttribute(.font, value: font.withTrait(.traitBold, add: !shouldRemove), range: range)
                     }
                 case .italic:
                     mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
-                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        let font = (value as? UIFont) ?? serifBodyFont
                         mutable.addAttribute(.font, value: font.withTrait(.traitItalic, add: !shouldRemove), range: range)
                     }
                 case .underline:
@@ -1458,10 +1465,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 var typing = textView.typingAttributes
                 switch command {
                 case .bold:
-                    let font = (typing[.font] as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                    let font = (typing[.font] as? UIFont) ?? serifBodyFont
                     typing[.font] = font.withTrait(.traitBold, add: !shouldRemove)
                 case .italic:
-                    let font = (typing[.font] as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                    let font = (typing[.font] as? UIFont) ?? serifBodyFont
                     typing[.font] = font.withTrait(.traitItalic, add: !shouldRemove)
                 case .underline:
                     if shouldRemove { typing.removeValue(forKey: .underlineStyle) }
@@ -1684,10 +1691,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             attributed.enumerateAttributes(in: checkRange) { attrs, _, stop in
                 switch style {
                 case .bold:
-                    let font = attrs[.font] as? UIFont ?? UIFont.preferredFont(forTextStyle: .body)
+                    let font = attrs[.font] as? UIFont ?? serifBodyFont
                     if !font.fontDescriptor.symbolicTraits.contains(.traitBold) { allApplied = false; stop.pointee = true }
                 case .italic:
-                    let font = attrs[.font] as? UIFont ?? UIFont.preferredFont(forTextStyle: .body)
+                    let font = attrs[.font] as? UIFont ?? serifBodyFont
                     if !font.fontDescriptor.symbolicTraits.contains(.traitItalic) { allApplied = false; stop.pointee = true }
                 case .underline:
                     if attrs[.underlineStyle] == nil { allApplied = false; stop.pointee = true }
@@ -1768,7 +1775,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 if styleRange.bold || styleRange.italic {
                     attributed.enumerateAttribute(.font, in: displayRange) { value, range, _ in
-                        let font = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+                        let font = (value as? UIFont) ?? serifBodyFont
                         var modified = font
                         if styleRange.bold   { modified = modified.withTrait(.traitBold, add: true) }
                         if styleRange.italic { modified = modified.withTrait(.traitItalic, add: true) }

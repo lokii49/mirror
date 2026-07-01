@@ -54,7 +54,7 @@ struct OnboardingFlow: View {
 
     private let reasons: [(String, String, Color)] = [
         ("brain.head.profile", "Understand myself better",   .blue),
-        ("moon.stars",         "Process stress and emotions", .purple),
+        ("moon.stars",         "Process stress and emotions", MirrorTheme.violet),
         ("target",             "Track goals and habits",      .orange),
         ("sparkles",           "Build a reflection practice", .green),
     ]
@@ -83,7 +83,7 @@ struct OnboardingFlow: View {
                 .offset(x: 120, y: -180)
                 .ignoresSafeArea()
             Circle()
-                .fill(Color.purple.opacity(0.05))
+                .fill(MirrorTheme.violetDim.opacity(0.6))
                 .frame(width: 260, height: 260)
                 .blur(radius: 50)
                 .offset(x: -100, y: 300)
@@ -120,7 +120,7 @@ struct OnboardingFlow: View {
                           ? AnyShapeStyle(MirrorTheme.primary.opacity(0.5))
                           : i == step
                             ? AnyShapeStyle(MirrorTheme.accentGradient)
-                            : AnyShapeStyle(Color.secondary.opacity(0.15)))
+                            : AnyShapeStyle(MirrorTheme.inkBorder))
                     .frame(width: i == step ? 28 : 8, height: 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
             }
@@ -130,111 +130,63 @@ struct OnboardingFlow: View {
     // MARK: - Steps
 
     private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Spacer()
-            VStack(alignment: .leading, spacing: 20) {
-                // Icon hero
-                ZStack {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 80, height: 80)
-                        .shadow(color: MirrorTheme.primary.opacity(0.4), radius: 24, x: 0, y: 10)
-                    Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.bottom, 4)
+        ScrollView {
+            VStack(spacing: 0) {
+                Spacer(minLength: 20)
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Welcome to")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    Text("MirrorNotes")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                }
+                // App icon
+                Image("AppIconDisplay")
+                    .resizable()
+                    .frame(width: 110, height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
 
-                Text("A private space to understand yourself through writing. No audience. No performance. Just you.")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(.secondary)
+                // Title — New York serif, tight tracking, strong weight
+                Text("MirrorNotes")
+                    .font(.system(size: 44, weight: .bold, design: .serif))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .tracking(-0.5)
+                    .padding(.top, 32)
+
+                // Tagline — same serif family, lighter, italic
+                Text("Understand yourself\nthrough writing.")
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .italic()
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
                     .lineSpacing(5)
+                    .padding(.top, 10)
 
-                // Sample nudge preview
-                sampleNudgePreview
+                // Divider — visual rhythm break
+                Divider()
+                    .overlay(MirrorTheme.inkBorder)
+                    .padding(.top, 40)
+                    .padding(.bottom, 36)
+                    .padding(.horizontal, 4)
 
-                // Feature chips
-                welcomeFeatureChips
-            }
-            Spacer()
-            Spacer()
-        }
-        .padding(.horizontal, 28)
-    }
-
-    private var sampleNudgePreview: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 7) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
-                Text("Daily Reflection")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
-                Spacer()
-                Text("Today")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-            }
-            Text("\"You've mentioned feeling overwhelmed three times this week. What would make tomorrow feel lighter?\"")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(3)
-                .italic()
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(MirrorTheme.primary.opacity(0.15), lineWidth: 1)
-        }
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(MirrorTheme.accentGradient)
-                .frame(width: 3)
-                .padding(.vertical, 12)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var welcomeFeatureChips: some View {
-        let chips: [(String, String, Color)] = [
-            ("lock.shield.fill", "100% on-device AI", .green),
-            ("icloud.fill",      "iCloud backup",     .blue),
-            ("bell.fill",        "Daily nudge",        MirrorTheme.primary),
-            ("magnifyingglass",  "Full-text search",  .orange),
-        ]
-        return LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-            spacing: 8
-        ) {
-            ForEach(chips, id: \.1) { icon, label, color in
-                HStack(spacing: 7) {
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(color)
-                    Text(label)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
+                // Feature list
+                VStack(alignment: .leading, spacing: 22) {
+                    welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                    welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
+                    welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                Spacer(minLength: 20)
             }
+            .padding(.horizontal, 36)
+        }
+    }
+
+    private func welcomeFeatureItem(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 24)
+            Text(text)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(MirrorTheme.textPrimary)
+            Spacer()
         }
     }
 
@@ -245,7 +197,7 @@ struct OnboardingFlow: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                 Text("Pick the one that resonates most.")
                     .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.top, 12)
 
@@ -268,7 +220,7 @@ struct OnboardingFlow: View {
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                     Text("One gentle reminder a day to reflect.")
                         .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.top, 12)
 
@@ -284,14 +236,14 @@ struct OnboardingFlow: View {
                     }
                     Text("Suggested: **\(suggestedPreset.rawValue)** (\(suggestedPreset.timeLabel)) — \(suggestedRationale)")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(MirrorTheme.primary.opacity(0.15), lineWidth: 1)
+                        .stroke(MirrorTheme.violet.opacity(0.20), lineWidth: 1)
                 }
 
                 VStack(spacing: 10) {
@@ -337,38 +289,38 @@ struct OnboardingFlow: View {
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                 Text("A sentence is enough. Mirror learns from everything you write.")
                     .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.top, 12)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(MirrorTheme.inkMid)
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(
                                 editorFocused
-                                    ? AnyShapeStyle(MirrorTheme.accentGradient.opacity(0.5))
-                                    : AnyShapeStyle(Color.primary.opacity(0.08)),
+                                    ? AnyShapeStyle(MirrorTheme.violet.opacity(0.45))
+                                    : AnyShapeStyle(MirrorTheme.inkBorder),
                                 lineWidth: editorFocused ? 1.5 : 1
                             )
                     }
                     .shadow(
-                        color: editorFocused ? MirrorTheme.primary.opacity(0.12) : .clear,
+                        color: editorFocused ? MirrorTheme.violet.opacity(0.15) : .clear,
                         radius: 16, x: 0, y: 4
                     )
 
                 if firstEntryText.isEmpty {
                     Text(writePrompt)
-                        .foregroundStyle(.tertiary)
-                        .font(.system(size: 16))
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
                 }
 
                 TextEditor(text: $firstEntryText)
                     .focused($editorFocused)
-                    .font(.system(size: 16))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -379,8 +331,8 @@ struct OnboardingFlow: View {
             HStack {
                 Spacer()
                 Text("\(firstEntryText.split(separator: " ").count) words")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
             }
 
             Spacer()
@@ -407,7 +359,7 @@ struct OnboardingFlow: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? color : Color.secondary.opacity(0.09))
+                        .fill(isSelected ? color : MirrorTheme.inkRaised)
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
@@ -417,7 +369,7 @@ struct OnboardingFlow: View {
 
                 Text(label)
                     .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -427,15 +379,11 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background(
-                isSelected ? color.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
+            .background(isSelected ? color.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(
-                        isSelected ? color.opacity(0.4) : Color.primary.opacity(0.07),
+                        isSelected ? color.opacity(0.45) : MirrorTheme.inkBorder,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
@@ -461,11 +409,11 @@ struct OnboardingFlow: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(isSelected
                               ? AnyShapeStyle(MirrorTheme.accentGradient)
-                              : AnyShapeStyle(Color.secondary.opacity(0.09)))
+                              : AnyShapeStyle(MirrorTheme.inkRaised))
                         .frame(width: 44, height: 44)
                     Image(systemName: preset.icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : .secondary)
+                        .foregroundStyle(isSelected ? .white : MirrorTheme.textSecondary)
                 }
                 .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
 
@@ -473,7 +421,7 @@ struct OnboardingFlow: View {
                     HStack(spacing: 7) {
                         Text(preset.rawValue)
                             .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? .primary : .secondary)
+                            .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                         if isRecommended {
                             Text("Suggested")
                                 .font(.system(size: 11, weight: .semibold))
@@ -507,23 +455,19 @@ struct OnboardingFlow: View {
                 }
             }
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background(
-                isSelected ? MirrorTheme.primary.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
+            .background(isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(
                         isSelected
-                            ? AnyShapeStyle(MirrorTheme.accentGradient.opacity(0.5))
-                            : AnyShapeStyle(Color.primary.opacity(0.07)),
+                            ? AnyShapeStyle(MirrorTheme.violet.opacity(0.50))
+                            : AnyShapeStyle(MirrorTheme.inkBorder),
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }
         .buttonStyle(.plain)
-        .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.08) : .clear, radius: 12, x: 0, y: 4)
+        .shadow(color: isSelected ? MirrorTheme.violet.opacity(0.10) : .clear, radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
     }
 
@@ -610,7 +554,7 @@ struct OnboardingFlow: View {
         }
         profile.onboardingComplete = true
 
-        try? modelContext.save()
+        try? modelContext.save()  // non-fatal: SwiftData will persist on next autosave cycle
 
         // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
         FeatureCardService.shared.markWhatsNewSeen()

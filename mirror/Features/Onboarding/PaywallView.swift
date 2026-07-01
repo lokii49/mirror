@@ -51,7 +51,7 @@ struct PaywallView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22))
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -86,8 +86,8 @@ struct PaywallView: View {
                 .fill(
                     LinearGradient(
                         colors: selectedTier == .core
-                            ? [Color.indigo, MirrorTheme.primary, Color.purple.opacity(0.85)]
-                            : [Color.purple, Color.indigo, Color.blue.opacity(0.85)],
+                            ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
+                            : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -158,20 +158,20 @@ struct PaywallView: View {
                         if tier == .deep {
                             Text("More AI")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(selectedTier == .deep ? MirrorTheme.primary : .secondary)
-                                .opacity(0.7)
+                                .foregroundStyle(selectedTier == .deep ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
+                                .opacity(0.85)
                         } else {
                             Text("Most popular")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(selectedTier == .core ? MirrorTheme.primary : .secondary)
-                                .opacity(0.7)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(selectedTier == .core ? MirrorTheme.ember : MirrorTheme.textTertiary)
+                                .opacity(selectedTier == .core ? 1.0 : 0.6)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
                         selectedTier == tier
-                            ? MirrorTheme.primary.opacity(0.08)
+                            ? MirrorTheme.violetDim
                             : Color.clear,
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
@@ -180,7 +180,7 @@ struct PaywallView: View {
             }
         }
         .padding(4)
-        .futureSurface(cornerRadius: 18)
+        .inkSurface(cornerRadius: 18)
     }
 
     private var coreFeatures: [(String, String, Color)] {
@@ -197,7 +197,7 @@ struct PaywallView: View {
         [
             ("checkmark.circle", "Everything in Core", .green),
             ("bubble.left.and.bubble.right.fill", "Ask — unlimited questions, no monthly cap.", .blue),
-            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", .purple),
+            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", MirrorTheme.violet),
             ("waveform.path.ecg", "Mood Timeline — 30/90/all-time chart + analytics.", .pink),
             ("bell.badge", "Mood Alerts — notified when your mood drops for 3 entries.", .orange),
         ]
@@ -207,7 +207,7 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("What's included")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.8)
                 .padding(.bottom, 14)
@@ -226,7 +226,7 @@ struct PaywallView: View {
                         }
                         Text(detail)
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MirrorTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -234,7 +234,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
         .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
@@ -242,7 +242,7 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Choose a plan")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MirrorTheme.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.8)
                 .padding(.bottom, 14)
@@ -252,7 +252,7 @@ struct PaywallView: View {
                     ProgressView().scaleEffect(0.9)
                     Text("Loading plans…")
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.vertical, 8)
             } else {
@@ -268,7 +268,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .futureSurface(cornerRadius: 24)
+        .inkSurface(cornerRadius: 24)
     }
 
     private var ctaSection: some View {
@@ -292,23 +292,23 @@ struct PaywallView: View {
                 .background(
                     subscriptionService.isPurchasing || currentPackages.isEmpty
                         ? AnyShapeStyle(Color.secondary.opacity(0.3))
-                        : AnyShapeStyle(MirrorTheme.accentGradient),
+                        : AnyShapeStyle(MirrorTheme.ember),
                     in: Capsule()
                 )
             }
             .buttonStyle(.plain)
             .disabled(subscriptionService.isPurchasing || currentPackages.isEmpty)
-            .shadow(color: MirrorTheme.primary.opacity(0.30), radius: 16, x: 0, y: 6)
+            .shadow(color: MirrorTheme.ember.opacity(0.40), radius: 16, x: 0, y: 6)
 
             Button("Restore Purchases") {
                 Task { await subscriptionService.restorePurchases() }
             }
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(MirrorTheme.textSecondary)
 
             Text("Cancel anytime in App Store settings. No charge during trial.")
                 .font(.system(size: 12))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
@@ -320,7 +320,7 @@ struct PaywallView: View {
                 }
             }
             .font(.system(size: 12))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(MirrorTheme.textSecondary)
 
             if let error = subscriptionService.purchaseError {
                 Text(error)
@@ -360,7 +360,7 @@ private struct PlanCard: View {
                     HStack(spacing: 8) {
                         Text(isYearly ? "Yearly" : "Monthly")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(MirrorTheme.textPrimary)
                         if isYearly {
                             Text("Best value")
                                 .font(.system(size: 11, weight: .bold))
@@ -372,21 +372,21 @@ private struct PlanCard: View {
                     }
                     Text(isYearly ? "\(package.storeProduct.localizedPriceString) / year · \(yearlySavings)" : "\(package.storeProduct.localizedPriceString) / month")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
 
                 Spacer()
             }
             .padding(16)
             .background(
-                isSelected ? MirrorTheme.primary.opacity(0.06) : MirrorTheme.bgCard,
+                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        isSelected ? MirrorTheme.primary.opacity(0.3) : Color.primary.opacity(0.07),
-                        lineWidth: isSelected ? 1.5 : 0.5
+                        isSelected ? MirrorTheme.violet.opacity(0.45) : MirrorTheme.inkBorder,
+                        lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }

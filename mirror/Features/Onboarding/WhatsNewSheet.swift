@@ -49,7 +49,7 @@ struct WhatsNewSheet: View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(LinearGradient(
-                    colors: [Color.indigo, MirrorTheme.primary, Color.purple.opacity(0.85)],
+                    colors: [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))
