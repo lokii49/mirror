@@ -827,7 +827,7 @@ struct ModelNotInstalledCard: View {
             Label("AI model needed", systemImage: "brain.head.profile")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(MirrorTheme.violetLight)
-            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~770MB download so the app itself stays small.")
+            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             content
