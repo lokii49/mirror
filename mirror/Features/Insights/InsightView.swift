@@ -814,25 +814,23 @@ private struct ErrorCard: View {
 
 // Used by MonthlyReportView — must stay internal (not private).
 struct ModelNotInstalledCard: View {
+    @State private var manager = ModelDownloadManager.shared
+
+    private var byteFormatter: ByteCountFormatter {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("AI model not installed", systemImage: "brain.head.profile")
+            Label("AI model needed", systemImage: "brain.head.profile")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(MirrorTheme.violetLight)
-            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device. The model file needs to be added once.")
+            Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~770MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Download **gemma-3-1b-it-Q4_K_M.gguf** from Hugging Face (bartowski/gemma-3-1b-it-GGUF)", systemImage: "1.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                Label("Copy it to the app via Files or iTunes File Sharing", systemImage: "2.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                Label("Reopen MirrorNotes — AI features activate automatically", systemImage: "3.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            }
+            content
         }
         .padding(20)
         .inkSurface(cornerRadius: 22)
@@ -840,6 +838,71 @@ struct ModelNotInstalledCard: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
         )
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch manager.state {
+        case .notStarted:
+            Button {
+                manager.startDownload()
+            } label: {
+                Label("Download Model", systemImage: "arrow.down.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(MirrorTheme.primary)
+
+        case .downloading(let progress, let written, let expected):
+            VStack(alignment: .leading, spacing: 8) {
+                ProgressView(value: progress)
+                    .tint(MirrorTheme.primary)
+                HStack {
+                    Text("\(byteFormatter.string(fromByteCount: written)) of \(byteFormatter.string(fromByteCount: expected))")
+                        .font(.caption)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Spacer()
+                    Button("Pause") { manager.pauseDownload() }
+                        .font(.caption.weight(.semibold))
+                }
+            }
+
+        case .paused(let resumable):
+            HStack {
+                Text(resumable ? "Paused" : "Paused (will restart from 0%)")
+                    .font(.subheadline)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                Spacer()
+                Button("Resume") { manager.resumeDownload() }
+                    .font(.system(size: 14, weight: .semibold))
+                    .buttonStyle(.borderedProminent)
+                    .tint(MirrorTheme.primary)
+            }
+
+        case .verifying:
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Verifying…")
+                    .font(.subheadline)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            }
+
+        case .installed:
+            Label("Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
+                .font(.subheadline)
+                .foregroundStyle(.green)
+
+        case .failed(let message):
+            VStack(alignment: .leading, spacing: 8) {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Button("Try Again") { manager.startDownload() }
+                    .font(.system(size: 14, weight: .semibold))
+                    .buttonStyle(.borderedProminent)
+                    .tint(MirrorTheme.primary)
+            }
+        }
     }
 }
 

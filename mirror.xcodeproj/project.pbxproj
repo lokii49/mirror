@@ -71,6 +71,7 @@
 			membershipExceptions = (
 				Core/Services/MirrorNotifications.swift,
 				Info.plist,
+				LocalModels/gemma-3-1b-it-Q4_K_M.gguf,
 				Widget/EntriesMapWidget.swift,
 				Widget/MoodMapWidget.swift,
 				Widget/WriteWidget.swift,
@@ -174,6 +175,7 @@
 				47E752872FB44FE800C6362E /* MirrorWidgetExtension */,
 				47E752822FB44FE800C6362E /* Frameworks */,
 				471287F72F9CF11200812160 /* Products */,
+				473D97432FF63AC200669F71 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -186,6 +188,14 @@
 				47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		473D97432FF63AC200669F71 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				45D674E52CEF446BAED78D9A /* MirrorNotifications.swift */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 		47E752822FB44FE800C6362E /* Frameworks */ = {
