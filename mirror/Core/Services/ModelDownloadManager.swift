@@ -87,6 +87,21 @@ final class ModelDownloadManager: NSObject {
         task.resume()
     }
 
+    #if DEBUG
+    /// Removes the installed model and resets state, so the download flow can be
+    /// re-tested from the "AI model needed" card without reinstalling the app.
+    @MainActor
+    func deleteInstalledModelForTesting() {
+        task?.cancel()
+        task = nil
+        resumeData = nil
+        if let url = try? LocalLLMService.preferredModelURL() {
+            try? FileManager.default.removeItem(at: url)
+        }
+        state = .notStarted
+    }
+    #endif
+
     @MainActor
     func cancelDownload() {
         task?.cancel()
