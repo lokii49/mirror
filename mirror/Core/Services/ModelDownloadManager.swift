@@ -20,6 +20,17 @@ enum ModelDownloadState: Equatable {
 final class ModelDownloadManager: NSObject {
     static let shared = ModelDownloadManager()
 
+    /// A background URLSession — not the default configuration — so the OS keeps
+    /// the ~770MB transfer running when mirror is backgrounded, suspended, or the
+    /// device is locked, instead of the transfer stalling/erroring the moment the
+    /// app stops being the foreground process. AppDelegate re-attaches to this same
+    /// identifier if iOS relaunches the app to deliver the completion event.
+    nonisolated static let backgroundSessionIdentifier = "com.lokesh.mirror.modelDownload"
+    /// Set by AppDelegate when iOS wakes the app to hand back a finished background
+    /// transfer — must be called once urlSessionDidFinishEvents fires, or the OS
+    /// won't grant background time for the next download's completion event.
+    var backgroundCompletionHandler: (() -> Void)?
+
     private nonisolated static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
     /// Rough estimate only — used to size the progress bar before the server's real
     /// Content-Length is known. Never used to validate a completed file; that check
@@ -39,7 +50,13 @@ final class ModelDownloadManager: NSObject {
 
     private override init() {
         super.init()
-        session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        let config = URLSessionConfiguration.background(withIdentifier: Self.backgroundSessionIdentifier)
+        // The user explicitly tapped Download — start now rather than iOS deferring
+        // it to whenever it judges conditions "optimal" (Wi-Fi + charging, etc.).
+        config.isDiscretionary = false
+        // Wake/relaunch the app when the transfer finishes even if it isn't running.
+        config.sessionSendsLaunchEvents = true
+        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         if (try? Self.installedModelExists()) == true {
             state = .installed
         }
@@ -209,6 +226,17 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         if nsError.code == NSURLErrorCancelled { return }
         Task { @MainActor in
             self.state = .failed(nsError.localizedDescription)
+        }
+    }
+
+    /// iOS calls this once all queued delegate callbacks for a background session
+    /// have been delivered — the completion handler AppDelegate stashed must be
+    /// called here, on the main thread, or the app won't get background time for
+    /// the next transfer's completion event.
+    nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        Task { @MainActor in
+            self.backgroundCompletionHandler?()
+            self.backgroundCompletionHandler = nil
         }
     }
 }
