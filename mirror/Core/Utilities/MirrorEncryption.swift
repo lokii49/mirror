@@ -4,11 +4,15 @@ import Security
 
 enum MirrorEncryption {
     private static let keyAccount = "mirror_content_key_v1"
+    private static let archiveAccount = "mirror_content_key_archive_v1"
     private static let textPrefix = "mirror:v1:"
     static let unavailableText = "[Encrypted entry unavailable on this device]"
 
     private nonisolated(unsafe) static var _cachedKey: SymmetricKey? = nil
     private nonisolated(unsafe) static var _didMigrateSession = false
+    private nonisolated(unsafe) static var _cachedFallbackKeys: [Data]? = nil
+    private nonisolated(unsafe) static var _fallbackKeysLoadedAt: Date? = nil
+    private static let fallbackCacheWindow: TimeInterval = 30
     private static let keyQueue = DispatchQueue(label: "com.mirror.encryption.key")
 
     static func encryptString(_ value: String) -> String {
@@ -81,11 +85,77 @@ enum MirrorEncryption {
 
     private static func decryptData(_ data: Data) throws -> Data {
         let box = try AES.GCM.SealedBox(combined: data)
-        return try AES.GCM.open(box, using: key(creatingIfNeeded: false))
+        let primary = try key(creatingIfNeeded: false)
+        if let opened = try? AES.GCM.open(box, using: primary) { return opened }
+
+        // Primary key failed — the ciphertext may predate a key rotation caused by the
+        // old clobber bug. Try every other key we can still reach (both Keychain slots
+        // plus the append-only archive) before giving up.
+        let primaryData = primary.withUnsafeBytes { Data($0) }
+        for candidate in fallbackKeyData() where candidate != primaryData {
+            if let opened = try? AES.GCM.open(box, using: SymmetricKey(data: candidate)) {
+                return opened
+            }
+        }
+        throw CryptoKitError.authenticationFailure
+    }
+
+    /// Every distinct content key reachable on this device: the archive (local + synced)
+    /// merged with whatever currently sits in the two live Keychain slots. Any newly seen
+    /// key is appended to the archive in both slots so it survives future slot overwrites
+    /// and propagates to other devices via iCloud Keychain.
+    private static func fallbackKeyData() -> [Data] {
+        keyQueue.sync { fallbackKeyDataLocked() }
+    }
+
+    private static func fallbackKeyDataLocked() -> [Data] {
+        if let cached = _cachedFallbackKeys,
+           let loadedAt = _fallbackKeysLoadedAt,
+           Date().timeIntervalSince(loadedAt) < fallbackCacheWindow {
+            return cached
+        }
+
+        let localArchive = parseArchive(KeychainManager.loadData(account: archiveAccount))
+        let syncedArchive = parseArchive(KeychainManager.loadData(account: archiveAccount, synchronizable: true))
+
+        var keys: [Data] = []
+        for candidate in localArchive + syncedArchive where candidate.count == 32 && !keys.contains(candidate) {
+            keys.append(candidate)
+        }
+        for synchronizable in [false, true] {
+            if let slot = KeychainManager.loadData(account: keyAccount, synchronizable: synchronizable),
+               slot.count == 32, !keys.contains(slot) {
+                keys.append(slot)
+            }
+        }
+
+        let blob = keys.reduce(Data(), +)
+        if keys != localArchive { KeychainManager.save(data: blob, account: archiveAccount) }
+        if keys != syncedArchive { KeychainManager.save(data: blob, account: archiveAccount, synchronizable: true) }
+
+        _cachedFallbackKeys = keys
+        _fallbackKeysLoadedAt = Date()
+        return keys
+    }
+
+    private static func parseArchive(_ blob: Data?) -> [Data] {
+        guard let blob, !blob.isEmpty, blob.count % 32 == 0 else { return [] }
+        var keys: [Data] = []
+        var index = blob.startIndex
+        while index < blob.endIndex {
+            let next = blob.index(index, offsetBy: 32)
+            keys.append(Data(blob[index..<next]))
+            index = next
+        }
+        return keys
     }
 
     private static func key(creatingIfNeeded: Bool) throws -> SymmetricKey {
         try keyQueue.sync {
+            // Keep the key archive fresh on every device, including ones where decryption
+            // never fails — that's how a key stranded on an old device reaches this one.
+            defer { _ = fallbackKeyDataLocked() }
+
             if let cached = _cachedKey { return cached }
 
             if let existing = KeychainManager.loadData(account: keyAccount), existing.count == 32 {
