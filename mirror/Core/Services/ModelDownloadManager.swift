@@ -16,13 +16,15 @@ enum ModelDownloadState: Equatable {
 /// by roughly 800MB, since a journaling app with an 800MB install size is a hard
 /// bounce for most users before they even open it once.
 @Observable
+@MainActor
 final class ModelDownloadManager: NSObject {
     static let shared = ModelDownloadManager()
 
-    private static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
+    private nonisolated static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
     /// From the source repo's file listing — used to validate a completed download
-    /// wasn't truncated or corrupted before it's handed to the LLM.
-    private static let expectedByteCount: Int64 = 806_058_496
+    /// wasn't truncated or corrupted before it's handed to the LLM. Referenced from
+    /// the nonisolated URLSessionDownloadDelegate callbacks, so must stay nonisolated.
+    private nonisolated static let expectedByteCount: Int64 = 806_058_496
 
     private(set) var state: ModelDownloadState = .notStarted
 
@@ -67,9 +69,10 @@ final class ModelDownloadManager: NSObject {
     @MainActor
     func pauseDownload() {
         task?.cancel { [weak self] data in
+            guard let self else { return }
             Task { @MainActor in
-                self?.resumeData = data
-                self?.state = .paused(resumable: data != nil)
+                self.resumeData = data
+                self.state = .paused(resumable: data != nil)
             }
         }
     }
@@ -133,7 +136,7 @@ final class ModelDownloadManager: NSObject {
 }
 
 extension ModelDownloadManager: URLSessionDownloadDelegate {
-    func urlSession(
+    nonisolated func urlSession(
         _ session: URLSession,
         downloadTask: URLSessionDownloadTask,
         didWriteData bytesWritten: Int64,
@@ -147,7 +150,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         }
     }
 
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         // The delegate must move the file synchronously before this method returns —
         // the system deletes whatever's at `location` immediately after we return.
         let tempURL = FileManager.default.temporaryDirectory
@@ -166,7 +169,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error else { return }
         let nsError = error as NSError
         if nsError.code == NSURLErrorCancelled { return }
