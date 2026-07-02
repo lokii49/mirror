@@ -71,6 +71,7 @@ extension WriteView {
                 modelContext.insert(entry)
                 try? modelContext.save()
                 autoDetectMoodIfNeeded(for: entry)
+                ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
                 let ctx = modelContext
                 Task { @MainActor in
                     await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
@@ -116,6 +117,7 @@ extension WriteView {
         modelContext.insert(savedEntry)
         try? modelContext.save()
         autoDetectMoodIfNeeded(for: savedEntry)
+        ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
         clearDraftStorage()
