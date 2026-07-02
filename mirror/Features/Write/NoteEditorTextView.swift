@@ -103,6 +103,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         private static let paragraphStyleAttribute = NSAttributedString.Key("mirror.paragraphStyle")
         private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
         private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
+        private static let fontChoiceAttribute = NSAttributedString.Key("mirror.fontChoice")
         private var isApplyingStyledText = false
         private var lastRenderedText: String?
         private var lastRenderedStyleSignature: Int?
@@ -158,6 +159,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let paraRange = nsText.paragraphRange(for: NSRange(location: charIndex, length: 0))
             let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
             let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let iFontChoice = fontChoiceValue(at: paraRange.location, in: textView.attributedText)
             let markerStart = textView.textContainerInset.left + CGFloat(iLevel) * 20
             let markerEnd = textView.textContainerInset.left + 44 + CGFloat(iLevel) * 20
             guard location.x >= markerStart && location.x <= markerEnd else { return }
@@ -165,20 +167,46 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let nextStyle: NoteParagraphTextStyle = currentStyle == .checklistUnchecked ? .checklistChecked : .checklistUnchecked
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
-            mutable.removeAttribute(Self.paragraphStyleAttribute, range: paraRange)
-            mutable.addAttributes(attributes(for: nextStyle, level: iLevel), range: paraRange)
-            mutable.addAttribute(Self.paragraphStyleAttribute, value: nextStyle.rawValue, range: paraRange)
-            if iLevel > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: iLevel, range: paraRange) }
+
+            // Attribute changes alone re-color the row but never touch the ○/✓
+            // character itself — swap the marker glyph in place so the tick shows
+            // immediately instead of waiting for the next full re-render (e.g. Enter).
+            let oldMarker = staticListMarkerPrefix(for: currentStyle, level: iLevel) ?? ""
+            let newMarker = staticListMarkerPrefix(for: nextStyle, level: iLevel) ?? ""
+            let markerRange = bounded(NSRange(location: paraRange.location, length: (oldMarker as NSString).length), in: mutable.string)
+            if markerRange.length > 0 {
+                mutable.replaceCharacters(in: markerRange, with: newMarker)
+            }
+            let styledRange = bounded(NSRange(
+                location: paraRange.location,
+                length: paraRange.length - markerRange.length + (newMarker as NSString).length
+            ), in: mutable.string)
+
+            mutable.removeAttribute(Self.paragraphStyleAttribute, range: styledRange)
+            mutable.addAttributes(attributes(for: nextStyle, level: iLevel, fontChoice: iFontChoice), range: styledRange)
+            mutable.addAttribute(Self.paragraphStyleAttribute, value: nextStyle.rawValue, range: styledRange)
+            if iLevel > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: iLevel, range: styledRange) }
+            if iFontChoice != entryDefaultFontChoice { mutable.addAttribute(Self.fontChoiceAttribute, value: iFontChoice.rawValue, range: styledRange) }
 
             isApplyingStyledText = true
-            applyAttributedText(mutable, to: textView)
-            textView.selectedRange = bounded(NSRange(location: charIndex, length: 0), in: text)
+            // A hard `attributedText` swap reads as an instant, jarring cut when
+            // toggling a checkbox — crossfade the marker glyph and the text dimming
+            // together so it reads as one smooth transition, à la Notes.
+            UIView.transition(with: textView, duration: 0.2, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                self.applyAttributedText(mutable, to: textView)
+                textView.selectedRange = self.bounded(NSRange(location: charIndex, length: 0), in: textView.text)
+            }
             isApplyingStyledText = false
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            // Sorting checked items to the bottom is still available via the "Sort Done"
+            // button, not automatic here — sortCheckedToBottom nils inline style data
+            // note-wide on every reorder, so firing it on every check would silently
+            // strip bold/italic/highlight elsewhere in the entry. Real Notes ships this
+            // off by default too.
         }
 
         // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
@@ -237,8 +265,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         // sites — cache the built font, but keyed on the user's choice so switching
         // fonts in the formatting panel takes effect immediately.
         private var _bodyFontCache: (choice: WritingFontChoice, font: UIFont)?
-        var serifBodyFont: UIFont {
-            let choice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
+        func bodyFont(for choice: WritingFontChoice) -> UIFont {
             if let cache = _bodyFontCache, cache.choice == choice {
                 return cache.font
             }
@@ -248,13 +275,19 @@ struct NoteEditorTextView: UIViewRepresentable {
             return font
         }
 
-        var bodyAttributes: [NSAttributedString.Key: Any] {
+        // Entry-wide default font — legitimate for contexts with no specific paragraph
+        // in play (placeholder text, an empty document's typing attributes, etc).
+        var serifBodyFont: UIFont { bodyFont(for: entryDefaultFontChoice) }
+
+        func bodyAttributes(fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             [
-                .font: serifBodyFont,
+                .font: bodyFont(for: fontChoice),
                 .foregroundColor: UIColor.label,
                 .paragraphStyle: paragraphStyle(lineSpacing: 6)
             ]
         }
+
+        var bodyAttributes: [NSAttributedString.Key: Any] { bodyAttributes(fontChoice: entryDefaultFontChoice) }
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
@@ -285,6 +318,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             if replacement.isEmpty, exitsEmptyListAfterDeletion(in: rendered, range: range, textView: textView) {
+                return false
+            }
+
+            if replacement.isEmpty, mergesParagraphsOfDifferentStyle(in: rendered, range: range, textView: textView) {
                 return false
             }
 
@@ -320,6 +357,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                     }
                     return false
                 }
+                if style == .title || style == .heading || style == .subheading || style == .monospaced {
+                    // Headings/titles/mono are one-line blocks by convention — continuing
+                    // to type after Return should drop back to body text, not keep
+                    // growing as another heading. Only affects what's typed *after* the
+                    // break; text split off mid-paragraph keeps its own attributes.
+                    // Font family is a separate, sticky property though — it survives
+                    // the block-style reset, matching Notes/Docs/Notion.
+                    let returnFontChoice = fontChoiceValue(at: paragraphRange.location, in: textView.attributedText)
+                    textView.typingAttributes = styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: returnFontChoice)
+                }
             }
 
             return true
@@ -351,10 +398,11 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let paraLevel = indentLevelValue(at: paragraphRange.location, in: mutable)
+            let paraFontChoice = fontChoiceValue(at: paragraphRange.location, in: mutable)
             let insertionRange = bounded(NSRange(location: markerEnd, length: 0), in: mutable.string)
             let attributedReplacement = NSAttributedString(
                 string: replacement,
-                attributes: styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel)
+                attributes: styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel, fontChoice: paraFontChoice)
             )
             mutable.replaceCharacters(in: insertionRange, with: attributedReplacement)
 
@@ -368,10 +416,11 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
-            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel, fontChoice: paraFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             refreshActiveParagraphStyle(in: textView)
+            refreshActiveFontChoice(in: textView)
             return true
         }
 
@@ -410,6 +459,49 @@ struct NoteEditorTextView: UIViewRepresentable {
             return true
         }
 
+        // Backspacing the "\n" that separates two differently-styled paragraphs (e.g. a
+        // Heading line into the Body line below it) would otherwise fall through to
+        // default UIKit deletion: the two character runs just get glued together, each
+        // keeping its own attributes for now. But only one style is ever recorded per
+        // paragraph — read from the merged paragraph's *first* character — so the next
+        // full re-render (backgrounding, reopening the entry) silently promotes the
+        // whole merged paragraph to that style. Handle the merge explicitly instead:
+        // the preceding paragraph's style wins immediately, same convention as
+        // Notion/Docs/Notes, so there's no delayed surprise.
+        private func mergesParagraphsOfDifferentStyle(in rendered: String, range: NSRange, textView: UITextView) -> Bool {
+            guard range.length == 1 else { return false }
+            let nsText = rendered as NSString
+            guard range.location >= 0, range.location < nsText.length,
+                  nsText.character(at: range.location) == 10 else { return false }
+
+            let prevStyle = textStyle(at: range.location, in: textView.attributedText)
+            let nextLocation = range.location + 1
+            guard nextLocation < nsText.length else { return false }
+            let nextStyle = textStyle(at: nextLocation, in: textView.attributedText)
+            guard !isListStyle(prevStyle), !isListStyle(nextStyle), prevStyle != nextStyle else { return false }
+
+            let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
+            mutable.deleteCharacters(in: NSRange(location: range.location, length: 1))
+
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            textView.selectedRange = bounded(NSRange(location: range.location, length: 0), in: textView.text)
+            isApplyingStyledText = false
+            parent.text = logicalText(from: textView)
+            // textStyleData naturally records prevStyle for the merged paragraph (its
+            // first character is untouched), and inline ranges are captured fresh here
+            // — before the structural rebuild below touches paragraph-level font/color —
+            // so bold/italic/highlight on either half survive the merge.
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            syncRenderedCache(from: textView)
+            updateTypingAttributes(for: textView)
+            updatePlaceholder(in: textView)
+            return true
+        }
+
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             true
         }
@@ -419,6 +511,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastKnownCursorLocation = textView.selectedRange.location
             clampCursorPastListMarker(in: textView)
             refreshActiveParagraphStyle(in: textView)
+            refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
         }
 
@@ -455,6 +548,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.isFocused = true
             lastKnownCursorLocation = textView.selectedRange.location
             refreshActiveParagraphStyle(in: textView)
+            refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
         }
 
@@ -470,6 +564,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             case .highlight(let index):
                 applyHighlight(index, in: textView)
+                return
+            case .fontFamily(let choice):
+                applyFontFamily(choice, in: textView)
                 return
             case .checkAllItems:
                 bulkSetChecklist(.checklistChecked, in: textView)
@@ -533,6 +630,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let cursorLevel = isListStyle(targetStyle) ? indentLevelValue(at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)), in: textView.attributedText) : 0
+            // A paragraph-STYLE command (Heading/Body/list toggle) must never silently
+            // reset the cursor's current font — resolve and carry it through every
+            // branch below, same as cursorLevel already does for indent.
+            let cursorFontChoice = fontChoiceValue(at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)), in: textView.attributedText)
 
             if nsText.length == 0 {
                 parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [targetStyle]))
@@ -543,9 +644,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 } else if targetStyle == .numberedList {
                     textView.selectedRange = bounded(NSRange(location: "1.  ".count, length: 0), in: textView.text)
                 }
-                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel)
+                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: cursorFontChoice)
                 updatePlaceholder(in: textView)
                 parent.activeParagraphStyle = targetStyle
+                parent.panelState.activeParagraphStyle = targetStyle
                 return
             }
 
@@ -563,12 +665,19 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if isListStyle(targetStyle) {
                     // Extend textStyleData to cover the virtual paragraph, then re-render to insert the marker.
                     var styles = decodedTextStyles()
+                    var indentLevels = decodedIndentLevels()
+                    var fontChoices = decodedFontChoices()
                     if styles.isEmpty {
                         var count = 0
                         nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length),
                                                    options: [.byParagraphs, .substringNotRequired]) { _, _, _, _ in count += 1 }
                         styles = Array(repeating: .body, count: count)
                     }
+                    // Preserve existing paragraphs' indent/font before appending or overwriting the
+                    // virtual one below — rebuilding the document from `styles` alone would silently
+                    // drop every other paragraph's font/indent override.
+                    while indentLevels.count < styles.count { indentLevels.append(0) }
+                    while fontChoices.count < styles.count { fontChoices.append(entryDefaultFontChoice.rawValue) }
                     // Only append when cursor is in a true ghost paragraph (text ends with a line break).
                     // When the last paragraph just has no trailing newline (e.g. "○  " clamped to end),
                     // the last styles entry already covers it — update it instead of appending.
@@ -576,10 +685,20 @@ struct NoteEditorTextView: UIViewRepresentable {
                     let endsWithLineBreak = lastChar == 10 || lastChar == 13
                     if endsWithLineBreak || styles.isEmpty {
                         styles.append(targetStyle)
+                        indentLevels.append(cursorLevel)
+                        fontChoices.append(cursorFontChoice.rawValue)
                     } else {
                         styles[styles.count - 1] = targetStyle
+                        indentLevels[indentLevels.count - 1] = cursorLevel
+                        fontChoices[fontChoices.count - 1] = cursorFontChoice.rawValue
                     }
-                    parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles))
+                    let hasIndent = indentLevels.contains { $0 != 0 }
+                    let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
+                    parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
+                        paragraphStyles: styles,
+                        indentLevels: hasIndent ? indentLevels : nil,
+                        fontChoices: hasFontOverride ? fontChoices : nil
+                    ))
                     invalidateRenderedCache()
                     applyStyledText(to: textView, preservingSelection: false)
                     let markerLen: Int
@@ -595,10 +714,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                         NSRange(location: cursorLocation + markerLen, length: 0),
                         in: textView.text
                     )
-                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
                 } else {
                     // Non-list style: typing attributes alone are sufficient; no re-render needed.
-                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                    textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
                 }
                 updatePlaceholder(in: textView)
                 parent.activeParagraphStyle = targetStyle
@@ -607,7 +726,11 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             }
 
-            let cursorRange = NSRange(location: cursorLocation, length: 0)
+            // A real (non-zero-length) selection can span multiple paragraphs — widen to
+            // the full selection so every paragraph it touches gets restyled, not just
+            // the one at the selection's start.
+            let selectionRange = textView.isFirstResponder ? textView.selectedRange : NSRange(location: cursorLocation, length: 0)
+            let cursorRange = bounded(selectionRange, in: nsText as String)
             let paragraphRange = nsText.paragraphRange(for: cursorRange)
 
             // List A → different List B: setParagraphStyle changes the attribute first, then calls
@@ -633,7 +756,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                         in: textView.text
                     )
                 }
-                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
                 parent.activeParagraphStyle = targetStyle
                 parent.panelState.activeParagraphStyle = targetStyle
                 refreshActiveInlineStyles(in: textView)
@@ -665,7 +788,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             } else {
                 textView.selectedRange = bounded(NSRange(location: cursorLocation, length: 0), in: textView.text)
             }
-            textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel)
+            textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
             updatePlaceholder(in: textView)
             parent.activeParagraphStyle = targetStyle
         }
@@ -698,10 +821,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let newParaRange = bounded(NSRange(location: displayParaRange.location, length: newParaLen), in: mutable.string)
             if newParaRange.length > 0 {
                 let level = indentLevelValue(at: displayParaRange.location, in: attributed)
+                let fontChoice = fontChoiceValue(at: displayParaRange.location, in: attributed)
                 mutable.removeAttribute(Self.paragraphStyleAttribute, range: newParaRange)
-                mutable.addAttributes(attributes(for: targetStyle, level: level), range: newParaRange)
+                mutable.addAttributes(attributes(for: targetStyle, level: level, fontChoice: fontChoice), range: newParaRange)
                 if targetStyle != .body {
                     mutable.addAttribute(Self.paragraphStyleAttribute, value: targetStyle.rawValue, range: newParaRange)
+                }
+                if fontChoice != entryDefaultFontChoice {
+                    mutable.addAttribute(Self.fontChoiceAttribute, value: fontChoice.rawValue, range: newParaRange)
                 }
             }
 
@@ -715,9 +842,8 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let newCursor = max(displayParaRange.location, cursorLocation - markerLen)
             textView.selectedRange = bounded(NSRange(location: newCursor, length: 0), in: textView.text)
-            textView.typingAttributes = targetStyle == .body
-                ? bodyAttributes
-                : styledAttributesForTyping(targetStyle, numberedIndex: nil)
+            let typingFontChoice = fontChoiceValue(at: displayParaRange.location, in: attributed)
+            textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: 0, fontChoice: typingFontChoice)
             updatePlaceholder(in: textView)
         }
 
@@ -732,7 +858,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let inlineSignature = parent.inlineStyleData?.hashValue
             let photoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             let width = textView.bounds.width.rounded()
-            let fontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
+            let fontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .system
 
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
@@ -787,6 +913,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
             parent.activeParagraphStyle = textStyle(at: loc, in: attributed)
+        }
+
+        private func refreshActiveFontChoice(in textView: UITextView) {
+            guard let attributed = textView.attributedText, attributed.length > 0 else {
+                parent.panelState.activeFontChoice = entryDefaultFontChoice
+                return
+            }
+            if lastKnownCursorLocation >= attributed.length {
+                if let raw = textView.typingAttributes[Self.fontChoiceAttribute] as? String,
+                   let choice = WritingFontChoice(rawValue: raw) {
+                    parent.panelState.activeFontChoice = choice
+                } else {
+                    parent.panelState.activeFontChoice = entryDefaultFontChoice
+                }
+                return
+            }
+            let loc = min(lastKnownCursorLocation, attributed.length - 1)
+            parent.panelState.activeFontChoice = fontChoiceValue(at: loc, in: attributed)
         }
 
         func logicalText(from textView: UITextView) -> String {
@@ -863,7 +1007,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             return ""
         }
 
-        private func attributes(for style: NoteParagraphTextStyle, level: Int = 0, numberedIndex: Int? = nil) -> [NSAttributedString.Key: Any] {
+        // fontChoice is required, not defaulted — callers changing an EXISTING
+        // paragraph's style must explicitly read and preserve its current font via
+        // fontChoiceValue(at:in:) (same pattern already used for `level`), so a style
+        // change (e.g. checking a checklist item) never silently resets that
+        // paragraph's font back to the entry default.
+        private func attributes(for style: NoteParagraphTextStyle, level: Int = 0, numberedIndex: Int? = nil, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             switch style {
             case .subheading:
                 return [
@@ -885,58 +1034,54 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ]
             case .monospaced:
                 return [
-                    .font: UIFont.monospacedSystemFont(ofSize: serifBodyFont.pointSize, weight: .regular),
+                    .font: UIFont.monospacedSystemFont(ofSize: bodyFont(for: fontChoice).pointSize, weight: .regular),
                     .foregroundColor: UIColor.label,
                     .paragraphStyle: paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
                 ]
             case .checklistUnchecked:
-                return checklistAttributes(checked: false, level: level)
+                return checklistAttributes(checked: false, level: level, fontChoice: fontChoice)
             case .checklistChecked:
-                return checklistAttributes(checked: true, level: level)
+                return checklistAttributes(checked: true, level: level, fontChoice: fontChoice)
             case .bulletedList, .dashedList, .numberedList:
-                return listAttributes(level: level)
+                return listAttributes(level: level, fontChoice: fontChoice)
             case .body:
-                return bodyAttributes
+                return bodyAttributes(fontChoice: fontChoice)
             }
         }
 
-        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body, level: Int = 0) -> [NSAttributedString.Key: Any] {
+        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             if storedStyle != .body {
-                return attributes(for: storedStyle, level: level)
+                return attributes(for: storedStyle, level: level, fontChoice: fontChoice)
             }
-            if paragraph.hasPrefix("### ") { return attributes(for: .subheading) }
-            if paragraph.hasPrefix("## ") { return attributes(for: .heading) }
-            if paragraph.hasPrefix("# ") { return attributes(for: .title) }
-            if paragraph.hasPrefix("    ") { return attributes(for: .monospaced) }
-            if paragraph.hasPrefix("○ ") { return checklistAttributes(checked: false, level: level) }
-            if paragraph.hasPrefix("✓ ") { return checklistAttributes(checked: true, level: level) }
-            return bodyAttributes
+            if paragraph.hasPrefix("### ") { return attributes(for: .subheading, fontChoice: fontChoice) }
+            if paragraph.hasPrefix("## ") { return attributes(for: .heading, fontChoice: fontChoice) }
+            if paragraph.hasPrefix("# ") { return attributes(for: .title, fontChoice: fontChoice) }
+            if paragraph.hasPrefix("    ") { return attributes(for: .monospaced, fontChoice: fontChoice) }
+            if paragraph.hasPrefix("○ ") { return checklistAttributes(checked: false, level: level, fontChoice: fontChoice) }
+            if paragraph.hasPrefix("✓ ") { return checklistAttributes(checked: true, level: level, fontChoice: fontChoice) }
+            return bodyAttributes(fontChoice: fontChoice)
         }
 
-        private func checklistAttributes(checked: Bool, level: Int = 0) -> [NSAttributedString.Key: Any] {
+        private func checklistAttributes(checked: Bool, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             let offset = CGFloat(level) * 20
             let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
             ps.firstLineHeadIndent = offset
             ps.headIndent = 44 + offset
-            var attrs: [NSAttributedString.Key: Any] = [
-                .font: serifBodyFont,
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: bodyFont(for: fontChoice),
                 .foregroundColor: checked ? UIColor.tertiaryLabel : UIColor.label,
                 .paragraphStyle: ps
             ]
-            if checked {
-                attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-                attrs[.strikethroughColor] = UIColor.tertiaryLabel
-            }
             return attrs
         }
 
-        private func listAttributes(level: Int = 0) -> [NSAttributedString.Key: Any] {
+        private func listAttributes(level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             let offset = CGFloat(level) * 20
             let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
             ps.firstLineHeadIndent = offset
             ps.headIndent = 28 + offset
             return [
-                .font: serifBodyFont,
+                .font: bodyFont(for: fontChoice),
                 .foregroundColor: UIColor.label,
                 .paragraphStyle: ps
             ]
@@ -980,8 +1125,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                let firstStyle = decodedTextStyles().first {
                 let marker = staticListMarkerPrefix(for: firstStyle) ?? (firstStyle == .numberedList ? "1.  " : nil)
                 if let marker {
-                    let paragraph = NSMutableAttributedString(string: marker, attributes: attributes(for: firstStyle))
+                    let firstFontChoice = decodedFontChoices().first.flatMap(WritingFontChoice.init(rawValue:)) ?? entryDefaultFontChoice
+                    let paragraph = NSMutableAttributedString(string: marker, attributes: attributes(for: firstStyle, fontChoice: firstFontChoice))
                     paragraph.addAttribute(Self.paragraphStyleAttribute, value: firstStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
+                    if firstFontChoice != entryDefaultFontChoice {
+                        paragraph.addAttribute(Self.fontChoiceAttribute, value: firstFontChoice.rawValue, range: NSRange(location: 0, length: paragraph.length))
+                    }
                     attributed.append(paragraph)
                     paragraphMarkerLengths[0] = (marker as NSString).length
                 }
@@ -1020,6 +1169,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard !rawParagraphs.isEmpty else { return (attributed, 0) }
             let storedStyles = decodedTextStyles()
             let storedIndents = decodedIndentLevels()
+            let storedFontChoices = decodedFontChoices()
             var paragraphIndex = startingParagraph
             var numberedListCounter = 0
 
@@ -1029,6 +1179,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let legacyStyle = self.legacyStyle(in: rawParagraph)
                 let storedStyle = storedStyles.indices.contains(paragraphIndex) ? storedStyles[paragraphIndex] : legacyStyle
                 let indentLevel = storedIndents.indices.contains(paragraphIndex) ? storedIndents[paragraphIndex] : 0
+                let hasFontOverride = storedFontChoices.indices.contains(paragraphIndex)
+                let fontChoice = hasFontOverride
+                    ? (WritingFontChoice(rawValue: storedFontChoices[paragraphIndex]) ?? entryDefaultFontChoice)
+                    : entryDefaultFontChoice
 
                 // Track numbered list counter for sequential numbering
                 if storedStyle == .numberedList {
@@ -1056,13 +1210,20 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 let paragraph = NSMutableAttributedString(
                     string: displayParagraph,
-                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle, level: indentLevel)
+                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle, level: indentLevel, fontChoice: fontChoice)
                 )
                 if storedStyle != .body, paragraph.length > 0 {
                     paragraph.addAttribute(Self.paragraphStyleAttribute, value: storedStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
                 }
                 if indentLevel > 0, paragraph.length > 0 {
                     paragraph.addAttribute(Self.indentLevelAttribute, value: indentLevel, range: NSRange(location: 0, length: paragraph.length))
+                }
+                // Tag only when it actually differs from the entry default — same rule
+                // used at every live-edit site, so a later edit that re-resolves this
+                // paragraph's font (e.g. a checklist toggle) can't silently strip an
+                // explicit tag by disagreeing on what "explicit" means.
+                if fontChoice != entryDefaultFontChoice, paragraph.length > 0 {
+                    paragraph.addAttribute(Self.fontChoiceAttribute, value: fontChoice.rawValue, range: NSRange(location: 0, length: paragraph.length))
                 }
                 attributed.append(paragraph)
                 paragraphIndex += 1
@@ -1184,7 +1345,8 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let style = textStyle(at: cursorLoc, in: textView.attributedText)
             let level = indentLevelValue(at: cursorLoc, in: textView.attributedText)
-            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level)
+            let fontChoice = fontChoiceValue(at: cursorLoc, in: textView.attributedText)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
         }
 
         private func paragraphStyle(for command: NoteTextCommand) -> NoteParagraphTextStyle {
@@ -1201,13 +1363,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
 
-        private func styledAttributesForTyping(_ style: NoteParagraphTextStyle, numberedIndex: Int?, level: Int = 0) -> [NSAttributedString.Key: Any] {
-            var result = attributes(for: style, level: level)
+        private func styledAttributesForTyping(_ style: NoteParagraphTextStyle, numberedIndex: Int?, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
+            var result = attributes(for: style, level: level, fontChoice: fontChoice)
             if style != .body {
                 result[Self.paragraphStyleAttribute] = style.rawValue
             }
             if level > 0 {
                 result[Self.indentLevelAttribute] = level
+            }
+            if fontChoice != entryDefaultFontChoice {
+                result[Self.fontChoiceAttribute] = fontChoice.rawValue
             }
             return result
         }
@@ -1226,13 +1391,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let boundedRange = bounded(range, in: mutable.string)
             let level = indentLevelValue(at: boundedRange.location, in: mutable)
+            let fontChoice = fontChoiceValue(at: boundedRange.location, in: mutable)
             mutable.removeAttribute(Self.paragraphStyleAttribute, range: boundedRange)
-            mutable.addAttributes(attributes(for: style, level: level), range: boundedRange)
+            mutable.addAttributes(attributes(for: style, level: level, fontChoice: fontChoice), range: boundedRange)
             if style != .body {
                 mutable.addAttribute(Self.paragraphStyleAttribute, value: style.rawValue, range: boundedRange)
             }
             // Re-stamp indent level (attributes(for:level:) sets paragraphStyle but not the custom key)
             if level > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: level, range: boundedRange) }
+            if fontChoice != entryDefaultFontChoice {
+                mutable.addAttribute(Self.fontChoiceAttribute, value: fontChoice.rawValue, range: boundedRange)
+            }
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
@@ -1243,18 +1412,84 @@ struct NoteEditorTextView: UIViewRepresentable {
             updateTypingAttributes(for: textView)
         }
 
+        // Same shape as setParagraphStyle, but changes only the font — paragraph style
+        // and indent are read from the existing paragraph and re-applied unchanged, so
+        // a font-family command never disturbs block style or list nesting.
+        private func setParagraphFontChoice(_ choice: WritingFontChoice, range: NSRange, in textView: UITextView) {
+            let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
+            let boundedRange = bounded(range, in: mutable.string)
+            guard boundedRange.length > 0 else { return }
+            let style = textStyle(at: boundedRange.location, in: mutable)
+            let level = indentLevelValue(at: boundedRange.location, in: mutable)
+            mutable.removeAttribute(Self.fontChoiceAttribute, range: boundedRange)
+            mutable.addAttributes(attributes(for: style, level: level, fontChoice: choice), range: boundedRange)
+            if style != .body {
+                mutable.addAttribute(Self.paragraphStyleAttribute, value: style.rawValue, range: boundedRange)
+            }
+            if level > 0 { mutable.addAttribute(Self.indentLevelAttribute, value: level, range: boundedRange) }
+            if choice != entryDefaultFontChoice {
+                mutable.addAttribute(Self.fontChoiceAttribute, value: choice.rawValue, range: boundedRange)
+            }
+
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            isApplyingStyledText = false
+            parent.text = logicalText(from: textView)
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            syncRenderedCache(from: textView)
+        }
+
+        func applyFontFamily(_ choice: WritingFontChoice, in textView: UITextView) {
+            let nsText = (textView.text ?? "") as NSString
+            let liveCursorLocation = textView.isFirstResponder ? textView.selectedRange.location : lastKnownCursorLocation
+            let cursorLocation = min(liveCursorLocation, max(0, nsText.length))
+            lastKnownCursorLocation = cursorLocation
+
+            if nsText.length == 0 || cursorLocation >= nsText.length {
+                // Nothing to restyle yet (empty document, or cursor past the last
+                // character in a virtual trailing paragraph) — typing attributes alone
+                // carry the choice to whatever gets typed next, same as the general
+                // paragraph-style apply() path handles this exact ambiguity.
+                let anchor = max(0, nsText.length - 1)
+                let style = nsText.length == 0 ? .body : textStyle(at: anchor, in: textView.attributedText)
+                let level = nsText.length == 0 ? 0 : indentLevelValue(at: anchor, in: textView.attributedText)
+                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: choice)
+                parent.panelState.activeFontChoice = choice
+                return
+            }
+
+            // A real selection can span multiple paragraphs — same widening as the
+            // general paragraph-style apply() path, so selecting 3 paragraphs and
+            // tapping a font restyles all 3, not just the one at the selection's start.
+            let selectionRange = textView.isFirstResponder ? textView.selectedRange : NSRange(location: cursorLocation, length: 0)
+            let cursorRange = bounded(selectionRange, in: nsText as String)
+            let paragraphRange = nsText.paragraphRange(for: cursorRange)
+
+            nsText.enumerateSubstrings(in: paragraphRange, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+                self.setParagraphFontChoice(choice, range: range, in: textView)
+            }
+
+            textView.selectedRange = bounded(NSRange(location: cursorLocation, length: 0), in: textView.text)
+            let level = indentLevelValue(at: cursorLocation, in: textView.attributedText)
+            let style = textStyle(at: cursorLocation, in: textView.attributedText)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: choice)
+            updatePlaceholder(in: textView)
+            parent.panelState.activeFontChoice = choice
+        }
+
         // Insert a new row with the same list style after pressing Return on a non-empty list item
         private func insertListRow(replacing range: NSRange, style: NoteParagraphTextStyle, in textView: UITextView) {
             // For numbered lists, the new row will be numbered after render; just insert unchecked for checklist
             let newStyle: NoteParagraphTextStyle = (style == .checklistChecked) ? .checklistUnchecked : style
             let rowLevel = indentLevelValue(at: max(0, range.location - 1), in: textView.attributedText)
+            let rowFontChoice = fontChoiceValue(at: max(0, range.location - 1), in: textView.attributedText)
             let marker = staticListMarkerPrefix(for: newStyle, level: rowLevel) ?? (newStyle == .numberedList ? "N.  " : "")
             let insertion = "\n" + marker
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let insertionRange = bounded(range, in: mutable.string)
             let attributedInsertion = NSMutableAttributedString(
                 string: insertion,
-                attributes: styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel)
+                attributes: styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel, fontChoice: rowFontChoice)
             )
             mutable.replaceCharacters(in: insertionRange, with: attributedInsertion)
 
@@ -1271,7 +1506,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Re-render to show correct number
             if newStyle == .numberedList { invalidateRenderedCache() }
             applyStyledText(to: textView, preservingSelection: false)
-            textView.typingAttributes = styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel)
+            textView.typingAttributes = styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel, fontChoice: rowFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
         }
@@ -1281,9 +1516,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             let boundedRange = bounded(paragraphRange, in: mutable.string)
             let paragraph = (mutable.string as NSString).substring(with: boundedRange)
             let lineBreak = trailingLineBreak(from: paragraph)
+            let exitFontChoice = fontChoiceValue(at: boundedRange.location, in: mutable)
             mutable.replaceCharacters(
                 in: boundedRange,
-                with: NSAttributedString(string: lineBreak, attributes: bodyAttributes)
+                with: NSAttributedString(
+                    string: lineBreak,
+                    attributes: styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: exitFontChoice)
+                )
             )
 
             isApplyingStyledText = true
@@ -1292,7 +1531,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = false
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
-            textView.typingAttributes = bodyAttributes
+            textView.typingAttributes = styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: exitFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
         }
@@ -1372,10 +1611,36 @@ struct NoteEditorTextView: UIViewRepresentable {
             return levels
         }
 
+        private func decodedFontChoices() -> [String] {
+            guard let data = parent.textStyleData,
+                  let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data),
+                  let choices = document.fontChoices else {
+                return []
+            }
+            return choices
+        }
+
+        private var entryDefaultFontChoice: WritingFontChoice {
+            WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .system
+        }
+
         private func indentLevelValue(at location: Int, in attributed: NSAttributedString?) -> Int {
             guard let attributed, attributed.length > 0 else { return 0 }
             let loc = min(max(0, location), attributed.length - 1)
             return attributed.attribute(Self.indentLevelAttribute, at: loc, effectiveRange: nil) as? Int ?? 0
+        }
+
+        // No per-paragraph tag means "no override" — falls back to the entry's own
+        // default font choice, not a hardcoded one, so untouched paragraphs keep
+        // following the entry-wide setting exactly like before this feature existed.
+        private func fontChoiceValue(at location: Int, in attributed: NSAttributedString?) -> WritingFontChoice {
+            guard let attributed, attributed.length > 0 else { return entryDefaultFontChoice }
+            let loc = min(max(0, location), attributed.length - 1)
+            if let raw = attributed.attribute(Self.fontChoiceAttribute, at: loc, effectiveRange: nil) as? String,
+               let choice = WritingFontChoice(rawValue: raw) {
+                return choice
+            }
+            return entryDefaultFontChoice
         }
 
         private func applyAttributedText(_ attr: NSAttributedString, to textView: UITextView) {
@@ -1396,15 +1661,21 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             var styles: [NoteParagraphTextStyle] = []
             var levels: [Int] = []
+            var fontChoices: [String] = []
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
                 styles.append(self.textStyle(at: range.location, in: attributed))
                 levels.append(self.indentLevelValue(at: range.location, in: attributed))
+                fontChoices.append(self.fontChoiceValue(at: range.location, in: attributed).rawValue)
             }
-            guard styles.contains(where: { $0 != .body }) else { return nil }
             let hasIndent = levels.contains(where: { $0 > 0 })
+            // A plain-body, non-indented paragraph can still carry a font override —
+            // don't let the old "all body, nothing to persist" shortcut silently drop it.
+            let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
+            guard styles.contains(where: { $0 != .body }) || hasIndent || hasFontOverride else { return nil }
             return try? JSONEncoder().encode(NoteTextStyleDocument(
                 paragraphStyles: styles,
-                indentLevels: hasIndent ? levels : nil
+                indentLevels: hasIndent ? levels : nil,
+                fontChoices: fontChoices
             ))
         }
 
@@ -1422,7 +1693,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastRenderedInlineSignature = parent.inlineStyleData?.hashValue
             lastRenderedPhotoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             lastRenderedWidth = textView.bounds.width.rounded()
-            lastRenderedFontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
+            lastRenderedFontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .system
         }
 
         private func paragraphStyle(lineSpacing: CGFloat, paragraphSpacing: CGFloat = 5) -> NSMutableParagraphStyle {
@@ -1548,6 +1819,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsText = attributed.string as NSString
             var styles: [NoteParagraphTextStyle] = []
             var levels: [Int] = []
+            var fontChoices: [String] = []
             var changed = false
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
                 let current = self.textStyle(at: enclosing.location, in: attributed)
@@ -1556,12 +1828,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if isChecklist && current != targetStyle { changed = true }
                 styles.append(newStyle)
                 levels.append(self.indentLevelValue(at: enclosing.location, in: attributed))
+                fontChoices.append(self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue)
             }
             guard changed else { return }
             let hasIndent = levels.contains(where: { $0 > 0 })
             parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
                 paragraphStyles: styles,
-                indentLevels: hasIndent ? levels : nil
+                indentLevels: hasIndent ? levels : nil,
+                fontChoices: fontChoices
             ))
             invalidateRenderedCache()
             applyStyledText(to: textView, preservingSelection: true)
@@ -1572,18 +1846,23 @@ struct NoteEditorTextView: UIViewRepresentable {
         func sortCheckedToBottom(in textView: UITextView) {
             guard let attributed = textView.attributedText else { return }
             let nsText = attributed.string as NSString
-            var paraInfos: [(style: NoteParagraphTextStyle, level: Int)] = []
+            var paraInfos: [(style: NoteParagraphTextStyle, level: Int, fontChoice: String)] = []
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
                 paraInfos.append((
                     self.textStyle(at: enclosing.location, in: attributed),
-                    self.indentLevelValue(at: enclosing.location, in: attributed)
+                    self.indentLevelValue(at: enclosing.location, in: attributed),
+                    self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue
                 ))
             }
             let logicalParas = parent.text.components(separatedBy: "\n")
             guard logicalParas.count == paraInfos.count else { return }
 
-            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int)
-            var rows: [Row] = zip(logicalParas, paraInfos).map { ($0, $1.style, $1.level) }
+            // fontChoice is index-based like level (one entry per paragraph), not
+            // offset-based like inlineStyleData — it must be reordered in lockstep with
+            // the row, not nil'd out, or a "Sort Done"/"Delete Done" tap would silently
+            // wipe every font override in the entry.
+            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String)
+            var rows: [Row] = zip(logicalParas, paraInfos).map { ($0, $1.style, $1.level, $1.fontChoice) }
             let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
             var i = 0
             var changed = false
@@ -1609,15 +1888,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.text = rows.map { $0.text }.joined(separator: "\n")
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
+            let fontChoices = rows.map { $0.fontChoice }
             let hasIndent = levels.contains(where: { $0 > 0 })
-            parent.textStyleData = styles.allSatisfy({ $0 == .body }) ? nil :
+            let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
+            parent.textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
                 try? JSONEncoder().encode(NoteTextStyleDocument(
                     paragraphStyles: styles,
-                    indentLevels: hasIndent ? levels : nil
+                    indentLevels: hasIndent ? levels : nil,
+                    fontChoices: fontChoices
                 ))
             parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
-            applyStyledText(to: textView, preservingSelection: true)
+            UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                self.applyStyledText(to: textView, preservingSelection: true)
+            }
             refreshActiveInlineStyles(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
@@ -1625,11 +1909,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         func deleteCheckedChecklistItems(in textView: UITextView) {
             guard let attributed = textView.attributedText else { return }
             let nsText = attributed.string as NSString
-            var paraInfos: [(style: NoteParagraphTextStyle, level: Int)] = []
+            var paraInfos: [(style: NoteParagraphTextStyle, level: Int, fontChoice: String)] = []
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
                 paraInfos.append((
                     self.textStyle(at: enclosing.location, in: attributed),
-                    self.indentLevelValue(at: enclosing.location, in: attributed)
+                    self.indentLevelValue(at: enclosing.location, in: attributed),
+                    self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue
                 ))
             }
             let logicalParas = parent.text.components(separatedBy: "\n")
@@ -1641,15 +1926,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.text = kept.map { $0.0 }.joined(separator: "\n")
             let styles = kept.map { $0.1.style }
             let levels = kept.map { $0.1.level }
+            let fontChoices = kept.map { $0.1.fontChoice }
             let hasIndent = levels.contains(where: { $0 > 0 })
-            parent.textStyleData = styles.allSatisfy({ $0 == .body }) ? nil :
+            let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
+            parent.textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
                 try? JSONEncoder().encode(NoteTextStyleDocument(
                     paragraphStyles: styles,
-                    indentLevels: hasIndent ? levels : nil
+                    indentLevels: hasIndent ? levels : nil,
+                    fontChoices: fontChoices
                 ))
             parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
-            applyStyledText(to: textView, preservingSelection: true)
+            UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                self.applyStyledText(to: textView, preservingSelection: true)
+            }
             refreshActiveInlineStyles(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
@@ -1667,13 +1957,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             let currentLevel = indentLevelValue(at: paraRange.location, in: mutable)
             let newLevel = max(0, min(4, currentLevel + delta))
             guard newLevel != currentLevel else { return }
+            let indentFontChoice = fontChoiceValue(at: paraRange.location, in: mutable)
             mutable.removeAttribute(Self.indentLevelAttribute, range: paraRange)
-            mutable.addAttributes(attributes(for: style, level: newLevel), range: paraRange)
+            mutable.addAttributes(attributes(for: style, level: newLevel, fontChoice: indentFontChoice), range: paraRange)
             if style != .body {
                 mutable.addAttribute(Self.paragraphStyleAttribute, value: style.rawValue, range: paraRange)
             }
             if newLevel > 0 {
                 mutable.addAttribute(Self.indentLevelAttribute, value: newLevel, range: paraRange)
+            }
+            if indentFontChoice != entryDefaultFontChoice {
+                mutable.addAttribute(Self.fontChoiceAttribute, value: indentFontChoice.rawValue, range: paraRange)
             }
 
             // Swap bullet/dash marker glyph to match new indent level.
@@ -1807,11 +2101,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                     attributed.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: displayRange)
                 }
                 if styleRange.strikethrough {
-                    // Don't override checklist's own strikethrough
-                    let style = textStyle(at: displayRange.location, in: attributed)
-                    if style != .checklistChecked {
-                        attributed.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: displayRange)
-                    }
+                    // Checked checklist rows no longer auto-strike (Notes just dims them),
+                    // so a user's explicit strikethrough always applies here now.
+                    attributed.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: displayRange)
                 }
                 if let idx = styleRange.highlightIndex, idx < highlightColors.count {
                     attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
@@ -1934,7 +2226,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             styles.bold = (font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false) && !isParaBold
             styles.italic = font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false
             styles.underline = underlineActive
-            styles.strikethrough = strikethroughActive && paraStyle != .checklistChecked
+            styles.strikethrough = strikethroughActive
             parent.activeInlineStyles = styles
             parent.panelState.activeInlineStyles = styles
             parent.panelState.activeParagraphStyle = paraStyle

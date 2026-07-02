@@ -37,4 +37,11 @@ enum WritingFontChoice: String, CaseIterable, Identifiable {
         }
     }
 
+    /// A per-paragraph override wins when present; otherwise falls back to the
+    /// entry's own default, then `.system`. Shared by the editor and every
+    /// read-only rendering site so the fallback chain can't drift between them.
+    static func resolved(entryDefault: String?, override: String?) -> WritingFontChoice {
+        if let override, let choice = WritingFontChoice(rawValue: override) { return choice }
+        return WritingFontChoice(rawValue: entryDefault ?? "") ?? .system
+    }
 }

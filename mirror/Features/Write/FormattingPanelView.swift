@@ -13,12 +13,14 @@ let highlightColors: [Color] = [
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil
-    /// Per-entry, not global — set from WriteView's own @State so the panel
-    /// (hosted as the text view's inputView, a separate SwiftUI tree) can read
-    /// and mutate the font choice for *this* entry only.
-    var fontChoiceRaw: String = WritingFontChoice.serif.rawValue
+    /// The font family the *current paragraph/selection* is using — drives the
+    /// font row's highlight, same role activeParagraphStyle plays for block style.
+    var activeFontChoice: WritingFontChoice = .system
+    /// Entry-wide fallback only (empty document, or a paragraph with no explicit
+    /// override) — no longer mutated by tapping a font button; that now goes
+    /// through onCommand(.fontFamily) like every other paragraph-level command.
+    var fontChoiceRaw: String = WritingFontChoice.system.rawValue
     var onCommand: ((NoteTextCommand) -> Void)?
-    var onFontChoiceChanged: ((String) -> Void)?
     var onDismiss: (() -> Void)?
 }
 
@@ -136,10 +138,9 @@ struct FormattingPanelView: View {
 
     @ViewBuilder
     private func fontChoiceButton(_ choice: WritingFontChoice) -> some View {
-        let isActive = state.fontChoiceRaw == choice.rawValue
+        let isActive = state.activeFontChoice == choice
         Button {
-            state.fontChoiceRaw = choice.rawValue
-            state.onFontChoiceChanged?(choice.rawValue)
+            DispatchQueue.main.async { state.onCommand?(.fontFamily(choice)) }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(choice.label)

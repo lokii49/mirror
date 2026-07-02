@@ -15,7 +15,7 @@ struct EntryDetailView: View {
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
     private var writingFontDesign: Font.Design {
-        (WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .serif).swiftUIDesign
+        WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
 
     private var onThisDayEntries: [Entry] {
@@ -258,7 +258,7 @@ private struct OnThisDaySection: View {
     let referenceDate: Date
 
     private func writingFontDesign(for entry: Entry) -> Font.Design {
-        (WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .serif).swiftUIDesign
+        WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
 
     private var dayMonthLabel: String {
@@ -321,9 +321,6 @@ private struct InlineEntryContent: View {
     let textStyleData: Data?
     let photoDataArray: [Data]
     let fontChoice: String?
-    private var writingFontDesign: Font.Design {
-        (WritingFontChoice(rawValue: fontChoice ?? "") ?? .serif).swiftUIDesign
-    }
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
         guard let textStyleData,
@@ -331,6 +328,19 @@ private struct InlineEntryContent: View {
             return []
         }
         return document.paragraphStyles
+    }
+
+    private var fontChoices: [String] {
+        guard let textStyleData,
+              let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: textStyleData) else {
+            return []
+        }
+        return document.fontChoices ?? []
+    }
+
+    private func writingFontDesign(at index: Int) -> Font.Design {
+        let override = fontChoices.indices.contains(index) ? fontChoices[index] : nil
+        return WritingFontChoice.resolved(entryDefault: fontChoice, override: override).swiftUIDesign
     }
 
     private var displayLines: [String] {
@@ -385,13 +395,13 @@ private struct InlineEntryContent: View {
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24, alignment: .center)
                 Text(displayLine)
-                    .font(.system(size: 17, weight: .regular, design: writingFontDesign))
+                    .font(.system(size: 17, weight: .regular, design: writingFontDesign(at: index)))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
         } else {
             Text(line)
-                .font(.system(.body, design: writingFontDesign))
+                .font(.system(.body, design: writingFontDesign(at: index)))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }
