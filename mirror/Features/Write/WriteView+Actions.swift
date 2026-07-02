@@ -257,7 +257,12 @@ extension WriteView {
         let ud = UserDefaults.standard
         let saved = ud.string(forKey: Self.draftTextKey) ?? ""
         guard !saved.isEmpty else { return }
-        viewModel.text = MirrorEncryption.decryptString(saved)
+        // Key may be transiently unreadable (e.g. before first unlock). Leave the
+        // stored ciphertext untouched and retry on a later launch rather than
+        // surfacing the fallback sentinel as real text and re-encrypting it over
+        // the original draft.
+        guard let decrypted = MirrorEncryption.decryptOptionalStringValue(saved) else { return }
+        viewModel.text = decrypted
         viewModel.textStyleData = ud.data(forKey: Self.draftTextStyleKey)
         inlineStyleData = ud.data(forKey: Self.draftInlineStyleKey)
         viewModel.selectedMood = ud.string(forKey: Self.draftMoodKey)

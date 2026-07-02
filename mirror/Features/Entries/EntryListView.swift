@@ -524,8 +524,14 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
+    // The preview joins multiple paragraphs into one line, so per-paragraph fonts
+    // can't all render — use the entry's first paragraph's font, since that's what
+    // the preview visually represents (its opening line).
     private var writingFontDesign: Font.Design {
-        (WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .serif).swiftUIDesign
+        let firstOverride = entry.textStyleData
+            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
+            .flatMap { $0.fontChoices?.first }
+        return WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: firstOverride).swiftUIDesign
     }
 
     // rowPreview is precomputed in .task — zero decrypts during scroll.

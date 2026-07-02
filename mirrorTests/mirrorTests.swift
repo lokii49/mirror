@@ -109,6 +109,9 @@ struct InlineStyleRenderingTests {
         var activeParagraphStyle: NoteParagraphTextStyle = .body
         var activeInlineStyles = InlineStyleSet()
         var showFormattingPanel = false
+        var canUndo = false
+        var canRedo = false
+        var fontChoiceRaw = WritingFontChoice.system.rawValue
 
         let editor = NoteEditorTextView(
             text: Binding(get: { text }, set: { text = $0 }),
@@ -121,6 +124,9 @@ struct InlineStyleRenderingTests {
             activeParagraphStyle: Binding(get: { activeParagraphStyle }, set: { activeParagraphStyle = $0 }),
             activeInlineStyles: Binding(get: { activeInlineStyles }, set: { activeInlineStyles = $0 }),
             showFormattingPanel: Binding(get: { showFormattingPanel }, set: { showFormattingPanel = $0 }),
+            canUndo: Binding(get: { canUndo }, set: { canUndo = $0 }),
+            canRedo: Binding(get: { canRedo }, set: { canRedo = $0 }),
+            fontChoiceRaw: Binding(get: { fontChoiceRaw }, set: { fontChoiceRaw = $0 }),
             panelState: FormattingPanelState()
         )
         let coordinator = editor.makeCoordinator()
