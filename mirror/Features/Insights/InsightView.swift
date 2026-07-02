@@ -830,6 +830,11 @@ struct ModelNotInstalledCard: View {
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
+            if case .downloading = manager.state {
+                Text("Downloading in the background — you can lock your phone or switch apps and it'll keep going. Just don't force-quit MirrorNotes until it finishes.")
+                    .font(.caption)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            }
             content
         }
         .padding(20)
