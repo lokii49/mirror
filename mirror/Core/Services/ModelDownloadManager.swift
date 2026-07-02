@@ -21,10 +21,15 @@ final class ModelDownloadManager: NSObject {
     static let shared = ModelDownloadManager()
 
     private nonisolated static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
-    /// From the source repo's file listing — used to validate a completed download
-    /// wasn't truncated or corrupted before it's handed to the LLM. Referenced from
-    /// the nonisolated URLSessionDownloadDelegate callbacks, so must stay nonisolated.
-    private nonisolated static let expectedByteCount: Int64 = 806_058_496
+    /// Rough estimate only — used to size the progress bar before the server's real
+    /// Content-Length is known. Never used to validate a completed file; that check
+    /// is against the size the server actually advertised for that specific
+    /// download, so it adapts automatically if the hosted file is ever requantized.
+    private nonisolated static let estimatedByteCount: Int64 = 806_058_496
+    /// A truncated/corrupt file will be nowhere close to this, but an intact gguf of
+    /// any quant/version of this model will clear it comfortably.
+    private nonisolated static let minimumSaneByteCount: Int64 = 400_000_000
+    private static let verifiedByteCountKey = "mirror.modelDownload.verifiedByteCount"
 
     private(set) var state: ModelDownloadState = .notStarted
 
@@ -44,7 +49,15 @@ final class ModelDownloadManager: NSObject {
         let url = try LocalLLMService.preferredModelURL()
         guard FileManager.default.fileExists(atPath: url.path) else { return false }
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
-        return size == expectedByteCount
+        // If we downloaded this file ourselves, hold it to the exact size the server
+        // reported at the time — catches silent truncation on disk. A file that
+        // arrived some other way (manual sideload, restored backup) just needs to
+        // clear the sanity floor.
+        let verified = UserDefaults.standard.object(forKey: verifiedByteCountKey) as? Int64
+        if let verified {
+            return size == verified
+        }
+        return size >= minimumSaneByteCount
     }
 
     var isReady: Bool {
@@ -60,7 +73,7 @@ final class ModelDownloadManager: NSObject {
         default:
             break
         }
-        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.expectedByteCount)
+        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.estimatedByteCount)
         let task = session.downloadTask(with: Self.sourceURL)
         self.task = task
         task.resume()
@@ -83,7 +96,7 @@ final class ModelDownloadManager: NSObject {
             startDownload()
             return
         }
-        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.expectedByteCount)
+        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.estimatedByteCount)
         let task = session.downloadTask(withResumeData: resumeData)
         self.task = task
         self.resumeData = nil
@@ -114,7 +127,7 @@ final class ModelDownloadManager: NSObject {
     }
 
     @MainActor
-    private func finishInstalling(from tempURL: URL) {
+    private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64) {
         state = .verifying
         do {
             let destination = try LocalLLMService.preferredModelURL()
@@ -123,10 +136,17 @@ final class ModelDownloadManager: NSObject {
             }
             try FileManager.default.moveItem(at: tempURL, to: destination)
             let size = (try? FileManager.default.attributesOfItem(atPath: destination.path)[.size] as? Int64) ?? 0
-            guard size == Self.expectedByteCount else {
+            // Trust the server's own Content-Length for this download over any
+            // hardcoded figure — it's correct even if the hosted file changes.
+            // Fall back to the sanity floor only if the server didn't report a length.
+            let expected = serverExpectedByteCount > 0 ? serverExpectedByteCount : Self.minimumSaneByteCount
+            guard size >= expected else {
                 try? FileManager.default.removeItem(at: destination)
-                state = .failed("Downloaded file was incomplete (\(size) of \(Self.expectedByteCount) bytes). Please try again.")
+                state = .failed("Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again.")
                 return
+            }
+            if serverExpectedByteCount > 0 {
+                UserDefaults.standard.set(serverExpectedByteCount, forKey: Self.verifiedByteCountKey)
             }
             state = .installed
         } catch {
@@ -143,7 +163,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        let expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.expectedByteCount
+        let expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.estimatedByteCount
         let progress = expected > 0 ? Double(totalBytesWritten) / Double(expected) : 0
         Task { @MainActor in
             self.state = .downloading(progress: progress, bytesWritten: totalBytesWritten, bytesExpected: expected)
@@ -156,6 +176,20 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("gemma-3-1b-it-Q4_K_M-\(UUID().uuidString)")
             .appendingPathExtension("gguf")
+        // The authoritative total file size, not a hardcoded guess. For a plain GET,
+        // countOfBytesExpectedToReceive already is the full size. But a resumed
+        // download is a ranged request (HTTP 206) — there, countOfBytesExpectedToReceive
+        // is only the *remaining* bytes for that range, not the whole file, so it must
+        // come from the Content-Range response header ("bytes start-end/total") instead.
+        let serverExpectedByteCount: Int64
+        if let contentRange = (downloadTask.response as? HTTPURLResponse)?
+            .value(forHTTPHeaderField: "Content-Range"),
+           let totalString = contentRange.split(separator: "/").last,
+           let total = Int64(totalString) {
+            serverExpectedByteCount = total
+        } else {
+            serverExpectedByteCount = downloadTask.countOfBytesExpectedToReceive
+        }
         do {
             try FileManager.default.moveItem(at: location, to: tempURL)
         } catch {
@@ -165,7 +199,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             return
         }
         Task { @MainActor in
-            self.finishInstalling(from: tempURL)
+            self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount)
         }
     }
 
