@@ -524,9 +524,8 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
-    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
     private var writingFontDesign: Font.Design {
-        (WritingFontChoice(rawValue: writingFontChoiceRaw) ?? .serif).swiftUIDesign
+        (WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .serif).swiftUIDesign
     }
 
     // rowPreview is precomputed in .task — zero decrypts during scroll.

@@ -1,10 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// The user's chosen font family for entry body text — applies everywhere an
-/// entry's body/checklist/list text renders: the Write editor, the entry list
-/// preview, and the entry detail/read view. A single global preference, not
-/// per-entry, so switching it re-styles every entry consistently.
+/// The font family for an entry's body text — stored per-entry (Entry.fontChoice),
+/// not globally, so changing the font for one entry doesn't affect any other.
+/// Applies everywhere that entry's body/checklist/list text renders: the Write
+/// editor, the entry list preview, and the entry detail/read view.
 enum WritingFontChoice: String, CaseIterable, Identifiable {
     case system, serif, rounded, monospaced
 
@@ -37,13 +37,4 @@ enum WritingFontChoice: String, CaseIterable, Identifiable {
         }
     }
 
-    static let storageKey = "mirrorWritingFontChoice"
-
-    /// Reads the current choice from UserDefaults directly — for call sites that
-    /// can't hold an @AppStorage binding (the UIKit editor's Coordinator, and
-    /// plain SwiftUI View structs that read it once per render rather than
-    /// observing it, since it changes rarely and every render path re-reads fresh).
-    static var current: WritingFontChoice {
-        WritingFontChoice(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .serif
-    }
 }

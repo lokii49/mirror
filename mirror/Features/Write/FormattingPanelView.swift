@@ -13,13 +13,17 @@ let highlightColors: [Color] = [
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil
+    /// Per-entry, not global — set from WriteView's own @State so the panel
+    /// (hosted as the text view's inputView, a separate SwiftUI tree) can read
+    /// and mutate the font choice for *this* entry only.
+    var fontChoiceRaw: String = WritingFontChoice.serif.rawValue
     var onCommand: ((NoteTextCommand) -> Void)?
+    var onFontChoiceChanged: ((String) -> Void)?
     var onDismiss: (() -> Void)?
 }
 
 struct FormattingPanelView: View {
     var state: FormattingPanelState
-    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -132,9 +136,10 @@ struct FormattingPanelView: View {
 
     @ViewBuilder
     private func fontChoiceButton(_ choice: WritingFontChoice) -> some View {
-        let isActive = writingFontChoiceRaw == choice.rawValue
+        let isActive = state.fontChoiceRaw == choice.rawValue
         Button {
-            writingFontChoiceRaw = choice.rawValue
+            state.fontChoiceRaw = choice.rawValue
+            state.onFontChoiceChanged?(choice.rawValue)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(choice.label)
