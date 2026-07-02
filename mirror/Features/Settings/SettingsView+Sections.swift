@@ -655,6 +655,18 @@ extension SettingsView {
 
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
+            Button(role: .destructive) {
+                ModelDownloadManager.shared.deleteInstalledModelForTesting()
+            } label: {
+                HStack {
+                    settingsRowLabel("Delete Downloaded AI Model", systemImage: "brain.head.profile", iconColor: .red)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
+
             Button {
                 SampleData.seed(into: modelContext)
             } label: {
