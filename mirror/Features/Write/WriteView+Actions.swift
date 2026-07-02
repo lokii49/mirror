@@ -22,6 +22,7 @@ extension WriteView {
                 entry.createdAt = entryDate
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
                 entry.tags = entryTags
+                entry.fontChoice = entryFontChoiceRaw
                 entry.photoDataArray = photoDataArray
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
@@ -51,6 +52,7 @@ extension WriteView {
                 entry.createdAt = entryDate
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
                 entry.tags = entryTags
+                entry.fontChoice = entryFontChoiceRaw
                 entry.textStyleData = viewModel.textStyleData
                 entry.photoDataArray = photoDataArray
                 entry.inlineStyleData = inlineStyleData
@@ -98,6 +100,7 @@ extension WriteView {
         savedEntry.createdAt = entryDate
         savedEntry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
         savedEntry.tags = entryTags
+        savedEntry.fontChoice = entryFontChoiceRaw
         savedEntry.textStyleData = viewModel.textStyleData
         savedEntry.photoDataArray = photoDataArray
         savedEntry.inlineStyleData = inlineStyleData

@@ -18,14 +18,13 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var showFormattingPanel: Bool
     @Binding var canUndo: Bool
     @Binding var canRedo: Bool
+    // Per-entry, not global — owned by WriteView, mirrored into panelState so the
+    // formatting panel (hosted as this text view's inputView, a separate SwiftUI
+    // tree) can read/mutate it. Declaring it as a @Binding here is what makes
+    // SwiftUI re-invoke updateUIView when it changes.
+    @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var onPhotoTapped: ((Int) -> Void)?
-    // Unused directly — the Coordinator reads WritingFontChoice.current itself.
-    // Declaring it here is what makes SwiftUI re-invoke updateUIView when the font
-    // changes in FormattingPanelView, a completely separate view hierarchy hosted
-    // as this text view's inputView; without a subscription here, nothing tells
-    // this representable a live-relevant value changed.
-    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -239,7 +238,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         // fonts in the formatting panel takes effect immediately.
         private var _bodyFontCache: (choice: WritingFontChoice, font: UIFont)?
         var serifBodyFont: UIFont {
-            let choice = WritingFontChoice.current
+            let choice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
             if let cache = _bodyFontCache, cache.choice == choice {
                 return cache.font
             }
@@ -733,7 +732,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let inlineSignature = parent.inlineStyleData?.hashValue
             let photoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             let width = textView.bounds.width.rounded()
-            let fontChoice = WritingFontChoice.current
+            let fontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
 
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
@@ -1423,7 +1422,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastRenderedInlineSignature = parent.inlineStyleData?.hashValue
             lastRenderedPhotoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             lastRenderedWidth = textView.bounds.width.rounded()
-            lastRenderedFontChoice = WritingFontChoice.current
+            lastRenderedFontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .serif
         }
 
         private func paragraphStyle(lineSpacing: CGFloat, paragraphSpacing: CGFloat = 5) -> NSMutableParagraphStyle {
