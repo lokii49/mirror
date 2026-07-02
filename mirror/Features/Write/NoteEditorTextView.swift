@@ -104,6 +104,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         private var lastRenderedInlineSignature: Int?
         private var lastRenderedPhotoSignature: Int?
         private var lastRenderedWidth: CGFloat = 0
+        private var lastRenderedFontChoice: WritingFontChoice?
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
         private var lastKnownCursorLocation: Int = 0
         var lastAppliedCommandRevision = 0
@@ -226,12 +227,21 @@ struct NoteEditorTextView: UIViewRepresentable {
             return tokens[attachCount].index
         }
 
-        // Cached — UIFontDescriptor.preferredFontDescriptor + withDesign(.serif) + UIFont init are not free;
-        // called on every keystroke/cursor movement across 13+ call sites.
-        lazy var serifBodyFont: UIFont = {
+        // UIFontDescriptor.preferredFontDescriptor + withDesign + UIFont init are not
+        // free, and this is called on every keystroke/cursor movement across 13+ call
+        // sites — cache the built font, but keyed on the user's choice so switching
+        // fonts in the formatting panel takes effect immediately.
+        private var _bodyFontCache: (choice: WritingFontChoice, font: UIFont)?
+        var serifBodyFont: UIFont {
+            let choice = WritingFontChoice.current
+            if let cache = _bodyFontCache, cache.choice == choice {
+                return cache.font
+            }
             let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
-            return UIFont(descriptor: base.withDesign(.serif) ?? base, size: 0)
-        }()
+            let font = UIFont(descriptor: base.withDesign(choice.uiDesign) ?? base, size: 0)
+            _bodyFontCache = (choice, font)
+            return font
+        }
 
         var bodyAttributes: [NSAttributedString.Key: Any] {
             [
@@ -717,12 +727,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let inlineSignature = parent.inlineStyleData?.hashValue
             let photoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             let width = textView.bounds.width.rounded()
+            let fontChoice = WritingFontChoice.current
 
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
                lastRenderedInlineSignature == inlineSignature,
                lastRenderedPhotoSignature == photoSignature,
-               lastRenderedWidth == width {
+               lastRenderedWidth == width,
+               lastRenderedFontChoice == fontChoice {
                 if preservingSelection {
                     textView.selectedRange = bounded(selectedRange, in: textView.text)
                 }
@@ -741,6 +753,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastRenderedInlineSignature = inlineSignature
             lastRenderedPhotoSignature = photoSignature
             lastRenderedWidth = width
+            lastRenderedFontChoice = fontChoice
             if preservingSelection {
                 textView.selectedRange = bounded(selectedRange, in: textView.text)
             }
@@ -748,7 +761,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func updatePlaceholder(in textView: UITextView) {
-            textView.viewWithTag(Self.placeholderTag)?.isHidden = !parent.text.isEmpty || parent.textStyleData != nil
+            let placeholder = textView.viewWithTag(Self.placeholderTag) as? UILabel
+            placeholder?.isHidden = !parent.text.isEmpty || parent.textStyleData != nil
+            placeholder?.font = serifBodyFont
         }
 
         private func refreshActiveParagraphStyle(in textView: UITextView) {
@@ -1402,6 +1417,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastRenderedInlineSignature = parent.inlineStyleData?.hashValue
             lastRenderedPhotoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             lastRenderedWidth = textView.bounds.width.rounded()
+            lastRenderedFontChoice = WritingFontChoice.current
         }
 
         private func paragraphStyle(lineSpacing: CGFloat, paragraphSpacing: CGFloat = 5) -> NSMutableParagraphStyle {
@@ -1935,7 +1951,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                     formattingPanelHost = hc
                 }
                 let panelUIView = formattingPanelHost?.view
-                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 290)
+                // +56 vs. the original 290 to fit the font-family row added above the
+                // paragraph-style row.
+                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
                 if panelUIView?.frame != newFrame { panelUIView?.frame = newFrame }
                 if textView.inputView !== panelUIView {
                     textView.inputView = panelUIView

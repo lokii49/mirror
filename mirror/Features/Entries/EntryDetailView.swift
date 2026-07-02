@@ -14,6 +14,10 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
+    private var writingFontDesign: Font.Design {
+        (WritingFontChoice(rawValue: writingFontChoiceRaw) ?? .serif).swiftUIDesign
+    }
 
     private var onThisDayEntries: [Entry] {
         let cal = Calendar.current
@@ -83,7 +87,7 @@ struct EntryDetailView: View {
                         InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray)
                     } else {
                         Text("No text")
-                            .font(.system(size: 17, weight: .regular, design: .serif))
+                            .font(.system(size: 17, weight: .regular, design: writingFontDesign))
                             .foregroundStyle(MirrorTheme.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -253,6 +257,10 @@ struct EntryDetailView: View {
 private struct OnThisDaySection: View {
     let entries: [Entry]
     let referenceDate: Date
+    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
+    private var writingFontDesign: Font.Design {
+        (WritingFontChoice(rawValue: writingFontChoiceRaw) ?? .serif).swiftUIDesign
+    }
 
     private var dayMonthLabel: String {
         referenceDate.formatted(.dateTime.month(.wide).day())
@@ -296,7 +304,7 @@ private struct OnThisDaySection: View {
                         .first ?? ""
                     if !preview.isEmpty {
                         Text(preview)
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .font(.system(size: 14, weight: .regular, design: writingFontDesign))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .lineLimit(3)
                             .lineSpacing(4)
@@ -313,6 +321,10 @@ private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
     let photoDataArray: [Data]
+    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
+    private var writingFontDesign: Font.Design {
+        (WritingFontChoice(rawValue: writingFontChoiceRaw) ?? .serif).swiftUIDesign
+    }
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
         guard let textStyleData,
@@ -374,13 +386,13 @@ private struct InlineEntryContent: View {
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24, alignment: .center)
                 Text(displayLine)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.system(size: 17, weight: .regular, design: writingFontDesign))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
         } else {
             Text(line)
-                .font(.system(.body, design: .serif))
+                .font(.system(.body, design: writingFontDesign))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }

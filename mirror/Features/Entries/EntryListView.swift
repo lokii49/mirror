@@ -524,6 +524,10 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
+    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
+    private var writingFontDesign: Font.Design {
+        (WritingFontChoice(rawValue: writingFontChoiceRaw) ?? .serif).swiftUIDesign
+    }
 
     // rowPreview is precomputed in .task — zero decrypts during scroll.
     // Falls back to inline decryption only on first render before cache is ready.
@@ -574,7 +578,7 @@ private struct EntryRow: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
                     Text(preview)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 16, weight: .medium, design: writingFontDesign))
                         .foregroundStyle(previewTextColor)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
