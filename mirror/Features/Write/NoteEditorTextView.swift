@@ -20,6 +20,12 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var canRedo: Bool
     var panelState: FormattingPanelState
     var onPhotoTapped: ((Int) -> Void)?
+    // Unused directly — the Coordinator reads WritingFontChoice.current itself.
+    // Declaring it here is what makes SwiftUI re-invoke updateUIView when the font
+    // changes in FormattingPanelView, a completely separate view hierarchy hosted
+    // as this text view's inputView; without a subscription here, nothing tells
+    // this representable a live-relevant value changed.
+    @AppStorage(WritingFontChoice.storageKey) private var writingFontChoiceRaw: String = WritingFontChoice.serif.rawValue
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
