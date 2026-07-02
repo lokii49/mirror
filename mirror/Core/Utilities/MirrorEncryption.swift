@@ -281,6 +281,46 @@ enum MirrorEncryption {
         }
     }
 
+    // MARK: - Diagnostics
+
+    #if DEBUG
+    /// Human-readable key-state report for the Developer settings section. Never
+    /// exposes key material — keys appear only as SHA256-prefix fingerprints.
+    static func diagnosticsReport() -> String {
+        keyQueue.sync {
+            func fingerprint(_ data: Data) -> String {
+                let digest = SHA256.hash(data: data)
+                return digest.prefix(4).map { String(format: "%02x", $0) }.joined()
+            }
+            func describe(_ read: KeychainManager.ReadResult) -> String {
+                switch read {
+                case .found(let data):
+                    return data.count == keyLength ? "found (\(fingerprint(data)))" : "found but wrong size (\(data.count)B)"
+                case .missing: return "missing"
+                case .failure(let status): return "READ FAILED (OSStatus \(status))"
+                }
+            }
+            let localSlot = KeychainManager.read(account: keyAccount)
+            let syncedSlot = KeychainManager.read(account: keyAccount, synchronizable: true)
+            let localArchive = KeychainManager.read(account: archiveAccount)
+            let syncedArchive = KeychainManager.read(account: archiveAccount, synchronizable: true)
+            let localKeys = parseArchive(localArchive.data)
+            let syncedKeys = parseArchive(syncedArchive.data)
+            let distinct = Set(localKeys + syncedKeys + [localSlot, syncedSlot].compactMap(\.data))
+            let iCloud = FileManager.default.ubiquityIdentityToken != nil ? "signed in" : "NOT signed in"
+
+            return """
+            live local slot: \(describe(localSlot))
+            live synced slot: \(describe(syncedSlot))
+            local archive: \(localArchive.isFailure ? "READ FAILED" : "\(localKeys.count) key(s)") \(localKeys.map(fingerprint).joined(separator: ", "))
+            synced archive: \(syncedArchive.isFailure ? "READ FAILED" : "\(syncedKeys.count) key(s)") \(syncedKeys.map(fingerprint).joined(separator: ", "))
+            distinct keys reachable: \(distinct.count)
+            iCloud account: \(iCloud)
+            """
+        }
+    }
+    #endif
+
     /// Promotes an archived key into both live slots and adopts it. Must run on keyQueue.
     private static func adoptArchivedKeyLocked(_ data: Data) -> SymmetricKey {
         KeychainManager.save(data: data, account: keyAccount)
