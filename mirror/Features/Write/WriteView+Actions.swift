@@ -22,6 +22,7 @@ extension WriteView {
                 entry.createdAt = entryDate
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
                 entry.tags = entryTags
+                entry.fontChoice = entryFontChoiceRaw
                 entry.photoDataArray = photoDataArray
                 entry.voiceNoteData = voiceNoteData
                 entry.voiceNoteDuration = voiceNoteDuration
@@ -51,6 +52,7 @@ extension WriteView {
                 entry.createdAt = entryDate
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
                 entry.tags = entryTags
+                entry.fontChoice = entryFontChoiceRaw
                 entry.textStyleData = viewModel.textStyleData
                 entry.photoDataArray = photoDataArray
                 entry.inlineStyleData = inlineStyleData
@@ -71,6 +73,7 @@ extension WriteView {
                 modelContext.insert(entry)
                 try? modelContext.save()
                 autoDetectMoodIfNeeded(for: entry)
+                ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
                 let ctx = modelContext
                 Task { @MainActor in
                     await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
@@ -97,6 +100,7 @@ extension WriteView {
         savedEntry.createdAt = entryDate
         savedEntry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
         savedEntry.tags = entryTags
+        savedEntry.fontChoice = entryFontChoiceRaw
         savedEntry.textStyleData = viewModel.textStyleData
         savedEntry.photoDataArray = photoDataArray
         savedEntry.inlineStyleData = inlineStyleData
@@ -116,6 +120,7 @@ extension WriteView {
         modelContext.insert(savedEntry)
         try? modelContext.save()
         autoDetectMoodIfNeeded(for: savedEntry)
+        ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
         clearDraftStorage()
@@ -252,7 +257,12 @@ extension WriteView {
         let ud = UserDefaults.standard
         let saved = ud.string(forKey: Self.draftTextKey) ?? ""
         guard !saved.isEmpty else { return }
-        viewModel.text = MirrorEncryption.decryptString(saved)
+        // Key may be transiently unreadable (e.g. before first unlock). Leave the
+        // stored ciphertext untouched and retry on a later launch rather than
+        // surfacing the fallback sentinel as real text and re-encrypting it over
+        // the original draft.
+        guard let decrypted = MirrorEncryption.decryptOptionalStringValue(saved) else { return }
+        viewModel.text = decrypted
         viewModel.textStyleData = ud.data(forKey: Self.draftTextStyleKey)
         inlineStyleData = ud.data(forKey: Self.draftInlineStyleKey)
         viewModel.selectedMood = ud.string(forKey: Self.draftMoodKey)

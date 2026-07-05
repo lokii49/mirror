@@ -12,7 +12,69 @@ enum SampleData {
 
         struct E {
             var text: String; var mood: String?; var days: Int; var source: EntrySource
+            var textStyleData: Data? = nil
+            var fontChoice: String? = nil
+            var extraTags: [String] = []
         }
+
+        func doc(_ styles: [NoteParagraphTextStyle], fonts: [WritingFontChoice]? = nil) -> Data {
+            try! JSONEncoder().encode(NoteTextStyleDocument(
+                paragraphStyles: styles,
+                fontChoices: fonts?.map { $0.rawValue }
+            ))
+        }
+
+        let richEntries: [E] = [
+            // Mixed block styles + per-paragraph fonts + checklist — mirrors the exact
+            // monospaced/serif/checklist combination used to shake out the font-persistence bugs.
+            E(text: """
+                Code review notes:
+                Finally cleared the backlog. Feels good to close things out instead of watching the queue grow.
+                Ship the font feature
+                Write tests for edge cases
+                Update changelog
+                """,
+                mood: "Energized", days: 0, source: .typed,
+                textStyleData: doc(
+                    [.monospaced, .body, .checklistChecked, .checklistUnchecked, .checklistUnchecked],
+                    fonts: [.rounded, .serif, .rounded, .rounded, .rounded]
+                ),
+                fontChoice: WritingFontChoice.rounded.rawValue,
+                extraTags: ["work", "shipping"]
+            ),
+            // Heading + numbered list + bulleted list + tags.
+            E(text: """
+                Weekend plan
+                Grocery run
+                Call mom
+                Finish the book
+                Also want to squeeze in:
+                A long walk
+                Actually cook something new
+                """,
+                mood: "Hopeful", days: 0, source: .typed,
+                textStyleData: doc([
+                    .heading, .numberedList, .numberedList, .numberedList,
+                    .body, .bulletedList, .bulletedList
+                ]),
+                fontChoice: WritingFontChoice.serif.rawValue,
+                extraTags: ["weekend", "goals"]
+            ),
+            // Subheading + dashed list (serif) + monospaced quote — a third font/style combo.
+            E(text: """
+                Things I keep circling back to
+                Whether I'm actually resting or just not working
+                The conversation with Priya I still think about
+                "You can't pour from an empty cup." — heard this twice this week, universe is not subtle.
+                """,
+                mood: "Grateful", days: 0, source: .typed,
+                textStyleData: doc(
+                    [.subheading, .dashedList, .dashedList, .monospaced],
+                    fonts: [.monospaced, .serif, .serif, .system]
+                ),
+                extraTags: ["reflection"]
+            ),
+        ]
 
         let entries: [E] = [
             E(text: """
@@ -75,14 +137,16 @@ enum SampleData {
                 End of the month. I've been reflecting on how it went — not with a spreadsheet, just sitting with it. There were hard patches. There were good patches. The week where I barely slept was real but so was the afternoon in the museum and the phone call with my sister. I want to be better at holding both of those things at the same time instead of letting one erase the other.
                 """, mood: "Grateful", days: 2, source: .typed),
             E(text: "winding down. tomorrow is going to be full but tonight is quiet and I'm going to let it be quiet. no planning, no list-making. just this.", mood: "Calm", days: 1, source: .voice),
-        ]
+        ] + richEntries
 
         for e in entries {
             let trimmed = e.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let entry = Entry(text: trimmed, mood: e.mood, source: e.source)
             entry.createdAt = daysAgo(e.days)
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
-            entry.tags = [sampleTag]
+            entry.tags = e.extraTags + [sampleTag]
+            entry.textStyleData = e.textStyleData
+            entry.fontChoice = e.fontChoice
             if e.source == .voice {
                 let wc = trimmed.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
                 let (audio, dur) = syntheticVoiceAudio(words: wc)

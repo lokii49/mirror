@@ -524,6 +524,15 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
+    // The preview joins multiple paragraphs into one line, so per-paragraph fonts
+    // can't all render — use the entry's first paragraph's font, since that's what
+    // the preview visually represents (its opening line).
+    private var writingFontDesign: Font.Design {
+        let firstOverride = entry.textStyleData
+            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
+            .flatMap { $0.fontChoices?.first }
+        return WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: firstOverride).swiftUIDesign
+    }
 
     // rowPreview is precomputed in .task — zero decrypts during scroll.
     // Falls back to inline decryption only on first render before cache is ready.
@@ -574,7 +583,7 @@ private struct EntryRow: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
                     Text(preview)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 16, weight: .medium, design: writingFontDesign))
                         .foregroundStyle(previewTextColor)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)

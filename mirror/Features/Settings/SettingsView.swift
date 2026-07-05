@@ -38,6 +38,7 @@ struct SettingsView: View {
     @State var showImportPicker = false
     @State var importResultMessage: String?
     @State var showImportResult = false
+    @State var encryptionReport: String?
 
     var nudgeTime: Date {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())

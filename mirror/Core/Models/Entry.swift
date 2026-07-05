@@ -31,6 +31,10 @@ enum EntrySource: String, Codable {
     var weekIdentifier: String = ""
     var voiceNoteTranscriptionFailed: Bool = false
     var encryptedTagsStorage: Data? = nil
+    /// WritingFontChoice raw value for this entry specifically — nil means the
+    /// default (serif), so existing entries render unchanged. Not encrypted: a
+    /// font family name isn't journal content.
+    var fontChoice: String? = nil
 
     var text: String {
         get { decryptedText ?? "" }

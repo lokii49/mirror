@@ -14,6 +14,9 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+    private var writingFontDesign: Font.Design {
+        WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
+    }
 
     private var onThisDayEntries: [Entry] {
         let cal = Calendar.current
@@ -80,10 +83,10 @@ struct EntryDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray)
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
                     } else {
                         Text("No text")
-                            .font(.system(size: 17, weight: .regular, design: .serif))
+                            .font(.system(size: 17, weight: .regular, design: writingFontDesign))
                             .foregroundStyle(MirrorTheme.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -254,6 +257,10 @@ private struct OnThisDaySection: View {
     let entries: [Entry]
     let referenceDate: Date
 
+    private func writingFontDesign(for entry: Entry) -> Font.Design {
+        WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
+    }
+
     private var dayMonthLabel: String {
         referenceDate.formatted(.dateTime.month(.wide).day())
     }
@@ -296,7 +303,7 @@ private struct OnThisDaySection: View {
                         .first ?? ""
                     if !preview.isEmpty {
                         Text(preview)
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .font(.system(size: 14, weight: .regular, design: writingFontDesign(for: past)))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .lineLimit(3)
                             .lineSpacing(4)
@@ -313,6 +320,7 @@ private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
     let photoDataArray: [Data]
+    let fontChoice: String?
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
         guard let textStyleData,
@@ -320,6 +328,19 @@ private struct InlineEntryContent: View {
             return []
         }
         return document.paragraphStyles
+    }
+
+    private var fontChoices: [String] {
+        guard let textStyleData,
+              let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: textStyleData) else {
+            return []
+        }
+        return document.fontChoices ?? []
+    }
+
+    private func writingFontDesign(at index: Int) -> Font.Design {
+        let override = fontChoices.indices.contains(index) ? fontChoices[index] : nil
+        return WritingFontChoice.resolved(entryDefault: fontChoice, override: override).swiftUIDesign
     }
 
     private var displayLines: [String] {
@@ -374,13 +395,13 @@ private struct InlineEntryContent: View {
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24, alignment: .center)
                 Text(displayLine)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.system(size: 17, weight: .regular, design: writingFontDesign(at: index)))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
         } else {
             Text(line)
-                .font(.system(.body, design: .serif))
+                .font(.system(.body, design: writingFontDesign(at: index)))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }
