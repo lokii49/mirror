@@ -17,11 +17,11 @@ extension WriteView {
                     isAttachingPhoto = false
                 } catch {
                     isAttachingPhoto = false
-                    photoAttachError = "This image could not be attached. Try a different image or export it as JPEG first."
+                    photoAttachError = String(localized: "This image could not be attached. Try a different image or export it as JPEG first.")
                 }
             }
         case .failure:
-            photoAttachError = "This image could not be attached. Try a different image or export it as JPEG first."
+            photoAttachError = String(localized: "This image could not be attached. Try a different image or export it as JPEG first.")
         }
     }
 }

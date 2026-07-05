@@ -144,7 +144,7 @@ final class VoiceNotePlayer {
 struct VoiceNoteAttachmentView: View {
     let data: Data
     let duration: TimeInterval
-    var title: String = "Voice note"
+    var title: String = String(localized: "Voice note")
     var transcript: String? = nil
     var languageName: String? = nil
     var isTranscribing: Bool = false
@@ -436,10 +436,10 @@ struct VoiceInputSheet: View {
     }
 
     private var statusLabel: String {
-        if permissionDenied { return "No microphone access" }
-        if manager.isRecording { return "Tap to stop" }
-        if manager.hasRecording { return "Tap to re-record" }
-        return "Tap to record"
+        if permissionDenied { return String(localized: "No microphone access") }
+        if manager.isRecording { return String(localized: "Tap to stop") }
+        if manager.hasRecording { return String(localized: "Tap to re-record") }
+        return String(localized: "Tap to record")
     }
 
     private var liveWaveform: some View {

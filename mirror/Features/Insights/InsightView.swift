@@ -356,7 +356,7 @@ struct InsightView: View {
         } label: {
             ExplorationTile(
                 title: "Mood Timeline",
-                subtitle: dominantMoodThisWeek.map { mood -> LocalizedStringKey in "Mostly \(mood) this week" } ?? "See long arcs",
+                subtitle: dominantMoodThisWeek.map { mood -> LocalizedStringKey in "Mostly \(MirrorTheme.localizedMoodName(for: mood)) this week" } ?? "See long arcs",
                 icon: "waveform.path.ecg",
                 color: .teal,
                 badge: SubscriptionService.shared.isDeep ? nil : "Deep"
@@ -1047,7 +1047,7 @@ private struct MoodWeekChartView: View {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: mood))
                             .frame(width: 7, height: 7)
-                        Text("Mostly \(mood)")
+                        Text("Mostly \(MirrorTheme.localizedMoodName(for: mood))")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }

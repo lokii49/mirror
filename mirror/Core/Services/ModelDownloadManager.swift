@@ -197,7 +197,7 @@ final class ModelDownloadManager: NSObject {
             let expected = serverExpectedByteCount > 0 ? serverExpectedByteCount : Self.minimumSaneByteCount
             guard size >= expected else {
                 try? FileManager.default.removeItem(at: destination)
-                state = .failed("Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again.")
+                state = .failed(String(localized: "Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again."))
                 return
             }
             if serverExpectedByteCount > 0 {
@@ -251,7 +251,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             try FileManager.default.moveItem(at: location, to: tempURL)
         } catch {
             Task { @MainActor in
-                self.state = .failed("Couldn't save downloaded model: \(error.localizedDescription)")
+                self.state = .failed(String(localized: "Couldn't save downloaded model: \(error.localizedDescription)"))
             }
             return
         }

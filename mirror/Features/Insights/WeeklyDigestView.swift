@@ -110,16 +110,15 @@ struct WeeklyDigestView: View {
             .replacingOccurrences(of: "**", with: "")
             .replacingOccurrences(of: "[", with: "")
             .replacingOccurrences(of: "]", with: "")
-        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
         var results: [(title: String, body: String)] = []
 
-        for (i, header) in headers.enumerated() {
-            guard let headerRange = normalized.range(of: header + ":", options: [.caseInsensitive]) else { continue }
+        for (i, header) in sectionHeaderAliases.enumerated() {
+            guard let headerRange = firstHeaderRange(in: normalized, aliases: header.aliases) else { continue }
             let afterHeader = String(normalized[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
 
             var bodyEnd = afterHeader.endIndex
-            for nextHeader in headers[(i+1)...] {
-                if let nextRange = afterHeader.range(of: nextHeader + ":", options: [.caseInsensitive]) {
+            for nextHeader in sectionHeaderAliases.dropFirst(i + 1) {
+                if let nextRange = firstHeaderRange(in: afterHeader, aliases: nextHeader.aliases) {
                     bodyEnd = nextRange.lowerBound
                     break
                 }
@@ -128,10 +127,23 @@ struct WeeklyDigestView: View {
             let body = String(afterHeader[..<bodyEnd])
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .replacingOccurrences(of: "\n\n", with: "\n")
-            results.append((title: header, body: body))
+            results.append((title: header.canonical, body: body))
         }
 
         return results
+    }
+
+    private func firstHeaderRange(in text: String, aliases: [String]) -> Range<String.Index>? {
+        aliases
+            .lazy
+            .compactMap { text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) }
+            .min(by: { $0.lowerBound < $1.lowerBound })
+    }
+
+    private var sectionHeaderAliases: [(canonical: String, aliases: [String])] {
+        InsightService.weeklyDigestSectionLabels.map { section in
+            (canonical: section["en"] ?? "", aliases: Array(section.values))
+        }
     }
 
     private func shortTitle(for title: String) -> LocalizedStringKey {
@@ -174,8 +186,7 @@ struct DigestSectionView: View {
     let title: String
     let content: String
 
-    // `title` stays the raw LLM-matched marker (e.g. "THIS WEEK'S THEME") for the
-    // switches below; displayName is the only translated, user-visible form of it.
+    // `title` is normalized to the canonical section id before display.
     private var displayName: LocalizedStringKey {
         switch title {
         case "THIS WEEK'S THEME": return "This Week's Theme"

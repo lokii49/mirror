@@ -68,7 +68,7 @@ extension WriteView {
                     viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
                 } label: {
                     Label {
-                        Text(mood)
+                        Text(MirrorTheme.localizedMoodName(for: mood))
                     } icon: {
                         Image(uiImage: moodMenuDotImage(for: mood, isSelected: viewModel.selectedMood == mood))
                             .renderingMode(.original)
@@ -96,7 +96,7 @@ extension WriteView {
                     }
                     Group {
                         if let selectedMood = viewModel.selectedMood {
-                            Text(selectedMood)
+                            Text(MirrorTheme.localizedMoodName(for: selectedMood))
                         } else {
                             Text("Mood")
                         }
@@ -120,7 +120,7 @@ extension WriteView {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Mood")
-        .accessibilityValue(viewModel.selectedMood.map { Text($0) } ?? Text("Not selected"))
+        .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
     }
 
     @ToolbarContentBuilder

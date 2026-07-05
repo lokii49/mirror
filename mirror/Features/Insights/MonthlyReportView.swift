@@ -368,7 +368,7 @@ private struct MonthlyStatsStrip: View {
             )
             if let mood = topMood {
                 Divider().frame(height: 32)
-                statCell(value: mood, label: "top mood")
+                statCell(value: MirrorTheme.localizedMoodName(for: mood), label: "top mood")
             }
             if voiceCount > 0 {
                 Divider().frame(height: 32)
@@ -398,17 +398,6 @@ private struct MonthlyStatsStrip: View {
 private struct MonthlyReportCard: View {
     let insight: Insight
 
-    private let headers = [
-        "YOUR MONTH IN ONE IMAGE",
-        "THE TENSION AT THE CENTER",
-        "A MOMENT THAT SHIFTED SOMETHING",
-        "WHAT YOU'RE BECOMING",
-        "WHAT WANTS TO BE RELEASED",
-        "YOUR QUESTION FOR NEXT MONTH",
-    ]
-
-    // Display-only; `headers` above stays untranslated since it's matched against
-    // the LLM's raw output in extractBody(for:) — translating it would break that match.
     private let headerDisplayNames: [String: LocalizedStringKey] = [
         "YOUR MONTH IN ONE IMAGE": "Your Month In One Image",
         "THE TENSION AT THE CENTER": "The Tension At The Center",
@@ -436,10 +425,10 @@ private struct MonthlyReportCard: View {
     }
 
     private var sections: [Section] {
-        headers.compactMap { header in
-            guard let body = extractBody(for: header) else { return nil }
-            let (icon, color) = headerIcons[header] ?? ("circle.fill", .secondary)
-            return Section(header: header, body: body, icon: icon, color: color)
+        sectionHeaderAliases.compactMap { header in
+            guard let body = extractBody(for: header.aliases) else { return nil }
+            let (icon, color) = headerIcons[header.canonical] ?? ("circle.fill", .secondary)
+            return Section(header: header.canonical, body: body, icon: icon, color: color)
         }
     }
 
@@ -512,30 +501,35 @@ private struct MonthlyReportCard: View {
         }
     }
 
-    private func extractBody(for header: String) -> String? {
+    private func extractBody(for aliases: [String]) -> String? {
         let text = insight.content
         let normalizedText = text
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{2018}", with: "'")
-        guard let headerRange = normalizedText.range(of: "\(header):", options: [.caseInsensitive]) else { return nil }
+        guard let headerRange = firstHeaderRange(in: normalizedText, aliases: aliases) else { return nil }
         let afterHeader = String(normalizedText[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        let allHeaders = [
-            "YOUR MONTH IN ONE IMAGE",
-            "THE TENSION AT THE CENTER",
-            "A MOMENT THAT SHIFTED SOMETHING",
-            "WHAT YOU'RE BECOMING",
-            "WHAT WANTS TO BE RELEASED",
-            "YOUR QUESTION FOR NEXT MONTH",
-        ]
         var bodyEnd = afterHeader.endIndex
-        for nextHeader in allHeaders {
-            if nextHeader == header { continue }
-            if let nextRange = afterHeader.range(of: "\(nextHeader):", options: [.caseInsensitive]) {
+        for nextHeader in sectionHeaderAliases {
+            if nextHeader.aliases == aliases { continue }
+            if let nextRange = firstHeaderRange(in: afterHeader, aliases: nextHeader.aliases) {
                 if nextRange.lowerBound < bodyEnd {
                     bodyEnd = nextRange.lowerBound
                 }
             }
         }
         return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func firstHeaderRange(in text: String, aliases: [String]) -> Range<String.Index>? {
+        aliases
+            .lazy
+            .compactMap { text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) }
+            .min(by: { $0.lowerBound < $1.lowerBound })
+    }
+
+    private var sectionHeaderAliases: [(canonical: String, aliases: [String])] {
+        InsightService.monthlyReportSectionLabels.map { section in
+            (canonical: section["en"] ?? "", aliases: Array(section.values))
+        }
     }
 }
