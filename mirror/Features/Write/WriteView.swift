@@ -78,6 +78,7 @@ struct WriteView: View {
     @State var showDatePicker = false
     @State var focusMode = false
     @State var entryTags: [String] = []
+    @State var entryFontChoiceRaw: String = WritingFontChoice.system.rawValue
     @State var tagText: String = ""
     @State var showTagInput = false
     @State var existingTagSuggestions: [String] = []
@@ -168,6 +169,7 @@ struct WriteView: View {
                     showFormattingPanel: $showFormattingPanel,
                     canUndo: $canUndo,
                     canRedo: $canRedo,
+                    fontChoiceRaw: $entryFontChoiceRaw,
                     panelState: panelState,
                     onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                 )
@@ -269,6 +271,7 @@ struct WriteView: View {
             }
             entryDate = entry?.createdAt ?? Date()
             entryTags = entry?.tags ?? []
+            entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
             if entry == nil {
                 restoreDraftFromStorage()
                 if !initialText.isEmpty && viewModel.text.isEmpty {
@@ -277,6 +280,7 @@ struct WriteView: View {
             }
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
             panelState.onDismiss = { showFormattingPanel = false }
+            panelState.fontChoiceRaw = entryFontChoiceRaw
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true

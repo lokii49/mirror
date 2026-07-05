@@ -12,6 +12,7 @@ enum NoteTextCommand: Equatable {
     case bulletedList
     case dashedList
     case numberedList
+    case fontFamily(WritingFontChoice)
     case bold
     case italic
     case underline
@@ -46,6 +47,11 @@ enum NoteParagraphTextStyle: String, Codable {
 struct NoteTextStyleDocument: Codable {
     var paragraphStyles: [NoteParagraphTextStyle]
     var indentLevels: [Int]?   // nil means all zero; only stored when at least one paragraph has level > 0
+    // WritingFontChoice.rawValue per paragraph. nil, or an index past the end of this
+    // array, means "no per-paragraph override" — falls back to Entry.fontChoice, then
+    // .system. Actively-edited entries store a resolved value at every index; the
+    // sparse/absent fallback only ever applies to data written before this field existed.
+    var fontChoices: [String]?
 }
 
 // MARK: - Inline styles

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 let highlightColors: [Color] = [
     Color(red: 1.0, green: 0.75, blue: 0.80),   // pink
@@ -12,6 +13,13 @@ let highlightColors: [Color] = [
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil
+    /// The font family the *current paragraph/selection* is using — drives the
+    /// font row's highlight, same role activeParagraphStyle plays for block style.
+    var activeFontChoice: WritingFontChoice = .system
+    /// Entry-wide fallback only (empty document, or a paragraph with no explicit
+    /// override) — no longer mutated by tapping a font button; that now goes
+    /// through onCommand(.fontFamily) like every other paragraph-level command.
+    var fontChoiceRaw: String = WritingFontChoice.system.rawValue
     var onCommand: ((NoteTextCommand) -> Void)?
     var onDismiss: (() -> Void)?
 }
@@ -29,6 +37,19 @@ struct FormattingPanelView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 10)
+
+            // Row 0: Font family — applies everywhere this entry's body text
+            // appears (Write, entry list preview, entry detail view).
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(WritingFontChoice.allCases) { choice in
+                        fontChoiceButton(choice)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 2)
+            }
+            .padding(.bottom, 10)
 
             // Row 1: Paragraph styles — horizontal scroll, each in its own font
             ScrollView(.horizontal, showsIndicators: false) {
@@ -111,6 +132,33 @@ struct FormattingPanelView: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemBackground))
+    }
+
+    // MARK: - Font family button
+
+    @ViewBuilder
+    private func fontChoiceButton(_ choice: WritingFontChoice) -> some View {
+        let isActive = state.activeFontChoice == choice
+        Button {
+            DispatchQueue.main.async { state.onCommand?(.fontFamily(choice)) }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(choice.label)
+                .font(.system(size: 14, weight: .regular, design: choice.swiftUIDesign))
+                .lineLimit(1)
+                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .padding(.horizontal, 16)
+                .frame(height: 44)
+                .background(
+                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
+                    in: RoundedRectangle(cornerRadius: 10)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isActive ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Paragraph style button

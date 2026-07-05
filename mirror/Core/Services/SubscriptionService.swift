@@ -11,7 +11,11 @@ enum SubscriptionTier: String {
 final class SubscriptionService {
     static let shared = SubscriptionService()
 
-    private(set) var tier: SubscriptionTier = .free
+    // TEMPORARY: unlock every tier for every user, no purchase required.
+    // Flip to false to restore normal RevenueCat-driven gating.
+    static let allFeaturesFree = true
+
+    private(set) var tier: SubscriptionTier = allFeaturesFree ? .deep : .free
     private(set) var corePackages: [Package] = []
     private(set) var deepPackages: [Package] = []
     private(set) var isPurchasing = false
@@ -85,6 +89,11 @@ final class SubscriptionService {
     }
 
     private func updateTier(from customerInfo: CustomerInfo) {
+        guard !Self.allFeaturesFree else {
+            tier = .deep
+            UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(tier.rawValue, forKey: "widget.tier")
+            return
+        }
         if customerInfo.entitlements["deep"]?.isActive == true {
             tier = .deep
         } else if customerInfo.entitlements["core"]?.isActive == true {

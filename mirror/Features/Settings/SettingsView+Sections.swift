@@ -633,6 +633,41 @@ extension SettingsView {
     var debugSection: some View {
         settingsGroup("Developer") {
             Button {
+                let unreadable = entries.filter(\.textDecryptionFailed).count
+                encryptionReport = MirrorEncryption.diagnosticsReport()
+                    + "\nentries unreadable: \(unreadable)/\(entries.count)"
+            } label: {
+                HStack {
+                    settingsRowLabel("Encryption Diagnostics", systemImage: "key.viewfinder", iconColor: .orange)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+            .alert("Encryption Diagnostics", isPresented: .init(
+                get: { encryptionReport != nil },
+                set: { if !$0 { encryptionReport = nil } }
+            )) {
+                Button("Copy") { UIPasteboard.general.string = encryptionReport }
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(encryptionReport ?? "")
+            }
+
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
+
+            Button(role: .destructive) {
+                ModelDownloadManager.shared.deleteInstalledModelForTesting()
+            } label: {
+                HStack {
+                    settingsRowLabel("Delete Downloaded AI Model", systemImage: "brain.head.profile", iconColor: .red)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
+
+            Button {
                 SampleData.seed(into: modelContext)
             } label: {
                 HStack {
