@@ -134,7 +134,7 @@ struct WeeklyDigestView: View {
         return results
     }
 
-    private func shortTitle(for title: String) -> String {
+    private func shortTitle(for title: String) -> LocalizedStringKey {
         switch title {
         case "THIS WEEK'S THEME": return "Theme"
         case "YOUR ENERGY": return "Energy"
@@ -142,7 +142,7 @@ struct WeeklyDigestView: View {
         case "WATCH OUT FOR": return "Watch"
         case "MOOD BOOST": return "Boost"
         case "NEXT WEEK": return "Next"
-        default: return title.capitalized
+        default: return LocalizedStringKey(title.capitalized)
         }
     }
 
@@ -174,6 +174,20 @@ struct DigestSectionView: View {
     let title: String
     let content: String
 
+    // `title` stays the raw LLM-matched marker (e.g. "THIS WEEK'S THEME") for the
+    // switches below; displayName is the only translated, user-visible form of it.
+    private var displayName: LocalizedStringKey {
+        switch title {
+        case "THIS WEEK'S THEME": return "This Week's Theme"
+        case "YOUR ENERGY": return "Your Energy"
+        case "WHAT'S BUILDING": return "What's Building"
+        case "WATCH OUT FOR": return "Watch Out For"
+        case "MOOD BOOST": return "Mood Boost"
+        case "NEXT WEEK": return "Next Week"
+        default: return LocalizedStringKey(title.capitalized)
+        }
+    }
+
     private var sectionColor: Color {
         switch title {
         case "THIS WEEK'S THEME": return .indigo
@@ -202,7 +216,7 @@ struct DigestSectionView: View {
             HStack(spacing: 5) {
                 Image(systemName: sectionIcon)
                     .font(.system(size: 10, weight: .bold))
-                Text(title)
+                Text(displayName)
                     .font(.system(size: 10, weight: .bold))
                     .tracking(0.6)
             }

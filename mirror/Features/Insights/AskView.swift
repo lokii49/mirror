@@ -2,12 +2,15 @@ import SwiftUI
 import SwiftData
 
 struct AskView: View {
+    let viewModel: InsightViewModel
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
     @State private var subscriptionService = SubscriptionService.shared
+    @State private var modelManager = ModelDownloadManager.shared
     @State private var showPaywall = false
 
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
@@ -25,14 +28,14 @@ struct AskView: View {
     private let bottomAnchorID = "ask-bottom-anchor"
 
     private let suggestions = [
-        "What have I been stressed about lately?",
-        "When do I feel most alive?",
-        "What patterns keep showing up?",
-        "What am I grateful for this week?",
-        "What's been draining my energy?",
-        "What made me smile recently?",
-        "What am I avoiding?",
-        "How has my mood changed over time?",
+        String(localized: "What have I been stressed about lately?"),
+        String(localized: "When do I feel most alive?"),
+        String(localized: "What patterns keep showing up?"),
+        String(localized: "What am I grateful for this week?"),
+        String(localized: "What's been draining my energy?"),
+        String(localized: "What made me smile recently?"),
+        String(localized: "What am I avoiding?"),
+        String(localized: "How has my mood changed over time?"),
     ]
 
     private var askHistory: [Insight] {
@@ -55,7 +58,16 @@ struct AskView: View {
 
     var body: some View {
         Group {
-            if subscriptionService.isSubscribed {
+            switch viewModel.askState {
+            case .idle:
+                Color.clear
+            case .subscriptionRequired:
+                askLockedState
+            case .notEnoughEntries(let remaining):
+                askNotEnoughEntriesState(remaining: remaining)
+            case .modelNotInstalled:
+                askModelNotInstalledState
+            case .ready:
                 VStack(spacing: 0) {
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,14 +112,24 @@ struct AskView: View {
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
                     withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
                 }
-            } else {
-                askLockedState
             }
         }
         .background(MirrorTheme.bgBase)
         .navigationTitle("Ask")
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showPaywall) { PaywallView() }
+        .onAppear {
+            viewModel.loadAskState(entries: entries)
+        }
+        .onChange(of: entries.count) { _, _ in
+            viewModel.loadAskState(entries: entries)
+        }
+        .onChange(of: modelManager.state) { _, _ in
+            viewModel.loadAskState(entries: entries)
+        }
+        .onChange(of: SubscriptionService.shared.tier) { _, _ in
+            viewModel.loadAskState(entries: entries)
+        }
     }
 
     private var askLockedState: some View {
@@ -141,6 +163,58 @@ struct AskView: View {
             }
             .buttonStyle(.plain)
             .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+            Spacer()
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func askNotEnoughEntriesState(remaining: Int) -> some View {
+        heroState(
+            icon: "pencil.and.scribble",
+            title: "Mirror is still learning",
+            subtitle: remaining == 1
+                ? "Ask needs 1 more entry before it can find patterns in your journal."
+                : "Ask needs \(remaining) more entries before it can find patterns in your journal."
+        )
+    }
+
+    private var askModelNotInstalledState: some View {
+        heroState(
+            icon: "brain.head.profile",
+            title: "Ask needs the on-device model",
+            subtitle: "MirrorNotes uses Gemma 3 1B — it runs fully on your device, so nothing you write is ever sent anywhere. One-time ~800MB download."
+        ) {
+            ModelDownloadStateControl()
+        }
+    }
+
+    private func heroState<Trailing: View>(
+        icon: String,
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) -> some View {
+        VStack(spacing: 24) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(MirrorTheme.accentGradient)
+                    .frame(width: 88, height: 88)
+                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
+                Image(systemName: icon)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(subtitle)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            trailing()
             Spacer()
         }
         .padding(28)
@@ -374,9 +448,18 @@ struct AskView: View {
         .background(.bar)
     }
 
+    // Single global key: LocalLLMService holds one shared llama context, so two
+    // concurrent Ask generations (e.g. iPad split view, a rapid double-submit)
+    // would stomp on each other's in-flight completion. Matches the claim/release
+    // dedup pattern InsightViewModel already uses for Digest/Monthly Report.
+    private static let coordinatorKey = "ask"
+
     private func submitQuestion() async {
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, remaining > 0 else { return }
+        guard InsightGenerationCoordinator.shared.claim(key: Self.coordinatorKey) else { return }
+        defer { InsightGenerationCoordinator.shared.release(key: Self.coordinatorKey) }
+
         isLoading = true
         error = nil
         let submitted = q
@@ -394,10 +477,8 @@ struct AskView: View {
             )
             modelContext.insert(insight)
             try modelContext.save()
-        } catch InsightError.subscriptionRequired {
-            error = "Core subscription required."
         } catch {
-            self.error = "Something went wrong. Try your question again."
+            self.error = friendlyLLMError(error)
         }
 
         isLoading = false
@@ -521,7 +602,7 @@ private struct LoadingAskBubble: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Entry.self, Insight.self, UserProfile.self, configurations: config)
     return NavigationStack {
-        AskView()
+        AskView(viewModel: InsightViewModel())
     }
     .modelContainer(container)
 }

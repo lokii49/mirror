@@ -78,17 +78,38 @@ struct MoodMapWidgetView: View {
         }
     }
 
-    private var trend: String {
-        guard points.count >= 4 else { return "" }
+    private enum TrendDirection {
+        case none, improving, declining, steady
+
+        var label: LocalizedStringKey? {
+            switch self {
+            case .none:       return nil
+            case .improving:  return "↑ Improving"
+            case .declining:  return "↓ Declining"
+            case .steady:     return "→ Steady"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .improving: return .green
+            case .declining: return Color(red: 0.976, green: 0.482, blue: 0.545) // ember
+            case .steady, .none: return Color(red: 0.655, green: 0.545, blue: 0.980).opacity(0.60) // wViLight
+            }
+        }
+    }
+
+    private var trend: TrendDirection {
+        guard points.count >= 4 else { return .none }
         let recent = points.suffix(3).map(\.score)
         let earlier = points.dropLast(3).suffix(3).map(\.score)
-        guard !earlier.isEmpty else { return "" }
+        guard !earlier.isEmpty else { return .none }
         let recentAvg = recent.reduce(0, +) / Double(recent.count)
         let earlierAvg = earlier.reduce(0, +) / Double(earlier.count)
         let delta = recentAvg - earlierAvg
-        if delta > 0.3 { return "↑ Improving" }
-        if delta < -0.3 { return "↓ Declining" }
-        return "→ Steady"
+        if delta > 0.3 { return .improving }
+        if delta < -0.3 { return .declining }
+        return .steady
     }
 
     var body: some View {
@@ -99,10 +120,10 @@ struct MoodMapWidgetView: View {
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.50))
                     Spacer()
-                    if !trend.isEmpty {
-                        Text(trend)
+                    if let label = trend.label {
+                        Text(label)
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(trendColor)
+                            .foregroundStyle(trend.color)
                     }
                 }
                 if points.isEmpty {
@@ -172,12 +193,6 @@ struct MoodMapWidgetView: View {
             }
             .widgetURL(URL(string: "mirror://upgrade"))
         }
-    }
-
-    private var trendColor: Color {
-        if trend.hasPrefix("↑") { return .green }
-        if trend.hasPrefix("↓") { return Color(red: 0.976, green: 0.482, blue: 0.545) } // ember
-        return wViLight.opacity(0.60)
     }
 
     private func moodColor(_ mood: String) -> Color {

@@ -35,12 +35,29 @@ enum MonthlyReportState {
     case error(String)
 }
 
+enum AskState: Equatable {
+    static let minimumEntries = 7
+
+    case idle
+    case notEnoughEntries(remaining: Int)
+    case modelNotInstalled
+    case subscriptionRequired
+    case ready
+}
+
 @MainActor
 @Observable
 final class InsightViewModel {
     var nudgeState: NudgeState = .idle
     var digestState: DigestState = .idle
     var monthlyReportState: MonthlyReportState = .idle
+    var askState: AskState = .idle
+
+    // Ask has no natural period/cache identity (it's a running chat, not one insight
+    // per week/month) — once entries/model clear the bar they stay cleared for the
+    // session instead of re-locking the chat on a transient dip (e.g. deleting an entry).
+    private var hasEnoughEntriesEverConfirmed = false
+    private var modelReadyEverConfirmedForAsk = false
 
     // MARK: - Daily Nudge
     // Cache-read-only: generation happens in mirrorApp.preGenerateInsightsIfNeeded (app-active)
@@ -207,17 +224,51 @@ final class InsightViewModel {
             monthlyReportState = .error(friendlyLLMError(error))
         }
     }
+
+    // MARK: - Ask
+    // Gating only — Ask is chat-style (per-question, user-triggered), not one cached
+    // insight per period, so there's no .loading/.loaded case here. AskView reads
+    // askState to decide which screen to show, then calls InsightService.ask directly.
+
+    func loadAskState(entries: [Entry]) {
+        let newState = resolvedAskState(entries: entries)
+        if askState != newState { askState = newState }
+    }
+
+    private func resolvedAskState(entries: [Entry]) -> AskState {
+        guard SubscriptionService.shared.isSubscribed else { return .subscriptionRequired }
+
+        if entries.count >= AskState.minimumEntries { hasEnoughEntriesEverConfirmed = true }
+        guard hasEnoughEntriesEverConfirmed else {
+            return .notEnoughEntries(remaining: AskState.minimumEntries - entries.count)
+        }
+
+        if isAskModelReady() { modelReadyEverConfirmedForAsk = true }
+        guard modelReadyEverConfirmedForAsk else { return .modelNotInstalled }
+
+        return .ready
+    }
+
+    // Bundled-resource check + ModelDownloadManager's byte-verified install check —
+    // stronger than the bare mirrorApp.modelAvailable() fileExists used elsewhere in
+    // this file, since a truncated/corrupt model file must not unlock Ask's chat UI.
+    private func isAskModelReady() -> Bool {
+        if Bundle.main.url(forResource: LocalLLMService.modelFileName, withExtension: LocalLLMService.modelExtension) != nil {
+            return true
+        }
+        return (try? ModelDownloadManager.installedModelExists()) ?? false
+    }
 }
 
-private func friendlyLLMError(_ error: Error) -> String {
+func friendlyLLMError(_ error: Error) -> String {
     switch error {
     case InsightError.incompleteResponse:
-        return "Mirror couldn't finish the reflection. Tap retry — it usually works on the next try."
+        return String(localized: "Mirror couldn't finish the reflection. Tap retry — it usually works on the next try.")
     case InsightError.emptyResponse:
-        return "Mirror didn't get a response. Tap retry in a moment."
+        return String(localized: "Mirror didn't get a response. Tap retry in a moment.")
     case InsightError.serviceUnavailable:
-        return "Something went wrong. Mirror will try again tonight while your phone charges."
+        return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
     default:
-        return "Something went wrong. Tap retry or come back in a moment."
+        return String(localized: "Something went wrong. Tap retry or come back in a moment.")
     }
 }

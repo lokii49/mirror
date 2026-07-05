@@ -57,7 +57,7 @@ struct SubscriptionView: View {
         .futureSurface(cornerRadius: 22)
     }
 
-    private var tierName: String {
+    private var tierName: LocalizedStringKey {
         switch subscriptionService.tier {
         case .free: return "Free Plan"
         case .core: return "MirrorNotes Core"
@@ -65,7 +65,7 @@ struct SubscriptionView: View {
         }
     }
 
-    private var tierDescription: String {
+    private var tierDescription: LocalizedStringKey {
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -137,7 +137,7 @@ struct SubscriptionView: View {
         }
     }
 
-    private func tierUpgradeCard(title: String, icon: String, iconColor: Color, bullets: [String], packages: [Package]) -> some View {
+    private func tierUpgradeCard(title: String, icon: String, iconColor: Color, bullets: [LocalizedStringKey], packages: [Package]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 ZStack {
@@ -153,7 +153,7 @@ struct SubscriptionView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(bullets, id: \.self) { bullet in
+                ForEach(Array(bullets.enumerated()), id: \.offset) { _, bullet in
                     Label(bullet, systemImage: "checkmark")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
@@ -205,7 +205,7 @@ struct SubscriptionView: View {
         .futureSurface(cornerRadius: 18)
     }
 
-    private func packageLabel(_ package: Package) -> String {
+    private func packageLabel(_ package: Package) -> LocalizedStringKey {
         switch package.packageType {
         case .monthly:  return "Monthly"
         case .annual:   return "Yearly"
@@ -215,11 +215,11 @@ struct SubscriptionView: View {
             let id = package.storeProduct.productIdentifier
             if id.contains("month") { return "Monthly" }
             if id.contains("year") || id.contains("annual") { return "Yearly" }
-            return id
+            return LocalizedStringKey(id)
         }
     }
 
-    private func packageSubtitle(_ package: Package) -> String {
+    private func packageSubtitle(_ package: Package) -> LocalizedStringKey {
         let isDeepProduct = package.storeProduct.productIdentifier.contains("deep")
         switch package.packageType {
         case .monthly:  return "Billed monthly · cancel anytime"

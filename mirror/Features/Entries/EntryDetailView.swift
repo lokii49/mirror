@@ -64,7 +64,7 @@ struct EntryDetailView: View {
                             }
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
-                            Text("\(displayedWordCount) words")
+                            Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
                                 .font(.system(size: 14, weight: .medium, design: .monospaced))
                                 .foregroundStyle(MirrorTheme.textTertiary)
                         }

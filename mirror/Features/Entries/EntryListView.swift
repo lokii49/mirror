@@ -34,6 +34,15 @@ struct EntriesTabView: View {
             case .byMood:      return "face.smiling"
             }
         }
+
+        var displayName: LocalizedStringKey {
+            switch self {
+            case .newestFirst: return "Newest First"
+            case .oldestFirst: return "Oldest First"
+            case .mostWords:   return "Most Words"
+            case .byMood:      return "By Mood"
+            }
+        }
     }
 
     private struct EntryMonthGroup {
@@ -44,7 +53,7 @@ struct EntriesTabView: View {
     // Precomputed at task time — zero AES decrypts during scroll
     struct EntryRowPreview {
         let moodLabel: String?
-        let preview: String
+        let preview: Text
         let wordCount: Int
         let hasReadablePreview: Bool
         let hasVoiceNotes: Bool
@@ -151,7 +160,7 @@ struct EntriesTabView: View {
                     Button {
                         withAnimation { sortOrder = order }
                     } label: {
-                        Label(order.rawValue, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                        Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
                     }
                 }
             } label: {
@@ -460,7 +469,7 @@ struct EntriesTabView: View {
                             .font(.system(size: 13, weight: .black, design: .rounded))
                             .tracking(1.5)
                         Spacer()
-                        Text("\(group.entries.count) \(group.entries.count == 1 ? "entry" : "entries")")
+                        Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .textCase(nil)
                     }
@@ -482,7 +491,7 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
-    private var emptyFilteredMessage: String {
+    private var emptyFilteredMessage: LocalizedStringKey {
         if let date = selectedDateFilter {
             return "No entries on \(date.formatted(.dateTime.month(.wide).day()))"
         }
@@ -519,7 +528,7 @@ struct EntriesTabView: View {
 private struct EntryRow: View {
     let entry: Entry
     private let moodLabel: String?
-    private let preview: String
+    private let preview: Text
     private let displayWordCount: Int
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
@@ -582,7 +591,7 @@ private struct EntryRow: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
-                    Text(preview)
+                    preview
                         .font(.system(size: 16, weight: .medium, design: writingFontDesign))
                         .foregroundStyle(previewTextColor)
                         .lineLimit(3)
@@ -660,9 +669,9 @@ private struct EntryRow: View {
         return trimmed
     }
 
-    fileprivate static func makePreview(for entry: Entry) -> (preview: String, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
+    fileprivate static func makePreview(for entry: Entry) -> (preview: Text, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
         guard !entry.textDecryptionFailed else {
-            return ("Encrypted entry unavailable", 0, false, entry.hasVoiceNotes)
+            return (Text("Encrypted entry unavailable"), 0, false, entry.hasVoiceNotes)
         }
         var entryTextStripped = entry.text
         for (r, _) in allPhotoTokens(in: entryTextStripped).reversed() { entryTextStripped.removeSubrange(r) }
@@ -681,20 +690,20 @@ private struct EntryRow: View {
             .count
 
         if !textPreview.isEmpty {
-            return (textPreview, wordCount, hasReadablePreview, voicePreview.count > 0)
+            return (Text(verbatim: textPreview), wordCount, hasReadablePreview, voicePreview.count > 0)
         }
         if let voiceTranscriptPreview {
-            return (voiceTranscriptPreview, wordCount, hasReadablePreview, voicePreview.count > 0)
+            return (Text(verbatim: voiceTranscriptPreview), wordCount, hasReadablePreview, voicePreview.count > 0)
         }
         if voicePreview.count > 0 {
             if voicePreview.count == 1 {
-                return ("Voice note \(formatDuration(voicePreview.duration))", wordCount, hasReadablePreview, true)
+                return (Text("Voice note \(formatDuration(voicePreview.duration))"), wordCount, hasReadablePreview, true)
             }
-            return ("\(voicePreview.count) voice notes", wordCount, hasReadablePreview, true)
+            return (Text("\(voicePreview.count) voice notes"), wordCount, hasReadablePreview, true)
         }
         if entry.hasPhoto {
-            return ("Photo entry", wordCount, hasReadablePreview, false)
+            return (Text("Photo entry"), wordCount, hasReadablePreview, false)
         }
-        return ("Untitled entry", wordCount, hasReadablePreview, false)
+        return (Text("Untitled entry"), wordCount, hasReadablePreview, false)
     }
 }

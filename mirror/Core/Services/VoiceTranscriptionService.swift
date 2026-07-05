@@ -142,38 +142,20 @@ enum VoiceTranscriptionService {
 
     struct SupportedLanguage: Identifiable {
         let id: String        // locale identifier, "" = automatic
-        let displayName: String
+
+        // System-provided, in the app's current UI language — correct for free,
+        // no translation upkeep needed for 25 language names across 10 locales.
+        var displayName: String {
+            id.isEmpty ? String(localized: "Automatic") : (Locale.current.localizedString(forIdentifier: id) ?? id)
+        }
     }
 
     static let pickerLanguages: [SupportedLanguage] = {
-        let ids: [(String, String)] = [
-            ("", "Automatic"),
-            ("te-IN", "Telugu (India)"),
-            ("hi-IN", "Hindi (India)"),
-            ("ta-IN", "Tamil (India)"),
-            ("kn-IN", "Kannada (India)"),
-            ("ml-IN", "Malayalam (India)"),
-            ("mr-IN", "Marathi (India)"),
-            ("gu-IN", "Gujarati (India)"),
-            ("bn-IN", "Bengali (India)"),
-            ("en-IN", "English (India)"),
-            ("en-US", "English (US)"),
-            ("es-ES", "Spanish (Spain)"),
-            ("es-MX", "Spanish (Mexico)"),
-            ("fr-FR", "French"),
-            ("de-DE", "German"),
-            ("it-IT", "Italian"),
-            ("pt-BR", "Portuguese (Brazil)"),
-            ("ru-RU", "Russian"),
-            ("ja-JP", "Japanese"),
-            ("ko-KR", "Korean"),
-            ("zh-Hans", "Chinese (Simplified)"),
-            ("ar-SA", "Arabic"),
-            ("id-ID", "Indonesian"),
-            ("tr-TR", "Turkish"),
-            ("vi-VN", "Vietnamese"),
-            ("nl-NL", "Dutch"),
+        let ids = [
+            "", "te-IN", "hi-IN", "ta-IN", "kn-IN", "ml-IN", "mr-IN", "gu-IN", "bn-IN",
+            "en-IN", "en-US", "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR",
+            "ru-RU", "ja-JP", "ko-KR", "zh-Hans", "ar-SA", "id-ID", "tr-TR", "vi-VN", "nl-NL",
         ]
-        return ids.map { SupportedLanguage(id: $0.0, displayName: $0.1) }
+        return ids.map { SupportedLanguage(id: $0) }
     }()
 }

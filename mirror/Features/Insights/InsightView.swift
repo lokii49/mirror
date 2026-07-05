@@ -333,11 +333,13 @@ struct InsightView: View {
 
     private var askSection: some View {
         NavigationLink {
-            AskView()
+            AskView(viewModel: viewModel)
         } label: {
             ExplorationTile(
                 title: "Ask Mirror",
-                subtitle: entries.isEmpty ? "Start writing to ask questions" : "Search \(entries.count) \(entries.count == 1 ? "entry" : "entries")",
+                subtitle: entries.isEmpty
+                    ? "Start writing to ask questions"
+                    : (entries.count == 1 ? "Search 1 entry" : "Search \(entries.count) entries"),
                 icon: "bubble.left.and.text.bubble.right.fill",
                 color: MirrorTheme.primary,
                 badge: SubscriptionService.shared.isSubscribed ? nil : "Core"
@@ -354,7 +356,7 @@ struct InsightView: View {
         } label: {
             ExplorationTile(
                 title: "Mood Timeline",
-                subtitle: dominantMoodThisWeek.map { "Mostly \($0) this week" } ?? "See long arcs",
+                subtitle: dominantMoodThisWeek.map { mood -> LocalizedStringKey in "Mostly \(mood) this week" } ?? "See long arcs",
                 icon: "waveform.path.ecg",
                 color: .teal,
                 badge: SubscriptionService.shared.isDeep ? nil : "Deep"
@@ -368,9 +370,17 @@ struct InsightView: View {
     private var monthlyReportSection: some View {
         let count = thisMonthEntries.count
         let daysLeft = daysRemainingInMonth
-        let contextLabel = daysLeft <= 3
-            ? "\(count) entries · \(daysLeft) day\(daysLeft == 1 ? "" : "s") left"
-            : "\(count) \(count == 1 ? "entry" : "entries") this month"
+        let contextLabel: LocalizedStringKey
+        if daysLeft <= 3 {
+            switch (count == 1, daysLeft == 1) {
+            case (true, true):   contextLabel = "1 entry · 1 day left"
+            case (true, false):  contextLabel = "1 entry · \(daysLeft) days left"
+            case (false, true):  contextLabel = "\(count) entries · 1 day left"
+            case (false, false): contextLabel = "\(count) entries · \(daysLeft) days left"
+            }
+        } else {
+            contextLabel = count == 1 ? "1 entry this month" : "\(count) entries this month"
+        }
         return NavigationLink {
             MonthlyReportView(viewModel: viewModel)
         } label: {
@@ -520,15 +530,15 @@ private struct PastNudgeCard: View {
 // MARK: - Shared Card Components
 
 private struct SectionHeader<Trailing: View>: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let icon: String
     let color: Color
     var trailing: Trailing
 
     init(
-        title: String,
-        subtitle: String,
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
         icon: String,
         color: Color,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
@@ -564,11 +574,11 @@ private struct SectionHeader<Trailing: View>: View {
 }
 
 private struct ExplorationTile: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let icon: String
     let color: Color
-    let badge: String?
+    let badge: LocalizedStringKey?
     var isProminent: Bool = false
 
     var body: some View {
@@ -641,8 +651,8 @@ private struct ExplorationTile: View {
 
 // Used by MonthlyReportView — must stay internal (not private).
 struct NightlyPendingCard: View {
-    let label: String
-    let sublabel: String
+    let label: LocalizedStringKey
+    let sublabel: LocalizedStringKey
     let icon: String
     var iconColor: Color = MirrorTheme.primary
 
@@ -676,8 +686,8 @@ struct NightlyPendingCard: View {
 }
 
 private struct LoadingInsightCard: View {
-    let label: String
-    let sublabel: String
+    let label: LocalizedStringKey
+    let sublabel: LocalizedStringKey
     let icon: String
 
     var body: some View {
@@ -710,7 +720,7 @@ private struct NeedsMoreEntriesCard: View {
     var total: Int = 3
     var icon: String = "book.pages"
     var iconColor: Color = MirrorTheme.primary
-    var unlockLabel: String = "First reflection unlocks after 3 entries."
+    var unlockLabel: LocalizedStringKey = "First reflection unlocks after 3 entries."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -724,7 +734,7 @@ private struct NeedsMoreEntriesCard: View {
                         .foregroundStyle(iconColor)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
+                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
                         .font(.system(size: 16, weight: .semibold))
                     Text("Mirror learns from your writing patterns.")
                         .font(.system(size: 13))
@@ -752,8 +762,8 @@ private struct NeedsMoreEntriesCard: View {
 }
 
 private struct UpgradePromptCard: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let onUpgrade: () -> Void
 
     var body: some View {
@@ -814,14 +824,6 @@ private struct ErrorCard: View {
 
 // Used by MonthlyReportView — must stay internal (not private).
 struct ModelNotInstalledCard: View {
-    @State private var manager = ModelDownloadManager.shared
-
-    private var byteFormatter: ByteCountFormatter {
-        let f = ByteCountFormatter()
-        f.countStyle = .file
-        return f
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("AI model needed", systemImage: "brain.head.profile")
@@ -830,12 +832,7 @@ struct ModelNotInstalledCard: View {
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
-            if case .downloading = manager.state {
-                Text("Downloading in the background — you can lock your phone or switch apps and it'll keep going. Just don't force-quit MirrorNotes until it finishes.")
-                    .font(.caption)
-                    .foregroundStyle(MirrorTheme.textTertiary)
-            }
-            content
+            ModelDownloadStateControl()
         }
         .padding(20)
         .inkSurface(cornerRadius: 22)
@@ -844,76 +841,98 @@ struct ModelNotInstalledCard: View {
                 .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
         )
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
+/// Shared download-flow UI for every screen that gates on the on-device model
+/// (ModelNotInstalledCard here, AskView's model-not-installed state) — keeps the
+/// button wiring and copy for each ModelDownloadState case in one place.
+struct ModelDownloadStateControl: View {
+    @State private var manager = ModelDownloadManager.shared
+
+    private static let byteFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }()
+
+    var body: some View {
         switch manager.state {
         case .notStarted:
-            Button {
-                manager.startDownload()
-            } label: {
-                Label("Download Model", systemImage: "arrow.down.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
+            VStack(spacing: 10) {
+                if manager.modelWasUpgraded {
+                    Text("Mirror's on-device AI got an upgrade — download it again to keep using Ask, Nudge, and Digest.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                pillButton("Download Model") { manager.startDownload() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(MirrorTheme.primary)
 
         case .downloading(let progress, let written, let expected):
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 10) {
                 ProgressView(value: progress)
                     .tint(MirrorTheme.primary)
-                HStack {
-                    Text("\(byteFormatter.string(fromByteCount: written)) of \(byteFormatter.string(fromByteCount: expected))")
-                        .font(.caption)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                    Spacer()
-                    Button("Pause") { manager.pauseDownload() }
-                        .font(.caption.weight(.semibold))
-                }
+                    .frame(maxWidth: 220)
+                Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .multilineTextAlignment(.center)
+                Button("Pause") { manager.pauseDownload() }
+                    .font(.system(size: 13, weight: .semibold))
             }
 
         case .paused(let resumable):
-            HStack {
+            VStack(spacing: 10) {
                 Text(resumable ? "Paused" : "Paused (will restart from 0%)")
-                    .font(.subheadline)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                Spacer()
-                Button("Resume") { manager.resumeDownload() }
-                    .font(.system(size: 14, weight: .semibold))
-                    .buttonStyle(.borderedProminent)
-                    .tint(MirrorTheme.primary)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                pillButton("Resume") { manager.resumeDownload() }
             }
 
         case .verifying:
             HStack(spacing: 8) {
                 ProgressView()
                 Text("Verifying…")
-                    .font(.subheadline)
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
             }
 
         case .installed:
             Label("Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
-                .font(.subheadline)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.green)
 
         case .failed(let message):
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 10) {
                 Text(message)
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .foregroundStyle(.red)
-                Button("Try Again") { manager.startDownload() }
-                    .font(.system(size: 14, weight: .semibold))
-                    .buttonStyle(.borderedProminent)
-                    .tint(MirrorTheme.primary)
+                    .multilineTextAlignment(.center)
+                pillButton("Try Again") { manager.startDownload() }
             }
         }
+    }
+
+    private func pillButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 14)
+                .background(MirrorTheme.accentGradient, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
     }
 }
 
 private struct InsightTextView: View {
     let insight: Insight
-    let label: String
+    let label: LocalizedStringKey
     let icon: String
     var accentColor: Color = MirrorTheme.primary
     var isExpanded: Bool = true

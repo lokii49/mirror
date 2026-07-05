@@ -25,6 +25,14 @@ struct MoodTimelineView: View {
             case .allTime: return nil
             }
         }
+
+        var displayName: LocalizedStringKey {
+            switch self {
+            case .thirtyDays: return "30D"
+            case .ninetyDays: return "90D"
+            case .allTime: return "All"
+            }
+        }
     }
 
 
@@ -245,7 +253,7 @@ struct MoodTimelineView: View {
                         selectedRange = range
                     }
                 } label: {
-                    Text(range.rawValue)
+                    Text(range.displayName)
                         .font(.system(size: 14, weight: selectedRange == range ? .bold : .medium))
                         .foregroundStyle(selectedRange == range ? MirrorTheme.primary : .secondary)
                         .frame(maxWidth: .infinity)
@@ -286,7 +294,7 @@ struct MoodTimelineView: View {
         }
     }
 
-    private func statPill(value: String, valueSuffix: String = "", label: String, icon: String, color: Color) -> some View {
+    private func statPill(value: String, valueSuffix: String = "", label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
@@ -315,7 +323,7 @@ struct MoodTimelineView: View {
     private var moodScaleRow: some View {
         if averageMoodScore > 0 {
             let fraction = CGFloat((averageMoodScore - 1.0) / 4.0)
-            let interpretation: String = {
+            let interpretation: LocalizedStringKey = {
                 if averageMoodScore >= 4.5 { return "Thriving" }
                 if averageMoodScore >= 3.5 { return "Positive" }
                 if averageMoodScore >= 2.5 { return "Mixed, leaning neutral" }
@@ -584,7 +592,7 @@ struct MoodTimelineView: View {
     private var previewRangeSelector: some View {
         HStack(spacing: 0) {
             ForEach(TimeRange.allCases, id: \.self) { range in
-                Text(range.rawValue)
+                Text(range.displayName)
                     .font(.system(size: 14, weight: range == .thirtyDays ? .bold : .medium))
                     .foregroundStyle(range == .thirtyDays ? MirrorTheme.primary : .secondary)
                     .frame(maxWidth: .infinity)

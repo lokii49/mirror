@@ -40,7 +40,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.typingAttributes = context.coordinator.bodyAttributes
 
         let placeholder = UILabel()
-        placeholder.text = "What's on your mind?"
+        placeholder.text = String(localized: "What's on your mind?")
         placeholder.textColor = .tertiaryLabel
         placeholder.font = context.coordinator.serifBodyFont
         placeholder.adjustsFontForContentSizeCategory = true
@@ -217,16 +217,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                   photoIndex < parent.photoDataArray.count else { return nil }
             let data = parent.photoDataArray[photoIndex]
             return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
-                let copy = UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in
+                let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
                     if let image = UIImage(data: data) { UIPasteboard.general.image = image }
                 }
-                let save = UIAction(title: "Save to Photos", image: UIImage(systemName: "square.and.arrow.down")) { _ in
+                let save = UIAction(title: String(localized: "Save to Photos"), image: UIImage(systemName: "square.and.arrow.down")) { _ in
                     guard let image = UIImage(data: data) else { return }
                     PHPhotoLibrary.shared().performChanges({
                         PHAssetChangeRequest.creationRequestForAsset(from: image)
                     }, completionHandler: nil)
                 }
-                let share = UIAction(title: "Share", image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { _ in
                     guard let image = UIImage(data: data) else { return }
                     let vc = UIActivityViewController(activityItems: [image], applicationActivities: nil)
                     UIApplication.shared.connectedScenes
