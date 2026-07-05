@@ -1,0 +1,355 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MirrorNotes"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "mirror"
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes verwendet die Kamera, damit du ein Foto an deinen Journaleintrag anhängen kannst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes uses the camera to attach a photo to your journal entry."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa la cámara para adjuntar una foto a tu entrada del diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes utilise l'appareil photo pour joindre une photo à votre entrée de journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa la fotocamera per allegare una foto alla tua voce del diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesは、ジャーナルエントリーに写真を添付するためにカメラを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes는 저널 항목에 사진을 첨부하기 위해 카메라를 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes usa a câmera para anexar uma foto à sua entrada do diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes использует камеру, чтобы прикрепить фотографию к вашей записи в журнале."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 使用相机，以便将照片附加到你的日记条目。"
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Privacy - Microphone Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes verwendet das Mikrofon, damit du Journaleinträge per Sprache diktieren kannst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes uses the microphone so you can dictate journal entries by voice."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa el micrófono para que puedas dictar entradas del diario con la voz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes utilise le microphone pour vous permettre de dicter des entrées de journal à la voix."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa il microfono così puoi dettare le voci del diario con la voce."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesは、音声でジャーナルエントリーを口述できるようにマイクを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes는 음성으로 저널 항목을 받아쓸 수 있도록 마이크를 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes usa o microfone para que você possa ditar entradas do diário por voz."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes использует микрофон, чтобы вы могли диктовать записи журнала голосом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 使用麦克风，以便你通过语音口述日记条目。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "comment" : "Privacy - Photo Library Additions Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes speichert Fotos aus deinen Journaleinträgen in deiner Fotomediathek."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes saves photos from your journal entries to your photo library."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes guarda fotos de tus entradas del diario en tu biblioteca de fotos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes enregistre les photos de vos entrées de journal dans votre photothèque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes salva nella tua libreria foto le foto delle tue voci del diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesは、ジャーナルエントリーの写真を写真ライブラリに保存します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes는 저널 항목의 사진을 사진 보관함에 저장합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes salva fotos das suas entradas do diário na sua biblioteca de fotos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes сохраняет фотографии из ваших записей журнала в вашу фотомедиатеку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 会将你日记条目中的照片保存到你的图库。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - Photo Library Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes liest Fotos aus deiner Mediathek, damit du sie an Journaleinträge anhängen kannst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes reads photos from your library so you can attach them to journal entries."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes lee fotos de tu biblioteca para que puedas adjuntarlas a tus entradas del diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes lit les photos de votre photothèque afin que vous puissiez les joindre à vos entrées de journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes legge le foto dalla tua libreria così puoi allegarle alle voci del diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesは、ジャーナルエントリーに添付できるように写真ライブラリから写真を読み取ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes는 저널 항목에 첨부할 수 있도록 사진 보관함의 사진을 읽습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes lê fotos da sua biblioteca para que você possa anexá-las às entradas do diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes считывает фотографии из вашей медиатеки, чтобы вы могли прикреплять их к записям журнала."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 会读取你图库中的照片，以便你将它们附加到日记条目。"
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "comment" : "Privacy - Speech Recognition Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes verwendet die Spracherkennung auf dem Gerät, um deine Spracheinträge zu transkribieren, ohne Audio von deinem Gerät zu senden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes uses on-device speech recognition to transcribe your voice entries without sending audio off your device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa reconocimiento de voz en el dispositivo para transcribir tus entradas de voz sin enviar audio fuera de tu dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes utilise la reconnaissance vocale sur l'appareil pour transcrire vos entrées vocales sans envoyer l'audio hors de votre appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes usa il riconoscimento vocale sul dispositivo per trascrivere le tue voci vocali senza inviare audio fuori dal dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesは、端末上の音声認識を使用して、音声を端末外に送信せずに音声エントリーを文字起こしします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes는 기기 내 음성 인식을 사용해 오디오를 기기 밖으로 보내지 않고 음성 항목을 전사합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes usa reconhecimento de fala no dispositivo para transcrever suas entradas de voz sem enviar áudio para fora do seu dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes использует распознавание речи на устройстве, чтобы расшифровывать ваши голосовые записи, не отправляя аудио с устройства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 使用设备端语音识别转录你的语音条目，不会将音频发送出你的设备。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}

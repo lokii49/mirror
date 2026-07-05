@@ -3,7 +3,7 @@ import SwiftData
 import Foundation
 
 enum SampleData {
-    // MARK: - Mixed (30 entries: 13 voice + 17 typed)
+    // MARK: - Mixed (typed + voice)
 
     static func seed(into context: ModelContext) {
         let calendar = Calendar.current
@@ -15,6 +15,8 @@ enum SampleData {
             var textStyleData: Data? = nil
             var fontChoice: String? = nil
             var extraTags: [String] = []
+            var voiceLanguageCode: String? = nil
+            var voiceLanguageName: String? = nil
         }
 
         func doc(_ styles: [NoteParagraphTextStyle], fonts: [WritingFontChoice]? = nil) -> Data {
@@ -137,6 +139,26 @@ enum SampleData {
                 End of the month. I've been reflecting on how it went — not with a spreadsheet, just sitting with it. There were hard patches. There were good patches. The week where I barely slept was real but so was the afternoon in the museum and the phone call with my sister. I want to be better at holding both of those things at the same time instead of letting one erase the other.
                 """, mood: "Grateful", days: 2, source: .typed),
             E(text: "winding down. tomorrow is going to be full but tonight is quiet and I'm going to let it be quiet. no planning, no list-making. just this.", mood: "Calm", days: 1, source: .voice),
+            E(text: """
+                Je me suis reveille avec une fatigue douce, pas dramatique, juste presente. J'ai pris mon cafe sans ouvrir mes messages et ca a change le ton de la matinee. Au travail, j'ai avance lentement mais clairement. Ce soir, je veux garder cette sensation de calme au lieu de remplir chaque minute.
+                """, mood: "Peaceful", days: 0, source: .typed,
+                extraTags: ["french", "i18n"]
+            ),
+            E(text: "petite note vocale en francais. aujourd'hui j'ai senti que je reprenais un peu de place dans ma propre journee. j'ai marche apres le dejeuner, j'ai appele ma soeur, et je me suis surpris a respirer plus lentement.", mood: "Calm", days: 0, source: .voice,
+                extraTags: ["french", "i18n"],
+                voiceLanguageCode: "fr-FR",
+                voiceLanguageName: "French"
+            ),
+            E(text: """
+                Reunion compliquee cet apres-midi. J'avais peur de ne pas trouver les bons mots, mais j'ai explique le blocage sans m'excuser pour tout. Ce n'etait pas parfait, pourtant je suis sorti de la salle avec l'impression d'avoir ete plus honnete que d'habitude.
+                """, mood: "Hopeful", days: 1, source: .typed,
+                extraTags: ["french", "i18n"]
+            ),
+            E(text: """
+                Ce soir, la maison etait silencieuse et ca m'a fait du bien. J'ai cuisine quelque chose de simple, j'ai laisse mon telephone dans l'autre piece, et j'ai lu quelques pages sans chercher a optimiser le moment. J'oublie souvent que le repos peut etre aussi ordinaire que ca.
+                """, mood: "Grateful", days: 2, source: .typed,
+                extraTags: ["french", "i18n"]
+            ),
         ] + richEntries
 
         for e in entries {
@@ -153,6 +175,8 @@ enum SampleData {
                 entry.voiceNoteData = audio
                 entry.voiceNoteDuration = dur
                 entry.voiceNoteTranscript = trimmed
+                entry.voiceNoteLanguageCode = e.voiceLanguageCode
+                entry.voiceNoteLanguageName = e.voiceLanguageName
             }
             context.insert(entry)
         }

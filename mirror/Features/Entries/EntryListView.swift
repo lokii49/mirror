@@ -245,13 +245,13 @@ struct EntriesTabView: View {
             }
             if let mood = selectedMoodFilter {
                 filterChip(
-                    label: mood,
+                    label: MirrorTheme.localizedMoodName(for: mood),
                     systemImage: "circle.fill",
                     color: MirrorTheme.moodColor(for: mood)
                 ) { selectedMoodFilter = nil }
             }
             if let tag = selectedTagFilter {
-                filterChip(label: "#\(tag)", systemImage: "tag") { selectedTagFilter = nil }
+                filterChip(label: "#\(MirrorTheme.localizedTagName(for: tag))", systemImage: "tag") { selectedTagFilter = nil }
             }
             Spacer()
             Button {
@@ -322,7 +322,7 @@ struct EntriesTabView: View {
                             if !isSelected { selectedMoodFilter = nil; selectedDateFilter = nil }
                         }
                     } label: {
-                        Text("#\(tag)")
+                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
                             .font(.system(size: 12, weight: .medium))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
@@ -356,7 +356,7 @@ struct EntriesTabView: View {
                             Circle()
                                 .fill(MirrorTheme.moodColor(for: mood))
                                 .frame(width: 7, height: 7)
-                            Text(mood)
+                            Text(MirrorTheme.localizedMoodName(for: mood))
                                 .font(.system(size: 12, weight: .medium))
                         }
                         .padding(.horizontal, 10)
@@ -496,10 +496,10 @@ struct EntriesTabView: View {
             return "No entries on \(date.formatted(.dateTime.month(.wide).day()))"
         }
         if let mood = selectedMoodFilter {
-            return "No \(mood.lowercased()) entries"
+            return "No \(MirrorTheme.localizedMoodName(for: mood).lowercased()) entries"
         }
         if let tag = selectedTagFilter {
-            return "No entries tagged #\(tag)"
+            return "No entries tagged #\(MirrorTheme.localizedTagName(for: tag))"
         }
         return "No entries match your search"
     }
@@ -628,7 +628,7 @@ private struct EntryRow: View {
                             Circle()
                                 .fill(MirrorTheme.moodColor(for: label))
                                 .frame(width: 7, height: 7)
-                            Text(label)
+                            Text(MirrorTheme.localizedMoodName(for: label))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.secondary)
                         }
