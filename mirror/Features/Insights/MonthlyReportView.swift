@@ -223,9 +223,9 @@ struct MonthlyReportView: View {
                         .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
+                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Your deep monthly report unlocks at \(total) entries.")
+                    Text(total == 1 ? "Your deep monthly report unlocks at 1 entry." : "Your deep monthly report unlocks at \(total) entries.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -255,7 +255,7 @@ struct MonthlyReportView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not enough entries this month")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Only \(count) \(count == 1 ? "entry" : "entries") written so far.")
+                    Text(count == 1 ? "Only 1 entry written so far." : "Only \(count) entries written so far.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -380,7 +380,7 @@ private struct MonthlyStatsStrip: View {
         .inkSurface(cornerRadius: 18)
     }
 
-    private func statCell(value: String, label: String) -> some View {
+    private func statCell(value: String, label: LocalizedStringKey) -> some View {
         VStack(spacing: 3) {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -405,6 +405,17 @@ private struct MonthlyReportCard: View {
         "WHAT YOU'RE BECOMING",
         "WHAT WANTS TO BE RELEASED",
         "YOUR QUESTION FOR NEXT MONTH",
+    ]
+
+    // Display-only; `headers` above stays untranslated since it's matched against
+    // the LLM's raw output in extractBody(for:) — translating it would break that match.
+    private let headerDisplayNames: [String: LocalizedStringKey] = [
+        "YOUR MONTH IN ONE IMAGE": "Your Month In One Image",
+        "THE TENSION AT THE CENTER": "The Tension At The Center",
+        "A MOMENT THAT SHIFTED SOMETHING": "A Moment That Shifted Something",
+        "WHAT YOU'RE BECOMING": "What You're Becoming",
+        "WHAT WANTS TO BE RELEASED": "What Wants To Be Released",
+        "YOUR QUESTION FOR NEXT MONTH": "Your Question For Next Month",
     ]
 
     private let headerIcons: [String: (String, Color)] = [
@@ -478,7 +489,7 @@ private struct MonthlyReportCard: View {
                 Image(systemName: section.icon)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(section.color)
-                Text(section.header.localizedCapitalized)
+                Text(headerDisplayNames[section.header] ?? LocalizedStringKey(section.header.localizedCapitalized))
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(section.color)
                     .tracking(0.3)

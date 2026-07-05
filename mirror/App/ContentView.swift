@@ -4,7 +4,7 @@ import SwiftData
 private enum AppSidebarItem: String, CaseIterable, Hashable {
     case entries, write, insights, settings
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .entries:  return "Entries"
         case .write:    return "Write"

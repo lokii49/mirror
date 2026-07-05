@@ -4,6 +4,31 @@ import UserNotifications
 import CloudKit
 import UniformTypeIdentifiers
 
+enum ICloudStatus {
+    case checking, active, noAccount, restricted, unavailable, unknown, error
+
+    var color: Color {
+        switch self {
+        case .active:      return .green
+        case .noAccount:   return .orange
+        case .restricted, .error: return .red
+        default:           return .secondary
+        }
+    }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .checking:    return "Checking..."
+        case .active:      return "Active"
+        case .noAccount:   return "No account"
+        case .restricted:  return "Restricted"
+        case .unavailable: return "Unavailable"
+        case .unknown:     return "Unknown"
+        case .error:       return "Error"
+        }
+    }
+}
+
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) var entries: [Entry]
     @Environment(\.modelContext) var modelContext
@@ -14,7 +39,7 @@ struct SettingsView: View {
     // Stats cache
     @State var cachedTotalWords: Int = 0
     @State var cachedStreak: Int = 0
-    @State var cachedLatestEntryText: String = "None"
+    @State var cachedLatestEntryText: String = String(localized: "None")
 
     // MIRROR settings
     @AppStorage("mirrorAppearanceMode") var appearanceMode: String = "system"
@@ -31,7 +56,7 @@ struct SettingsView: View {
     @State var notificationPermission: UNAuthorizationStatus = .notDetermined
 
     // YOUR DATA
-    @State var iCloudStatus: String = "Checking..."
+    @State var iCloudStatus: ICloudStatus = .checking
     @State var showDeleteConfirmation = false
     @State var showHowItWorks = false
     @State var showFeatureGuide = false
@@ -54,14 +79,7 @@ struct SettingsView: View {
         return Calendar.current.date(from: c) ?? Date()
     }
 
-    var iCloudStatusColor: Color {
-        switch iCloudStatus {
-        case "Active":    return .green
-        case "No account": return .orange
-        case "Restricted", "Error": return .red
-        default:          return .secondary
-        }
-    }
+    var iCloudStatusColor: Color { iCloudStatus.color }
 
     var body: some View {
         NavigationStack {
@@ -98,12 +116,16 @@ struct SettingsView: View {
                 case .success(let urls):
                     guard let url = urls.first else { return }
                     let count = importEntries(from: url)
-                    importResultMessage = count > 0
-                        ? "Imported \(count) entr\(count == 1 ? "y" : "ies")."
-                        : "No entries found in file."
+                    if count > 0 {
+                        importResultMessage = count == 1
+                            ? String(localized: "Imported 1 entry.")
+                            : String(localized: "Imported \(count) entries.")
+                    } else {
+                        importResultMessage = String(localized: "No entries found in file.")
+                    }
                     showImportResult = true
                 case .failure:
-                    importResultMessage = "Could not read file."
+                    importResultMessage = String(localized: "Could not read file.")
                     showImportResult = true
                 }
             }

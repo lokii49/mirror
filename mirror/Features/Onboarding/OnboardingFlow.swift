@@ -17,13 +17,24 @@ private enum NudgePreset: String, CaseIterable {
         }
     }
 
-    var timeLabel: String {
+    var displayName: LocalizedStringKey {
         switch self {
-        case .morning:   return "8:00 AM"
-        case .afternoon: return "1:00 PM"
-        case .evening:   return "8:00 PM"
-        case .custom:    return "Pick a time"
+        case .morning:   return "Morning"
+        case .afternoon: return "Afternoon"
+        case .evening:   return "Evening"
+        case .custom:    return "Custom"
         }
+    }
+
+    // A locale-correct clock reading (12h/24h per the user's region), not a
+    // translated phrase — "8:00 AM" would be nonsensical to hand-translate.
+    var timeLabel: String {
+        guard self != .custom else { return String(localized: "Pick a time") }
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = 0
+        let date = Calendar.current.date(from: components) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     var icon: String {
@@ -36,12 +47,46 @@ private enum NudgePreset: String, CaseIterable {
     }
 }
 
+private enum OnboardingReason: CaseIterable, Hashable {
+    case understandSelf
+    case processEmotions
+    case trackGoals
+    case buildPractice
+
+    var icon: String {
+        switch self {
+        case .understandSelf:  return "brain.head.profile"
+        case .processEmotions: return "moon.stars"
+        case .trackGoals:      return "target"
+        case .buildPractice:   return "sparkles"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .understandSelf:  return .blue
+        case .processEmotions: return MirrorTheme.violet
+        case .trackGoals:      return .orange
+        case .buildPractice:   return .green
+        }
+    }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .understandSelf:  return "Understand myself better"
+        case .processEmotions: return "Process stress and emotions"
+        case .trackGoals:      return "Track goals and habits"
+        case .buildPractice:   return "Build a reflection practice"
+        }
+    }
+}
+
 struct OnboardingFlow: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
 
     @State private var step: Int = 0
-    @State private var selectedReason: String? = nil
+    @State private var selectedReason: OnboardingReason? = nil
     @State private var nudgePreset: NudgePreset = .evening
     @State private var customNudgeTime: Date = {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
@@ -52,22 +97,15 @@ struct OnboardingFlow: View {
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
 
-    private let reasons: [(String, String, Color)] = [
-        ("brain.head.profile", "Understand myself better",   .blue),
-        ("moon.stars",         "Process stress and emotions", MirrorTheme.violet),
-        ("target",             "Track goals and habits",      .orange),
-        ("sparkles",           "Build a reflection practice", .green),
-    ]
-
     // Derive suggested preset from selected reason
     private var suggestedPreset: NudgePreset {
-        selectedReason == "Track goals and habits" ? .morning : .evening
+        selectedReason == .trackGoals ? .morning : .evening
     }
 
-    private var suggestedRationale: String {
-        nudgePreset == .morning
-            ? "Great for intention-setting before the day starts."
-            : "Best for capturing the full day before it fades."
+    private var suggestionText: LocalizedStringKey {
+        suggestedPreset == .morning
+            ? "Suggested: **Morning** (\(suggestedPreset.timeLabel)) — great for intention-setting before the day starts."
+            : "Suggested: **Evening** (\(suggestedPreset.timeLabel)) — best for capturing the full day before it fades."
     }
 
     var body: some View {
@@ -177,7 +215,7 @@ struct OnboardingFlow: View {
         }
     }
 
-    private func welcomeFeatureItem(icon: String, text: String, color: Color) -> some View {
+    private func welcomeFeatureItem(icon: String, text: LocalizedStringKey, color: Color) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
@@ -202,8 +240,8 @@ struct OnboardingFlow: View {
             .padding(.top, 12)
 
             VStack(spacing: 10) {
-                ForEach(reasons, id: \.1) { icon, label, color in
-                    reasonButton(icon: icon, label: label, color: color)
+                ForEach(OnboardingReason.allCases, id: \.self) { reason in
+                    reasonButton(reason)
                 }
             }
 
@@ -234,7 +272,7 @@ struct OnboardingFlow: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(MirrorTheme.primary)
                     }
-                    Text("Suggested: **\(suggestedPreset.rawValue)** (\(suggestedPreset.timeLabel)) — \(suggestedRationale)")
+                    Text(suggestionText)
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -267,17 +305,17 @@ struct OnboardingFlow: View {
         }
     }
 
-    private var writePrompt: String {
+    private var writePrompt: LocalizedStringKey {
         switch selectedReason {
-        case "Understand myself better":
+        case .understandSelf:
             return "What's something you've been trying to figure out about yourself lately?"
-        case "Process stress and emotions":
+        case .processEmotions:
             return "What's weighing on you most right now? Even a few words helps."
-        case "Track goals and habits":
+        case .trackGoals:
             return "What are you working toward? Where are you at with it today?"
-        case "Build a reflection practice":
+        case .buildPractice:
             return "What happened today that's worth remembering?"
-        default:
+        case nil:
             return "What's on your mind right now?"
         }
     }
@@ -330,7 +368,8 @@ struct OnboardingFlow: View {
 
             HStack {
                 Spacer()
-                Text("\(firstEntryText.split(separator: " ").count) words")
+                let wordCount = firstEntryText.split(separator: " ").count
+                Text(wordCount == 1 ? "1 word" : "\(wordCount) words")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
@@ -348,11 +387,12 @@ struct OnboardingFlow: View {
 
     // MARK: - Choice Buttons
 
-    private func reasonButton(icon: String, label: String, color: Color) -> some View {
-        let isSelected = selectedReason == label
+    private func reasonButton(_ reason: OnboardingReason) -> some View {
+        let isSelected = selectedReason == reason
+        let color = reason.color
         return Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                selectedReason = label
+                selectedReason = reason
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
@@ -361,13 +401,13 @@ struct OnboardingFlow: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(isSelected ? color : MirrorTheme.inkRaised)
                         .frame(width: 44, height: 44)
-                    Image(systemName: icon)
+                    Image(systemName: reason.icon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(isSelected ? .white : color.opacity(0.7))
                 }
                 .shadow(color: isSelected ? color.opacity(0.35) : .clear, radius: 8, x: 0, y: 3)
 
-                Text(label)
+                Text(reason.label)
                     .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer()
@@ -419,7 +459,7 @@ struct OnboardingFlow: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 7) {
-                        Text(preset.rawValue)
+                        Text(preset.displayName)
                             .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
                             .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                         if isRecommended {
@@ -438,7 +478,9 @@ struct OnboardingFlow: View {
                             .foregroundStyle(isSelected ? AnyShapeStyle(MirrorTheme.primary.opacity(0.7)) : AnyShapeStyle(.tertiary))
                     }
                     if isRecommended && isSelected {
-                        Text(suggestedRationale)
+                        Text(preset == .morning
+                             ? "Great for intention-setting before the day starts."
+                             : "Best for capturing the full day before it fades.")
                             .font(.system(size: 12))
                             .foregroundStyle(MirrorTheme.primary.opacity(0.8))
                             .transition(.opacity.combined(with: .move(edge: .top)))

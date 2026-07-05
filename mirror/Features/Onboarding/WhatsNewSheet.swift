@@ -27,7 +27,7 @@ struct WhatsNewSheet: View {
                 .padding(.bottom, 40)
             }
             .background(MirrorTheme.bgBase)
-            .navigationTitle(mode == .whatsNew ? "" : "Feature Guide")
+            .navigationTitle(mode == .whatsNew ? Text(verbatim: "") : Text("Feature Guide"))
             .navigationBarTitleDisplayMode(mode == .whatsNew ? .inline : .large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -109,7 +109,7 @@ struct WhatsNewSheet: View {
                 FilterChip(label: "All", icon: "square.grid.2x2", color: MirrorTheme.primary, isSelected: selectedTier == nil) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { selectedTier = nil }
                 }
-                ForEach(CardTier.allCases, id: \.label) { tier in
+                ForEach(CardTier.allCases, id: \.self) { tier in
                     FilterChip(label: tier.label, icon: tier.sectionIcon, color: tier.color, isSelected: selectedTier == tier) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             selectedTier = selectedTier == tier ? nil : tier
@@ -138,7 +138,7 @@ struct WhatsNewSheet: View {
             }
         } else {
             VStack(spacing: 28) {
-                ForEach(CardTier.allCases, id: \.label) { tier in
+                ForEach(CardTier.allCases, id: \.self) { tier in
                     tierSection(tier)
                 }
             }
@@ -192,7 +192,7 @@ struct WhatsNewSheet: View {
 // MARK: - Subviews
 
 private struct FilterChip: View {
-    let label: String
+    let label: LocalizedStringKey
     let icon: String
     let color: Color
     let isSelected: Bool
