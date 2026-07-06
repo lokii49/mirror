@@ -1,0 +1,15 @@
+MirrorNotes now speaks your language.
+
+• New: mirror is now available in Spanish, Japanese, Chinese, German,
+  French, Portuguese, Korean, Italian, and Russian — alongside English.
+  mirror follows your device's language automatically.
+
+• Everything is free. Ask, Daily Reflection, Weekly Digest, Monthly Deep
+  Report, Mood Timeline, and widgets are unlocked for everyone while
+  mirror grows — no subscription required.
+
+• Smoother Ask: clearer messaging when the on-device AI model needs to
+  download, and when your journal needs a few more entries before Ask
+  can find patterns.
+
+• Bug fixes and stability improvements.
