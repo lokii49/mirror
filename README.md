@@ -13,10 +13,13 @@ Mirror is a local-first, privacy-first iOS journaling app. All AI runs on-device
 - **Monthly Deep Report** — long-form monthly reflection (Deep tier)
 - **Mood Timeline** — mood analytics, range selector, distribution chart (Deep tier)
 - **Mood Alerts** — notification if 3 consecutive entries show negative mood (Deep tier)
-- Home screen and lock screen widgets (Core tier)
+- Home screen and lock screen widgets
 - iCloud backup via CloudKit (free, automatic, no account required)
+- Localized UI in 10 languages (see [Localization](#localization))
 
 ## Subscription Tiers
+
+**Everything is free right now.** All Core/Deep-tier features below (Ask, Daily Nudge, Weekly Digest, Monthly Deep Report, Mood Timeline, Mood Alerts, widgets) are unlocked for every user while mirror grows — no subscription required. The tier structure and RevenueCat/IAP integration stay in the codebase so paid tiers can be re-enabled later; the free-for-everyone behavior is a single flag (`SubscriptionService.allFeaturesFree`).
 
 | Feature | Free | Core ($2.99/mo) | Deep ($4.99/mo) |
 |---------|------|-----------------|-----------------|
@@ -32,9 +35,17 @@ Mirror is a local-first, privacy-first iOS journaling app. All AI runs on-device
 | Mood Timeline + analytics | — | — | ✓ |
 | Mood Alerts | — | — | ✓ |
 
-Annual plans: Core $29.99/yr, Deep $49.99/yr (~16–17% savings, 7-day free trial on all plans).
+Annual plans: Core $29.99/yr, Deep $49.99/yr (~16–17% savings, 7-day free trial on all plans) — pricing kept for when tiers are reactivated.
 
 Subscriptions managed via **RevenueCat** + Apple IAP. No external account needed.
+
+## Localization
+
+mirror's UI is localized into **10 languages**: English (base), Spanish, Japanese, Simplified Chinese, German, French, Brazilian Portuguese, Korean, Italian, and Russian. The app follows the device's language setting automatically — no in-app language switcher.
+
+- Implemented via native **String Catalogs** (`Localizable.xcstrings`) — one for the main app target (`mirror/Localizable.xcstrings`), one for the widget extension (`MirrorWidgetExtension/Localizable.xcstrings`).
+- Covers onboarding, paywall, settings, entries, write, all insight screens (Nudge/Digest/Report/Mood Timeline), Ask, and all home-screen widgets.
+- Journal entry text, AI-generated insight content, and mood-vocabulary values are intentionally left untranslated — they're either the user's own words or persisted data whose raw form must stay stable.
 
 ## Local AI
 

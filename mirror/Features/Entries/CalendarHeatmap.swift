@@ -4,6 +4,14 @@ enum HeatmapMode: String, CaseIterable {
     case week = "Week"
     case month = "Month"
     case year = "Year"
+
+    var localizedName: LocalizedStringKey {
+        switch self {
+        case .week: return "Week"
+        case .month: return "Month"
+        case .year: return "Year"
+        }
+    }
 }
 
 struct CalendarHeatmap: View {
@@ -98,7 +106,7 @@ struct CalendarHeatmap: View {
         monthDays.reduce(0) { $0 + (dayCache[cal.startOfDay(for: $1)]?.count ?? 0) }
     }
 
-    private func periodSubtitle(_ count: Int) -> String {
+    private func periodSubtitle(_ count: Int) -> LocalizedStringKey {
         switch count {
         case 0: return "no entries"
         case 1: return "1 entry"
@@ -207,7 +215,7 @@ struct CalendarHeatmap: View {
                 Spacer().frame(width: 12)
                 statChip(
                     value: "\(cachedStreak)",
-                    label: "day streak",
+                    label: "Day streak",
                     icon: "flame.fill",
                     color: .orange
                 )
@@ -223,15 +231,15 @@ struct CalendarHeatmap: View {
                     withAnimation(.easeInOut(duration: 0.2)) { mode = m }
                 } label: {
                     if mode == m {
-                        Label(m.rawValue, systemImage: "checkmark")
+                        Label(m.localizedName, systemImage: "checkmark")
                     } else {
-                        Text(m.rawValue)
+                        Text(m.localizedName)
                     }
                 }
             }
         } label: {
             HStack(spacing: 4) {
-                Text(mode.rawValue)
+                Text(mode.localizedName)
                     .font(.system(size: 12, weight: .semibold))
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
@@ -244,7 +252,7 @@ struct CalendarHeatmap: View {
         .buttonStyle(.plain)
     }
 
-    private func statChip(value: String, label: String, icon: String, color: Color) -> some View {
+    private func statChip(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
@@ -262,7 +270,7 @@ struct CalendarHeatmap: View {
 
     private func navHeader(
         title: String,
-        subtitle: String? = nil,
+        subtitle: LocalizedStringKey? = nil,
         canGoBack: Bool,
         canGoForward: Bool,
         onBack: @escaping () -> Void,
@@ -594,14 +602,15 @@ struct CalendarHeatmap: View {
     // MARK: - Day-of-week labels (Year view)
 
     private var dayLabels: some View {
-        VStack(spacing: cellGap) {
+        let symbols = cal.veryShortWeekdaySymbols // index 0 = Sunday, locale-aware
+        return VStack(spacing: cellGap) {
             Color.clear.frame(height: 14)
             ForEach(0..<7, id: \.self) { i in
                 Group {
                     switch i {
-                    case 2: Text("M")
-                    case 4: Text("W")
-                    case 6: Text("F")
+                    case 2: Text(symbols[1]) // Monday
+                    case 4: Text(symbols[3]) // Wednesday
+                    case 6: Text(symbols[5]) // Friday
                     default: Color.clear
                     }
                 }

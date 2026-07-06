@@ -223,9 +223,9 @@ struct MonthlyReportView: View {
                         .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(remaining) more \(remaining == 1 ? "entry" : "entries") to go")
+                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Your deep monthly report unlocks at \(total) entries.")
+                    Text(total == 1 ? "Your deep monthly report unlocks at 1 entry." : "Your deep monthly report unlocks at \(total) entries.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -255,7 +255,7 @@ struct MonthlyReportView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not enough entries this month")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Only \(count) \(count == 1 ? "entry" : "entries") written so far.")
+                    Text(count == 1 ? "Only 1 entry written so far." : "Only \(count) entries written so far.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -368,7 +368,7 @@ private struct MonthlyStatsStrip: View {
             )
             if let mood = topMood {
                 Divider().frame(height: 32)
-                statCell(value: mood, label: "top mood")
+                statCell(value: MirrorTheme.localizedMoodName(for: mood), label: "top mood")
             }
             if voiceCount > 0 {
                 Divider().frame(height: 32)
@@ -380,7 +380,7 @@ private struct MonthlyStatsStrip: View {
         .inkSurface(cornerRadius: 18)
     }
 
-    private func statCell(value: String, label: String) -> some View {
+    private func statCell(value: String, label: LocalizedStringKey) -> some View {
         VStack(spacing: 3) {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -398,13 +398,13 @@ private struct MonthlyStatsStrip: View {
 private struct MonthlyReportCard: View {
     let insight: Insight
 
-    private let headers = [
-        "YOUR MONTH IN ONE IMAGE",
-        "THE TENSION AT THE CENTER",
-        "A MOMENT THAT SHIFTED SOMETHING",
-        "WHAT YOU'RE BECOMING",
-        "WHAT WANTS TO BE RELEASED",
-        "YOUR QUESTION FOR NEXT MONTH",
+    private let headerDisplayNames: [String: LocalizedStringKey] = [
+        "YOUR MONTH IN ONE IMAGE": "Your Month In One Image",
+        "THE TENSION AT THE CENTER": "The Tension At The Center",
+        "A MOMENT THAT SHIFTED SOMETHING": "A Moment That Shifted Something",
+        "WHAT YOU'RE BECOMING": "What You're Becoming",
+        "WHAT WANTS TO BE RELEASED": "What Wants To Be Released",
+        "YOUR QUESTION FOR NEXT MONTH": "Your Question For Next Month",
     ]
 
     private let headerIcons: [String: (String, Color)] = [
@@ -425,10 +425,10 @@ private struct MonthlyReportCard: View {
     }
 
     private var sections: [Section] {
-        headers.compactMap { header in
-            guard let body = extractBody(for: header) else { return nil }
-            let (icon, color) = headerIcons[header] ?? ("circle.fill", .secondary)
-            return Section(header: header, body: body, icon: icon, color: color)
+        sectionHeaderAliases.compactMap { header in
+            guard let body = extractBody(for: header.aliases) else { return nil }
+            let (icon, color) = headerIcons[header.canonical] ?? ("circle.fill", .secondary)
+            return Section(header: header.canonical, body: body, icon: icon, color: color)
         }
     }
 
@@ -478,7 +478,7 @@ private struct MonthlyReportCard: View {
                 Image(systemName: section.icon)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(section.color)
-                Text(section.header.localizedCapitalized)
+                Text(headerDisplayNames[section.header] ?? LocalizedStringKey(section.header.localizedCapitalized))
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(section.color)
                     .tracking(0.3)
@@ -501,30 +501,35 @@ private struct MonthlyReportCard: View {
         }
     }
 
-    private func extractBody(for header: String) -> String? {
+    private func extractBody(for aliases: [String]) -> String? {
         let text = insight.content
         let normalizedText = text
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{2018}", with: "'")
-        guard let headerRange = normalizedText.range(of: "\(header):", options: [.caseInsensitive]) else { return nil }
+        guard let headerRange = firstHeaderRange(in: normalizedText, aliases: aliases) else { return nil }
         let afterHeader = String(normalizedText[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        let allHeaders = [
-            "YOUR MONTH IN ONE IMAGE",
-            "THE TENSION AT THE CENTER",
-            "A MOMENT THAT SHIFTED SOMETHING",
-            "WHAT YOU'RE BECOMING",
-            "WHAT WANTS TO BE RELEASED",
-            "YOUR QUESTION FOR NEXT MONTH",
-        ]
         var bodyEnd = afterHeader.endIndex
-        for nextHeader in allHeaders {
-            if nextHeader == header { continue }
-            if let nextRange = afterHeader.range(of: "\(nextHeader):", options: [.caseInsensitive]) {
+        for nextHeader in sectionHeaderAliases {
+            if nextHeader.aliases == aliases { continue }
+            if let nextRange = firstHeaderRange(in: afterHeader, aliases: nextHeader.aliases) {
                 if nextRange.lowerBound < bodyEnd {
                     bodyEnd = nextRange.lowerBound
                 }
             }
         }
         return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func firstHeaderRange(in text: String, aliases: [String]) -> Range<String.Index>? {
+        aliases
+            .lazy
+            .compactMap { text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) }
+            .min(by: { $0.lowerBound < $1.lowerBound })
+    }
+
+    private var sectionHeaderAliases: [(canonical: String, aliases: [String])] {
+        InsightService.monthlyReportSectionLabels.map { section in
+            (canonical: section["en"] ?? "", aliases: Array(section.values))
+        }
     }
 }

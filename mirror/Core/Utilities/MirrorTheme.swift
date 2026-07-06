@@ -75,6 +75,35 @@ enum MirrorTheme {
         "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
     ]
 
+    static func localizedMoodName(for mood: String) -> String {
+        switch mood {
+        case "Joyful": return String(localized: "Joyful", comment: "Mood label")
+        case "Grateful": return String(localized: "Grateful", comment: "Mood label")
+        case "Peaceful": return String(localized: "Peaceful", comment: "Mood label")
+        case "Content": return String(localized: "Content", comment: "Mood label")
+        case "Energized": return String(localized: "Energized", comment: "Mood label")
+        case "Hopeful": return String(localized: "Hopeful", comment: "Mood label")
+        case "Anxious": return String(localized: "Anxious", comment: "Mood label")
+        case "Overwhelmed": return String(localized: "Overwhelmed", comment: "Mood label")
+        case "Frustrated": return String(localized: "Frustrated", comment: "Mood label")
+        case "Drained": return String(localized: "Drained", comment: "Mood label")
+        case "Sad": return String(localized: "Sad", comment: "Mood label")
+        case "Numb": return String(localized: "Numb", comment: "Mood label")
+        default: return mood
+        }
+    }
+
+    static func localizedTagName(for tag: String) -> String {
+        switch tag {
+        case "therapy": return String(localized: "therapy", comment: "Default tag suggestion")
+        case "work": return String(localized: "work", comment: "Default tag suggestion")
+        case "personal": return String(localized: "personal", comment: "Default tag suggestion")
+        case "idea": return String(localized: "idea", comment: "Default tag suggestion")
+        case "dream": return String(localized: "dream", comment: "Default tag suggestion")
+        default: return tag
+        }
+    }
+
     static func moodColor(for mood: String) -> Color {
         switch mood {
         case "Joyful":      return Color(red: 1.000, green: 0.835, blue: 0.310)

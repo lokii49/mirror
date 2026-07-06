@@ -10,11 +10,11 @@ enum LocalLLMError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelMissing(let url):
-            return "Local AI model not installed. Add gemma-3-1b-it-Q4_K_M.gguf to \(url.path)."
+            return String(localized: "Local AI model not installed. Add gemma-3-1b-it-Q4_K_M.gguf to \(url.path).")
         case .emptyResponse:
-            return "Local AI returned an empty response."
+            return String(localized: "Local AI returned an empty response.")
         case .contextExhausted:
-            return "Not enough device memory right now. Mirror will generate this overnight while your phone is charging."
+            return String(localized: "Not enough device memory right now. Mirror will generate this overnight while your phone is charging.")
         }
     }
 }

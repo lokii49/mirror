@@ -164,7 +164,7 @@ struct FormattingPanelView: View {
     // MARK: - Paragraph style button
 
     @ViewBuilder
-    private func paragraphStyleButton(_ label: String, style: NoteParagraphTextStyle, labelFont: Font) -> some View {
+    private func paragraphStyleButton(_ label: LocalizedStringKey, style: NoteParagraphTextStyle, labelFont: Font) -> some View {
         let isActive = state.activeParagraphStyle == style
         Button {
             let cmd = paragraphCommand(for: style)
@@ -240,7 +240,7 @@ struct FormattingPanelView: View {
     // MARK: - Bulk checklist button
 
     @ViewBuilder
-    private func bulkChecklistButton(_ label: String, command: NoteTextCommand) -> some View {
+    private func bulkChecklistButton(_ label: LocalizedStringKey, command: NoteTextCommand) -> some View {
         Button {
             DispatchQueue.main.async { state.onCommand?(command) }
         } label: {

@@ -10,7 +10,7 @@ enum WritingFontChoice: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
         case .system: return "Default"
         case .serif: return "Serif"

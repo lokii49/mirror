@@ -25,6 +25,7 @@ enum NotificationService {
     private static let moodAlertID = "mirror.moodAlert"
     private static let monthlyReportID = "mirror.monthlyReport"
     private static let writingReminderID = "mirror.writingReminder"
+    private static let title = String(localized: "MirrorNotes", comment: "Push notification title")
 
     /// Context-aware daily nudge — single repeating notification whose content is
     /// refreshed on every app-active and every nightly background task run.
@@ -40,11 +41,13 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [nudgeID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
+        content.title = title
         content.sound = .default
         content.body = hasWrittenToday
-            ? (insightReady ? "Your daily reflection is ready." : "Come check your daily reflection.")
-            : "What's on your mind? Take a moment to write."
+            ? (insightReady
+                ? String(localized: "Your daily reflection is ready.", comment: "Push notification body when today's daily reflection is ready")
+                : String(localized: "Come check your daily reflection.", comment: "Push notification body when today's reflection should be checked"))
+            : String(localized: "What's on your mind? Take a moment to write.", comment: "Push notification body for a daily writing nudge")
 
         var components = DateComponents()
         components.hour = hour
@@ -63,8 +66,8 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [firstNudgeID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
-        content.body = "MirrorNotes noticed something in your first entries. Open to see."
+        content.title = title
+        content.body = String(localized: "MirrorNotes noticed something in your first entries. Open to see.", comment: "Push notification body after the first generated nudge")
         content.sound = .default
 
         var components = DateComponents()
@@ -85,8 +88,8 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [digestID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
-        content.body = "Your weekly reflection is ready."
+        content.title = title
+        content.body = String(localized: "Your weekly reflection is ready.", comment: "Push notification body for weekly digest")
         content.sound = .default
 
         var components = DateComponents()
@@ -106,8 +109,8 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [moodAlertID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
-        content.body = "You've been carrying a lot lately. Take a gentle moment for yourself."
+        content.title = title
+        content.body = String(localized: "You've been carrying a lot lately. Take a gentle moment for yourself.", comment: "Push notification body for a mood alert")
         content.sound = .default
 
         let request = UNNotificationRequest(identifier: moodAlertID, content: content, trigger: nil)
@@ -121,8 +124,8 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [monthlyReportID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
-        content.body = "Your monthly deep report is ready."
+        content.title = title
+        content.body = String(localized: "Your monthly deep report is ready.", comment: "Push notification body for monthly report")
         content.sound = .default
 
         var components = DateComponents()
@@ -142,8 +145,8 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [writingReminderID])
 
         let content = UNMutableNotificationContent()
-        content.title = "MirrorNotes"
-        content.body = "Time to write. What's on your mind today?"
+        content.title = title
+        content.body = String(localized: "Time to write. What's on your mind today?", comment: "Push notification body for user-scheduled writing reminder")
         content.sound = .default
 
         var components = DateComponents()

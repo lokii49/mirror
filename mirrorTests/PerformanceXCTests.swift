@@ -171,4 +171,70 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-frame snapshot must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 5: MoodTimelineView heatmap (points → dayMoodMap → weeks) vs cached
+
+    func test_moodTimelineHeatmap_perFrameVsCached() {
+        let cal = Calendar.current
+        let frames = 60
+
+        func buildHeatmap(from entries: [Entry]) -> (weeks: [[Date?]], dayMoodMap: [String: String]) {
+            let points = entries
+                .compactMap { entry -> (date: Date, mood: String)? in
+                    guard let mood = entry.mood else { return nil }
+                    return (entry.createdAt, mood)
+                }
+                .sorted { $0.date < $1.date }
+
+            var dayMoodMap: [String: String] = [:]
+            for point in points {
+                let c = cal.dateComponents([.year, .month, .day], from: point.date)
+                let key = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+                dayMoodMap[key] = point.mood
+            }
+
+            guard let earliest = points.first?.date else { return ([], dayMoodMap) }
+            let today = Date()
+            var startComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: earliest)
+            startComps.weekday = 2
+            guard var weekStart = cal.date(from: startComps) else { return ([], dayMoodMap) }
+            if weekStart > earliest {
+                weekStart = cal.date(byAdding: .weekOfYear, value: -1, to: weekStart) ?? weekStart
+            }
+            var weeks: [[Date?]] = []
+            while weekStart <= today {
+                var week: [Date?] = []
+                for offset in 0..<7 {
+                    if let d = cal.date(byAdding: .day, value: offset, to: weekStart), d <= today {
+                        week.append(d)
+                    } else {
+                        week.append(nil)
+                    }
+                }
+                weeks.append(week)
+                weekStart = cal.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart
+            }
+            return (weeks, dayMoodMap)
+        }
+
+        // OLD: recomputed from scratch on every body re-eval (range taps, paywall sheet, etc)
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<frames {
+            let _ = buildHeatmap(from: entries)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: computed once in .task(id:), remaining frames read the cache
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cached = buildHeatmap(from: entries)
+        for _ in 0..<(frames - 1) { let _ = cached }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[moodTimelineHeatmap] 365 entries × \(frames) frames")
+        print("  OLD (per-frame rebuild): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 build + cache):   \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-frame heatmap rebuild must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }

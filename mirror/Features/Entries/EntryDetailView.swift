@@ -34,7 +34,7 @@ struct EntryDetailView: View {
     private var moodLabel: String? {
         let mood = entry.mood
         guard let mood, !mood.isEmpty else { return nil }
-        return mood
+        return MirrorTheme.localizedMoodName(for: mood)
     }
 
     var body: some View {
@@ -64,7 +64,7 @@ struct EntryDetailView: View {
                             }
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
-                            Text("\(displayedWordCount) words")
+                            Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
                                 .font(.system(size: 14, weight: .medium, design: .monospaced))
                                 .foregroundStyle(MirrorTheme.textTertiary)
                         }
@@ -98,7 +98,7 @@ struct EntryDetailView: View {
                                 VoiceNoteAttachmentView(
                                     data: note.data,
                                     duration: note.duration,
-                                    title: "Voice note \(index + 1)",
+                                    title: String(localized: "Voice note \(index + 1)"),
                                     transcript: note.transcript,
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
@@ -111,7 +111,7 @@ struct EntryDetailView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(entry.tags, id: \.self) { tag in
-                                    Text("#\(tag)")
+                                    Text("#\(MirrorTheme.localizedTagName(for: tag))")
                                         .font(.system(size: 12, weight: .medium))
                                         .foregroundStyle(MirrorTheme.textSecondary)
                                         .padding(.horizontal, 8)
@@ -220,7 +220,7 @@ struct EntryDetailView: View {
         let dateStr = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
         var html = "<html><body style='font-family: Georgia, serif; font-size: 15px; margin: 40px; line-height: 1.8;'>"
         html += "<p style='color: #888; font-size: 12px; font-family: -apple-system; letter-spacing: 0.05em;'>\(dateStr)"
-        if let mood = entry.mood { html += " · \(mood)" }
+        if let mood = entry.mood { html += " · \(MirrorTheme.localizedMoodName(for: mood))" }
         html += "</p><hr style='border-color: #eee;'>"
         let escaped = entry.text
             .replacingOccurrences(of: "&", with: "&amp;")
@@ -286,7 +286,7 @@ private struct OnThisDaySection: View {
                                 Circle()
                                     .fill(MirrorTheme.moodColor(for: mood))
                                     .frame(width: 6, height: 6)
-                                Text(mood)
+                                Text(MirrorTheme.localizedMoodName(for: mood))
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundStyle(MirrorTheme.textSecondary)
                             }
