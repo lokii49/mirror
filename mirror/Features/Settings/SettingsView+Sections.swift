@@ -199,14 +199,20 @@ extension SettingsView {
             HStack {
                 settingsRowLabel("Appearance", systemImage: "circle.lefthalf.filled", iconColor: .indigo)
                 Spacer()
-                Picker("", selection: $appearanceMode) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+                Menu {
+                    Button("System") { appearanceMode = "system" }
+                    Button("Light") { appearanceMode = "light" }
+                    Button("Dark") { appearanceMode = "dark" }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(appearanceModeLabel)
+                            .font(.system(size: 13))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                    }
                 }
-                .pickerStyle(.menu)
-                .font(.system(size: 13))
-                .tint(.secondary)
             }
 
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)

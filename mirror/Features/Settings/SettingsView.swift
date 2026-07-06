@@ -43,6 +43,13 @@ struct SettingsView: View {
 
     // MIRROR settings
     @AppStorage("mirrorAppearanceMode") var appearanceMode: String = "system"
+    var appearanceModeLabel: String {
+        switch appearanceMode {
+        case "light": return String(localized: "Light")
+        case "dark": return String(localized: "Dark")
+        default: return String(localized: "System")
+        }
+    }
     @AppStorage("nudgeHour") var nudgeHour: Int = 8
     @AppStorage("nudgeMinute") var nudgeMinute: Int = 0
     @State var showNudgeTimePicker = false
