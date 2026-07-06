@@ -1,0 +1,18 @@
+MirrorNotes é um diário privado para escrever, refletir e entender seus padrões ao longo do tempo.
+
+Registre pensamentos diários com anotações escritas, marcadores de humor, fotos e notas de voz. Navegue pelo seu histórico, pesquise anotações antigas e volte a momentos importantes sempre que precisar.
+
+MirrorNotes também ajuda você a refletir com insights privados baseados em IA, incluindo estímulos diários, resumos semanais, linhas do tempo de humor e relatórios mensais. O conteúdo do seu diário é projetado para permanecer privado, com processamento local para os recursos de reflexão e armazenamento criptografado para suas anotações pessoais.
+
+Recursos:
+  • Escreva anotações de diário privadas
+  • Adicione marcadores de humor, fotos e notas de voz
+  • Navegue e pesquise seu histórico de anotações
+  • Veja reflexões diárias e resumos semanais
+  • Explore tendências de humor e relatórios mensais
+  • Faça perguntas sobre os padrões do seu diário
+  • Sincronize em modo privado com o iCloud
+  • Proteja sua escrita com armazenamento criptografado
+
+MirrorNotes foi feito para quem busca um lugar calmo e privado para pensar, sem plateia.
+https://mirrornotes.org/terms.html
