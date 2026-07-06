@@ -19,7 +19,7 @@ extension SettingsView {
                         .lineLimit(1)
 
                     if subscriptionService.isSubscribed {
-                        let tierLabel = subscriptionService.isDeep ? "Deep" : "Core"
+                        let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
                         let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                         Label(tierLabel, systemImage: "checkmark.seal.fill")
                             .font(.system(size: 12, weight: .semibold))
@@ -138,7 +138,7 @@ extension SettingsView {
         .futureSurface(cornerRadius: 24)
     }
 
-    func statCard(value: String, label: String, icon: String, color: Color) -> some View {
+    func statCard(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -199,13 +199,20 @@ extension SettingsView {
             HStack {
                 settingsRowLabel("Appearance", systemImage: "circle.lefthalf.filled", iconColor: .indigo)
                 Spacer()
-                Picker("", selection: $appearanceMode) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+                Menu {
+                    Button("System") { appearanceMode = "system" }
+                    Button("Light") { appearanceMode = "light" }
+                    Button("Dark") { appearanceMode = "dark" }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(appearanceModeLabel)
+                            .font(.system(size: 13))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                    }
                 }
-                .pickerStyle(.menu)
-                .tint(.secondary)
             }
 
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
@@ -298,7 +305,7 @@ extension SettingsView {
                 HStack {
                     settingsRowLabel("Voice transcription language", systemImage: "mic.fill", iconColor: MirrorTheme.violet)
                     Spacer()
-                    let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? "Automatic"
+                    let langName = VoiceTranscriptionService.pickerLanguages.first(where: { $0.id == transcriptionLanguage })?.displayName ?? String(localized: "Automatic")
                     Text(langName)
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -438,7 +445,7 @@ extension SettingsView {
                     Circle()
                         .fill(iCloudStatusColor)
                         .frame(width: 7, height: 7)
-                    Text(iCloudStatus)
+                    Text(iCloudStatus.label)
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -604,7 +611,7 @@ extension SettingsView {
         }
     }
 
-    func privacyStep(number: String, title: String, body: String, icon: String, color: Color) -> some View {
+    func privacyStep(number: String, title: LocalizedStringKey, body: LocalizedStringKey, icon: String, color: Color) -> some View {
         HStack(alignment: .top, spacing: 16) {
             ZStack {
                 Circle()
@@ -742,7 +749,7 @@ extension SettingsView {
 
     // MARK: - Helpers
 
-    func upgradeChip(_ label: String, icon: String) -> some View {
+    func upgradeChip(_ label: LocalizedStringKey, icon: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .semibold))
@@ -808,19 +815,19 @@ extension SettingsView {
             let status = try await CKContainer.default().accountStatus()
             await MainActor.run {
                 switch status {
-                case .available: iCloudStatus = "Active"
-                case .noAccount: iCloudStatus = "No account"
-                case .restricted: iCloudStatus = "Restricted"
-                case .temporarilyUnavailable: iCloudStatus = "Unavailable"
-                default: iCloudStatus = "Unknown"
+                case .available: iCloudStatus = .active
+                case .noAccount: iCloudStatus = .noAccount
+                case .restricted: iCloudStatus = .restricted
+                case .temporarilyUnavailable: iCloudStatus = .unavailable
+                default: iCloudStatus = .unknown
                 }
             }
         } catch {
-            await MainActor.run { iCloudStatus = "Error" }
+            await MainActor.run { iCloudStatus = .error }
         }
     }
 
-    func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    func settingsGroup<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
@@ -836,11 +843,11 @@ extension SettingsView {
         .futureSurface(cornerRadius: 24)
     }
 
-    func settingsRow(_ title: String, systemImage: String, iconColor: Color) -> some View {
+    func settingsRow(_ title: LocalizedStringKey, systemImage: String, iconColor: Color) -> some View {
         settingsRowLabel(title, systemImage: systemImage, iconColor: iconColor)
     }
 
-    func settingsRowLabel(_ title: String, systemImage: String, iconColor: Color) -> some View {
+    func settingsRowLabel(_ title: LocalizedStringKey, systemImage: String, iconColor: Color) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -860,9 +867,9 @@ extension SettingsView {
     }
 
     func computeLatestEntryText(from snapshot: [Entry]) -> String {
-        guard let latest = snapshot.first?.createdAt else { return "None" }
-        if Calendar.current.isDateInToday(latest) { return "Today" }
-        if Calendar.current.isDateInYesterday(latest) { return "Yesterday" }
+        guard let latest = snapshot.first?.createdAt else { return String(localized: "None") }
+        if Calendar.current.isDateInToday(latest) { return String(localized: "Today") }
+        if Calendar.current.isDateInYesterday(latest) { return String(localized: "Yesterday") }
         return latest.formatted(date: .abbreviated, time: .omitted)
     }
 

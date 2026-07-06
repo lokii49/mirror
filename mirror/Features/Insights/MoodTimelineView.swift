@@ -11,6 +11,12 @@ struct MoodTimelineView: View {
     @State private var showPaywall = false
     @State private var selectedRange: TimeRange = .thirtyDays
 
+    // Full-history heatmap data — independent of selectedRange, but was being
+    // recomputed from scratch on every body re-eval (range taps, paywall sheet, etc).
+    @State private var cachedAllMoodPoints: [MoodPoint] = []
+    @State private var cachedDayMoodMap: [String: String] = [:]
+    @State private var cachedHeatmapWeeks: [[Date?]] = []
+
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
 
     enum TimeRange: String, CaseIterable {
@@ -23,6 +29,14 @@ struct MoodTimelineView: View {
             case .thirtyDays: return 30
             case .ninetyDays: return 90
             case .allTime: return nil
+            }
+        }
+
+        var displayName: LocalizedStringKey {
+            switch self {
+            case .thirtyDays: return "30D"
+            case .ninetyDays: return "90D"
+            case .allTime: return "All"
             }
         }
     }
@@ -48,38 +62,39 @@ struct MoodTimelineView: View {
             .sorted { $0.date < $1.date }
     }
 
-    // Full unfiltered history for the heatmap
-    private var allMoodPoints: [MoodPoint] {
-        entries
-            .compactMap { entry in
+    private func recomputeHeatmapCache() {
+        let cal = Calendar.current
+
+        let points = entries
+            .compactMap { entry -> MoodPoint? in
                 guard let mood = entry.mood,
                       let score = MirrorTheme.moodScore[mood] else { return nil }
                 return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
             }
             .sorted { $0.date < $1.date }
-    }
+        cachedAllMoodPoints = points
 
-    // Most recent mood per calendar day (points sorted asc → last write wins)
-    private var dayMoodMap: [String: String] {
-        let cal = Calendar.current
-        var result: [String: String] = [:]
-        for point in allMoodPoints {
+        // Most recent mood per calendar day (points sorted asc → last write wins)
+        var dayMoodMap: [String: String] = [:]
+        for point in points {
             let c = cal.dateComponents([.year, .month, .day], from: point.date)
             let key = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-            result[key] = point.mood
+            dayMoodMap[key] = point.mood
         }
-        return result
-    }
+        cachedDayMoodMap = dayMoodMap
 
-    // Array of weeks [[Date?]] from first entry's week to today. Each week = 7 slots (Mon–Sun).
-    private var heatmapWeeks: [[Date?]] {
-        guard let earliest = allMoodPoints.first?.date else { return [] }
-        let cal = Calendar.current
+        // Array of weeks [[Date?]] from first entry's week to today. Each week = 7 slots (Mon–Sun).
+        guard let earliest = points.first?.date else {
+            cachedHeatmapWeeks = []
+            return
+        }
         let today = Date()
-
         var startComps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: earliest)
         startComps.weekday = 2 // Monday
-        guard var weekStart = cal.date(from: startComps) else { return [] }
+        guard var weekStart = cal.date(from: startComps) else {
+            cachedHeatmapWeeks = []
+            return
+        }
         if weekStart > earliest {
             weekStart = cal.date(byAdding: .weekOfYear, value: -1, to: weekStart) ?? weekStart
         }
@@ -97,7 +112,7 @@ struct MoodTimelineView: View {
             weeks.append(week)
             weekStart = cal.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart
         }
-        return weeks
+        cachedHeatmapWeeks = weeks
     }
 
     private var moodDistribution: [(mood: String, count: Int, color: Color)] {
@@ -184,7 +199,7 @@ struct MoodTimelineView: View {
                 moodScaleRow
 
                 if selectedRange == .allTime {
-                    if !allMoodPoints.isEmpty {
+                    if !cachedAllMoodPoints.isEmpty {
                         heatmapCard
                     } else {
                         noDataCard
@@ -205,6 +220,9 @@ struct MoodTimelineView: View {
             .padding(.bottom, 24)
             .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
+        }
+        .task(id: entries.map(\.encryptedMood).hashValue) {
+            recomputeHeatmapCache()
         }
     }
 
@@ -245,7 +263,7 @@ struct MoodTimelineView: View {
                         selectedRange = range
                     }
                 } label: {
-                    Text(range.rawValue)
+                    Text(range.displayName)
                         .font(.system(size: 14, weight: selectedRange == range ? .bold : .medium))
                         .foregroundStyle(selectedRange == range ? MirrorTheme.primary : .secondary)
                         .frame(maxWidth: .infinity)
@@ -286,7 +304,7 @@ struct MoodTimelineView: View {
         }
     }
 
-    private func statPill(value: String, valueSuffix: String = "", label: String, icon: String, color: Color) -> some View {
+    private func statPill(value: String, valueSuffix: String = "", label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
@@ -315,7 +333,7 @@ struct MoodTimelineView: View {
     private var moodScaleRow: some View {
         if averageMoodScore > 0 {
             let fraction = CGFloat((averageMoodScore - 1.0) / 4.0)
-            let interpretation: String = {
+            let interpretation: LocalizedStringKey = {
                 if averageMoodScore >= 4.5 { return "Thriving" }
                 if averageMoodScore >= 3.5 { return "Positive" }
                 if averageMoodScore >= 2.5 { return "Mixed, leaning neutral" }
@@ -406,8 +424,8 @@ struct MoodTimelineView: View {
     @ViewBuilder
     private var heatmapGrid: some View {
         let cal = Calendar.current
-        let weeks = heatmapWeeks
-        let moodMap = dayMoodMap
+        let weeks = cachedHeatmapWeeks
+        let moodMap = cachedDayMoodMap
         let cell: CGFloat = 13
         let gap: CGFloat = 2
 
@@ -484,7 +502,7 @@ struct MoodTimelineView: View {
                         Circle()
                             .fill(item.color)
                             .frame(width: 10, height: 10)
-                        Text(item.mood)
+                        Text(MirrorTheme.localizedMoodName(for: item.mood))
                             .font(.system(size: 14, weight: .medium))
                         Spacer()
                         Text("\(item.count)×")
@@ -584,7 +602,7 @@ struct MoodTimelineView: View {
     private var previewRangeSelector: some View {
         HStack(spacing: 0) {
             ForEach(TimeRange.allCases, id: \.self) { range in
-                Text(range.rawValue)
+                Text(range.displayName)
                     .font(.system(size: 14, weight: range == .thirtyDays ? .bold : .medium))
                     .foregroundStyle(range == .thirtyDays ? MirrorTheme.primary : .secondary)
                     .frame(maxWidth: .infinity)
@@ -652,7 +670,7 @@ struct MoodTimelineView: View {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: mood))
                             .frame(width: 10, height: 10)
-                        Text(mood)
+                        Text(MirrorTheme.localizedMoodName(for: mood))
                             .font(.system(size: 14, weight: .medium))
                         Spacer()
                         Text("2×")

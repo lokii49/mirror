@@ -24,10 +24,10 @@ struct AppVersion: Comparable, Equatable {
 
 // MARK: - Card types
 
-enum CardTier: CaseIterable, Equatable {
+enum CardTier: CaseIterable, Equatable, Hashable {
     case free, core, deep
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
         case .free:  return "Free"
         case .core:  return "Core"
@@ -51,7 +51,7 @@ enum CardTier: CaseIterable, Equatable {
         }
     }
 
-    var pricingLabel: String? {
+    var pricingLabel: LocalizedStringKey? {
         switch self {
         case .free: return nil
         case .core: return "$2.99/mo"
@@ -62,8 +62,8 @@ enum CardTier: CaseIterable, Equatable {
 
 struct FeatureCard: Identifiable {
     let id: String
-    let title: String
-    let body: String
+    let title: LocalizedStringKey
+    let body: LocalizedStringKey
     let symbolName: String
     let accentColor: Color
     let tier: CardTier
@@ -219,6 +219,25 @@ enum FeatureCardRegistry {
             tier: .deep,
             sinceVersion: "1.0.7",
             showInFeatureGuide: false
+        ),
+        // 2.0.3
+        .init(
+            id: "all-features-free-203",
+            title: "Everything is free",
+            body: "Ask, Daily Reflection, Weekly Digest, Monthly Deep Report, Mood Timeline, and widgets — every feature is free while mirror grows. No subscription required.",
+            symbolName: "gift.fill",
+            accentColor: .green,
+            tier: .free,
+            sinceVersion: "2.0.3"
+        ),
+        .init(
+            id: "localization-203",
+            title: "mirror now speaks 10 languages",
+            body: "Spanish, Japanese, Chinese, German, French, Portuguese, Korean, Italian, and Russian — alongside English. Switch your device language and mirror follows.",
+            symbolName: "globe",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "2.0.3"
         ),
     ]
 }

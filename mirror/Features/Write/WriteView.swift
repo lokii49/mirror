@@ -138,7 +138,7 @@ struct WriteView: View {
                             VoiceNoteAttachmentView(
                                 data: note.data,
                                 duration: note.duration,
-                                title: "Voice note \(index + 1)",
+                                title: String(localized: "Voice note \(index + 1)"),
                                 transcript: note.transcript,
                                 languageName: note.languageName,
                                 isTranscribing: transcribingVoiceNoteIndexes.contains(index),

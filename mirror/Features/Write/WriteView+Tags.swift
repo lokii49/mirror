@@ -6,7 +6,7 @@ extension WriteView {
             HStack(spacing: 6) {
                 ForEach(entryTags, id: \.self) { tag in
                     HStack(spacing: 3) {
-                        Text("#\(tag)")
+                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
                             .font(.system(size: 12, weight: .medium))
                         Button {
                             entryTags.removeAll { $0 == tag }
@@ -59,7 +59,7 @@ extension WriteView {
                                 showTagInput = false
                                 if entry == nil { saveDraftToStorage() }
                             } label: {
-                                Text("#\(tag)")
+                                Text("#\(MirrorTheme.localizedTagName(for: tag))")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(MirrorTheme.primary)
                                     .padding(.horizontal, 8)

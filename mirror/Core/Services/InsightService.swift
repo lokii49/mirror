@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 enum InsightError: LocalizedError {
     case subscriptionRequired
@@ -9,11 +10,11 @@ enum InsightError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .subscriptionRequired: return "Core subscription required."
-        case .serverError: return "Something went wrong. Try again in a moment."
-        case .emptyResponse: return "Mirror didn't get a response. Try again in a moment."
-        case .incompleteResponse: return "Mirror couldn't finish that reflection. Try again."
-        case .serviceUnavailable: return "Something went wrong. Mirror will try again tonight while your phone charges."
+        case .subscriptionRequired: return String(localized: "Core subscription required.")
+        case .serverError: return String(localized: "Something went wrong. Try again in a moment.")
+        case .emptyResponse: return String(localized: "Mirror didn't get a response. Try again in a moment.")
+        case .incompleteResponse: return String(localized: "Mirror couldn't finish that reflection. Try again.")
+        case .serviceUnavailable: return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
         }
     }
 }
@@ -77,7 +78,7 @@ Rules:
 - Sound human, warm, and direct
 - Do not mention that you are an AI or model
 - Avoid clinical phrases like "this suggests", "patterns indicate", or "the source mentions"
-- Only if the entries truly contain nothing at all related to the question, respond with exactly: You haven't written about this yet.
+- Only if the entries truly contain nothing at all related to the question, use the exact no-answer fallback phrase specified below.
 """
 
 private let MONTHLY_REPORT_SYSTEM = """
@@ -115,6 +116,31 @@ enum InsightService {
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
+    private static let askNoAnswerSentinelEN = "You haven't written about this yet."
+    // Keyed by the same language codes as the digest/report section labels below,
+    // so the fallback always matches the language Ask was actually instructed to answer in.
+    private static let askNoAnswerPhrases: [String: String] = [
+        "en": "You haven't written about this yet.",
+        "es": "Aún no has escrito sobre esto.",
+        "fr": "Tu n'as pas encore écrit à ce sujet.",
+        "de": "Darüber hast du noch nicht geschrieben.",
+        "it": "Non hai ancora scritto di questo.",
+        "ja": "まだこれについて書いていません。",
+        "ko": "아직 이것에 대해 쓰지 않았어요.",
+        "pt": "Você ainda não escreveu sobre isso.",
+        "ru": "Ты ещё не писал(а) об этом.",
+        "zh": "你还没有写过这个话题。",
+    ]
+    private static func askNoAnswerPhrase(for target: ResponseLanguageTarget?) -> String {
+        guard let target, let phrase = askNoAnswerPhrases[target.code] else {
+            return askNoAnswerSentinelEN
+        }
+        return phrase
+    }
+    private struct ResponseLanguageTarget {
+        let code: String
+        let name: String
+    }
 
     // Cycles daily so the reflection never starts with the same phrase two days in a row.
     // All openers are free of I/me/my to survive cleanedInsightOutput without corruption.
@@ -144,6 +170,7 @@ enum InsightService {
         let recent = withinWindow.isEmpty ? Array(sorted.prefix(1)) : Array(withinWindow.prefix(3))
         let recentIDs = Set(recent.map(\.id))
         let background = Array(sorted.filter { !recentIDs.contains($0.id) }.prefix(20))
+        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
         return try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: buildUserMessage(
@@ -153,12 +180,15 @@ enum InsightService {
                 maxChars: dailyNudgePromptBudget,
                 requiredOpener: opener
             ),
-            task: .dailyNudge
+            task: .dailyNudge,
+            responseLanguageInstruction: languageInstruction
         )
     }
 
     static func generateWeeklyDigest(entries: [Entry]) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
+        let digestEntries = Array(sorted.prefix(24))
+        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: digestEntries), task: .weeklyDigest)
         return try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
             userMessage: buildUserMessage(
@@ -167,15 +197,18 @@ enum InsightService {
                 backgroundEntries: Array(sorted.dropFirst(10).prefix(14)),
                 maxChars: weeklyDigestPromptBudget
             ),
-            task: .weeklyDigest
+            task: .weeklyDigest,
+            responseLanguageInstruction: languageInstruction
         )
     }
 
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
+        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         return try await localGenerate(
             systemPrompt: MONTHLY_REPORT_SYSTEM,
             userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
-            task: .monthlyReport
+            task: .monthlyReport,
+            responseLanguageInstruction: languageInstruction
         )
     }
 
@@ -184,6 +217,8 @@ enum InsightService {
         let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
+        let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
+        let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
         return try await localGenerate(
             systemPrompt: ASK_SYSTEM,
             userMessage: buildAskMessage(
@@ -191,7 +226,9 @@ enum InsightService {
                 backgroundEntries: Array(background),
                 question: question
             ),
-            task: .ask
+            task: .ask,
+            responseLanguageInstruction: languageInstruction,
+            askNoAnswerPhrase: askNoAnswerPhrase(for: target)
         )
     }
 
@@ -200,24 +237,165 @@ enum InsightService {
         let response = try await localGenerate(
             systemPrompt: EMOTION_DETECT_SYSTEM,
             userMessage: trimmed,
-            task: .emotion
+            task: .emotion,
+            responseLanguageInstruction: nil
         )
         return normalizeEmotion(response)
     }
 
-    private static func localGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+    // Gemma's system prompts are English, so without an explicit directive it tends
+    // to answer in English even when the journal content is not. Emotion detection
+    // is intentionally skipped because it must return the persisted English mood key.
+    private static func responseLanguageInstruction(for target: ResponseLanguageTarget?, task: LocalLLMTask) -> String? {
+        guard task != .emotion else { return nil }
+        guard let target = target ?? responseLanguageTargetFromCurrentLocale() else { return nil }
+
+        switch task {
+        case .weeklyDigest, .monthlyReport:
+            let labels = localizedSectionLabels(for: task, languageCode: target.code)
+            return """
+            Use exactly these section labels instead of any English labels listed above:
+            \(labels.joined(separator: "\n"))
+
+            Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.
+            """
+        case .dailyNudge, .ask:
+            return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
+        case .emotion:
+            return nil
+        }
+    }
+
+    private static func localizedSectionLabels(for task: LocalLLMTask, languageCode: String) -> [String] {
+        let labels: [[String: String]]
+        switch task {
+        case .weeklyDigest:
+            labels = weeklyDigestSectionLabels
+        case .monthlyReport:
+            labels = monthlyReportSectionLabels
+        case .dailyNudge, .ask, .emotion:
+            return []
+        }
+        return labels.map { section in
+            section[languageCode] ?? section["en"] ?? ""
+        }
+    }
+
+    private static func responseLanguageTarget(from entries: [Entry], extraText: String? = nil) -> ResponseLanguageTarget? {
+        var scores: [String: Double] = [:]
+
+        if let extraText {
+            scoreDetectedLanguage(in: extraText, multiplier: 1.4, into: &scores)
+        }
+
+        for entry in entries {
+            scoreDetectedLanguage(in: entry.text, multiplier: 1.0, into: &scores)
+
+            for voiceNote in entry.voiceNotes {
+                if let code = normalizedLanguageCode(voiceNote.languageCode) {
+                    let transcriptLength = voiceNote.transcript?.count ?? 0
+                    scores[code, default: 0] += Double(max(120, transcriptLength))
+                }
+                scoreDetectedLanguage(in: voiceNote.transcript, multiplier: 1.0, into: &scores)
+            }
+        }
+
+        guard let code = scores.max(by: { $0.value < $1.value })?.key else {
+            return nil
+        }
+        return responseLanguageTarget(forCode: code)
+    }
+
+    private static func responseLanguageTargetFromCurrentLocale() -> ResponseLanguageTarget? {
+        guard let code = Locale.current.language.languageCode?.identifier else { return nil }
+        return responseLanguageTarget(forCode: code)
+    }
+
+    private static func scoreDetectedLanguage(in text: String?, multiplier: Double, into scores: inout [String: Double]) {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard trimmed.count >= 20 else { return }
+
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(trimmed)
+        guard let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first,
+              confidence >= 0.35,
+              let code = normalizedLanguageCode(language.rawValue)
+        else { return }
+
+        scores[code, default: 0] += Double(min(trimmed.count, 1_500)) * confidence * multiplier
+    }
+
+    private static func responseLanguageTarget(forCode rawCode: String) -> ResponseLanguageTarget? {
+        guard let code = normalizedLanguageCode(rawCode) else { return nil }
+        let knownNames: [String: String] = [
+            "en": "English",
+            "es": "Spanish",
+            "ja": "Japanese",
+            "zh": "Chinese (Simplified)",
+            "de": "German",
+            "fr": "French",
+            "pt": "Portuguese",
+            "ko": "Korean",
+            "it": "Italian",
+            "ru": "Russian",
+        ]
+        let name = knownNames[code]
+            ?? Locale(identifier: "en").localizedString(forLanguageCode: code)
+            ?? Locale(identifier: "en").localizedString(forIdentifier: code)
+        guard let name, !name.isEmpty else { return nil }
+        return ResponseLanguageTarget(code: code, name: name)
+    }
+
+    private static func normalizedLanguageCode(_ rawCode: String?) -> String? {
+        let raw = rawCode?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !raw.isEmpty else { return nil }
+
+        let locale = Locale(identifier: raw)
+        if let code = locale.language.languageCode?.identifier.lowercased(), code != "und" {
+            return code
+        }
+
+        let fallback = raw
+            .replacingOccurrences(of: "_", with: "-")
+            .split(separator: "-")
+            .first?
+            .lowercased()
+        guard let fallback, fallback != "und" else { return nil }
+        return fallback
+    }
+
+    private static func localGenerate(
+        systemPrompt basePrompt: String,
+        userMessage: String,
+        task: LocalLLMTask,
+        responseLanguageInstruction: String?,
+        askNoAnswerPhrase: String? = nil
+    ) async throws -> String {
+        let systemPrompt: String
+        if let instruction = responseLanguageInstruction {
+            systemPrompt = basePrompt + "\n\n" + instruction
+        } else {
+            systemPrompt = basePrompt
+        }
+        let finalSystemPrompt: String
+        if task == .ask {
+            let phrase = askNoAnswerPhrase ?? askNoAnswerSentinelEN
+            finalSystemPrompt = systemPrompt + "\n\nIf the entries truly contain nothing related to the question, respond exactly: \(phrase)"
+        } else {
+            finalSystemPrompt = systemPrompt
+        }
         do {
             do {
-                let first = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: userMessage, task: task)
-                return try validate(first, for: task)
+                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
+                return try validate(first, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
-                let second = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: retryMessage, task: task)
-                return try validate(second, for: task)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task)
+                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
-                let second = try await queuedGenerate(systemPrompt: systemPrompt, userMessage: userMessage, task: task)
-                return try validate(second, for: task)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
+                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
             }
         } catch let error as InsightError {
             throw error
@@ -264,7 +442,7 @@ enum InsightService {
         case .weeklyDigest:
             return "Return exactly the required six labeled lines. Every section must have 1-2 complete sentences after the colon, under 70 words per section."
         case .monthlyReport:
-            return "Return exactly six labeled sections: YOUR MONTH IN ONE IMAGE, THE TENSION AT THE CENTER, A MOMENT THAT SHIFTED SOMETHING, WHAT YOU'RE BECOMING, WHAT WANTS TO BE RELEASED, YOUR QUESTION FOR NEXT MONTH. YOUR MONTH IN ONE IMAGE must start with \"This month felt like\" or \"It was as if\". YOUR QUESTION FOR NEXT MONTH must end with a question mark. Every other section must end with a complete sentence."
+            return "Return exactly the six required labeled sections from the system prompt. The image section must start with a vivid metaphor. The final question section must end with a question mark. Every other section must end with a complete sentence."
         case .ask:
             return "Return only 3-5 complete sentences. Do not invent facts not in the entries."
         case .emotion:
@@ -272,7 +450,7 @@ enum InsightService {
         }
     }
 
-    private static func validate(_ text: String, for task: LocalLLMTask) throws -> String {
+    private static func validate(_ text: String, for task: LocalLLMTask, askNoAnswerPhrase: String? = nil) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw InsightError.emptyResponse }
 
@@ -286,8 +464,9 @@ enum InsightService {
                 rejectsFirstPerson: false
             )
         case .ask:
-            if trimmed == "You haven't written about this yet." {
-                return trimmed
+            let expectedPhrase = askNoAnswerPhrase ?? askNoAnswerSentinelEN
+            if trimmed == askNoAnswerSentinelEN || trimmed == expectedPhrase {
+                return expectedPhrase
             }
             return try validateCompleteProse(
                 trimmed,
@@ -334,17 +513,10 @@ enum InsightService {
         let normalizedText = text
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{2018}", with: "'")
-        let requiredHeaders = [
-            "THIS WEEK'S THEME",
-            "YOUR ENERGY",
-            "WHAT'S BUILDING",
-            "WATCH OUT FOR",
-            "MOOD BOOST",
-            "NEXT WEEK"
-        ]
+        let requiredHeaders = weeklyDigestSectionLabels.map { Array($0.values) }
 
-        for (index, header) in requiredHeaders.enumerated() {
-            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
+        for (index, headerAliases) in requiredHeaders.enumerated() {
+            guard let body = digestBody(for: headerAliases, at: index, in: normalizedText, headers: requiredHeaders) else {
                 throw InsightError.incompleteResponse
             }
             guard body.count >= 20,
@@ -366,17 +538,11 @@ enum InsightService {
 
         guard normalizedText.count >= 80 else { throw InsightError.incompleteResponse }
 
-        let requiredHeaders = [
-            "YOUR MONTH IN ONE IMAGE",
-            "THE TENSION AT THE CENTER",
-            "A MOMENT THAT SHIFTED SOMETHING",
-            "WHAT YOU'RE BECOMING",
-            "WHAT WANTS TO BE RELEASED",
-            "YOUR QUESTION FOR NEXT MONTH"
-        ]
+        let requiredHeaders = monthlyReportSectionLabels.map { Array($0.values) }
+        let questionHeaderAliases = monthlyReportSectionLabels[5].map(\.value)
 
-        for (index, header) in requiredHeaders.enumerated() {
-            guard let body = digestBody(for: header, at: index, in: normalizedText, headers: requiredHeaders) else {
+        for (index, headerAliases) in requiredHeaders.enumerated() {
+            guard let body = digestBody(for: headerAliases, at: index, in: normalizedText, headers: requiredHeaders) else {
                 throw InsightError.incompleteResponse
             }
             guard body.count >= 15,
@@ -386,7 +552,7 @@ enum InsightService {
                 throw InsightError.incompleteResponse
             }
             // The closing question must end with "?"
-            if header == "YOUR QUESTION FOR NEXT MONTH" {
+            if !Set(headerAliases).isDisjoint(with: questionHeaderAliases) {
                 guard body.trimmingCharacters(in: .whitespacesAndNewlines).last == "?" else {
                     throw InsightError.incompleteResponse
                 }
@@ -432,13 +598,20 @@ enum InsightService {
         }
     }
 
-    private static func digestBody(for header: String, at index: Int, in text: String, headers: [String]) -> String? {
-        guard let headerRange = text.range(of: "\(header):", options: [.caseInsensitive]) else { return nil }
+    private static func digestBody(for headerAliases: [String], at index: Int, in text: String, headers: [[String]]) -> String? {
+        guard let headerRange = headerAliases
+            .lazy
+            .compactMap({ text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) })
+            .min(by: { $0.lowerBound < $1.lowerBound })
+        else { return nil }
         let afterHeader = String(text[headerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
         var bodyEnd = afterHeader.endIndex
 
-        for nextHeader in headers.dropFirst(index + 1) {
-            if let nextRange = afterHeader.range(of: "\(nextHeader):", options: [.caseInsensitive]) {
+        for nextHeaderAliases in headers.dropFirst(index + 1) {
+            if let nextRange = nextHeaderAliases
+                .lazy
+                .compactMap({ afterHeader.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) })
+                .min(by: { $0.lowerBound < $1.lowerBound }) {
                 bodyEnd = nextRange.lowerBound
                 break
             }
@@ -446,6 +619,86 @@ enum InsightService {
 
         return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    // Shared with WeeklyDigestView / MonthlyReportView so prompt-side labels and
+    // display-side parsing never drift apart into two copies.
+    static let weeklyDigestSectionLabels: [[String: String]] = [
+        [
+            "en": "THIS WEEK'S THEME", "de": "THEMA DIESER WOCHE", "es": "TEMA DE ESTA SEMANA",
+            "fr": "THEME DE LA SEMAINE", "it": "TEMA DELLA SETTIMANA", "ja": "今週のテーマ",
+            "ko": "이번 주의 주제", "pt": "TEMA DA SEMANA", "ru": "ТЕМА ЭТОЙ НЕДЕЛИ",
+            "zh": "本周主题",
+        ],
+        [
+            "en": "YOUR ENERGY", "de": "DEINE ENERGIE", "es": "TU ENERGIA",
+            "fr": "TON ENERGIE", "it": "LA TUA ENERGIA", "ja": "あなたのエネルギー",
+            "ko": "당신의 에너지", "pt": "SUA ENERGIA", "ru": "ТВОЯ ЭНЕРГИЯ",
+            "zh": "你的能量",
+        ],
+        [
+            "en": "WHAT'S BUILDING", "de": "WAS SICH AUFBAUT", "es": "LO QUE ESTA CRECIENDO",
+            "fr": "CE QUI SE CONSTRUIT", "it": "COSA STA CRESCENDO", "ja": "育っているもの",
+            "ko": "쌓여 가는 것", "pt": "O QUE ESTA SE FORMANDO", "ru": "ЧТО НАРАСТАЕТ",
+            "zh": "正在累积的东西",
+        ],
+        [
+            "en": "WATCH OUT FOR", "de": "ACHTE AUF", "es": "CUIDADO CON",
+            "fr": "A SURVEILLER", "it": "FAI ATTENZIONE A", "ja": "気をつけたいこと",
+            "ko": "주의할 점", "pt": "FIQUE ATENTO A", "ru": "НА ЧТО ОБРАТИТЬ ВНИМАНИЕ",
+            "zh": "需要留意",
+        ],
+        [
+            "en": "MOOD BOOST", "de": "STIMMUNGSSCHUB", "es": "IMPULSO DE ANIMO",
+            "fr": "COUP DE POUCE POUR L'HUMEUR", "it": "SPINTA PER L'UMORE", "ja": "気分を上げること",
+            "ko": "기분 전환", "pt": "IMPULSO DE HUMOR", "ru": "ПОДДЕРЖКА НАСТРОЕНИЯ",
+            "zh": "情绪助推",
+        ],
+        [
+            "en": "NEXT WEEK", "de": "NAECHSTE WOCHE", "es": "LA PROXIMA SEMANA",
+            "fr": "LA SEMAINE PROCHAINE", "it": "LA PROSSIMA SETTIMANA", "ja": "来週",
+            "ko": "다음 주", "pt": "PROXIMA SEMANA", "ru": "СЛЕДУЮЩАЯ НЕДЕЛЯ",
+            "zh": "下周",
+        ],
+    ]
+
+    static let monthlyReportSectionLabels: [[String: String]] = [
+        [
+            "en": "YOUR MONTH IN ONE IMAGE", "de": "DEIN MONAT IN EINEM BILD", "es": "TU MES EN UNA IMAGEN",
+            "fr": "TON MOIS EN UNE IMAGE", "it": "IL TUO MESE IN UN'IMMAGINE", "ja": "一枚のイメージで見る今月",
+            "ko": "한 장면으로 본 이번 달", "pt": "SEU MES EM UMA IMAGEM", "ru": "ТВОЙ МЕСЯЦ В ОДНОМ ОБРАЗЕ",
+            "zh": "用一个画面概括你的这个月",
+        ],
+        [
+            "en": "THE TENSION AT THE CENTER", "de": "DIE SPANNUNG IM ZENTRUM", "es": "LA TENSION CENTRAL",
+            "fr": "LA TENSION AU CENTRE", "it": "LA TENSIONE AL CENTRO", "ja": "中心にある葛藤",
+            "ko": "중심에 있는 긴장", "pt": "A TENSAO CENTRAL", "ru": "ЦЕНТРАЛЬНОЕ НАПРЯЖЕНИЕ",
+            "zh": "核心张力",
+        ],
+        [
+            "en": "A MOMENT THAT SHIFTED SOMETHING", "de": "EIN MOMENT, DER ETWAS VERSCHOBEN HAT", "es": "UN MOMENTO QUE MOVIO ALGO",
+            "fr": "UN MOMENT QUI A DEPLACE QUELQUE CHOSE", "it": "UN MOMENTO CHE HA SPOSTATO QUALCOSA", "ja": "何かが変わった瞬間",
+            "ko": "무언가가 달라진 순간", "pt": "UM MOMENTO QUE MUDOU ALGO", "ru": "МОМЕНТ, КОТОРЫЙ ЧТО-ТО СДВИНУЛ",
+            "zh": "让某些东西发生变化的时刻",
+        ],
+        [
+            "en": "WHAT YOU'RE BECOMING", "de": "WER DU WIRST", "es": "EN QUIEN TE ESTAS CONVIRTIENDO",
+            "fr": "CE QUE TU DEVIENS", "it": "CIO CHE STAI DIVENTANDO", "ja": "あなたがなりつつあるもの",
+            "ko": "당신이 되어 가는 모습", "pt": "NO QUE VOCE ESTA SE TORNANDO", "ru": "КЕМ ТЫ СТАНОВИШЬСЯ",
+            "zh": "你正在成为的样子",
+        ],
+        [
+            "en": "WHAT WANTS TO BE RELEASED", "de": "WAS LOSGELASSEN WERDEN WILL", "es": "LO QUE QUIERE SER SOLTADO",
+            "fr": "CE QUI VEUT ETRE RELACHE", "it": "COSA VUOLE ESSERE LASCIATO ANDARE", "ja": "手放したがっているもの",
+            "ko": "놓아주고 싶은 것", "pt": "O QUE QUER SER LIBERADO", "ru": "ЧТО ПРОСИТСЯ ОТПУСТИТЬ",
+            "zh": "想被放下的东西",
+        ],
+        [
+            "en": "YOUR QUESTION FOR NEXT MONTH", "de": "DEINE FRAGE FUER DEN NAECHSTEN MONAT", "es": "TU PREGUNTA PARA EL PROXIMO MES",
+            "fr": "TA QUESTION POUR LE MOIS PROCHAIN", "it": "LA TUA DOMANDA PER IL PROSSIMO MESE", "ja": "来月への問い",
+            "ko": "다음 달을 위한 질문", "pt": "SUA PERGUNTA PARA O PROXIMO MES", "ru": "ТВОЙ ВОПРОС НА СЛЕДУЮЩИЙ МЕСЯЦ",
+            "zh": "给下个月的你的问题",
+        ],
+    ]
 
     private static func buildMonthlyReportMessage(monthEntries: [Entry], allEntries: [Entry]) -> String {
         let totalWords = monthEntries.reduce(0) { $0 + $1.wordCount }
@@ -724,7 +977,7 @@ private extension String {
         var result = cleanedInsightOutput()
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{2018}", with: "'")
-        let headers = ["YOUR MONTH IN ONE IMAGE", "THE TENSION AT THE CENTER", "A MOMENT THAT SHIFTED SOMETHING", "WHAT YOU'RE BECOMING", "WHAT WANTS TO BE RELEASED", "YOUR QUESTION FOR NEXT MONTH"]
+        let headers = InsightService.monthlyReportSectionLabels.flatMap { Array($0.values) }
 
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
@@ -746,7 +999,7 @@ private extension String {
         var result = cleanedInsightOutput()
             .replacingOccurrences(of: "\u{2019}", with: "'")  // curly → straight apostrophe
             .replacingOccurrences(of: "\u{2018}", with: "'")
-        let headers = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
+        let headers = InsightService.weeklyDigestSectionLabels.flatMap { Array($0.values) }
 
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")

@@ -1,2 +1,4 @@
 mirror/LocalModels/
 *.gguf
+fastlane/api_key.json
+*.p8

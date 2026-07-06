@@ -8,7 +8,7 @@ private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
 private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
 private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 
-private let writingPrompts: [String] = [
+private let writingPrompts: [LocalizedStringKey] = [
     "What made you smile today?",
     "What's one thing you're grateful for right now?",
     "What did you learn today, big or small?",
@@ -43,7 +43,7 @@ private let writingPrompts: [String] = [
 
 struct PromptWidgetEntry: TimelineEntry {
     let date: Date
-    let prompt: String
+    let prompt: LocalizedStringKey
 }
 
 struct PromptWidgetProvider: TimelineProvider {

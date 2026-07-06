@@ -1,0 +1,15 @@
+MirrorNotes ahora habla tu idioma.
+
+• Novedad: mirror ya está disponible en español, japonés, chino, alemán,
+  francés, portugués, coreano, italiano y ruso, además de inglés.
+  mirror sigue automáticamente el idioma de tu dispositivo.
+
+• Todo es gratis. Ask, Reflexión Diaria, Resumen Semanal, Informe Mensual,
+  Línea de Tiempo del Ánimo y los widgets están disponibles para todos
+  mientras mirror crece — sin necesidad de suscripción.
+
+• Ask más fluido: mensajes más claros cuando el modelo de IA en el
+  dispositivo necesita descargarse, y cuando tu diario necesita más
+  entradas antes de que Ask pueda encontrar patrones.
+
+• Corrección de errores y mejoras de estabilidad.

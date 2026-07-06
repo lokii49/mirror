@@ -1,0 +1,18 @@
+MirrorNotes est un journal privé pour écrire, réfléchir et comprendre vos habitudes au fil du temps.
+
+Notez vos pensées quotidiennes avec des entrées écrites, des étiquettes d'humeur, des photos et des notes vocales. Parcourez votre historique, recherchez d'anciennes entrées et retrouvez les moments importants quand vous en avez besoin.
+
+MirrorNotes vous aide aussi à réfléchir grâce à des analyses privées basées sur l'IA, notamment des rappels quotidiens, des résumés hebdomadaires, des courbes d'humeur et des rapports mensuels. Le contenu de votre journal est conçu pour rester privé, avec un traitement local pour les fonctions de réflexion et un stockage chiffré pour vos entrées personnelles.
+
+Fonctionnalités :
+  • Rédigez des entrées de journal privées
+  • Ajoutez des étiquettes d'humeur, des photos et des notes vocales
+  • Parcourez et recherchez votre historique d'entrées
+  • Consultez les réflexions quotidiennes et les résumés hebdomadaires
+  • Explorez les tendances d'humeur et les rapports mensuels
+  • Posez des questions sur les habitudes de votre journal
+  • Synchronisez en privé avec iCloud
+  • Protégez votre écriture avec un stockage chiffré
+
+MirrorNotes est conçu pour ceux qui recherchent un endroit calme et privé pour réfléchir, sans public.
+https://mirrornotes.org/terms.html

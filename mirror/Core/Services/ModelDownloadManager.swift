@@ -41,8 +41,17 @@ final class ModelDownloadManager: NSObject {
     /// any quant/version of this model will clear it comfortably.
     private nonisolated static let minimumSaneByteCount: Int64 = 400_000_000
     private static let verifiedByteCountKey = "mirror.modelDownload.verifiedByteCount"
+    /// Tracks which model file the app last successfully installed, so a code-side
+    /// model swap (new modelFileName shipped in an app update) can be told apart
+    /// from a first-ever install.
+    private static let lastInstalledModelFileNameKey = "mirror.modelDownload.lastInstalledModelFileName"
 
     private(set) var state: ModelDownloadState = .notStarted
+    /// True when this launch detected a different modelFileName than the one last
+    /// installed — i.e. the app shipped a new/updated LLM and the old file was
+    /// cleared out. Stays true (across relaunches) until a fresh download completes,
+    /// so the prompt to redownload isn't a one-time flash the user can miss.
+    private(set) var modelWasUpgraded = false
 
     private var session: URLSession!
     private var task: URLSessionDownloadTask?
@@ -57,8 +66,37 @@ final class ModelDownloadManager: NSObject {
         // Wake/relaunch the app when the transfer finishes even if it isn't running.
         config.sessionSendsLaunchEvents = true
         session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        let currentFileName = Self.currentModelFileName
+        let lastInstalled = UserDefaults.standard.string(forKey: Self.lastInstalledModelFileNameKey)
+        modelWasUpgraded = lastInstalled != nil && lastInstalled != currentFileName
+        Self.removeStaleModelFiles(keeping: currentFileName)
+
         if (try? Self.installedModelExists()) == true {
             state = .installed
+            // Backfill for installs that predate this tracking key (e.g. already
+            // installed before this app update) — otherwise a future model swap
+            // would look like a first-ever install instead of an upgrade.
+            if lastInstalled == nil {
+                UserDefaults.standard.set(currentFileName, forKey: Self.lastInstalledModelFileNameKey)
+            }
+        }
+    }
+
+    private nonisolated static var currentModelFileName: String {
+        "\(LocalLLMService.modelFileName).\(LocalLLMService.modelExtension)"
+    }
+
+    /// Deletes any leftover model file from a previous LocalLLMService.modelFileName
+    /// (an app update that swapped in a different/newer LLM) so it doesn't sit on
+    /// disk forever — a stale file never matches the new preferredModelURL(), so it
+    /// would otherwise never get cleaned up.
+    private nonisolated static func removeStaleModelFiles(keeping currentFileName: String) {
+        guard let directory = try? LocalLLMService.modelDirectory(),
+              let contents = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        else { return }
+        for file in contents where file.lastPathComponent != currentFileName {
+            try? FileManager.default.removeItem(at: file)
         }
     }
 
@@ -159,12 +197,14 @@ final class ModelDownloadManager: NSObject {
             let expected = serverExpectedByteCount > 0 ? serverExpectedByteCount : Self.minimumSaneByteCount
             guard size >= expected else {
                 try? FileManager.default.removeItem(at: destination)
-                state = .failed("Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again.")
+                state = .failed(String(localized: "Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again."))
                 return
             }
             if serverExpectedByteCount > 0 {
                 UserDefaults.standard.set(serverExpectedByteCount, forKey: Self.verifiedByteCountKey)
             }
+            UserDefaults.standard.set(Self.currentModelFileName, forKey: Self.lastInstalledModelFileNameKey)
+            modelWasUpgraded = false
             state = .installed
         } catch {
             state = .failed(error.localizedDescription)
@@ -211,7 +251,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             try FileManager.default.moveItem(at: location, to: tempURL)
         } catch {
             Task { @MainActor in
-                self.state = .failed("Couldn't save downloaded model: \(error.localizedDescription)")
+                self.state = .failed(String(localized: "Couldn't save downloaded model: \(error.localizedDescription)"))
             }
             return
         }

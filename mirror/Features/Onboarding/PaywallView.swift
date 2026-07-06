@@ -16,6 +16,13 @@ struct PaywallView: View {
     enum PaywallTier: String, CaseIterable {
         case core = "Core"
         case deep = "Deep"
+
+        var displayName: LocalizedStringKey {
+            switch self {
+            case .core: return "Core"
+            case .deep: return "Deep"
+            }
+        }
     }
 
     private var currentPackages: [Package] {
@@ -152,7 +159,7 @@ struct PaywallView: View {
                     }
                 } label: {
                     VStack(spacing: 4) {
-                        Text(tier.rawValue)
+                        Text(tier.displayName)
                             .font(.system(size: 15, weight: selectedTier == tier ? .bold : .medium))
                             .foregroundStyle(selectedTier == tier ? MirrorTheme.primary : .secondary)
                         if tier == .deep {
@@ -183,7 +190,7 @@ struct PaywallView: View {
         .inkSurface(cornerRadius: 18)
     }
 
-    private var coreFeatures: [(String, String, Color)] {
+    private var coreFeatures: [(String, LocalizedStringKey, Color)] {
         [
             ("sparkles", "Daily Reflection — personal observations from your recent entries.", MirrorTheme.primary),
             ("bubble.left.and.bubble.right", "Ask — 15 grounded questions per month from your own writing.", .blue),
@@ -193,7 +200,7 @@ struct PaywallView: View {
         ]
     }
 
-    private var deepFeatures: [(String, String, Color)] {
+    private var deepFeatures: [(String, LocalizedStringKey, Color)] {
         [
             ("checkmark.circle", "Everything in Core", .green),
             ("bubble.left.and.bubble.right.fill", "Ask — unlimited questions, no monthly cap.", .blue),
@@ -214,7 +221,7 @@ struct PaywallView: View {
 
             VStack(spacing: 12) {
                 let features = selectedTier == .core ? coreFeatures : deepFeatures
-                ForEach(features, id: \.1) { icon, detail, color in
+                ForEach(features, id: \.0) { icon, detail, color in
                     HStack(alignment: .top, spacing: 14) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -339,7 +346,7 @@ private struct PlanCard: View {
 
     private var isYearly: Bool { package.storeProduct.productIdentifier.contains("yearly") || package.storeProduct.productIdentifier.contains("annual") }
     private var isDeepProduct: Bool { package.storeProduct.productIdentifier.contains("deep") }
-    private var yearlySavings: String { isDeepProduct ? "save ~17%" : "save ~16%" }
+    private var yearlySavingsPercent: Int { isDeepProduct ? 17 : 16 }
 
     var body: some View {
         Button(action: onTap) {
@@ -370,7 +377,9 @@ private struct PlanCard: View {
                                 .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
                         }
                     }
-                    Text(isYearly ? "\(package.storeProduct.localizedPriceString) / year · \(yearlySavings)" : "\(package.storeProduct.localizedPriceString) / month")
+                    Text(isYearly
+                         ? "\(package.storeProduct.localizedPriceString) / year (save ~\(yearlySavingsPercent)%)"
+                         : "\(package.storeProduct.localizedPriceString) / month")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
