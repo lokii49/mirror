@@ -205,6 +205,7 @@ extension SettingsView {
                     Text("Dark").tag("dark")
                 }
                 .pickerStyle(.menu)
+                .font(.system(size: 13))
                 .tint(.secondary)
             }
 
