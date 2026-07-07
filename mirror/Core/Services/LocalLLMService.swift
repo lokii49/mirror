@@ -129,6 +129,17 @@ actor LocalLLMService {
         return cleaned
     }
 
+    /// Cheap pre-flight check: true when the model is bundled or already installed.
+    /// Callers that would otherwise silently swallow generate() errors (auto mood
+    /// detection, backfill) should skip work entirely when this is false.
+    nonisolated static var isModelAvailable: Bool {
+        if Bundle.main.url(forResource: modelFileName, withExtension: modelExtension) != nil {
+            return true
+        }
+        guard let installed = try? preferredModelURL() else { return false }
+        return FileManager.default.fileExists(atPath: installed.path)
+    }
+
     static func preferredModelURL() throws -> URL {
         let directory = try modelDirectory()
         return directory
