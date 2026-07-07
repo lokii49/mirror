@@ -28,6 +28,19 @@ struct InsightView: View {
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedPastNudges: [Insight] = []
 
+    // entries.count alone misses in-place edits: changing an existing entry's mood or date
+    // (both editable) must also invalidate cachedMoodEntries/cachedThisMonthEntries/
+    // cachedCurrentStreak, matching the MoodTimelineView encryptedMood-hash precedent.
+    private var entryCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(entries.count)
+        for entry in entries {
+            hasher.combine(entry.encryptedMood)
+            hasher.combine(entry.createdAt)
+        }
+        return hasher.finalize()
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -90,7 +103,7 @@ struct InsightView: View {
             async let load: Void = refreshInsights()
             _ = await (showChart, load)
         }
-        .task(id: entries.count) {
+        .task(id: entryCacheKey) {
             recomputeEntryCaches()
         }
         .task(id: insights.count) {
