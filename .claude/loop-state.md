@@ -14,9 +14,14 @@ Candidates found 2026-07-06, not yet done:
 - `Features/Insights/MonthlyReportView.swift:348` — `topMood` in `MonthlyStatsStrip`, no cache
 - `Features/Entries/EntryDetailView.swift:25` — `.filter` over `allEntries` on every eval, check cost at scale
 
+Candidates found 2026-07-07, not yet done:
+- `Features/Insights/AskView.swift:45` — `chatHistory` (`askHistory.sorted { $0.generatedAt < $1.generatedAt }`, where `askHistory` filters the full-history `allInsights` @Query with no date/range predicate). Read from `content` (part of `body`) via `ForEach(chatHistory)`. The view also holds `@State private var question`/`keyboardHeight`/`isInputFocused`, all of which churn on every keystroke/keyboard event while the Ask chat is open, retriggering this filter+sort each time. Same shape as the WriteView fix below — needs a `.task(id:)` cache before it's touched, and check whether `thisMonthCount`'s `askHistory.filter` also warrants caching once `chatHistory` is fixed.
+
 Already fixed / not backlog items (verified during discovery, do not re-add without new evidence):
 - `Features/Entries/EntryListView.swift` — `listSnapshot` already `.task(id: snapshotDeps)`-cached
 - `Features/Entries/CalendarHeatmap.swift` — `dayCache` already `.task(id:)`-cached
+- `Features/Settings/SettingsView.swift` — already `.task(id: entries.count)`-cached
+- `Features/Write/WriteView+Subviews.swift` — `dailyWordCount` now cached, see Log [3]
 
 ## Log
 
@@ -25,6 +30,7 @@ Already fixed / not backlog items (verified during discovery, do not re-add with
 - [2] InsightView.swift:1029 `dominantMood` (MoodWeekChartView) — DISCARD (no code touched) — same, week-scoped subset
 - [2] MonthlyReportView.swift:348 `topMood` (MonthlyStatsStrip) — DISCARD (no code touched) — one-month-scoped subset, trivial
 - [2] EntryDetailView.swift:25 `onThisDayEntries` — DISCARD (no code touched) — full-history scan but runs once per detail-view open, not per-frame/animated; one-time cost is acceptable
+- [3] WriteView+Subviews.swift `dailyWordCount` filtered+reduced the full-history `allEntries` @Query on every read; `toolRow` (part of `body`) reads `viewModel.wordCount` directly and that `@Observable` property updates on every keystroke while typing, so this full-history scan ran on every character typed in the editor — likely the highest-frequency instance of this bug shape found so far. Cached the saved-history portion into `@State var cachedSavedWordCountToday` via `.task(id: allEntries.count)` on `WriteView.swift`, matching `CalendarHeatmap`/`MoodTimelineView` precedent; `dailyWordCount` now reads the cache and only adds the live `viewModel.wordCount` per keystroke. Added `test_dailyWordCount_perKeystrokeVsCached` to `PerformanceXCTests.swift`. NOT build/test-verified (no Xcode/simulator in this sandbox) — awaiting local xcodebuild + mirrorTests run. — proposed (2.0.4, PR #18, branch `loop/writeview-dailywordcount-cache`)
 
 ## Blocked
 
@@ -32,4 +38,4 @@ Already fixed / not backlog items (verified during discovery, do not re-add with
 
 ## Status
 
-Backlog empty as of 2026-07-06 after honest re-scope — stopping per stop condition. Re-scan `Features/**/*.swift` fresh next run rather than trusting this file's stale candidate list.
+PR #18 open against 2.0.4 (branch `loop/writeview-dailywordcount-cache`) for the WriteView `dailyWordCount` fix — awaiting local Xcode build/test verification before merge. One new backlog candidate found this run (AskView.swift `chatHistory`) not yet acted on. Re-scan `Features/**/*.swift` fresh next run rather than trusting this file's stale candidate list.
