@@ -202,9 +202,7 @@ extension WriteView {
     private var dailyWordCount: Int {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        let savedToday = allEntries
-            .filter { cal.startOfDay(for: $0.createdAt) == today }
-            .reduce(0) { $0 + $1.wordCount }
+        let savedToday = cachedSavedWordCountToday
         if let existing = entry {
             guard cal.startOfDay(for: existing.createdAt) == today else { return savedToday }
             return savedToday - existing.wordCount + viewModel.wordCount
