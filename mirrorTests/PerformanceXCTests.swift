@@ -237,4 +237,51 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-frame heatmap rebuild must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 6: WriteView dailyWordCount per-keystroke vs cached
+
+    func test_dailyWordCount_perKeystrokeVsCached() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // Concentrate entries on "today" so the filter+reduce has real work to do,
+        // mirroring a user who has written multiple entries today.
+        for e in entries.prefix(20) {
+            e.createdAt = today
+        }
+        let keystrokes = 200
+
+        func savedToday(from entries: [Entry]) -> Int {
+            entries
+                .filter { cal.startOfDay(for: $0.createdAt) == today }
+                .reduce(0) { $0 + $1.wordCount }
+        }
+
+        // OLD: dailyWordCount recomputed savedToday by re-scanning all entries on every
+        // keystroke (viewModel.wordCount changes on every character typed in the editor).
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        var oldTotal = 0
+        for liveWordCount in 0..<keystrokes {
+            oldTotal = savedToday(from: entries) + liveWordCount
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: savedToday computed once via .task(id: allEntries.count) into
+        // cachedSavedWordCountToday; each keystroke only adds the live word count.
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cachedSavedWordCountToday = savedToday(from: entries)
+        var newTotal = 0
+        for liveWordCount in 0..<keystrokes {
+            newTotal = cachedSavedWordCountToday + liveWordCount
+        }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        XCTAssertEqual(oldTotal, newTotal, "Cached path must produce the same result as the per-keystroke recompute.")
+
+        print("\n[dailyWordCount] 365 entries × \(keystrokes) keystrokes")
+        print("  OLD (per-keystroke rescan): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 scan + cache):       \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-keystroke rescan must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }
