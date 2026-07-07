@@ -45,3 +45,7 @@ Already fixed / not backlog items (verified during discovery, do not re-add with
 ## Status
 
 PR #18 (WriteView `dailyWordCount` cache) was merged and verified locally (91/91 mirrorTests pass) — see Log [4]. PR #19 open against 2.0.4 (branch `loop/askview-chathistory-cache`) for the AskView `chatHistory` fix — awaiting local Xcode build/test verification before merge. PR #20 opened against 2.0.4 (branch `loop/insightview-fullhistory-cache`) this run for the InsightView `moodEntries`/`thisMonthEntries`/`currentStreak`/`pastNudges` cache — awaiting local Xcode build/test verification before merge. Re-scan `Features/**/*.swift` fresh next run rather than trusting this file's stale candidate list.
+
+## Product decision (2026-07-07)
+
+- WriteView word-goal bar is now **per-entry** (`viewModel.wordCount / dailyWordGoal`), by user decision — the daily cumulative `dailyWordCount` + `cachedSavedWordCountToday` cache (PR #18) was removed. Do NOT re-propose caching a daily word count in WriteView; the full-history scan no longer exists. `test_dailyWordCount_perKeystrokeVsCached` kept as a standalone benchmark.
