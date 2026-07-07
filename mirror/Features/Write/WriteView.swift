@@ -85,7 +85,6 @@ struct WriteView: View {
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
     @FocusState var editorFocused: Bool
     @FocusState var tagFieldFocused: Bool
-    @State var cachedSavedWordCountToday: Int = 0
 
     var noteDate: Date { entryDate }
     var hasDraftContent: Bool {
@@ -364,13 +363,6 @@ struct WriteView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background, entry == nil { saveDraftToStorage() }
-        }
-        .task(id: allEntries.count) {
-            let cal = Calendar.current
-            let today = cal.startOfDay(for: Date())
-            cachedSavedWordCountToday = allEntries
-                .filter { cal.startOfDay(for: $0.createdAt) == today }
-                .reduce(0) { $0 + $1.wordCount }
         }
     }
 
