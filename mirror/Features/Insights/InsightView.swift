@@ -17,6 +17,17 @@ struct InsightView: View {
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
 
+    // moodEntries/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
+    // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
+    // All four are read directly from `body`/its section subviews, so every unrelated @State
+    // change in this view (nudgeExpanded, digestExpanded, pastNudgesExpanded, sheet toggles)
+    // was re-running them from scratch. Cached via `.task(id:)`, matching the
+    // CalendarHeatmap/MoodTimelineView/WriteView/AskView precedent.
+    @State private var cachedMoodEntries: [Entry] = []
+    @State private var cachedThisMonthEntries: [Entry] = []
+    @State private var cachedCurrentStreak: Int = 0
+    @State private var cachedPastNudges: [Insight] = []
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -79,6 +90,12 @@ struct InsightView: View {
             async let load: Void = refreshInsights()
             _ = await (showChart, load)
         }
+        .task(id: entries.count) {
+            recomputeEntryCaches()
+        }
+        .task(id: insights.count) {
+            recomputePastNudgesCache()
+        }
         .onChange(of: entries.count) { _, _ in
             nudgeExpanded = false
             digestExpanded = false
@@ -111,15 +128,36 @@ struct InsightView: View {
         }
     }
 
-    private var moodEntries: [Entry] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
+    private var moodEntries: [Entry] { cachedMoodEntries }
+
+    private var currentStreak: Int { cachedCurrentStreak }
+
+    private var thisMonthEntries: [Entry] { cachedThisMonthEntries }
+
+    private var hasSeenMoreThanOneNudge: Bool {
+        insights.filter { $0.type == .dailyNudge }.count > 1
     }
 
-    private var currentStreak: Int {
+    private var pastNudges: [Insight] {
+        guard SubscriptionService.shared.isSubscribed else { return [] }
+        return cachedPastNudges
+    }
+
+    private func recomputeEntryCaches() {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        cachedMoodEntries = entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
+
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
+        cachedThisMonthEntries = entries.filter { $0.createdAt >= start }
+
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            cachedCurrentStreak = 0
+            return
+        }
 
         var seen = Set<Date>()
         var writtenDays: [Date] = []
@@ -128,7 +166,10 @@ struct InsightView: View {
             if seen.insert(day).inserted { writtenDays.append(day) }
         }
 
-        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else {
+            cachedCurrentStreak = 0
+            return
+        }
 
         var streak = 0
         var checkDate = mostRecentDay
@@ -140,24 +181,12 @@ struct InsightView: View {
                 break
             }
         }
-        return streak
+        cachedCurrentStreak = streak
     }
 
-    private var thisMonthEntries: [Entry] {
-        let cal = Calendar.current
-        let now = Date()
-        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
-        return entries.filter { $0.createdAt >= start }
-    }
-
-    private var hasSeenMoreThanOneNudge: Bool {
-        insights.filter { $0.type == .dailyNudge }.count > 1
-    }
-
-    private var pastNudges: [Insight] {
-        guard SubscriptionService.shared.isSubscribed else { return [] }
+    private func recomputePastNudgesCache() {
         let today = DateHelpers.dayIdentifier(for: Date())
-        return insights
+        cachedPastNudges = insights
             .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
             .sorted { $0.generatedAt > $1.generatedAt }
     }
