@@ -12,6 +12,8 @@ struct AskView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var modelManager = ModelDownloadManager.shared
     @State private var showPaywall = false
+    @State private var cachedAskHistory: [Insight] = []
+    @State private var cachedChatHistory: [Insight] = []
 
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
     @State private var showSuggestions = false
@@ -38,17 +40,17 @@ struct AskView: View {
         String(localized: "How has my mood changed over time?"),
     ]
 
-    private var askHistory: [Insight] {
-        allInsights.filter { $0.type == .askResponse }
-    }
+    // Cached via .task(id: allInsights.count) below — allInsights spans full history with
+    // no date/range predicate, and this view holds frequently-churning @State (question,
+    // keyboardHeight, isInputFocused) that re-evaluates body on every keystroke/keyboard
+    // event, which would otherwise re-run this filter+sort on every one of those.
+    private var askHistory: [Insight] { cachedAskHistory }
 
-    private var chatHistory: [Insight] {
-        askHistory.sorted { $0.generatedAt < $1.generatedAt }
-    }
+    private var chatHistory: [Insight] { cachedChatHistory }
 
     private var thisMonthCount: Int {
         let monthID = DateHelpers.monthIdentifier(for: Date())
-        return askHistory.filter { $0.periodIdentifier == monthID }.count
+        return cachedAskHistory.filter { $0.periodIdentifier == monthID }.count
     }
 
     private var remaining: Int { max(0, monthLimit - thisMonthCount) }
@@ -130,6 +132,14 @@ struct AskView: View {
         .onChange(of: SubscriptionService.shared.tier) { _, _ in
             viewModel.loadAskState(entries: entries)
         }
+        .task(id: allInsights.count) {
+            recomputeAskHistoryCache()
+        }
+    }
+
+    private func recomputeAskHistoryCache() {
+        cachedAskHistory = allInsights.filter { $0.type == .askResponse }
+        cachedChatHistory = cachedAskHistory.sorted { $0.generatedAt < $1.generatedAt }
     }
 
     private var askLockedState: some View {

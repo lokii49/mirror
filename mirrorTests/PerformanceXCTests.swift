@@ -284,4 +284,59 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-keystroke rescan must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 7: AskView chatHistory filter+sort per-keystroke vs cached
+
+    func test_askViewChatHistory_perKeystrokeVsCached() {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let insightContainer = try! ModelContainer(for: Insight.self, configurations: config)
+        let context = ModelContext(insightContainer)
+
+        let types: [InsightType] = [.dailyNudge, .weeklyDigest, .monthlyReport, .askResponse]
+        let base = Calendar.current.date(byAdding: .day, value: -364, to: Date())!
+        for i in 0..<365 {
+            // One insight per day across all types, mirroring a year of daily nudges,
+            // weekly digests, monthly reports, and ask responses accumulating in @Query allInsights.
+            let insight = Insight(type: types[i % types.count], content: "Insight \(i)", periodIdentifier: "p\(i)")
+            insight.generatedAt = Calendar.current.date(byAdding: .day, value: i, to: base)!
+            context.insert(insight)
+        }
+        try! context.save()
+
+        let descriptor = FetchDescriptor<Insight>(sortBy: [SortDescriptor(\Insight.generatedAt, order: .reverse)])
+        let allInsights = try! context.fetch(descriptor)
+        XCTAssertEqual(allInsights.count, 365)
+
+        let keystrokes = 200
+
+        func chatHistory(from allInsights: [Insight]) -> [Insight] {
+            allInsights
+                .filter { $0.type == .askResponse }
+                .sorted { $0.generatedAt < $1.generatedAt }
+        }
+
+        // OLD: chatHistory filtered+sorted allInsights on every read; it's read from `content`
+        // (part of body) via ForEach(chatHistory), and the view holds @State (question,
+        // keyboardHeight, isInputFocused) that churns on every keystroke/keyboard event while
+        // the Ask chat is open, re-triggering body and this filter+sort each time.
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<keystrokes {
+            let _ = chatHistory(from: allInsights)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: filtered+sorted once via .task(id: allInsights.count) into cachedChatHistory;
+        // each keystroke just reads the cache.
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cachedChatHistory = chatHistory(from: allInsights)
+        for _ in 0..<keystrokes { let _ = cachedChatHistory }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[askViewChatHistory] 365 insights × \(keystrokes) keystrokes")
+        print("  OLD (per-keystroke filter+sort): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 filter+sort + cache):      \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-keystroke filter+sort must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }
