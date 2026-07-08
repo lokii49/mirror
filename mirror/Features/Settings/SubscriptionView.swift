@@ -253,28 +253,30 @@ struct SubscriptionView: View {
                 .buttonStyle(.plain)
             }
 
-            Button {
-                if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
-                    UIApplication.shared.open(url)
+            if !SubscriptionService.allFeaturesFree {
+                Button {
+                    if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Text("Manage Subscription")
+                            .font(.system(size: 16, weight: .medium))
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                    .futureSurface(cornerRadius: 16)
                 }
-            } label: {
-                HStack {
-                    Text("Manage Subscription")
-                        .font(.system(size: 16, weight: .medium))
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(16)
-                .futureSurface(cornerRadius: 16)
-            }
-            .buttonStyle(.plain)
+                .buttonStyle(.plain)
 
-            Text("Manage or cancel your subscription in the App Store.")
-                .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+                Text("Manage or cancel your subscription in the App Store.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
         }
     }
 }
