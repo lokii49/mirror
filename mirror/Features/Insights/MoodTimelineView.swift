@@ -17,6 +17,24 @@ struct MoodTimelineView: View {
     @State private var cachedDayMoodMap: [String: String] = [:]
     @State private var cachedHeatmapWeeks: [[Date?]] = []
 
+    // currentStreak/consecutiveNegativeCount also scan the full-history `entries` @Query
+    // (not `filteredEntries`) and are read unconditionally from `statsRow`/`moodAlertBanner`,
+    // so they were re-running on every selectedRange tap and paywall sheet toggle despite
+    // depending on neither. Cached via `.task(id:)`, matching the InsightView precedent
+    // (Log [8]: key on mood+date, not just count, since both are editable in place).
+    @State private var cachedCurrentStreak: Int = 0
+    @State private var cachedConsecutiveNegativeCount: Int = 0
+
+    private var entryCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(entries.count)
+        for entry in entries {
+            hasher.combine(entry.encryptedMood)
+            hasher.combine(entry.createdAt)
+        }
+        return hasher.finalize()
+    }
+
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
 
     enum TimeRange: String, CaseIterable {
@@ -122,10 +140,18 @@ struct MoodTimelineView: View {
         return counts.map { (mood: $0.key, count: $0.value, color: MirrorTheme.moodColor(for: $0.key)) }
     }
 
-    private var currentStreak: Int {
+    private var currentStreak: Int { cachedCurrentStreak }
+
+    private var consecutiveNegativeCount: Int { cachedConsecutiveNegativeCount }
+
+    private func recomputeStreakCaches() {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            cachedCurrentStreak = 0
+            recomputeConsecutiveNegativeCache()
+            return
+        }
 
         // Collect unique written days (newest first)
         var writtenDays: [Date] = []
@@ -137,7 +163,11 @@ struct MoodTimelineView: View {
             }
         }
 
-        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else { return 0 }
+        guard let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday else {
+            cachedCurrentStreak = 0
+            recomputeConsecutiveNegativeCache()
+            return
+        }
 
         var streak = 0
         var checkDate = mostRecentDay
@@ -149,10 +179,11 @@ struct MoodTimelineView: View {
                 break
             }
         }
-        return streak
+        cachedCurrentStreak = streak
+        recomputeConsecutiveNegativeCache()
     }
 
-    private var consecutiveNegativeCount: Int {
+    private func recomputeConsecutiveNegativeCache() {
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         var count = 0
         for entry in entries {
@@ -164,7 +195,7 @@ struct MoodTimelineView: View {
                 break
             }
         }
-        return count
+        cachedConsecutiveNegativeCount = count
     }
 
     private var averageMoodScore: Double {
@@ -223,6 +254,9 @@ struct MoodTimelineView: View {
         }
         .task(id: entries.map(\.encryptedMood).hashValue) {
             recomputeHeatmapCache()
+        }
+        .task(id: entryCacheKey) {
+            recomputeStreakCaches()
         }
     }
 
