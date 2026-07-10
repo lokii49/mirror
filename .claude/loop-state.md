@@ -83,6 +83,8 @@ All loop PRs closed out: PR #18 KEEP-then-superseded (its cache was removed with
 
 Separately (not a loop item): BrainView feature (new Insights visualization, `BrainView`/`BrainConstellationView`/`BrainSceneView`/`BrainGraph`/`BrainViewModel` + `ThemeExtractionService`) was committed into 2.0.4 in the same session as the PR #21 merge (Log [20]), build+test verified. Also note: `SubscriptionService.allFeaturesFree = true` — app currently ships in "early access" mode with all tiers unlocked and no real IAP; `b17fe0d`/`b843321` (2026-07-08) removed dangling paid-tier UI (Manage Subscription button, fake Deep checkmark) that this flag was leaving behind.
 
+2026-07-10: `2.0.4` was PR'd into `main` (#22) and merged — `main` is now the up-to-date superset of all real work (every other branch checked; only `1.0.2` had unique commits, confirmed stale duplicates already reflected in `main` via rebased `1.0.3` commits). **Active development branch is now `2.0.5`**, cut fresh from `main`. `MARKETING_VERSION` bumped 2.0.4 → 2.0.5 and `CURRENT_PROJECT_VERSION` reset to 1 (app + widget extension, kept matching) on both app and widget targets. Future loop runs should target `2.0.5`, not `2.0.4`.
+
 ## Product decision (2026-07-07)
 
 - WriteView word-goal bar is now **per-entry** (`viewModel.wordCount / dailyWordGoal`), by user decision — the daily cumulative `dailyWordCount` + `cachedSavedWordCountToday` cache (PR #18) was removed. Do NOT re-propose caching a daily word count in WriteView; the full-history scan no longer exists. `test_dailyWordCount_perKeystrokeVsCached` kept as a standalone benchmark.
