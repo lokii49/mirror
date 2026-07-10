@@ -180,6 +180,8 @@ struct mirrorApp: App {
         }
         // Monthly report: generate once 20+ entries exist (Deep only)
         await runMonthlyReportIfNeeded(context: context)
+        // Fill in moods the save-time auto-detect missed, then check alerts
+        await backfillMissingMoodsIfNeeded(context: context)
         // Mood alert check every night (Deep only)
         await checkMoodAlertIfNeeded(context: context)
     }
@@ -214,6 +216,8 @@ struct mirrorApp: App {
         }
         // Monthly report: generate as soon as 20+ entries exist, not only on the 1st.
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
+        // Fill in moods the save-time auto-detect missed, then check alerts
+        await mirrorApp.backfillMissingMoodsIfNeeded(context: context)
         await mirrorApp.checkMoodAlertIfNeeded(context: context)
     }
 
@@ -394,6 +398,45 @@ struct mirrorApp: App {
         "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
     ]
     private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
+
+    // MARK: - Mood backfill
+    //
+    // The save-time auto-detect in WriteView is fire-and-forget: if the app is
+    // suspended right after saving (the common case), the LLM task dies and the
+    // entry stays mood-less forever. This pass retries on app-active and nightly.
+
+    private static var isBackfillingMoods = false
+    private static let moodBackfillWindowDays = 14
+    private static let moodBackfillBatchLimit = 5
+
+    @MainActor
+    static func backfillMissingMoodsIfNeeded(context: ModelContext) async {
+        guard SubscriptionService.shared.isSubscribed else { return }
+        guard LocalLLMService.isModelAvailable else { return }
+        guard !isBackfillingMoods else { return }
+        isBackfillingMoods = true
+        defer { isBackfillingMoods = false }
+
+        let cutoff = Calendar.current.date(byAdding: .day, value: -moodBackfillWindowDays, to: Date()) ?? Date()
+        let descriptor = FetchDescriptor<Entry>(
+            predicate: #Predicate { $0.encryptedMood == nil && $0.createdAt >= cutoff },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let candidates = ((try? context.fetch(descriptor)) ?? []).prefix(moodBackfillBatchLimit)
+
+        for entry in candidates {
+            guard !Task.isCancelled else { return }
+            guard !entry.textDecryptionFailed else { continue }
+            let text = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            // One failure means the LLM path is unhealthy right now (memory pressure,
+            // cancellation mid-load) — stop the pass and let the next trigger retry.
+            guard let detected = try? await InsightService.detectEmotion(text: text),
+                  MirrorTheme.moodOptions.contains(detected) else { return }
+            entry.mood = detected
+            try? context.save()
+        }
+    }
 
     @MainActor
     static func checkMoodAlertIfNeeded(context: ModelContext) async {

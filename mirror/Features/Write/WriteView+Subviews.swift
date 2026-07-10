@@ -199,25 +199,11 @@ extension WriteView {
         }
     }
 
-    private var dailyWordCount: Int {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let savedToday = allEntries
-            .filter { cal.startOfDay(for: $0.createdAt) == today }
-            .reduce(0) { $0 + $1.wordCount }
-        if let existing = entry {
-            guard cal.startOfDay(for: existing.createdAt) == today else { return savedToday }
-            return savedToday - existing.wordCount + viewModel.wordCount
-        }
-        guard cal.startOfDay(for: noteDate) == today else { return savedToday }
-        return savedToday + viewModel.wordCount
-    }
-
     var toolRow: some View {
         VStack(spacing: 0) {
             if dailyWordGoal > 0 && viewModel.wordCount > 0 {
-                let progress = min(Double(dailyWordCount) / Double(dailyWordGoal), 1.0)
-                let isComplete = dailyWordCount >= dailyWordGoal
+                let progress = min(Double(viewModel.wordCount) / Double(dailyWordGoal), 1.0)
+                let isComplete = viewModel.wordCount >= dailyWordGoal
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle()

@@ -13,7 +13,9 @@ struct SubscriptionView: View {
                 VStack(spacing: 24) {
                     statusCard
 
-                    if !subscriptionService.isSubscribed {
+                    if SubscriptionService.allFeaturesFree {
+                        earlyAccessSection
+                    } else if !subscriptionService.isSubscribed {
                         upgradeSection
                     } else {
                         manageSection
@@ -41,9 +43,9 @@ struct SubscriptionView: View {
 
     private var statusCard: some View {
         HStack(spacing: 14) {
-            Image(systemName: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal")
+            Image(systemName: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"))
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
+                .foregroundStyle(SubscriptionService.allFeaturesFree ? MirrorTheme.primary : subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(tierName)
                     .font(.system(size: 17, weight: .semibold))
@@ -58,6 +60,7 @@ struct SubscriptionView: View {
     }
 
     private var tierName: LocalizedStringKey {
+        if SubscriptionService.allFeaturesFree { return "Early Access" }
         switch subscriptionService.tier {
         case .free: return "Free Plan"
         case .core: return "MirrorNotes Core"
@@ -66,6 +69,7 @@ struct SubscriptionView: View {
     }
 
     private var tierDescription: LocalizedStringKey {
+        if SubscriptionService.allFeaturesFree { return "Every feature is free while MirrorNotes is in early access" }
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -73,6 +77,36 @@ struct SubscriptionView: View {
             return "Daily nudges, weekly digest, 15 Ask questions/month"
         case .deep:
             return "Everything in Core + unlimited Ask, monthly report, mood timeline"
+        }
+    }
+
+    private var earlyAccessSection: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(MirrorTheme.primary.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Everything's unlocked")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("No subscription, no payment, nothing to manage.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(16)
+            .futureSurface(cornerRadius: 16)
+
+            Text("MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way.")
+                .font(.system(size: 13))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
         }
     }
 
