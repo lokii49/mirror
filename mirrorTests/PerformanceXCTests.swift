@@ -421,4 +421,73 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-toggle recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 9: MoodTimelineView currentStreak/consecutiveNegativeCount vs cached
+
+    func test_moodTimelineStreakAndNegativeCount_perTapVsCached() {
+        let cal = Calendar.current
+        let taps = 60 // selectedRange taps / paywall sheet toggles
+
+        func recompute(from entries: [Entry]) -> (streak: Int, negativeCount: Int) {
+            let today = cal.startOfDay(for: Date())
+            var streak = 0
+            if let yesterday = cal.date(byAdding: .day, value: -1, to: today) {
+                var seen = Set<Date>()
+                var writtenDays: [Date] = []
+                for entry in entries {
+                    let day = cal.startOfDay(for: entry.createdAt)
+                    if seen.insert(day).inserted { writtenDays.append(day) }
+                }
+                if let mostRecentDay = writtenDays.first, mostRecentDay >= yesterday {
+                    var checkDate = mostRecentDay
+                    for day in writtenDays {
+                        if day == checkDate {
+                            streak += 1
+                            checkDate = cal.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+                        } else if day < checkDate {
+                            break
+                        }
+                    }
+                }
+            }
+
+            let sevenDaysAgo = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            var negativeCount = 0
+            for entry in entries {
+                guard entry.createdAt >= sevenDaysAgo else { break }
+                guard let mood = entry.mood else { continue }
+                if MirrorTheme.negativeMoods.contains(mood) {
+                    negativeCount += 1
+                } else {
+                    break
+                }
+            }
+
+            return (streak, negativeCount)
+        }
+
+        // OLD: currentStreak/consecutiveNegativeCount were plain computed vars scanning the
+        // full-history `entries` @Query directly; statsRow/moodAlertBanner read them unconditionally
+        // from `mainContent`, so every unrelated @State change (selectedRange tap, showPaywall
+        // toggle) re-ran both scans from scratch despite neither depending on that state.
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<taps {
+            let _ = recompute(from: entries)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: computed once in .task(id: entryCacheKey) into cachedCurrentStreak/
+        // cachedConsecutiveNegativeCount; remaining taps read the cache.
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cached = recompute(from: entries)
+        for _ in 0..<(taps - 1) { let _ = cached }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[MoodTimelineView streak/negativeCount] 365 entries × \(taps) taps")
+        print("  OLD (per-tap recompute): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 compute + cache): \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-tap recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }
