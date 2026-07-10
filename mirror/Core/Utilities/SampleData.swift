@@ -88,7 +88,7 @@ enum SampleData {
                 """, mood: "Anxious", days: 28, source: .typed),
             E(text: "um yeah so today was a lot. I had this thing in the morning where I just could not focus at all. kept opening the same tab over and over. I think I'm running on empty honestly. lunch was bad. I don't know. I'll figure it out. just wanted to say that out loud I guess.", mood: "Drained", days: 27, source: .voice),
             E(text: """
-                Went for a run this morning before work. 5k, nothing crazy, but I felt so much better afterward. There's something about moving my body early that resets everything. The project is still a mess but I managed to carve out a focused two-hour block and actually made real progress. Then called mom in the evening — she mentioned some health stuff she's been dealing with that she hadn't told me about. Hard to hear from far away. Wish I could be there.
+                Went for a run this morning before work. 5k, nothing crazy, but I felt so much better afterward. There's something about moving my body early that resets everything. The project is still a mess but I managed to carve out a focused two-hour block and actually made real progress. Then called my mother in the evening — she mentioned some health stuff she's been dealing with that she hadn't told me about. Hard to hear this about my mother from so far away. Wish I could be there.
                 """, mood: "Hopeful", days: 26, source: .typed),
             E(text: "just finished a really long walk. it's cold out but I needed it. been thinking about a lot of things. nothing resolved but I feel lighter somehow. I should do this more often instead of just sitting inside being in my head.", mood: "Peaceful", days: 25, source: .voice),
             E(text: """
@@ -112,11 +112,11 @@ enum SampleData {
                 """, mood: "Drained", days: 16, source: .typed),
             E(text: "walking home and just wanted to capture this. ran into an old friend completely by accident. we stood outside talking for half an hour. didn't plan it. those unplanned things are always the best things. made the whole day feel different.", mood: "Joyful", days: 15, source: .voice),
             E(text: """
-                Had a fight with my sister. Not a big explosive one — worse, the quiet kind where things are said carefully and still land wrong. It was about mom's health situation and what we're supposed to do about it from so far away. I don't think either of us was wrong exactly, we're both scared and handling it differently. But we hung up without really resolving anything and now I'm just sitting with that.
+                Had a fight with my sister. Not a big explosive one — worse, the quiet kind where things are said carefully and still land wrong. It was about our mother's health situation and what we're supposed to do about it from so far away. I don't think either of us was wrong exactly, we're both scared and handling it differently. But we hung up without really resolving anything and now I'm just sitting with that.
                 """, mood: "Sad", days: 14, source: .typed),
             E(text: "I've been putting off this one task for three days and today I finally just did it. took forty minutes. I built it up in my head into this huge thing and it was forty minutes. I need to remember this the next time I'm avoiding something.", mood: "Calm", days: 13, source: .voice),
             E(text: """
-                Called my sister again this morning. We talked properly this time, not about logistics, just about how we're both feeling. It helped. She cried a little. I almost did. We made a plan to both visit mom next month. Having that concrete thing to look forward to made the whole situation feel less like fog. Still heavy, but manageable. Still worried about mom. But less alone in it.
+                Called my sister again this morning. We talked properly this time, not about logistics, just about how we're both feeling. It helped. She cried a little. I almost did. We made a plan to both visit our mother next month. Having that concrete thing to look forward to made the whole situation feel less like fog. Still heavy, but manageable. Still worried about our mother. But less alone in it.
                 """, mood: "Grateful", days: 12, source: .typed),
             E(text: "had a really good cooking session tonight. nothing fancy just like getting absorbed in a recipe and forgetting about everything else for a while. ate standing at the counter. weirdly satisfying.", mood: "Peaceful", days: 11, source: .voice),
             E(text: """
@@ -135,6 +135,10 @@ enum SampleData {
                 Checked in with myself today — really checked in, not just the surface version. I've been lonely. Not dramatically, not constantly, but there's a quiet kind of loneliness that comes from going through too many weeks without real conversation. I'm going to reach out to people more. Not as a project. Just actually do it.
                 """, mood: "Sad", days: 4, source: .typed),
             E(text: "dinner with Rohan and it was so good. we talked about real things not just work stuff. laughed a lot. I left feeling full in a way that had nothing to do with the food. I need more evenings like that.", mood: "Joyful", days: 3, source: .voice),
+            E(text: """
+                Priya organized a last-minute dinner and roped Rohan in too — the three of us ended up staying at the restaurant long after we'd finished eating, just talking. Rohan does this impression of our old manager that still makes Priya cry laughing every time. I needed a night exactly like that.
+                """, mood: "Joyful", days: 21, source: .typed),
+            E(text: "finally made it up to Vikram after cancelling on him last time. we grabbed coffee and just caught up for an hour. told him about the deadline chaos and he offered to loop in Rohan since apparently they used to work together years ago. small world. left feeling like I'd repaired something.", mood: "Hopeful", days: 9, source: .voice),
             E(text: """
                 End of the month. I've been reflecting on how it went — not with a spreadsheet, just sitting with it. There were hard patches. There were good patches. The week where I barely slept was real but so was the afternoon in the museum and the phone call with my sister. I want to be better at holding both of those things at the same time instead of letting one erase the other.
                 """, mood: "Grateful", days: 2, source: .typed),

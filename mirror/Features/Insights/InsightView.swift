@@ -11,7 +11,7 @@ struct InsightView: View {
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
     @State private var chartVisible = false
-    @State private var promptIndex: Int = Int.random(in: 0..<WritingPrompts.all.count)
+    @State private var promptIndex: Int = WritingPrompts.indexForToday()
     @State private var showWriteFromPrompt = false
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
@@ -407,6 +407,17 @@ struct InsightView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Brain View
+
+    private var brainSection: some View {
+        NavigationLink {
+            BrainView(viewModel: viewModel)
+        } label: {
+            BrainEntryCard(isDeep: SubscriptionService.shared.isDeep)
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Monthly Report
 
     private var monthlyReportSection: some View {
@@ -524,6 +535,7 @@ struct InsightView: View {
                 askSection
                 moodTimelineSection
             }
+            brainSection
         }
     }
 }
@@ -612,6 +624,81 @@ private struct SectionHeader<Trailing: View>: View {
             trailing
         }
         .padding(.top, 2)
+    }
+}
+
+/// Deliberately not another `ExplorationTile` — dark canvas matching Brain
+/// View's own aesthetic, with a tiny static constellation illustration
+/// instead of an SF Symbol chip, so this entry point previews the feature
+/// rather than blending into the flat light tiles around it.
+private struct BrainEntryCard: View {
+    let isDeep: Bool
+
+    private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
+    private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let dots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)] = [
+        (0.68, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
+        (0.84, 0.36, 4, .teal),
+        (0.76, 0.6, 6, .orange),
+        (0.94, 0.5, 3, .red),
+        (0.88, 0.78, 4, .yellow),
+        (0.6, 0.72, 3, .teal),
+    ]
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("Brain View")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    if !isDeep {
+                        Text("Deep")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Self.hubColor, in: Capsule())
+                    }
+                }
+                Text("A living map of your people & themes")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            Spacer(minLength: 60)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.4))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+        .background {
+            ZStack {
+                Self.bg
+                Canvas { context, size in
+                    let hub = CGPoint(x: size.width * 0.78, y: size.height * 0.5)
+                    for dot in Self.dots {
+                        let p = CGPoint(x: size.width * dot.x, y: size.height * dot.y)
+                        var path = Path()
+                        path.move(to: hub)
+                        path.addLine(to: p)
+                        context.stroke(path, with: .color(.white.opacity(0.16)), lineWidth: 0.8)
+                    }
+                    for dot in Self.dots {
+                        let p = CGPoint(x: size.width * dot.x, y: size.height * dot.y)
+                        let rect = CGRect(x: p.x - dot.r, y: p.y - dot.r, width: dot.r * 2, height: dot.r * 2)
+                        context.fill(Circle().path(in: rect), with: .color(dot.color))
+                    }
+                    let hubRect = CGRect(x: hub.x - 7, y: hub.y - 7, width: 14, height: 14)
+                    context.fill(Circle().path(in: hubRect), with: .color(Self.hubColor))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Self.hubColor.opacity(0.35), lineWidth: 1)
+        )
     }
 }
 
@@ -757,7 +844,8 @@ private struct LoadingInsightCard: View {
     }
 }
 
-private struct NeedsMoreEntriesCard: View {
+// Used by BrainView — must stay internal (not private).
+struct NeedsMoreEntriesCard: View {
     let remaining: Int
     var total: Int = 3
     var icon: String = "book.pages"

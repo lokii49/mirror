@@ -122,6 +122,29 @@ enum MirrorTheme {
         }
     }
 
+    /// Continuous color for an average mood score (1…5), anchored to the
+    /// discrete mood colors so aggregate visuals stay on-palette.
+    static func moodScoreColor(_ score: Double) -> Color {
+        // Anchors: 1 Overwhelmed (red), 2 Frustrated (orange), 3 Numb (gray),
+        // 4 Content (teal), 5 Joyful (yellow).
+        let anchors: [(Double, Double, Double)] = [
+            (0.937, 0.325, 0.314),
+            (0.961, 0.486, 0.000),
+            (0.812, 0.847, 0.863),
+            (0.302, 0.714, 0.675),
+            (1.000, 0.835, 0.310)
+        ]
+        let clamped = min(max(score, 1), 5)
+        let lower = min(Int(clamped) - 1, anchors.count - 2)
+        let t = clamped - Double(lower + 1)
+        let a = anchors[lower], b = anchors[lower + 1]
+        return Color(
+            red: a.0 + (b.0 - a.0) * t,
+            green: a.1 + (b.1 - a.1) * t,
+            blue: a.2 + (b.2 - a.2) * t
+        )
+    }
+
     // MARK: - Shared constants
 
     static let cornerCard: CGFloat = 20

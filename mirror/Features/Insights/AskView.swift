@@ -3,6 +3,9 @@ import SwiftData
 
 struct AskView: View {
     let viewModel: InsightViewModel
+    /// Seeds the question field on first appear (e.g. from a Brain View node).
+    /// Prefill only — never auto-submits.
+    var initialQuestion: String? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
@@ -122,6 +125,12 @@ struct AskView: View {
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .onAppear {
             viewModel.loadAskState(entries: entries)
+            if let initialQuestion, question.isEmpty {
+                question = initialQuestion
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isInputFocused = true
+                }
+            }
         }
         .onChange(of: entries.count) { _, _ in
             viewModel.loadAskState(entries: entries)
