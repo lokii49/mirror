@@ -33,6 +33,27 @@ enum WritingPrompts {
         String(localized: "What surprised you recently?", comment: "Writing prompt"),
         String(localized: "What do you want tomorrow to feel like?", comment: "Writing prompt"),
     ]
+
+    /// Same prompt for the whole day, changing at midnight — previously this
+    /// was `Int.random` on every view load, so a card that looked like a
+    /// "daily" prompt actually reshuffled itself just from leaving and
+    /// re-entering the tab. Swift's built-in `String.hashValue` is
+    /// randomized per process launch, so it can't be used for a stable
+    /// day-to-index mapping; FNV-1a on the day identifier is deterministic.
+    static func indexForToday(_ date: Date = Date()) -> Int {
+        let dayID = DateHelpers.dayIdentifier(for: date)
+        let hash = fnv1a(dayID)
+        return Int(hash % UInt64(all.count))
+    }
+
+    private static func fnv1a(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return hash
+    }
 }
 
 struct WritingPromptCard: View {
