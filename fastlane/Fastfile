@@ -2,8 +2,7 @@ default_platform(:ios)
 require 'json'
 
 platform :ios do
-  desc "Archive, upload, and submit the current version for App Store review"
-  lane :release do
+  private_lane :auth do
     api_key_json = JSON.parse(File.read("api_key.json"))
     app_store_connect_api_key(
       key_id: api_key_json["key_id"],
@@ -13,6 +12,23 @@ platform :ios do
       in_house: api_key_json["in_house"] || false,
       duration: 1200
     )
+  end
+
+  desc "Upload screenshots only, no binary/metadata/submission changes"
+  lane :update_screenshots do
+    auth
+    upload_to_app_store(
+      force: true,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: false,
+      skip_app_version_update: true
+    )
+  end
+
+  desc "Archive, upload, and submit the current version for App Store review"
+  lane :release do
+    auth
 
     build_app(
       scheme: "mirror",
