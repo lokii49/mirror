@@ -18,7 +18,14 @@ extension SettingsView {
                         .font(.system(size: 17, weight: .semibold))
                         .lineLimit(1)
 
-                    if subscriptionService.isSubscribed {
+                    if SubscriptionService.allFeaturesFree {
+                        Label("Early Access", systemImage: "sparkles")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                    } else if subscriptionService.isSubscribed {
                         let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
                         let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                         Label(tierLabel, systemImage: "checkmark.seal.fill")
@@ -36,7 +43,11 @@ extension SettingsView {
 
                 Spacer()
 
-                if subscriptionService.isSubscribed {
+                if SubscriptionService.allFeaturesFree {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 22))
+                        .foregroundStyle(MirrorTheme.primary)
+                } else if subscriptionService.isSubscribed {
                     let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 22))
@@ -44,7 +55,7 @@ extension SettingsView {
                 }
             }
 
-            if !subscriptionService.isSubscribed {
+            if !SubscriptionService.allFeaturesFree && !subscriptionService.isSubscribed {
                 Divider()
                     .overlay(MirrorTheme.inkBorder)
                     .padding(.top, 16)
@@ -176,11 +187,11 @@ extension SettingsView {
                 HStack {
                     settingsRowLabel(
                         "Subscription",
-                        systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
-                        iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
+                        systemImage: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"),
+                        iconColor: SubscriptionService.allFeaturesFree ? MirrorTheme.primary : (subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary)
                     )
                     Spacer()
-                    Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
+                    Text(SubscriptionService.allFeaturesFree ? "Early Access" : (subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free"))
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                     chevron
