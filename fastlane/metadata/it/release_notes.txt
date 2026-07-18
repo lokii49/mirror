@@ -1,18 +1,15 @@
-Guarda le tue voci sotto una nuova luce.
+Aggiungi una voce senza nemmeno aprire l'app.
 
-• Novità: vista Brain — una mappa interattiva delle persone e dei
-  temi che attraversano le tue voci, generata interamente sul
-  dispositivo. Si sblocca dopo 10 voci.
+• Novità: aggiunta rapida con Siri — di' "Aggiungi una voce del
+  diario a mirror" per salvarla direttamente, senza aprire l'app.
+  Funziona anche con Comandi Rapidi.
+
+• Corretto: la vista Brain poteva restare bloccata nel caricamento
+  se le tue voci non avevano ancora abbastanza persone o temi
+  ricorrenti.
 
 • Corretto: la schermata dell'abbonamento mostrava erroneamente un
   badge di acquisto "Deep" — ora mostra un onesto stato "Early
   Access".
-
-• Corretto: la barra di avanzamento dell'obiettivo di parole contava
-  tutte le parole scritte quel giorno invece della sola voce
-  corrente — ora è per singola voce.
-
-• Corretto: le voci senza tag dell'umore vengono ora completate
-  automaticamente.
 
 • Miglioramenti di prestazioni e stabilità.

@@ -1,17 +1,14 @@
-Voyez vos entrées sous un nouveau jour.
+Ajoutez une entrée sans même ouvrir l'application.
 
-• Nouveau : vue Brain — une carte interactive des personnes et des
-  thèmes qui traversent vos entrées, entièrement générée sur
-  l'appareil. Se débloque à partir de 10 entrées.
+• Nouveau : ajout rapide via Siri — dites « Ajoute une entrée de
+  journal dans mirror » pour l'enregistrer directement, sans ouvrir
+  l'application. Fonctionne aussi avec les Raccourcis.
+
+• Corrigé : la vue Brain pouvait rester bloquée indéfiniment au
+  chargement si vos entrées ne comportaient pas encore assez de
+  personnes ou de thèmes récurrents.
 
 • Corrigé : l'écran d'abonnement affichait à tort un badge d'achat
   "Deep" — il affiche maintenant un statut honnête "Early Access".
-
-• Corrigé : la barre de progression de l'objectif de mots comptait
-  tous les mots écrits dans la journée au lieu de l'entrée en cours
-  — elle est désormais par entrée.
-
-• Corrigé : les entrées sans étiquette d'humeur sont désormais
-  complétées automatiquement.
 
 • Améliorations de performance et de stabilité.
