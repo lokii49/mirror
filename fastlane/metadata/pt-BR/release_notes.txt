@@ -1,17 +1,14 @@
-Veja suas anotações sob uma nova luz.
+Adicione uma anotação sem nem abrir o app.
 
-• Novidade: visão Brain — um mapa interativo das pessoas e temas
-  presentes nas suas anotações, gerado inteiramente no dispositivo.
-  Desbloqueada a partir de 10 anotações.
+• Novidade: adição rápida com a Siri — diga "Adicionar uma anotação
+  no mirror" para salvar direto, sem abrir o app. Também funciona
+  pelos Atalhos.
+
+• Corrigido: a visão Brain podia ficar travada carregando quando
+  suas anotações ainda não tinham pessoas ou temas recorrentes o
+  bastante.
 
 • Corrigido: a tela de assinatura mostrava indevidamente um selo de
   compra "Deep" — agora mostra um status honesto de "Early Access".
-
-• Corrigido: a barra de progresso da meta de palavras contava todas
-  as palavras escritas no dia em vez de apenas a anotação atual —
-  agora é por anotação.
-
-• Corrigido: anotações sem marcação de humor agora são preenchidas
-  automaticamente.
 
 • Melhorias de desempenho e estabilidade.
