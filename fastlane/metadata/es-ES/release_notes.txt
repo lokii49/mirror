@@ -1,18 +1,15 @@
-Mira tus entradas con una nueva luz.
+Añade una entrada sin ni siquiera abrir la app.
 
-• Novedad: vista Brain — un mapa interactivo de las personas y temas
-  que aparecen en tus entradas, generado completamente en el
-  dispositivo. Se desbloquea a partir de 10 entradas.
+• Novedad: entrada rápida con Siri — di "Añade una entrada de diario
+  en mirror" para guardarla directamente, sin abrir la app. También
+  funciona desde Atajos.
+
+• Corregido: la vista Brain podía quedarse cargando para siempre si
+  tus entradas aún no tenían suficientes personas o temas
+  recurrentes.
 
 • Corregido: la pantalla de suscripción mostraba una insignia falsa
   de compra "Deep" — ahora muestra un estado honesto de "Early
   Access".
-
-• Corregido: la barra de progreso del objetivo de palabras contaba
-  todas las palabras escritas ese día en vez de solo la entrada
-  actual — ahora es por entrada.
-
-• Corregido: las entradas sin etiqueta de ánimo ahora se completan
-  automáticamente.
 
 • Mejoras de rendimiento y estabilidad.

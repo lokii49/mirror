@@ -1,15 +1,13 @@
-See your entries in a new light.
+Add an entry without even opening the app.
 
-• New: Brain view — an interactive map of the people and themes
-  running through your entries, built entirely on-device. Unlocks
-  after 10 entries.
+• New: Quick-add via Siri — say "Add a journal entry in mirror" to
+  save straight to your journal, no app required. Works from
+  Shortcuts too.
 
-• Fixed: the subscription screen showed a fake "Deep" purchase badge
+• Fixed: Brain View could get stuck loading forever if your entries
+  didn't have enough repeating people or themes yet.
+
+• Fixed: the Subscription screen showed a fake "Deep" purchase badge
   — now shows an honest "Early Access" status instead.
-
-• Fixed: the word-goal progress bar tracked all words written that
-  day instead of the entry you're on — now tracks per entry.
-
-• Fixed: entries missing a mood tag now get backfilled automatically.
 
 • Performance and stability improvements.

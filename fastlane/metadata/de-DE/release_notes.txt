@@ -1,17 +1,14 @@
-Sieh deine Einträge in einem neuen Licht.
+Füge einen Eintrag hinzu, ganz ohne die App zu öffnen.
 
-• Neu: Brain-Ansicht — eine interaktive Karte der Menschen und
-  Themen in deinen Einträgen, vollständig auf dem Gerät erstellt.
-  Freigeschaltet ab 10 Einträgen.
+• Neu: Schnelleingabe per Siri — sag „Füge einen Tagebucheintrag in
+  mirror hinzu", um direkt zu speichern, ganz ohne App. Funktioniert
+  auch über Kurzbefehle.
+
+• Behoben: Die Brain-Ansicht blieb manchmal für immer beim Laden
+  hängen, wenn deine Einträge noch nicht genug wiederkehrende
+  Personen oder Themen enthielten.
 
 • Behoben: Der Abo-Bildschirm zeigte fälschlich ein "Deep"-Kaufabzeichen
   — jetzt wird ehrlich der Status "Early Access" angezeigt.
-
-• Behoben: Der Wortziel-Fortschrittsbalken zählte alle an diesem Tag
-  geschriebenen Wörter statt nur den aktuellen Eintrag — jetzt pro
-  Eintrag.
-
-• Behoben: Einträge ohne Stimmungs-Tag werden jetzt automatisch
-  nachgetragen.
 
 • Leistungs- und Stabilitätsverbesserungen.
