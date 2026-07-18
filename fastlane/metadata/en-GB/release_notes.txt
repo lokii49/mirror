@@ -1,15 +1,15 @@
-MirrorNotes now speaks your language.
+See your entries in a new light.
 
-• New: mirror is now available in Spanish, Japanese, Chinese, German,
-  French, Portuguese, Korean, Italian, and Russian — alongside English.
-  mirror follows your device's language automatically.
+• New: Brain view — an interactive map of the people and themes
+  running through your entries, built entirely on-device. Unlocks
+  after 10 entries.
 
-• Everything is free. Ask, Daily Reflection, Weekly Digest, Monthly Deep
-  Report, Mood Timeline, and widgets are unlocked for everyone while
-  mirror grows — no subscription required.
+• Fixed: the subscription screen showed a fake "Deep" purchase badge
+  — now shows an honest "Early Access" status instead.
 
-• Smoother Ask: clearer messaging when the on-device AI model needs to
-  download, and when your journal needs a few more entries before Ask
-  can find patterns.
+• Fixed: the word-goal progress bar tracked all words written that
+  day instead of the entry you're on — now tracks per entry.
 
-• Bug fixes and stability improvements.
+• Fixed: entries missing a mood tag now get backfilled automatically.
+
+• Performance and stability improvements.

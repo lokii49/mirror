@@ -1,17 +1,18 @@
-MirrorNotes ora parla la tua lingua.
+Guarda le tue voci sotto una nuova luce.
 
-• Novità: mirror è ora disponibile in spagnolo, giapponese, cinese,
-  tedesco, francese, portoghese, coreano, italiano e russo, oltre
-  all'inglese. mirror segue automaticamente la lingua del tuo
-  dispositivo.
+• Novità: vista Brain — una mappa interattiva delle persone e dei
+  temi che attraversano le tue voci, generata interamente sul
+  dispositivo. Si sblocca dopo 10 voci.
 
-• Tutto è gratuito. Ask, Riflessione Giornaliera, Riepilogo
-  Settimanale, Report Mensile Approfondito, Cronologia dell'Umore e i
-  widget sono sbloccati per tutti mentre mirror cresce — nessun
-  abbonamento richiesto.
+• Corretto: la schermata dell'abbonamento mostrava erroneamente un
+  badge di acquisto "Deep" — ora mostra un onesto stato "Early
+  Access".
 
-• Ask più fluido: messaggi più chiari quando il modello IA on-device
-  deve essere scaricato, o quando il tuo diario ha bisogno di qualche
-  voce in più prima che Ask possa trovare schemi.
+• Corretto: la barra di avanzamento dell'obiettivo di parole contava
+  tutte le parole scritte quel giorno invece della sola voce
+  corrente — ora è per singola voce.
 
-• Correzioni di bug e miglioramenti di stabilità.
+• Corretto: le voci senza tag dell'umore vengono ora completate
+  automaticamente.
+
+• Miglioramenti di prestazioni e stabilità.
