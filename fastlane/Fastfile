@@ -26,6 +26,18 @@ platform :ios do
     UI.success("Removed #{version.version_string} from review — it's editable again")
   end
 
+  desc "Upload metadata only (release notes etc.), no binary/screenshots/submission changes"
+  lane :update_metadata do
+    auth
+    upload_to_app_store(
+      force: true,
+      skip_binary_upload: true,
+      skip_metadata: false,
+      skip_screenshots: true,
+      skip_app_version_update: true
+    )
+  end
+
   desc "Upload screenshots only, no binary/metadata/submission changes"
   lane :update_screenshots do
     auth
