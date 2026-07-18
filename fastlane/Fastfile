@@ -14,6 +14,18 @@ platform :ios do
     )
   end
 
+  desc "Remove the currently-waiting-for-review version from review so metadata/screenshots become editable again"
+  lane :cancel_review do
+    auth
+    app = Spaceship::ConnectAPI::App.find("com.lokesh.mirror")
+    version = app.get_app_store_versions(filter: { appStoreState: "WAITING_FOR_REVIEW" }).first
+    UI.user_error!("No version in WAITING_FOR_REVIEW state found") unless version
+    submission = version.app_store_version_submission
+    UI.user_error!("No submission found on #{version.version_string} (#{version.app_store_state})") unless submission
+    submission.delete!
+    UI.success("Removed #{version.version_string} from review — it's editable again")
+  end
+
   desc "Upload screenshots only, no binary/metadata/submission changes"
   lane :update_screenshots do
     auth
@@ -23,6 +35,25 @@ platform :ios do
       skip_metadata: true,
       skip_screenshots: false,
       skip_app_version_update: true
+    )
+  end
+
+  desc "Resubmit the current build for review without re-uploading binary/metadata/screenshots"
+  lane :resubmit do
+    auth
+    upload_to_app_store(
+      force: true,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      skip_app_version_update: true,
+      submit_for_review: true,
+      automatic_release: false,
+      run_precheck_before_submit: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        content_rights_contains_third_party_content: false
+      }
     )
   end
 
