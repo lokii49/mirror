@@ -1,0 +1,40 @@
+default_platform(:ios)
+require 'json'
+
+platform :ios do
+  desc "Archive, upload, and submit the current version for App Store review"
+  lane :release do
+    api_key_json = JSON.parse(File.read("api_key.json"))
+    app_store_connect_api_key(
+      key_id: api_key_json["key_id"],
+      issuer_id: api_key_json["issuer_id"],
+      key_content: api_key_json["key"],
+      is_key_content_base64: false,
+      in_house: api_key_json["in_house"] || false,
+      duration: 1200
+    )
+
+    build_app(
+      scheme: "mirror",
+      project: "mirror.xcodeproj",
+      configuration: "Release",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      xcargs: "-allowProvisioningUpdates"
+    )
+
+    upload_to_app_store(
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      submit_for_review: true,
+      automatic_release: false,
+      run_precheck_before_submit: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        content_rights_contains_third_party_content: false
+      }
+    )
+  end
+end
