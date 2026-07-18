@@ -26,7 +26,12 @@ final class BrainViewModel {
         }
 
         let fingerprint = Self.fingerprint(of: entries)
-        if fingerprint == lastFingerprint, case .ready = state { return }
+        // Every terminal state (.ready and .empty alike) re-mounts its own
+        // .task(id:) on display, which fires this again. Without this guard
+        // an .empty result set state back to .loading unconditionally below,
+        // remounting the loading branch's task and looping .loading <-> .empty
+        // forever — visible as "Mapping your mind…" never resolving.
+        if fingerprint == lastFingerprint { return }
 
         if case .ready = state {} else { state = .loading }
 

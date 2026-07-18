@@ -1,17 +1,17 @@
-MirrorNotes agora fala o seu idioma.
+Veja suas anotações sob uma nova luz.
 
-• Novidade: o mirror agora está disponível em espanhol, japonês,
-  chinês, alemão, francês, português, coreano, italiano e russo,
-  além do inglês. O mirror segue automaticamente o idioma do
-  seu dispositivo.
+• Novidade: visão Brain — um mapa interativo das pessoas e temas
+  presentes nas suas anotações, gerado inteiramente no dispositivo.
+  Desbloqueada a partir de 10 anotações.
 
-• Tudo é gratuito. Ask, Reflexão Diária, Resumo Semanal, Relatório
-  Mensal Aprofundado, Linha do Tempo de Humor e os widgets estão
-  liberados para todos enquanto o mirror cresce — sem necessidade
-  de assinatura.
+• Corrigido: a tela de assinatura mostrava indevidamente um selo de
+  compra "Deep" — agora mostra um status honesto de "Early Access".
 
-• Ask mais fluido: mensagens mais claras quando o modelo de IA no
-  dispositivo precisa ser baixado, e quando seu diário precisa de
-  mais algumas anotações antes que o Ask consiga encontrar padrões.
+• Corrigido: a barra de progresso da meta de palavras contava todas
+  as palavras escritas no dia em vez de apenas a anotação atual —
+  agora é por anotação.
 
-• Correções de bugs e melhorias de estabilidade.
+• Corrigido: anotações sem marcação de humor agora são preenchidas
+  automaticamente.
+
+• Melhorias de desempenho e estabilidade.

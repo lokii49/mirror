@@ -1,15 +1,18 @@
-MirrorNotes ahora habla tu idioma.
+Mira tus entradas con una nueva luz.
 
-• Novedad: mirror ya está disponible en español, japonés, chino, alemán,
-  francés, portugués, coreano, italiano y ruso, además de inglés.
-  mirror sigue automáticamente el idioma de tu dispositivo.
+• Novedad: vista Brain — un mapa interactivo de las personas y temas
+  que aparecen en tus entradas, generado completamente en el
+  dispositivo. Se desbloquea a partir de 10 entradas.
 
-• Todo es gratis. Ask, Reflexión Diaria, Resumen Semanal, Informe Mensual,
-  Línea de Tiempo del Ánimo y los widgets están disponibles para todos
-  mientras mirror crece — sin necesidad de suscripción.
+• Corregido: la pantalla de suscripción mostraba una insignia falsa
+  de compra "Deep" — ahora muestra un estado honesto de "Early
+  Access".
 
-• Ask más fluido: mensajes más claros cuando el modelo de IA en el
-  dispositivo necesita descargarse, y cuando tu diario necesita más
-  entradas antes de que Ask pueda encontrar patrones.
+• Corregido: la barra de progreso del objetivo de palabras contaba
+  todas las palabras escritas ese día en vez de solo la entrada
+  actual — ahora es por entrada.
 
-• Corrección de errores y mejoras de estabilidad.
+• Corregido: las entradas sin etiqueta de ánimo ahora se completan
+  automáticamente.
+
+• Mejoras de rendimiento y estabilidad.
