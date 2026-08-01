@@ -1,13 +1,7 @@
-Add an entry without even opening the app.
+A small but important fix.
 
-• New: Quick-add via Siri — say "Add a journal entry in mirror" to
-  save straight to your journal, no app required. Works from
-  Shortcuts too.
-
-• Fixed: Brain View could get stuck loading forever if your entries
-  didn't have enough repeating people or themes yet.
-
-• Fixed: the Subscription screen showed a fake "Deep" purchase badge
-  — now shows an honest "Early Access" status instead.
+• Fixed: Brain View could show "No recurring themes yet" even with
+  plenty of entries, if some couldn't be decrypted right when you
+  opened it. It now shows your real themes correctly.
 
 • Performance and stability improvements.

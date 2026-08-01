@@ -12,6 +12,10 @@ final class BrainViewModel {
         case loading
         /// Enough entries, but no recurring terms survived the filters.
         case empty
+        /// Enough entries, but some couldn't be decrypted yet (e.g. Keychain not
+        /// readable at this moment) — distinct from `.empty` so it isn't reported
+        /// as "no recurring themes" when the truth is "couldn't read them yet."
+        case decryptionPending
         case ready(BrainGraph)
     }
 
@@ -43,9 +47,11 @@ final class BrainViewModel {
                 fingerprint: Self.entryFingerprint(entry),
                 text: String(entry.insightContext.prefix(ThemeExtractionService.maxTextLength)),
                 moodScore: entry.mood.flatMap { MirrorTheme.moodScore[$0] },
-                createdAt: entry.createdAt
+                createdAt: entry.createdAt,
+                decryptionFailed: entry.textDecryptionFailed
             )
         }
+        let anyDecryptionFailed = snapshots.contains(where: \.decryptionFailed)
 
         let termsByEntry = await ThemeExtractionService.shared.termsBatch(for: snapshots)
         let moodScoreByEntry = Dictionary(
@@ -63,8 +69,21 @@ final class BrainViewModel {
             )
         }.value
 
-        lastFingerprint = fingerprint
-        state = graph.nodes.isEmpty ? .empty : .ready(graph)
+        // Ciphertext-based fingerprints don't change once decryption starts
+        // working again, so pinning `lastFingerprint` here would make the
+        // `fingerprint == lastFingerprint` guard above skip every future
+        // rebuild in this session too — turning a transient read failure into
+        // a session-sticky wrong state. Leave it unset so the next remount
+        // (same entries, unchanged fingerprint) retries instead of early-returning.
+        if !anyDecryptionFailed {
+            lastFingerprint = fingerprint
+        }
+
+        if graph.nodes.isEmpty {
+            state = anyDecryptionFailed ? .decryptionPending : .empty
+        } else {
+            state = .ready(graph)
+        }
     }
 
     func entries(for node: BrainNode, in allEntries: [Entry]) -> [Entry] {

@@ -143,6 +143,11 @@ struct BrainView: View {
                 .task(id: taskKey(size)) {
                     await brainModel.rebuild(entries: entries, canvasSize: size)
                 }
+        case .decryptionPending:
+            decryptionPendingCard
+                .task(id: taskKey(size)) {
+                    await brainModel.rebuild(entries: entries, canvasSize: size)
+                }
         case .ready(let graph):
             Group {
                 if is3D {
@@ -183,6 +188,31 @@ struct BrainView: View {
             Text("No recurring themes yet")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
             Text("Mirror builds this map from names and topics\nthat repeat across your entries.")
+                .font(.system(size: 14))
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    /// Distinct from `emptyCard` — entries exist and may well have recurring
+    /// themes, they just couldn't be decrypted yet (e.g. right after unlock,
+    /// before Keychain access or an iCloud Keychain sync is ready). Reopening
+    /// once decryption succeeds resolves this on its own.
+    private var decryptionPendingCard: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(MirrorTheme.violetDim)
+                    .frame(width: 72, height: 72)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.violetLight)
+            }
+            Text("Entries not readable yet")
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+            Text("Mirror couldn't decrypt some entries just now.\nReopen Brain View in a moment.")
                 .font(.system(size: 14))
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)

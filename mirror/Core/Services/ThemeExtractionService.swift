@@ -38,6 +38,10 @@ struct EntryTextSnapshot: Sendable, Identifiable {
     let text: String
     let moodScore: Double?
     let createdAt: Date
+    /// True when the entry's ciphertext couldn't be decrypted (e.g. Keychain not
+    /// yet readable) — `text` is `""` in that case, indistinguishable from a
+    /// genuinely empty entry without this flag.
+    let decryptionFailed: Bool
 }
 
 actor ThemeExtractionService {
@@ -61,16 +65,27 @@ actor ThemeExtractionService {
             return cached.terms
         }
         let terms = Self.extract(from: snapshot.text)
+        // Below extract's own floor (see minTextLength) is indistinguishable here
+        // from "decryption isn't ready yet" — text is legitimately short either
+        // way. Ciphertext-based fingerprints don't change once decryption starts
+        // working, so caching an empty result under a transiently-unreadable
+        // entry would pin it wrong for the rest of the process. Skipping the
+        // cache costs nothing: `extract` exits at its own guard immediately.
+        guard snapshot.text.trimmingCharacters(in: .whitespacesAndNewlines).count >= Self.minTextLength else {
+            return terms
+        }
         cache[snapshot.id] = (snapshot.fingerprint, terms)
         return terms
     }
+
+    static let minTextLength = 20
 
     // MARK: - Extraction
 
     /// Per-entry deduped term set (each entry contributes at most one mention per key).
     static func extract(from text: String) -> Set<ExtractedTerm> {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 20 else { return [] }
+        guard trimmed.count >= minTextLength else { return [] }
         let input = String(trimmed.prefix(maxTextLength))
 
         let tagger = NLTagger(tagSchemes: [.nameType, .lexicalClass])
