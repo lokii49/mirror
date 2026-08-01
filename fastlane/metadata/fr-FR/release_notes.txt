@@ -1,14 +1,9 @@
-Ajoutez une entrée sans même ouvrir l'application.
+Une petite correction importante.
 
-• Nouveau : ajout rapide via Siri — dites « Ajoute une entrée de
-  journal dans mirror » pour l'enregistrer directement, sans ouvrir
-  l'application. Fonctionne aussi avec les Raccourcis.
-
-• Corrigé : la vue Brain pouvait rester bloquée indéfiniment au
-  chargement si vos entrées ne comportaient pas encore assez de
-  personnes ou de thèmes récurrents.
-
-• Corrigé : l'écran d'abonnement affichait à tort un badge d'achat
-  "Deep" — il affiche maintenant un statut honnête "Early Access".
+• Corrigé : la vue Brain pouvait afficher « Aucun thème récurrent
+  pour l'instant » alors que vous aviez pourtant assez d'entrées —
+  cela arrivait quand certaines entrées ne pouvaient pas encore être
+  déchiffrées au moment de l'ouverture. Elle affiche désormais vos
+  vrais thèmes correctement.
 
 • Améliorations de performance et de stabilité.
