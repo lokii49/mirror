@@ -1,15 +1,15 @@
-MirrorNotes ahora habla tu idioma.
+Añade una entrada sin ni siquiera abrir la app.
 
-• Novedad: mirror ya está disponible en español, japonés, chino, alemán,
-  francés, portugués, coreano, italiano y ruso, además de inglés.
-  mirror sigue automáticamente el idioma de tu dispositivo.
+• Novedad: entrada rápida con Siri — di "Añade una entrada de diario
+  en mirror" para guardarla directamente, sin abrir la app. También
+  funciona desde Atajos.
 
-• Todo es gratis. Ask, Reflexión Diaria, Resumen Semanal, Informe Mensual,
-  Línea de Tiempo del Ánimo y los widgets están disponibles para todos
-  mientras mirror crece — sin necesidad de suscripción.
+• Corregido: la vista Brain podía quedarse cargando para siempre si
+  tus entradas aún no tenían suficientes personas o temas
+  recurrentes.
 
-• Ask más fluido: mensajes más claros cuando el modelo de IA en el
-  dispositivo necesita descargarse, y cuando tu diario necesita más
-  entradas antes de que Ask pueda encontrar patrones.
+• Corregido: la pantalla de suscripción mostraba una insignia falsa
+  de compra "Deep" — ahora muestra un estado honesto de "Early
+  Access".
 
-• Corrección de errores y mejoras de estabilidad.
+• Mejoras de rendimiento y estabilidad.

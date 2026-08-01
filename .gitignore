@@ -2,3 +2,5 @@ mirror/LocalModels/
 *.gguf
 fastlane/api_key.json
 *.p8
+fastlane/report.xml
+build/
