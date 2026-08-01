@@ -1,15 +1,8 @@
-Aggiungi una voce senza nemmeno aprire l'app.
+Una piccola ma importante correzione.
 
-• Novità: aggiunta rapida con Siri — di' "Aggiungi una voce del
-  diario a mirror" per salvarla direttamente, senza aprire l'app.
-  Funziona anche con Comandi Rapidi.
-
-• Corretto: la vista Brain poteva restare bloccata nel caricamento
-  se le tue voci non avevano ancora abbastanza persone o temi
-  ricorrenti.
-
-• Corretto: la schermata dell'abbonamento mostrava erroneamente un
-  badge di acquisto "Deep" — ora mostra un onesto stato "Early
-  Access".
+• Corretto: la vista Brain poteva mostrare "Nessun tema ricorrente"
+  anche con abbastanza voci — succedeva quando alcune voci non
+  potevano ancora essere decifrate al momento dell'apertura. Ora
+  mostra correttamente i tuoi temi reali.
 
 • Miglioramenti di prestazioni e stabilità.
