@@ -50,6 +50,29 @@ struct ThemeExtractionServiceTests {
         #expect(keys.contains("project"))
         #expect(keys.contains("deadline"))
     }
+
+    // A transiently-unreadable entry (e.g. Keychain not unlocked yet) yields ""
+    // text under a fingerprint that never changes for that ciphertext. Caching
+    // the resulting empty term set there would pin it wrong for the rest of
+    // the process even once decryption starts working. terms(for:) must not
+    // cache below its own extraction floor.
+    @Test func unreadableTextIsNotCachedAsEmpty() async {
+        let service = ThemeExtractionService()
+        let id = UUID()
+        let fingerprint = 42
+
+        let failed = await service.terms(for: EntryTextSnapshot(
+            id: id, fingerprint: fingerprint, text: "", moodScore: nil, createdAt: .now, decryptionFailed: true
+        ))
+        #expect(failed.isEmpty)
+
+        let recovered = await service.terms(for: EntryTextSnapshot(
+            id: id, fingerprint: fingerprint,
+            text: "The meeting about the project ran long and the deadline pressure kept building all afternoon at the office.",
+            moodScore: nil, createdAt: .now, decryptionFailed: false
+        ))
+        #expect(!recovered.isEmpty)
+    }
 }
 
 // MARK: - BrainGraphBuilder
