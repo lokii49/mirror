@@ -239,6 +239,16 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "2.0.3"
         ),
+        // 2.0.5
+        .init(
+            id: "siri-quick-add-205",
+            title: "Add entries with Siri",
+            body: "Say \"Hey Siri, add a journal entry in mirror\" and dictate — it saves straight to your journal, no need to open the app. Works from Shortcuts too.",
+            symbolName: "mic.fill",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "2.0.5"
+        ),
     ]
 }
 

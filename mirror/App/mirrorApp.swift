@@ -15,22 +15,7 @@ struct mirrorApp: App {
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
 
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Entry.self,
-            Insight.self,
-            UserProfile.self,
-        ])
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            cloudKitDatabase: .automatic
-        )
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    var sharedModelContainer: ModelContainer = MirrorModelContainer.shared
 
     init() {
         #if DEBUG
