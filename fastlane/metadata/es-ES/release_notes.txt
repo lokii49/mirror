@@ -1,15 +1,8 @@
-Añade una entrada sin ni siquiera abrir la app.
+Un pequeño arreglo importante.
 
-• Novedad: entrada rápida con Siri — di "Añade una entrada de diario
-  en mirror" para guardarla directamente, sin abrir la app. También
-  funciona desde Atajos.
-
-• Corregido: la vista Brain podía quedarse cargando para siempre si
-  tus entradas aún no tenían suficientes personas o temas
-  recurrentes.
-
-• Corregido: la pantalla de suscripción mostraba una insignia falsa
-  de compra "Deep" — ahora muestra un estado honesto de "Early
-  Access".
+• Corregido: la vista Brain podía mostrar "Aún no hay temas
+  recurrentes" aunque tuvieras suficientes entradas — ocurría si
+  algunas entradas no se podían descifrar justo al abrirla. Ahora
+  muestra tus temas reales correctamente.
 
 • Mejoras de rendimiento y estabilidad.

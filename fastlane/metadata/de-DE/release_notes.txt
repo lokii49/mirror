@@ -1,14 +1,8 @@
-Füge einen Eintrag hinzu, ganz ohne die App zu öffnen.
+Eine kleine, aber wichtige Korrektur.
 
-• Neu: Schnelleingabe per Siri — sag „Füge einen Tagebucheintrag in
-  mirror hinzu", um direkt zu speichern, ganz ohne App. Funktioniert
-  auch über Kurzbefehle.
-
-• Behoben: Die Brain-Ansicht blieb manchmal für immer beim Laden
-  hängen, wenn deine Einträge noch nicht genug wiederkehrende
-  Personen oder Themen enthielten.
-
-• Behoben: Der Abo-Bildschirm zeigte fälschlich ein "Deep"-Kaufabzeichen
-  — jetzt wird ehrlich der Status "Early Access" angezeigt.
+• Behoben: Die Brain-Ansicht konnte „Keine wiederkehrenden Themen"
+  anzeigen, obwohl genug Einträge vorhanden waren — das passierte,
+  wenn manche Einträge beim Öffnen noch nicht entschlüsselt werden
+  konnten. Jetzt werden deine echten Themen korrekt angezeigt.
 
 • Leistungs- und Stabilitätsverbesserungen.
