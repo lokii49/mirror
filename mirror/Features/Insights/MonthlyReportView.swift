@@ -4,6 +4,7 @@ import SwiftData
 struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
 
@@ -55,7 +56,7 @@ struct MonthlyReportView: View {
             .frame(maxWidth: .infinity)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle("Monthly Report")
+        .navigationTitle(displayMode == .sentinel ? "Debrief" : "Monthly Report")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showPaywall) { PaywallView() }
@@ -339,6 +340,7 @@ struct MonthlyReportView: View {
 
 private struct MonthlyStatsStrip: View {
     let entries: [Entry]
+    @Environment(\.appDisplayMode) private var displayMode
 
     private var totalWords: Int {
         entries.reduce(0) { $0 + $1.wordCount }
@@ -383,7 +385,7 @@ private struct MonthlyStatsStrip: View {
     private func statCell(value: String, label: LocalizedStringKey) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(18, weight: .bold) : .system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(MirrorTheme.violet)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

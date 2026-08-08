@@ -25,6 +25,7 @@ struct WriteView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
+    @Environment(\.appDisplayMode) var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]
 
     var entry: Entry? = nil
