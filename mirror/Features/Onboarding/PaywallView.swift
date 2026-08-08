@@ -5,6 +5,7 @@ import SwiftData
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appDisplayMode) private var displayMode
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedTier: PaywallTier
     @State private var selectedProductID = ""
@@ -134,8 +135,8 @@ struct PaywallView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "gift")
                         .font(.system(size: 12, weight: .semibold))
-                    Text("7-day free trial")
-                        .font(.system(size: 13, weight: .semibold))
+                    Text(displayMode == .sentinel ? "7-DAY TRIAL" : "7-day free trial")
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
@@ -289,8 +290,8 @@ struct PaywallView: View {
                     if subscriptionService.isPurchasing {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Start Free Trial")
-                            .font(.system(size: 17, weight: .semibold))
+                        Text(displayMode == .sentinel ? "START FREE TRIAL" : "Start Free Trial")
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 17, weight: .semibold))
                             .foregroundStyle(.white)
                     }
                     Spacer()

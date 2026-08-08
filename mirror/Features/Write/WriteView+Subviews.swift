@@ -43,6 +43,16 @@ extension WriteView {
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.wordCount)
             }
 
+            if displayMode == .sentinel {
+                HStack(spacing: 5) {
+                    Circle().fill(MirrorTheme.ember).frame(width: 6, height: 6)
+                    Text("REC")
+                        .font(MirrorTheme.mono(9.5, weight: .bold))
+                        .foregroundStyle(MirrorTheme.ember)
+                        .kerning(0.5)
+                }
+            }
+
             Spacer(minLength: 0)
 
             moodMenu

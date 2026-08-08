@@ -5,6 +5,7 @@ import Charts
 struct MoodTimelineView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
 
     @State private var subscriptionService = SubscriptionService.shared
@@ -212,7 +213,7 @@ struct MoodTimelineView: View {
             }
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle("Mood Timeline")
+        .navigationTitle(displayMode == .sentinel ? "Vitals" : "Mood Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showPaywall) { PaywallView() }
@@ -345,7 +346,7 @@ struct MoodTimelineView: View {
                 .foregroundStyle(color)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                 if !valueSuffix.isEmpty {
                     Text(valueSuffix)
