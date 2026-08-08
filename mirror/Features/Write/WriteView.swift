@@ -179,6 +179,7 @@ struct WriteView: View {
                     canRedo: $canRedo,
                     fontChoiceRaw: $entryFontChoiceRaw,
                     panelState: panelState,
+                    displayMode: displayMode,
                     onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                 )
                 .padding(.horizontal, 20)
@@ -338,6 +339,7 @@ struct WriteView: View {
         )) { item in
             if item.value < photoDataArray.count {
                 FullscreenPhotoView(photoData: photoDataArray[item.value])
+                    .environment(\.appDisplayMode, displayMode)
             }
         }
         .alert("Photo not attached", isPresented: Binding(
@@ -352,6 +354,7 @@ struct WriteView: View {
             VoiceInputSheet { data, duration in
                 appendVoiceNote(data: data, duration: duration)
             }
+            .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {

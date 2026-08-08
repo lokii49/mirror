@@ -37,7 +37,7 @@ struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) var entries: [Entry]
     @Query var profiles: [UserProfile]
     @Environment(\.modelContext) var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.appDisplayMode) var displayMode
 
     var displayModeBinding: Binding<DisplayMode> {
         Binding(

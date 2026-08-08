@@ -39,7 +39,7 @@ struct ManualSettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
+                        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew).environment(\.appDisplayMode, displayMode) }
                     }
 
                     SettingsDivider()

@@ -222,21 +222,23 @@ extension WriteView {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
                 ForEach(moodLabels, id: \.self) { mood in
                     let isSelected = viewModel.selectedMood == mood
+                    let score = MirrorTheme.moodScore[mood] ?? 3
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         viewModel.selectedMood = isSelected ? nil : mood
                         withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
                     } label: {
                         HStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(MirrorTheme.moodColor(for: mood))
-                                .frame(width: 7, height: 7)
+                            SignalBars(score: score, color: MirrorTheme.moodColor(for: mood))
                             Text(MirrorTheme.localizedMoodName(for: mood).uppercased())
                                 .font(MirrorTheme.mono(10, weight: isSelected ? .bold : .medium))
                                 .kerning(0.2)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                             Spacer(minLength: 0)
+                            Text("\(Int(score / 5 * 100))")
+                                .font(MirrorTheme.mono(8.5, weight: .medium))
+                                .foregroundStyle(MirrorTheme.textSecondary.opacity(0.6))
                         }
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                         .padding(.horizontal, 10)
@@ -478,16 +480,19 @@ extension WriteView {
                 } label: {
                     Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
                         .font(.system(size: 20))
-                        .foregroundStyle(!photoDataArray.isEmpty ? Color.accentColor : .primary)
+                        .foregroundStyle(!photoDataArray.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : .primary)
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
                             if photoDataArray.count > 1 {
                                 Text("\(photoDataArray.count)")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 2)
-                                    .background(Color.accentColor, in: Capsule())
+                                    .background(
+                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
+                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                                    )
                                     .offset(x: 4, y: -2)
                             }
                         }
@@ -501,7 +506,7 @@ extension WriteView {
                 } label: {
                     Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
                         .font(.system(size: 20))
-                        .foregroundStyle(!draftVoiceNotes.isEmpty ? Color.accentColor : Color.primary)
+                        .foregroundStyle(!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
                             if isTranscribingVoiceNotes {
@@ -512,11 +517,14 @@ extension WriteView {
                                     .offset(x: 6, y: -6)
                             } else if draftVoiceNotes.count > 1 {
                                 Text("\(draftVoiceNotes.count)")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 2)
-                                    .background(Color.accentColor, in: Capsule())
+                                    .background(
+                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
+                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                                    )
                                     .offset(x: 4, y: -2)
                             }
                         }
@@ -528,5 +536,23 @@ extension WriteView {
             .padding(.horizontal, 8)
         }
         .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))
+    }
+}
+
+/// Ascending-height bar meter (radio signal strength look) for sentinel's
+/// signal panel — filled bars = mood valence score (1...5), unfilled bars
+/// dim to inkBorder so the row reads as a HUD readout, not a color swatch.
+private struct SignalBars: View {
+    let score: Double
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(1...5, id: \.self) { bar in
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(Double(bar) <= score ? color : MirrorTheme.inkBorder)
+                    .frame(width: 3, height: 4 + CGFloat(bar) * 2)
+            }
+        }
     }
 }

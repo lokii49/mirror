@@ -26,6 +26,10 @@ let highlightColors: [Color] = [
 
 struct FormattingPanelView: View {
     var state: FormattingPanelState
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
+    private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
+    private var cornerRadius: CGFloat { displayMode == .sentinel ? 6 : 10 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -106,16 +110,16 @@ struct FormattingPanelView: View {
                     DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
                 } label: {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.tertiarySystemFill))
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(idleFill)
                             .frame(width: 44, height: 36)
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(state.activeHighlightIndex == nil ? Color.accentColor : Color.secondary)
+                            .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
                     }
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(state.activeHighlightIndex == nil ? Color.accentColor : Color.clear, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(state.activeHighlightIndex == nil ? accent : Color.clear, lineWidth: 2)
                     )
                 }
                 .buttonStyle(.plain)
@@ -131,7 +135,12 @@ struct FormattingPanelView: View {
             Spacer(minLength: 12)
         }
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
+        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : Color(.secondarySystemBackground))
+        .overlay(alignment: .top) {
+            if displayMode == .sentinel {
+                Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
+            }
+        }
     }
 
     // MARK: - Font family button
@@ -146,16 +155,16 @@ struct FormattingPanelView: View {
             Text(choice.label)
                 .font(.system(size: 14, weight: .regular, design: choice.swiftUIDesign))
                 .lineLimit(1)
-                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
                 .frame(height: 44)
                 .background(
-                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
-                    in: RoundedRectangle(cornerRadius: 10)
+                    isActive ? accent.opacity(0.12) : idleFill,
+                    in: RoundedRectangle(cornerRadius: cornerRadius)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(isActive ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(isActive ? accent.opacity(0.4) : Color.clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
@@ -173,16 +182,16 @@ struct FormattingPanelView: View {
             Text(label)
                 .font(labelFont)
                 .lineLimit(1)
-                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
                 .frame(height: 50)
                 .background(
-                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
-                    in: RoundedRectangle(cornerRadius: 10)
+                    isActive ? accent.opacity(0.12) : idleFill,
+                    in: RoundedRectangle(cornerRadius: cornerRadius)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(isActive ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(isActive ? accent.opacity(0.4) : Color.clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
@@ -199,19 +208,19 @@ struct FormattingPanelView: View {
         } label: {
             Group {
                 if strikethrough {
-                    Text(label).strikethrough(true, color: isActive ? Color.accentColor : Color.primary)
+                    Text(label).strikethrough(true, color: isActive ? accent : Color.primary)
                 } else if underline {
-                    Text(label).underline(true, color: isActive ? Color.accentColor : Color.primary)
+                    Text(label).underline(true, color: isActive ? accent : Color.primary)
                 } else {
                     Text(label)
                 }
             }
             .font(font)
-            .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+            .foregroundStyle(isActive ? accent : Color.primary)
             .frame(width: 50, height: 44)
             .background(
-                isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
-                in: RoundedRectangle(cornerRadius: 10)
+                isActive ? accent.opacity(0.12) : idleFill,
+                in: RoundedRectangle(cornerRadius: cornerRadius)
             )
         }
         .buttonStyle(.plain)
@@ -227,11 +236,11 @@ struct FormattingPanelView: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .foregroundStyle(isActive ? accent : Color.primary)
                 .frame(width: 50, height: 44)
                 .background(
-                    isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill),
-                    in: RoundedRectangle(cornerRadius: 10)
+                    isActive ? accent.opacity(0.12) : idleFill,
+                    in: RoundedRectangle(cornerRadius: cornerRadius)
                 )
         }
         .buttonStyle(.plain)
@@ -244,14 +253,19 @@ struct FormattingPanelView: View {
         Button {
             DispatchQueue.main.async { state.onCommand?(command) }
         } label: {
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .foregroundStyle(Color.primary)
-                .padding(.horizontal, 10)
-                .frame(height: 36)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            Group {
+                if displayMode == .sentinel {
+                    Text(label).font(MirrorTheme.mono(11, weight: .medium)).textCase(.uppercase)
+                } else {
+                    Text(label).font(.system(size: 12, weight: .medium))
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(Color.primary)
+            .padding(.horizontal, 10)
+            .frame(height: 36)
+            .background(idleFill, in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 5 : 8))
         }
         .buttonStyle(.plain)
     }
@@ -265,12 +279,12 @@ struct FormattingPanelView: View {
             let newIndex = isActive ? nil : index
             DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(highlightColors[index])
                 .frame(width: 44, height: 36)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(isActive ? Color.accentColor : Color.clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(isActive ? accent : Color.clear, lineWidth: 2)
                 )
         }
         .buttonStyle(.plain)

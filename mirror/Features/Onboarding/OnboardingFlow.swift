@@ -586,27 +586,43 @@ struct OnboardingFlow: View {
 
     // MARK: - CTA
 
+    // Steps 0-3 render before any mode choice exists (no back-nav, and
+    // UserProfile.displayMode defaults to .classic until completeOnboarding
+    // writes it) so they cannot preview Sentinel. Step 4's own CTA previews
+    // whichever card the user has tapped, since selectedDisplayMode is live.
+    private var isSentinelPreview: Bool { step == 4 && selectedDisplayMode == .sentinel }
+
     private var ctaButton: some View {
         Button {
             advanceStep()
         } label: {
             HStack {
                 Spacer()
-                Text(step == 4 ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
+                Group {
+                    if isSentinelPreview {
+                        Text(step == 4 ? "INITIATE" : "CONTINUE")
+                            .font(MirrorTheme.mono(15, weight: .bold))
+                    } else {
+                        Text(step == 4 ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.white)
                 Spacer()
             }
             .frame(height: 54)
             .background(
-                ctaEnabled ? AnyShapeStyle(MirrorTheme.accentGradient) : AnyShapeStyle(Color.secondary.opacity(0.3)),
-                in: Capsule()
+                ctaEnabled
+                    ? (isSentinelPreview ? AnyShapeStyle(LinearGradient(colors: [MirrorTheme.ember, .orange], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(MirrorTheme.accentGradient))
+                    : AnyShapeStyle(Color.secondary.opacity(0.3)),
+                in: isSentinelPreview ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
             )
         }
         .buttonStyle(.plain)
         .disabled(!ctaEnabled)
-        .shadow(color: ctaEnabled ? MirrorTheme.primary.opacity(0.28) : .clear, radius: 16, x: 0, y: 6)
+        .shadow(color: ctaEnabled ? (isSentinelPreview ? MirrorTheme.ember.opacity(0.28) : MirrorTheme.primary.opacity(0.28)) : .clear, radius: 16, x: 0, y: 6)
         .animation(.easeInOut(duration: 0.2), value: ctaEnabled)
+        .animation(.easeInOut(duration: 0.2), value: selectedDisplayMode)
     }
 
     private var ctaEnabled: Bool {

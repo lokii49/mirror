@@ -129,7 +129,7 @@ struct AskView: View {
         .background(MirrorTheme.bgBase)
         .navigationTitle(displayMode == .sentinel ? "Comms" : "Ask")
         .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .onAppear {
             viewModel.loadAskState(entries: entries)
             if let initialQuestion, question.isEmpty {
@@ -162,33 +162,43 @@ struct AskView: View {
         VStack(spacing: 24) {
             Spacer()
             ZStack {
-                Circle()
-                    .fill(Color.secondary.opacity(0.10))
-                    .frame(width: 88, height: 88)
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                if displayMode == .sentinel {
+                    Circle().stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1.4).frame(width: 88, height: 88)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.ember.opacity(0.7))
+                } else {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.10))
+                        .frame(width: 88, height: 88)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
             }
             VStack(spacing: 8) {
-                Text("Ask is a Core feature")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(displayMode == .sentinel ? "COMMS LOCKED" : "Ask is a Core feature")
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(16, weight: .bold) : .system(size: 22, weight: .bold, design: .rounded))
+                    .kerning(displayMode == .sentinel ? 0.4 : 0)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
                 Text("Ask up to 15 questions per month on Core,\nor unlimited on Deep.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .medium) : .system(size: 15))
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textSecondary : Color.secondary)
                     .multilineTextAlignment(.center)
             }
             Button {
                 showPaywall = true
             } label: {
-                Text("Unlock with Core")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                Text(displayMode == .sentinel ? "UNLOCK WITH CORE" : "Unlock with Core")
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
+                    .kerning(displayMode == .sentinel ? 0.4 : 0)
+                    .foregroundStyle(Color.white)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 14)
-                    .background(MirrorTheme.accentGradient, in: Capsule())
+                    .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient), in: Capsule())
             }
             .buttonStyle(.plain)
-            .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+            .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 16, x: 0, y: 6)
             Spacer()
         }
         .padding(28)
@@ -224,20 +234,31 @@ struct AskView: View {
         VStack(spacing: 24) {
             Spacer()
             ZStack {
-                Circle()
-                    .fill(MirrorTheme.accentGradient)
-                    .frame(width: 88, height: 88)
-                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
-                Image(systemName: icon)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
+                if displayMode == .sentinel {
+                    Circle().stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1.4).frame(width: 88, height: 88)
+                    Circle().stroke(MirrorTheme.ember.opacity(0.28), lineWidth: 1).frame(width: 112, height: 112)
+                    Image(systemName: icon)
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.ember)
+                } else {
+                    Circle()
+                        .fill(MirrorTheme.accentGradient)
+                        .frame(width: 88, height: 88)
+                        .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
+                    Image(systemName: icon)
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
             }
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(16, weight: .bold) : .system(size: 22, weight: .bold, design: .rounded))
+                    .kerning(displayMode == .sentinel ? 0.4 : 0)
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
                 Text(subtitle)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .medium) : .system(size: 15))
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textSecondary : Color.secondary)
                     .multilineTextAlignment(.center)
             }
             trailing()

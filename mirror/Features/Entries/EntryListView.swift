@@ -167,12 +167,14 @@ struct EntriesTabView: View {
             } label: {
                 Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
             }
             Button {
                 withAnimation { showSearch.toggle() }
             } label: {
                 Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
             }
         }
     }
@@ -262,9 +264,14 @@ struct EntriesTabView: View {
                     selectedTagFilter = nil
                 }
             } label: {
-                Text("Clear")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("CLEAR").font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text("Clear").font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
@@ -281,16 +288,30 @@ struct EntriesTabView: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(color)
-                Text(label)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.primary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(label.uppercased()).font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(label).font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.primary)
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color.opacity(0.10), in: Capsule())
+            .background(
+                color.opacity(0.10),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(color.opacity(0.35), lineWidth: 1)
+                }
+            }
         }
         .buttonStyle(.plain)
     }
@@ -323,15 +344,30 @@ struct EntriesTabView: View {
                             if !isSelected { selectedMoodFilter = nil; selectedDateFilter = nil }
                         }
                     } label: {
-                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkRaised,
-                                in: Capsule()
-                            )
-                            .foregroundStyle(isSelected ? MirrorTheme.violetLight : MirrorTheme.textSecondary)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text("#\(MirrorTheme.localizedTagName(for: tag))".uppercased())
+                                    .font(MirrorTheme.mono(11, weight: .medium))
+                            } else {
+                                Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim) : MirrorTheme.inkRaised,
+                            in: displayMode == .sentinel
+                                ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                : AnyShape(Capsule())
+                        )
+                        .overlay {
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke((isSelected ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(isSelected ? 0.4 : 0.2), lineWidth: 1)
+                            }
+                        }
+                        .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -385,11 +421,18 @@ struct EntriesTabView: View {
 
     private var searchBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search entries...", text: $searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
+            Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : .secondary)
+            Group {
+                if displayMode == .sentinel {
+                    TextField("scan entries…", text: $searchText)
+                        .font(MirrorTheme.mono(14, weight: .medium))
+                } else {
+                    TextField("Search entries...", text: $searchText)
+                }
+            }
+            .textFieldStyle(.plain)
+            .autocorrectionDisabled()
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -435,14 +478,20 @@ struct EntriesTabView: View {
             }
 
             if snapshot.filteredEntries.isEmpty {
-                Text(emptyFilteredMessage)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 32)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(emptyFilteredMessage).font(MirrorTheme.mono(13, weight: .medium)).textCase(.uppercase)
+                    } else {
+                        Text(emptyFilteredMessage).font(.system(size: 14))
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+                .padding(.top, 32)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             } else {
                 EmptyView()
             }
@@ -470,15 +519,19 @@ struct EntriesTabView: View {
                         }
                 } header: {
                     HStack {
-                        Text(monthTitle(for: group.date))
-                            .font(.system(size: 13, weight: .black, design: .rounded))
-                            .tracking(1.5)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text(monthTitle(for: group.date)).font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                            } else {
+                                Text(monthTitle(for: group.date)).font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                            }
+                        }
                         Spacer()
                         Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .textCase(nil)
                     }
-                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
                     .textCase(.uppercase)
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -512,14 +565,24 @@ struct EntriesTabView: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "book.closed")
+            Image(systemName: displayMode == .sentinel ? "viewfinder" : "book.closed")
                 .font(.system(size: 48, weight: .light))
                 .foregroundStyle(.quaternary)
-            Text("No entries yet")
-                .font(.system(size: 20, weight: .semibold))
-            Text("Tap Write to start your first entry.")
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+            Group {
+                if displayMode == .sentinel {
+                    Text("NO SIGNALS YET").font(MirrorTheme.mono(18, weight: .semibold)).tracking(1)
+                } else {
+                    Text("No entries yet").font(.system(size: 20, weight: .semibold))
+                }
+            }
+            Group {
+                if displayMode == .sentinel {
+                    Text("OPEN TRANSMISSION TO LOG YOUR FIRST SIGNAL.").font(MirrorTheme.mono(12, weight: .medium))
+                } else {
+                    Text("Tap Write to start your first entry.").font(.system(size: 15))
+                }
+            }
+            .foregroundStyle(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

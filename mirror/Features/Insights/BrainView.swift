@@ -6,6 +6,7 @@ struct BrainView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
 
     @State private var subscriptionService = SubscriptionService.shared
@@ -54,7 +55,7 @@ struct BrainView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .sheet(item: $selectedNode) { node in
             BrainNodeDetailSheet(
                 node: node,
@@ -64,11 +65,13 @@ struct BrainView: View {
                     askPrefill = AskPrefill(question: question)
                 }
             )
+            .environment(\.appDisplayMode, displayMode)
         }
         .sheet(item: $askPrefill) { prefill in
             NavigationStack {
                 AskView(viewModel: viewModel, initialQuestion: prefill.question)
             }
+            .environment(\.appDisplayMode, displayMode)
         }
     }
 
@@ -88,11 +91,19 @@ struct BrainView: View {
 
     private func dimensionSegment(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
-                .frame(width: 44, height: 26)
-                .background(isSelected ? Color.white.opacity(0.22) : Color.clear, in: Capsule())
+            Group {
+                if displayMode == .sentinel {
+                    Text(title).font(MirrorTheme.mono(12, weight: .semibold))
+                } else {
+                    Text(title).font(.system(size: 13, weight: .semibold))
+                }
+            }
+            .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : .white) : .white.opacity(0.55))
+            .frame(width: 44, height: 26)
+            .background(
+                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.16) : Color.white.opacity(0.22)) : Color.clear,
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+            )
         }
         .buttonStyle(.plain)
     }
@@ -116,9 +127,14 @@ struct BrainView: View {
         case .idle, .loading:
             VStack(spacing: 14) {
                 ProgressView()
-                Text("Mapping your mind…")
-                    .font(.system(size: 14))
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("MAPPING SIGNAL NETWORK…").font(MirrorTheme.mono(12, weight: .medium))
+                    } else {
+                        Text("Mapping your mind…").font(.system(size: 14))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task(id: taskKey(size)) {
@@ -179,14 +195,19 @@ struct BrainView: View {
         VStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(MirrorTheme.violetDim)
+                    .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                     .frame(width: 72, height: 72)
                 Image(systemName: "brain.head.profile")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             }
-            Text("No recurring themes yet")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+            Group {
+                if displayMode == .sentinel {
+                    Text("NO RECURRING SIGNALS YET").font(MirrorTheme.mono(16, weight: .bold)).tracking(0.5)
+                } else {
+                    Text("No recurring themes yet").font(.system(size: 18, weight: .bold, design: .rounded))
+                }
+            }
             Text("Mirror builds this map from names and topics\nthat repeat across your entries.")
                 .font(.system(size: 14))
                 .foregroundStyle(MirrorTheme.textSecondary)
@@ -204,15 +225,22 @@ struct BrainView: View {
         VStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(MirrorTheme.violetDim)
+                    .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                     .frame(width: 72, height: 72)
                 Image(systemName: "lock.fill")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             }
-            Text("Entries not readable yet")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-            Text("Mirror couldn't decrypt some entries just now.\nReopen Brain View in a moment.")
+            Group {
+                if displayMode == .sentinel {
+                    Text("SIGNALS NOT READABLE YET").font(MirrorTheme.mono(16, weight: .bold)).tracking(0.5)
+                } else {
+                    Text("Entries not readable yet").font(.system(size: 18, weight: .bold, design: .rounded))
+                }
+            }
+            Text(displayMode == .sentinel
+                 ? "Couldn't decrypt some signals just now.\nReopen Constellation in a moment."
+                 : "Mirror couldn't decrypt some entries just now.\nReopen Brain View in a moment.")
                 .font(.system(size: 14))
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -239,27 +267,37 @@ struct BrainView: View {
                         .foregroundStyle(Color(red: 0.68, green: 0.56, blue: 1.0))
                 }
                 VStack(spacing: 8) {
-                    Text("Brain View")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("CONSTELLATION").font(MirrorTheme.mono(20, weight: .bold)).tracking(1)
+                        } else {
+                            Text("Brain View").font(.system(size: 22, weight: .bold, design: .rounded))
+                        }
+                    }
+                    .foregroundStyle(.white)
                     Text("A living map of your people, places,\nand themes is part of Deep.")
                         .font(.system(size: 14))
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
                 Button { showPaywall = true } label: {
-                    Text("Unlock with Deep")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(colors: [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
-                            in: Capsule()
-                        )
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("UNLOCK WITH DEEP").font(MirrorTheme.mono(14, weight: .bold))
+                        } else {
+                            Text("Unlock with Deep").font(.system(size: 16, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
+                    )
                 }
                 .buttonStyle(.plain)
-                .shadow(color: MirrorTheme.violet.opacity(0.4), radius: 16, x: 0, y: 6)
+                .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet).opacity(0.4), radius: 16, x: 0, y: 6)
             }
             .padding(28)
             .background(.ultraThinMaterial.opacity(0.9), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -290,11 +328,12 @@ struct BrainView: View {
                     path.addLine(to: p)
                     context.stroke(path, with: .color(.white.opacity(0.18)), lineWidth: 0.7)
                 }
+                let hubColor = displayMode == .sentinel ? MirrorTheme.ember : Color(red: 0.62, green: 0.5, blue: 1.0)
                 let hubRect = CGRect(x: center.x - 15, y: center.y - 15, width: 30, height: 30)
-                context.fill(Circle().path(in: hubRect), with: .color(Color(red: 0.62, green: 0.5, blue: 1.0)))
+                context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 for node in mock {
                     let p = CGPoint(x: node.x * w, y: node.y * h)
-                    let color = node.score.map { MirrorTheme.moodScoreColor($0) } ?? Color(red: 0.62, green: 0.5, blue: 1.0).opacity(0.75)
+                    let color = node.score.map { MirrorTheme.moodScoreColor($0) } ?? hubColor.opacity(0.75)
                     let rect = CGRect(x: p.x - node.r / 2, y: p.y - node.r / 2, width: node.r, height: node.r)
                     context.fill(Circle().path(in: rect), with: .color(color))
                 }
@@ -317,6 +356,7 @@ private struct BrainNodeDetailSheet: View {
     let node: BrainNode
     let entries: [Entry]
     let onAsk: (String) -> Void
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         NavigationStack {
@@ -357,20 +397,33 @@ private struct BrainNodeDetailSheet: View {
                     .foregroundStyle(nodeColor)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(node.label)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                Text(node.mentionCount == 1 ? "1 entry" : "\(node.mentionCount) entries")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(node.label.uppercased()).font(MirrorTheme.mono(19, weight: .bold)).tracking(0.5)
+                    } else {
+                        Text(node.label).font(.system(size: 22, weight: .bold, design: .rounded))
+                    }
+                }
+                Group {
+                    if displayMode == .sentinel {
+                        Text(node.mentionCount == 1 ? "1 SIGNAL" : "\(node.mentionCount) SIGNALS").font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(node.mentionCount == 1 ? "1 entry" : "\(node.mentionCount) entries").font(.system(size: 13, weight: .medium))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
             if let score = node.avgMoodScore {
                 Text(String(format: "%.1f/5", score))
-                    .font(.system(size: 12, weight: .bold))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(MirrorTheme.moodScoreColor(score), in: Capsule())
+                    .background(
+                        MirrorTheme.moodScoreColor(score),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                    )
             }
         }
     }
@@ -380,17 +433,25 @@ private struct BrainNodeDetailSheet: View {
             onAsk(String(localized: "What have I written about \(node.label)?"))
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                Image(systemName: displayMode == .sentinel ? "waveform.badge.magnifyingglass" : "bubble.left.and.text.bubble.right.fill")
                     .font(.system(size: 14, weight: .semibold))
-                Text("Ask Mirror about \(node.label)")
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("QUERY SIGNAL: \(node.label.uppercased())").font(MirrorTheme.mono(13, weight: .semibold))
+                    } else {
+                        Text("Ask Mirror about \(node.label)").font(.system(size: 15, weight: .semibold))
+                    }
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
-            .background(MirrorTheme.accentGradient, in: Capsule())
+            .background(
+                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
+            )
         }
         .buttonStyle(.plain)
     }
@@ -404,9 +465,16 @@ private struct BrainNodeDetailSheet: View {
                         .frame(width: 8, height: 8)
                         .padding(.top, 5)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.textSecondary)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted).uppercased())
+                                    .font(MirrorTheme.mono(11, weight: .semibold))
+                            } else {
+                                Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(MirrorTheme.textSecondary)
                         Text(String(entry.insightContext.prefix(120)))
                             .font(.system(size: 14))
                             .foregroundStyle(MirrorTheme.textPrimary)
@@ -415,7 +483,7 @@ private struct BrainNodeDetailSheet: View {
                     Spacer(minLength: 0)
                 }
                 .padding(14)
-                .inkSurface(cornerRadius: 16)
+                .themedCard(cornerRadius: 16)
             }
         }
     }

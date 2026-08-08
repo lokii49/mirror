@@ -74,6 +74,14 @@ struct ContentView: View {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
     }
 
+    /// Widgets run in a separate process with no SwiftUI environment of their
+    /// own, so appDisplayMode never reaches them directly — mirrors the
+    /// existing widget.tier pattern (SubscriptionService writes, widgets read)
+    /// to hand them just enough to pick their own Sentinel/Classic chrome.
+    private func syncWidgetDisplayMode() {
+        UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(displayMode.rawValue, forKey: "widget.displayMode")
+    }
+
     private var onboardingComplete: Bool {
         profiles.first?.onboardingComplete ?? false
     }
@@ -91,17 +99,25 @@ struct ContentView: View {
             }
         }
         .environment(\.appDisplayMode, displayMode)
-        .onAppear { applyColorScheme(appearanceMode) }
+        .onAppear {
+            applyColorScheme(appearanceMode)
+            syncWidgetDisplayMode()
+        }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
-        .onChange(of: displayMode) { _, _ in applyColorScheme(appearanceMode) }
+        .onChange(of: displayMode) { _, _ in
+            applyColorScheme(appearanceMode)
+            syncWidgetDisplayMode()
+        }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+                .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewSheet(mode: .whatsNew)
+                .environment(\.appDisplayMode, displayMode)
         }
         .onChange(of: sizeClass) { _, newClass in
             if newClass == .regular {
@@ -191,6 +207,7 @@ struct ContentView: View {
         }
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
     }
 
     // MARK: - iPad layout (NavigationSplitView)

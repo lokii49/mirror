@@ -105,13 +105,14 @@ struct InsightView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showPaywall) { PaywallView() }
-            .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView() }
-            .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showWriteFromPrompt) {
                 NavigationStack {
                     WriteView(autoFocus: true, initialText: WritingPrompts.all[promptIndex])
                 }
+                .environment(\.appDisplayMode, displayMode)
             }
         }
         .task {
@@ -836,33 +837,53 @@ struct NightlyPendingCard: View {
     let sublabel: LocalizedStringKey
     let icon: String
     var iconColor: Color = MirrorTheme.primary
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle()
-                    .fill(iconColor.opacity(0.10))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(iconColor)
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(MirrorTheme.ember.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.ember)
+                } else {
+                    Circle()
+                        .fill(iconColor.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(label)
-                    .font(.system(size: 15, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text(sublabel)
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(label).font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
+                    } else {
+                        Text(label).font(.system(size: 15, weight: .medium))
+                    }
+                }
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(sublabel).font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(sublabel).font(.system(size: 13))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(iconColor.opacity(0.35))
+                .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.35))
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -1017,21 +1038,25 @@ private struct ErrorCard: View {
 
 // Used by MonthlyReportView — must stay internal (not private).
 struct ModelNotInstalledCard: View {
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("AI model needed", systemImage: "brain.head.profile")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MirrorTheme.violetLight)
+            Label(isSentinel ? "AI MODEL NEEDED" : "AI model needed", systemImage: isSentinel ? "waveform.path.ecg" : "brain.head.profile")
+                .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 15, weight: .semibold))
+                .kerning(isSentinel ? 0.4 : 0)
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             ModelDownloadStateControl()
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: isSentinel ? 8 : 22)
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isSentinel ? 8 : 22, style: .continuous)
+                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.violet.opacity(0.18), lineWidth: 1)
         )
     }
 }
@@ -1041,6 +1066,8 @@ struct ModelNotInstalledCard: View {
 /// button wiring and copy for each ModelDownloadState case in one place.
 struct ModelDownloadStateControl: View {
     @State private var manager = ModelDownloadManager.shared
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -1058,53 +1085,55 @@ struct ModelDownloadStateControl: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                pillButton("Download Model") { manager.startDownload() }
+                pillButton(isSentinel ? "DOWNLOAD MODEL" : "Download Model") { manager.startDownload() }
             }
 
         case .downloading(let progress, let written, let expected):
             VStack(spacing: 10) {
                 ProgressView(value: progress)
-                    .tint(MirrorTheme.primary)
+                    .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
                     .frame(maxWidth: 220)
                 Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
-                    .font(.system(size: 11))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                Text(isSentinel ? "DOWNLOADING IN BACKGROUND — DO NOT FORCE-QUIT" : "Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
+                    .font(isSentinel ? MirrorTheme.mono(9.5, weight: .semibold) : .system(size: 11))
+                    .kerning(isSentinel ? 0.3 : 0)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .multilineTextAlignment(.center)
-                Button("Pause") { manager.pauseDownload() }
-                    .font(.system(size: 13, weight: .semibold))
+                Button(isSentinel ? "PAUSE" : "Pause") { manager.pauseDownload() }
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : Color.accentColor)
             }
 
         case .paused(let resumable):
             VStack(spacing: 10) {
-                Text(resumable ? "Paused" : "Paused (will restart from 0%)")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                pillButton("Resume") { manager.resumeDownload() }
+                Text(resumable ? (isSentinel ? "PAUSED" : "Paused") : (isSentinel ? "PAUSED (WILL RESTART FROM 0%)" : "Paused (will restart from 0%)"))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                pillButton(isSentinel ? "RESUME" : "Resume") { manager.resumeDownload() }
             }
 
         case .verifying:
             HStack(spacing: 8) {
-                ProgressView()
-                Text("Verifying…")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                ProgressView().tint(isSentinel ? MirrorTheme.ember : nil)
+                Text(isSentinel ? "VERIFYING…" : "Verifying…")
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
             }
 
         case .installed:
-            Label("Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 14, weight: .medium))
+            Label(isSentinel ? "MODEL ONLINE — REOPEN TO GENERATE" : "Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
+                .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 14, weight: .medium))
                 .foregroundStyle(.green)
 
         case .failed(let message):
             VStack(spacing: 10) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                pillButton("Try Again") { manager.startDownload() }
+                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.startDownload() }
             }
         }
     }
@@ -1112,14 +1141,15 @@ struct ModelDownloadStateControl: View {
     private func pillButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
+                .kerning(isSentinel ? 0.4 : 0)
+                .foregroundStyle(Color.white)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 14)
-                .background(MirrorTheme.accentGradient, in: Capsule())
+                .background(isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient), in: Capsule())
         }
         .buttonStyle(.plain)
-        .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 16, x: 0, y: 6)
     }
 }
 
