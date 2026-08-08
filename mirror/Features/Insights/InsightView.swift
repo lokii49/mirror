@@ -402,7 +402,7 @@ struct InsightView: View {
             AskView(viewModel: viewModel)
         } label: {
             ExplorationTile(
-                title: "Ask Mirror",
+                title: displayMode == .sentinel ? "Comms" : "Ask Mirror",
                 subtitle: entries.isEmpty
                     ? "Start writing to ask questions"
                     : (entries.count == 1 ? "Search 1 entry" : "Search \(entries.count) entries"),
@@ -421,7 +421,7 @@ struct InsightView: View {
             MoodTimelineView()
         } label: {
             ExplorationTile(
-                title: "Mood Timeline",
+                title: displayMode == .sentinel ? "Vitals" : "Mood Timeline",
                 subtitle: dominantMoodThisWeek.map { mood -> LocalizedStringKey in "Mostly \(MirrorTheme.localizedMoodName(for: mood)) this week" } ?? "See long arcs",
                 icon: "waveform.path.ecg",
                 color: .teal,
@@ -462,7 +462,7 @@ struct InsightView: View {
             MonthlyReportView(viewModel: viewModel)
         } label: {
             ExplorationTile(
-                title: "Monthly Report",
+                title: displayMode == .sentinel ? "Debrief" : "Monthly Report",
                 subtitle: contextLabel,
                 icon: "doc.text.magnifyingglass",
                 color: .indigo,
@@ -689,7 +689,7 @@ private struct BrainEntryCard: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text("Brain View")
+                    Text(isSentinel ? "Constellation" : "Brain View")
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     if !isDeep {
