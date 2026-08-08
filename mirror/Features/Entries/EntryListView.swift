@@ -8,6 +8,7 @@ struct EntriesTabView: View {
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -187,7 +188,7 @@ struct EntriesTabView: View {
                     entryList(snapshot)
                 }
             }
-            .navigationTitle("Entries")
+            .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

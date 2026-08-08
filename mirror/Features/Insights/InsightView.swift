@@ -4,6 +4,7 @@ import Charts
 
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
     let viewModel: InsightViewModel
@@ -41,10 +42,25 @@ struct InsightView: View {
         return hasher.finalize()
     }
 
+    private var sentinelStatusLine: some View {
+        HStack(spacing: 6) {
+            Circle().fill(Color.green).frame(width: 6, height: 6)
+            Text("M.I.R.R.O.R — ONLINE")
+                .font(MirrorTheme.mono(9.5, weight: .bold))
+                .foregroundStyle(Color.green)
+                .kerning(0.6)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    if displayMode == .sentinel {
+                        sentinelStatusLine
+                    }
+
                     nudgeSection
 
                     if !pastNudges.isEmpty {
@@ -64,7 +80,7 @@ struct InsightView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
-            .navigationTitle("Insights")
+            .navigationTitle(displayMode == .sentinel ? "Briefing" : "Insights")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
