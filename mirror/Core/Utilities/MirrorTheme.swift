@@ -257,6 +257,21 @@ extension View {
             }
     }
 
+    /// Mode-aware replacement for `.inkSurface` — Classic keeps the rounded
+    /// card; Sentinel switches to a rectangular hairline-bordered panel.
+    /// Reads displayMode itself so call sites don't thread it through.
+    func themedCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: false, classicBase: classicBase))
+    }
+
+    /// Same as `themedCard`, plus the viewfinder corner-bracket overlay in
+    /// Sentinel mode. Reserve for the one hero card per screen — that
+    /// restraint is what makes the brackets read as a signature instead of
+    /// visual noise.
+    func themedHeroCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: true, classicBase: classicBase))
+    }
+
     func mirrorCard(color: Color = MirrorTheme.violet) -> some View {
         self
             .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
@@ -272,5 +287,84 @@ extension View {
 
     func glowShadow(color: Color = MirrorTheme.violet, radius: CGFloat = 28) -> some View {
         self.shadow(color: color.opacity(0.25), radius: radius, x: 0, y: 8)
+    }
+}
+
+/// Which existing Classic card style a themedCard/themedHeroCard falls back
+/// to when displayMode is .classic — keeps Classic mode pixel-identical to
+/// before Sentinel mode existed, even for cards that used the stronger
+/// `.inkCard` elevation rather than the default `.inkSurface`.
+enum ThemedCardClassicBase {
+    case surface, elevated, hero
+}
+
+private struct ThemedCardModifier: ViewModifier {
+    @Environment(\.appDisplayMode) private var displayMode
+    let cornerRadius: CGFloat
+    let isHero: Bool
+    var classicBase: ThemedCardClassicBase = .surface
+
+    func body(content: Content) -> some View {
+        if displayMode == .sentinel {
+            content
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(MirrorTheme.ember.opacity(isHero ? 0.45 : 0.24), lineWidth: 1)
+                }
+                .overlay {
+                    if isHero { ViewfinderCorners() }
+                }
+        } else {
+            switch classicBase {
+            case .surface:  content.inkSurface(cornerRadius: cornerRadius)
+            case .elevated: content.inkCard(cornerRadius: cornerRadius)
+            case .hero:     content.inkHero(cornerRadius: cornerRadius)
+            }
+        }
+    }
+}
+
+/// The Sentinel-mode signature motif — four L-shaped corner brackets, like a
+/// camera viewfinder. Reserved for hero cards only (see themedHeroCard) so
+/// it reads as one deliberate accent per screen, not decoration everywhere.
+struct ViewfinderCorners: View {
+    var inset: CGFloat = -6
+    var length: CGFloat = 12
+    var color: Color = MirrorTheme.ember
+
+    private func bracket(_ corner: UnitPoint) -> some View {
+        Path { path in
+            switch corner {
+            case .topLeading:
+                path.move(to: CGPoint(x: 0, y: length))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: length, y: 0))
+            case .topTrailing:
+                path.move(to: CGPoint(x: -length, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: length))
+            case .bottomLeading:
+                path.move(to: CGPoint(x: 0, y: -length))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: length, y: 0))
+            default: // bottomTrailing
+                path.move(to: CGPoint(x: -length, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: -length))
+            }
+        }
+        .stroke(color, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            bracket(.topLeading).offset(x: inset, y: inset)
+            bracket(.topTrailing).offset(x: geo.size.width - inset, y: inset)
+            bracket(.bottomLeading).offset(x: inset, y: geo.size.height - inset)
+            bracket(.bottomTrailing).offset(x: geo.size.width - inset, y: geo.size.height - inset)
+        }
+        .opacity(0.85)
+        .allowsHitTesting(false)
     }
 }

@@ -312,7 +312,7 @@ struct MoodTimelineView: View {
             }
         }
         .padding(4)
-        .futureSurface(cornerRadius: 16)
+        .themedCard(cornerRadius: 16)
     }
 
     private var statsRow: some View {
@@ -361,7 +361,7 @@ struct MoodTimelineView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .futureSurface(cornerRadius: 18)
+        .themedCard(cornerRadius: 18)
     }
 
     @ViewBuilder
@@ -453,7 +453,7 @@ struct MoodTimelineView: View {
             }
         }
         .padding(18)
-        .futureSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     @ViewBuilder
@@ -521,7 +521,7 @@ struct MoodTimelineView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(28)
-        .futureSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     private var moodDistributionCard: some View {
@@ -555,7 +555,7 @@ struct MoodTimelineView: View {
             }
         }
         .padding(18)
-        .futureSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     // MARK: - Blurred preview (free users)
@@ -649,7 +649,7 @@ struct MoodTimelineView: View {
             }
         }
         .padding(4)
-        .futureSurface(cornerRadius: 16)
+        .themedCard(cornerRadius: 16)
     }
 
     private var previewStatsRow: some View {
@@ -723,7 +723,7 @@ struct MoodTimelineView: View {
             }
         }
         .padding(18)
-        .futureSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -798,6 +798,6 @@ private struct MoodChartCard: View {
             .frame(height: 160)
         }
         .padding(18)
-        .futureSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }

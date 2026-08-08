@@ -593,7 +593,7 @@ private struct PastNudgeCard: View {
             }
         }
         .padding(16)
-        .inkSurface(cornerRadius: 18)
+        .themedCard(cornerRadius: 18)
     }
 }
 
@@ -605,6 +605,9 @@ private struct SectionHeader<Trailing: View>: View {
     let icon: String
     let color: Color
     var trailing: Trailing
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     init(
         title: LocalizedStringKey,
@@ -624,13 +627,24 @@ private struct SectionHeader<Trailing: View>: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(color)
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : color)
                 .frame(width: 30, height: 30)
-                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(
+                    (isSentinel ? MirrorTheme.ember : color).opacity(0.16),
+                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 9, style: .continuous)
+                )
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(MirrorTheme.textPrimary)
+                if isSentinel {
+                    Text(title)
+                        .font(MirrorTheme.mono(13, weight: .bold))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .textCase(.uppercase)
+                        .kerning(0.5)
+                } else {
+                    Text(title)
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                }
                 Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
@@ -914,7 +928,7 @@ struct NeedsMoreEntriesCard: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedHeroCard(cornerRadius: 24)
     }
 }
 
@@ -1096,12 +1110,15 @@ private struct InsightTextView: View {
     var collapsedLineLimit: Int = 5
     var onToggleExpanded: (() -> Void)? = nil
 
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Label(label, systemImage: icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
@@ -1127,21 +1144,33 @@ private struct InsightTextView: View {
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {
                     HStack(spacing: 6) {
-                        Text(isExpanded ? "Show Less" : "Read Full Reflection")
+                        Text(isSentinel
+                             ? (isExpanded ? "SHOW LESS" : "FULL BRIEFING")
+                             : (isExpanded ? "Show Less" : "Read Full Reflection"))
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 11, weight: .bold))
                     }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .kerning(isSentinel ? 0.4 : 0)
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
-                    .background(MirrorTheme.violetDim, in: Capsule())
+                    .background(
+                        isSentinel ? AnyShapeStyle(MirrorTheme.ember.opacity(0.12)) : AnyShapeStyle(MirrorTheme.violetDim),
+                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if isSentinel {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(22)
-        .inkHero(cornerRadius: 26)
+        .themedHeroCard(cornerRadius: 26, classicBase: .hero)
         .overlay {
             RadialGradient(
                 colors: [accentColor.opacity(0.16), .clear],
