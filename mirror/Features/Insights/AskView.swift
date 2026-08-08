@@ -9,6 +9,7 @@ struct AskView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query(sort: \Insight.generatedAt, order: .reverse) private var allInsights: [Insight]
 
@@ -120,7 +121,7 @@ struct AskView: View {
             }
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle("Ask")
+        .navigationTitle(displayMode == .sentinel ? "Comms" : "Ask")
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .onAppear {
@@ -290,20 +291,63 @@ struct AskView: View {
         }
     }
 
+    /// Radial hub of up to 6 recent entries, mood-colored — a lightweight
+    /// stand-in for the full BrainGraphBuilder constellation (which needs
+    /// per-entry term extraction and isn't worth invoking just to decorate
+    /// this empty state). Real data, cheap computation.
+    private var pulseHub: some View {
+        let recent = Array(entries.prefix(6))
+        let angleStep = Double.pi * 2 / Double(max(recent.count, 1))
+        return ZStack {
+            Canvas { context, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                let radius = min(size.width, size.height) * 0.42
+                for (index, entry) in recent.enumerated() {
+                    let angle = angleStep * Double(index) - .pi / 2
+                    let point = CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+                    var path = Path()
+                    path.move(to: center)
+                    path.addLine(to: point)
+                    context.stroke(path, with: .color(MirrorTheme.violetLight.opacity(0.35)), lineWidth: 1)
+                    let dotColor = entry.mood.map { MirrorTheme.moodColor(for: $0) } ?? MirrorTheme.violetLight
+                    context.fill(Path(ellipseIn: CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)), with: .color(dotColor))
+                }
+            }
+            Circle().stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1.4).frame(width: 84, height: 84)
+            Circle().stroke(MirrorTheme.ember.opacity(0.28), lineWidth: 1).frame(width: 118, height: 118)
+            Circle()
+                .fill(MirrorTheme.ember)
+                .frame(width: 22, height: 22)
+                .shadow(color: MirrorTheme.ember.opacity(0.6), radius: 12)
+        }
+        .frame(width: 140, height: 140)
+    }
+
     private var askEmptyState: some View {
         VStack(spacing: 22) {
             Spacer()
-            ZStack {
-                Circle()
-                    .fill(MirrorTheme.accentGradient)
-                    .frame(width: 88, height: 88)
-                    .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
-                Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
+            if displayMode == .sentinel {
+                pulseHub
+                HStack(spacing: 6) {
+                    Circle().fill(MirrorTheme.ember).frame(width: 6, height: 6)
+                    Text("M.I.R.R.O.R — LISTENING")
+                        .font(MirrorTheme.mono(10, weight: .bold))
+                        .foregroundStyle(MirrorTheme.ember)
+                        .kerning(0.6)
+                }
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(MirrorTheme.accentGradient)
+                        .frame(width: 88, height: 88)
+                        .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
+                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
             }
             VStack(spacing: 8) {
-                Text("Ask your journal")
+                Text(displayMode == .sentinel ? "Ask anything" : "Ask your journal")
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                 Text("Answers come only from entries you've written.")
                     .font(.system(size: 15, weight: .medium))
@@ -361,15 +405,15 @@ struct AskView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(MirrorTheme.accentGradient)
+                    .fill(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient))
                     .frame(width: 36, height: 36)
-                Image(systemName: "sparkle")
+                Image(systemName: displayMode == .sentinel ? "dot.radiowaves.left.and.right" : "sparkle")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Ask MirrorNotes")
-                    .font(.system(size: 15, weight: .semibold))
+                Text(displayMode == .sentinel ? "M.I.R.R.O.R" : "Ask MirrorNotes")
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 15, weight: .semibold))
                 Text(subscriptionService.isDeep ? "Unlimited questions" : "\(remaining) of 15 questions this month")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(remaining <= 2 && !subscriptionService.isDeep ? .orange : .secondary)

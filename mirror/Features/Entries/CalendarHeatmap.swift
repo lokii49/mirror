@@ -31,6 +31,7 @@ struct CalendarHeatmap: View {
 
     @AppStorage("heatmapMode") private var mode: HeatmapMode = .month
     @State private var viewDate: Date = Date()
+    @Environment(\.appDisplayMode) private var displayMode
 
     // MARK: - Cache
 
@@ -153,6 +154,9 @@ struct CalendarHeatmap: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if displayMode == .sentinel {
+                rankXPRow
+            }
             summaryRow
 
             Group {
@@ -197,6 +201,36 @@ struct CalendarHeatmap: View {
             }
             cachedStreak = streak
         }
+    }
+
+    // MARK: - Sentinel rank / XP row
+
+    private var rankXPRow: some View {
+        let xp = GamificationEngine.xp(for: entries)
+        let level = GamificationEngine.level(forXP: xp)
+        let rank = SentinelRank(level: level)
+        let intoLevel = GamificationEngine.xpIntoLevel(xp)
+        let forNext = GamificationEngine.xpForNextLevel()
+        return HStack(spacing: 8) {
+            Text("\(rank.rawValue.uppercased()) · LV\(level)")
+                .font(MirrorTheme.mono(9.5, weight: .bold))
+                .foregroundStyle(MirrorTheme.ember)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(MirrorTheme.ember.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(MirrorTheme.inkBorder)
+                    Capsule()
+                        .fill(LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.ember], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * CGFloat(intoLevel) / CGFloat(forNext))
+                }
+            }
+            .frame(height: 5)
+            Text("\(intoLevel)/\(forNext)")
+                .font(MirrorTheme.mono(9.5))
+                .foregroundStyle(MirrorTheme.textTertiary)
+        }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Summary Row
@@ -258,7 +292,7 @@ struct CalendarHeatmap: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(color)
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
             Text(label)
                 .font(.system(size: 12))
