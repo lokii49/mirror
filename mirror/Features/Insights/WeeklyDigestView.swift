@@ -6,6 +6,9 @@ struct WeeklyDigestView: View {
     var isExpanded: Bool = true
     var onToggleExpanded: (() -> Void)? = nil
 
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     private var sections: [(title: String, body: String)] {
         parseDigest(insight.content)
     }
@@ -24,8 +27,8 @@ struct WeeklyDigestView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Label("Weekly Digest", systemImage: "calendar.badge.clock")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
@@ -64,13 +67,23 @@ struct WeeklyDigestView: View {
                     HStack(spacing: 6) {
                         ForEach(Array(sections.prefix(3)), id: \.title) { section in
                             Label(shortTitle(for: section.title), systemImage: iconName(for: section.title))
-                                .font(.system(size: 10, weight: .bold))
+                                .font(isSentinel ? MirrorTheme.mono(9.5, weight: .bold) : .system(size: 10, weight: .bold))
+                                .textCase(isSentinel ? .uppercase : nil)
                                 .foregroundStyle(color(for: section.title))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(color(for: section.title).opacity(0.12), in: Capsule())
+                                .background(
+                                    color(for: section.title).opacity(0.12),
+                                    in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                                )
+                                .overlay {
+                                    if isSentinel {
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .stroke(color(for: section.title).opacity(0.3), lineWidth: 1)
+                                    }
+                                }
                         }
                     }
 
@@ -86,22 +99,34 @@ struct WeeklyDigestView: View {
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {
                     HStack(spacing: 6) {
-                        Text(isExpanded ? "Show Less" : "Read Full Digest")
+                        Text(isSentinel
+                             ? (isExpanded ? "SHOW LESS" : "FULL DIGEST")
+                             : (isExpanded ? "Show Less" : "Read Full Digest"))
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 11, weight: .bold))
                     }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .kerning(isSentinel ? 0.4 : 0)
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .frame(maxWidth: .infinity)
                     .frame(height: 38)
-                    .background(MirrorTheme.violetDim, in: Capsule())
+                    .background(
+                        isSentinel ? AnyShapeStyle(MirrorTheme.ember.opacity(0.12)) : AnyShapeStyle(MirrorTheme.violetDim),
+                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if isSentinel {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 16)
             }
         }
         .padding(22)
-        .inkCard(cornerRadius: 26)
+        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
@@ -186,6 +211,9 @@ struct DigestSectionView: View {
     let title: String
     let content: String
 
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     // `title` is normalized to the canonical section id before display.
     private var displayName: LocalizedStringKey {
         switch title {
@@ -228,13 +256,22 @@ struct DigestSectionView: View {
                 Image(systemName: sectionIcon)
                     .font(.system(size: 10, weight: .bold))
                 Text(displayName)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 10, weight: .bold))
+                    .textCase(isSentinel ? .uppercase : nil)
                     .tracking(0.6)
             }
             .foregroundStyle(sectionColor)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(sectionColor.opacity(0.12), in: Capsule())
+            .background(
+                sectionColor.opacity(0.12),
+                in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if isSentinel {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(sectionColor.opacity(0.3), lineWidth: 1)
+                }
+            }
 
             Text(content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
