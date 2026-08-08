@@ -49,12 +49,21 @@ struct ContentView: View {
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
 
+    /// Sentinel is a HUD — it reads as "futuristic" only against a dark
+    /// canvas, the same way a cockpit display or mission-control screen
+    /// always renders dark regardless of the room's lighting. Forces dark
+    /// whenever Sentinel is active, independent of the user's Appearance
+    /// setting (which still governs Classic mode as before).
     private func applyColorScheme(_ mode: String) {
         let style: UIUserInterfaceStyle
-        switch mode {
-        case "light": style = .light
-        case "dark":  style = .dark
-        default:      style = .unspecified
+        if displayMode == .sentinel {
+            style = .dark
+        } else {
+            switch mode {
+            case "light": style = .light
+            case "dark":  style = .dark
+            default:      style = .unspecified
+            }
         }
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
@@ -84,6 +93,7 @@ struct ContentView: View {
         .environment(\.appDisplayMode, displayMode)
         .onAppear { applyColorScheme(appearanceMode) }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
+        .onChange(of: displayMode) { _, _ in applyColorScheme(appearanceMode) }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }

@@ -20,7 +20,15 @@ extension WriteView {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color(.secondarySystemFill), in: Capsule())
+                    .background(
+                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                        }
+                    }
                 }
 
                 if showTagInput {
@@ -77,12 +85,20 @@ extension WriteView {
                             Image(systemName: "plus")
                                 .font(.system(size: 10, weight: .semibold))
                             Text("tag")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
                         }
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemFill), in: Capsule())
+                        .background(
+                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                        )
+                        .overlay {
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                 }

@@ -72,6 +72,7 @@ struct WriteView: View {
     @State var failedTranscriptionIndexes: Set<Int> = []
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    @State var recPulse = false
     @State var pendingTextCommand: NoteTextCommand?
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
@@ -123,7 +124,12 @@ struct WriteView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            MirrorTheme.inkMid.ignoresSafeArea()
+            if displayMode == .sentinel {
+                MirrorTheme.inkBase.ignoresSafeArea()
+                SentinelGridBackground().ignoresSafeArea()
+            } else {
+                MirrorTheme.inkMid.ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
                 if !focusMode { dateHeader }
@@ -234,6 +240,14 @@ struct WriteView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay {
+            if displayMode == .sentinel {
+                ViewfinderCorners(inset: 4, length: 18)
+                    .padding(.top, 50)
+                    .padding(.bottom, 96)
+                    .padding(.horizontal, 4)
+            }
+        }
         .navigationBarBackButtonHidden(true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -285,6 +299,11 @@ struct WriteView: View {
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true
+                }
+            }
+            if displayMode == .sentinel {
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    recPulse = true
                 }
             }
         }
