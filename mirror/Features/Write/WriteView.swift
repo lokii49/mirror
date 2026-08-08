@@ -73,6 +73,7 @@ struct WriteView: View {
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
     @State var recPulse = false
+    @State var showSignalPanel = false
     @State var pendingTextCommand: NoteTextCommand?
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
@@ -246,6 +247,18 @@ struct WriteView: View {
                     .padding(.top, 50)
                     .padding(.bottom, 96)
                     .padding(.horizontal, 4)
+            }
+        }
+        .overlay {
+            if showSignalPanel {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
+                    .overlay(alignment: .topTrailing) {
+                        signalPanel
+                            .padding(.top, 96)
+                            .padding(.trailing, 18)
+                    }
             }
         }
         .navigationBarBackButtonHidden(true)

@@ -81,37 +81,59 @@ extension WriteView {
         .padding(.bottom, 4)
     }
 
+    @ViewBuilder
     var moodMenu: some View {
-        Menu {
+        if displayMode == .sentinel {
             Button {
-                detectMoodWithMirror()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(.easeOut(duration: 0.15)) { showSignalPanel.toggle() }
             } label: {
-                Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+                signalLabel
             }
-            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
-
-            Divider()
-
-            ForEach(moodLabels, id: \.self) { mood in
+            .buttonStyle(.plain)
+            .accessibilityLabel("Mood")
+            .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
+        } else {
+            Menu {
                 Button {
-                    viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
+                    detectMoodWithMirror()
                 } label: {
-                    Label {
-                        Text(MirrorTheme.localizedMoodName(for: mood))
-                    } icon: {
-                        Image(uiImage: moodMenuDotImage(for: mood, isSelected: viewModel.selectedMood == mood))
-                            .renderingMode(.original)
+                    Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+                }
+                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+
+                Divider()
+
+                ForEach(moodLabels, id: \.self) { mood in
+                    Button {
+                        viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
+                    } label: {
+                        Label {
+                            Text(MirrorTheme.localizedMoodName(for: mood))
+                        } icon: {
+                            Image(uiImage: moodMenuDotImage(for: mood, isSelected: viewModel.selectedMood == mood))
+                                .renderingMode(.original)
+                        }
                     }
                 }
-            }
 
-            if viewModel.selectedMood != nil {
-                Divider()
-                Button("Clear Mood", role: .destructive) {
-                    viewModel.selectedMood = nil
+                if viewModel.selectedMood != nil {
+                    Divider()
+                    Button("Clear Mood", role: .destructive) {
+                        viewModel.selectedMood = nil
+                    }
                 }
+            } label: {
+                signalLabel
             }
-        } label: {
+            .buttonStyle(.plain)
+            .accessibilityLabel("Mood")
+            .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
+        }
+    }
+
+    var signalLabel: some View {
+        Group {
             HStack(spacing: 6) {
                 if isDetectingMood {
                     ProgressView()
@@ -167,9 +189,94 @@ extension WriteView {
                 }
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Mood")
-        .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
+    }
+
+    /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
+    /// recolored or re-fonted (it's OS chrome), so matching the HUD look
+    /// requires a custom dropdown instead. Dismissed by WriteView's
+    /// full-screen tap-catcher overlay, or by picking an option here.
+    var signalPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                detectMoodWithMirror()
+                withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(isDetectingMood ? "ANALYZING…" : "AUTO-DETECT")
+                        .font(MirrorTheme.mono(11.5, weight: .bold))
+                        .kerning(0.4)
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(MirrorTheme.ember)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
+
+            Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
+                ForEach(moodLabels, id: \.self) { mood in
+                    let isSelected = viewModel.selectedMood == mood
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.selectedMood = isSelected ? nil : mood
+                        withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
+                    } label: {
+                        HStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(MirrorTheme.moodColor(for: mood))
+                                .frame(width: 7, height: 7)
+                            Text(MirrorTheme.localizedMoodName(for: mood).uppercased())
+                                .font(MirrorTheme.mono(10, weight: isSelected ? .bold : .medium))
+                                .kerning(0.2)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.12) : Color.clear)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+
+            if viewModel.selectedMood != nil {
+                Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
+                Button {
+                    viewModel.selectedMood = nil
+                    withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("CLEAR SIGNAL")
+                            .font(MirrorTheme.mono(11, weight: .semibold))
+                            .kerning(0.4)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(width: 250)
+        .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 8)
+        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
     @ToolbarContentBuilder
