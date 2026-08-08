@@ -165,18 +165,18 @@ struct ContentView: View {
     private var phoneLayout: some View {
         TabView(selection: $selectedTab) {
             EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
-                .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: "book.closed") }
+                .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
                 .tag(0)
 
             WriteTabView(onSave: {
                 selectedTab = 0
                 entriesNavResetID = UUID()
             })
-            .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: "square.and.pencil") }
+            .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: displayMode == .sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil") }
             .tag(1)
 
             InsightView(viewModel: insightViewModel)
-                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: "sparkles") }
+                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(2)
         }
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)

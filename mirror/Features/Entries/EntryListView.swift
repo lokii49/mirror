@@ -171,7 +171,7 @@ struct EntriesTabView: View {
             Button {
                 withAnimation { showSearch.toggle() }
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
                     .font(.system(size: 17, weight: .semibold))
             }
         }
@@ -358,7 +358,9 @@ struct EntriesTabView: View {
                                 .fill(MirrorTheme.moodColor(for: mood))
                                 .frame(width: 7, height: 7)
                             Text(MirrorTheme.localizedMoodName(for: mood))
-                                .font(.system(size: 12, weight: .medium))
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
+                                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                                .kerning(displayMode == .sentinel ? 0.3 : 0)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -366,7 +368,9 @@ struct EntriesTabView: View {
                             isSelected
                                 ? MirrorTheme.moodColor(for: mood).opacity(0.20)
                                 : MirrorTheme.inkRaised,
-                            in: Capsule()
+                            in: displayMode == .sentinel
+                                ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                : AnyShape(Capsule())
                         )
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
@@ -395,7 +399,7 @@ struct EntriesTabView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .futureSurface(cornerRadius: 14)
+        .themedCard(cornerRadius: 14)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(MirrorTheme.bgBase)

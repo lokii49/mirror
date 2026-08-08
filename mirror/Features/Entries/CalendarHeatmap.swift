@@ -420,18 +420,24 @@ struct CalendarHeatmap: View {
                 .foregroundStyle(isFuture ? .quaternary : .tertiary)
                 .opacity(isWeekend ? 0.55 : 1)
 
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay))
+            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 8, style: .continuous)
+                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay)))
+                .overlay {
+                    if displayMode == .sentinel, !isFuture, count > 0 {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .stroke(color(for: startOfDay), lineWidth: 1.5)
+                    }
+                }
                 .frame(height: 46)
                 .overlay {
                     VStack(spacing: 2) {
                         Text(date.formatted(.dateTime.day()))
-                            .font(.system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: isToday ? .bold : .semibold) : .system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
                             .foregroundStyle(isFuture ? .quaternary : .primary)
                         if count > 0 {
                             Text("\(count)")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 10, weight: .medium))
+                                .foregroundStyle(displayMode == .sentinel ? color(for: startOfDay) : .white.opacity(0.8))
                         }
                     }
                 }
