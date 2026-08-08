@@ -109,7 +109,7 @@ struct MonthlyReportView: View {
             .disabled(!canGoForward)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 26)
+        .themedCard(cornerRadius: 26)
     }
 
     @ViewBuilder
@@ -174,7 +174,7 @@ struct MonthlyReportView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(28)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     private var reportLoadingCard: some View {
@@ -209,7 +209,7 @@ struct MonthlyReportView: View {
             }
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     private func notEnoughEntriesCard(remaining: Int, total: Int) -> some View {
@@ -239,7 +239,7 @@ struct MonthlyReportView: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
@@ -270,7 +270,7 @@ struct MonthlyReportView: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private var deepLockedCard: some View {
@@ -303,7 +303,7 @@ struct MonthlyReportView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private var nightlyPendingCard: some View {
@@ -334,7 +334,7 @@ struct MonthlyReportView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -379,7 +379,7 @@ private struct MonthlyStatsStrip: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .inkSurface(cornerRadius: 18)
+        .themedCard(cornerRadius: 18)
     }
 
     private func statCell(value: String, label: LocalizedStringKey) -> some View {
@@ -399,6 +399,8 @@ private struct MonthlyStatsStrip: View {
 
 private struct MonthlyReportCard: View {
     let insight: Insight
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private let headerDisplayNames: [String: LocalizedStringKey] = [
         "YOUR MONTH IN ONE IMAGE": "Your Month In One Image",
@@ -437,9 +439,9 @@ private struct MonthlyReportCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                Label(isSentinel ? "MISSION DEBRIEF" : "Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
@@ -466,11 +468,13 @@ private struct MonthlyReportCard: View {
             }
         }
         .padding(22)
-        .inkCard(cornerRadius: 26)
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
-        )
+        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .overlay {
+            if !isSentinel {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
+            }
+        }
     }
 
     private func reportSection(_ section: Section) -> some View {

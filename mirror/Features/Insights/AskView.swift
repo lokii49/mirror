@@ -578,6 +578,10 @@ struct AskView: View {
 
 private struct AskBubblePair: View {
     let insight: Insight
+    @Environment(\.appDisplayMode) private var displayMode
+
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -586,24 +590,33 @@ private struct AskBubblePair: View {
                     Spacer(minLength: 48)
                     Text(question)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(MirrorTheme.violetLight)
+                        .foregroundStyle(isSentinel ? MirrorTheme.textPrimary : MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(MirrorTheme.violetDim, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .background(
+                            isSentinel ? MirrorTheme.inkMid : MirrorTheme.violetDim,
+                            in: RoundedRectangle(cornerRadius: isSentinel ? 8 : 20, style: .continuous)
+                        )
                         .overlay {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(MirrorTheme.violet.opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: isSentinel ? 8 : 20, style: .continuous)
+                                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.4) : MirrorTheme.violet.opacity(0.3), lineWidth: 1)
                         }
                 }
             }
 
             HStack(alignment: .top, spacing: 0) {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .fill(accent.opacity(isSentinel ? 0.6 : 0.4))
                     .frame(width: 2)
                     .padding(.vertical, 3)
 
                 VStack(alignment: .leading, spacing: 6) {
+                    if isSentinel {
+                        Text("◆ SIGNAL")
+                            .font(MirrorTheme.mono(9, weight: .bold))
+                            .foregroundStyle(MirrorTheme.ember)
+                            .kerning(0.4)
+                    }
                     Text(insight.content)
                         .font(.system(size: 15, weight: .regular, design: .serif))
                         .lineSpacing(6)
