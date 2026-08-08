@@ -4,6 +4,7 @@ import SwiftData
 struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appDisplayMode) private var displayMode
     @Query private var insights: [Insight]
     @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
 
@@ -44,9 +45,16 @@ struct EntryDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Date header
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.textPrimary)
+                        if displayMode == .sentinel {
+                            Text(entry.createdAt.formatted(.dateTime.weekday(.wide).day().month(.wide).year()).uppercased())
+                                .font(MirrorTheme.mono(15, weight: .bold))
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                                .kerning(0.4)
+                        } else {
+                            Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                        }
 
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
@@ -55,12 +63,21 @@ struct EntryDetailView: View {
                             if let label = moodLabel {
                                 Text("·")
                                     .foregroundStyle(MirrorTheme.textTertiary)
-                                Text(label)
-                                    .font(.system(size: 13, weight: .medium))
+                                Text(displayMode == .sentinel ? label.uppercased() : label)
+                                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 13, weight: .medium))
+                                    .kerning(displayMode == .sentinel ? 0.2 : 0)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(MirrorTheme.inkRaised, in: Capsule())
+                                    .background(
+                                        MirrorTheme.inkRaised,
+                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                                    )
+                                    .overlay {
+                                        if displayMode == .sentinel {
+                                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                                        }
+                                    }
                             }
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
@@ -70,7 +87,7 @@ struct EntryDetailView: View {
                         }
                     }
 
-                    Divider().overlay(MirrorTheme.inkBorder)
+                    Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.25) : MirrorTheme.inkBorder)
 
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
@@ -112,25 +129,33 @@ struct EntryDetailView: View {
                             HStack(spacing: 6) {
                                 ForEach(entry.tags, id: \.self) { tag in
                                     Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 12, weight: .medium))
                                         .foregroundStyle(MirrorTheme.textSecondary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(MirrorTheme.inkRaised, in: Capsule())
+                                        .background(
+                                            MirrorTheme.inkRaised,
+                                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                                        )
+                                        .overlay {
+                                            if displayMode == .sentinel {
+                                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                                            }
+                                        }
                                 }
                             }
                         }
                     }
                 }
                 .padding(22)
-                .futureSurface(cornerRadius: 22)
+                .themedHeroCard(cornerRadius: 22)
 
                 // "mirror noticed" card — only if a past insight references this entry
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("mirror noticed", systemImage: "sparkles")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(MirrorTheme.violetLight)
+                        Label(displayMode == .sentinel ? "SIGNAL DETECTED" : "mirror noticed", systemImage: displayMode == .sentinel ? "waveform" : "sparkles")
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                             .tracking(0.8)
                         Text(insight.content)
                             .font(.system(size: 15, weight: .regular, design: .serif))
@@ -139,8 +164,8 @@ struct EntryDetailView: View {
                             .italic()
                     }
                     .padding(18)
-                    .inkCard(cornerRadius: 18)
-                    .glowShadow(color: MirrorTheme.violet, radius: 20)
+                    .themedCard(cornerRadius: 18, classicBase: .elevated)
+                    .glowShadow(color: displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet, radius: 20)
                 }
 
                 // On This Day
@@ -167,8 +192,9 @@ struct EntryDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
-                    Button("Edit") { showEditor = true }
-                        .font(.system(size: 16, weight: .medium))
+                    Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                         .disabled(entry.textDecryptionFailed)
 
                     Menu {
@@ -180,6 +206,7 @@ struct EntryDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                     }
                 }
             }
@@ -256,6 +283,7 @@ struct EntryDetailView: View {
 private struct OnThisDaySection: View {
     let entries: [Entry]
     let referenceDate: Date
+    @Environment(\.appDisplayMode) private var displayMode
 
     private func writingFontDesign(for entry: Entry) -> Font.Design {
         WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
@@ -267,8 +295,8 @@ private struct OnThisDaySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("On this day", systemImage: "calendar.badge.clock")
-                .font(.system(size: 12, weight: .bold))
+            Label(displayMode == .sentinel ? "ON THIS DAY" : "On this day", systemImage: "calendar.badge.clock")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .bold))
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
@@ -278,7 +306,7 @@ private struct OnThisDaySection: View {
                     HStack {
                         Text(past.createdAt, format: .dateTime.year())
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(MirrorTheme.violetLight)
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                         if let mood = past.mood {
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
@@ -310,7 +338,7 @@ private struct OnThisDaySection: View {
                     }
                 }
                 .padding(14)
-                .inkSurface(cornerRadius: 16)
+                .themedCard(cornerRadius: 16)
             }
         }
     }
