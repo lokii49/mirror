@@ -10,16 +10,32 @@ extension WriteView {
                 showDatePicker = true
             } label: {
                 HStack(spacing: 5) {
-                    Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    if displayMode == .sentinel {
+                        Text(noteDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())
+                            .font(MirrorTheme.mono(11.5, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .kerning(0.4)
+                    } else {
+                        Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.quaternary)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color(.tertiarySystemFill), in: Capsule())
+                .background(
+                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                )
+                .overlay {
+                    if displayMode == .sentinel {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                    }
+                }
             }
             .buttonStyle(.plain)
 
@@ -45,7 +61,10 @@ extension WriteView {
 
             if displayMode == .sentinel {
                 HStack(spacing: 5) {
-                    Circle().fill(MirrorTheme.ember).frame(width: 6, height: 6)
+                    Circle()
+                        .fill(MirrorTheme.ember)
+                        .frame(width: 6, height: 6)
+                        .opacity(recPulse ? 1 : 0.35)
                     Text("REC")
                         .font(MirrorTheme.mono(9.5, weight: .bold))
                         .foregroundStyle(MirrorTheme.ember)
@@ -103,17 +122,28 @@ extension WriteView {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: selectedMood))
                             .frame(width: 8, height: 8)
+                    } else if displayMode == .sentinel {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.ember)
                     }
                     Group {
                         if let selectedMood = viewModel.selectedMood {
-                            Text(MirrorTheme.localizedMoodName(for: selectedMood))
+                            Text(displayMode == .sentinel
+                                 ? MirrorTheme.localizedMoodName(for: selectedMood).uppercased()
+                                 : MirrorTheme.localizedMoodName(for: selectedMood))
                         } else {
-                            Text("Mood")
+                            Text(displayMode == .sentinel ? "SIGNAL" : "Mood")
                         }
                     }
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .semibold) : .system(size: 13, weight: .semibold))
+                        .kerning(displayMode == .sentinel ? 0.4 : 0)
                         .lineLimit(1)
-                        .foregroundStyle(viewModel.selectedMood == nil ? .secondary : MirrorTheme.moodColor(for: viewModel.selectedMood ?? ""))
+                        .foregroundStyle(
+                            viewModel.selectedMood == nil
+                                ? (displayMode == .sentinel ? MirrorTheme.ember : Color.secondary)
+                                : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "")
+                        )
                 }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
@@ -122,11 +152,20 @@ extension WriteView {
             .padding(.horizontal, 11)
             .padding(.vertical, 7)
             .background(
-                viewModel.selectedMood == nil && !isDetectingMood
-                    ? Color(.secondarySystemFill)
-                    : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12),
-                in: Capsule()
+                displayMode == .sentinel
+                    ? AnyShapeStyle(viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14))
+                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? Color(.secondarySystemFill) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
             )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(
+                            viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
+                            lineWidth: 1
+                        )
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Mood")
@@ -226,7 +265,7 @@ extension WriteView {
                 }
                 .frame(height: 2)
             }
-            Divider().overlay(MirrorTheme.inkBorder)
+            Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.inkBorder)
             HStack(spacing: 0) {
                 // Keyboard dismiss
                 Button {
@@ -373,6 +412,6 @@ extension WriteView {
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
             .padding(.horizontal, 8)
         }
-        .background(.bar)
+        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))
     }
 }

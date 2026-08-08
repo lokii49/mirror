@@ -328,6 +328,36 @@ private struct ThemedCardModifier: ViewModifier {
 /// The Sentinel-mode signature motif — four L-shaped corner brackets, like a
 /// camera viewfinder. Reserved for hero cards only (see themedHeroCard) so
 /// it reads as one deliberate accent per screen, not decoration everywhere.
+/// Faint HUD grid, drawn once per screen as an ignoresSafeArea backdrop.
+/// Never load-bearing for legibility — kept at 5% opacity so it reads as
+/// texture, not noise, behind actual content.
+struct SentinelGridBackground: View {
+    var spacing: CGFloat = 28
+    var lineColor: Color = MirrorTheme.violetLight
+
+    var body: some View {
+        Canvas { context, size in
+            var x: CGFloat = 0
+            while x < size.width {
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(path, with: .color(lineColor.opacity(0.05)), lineWidth: 1)
+                x += spacing
+            }
+            var y: CGFloat = 0
+            while y < size.height {
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(path, with: .color(lineColor.opacity(0.05)), lineWidth: 1)
+                y += spacing
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
 struct ViewfinderCorners: View {
     var inset: CGFloat = -6
     var length: CGFloat = 12
