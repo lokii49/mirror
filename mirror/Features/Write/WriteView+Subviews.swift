@@ -181,7 +181,7 @@ extension WriteView {
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(pendingDelete ? Color.accentColor : .secondary)
+                        .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete entry")
@@ -194,7 +194,7 @@ extension WriteView {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 22, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                 }
                 .buttonStyle(.plain)
                 .disabled(isTranscribingVoiceNotes)
@@ -207,7 +207,11 @@ extension WriteView {
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(pendingDelete ? AnyShapeStyle(Color.accentColor) : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)))
+                        .foregroundStyle(
+                            pendingDelete
+                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
+                                : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                        )
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasDraftContent && !pendingDelete)
@@ -221,7 +225,11 @@ extension WriteView {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 22, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(hasDraftContent ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(
+                            hasDraftContent
+                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
+                                : AnyShapeStyle(Color.secondary)
+                        )
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasDraftContent || isTranscribingVoiceNotes)
