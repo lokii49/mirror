@@ -273,15 +273,30 @@ struct CalendarHeatmap: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(mode.localizedName)
-                    .font(.system(size: 12, weight: .semibold))
+                Group {
+                    if displayMode == .sentinel {
+                        Text(mode.rawValue.uppercased())
+                    } else {
+                        Text(mode.localizedName)
+                    }
+                }
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                .kerning(displayMode == .sentinel ? 0.3 : 0)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(Color(.tertiarySystemFill), in: Capsule())
+            .background(
+                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                }
+            }
         }
         .buttonStyle(.plain)
     }
@@ -295,7 +310,9 @@ struct CalendarHeatmap: View {
                 .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
             Text(label)
-                .font(.system(size: 12))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .semibold) : .system(size: 12))
+                .kerning(displayMode == .sentinel ? 0.2 : 0)
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(.secondary)
         }
     }
