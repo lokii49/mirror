@@ -318,13 +318,21 @@ struct InsightView: View {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.orange)
-                        Text("\(currentStreak)d")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                        Text(displayMode == .sentinel ? "\(currentStreak)D" : "\(currentStreak)d")
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .bold) : .system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(Color.orange.opacity(0.12), in: Capsule())
+                    .background(
+                        Color.orange.opacity(0.12),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                        }
+                    }
                 }
             }
             nudgeStatusContent
@@ -663,6 +671,8 @@ private struct SectionHeader<Trailing: View>: View {
 /// rather than blending into the flat light tiles around it.
 private struct BrainEntryCard: View {
     let isDeep: Bool
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
     private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
@@ -683,12 +693,15 @@ private struct BrainEntryCard: View {
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     if !isDeep {
-                        Text("Deep")
-                            .font(.system(size: 9, weight: .bold))
+                        Text(isSentinel ? "DEEP" : "Deep")
+                            .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Self.hubColor, in: Capsule())
+                            .background(
+                                isSentinel ? MirrorTheme.ember : Self.hubColor,
+                                in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                            )
                     }
                 }
                 Text("A living map of your people & themes")
@@ -723,11 +736,11 @@ private struct BrainEntryCard: View {
                     context.fill(Circle().path(in: hubRect), with: .color(Self.hubColor))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: isSentinel ? 10 : 22, style: .continuous))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Self.hubColor.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isSentinel ? 10 : 22, style: .continuous)
+                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.3) : Self.hubColor.opacity(0.35), lineWidth: 1)
         )
     }
 }
@@ -739,6 +752,9 @@ private struct ExplorationTile: View {
     let color: Color
     let badge: LocalizedStringKey?
     var isProminent: Bool = false
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     var body: some View {
         Group {
@@ -768,11 +784,13 @@ private struct ExplorationTile: View {
             }
         }
         .padding(16)
-        .inkSurface(cornerRadius: 22)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(color.opacity(0.30), lineWidth: 1)
-        )
+        .themedCard(cornerRadius: 22)
+        .overlay {
+            if !isSentinel {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(color.opacity(0.30), lineWidth: 1)
+            }
+        }
     }
 
     private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
@@ -780,7 +798,10 @@ private struct ExplorationTile: View {
             .font(.system(size: iconSize, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: size, height: size)
-            .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(
+                color.opacity(0.18),
+                in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 12, style: .continuous)
+            )
     }
 
     private func textBlock(titleSize: CGFloat, subtitleSize: CGFloat) -> some View {
@@ -793,11 +814,12 @@ private struct ExplorationTile: View {
                     .minimumScaleFactor(0.82)
                 if let badge {
                     Text(badge)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
+                        .textCase(isSentinel ? .uppercase : nil)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(color, in: Capsule())
+                        .background(color, in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule()))
                 }
             }
             Text(subtitle)
@@ -1196,6 +1218,8 @@ private struct InsightTextView: View {
 
 private struct MoodWeekChartView: View {
     let entries: [Entry]
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private struct MoodPoint: Identifiable {
         let id: UUID
@@ -1225,7 +1249,9 @@ private struct MoodWeekChartView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                    .kerning(isSentinel ? 0.3 : 0)
+                    .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
                 if let mood = dominantMood {
@@ -1233,13 +1259,25 @@ private struct MoodWeekChartView: View {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: mood))
                             .frame(width: 7, height: 7)
-                        Text("Mostly \(MirrorTheme.localizedMoodName(for: mood))")
-                            .font(.system(size: 11, weight: .medium))
+                        Text(isSentinel
+                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
+                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))")
+                            .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
+                            .kerning(isSentinel ? 0.2 : 0)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
-                    .background(MirrorTheme.moodColor(for: mood).opacity(0.1), in: Capsule())
+                    .background(
+                        MirrorTheme.moodColor(for: mood).opacity(0.1),
+                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if isSentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
+                        }
+                    }
                 }
             }
 
@@ -1271,7 +1309,7 @@ private struct MoodWeekChartView: View {
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
                             Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
-                                .font(.system(size: 10))
+                                .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }
@@ -1280,17 +1318,13 @@ private struct MoodWeekChartView: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { _ in
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                        .font(.system(size: 10))
+                        .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                 }
             }
             .frame(height: 130)
         }
         .padding(18)
-        .inkSurface(cornerRadius: 22)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-        )
+        .themedCard(cornerRadius: 22)
     }
 }
 
