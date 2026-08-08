@@ -86,16 +86,22 @@ struct AskView: View {
                         ToolbarItem(placement: .topBarTrailing) {
                             let isLow = remaining <= 3
                             let isCritical = remaining <= 1
-                            Text("\(remaining) left")
-                                .font(.system(size: 12, weight: .semibold))
+                            Text(displayMode == .sentinel ? "\(remaining) LEFT" : "\(remaining) left")
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
                                 .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
                                 .monospacedDigit()
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
                                 .background(
                                     (isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.10),
-                                    in: Capsule()
+                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
                                 )
+                                .overlay {
+                                    if displayMode == .sentinel {
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .stroke((isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.3), lineWidth: 1)
+                                    }
+                                }
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -356,8 +362,9 @@ struct AskView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Try asking")
-                    .font(.system(size: 12, weight: .semibold))
+                Text(displayMode == .sentinel ? "SUGGESTED QUERIES" : "Try asking")
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .bold) : .system(size: 12, weight: .semibold))
+                    .kerning(displayMode == .sentinel ? 0.3 : 0)
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 2)
 
@@ -379,14 +386,14 @@ struct AskView: View {
                             Spacer()
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 18))
-                                .foregroundStyle(MirrorTheme.primary.opacity(0.6))
+                                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.7) : MirrorTheme.primary.opacity(0.6))
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 11)
                         .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                                .stroke(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.25) : MirrorTheme.inkBorder, lineWidth: 1)
                         }
                     }
                     .buttonStyle(.plain)
