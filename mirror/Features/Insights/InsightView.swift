@@ -868,21 +868,32 @@ struct NeedsMoreEntriesCard: View {
     var iconColor: Color = MirrorTheme.primary
     var unlockLabel: LocalizedStringKey = "First reflection unlocks after 3 entries."
 
+    @Environment(\.appDisplayMode) private var displayMode
+
+    private var done: Int { max(0, total - remaining) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(iconColor.opacity(0.10))
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(iconColor)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : iconColor)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Mirror learns from your writing patterns.")
+                    if displayMode == .sentinel {
+                        Text("CALIBRATING · \(done)/\(total) SIGNALS")
+                            .font(MirrorTheme.mono(13, weight: .bold))
+                            .foregroundStyle(MirrorTheme.ember)
+                            .kerning(0.4)
+                    } else {
+                        Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    Text(displayMode == .sentinel ? "Reading signal patterns." : "Mirror learns from your writing patterns.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -890,11 +901,11 @@ struct NeedsMoreEntriesCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(iconColor.opacity(0.25))
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.25))
                         .frame(height: 6)
                     Capsule()
-                        .fill(iconColor.opacity(0.75))
-                        .frame(width: geo.size.width * CGFloat(max(0, total - remaining)) / CGFloat(total), height: 6)
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.75))
+                        .frame(width: geo.size.width * CGFloat(done) / CGFloat(total), height: 6)
                 }
             }
             .frame(height: 6)
