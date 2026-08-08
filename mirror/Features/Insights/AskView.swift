@@ -106,7 +106,7 @@ struct AskView: View {
                         } label: {
                             Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
                                 .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(MirrorTheme.primary)
+                                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(.plain)
@@ -471,18 +471,36 @@ struct AskView: View {
                 }
 
                 HStack(alignment: .bottom, spacing: 10) {
-                    TextField(remaining == 0 ? "Monthly limit reached" : "Ask about your journal…", text: $question, axis: .vertical)
-                        .lineLimit(1...5)
-                        .textFieldStyle(.plain)
-                        .focused($isInputFocused)
-                        .disabled(remaining == 0)
-                        .font(.system(size: 15))
+                    HStack(alignment: .center, spacing: 6) {
+                        if displayMode == .sentinel {
+                            Text(">")
+                                .font(MirrorTheme.mono(15, weight: .bold))
+                                .foregroundStyle(MirrorTheme.ember)
+                        }
+                        TextField(
+                            remaining == 0 ? (displayMode == .sentinel ? "MONTHLY LIMIT REACHED" : "Monthly limit reached") : (displayMode == .sentinel ? "ask anything_" : "Ask about your journal…"),
+                            text: $question, axis: .vertical
+                        )
+                            .lineLimit(1...5)
+                            .textFieldStyle(.plain)
+                            .focused($isInputFocused)
+                            .disabled(remaining == 0)
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(14) : .system(size: 15))
+                    }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .background(
+                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.ultraThinMaterial),
+                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        )
                         .overlay {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(isInputFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1)
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(isInputFocused ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.inkBorder, lineWidth: 1)
+                            } else {
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                    .stroke(isInputFocused ? MirrorTheme.primary.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1)
+                            }
                         }
                         .animation(.easeInOut(duration: 0.2), value: isInputFocused)
 
@@ -490,9 +508,15 @@ struct AskView: View {
                         Task { await submitQuestion() }
                     } label: {
                         ZStack {
-                            Circle()
-                                .fill(canAsk ? MirrorTheme.accentGradient : LinearGradient(colors: [.secondary.opacity(0.3), .secondary.opacity(0.3)], startPoint: .top, endPoint: .bottom))
-                                .frame(width: 40, height: 40)
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(canAsk ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.secondary.opacity(0.3)))
+                                    .frame(width: 40, height: 40)
+                            } else {
+                                Circle()
+                                    .fill(canAsk ? MirrorTheme.accentGradient : LinearGradient(colors: [.secondary.opacity(0.3), .secondary.opacity(0.3)], startPoint: .top, endPoint: .bottom))
+                                    .frame(width: 40, height: 40)
+                            }
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(.white)
@@ -508,7 +532,7 @@ struct AskView: View {
             .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
         }
-        .background(.bar)
+        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkBase) : AnyShapeStyle(.bar))
     }
 
     // Single global key: LocalLLMService holds one shared llama context, so two
