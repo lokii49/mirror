@@ -202,6 +202,38 @@ extension SettingsView {
         }
     }
 
+    /// Small preview card for the Classic/Sentinel picker — deliberately
+    /// duplicated from OnboardingFlow's modeCard (private there) rather than
+    /// sharing, since the two need different bindings and this is short
+    /// enough that a shared abstraction wouldn't earn its keep.
+    func displayModePickerCard(mode: DisplayMode, title: String, accent: Color) -> some View {
+        let isSelected = displayModeBinding.wrappedValue == mode
+        return Button {
+            displayModeBinding.wrappedValue = mode
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
+                Spacer(minLength: 0)
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(accent)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? accent.opacity(0.10) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isSelected ? accent.opacity(0.5) : MirrorTheme.inkBorder, lineWidth: isSelected ? 1.5 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Mirror Section
 
     var mirrorSection: some View {
@@ -229,23 +261,14 @@ extension SettingsView {
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
             // Display mode — Classic vs Sentinel
-            HStack {
+            VStack(alignment: .leading, spacing: 10) {
                 settingsRowLabel("Display mode", systemImage: "square.stack.3d.up.fill", iconColor: MirrorTheme.violet)
-                Spacer()
-                Menu {
-                    Button("Classic") { displayModeBinding.wrappedValue = .classic }
-                    Button("Sentinel") { displayModeBinding.wrappedValue = .sentinel }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(displayModeBinding.wrappedValue == .sentinel ? "Sentinel" : "Classic")
-                            .font(.system(size: 13))
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                    }
+                HStack(spacing: 10) {
+                    displayModePickerCard(mode: .classic, title: "Classic", accent: MirrorTheme.violet)
+                    displayModePickerCard(mode: .sentinel, title: "Sentinel", accent: MirrorTheme.ember)
                 }
             }
+            .padding(.vertical, 4)
 
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
