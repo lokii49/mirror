@@ -216,7 +216,7 @@ struct MoodTimelineView: View {
         .navigationTitle(displayMode == .sentinel ? "Vitals" : "Mood Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
     }
 
     private var mainContent: some View {
@@ -267,19 +267,36 @@ struct MoodTimelineView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(MirrorTheme.ember)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Your last \(consecutiveNegativeCount) entries show low mood")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.textPrimary)
-                Text("Consider taking a moment to check in with yourself.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("ANOMALY · \(consecutiveNegativeCount) LOW READINGS")
+                            .font(MirrorTheme.mono(12, weight: .bold))
+                            .tracking(0.3)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    } else {
+                        Text("Your last \(consecutiveNegativeCount) entries show low mood")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textPrimary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("RECOMMEND CHECK-IN")
+                            .font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text("Consider taking a moment to check in with yourself.")
+                            .font(.system(size: 12))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
         }
         .padding(16)
-        .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 18, style: .continuous)
                 .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
         }
         .overlay(alignment: .leading) {
@@ -298,15 +315,28 @@ struct MoodTimelineView: View {
                         selectedRange = range
                     }
                 } label: {
-                    Text(range.displayName)
-                        .font(.system(size: 14, weight: selectedRange == range ? .bold : .medium))
-                        .foregroundStyle(selectedRange == range ? MirrorTheme.primary : .secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            selectedRange == range ? MirrorTheme.primary.opacity(0.08) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        )
+                    Group {
+                        if displayMode == .sentinel {
+                            Text(range.displayName)
+                                .font(MirrorTheme.mono(13, weight: selectedRange == range ? .bold : .medium))
+                        } else {
+                            Text(range.displayName)
+                                .font(.system(size: 14, weight: selectedRange == range ? .bold : .medium))
+                        }
+                    }
+                    .foregroundStyle(selectedRange == range ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        selectedRange == range ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.primary.opacity(0.08)) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 10, style: .continuous)
+                    )
+                    .overlay {
+                        if displayMode == .sentinel && selectedRange == range {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }
@@ -354,14 +384,29 @@ struct MoodTimelineView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            Group {
+                if displayMode == .sentinel {
+                    Text(label)
+                        .font(MirrorTheme.mono(10, weight: .medium))
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                } else {
+                    Text(label)
+                        .font(.system(size: 11, weight: .medium))
+                }
+            }
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .themedCard(cornerRadius: 18)
+        .overlay {
+            if displayMode == .sentinel {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(color.opacity(0.18), lineWidth: 1)
+            }
+        }
     }
 
     @ViewBuilder
@@ -397,17 +442,32 @@ struct MoodTimelineView: View {
                 .frame(height: 11)
 
                 HStack {
-                    Text("1 · Low")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("1 · LOW").font(MirrorTheme.mono(9, weight: .medium))
+                        } else {
+                            Text("1 · Low").font(.system(size: 10))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                     Spacer()
-                    Text(interpretation)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(barColor)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text(interpretation).font(MirrorTheme.mono(11, weight: .bold)).textCase(.uppercase).tracking(0.5)
+                        } else {
+                            Text(interpretation).font(.system(size: 11, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(barColor)
                     Spacer()
-                    Text("5 · High")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("5 · HIGH").font(MirrorTheme.mono(9, weight: .medium))
+                        } else {
+                            Text("5 · High").font(.system(size: 10))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 4)
@@ -424,9 +484,17 @@ struct MoodTimelineView: View {
 
     private var heatmapCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Mood calendar", systemImage: "calendar")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+            Group {
+                if displayMode == .sentinel {
+                    Label("SIGNAL CALENDAR", systemImage: "calendar")
+                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .tracking(0.5)
+                } else {
+                    Label("Mood calendar", systemImage: "calendar")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.secondary)
 
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -443,13 +511,23 @@ struct MoodTimelineView: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.secondary.opacity(0.12))
                     .frame(width: 11, height: 11)
-                Text("No entry")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("NO SIGNAL").font(MirrorTheme.mono(9, weight: .medium))
+                    } else {
+                        Text("No entry").font(.system(size: 10))
+                    }
+                }
+                .foregroundStyle(.secondary)
                 Spacer()
-                Text("Color = mood")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("COLOR = MOOD").font(MirrorTheme.mono(9, weight: .medium))
+                    } else {
+                        Text("Color = mood").font(.system(size: 10))
+                    }
+                }
+                .foregroundStyle(.secondary)
             }
         }
         .padding(18)
@@ -490,7 +568,7 @@ struct MoodTimelineView: View {
                             let key = String(format: "%04d-%02d-%02d",
                                              c.year ?? 0, c.month ?? 0, c.day ?? 0)
                             let mood = moodMap[key]
-                            RoundedRectangle(cornerRadius: 2.5)
+                            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 1 : 2.5)
                                 .fill(mood != nil
                                       ? MirrorTheme.moodColor(for: mood!).opacity(0.85)
                                       : Color.secondary.opacity(0.12))
@@ -512,8 +590,16 @@ struct MoodTimelineView: View {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 32, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Text("Not enough mood data")
-                .font(.system(size: 15, weight: .semibold))
+            Group {
+                if displayMode == .sentinel {
+                    Text("INSUFFICIENT SIGNAL DATA")
+                        .font(MirrorTheme.mono(14, weight: .semibold))
+                        .tracking(0.5)
+                } else {
+                    Text("Not enough mood data")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
             Text("Log your mood when writing entries to see your timeline.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
@@ -526,28 +612,62 @@ struct MoodTimelineView: View {
 
     private var moodDistributionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Mood breakdown", systemImage: "chart.pie.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+            Group {
+                if displayMode == .sentinel {
+                    Label("SIGNAL BREAKDOWN", systemImage: "chart.pie.fill")
+                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .tracking(0.5)
+                } else {
+                    Label("Mood breakdown", systemImage: "chart.pie.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
                 let total = moodDistribution.map(\.count).reduce(0, +)
                 ForEach(moodDistribution.prefix(8), id: \.mood) { item in
                     HStack(spacing: 10) {
-                        Circle()
-                            .fill(item.color)
-                            .frame(width: 10, height: 10)
-                        Text(MirrorTheme.localizedMoodName(for: item.mood))
-                            .font(.system(size: 14, weight: .medium))
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 2)
+                                .stroke(item.color, lineWidth: 1.5)
+                                .frame(width: 10, height: 10)
+                        } else {
+                            Circle()
+                                .fill(item.color)
+                                .frame(width: 10, height: 10)
+                        }
+                        Group {
+                            if displayMode == .sentinel {
+                                Text(MirrorTheme.localizedMoodName(for: item.mood))
+                                    .font(MirrorTheme.mono(13, weight: .medium))
+                                    .textCase(.uppercase)
+                            } else {
+                                Text(MirrorTheme.localizedMoodName(for: item.mood))
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                        }
                         Spacer()
-                        Text("\(item.count)×")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text("\(item.count)×").font(MirrorTheme.mono(12, weight: .medium))
+                            } else {
+                                Text("\(item.count)×").font(.system(size: 13, weight: .medium))
+                            }
+                        }
+                        .foregroundStyle(.secondary)
                         GeometryReader { geo in
-                            Capsule()
-                                .fill(item.color.opacity(0.3))
-                                .frame(width: total > 0 ? geo.size.width * CGFloat(item.count) / CGFloat(total) : 0)
-                                .frame(maxHeight: .infinity)
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(item.color.opacity(0.4))
+                                    .frame(width: total > 0 ? geo.size.width * CGFloat(item.count) / CGFloat(total) : 0)
+                                    .frame(maxHeight: .infinity)
+                            } else {
+                                Capsule()
+                                    .fill(item.color.opacity(0.3))
+                                    .frame(width: total > 0 ? geo.size.width * CGFloat(item.count) / CGFloat(total) : 0)
+                                    .frame(maxHeight: .infinity)
+                            }
                         }
                         .frame(width: 60, height: 6)
                     }
@@ -603,8 +723,13 @@ struct MoodTimelineView: View {
                         .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(spacing: 8) {
-                    Text("Mood Timeline")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("VITALS").font(MirrorTheme.mono(20, weight: .bold)).tracking(1)
+                        } else {
+                            Text("Mood Timeline").font(.system(size: 22, weight: .bold, design: .rounded))
+                        }
+                    }
                     Text("Trend charts, analytics, and low-mood\nalerts are part of Deep.")
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
@@ -738,12 +863,21 @@ private struct MoodPoint: Identifiable {
 
 private struct MoodChartCard: View {
     let points: [MoodPoint]
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+            Group {
+                if displayMode == .sentinel {
+                    Label("SIGNAL OVER TIME", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .tracking(0.5)
+                } else {
+                    Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.secondary)
 
             Chart(points) { point in
                 AreaMark(
@@ -785,8 +919,11 @@ private struct MoodChartCard: View {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
-                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
-                                .font(.system(size: 10))
+                            let label = displayMode == .sentinel
+                                ? (v == 1 ? "LOW" : v == 3 ? "MID" : "HIGH")
+                                : (v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                            Text(label)
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .medium) : .system(size: 10))
                                 .foregroundStyle(Color.secondary)
                         }
                     }

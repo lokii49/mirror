@@ -96,7 +96,7 @@ struct ProtocolSettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .sheet(isPresented: $showSubscription) { SubscriptionView() }
+                        .sheet(isPresented: $showSubscription) { SubscriptionView().environment(\.appDisplayMode, displayMode) }
                     }
 
                     SettingsDivider()
@@ -187,6 +187,7 @@ struct ProtocolSettingsView: View {
                     .buttonStyle(.plain)
                     .sheet(isPresented: $showLanguagePicker) {
                         TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
+                            .environment(\.appDisplayMode, displayMode)
                     }
 
                     SettingsDivider()

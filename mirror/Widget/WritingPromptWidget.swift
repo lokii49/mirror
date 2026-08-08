@@ -8,6 +8,14 @@ private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
 private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
 private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 
+// Sentinel accent — matches MirrorTheme.ember's dark-mode hex (0xF97B8B).
+private let wEmber      = Color(red: 0.976, green: 0.482, blue: 0.545)
+private let wSentinelBg = Color(red: 0.043, green: 0.043, blue: 0.055)
+
+private func widgetIsSentinel() -> Bool {
+    UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.displayMode") == "sentinel"
+}
+
 private let writingPrompts: [LocalizedStringKey] = [
     "What made you smile today?",
     "What's one thing you're grateful for right now?",
@@ -69,28 +77,31 @@ struct PromptWidgetProvider: TimelineProvider {
 
 private struct PromptUnlockedView: View {
     let entry: PromptWidgetEntry
+    private let sentinel = widgetIsSentinel()
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Text("?")
-                .font(.system(size: 110, weight: .black))
-                .foregroundStyle(wViLight.opacity(0.10))
-                .offset(x: 14, y: 18)
+            if !sentinel {
+                Text("?")
+                    .font(.system(size: 110, weight: .black))
+                    .foregroundStyle(wViLight.opacity(0.10))
+                    .offset(x: 14, y: 18)
+            }
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
-                    Image(systemName: "square.and.pencil")
+                    Image(systemName: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil")
                         .font(.system(size: 8, weight: .bold))
-                    Text("TODAY'S PROMPT")
-                        .font(.system(size: 8, weight: .bold))
+                    Text(sentinel ? "TODAY'S SIGNAL" : "TODAY'S PROMPT")
+                        .font(.system(size: 8, weight: .bold, design: sentinel ? .monospaced : .default))
                         .tracking(1.8)
                 }
-                .foregroundStyle(wViLight.opacity(0.60))
+                .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
 
                 Spacer(minLength: 8)
 
                 Text(entry.prompt)
-                    .font(.system(size: 15, weight: .regular, design: .serif))
+                    .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 15, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
                     .lineLimit(5)
                     .lineSpacing(3)
@@ -100,15 +111,19 @@ private struct PromptUnlockedView: View {
 
                 HStack {
                     Spacer()
-                    Text("Tap to write →")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(wViLight.opacity(0.55))
+                    Text(sentinel ? "OPEN TRANSMISSION →" : "Tap to write →")
+                        .font(.system(size: 10, weight: sentinel ? .bold : .semibold, design: sentinel ? .monospaced : .rounded))
+                        .foregroundStyle(sentinel ? wEmber.opacity(0.7) : wViLight.opacity(0.55))
                 }
             }
             .padding(14)
         }
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            if sentinel {
+                wSentinelBg
+            } else {
+                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
         }
         .widgetURL(URL(string: "mirror://write"))
     }
@@ -117,21 +132,27 @@ private struct PromptUnlockedView: View {
 // MARK: - Locked view
 
 private struct PromptLockedView: View {
+    private let sentinel = widgetIsSentinel()
+
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "square.and.pencil")
+            Image(systemName: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.7))
-            Text("Writing Prompt")
-                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(sentinel ? wEmber.opacity(0.8) : .white.opacity(0.7))
+            Text(sentinel ? "TRANSMISSION" : "Writing Prompt")
+                .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            Text("Core · $2.99/mo")
-                .font(.system(size: 11))
+            Text(sentinel ? "CORE · $2.99/MO" : "Core · $2.99/mo")
+                .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(for: .widget) {
-            LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            if sentinel {
+                wSentinelBg
+            } else {
+                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
         }
         .widgetURL(URL(string: "mirror://upgrade"))
     }

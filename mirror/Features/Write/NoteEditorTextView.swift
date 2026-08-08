@@ -24,6 +24,7 @@ struct NoteEditorTextView: UIViewRepresentable {
     // SwiftUI re-invoke updateUIView when it changes.
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
+    var displayMode: DisplayMode
     var onPhotoTapped: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> UITextView {
@@ -117,7 +118,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
         // formatting panel hosted in UITextView.inputView
-        private var formattingPanelHost: UIHostingController<FormattingPanelView>?
+        private var formattingPanelHost: UIHostingController<AnyView>?
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
@@ -2243,7 +2244,11 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // existing view auto-updates — replacing rootView on every updateUIView call
                 // tears down the SwiftUI tree and drops in-flight button taps.
                 if formattingPanelHost == nil {
-                    let hc = UIHostingController(rootView: FormattingPanelView(state: parent.panelState))
+                    let rootView = AnyView(
+                        FormattingPanelView(state: parent.panelState)
+                            .environment(\.appDisplayMode, parent.displayMode)
+                    )
+                    let hc = UIHostingController(rootView: rootView)
                     hc.view.backgroundColor = .secondarySystemBackground
                     formattingPanelHost = hc
                 }

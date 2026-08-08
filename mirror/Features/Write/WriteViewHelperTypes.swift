@@ -128,6 +128,7 @@ struct FormatToggleButton: View {
     var panelState: FormattingPanelState
     var isShowingPanel: Bool
     var onTap: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         Button(action: onTap) {
@@ -137,12 +138,13 @@ struct FormatToggleButton: View {
             let aaSize: CGFloat = paraStyle == .title ? 19 : paraStyle == .heading ? 18 : 16
             let aaWeight: Font.Weight = (inlineStyles.bold || paraStyle == .heading || paraStyle == .title) ? .bold : (paraStyle == .subheading ? .semibold : .regular)
             let aaDesign: Font.Design = paraStyle == .monospaced ? .monospaced : .default
+            let accent: Color = displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor
             Text("Aa")
                 .font(.system(size: aaSize, weight: aaWeight, design: aaDesign))
                 .italic(inlineStyles.italic)
                 .strikethrough(inlineStyles.strikethrough)
                 .underline(inlineStyles.underline)
-                .foregroundStyle(isShowingPanel ? Color.accentColor : hasActive ? Color.primary : Color.secondary)
+                .foregroundStyle(isShowingPanel ? accent : hasActive ? Color.primary : Color.secondary)
                 .frame(width: 38, height: 44)
         }
         .buttonStyle(.plain)
