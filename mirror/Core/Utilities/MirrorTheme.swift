@@ -145,6 +145,15 @@ enum MirrorTheme {
         )
     }
 
+    // MARK: - Sentinel mode type role
+
+    /// HUD readouts (XP, rank, log ids, timestamps) — the one new type role
+    /// Sentinel mode adds. Route every HUD numeral/label through this
+    /// instead of inline `.font(.system(..., design: .monospaced))` calls.
+    static func mono(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
+
     // MARK: - Shared constants
 
     static let cornerCard: CGFloat = 20

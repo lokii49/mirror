@@ -228,6 +228,27 @@ extension SettingsView {
 
             Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
 
+            // Display mode — Classic vs Sentinel
+            HStack {
+                settingsRowLabel("Display mode", systemImage: "square.stack.3d.up.fill", iconColor: MirrorTheme.violet)
+                Spacer()
+                Menu {
+                    Button("Classic") { displayModeBinding.wrappedValue = .classic }
+                    Button("Sentinel") { displayModeBinding.wrappedValue = .sentinel }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(displayModeBinding.wrappedValue == .sentinel ? "Sentinel" : "Classic")
+                            .font(.system(size: 13))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                    }
+                }
+            }
+
+            Divider().overlay(MirrorTheme.inkBorder).padding(.leading, 48)
+
             // Daily nudge time — Core only
             if subscriptionService.isSubscribed {
                 Button { withAnimation { showNudgeTimePicker.toggle() } } label: {
