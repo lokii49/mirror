@@ -96,6 +96,7 @@ struct OnboardingFlow: View {
     }()
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
+    @State private var selectedDisplayMode: DisplayMode = .classic
 
     // Derive suggested preset from selected reason
     private var suggestedPreset: NudgePreset {
@@ -137,6 +138,7 @@ struct OnboardingFlow: View {
                     if step == 1 { reasonStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                     if step == 2 { timeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                     if step == 3 { writeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
+                    if step == 4 { modeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                 }
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: step)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -152,7 +154,7 @@ struct OnboardingFlow: View {
 
     private var progressIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(0..<4) { i in
+            ForEach(0..<5) { i in
                 Capsule()
                     .fill(i < step
                           ? AnyShapeStyle(MirrorTheme.primary.opacity(0.5))
@@ -385,6 +387,75 @@ struct OnboardingFlow: View {
         }
     }
 
+    private var modeStep: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Choose your view")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Same journal, same on-device AI. Switch anytime in Settings.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            }
+            .padding(.top, 12)
+
+            HStack(spacing: 12) {
+                modeCard(
+                    mode: .classic,
+                    title: "Classic",
+                    subtitle: "Calm, card-based, quiet.",
+                    accent: MirrorTheme.violet
+                )
+                modeCard(
+                    mode: .sentinel,
+                    title: "Sentinel",
+                    subtitle: "HUD, mono readouts, rank + streaks.",
+                    accent: MirrorTheme.ember
+                )
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func modeCard(mode: DisplayMode, title: String, subtitle: String, accent: Color) -> some View {
+        let isSelected = selectedDisplayMode == mode
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                selectedDisplayMode = mode
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(accent)
+                    }
+                }
+                Text(subtitle)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+            .background(isSelected ? accent.opacity(0.10) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(isSelected ? accent.opacity(0.55) : MirrorTheme.inkBorder, lineWidth: isSelected ? 1.5 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedDisplayMode)
+    }
+
     // MARK: - Choice Buttons
 
     private func reasonButton(_ reason: OnboardingReason) -> some View {
@@ -521,7 +592,7 @@ struct OnboardingFlow: View {
         } label: {
             HStack {
                 Spacer()
-                Text(step == 3 ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
+                Text(step == 4 ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
@@ -544,6 +615,7 @@ struct OnboardingFlow: View {
         case 1: return selectedReason != nil
         case 2: return true
         case 3: return true
+        case 4: return true
         default: return false
         }
     }
@@ -556,7 +628,7 @@ struct OnboardingFlow: View {
             // Pre-select suggested preset based on reason
             nudgePreset = suggestedPreset
         }
-        if step < 3 {
+        if step < 4 {
             withAnimation {
                 step += 1
             }
@@ -595,6 +667,7 @@ struct OnboardingFlow: View {
             modelContext.insert(profile)
         }
         profile.onboardingComplete = true
+        profile.displayMode = selectedDisplayMode
 
         try? modelContext.save()  // non-fatal: SwiftData will persist on next autosave cycle
 
