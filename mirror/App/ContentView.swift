@@ -1,6 +1,19 @@
 import SwiftUI
 import SwiftData
 
+/// Exposes the user's chosen display mode (Classic / Sentinel) down the view
+/// tree. Root-level so any screen can branch without re-querying UserProfile.
+private struct DisplayModeKey: EnvironmentKey {
+    static let defaultValue: DisplayMode = .classic
+}
+
+extension EnvironmentValues {
+    var appDisplayMode: DisplayMode {
+        get { self[DisplayModeKey.self] }
+        set { self[DisplayModeKey.self] = newValue }
+    }
+}
+
 private enum AppSidebarItem: String, CaseIterable, Hashable {
     case entries, write, insights, settings
 
@@ -56,6 +69,10 @@ struct ContentView: View {
         profiles.first?.onboardingComplete ?? false
     }
 
+    private var displayMode: DisplayMode {
+        profiles.first?.displayMode ?? .classic
+    }
+
     var body: some View {
         Group {
             if sizeClass == .regular {
@@ -64,6 +81,7 @@ struct ContentView: View {
                 phoneLayout
             }
         }
+        .environment(\.appDisplayMode, displayMode)
         .onAppear { applyColorScheme(appearanceMode) }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {

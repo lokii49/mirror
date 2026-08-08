@@ -31,7 +31,18 @@ enum ICloudStatus {
 
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) var entries: [Entry]
+    @Query var profiles: [UserProfile]
     @Environment(\.modelContext) var modelContext
+
+    var displayModeBinding: Binding<DisplayMode> {
+        Binding(
+            get: { profiles.first?.displayMode ?? .classic },
+            set: { newValue in
+                profiles.first?.displayMode = newValue
+                try? modelContext.save()
+            }
+        )
+    }
     @State var subscriptionService = SubscriptionService.shared
     @State var error: Error?
     @State var showSubscription = false
