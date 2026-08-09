@@ -1,416 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "3D" : {
-      "comment" : "Brain View dimension toggle — 3D mode.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "3D" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "3D" } }
-      }
-    },
-    "2D" : {
-      "comment" : "Brain View dimension toggle — 2D mode.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "2D" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "2D" } }
-      }
-    },
-    "You" : {
-      "comment" : "Label for the central hub node representing the user in the Brain View map.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Du" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "You" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Tú" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Toi" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Tu" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "あなた" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "나" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Você" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Вы" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "你" } }
-      }
-    },
-    "B" : {
-      "comment" : "Single-letter Bold formatting toolbar button.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "B" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "B" } }
-      }
-    },
-    "I" : {
-      "comment" : "Single-letter Italic formatting toolbar button.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "I" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "I" } }
-      }
-    },
-    "U" : {
-      "comment" : "Single-letter Underline formatting toolbar button.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "U" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "U" } }
-      }
-    },
-    "S" : {
-      "comment" : "Single-letter Strikethrough formatting toolbar button.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "S" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "S" } }
-      }
-    },
-    "SENTINEL" : {
-      "comment" : "The Sentinel AI's name, shown as a HUD status line.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL" } }
-      }
-    },
-    "SENTINEL — ONLINE" : {
-      "comment" : "Status line shown at the bottom of the Briefing view when the Sentinel AI is ready.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — ONLINE" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — ONLINE" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — EN LÍNEA" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — EN LIGNE" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — ONLINE" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — オンライン" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — 온라인" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — ON-LINE" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — НА СВЯЗИ" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — 在线" } }
-      }
-    },
-    "SENTINEL — LISTENING" : {
-      "comment" : "Status line shown in the Comms view while the Sentinel AI is transcribing voice input.",
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — HÖRT ZU" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — LISTENING" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — ESCUCHANDO" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — À L'ÉCOUTE" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — IN ASCOLTO" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — 聞いています" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — 듣는 중" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — OUVINDO" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — СЛУШАЕТ" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "SENTINEL — 聆听中" } }
-      }
-    },
-    "Classic" : {
-      "comment" : "The name of the Classic display mode.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Classic"
-          }
-        }
-      }
-    },
-    "Sentinel" : {
-      "comment" : "The name of the Sentinel display mode.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sentinel"
-          }
-        }
-      }
-    },
-    "Calm, card-based, quiet." : {
-      "comment" : "Subtitle for Classic display mode.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ruhig, kartenbasiert, dezent."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calm, card-based, quiet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tranquilo, en tarjetas, discreto."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calme, en cartes, discret."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calmo, a schede, discreto."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "穏やかで、カード形式で、静か。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "차분하고, 카드 형식이며, 조용합니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calmo, em cartões, discreto."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Спокойный, карточный, тихий."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "沉静、卡片式、低调。"
-          }
-        }
-      }
-    },
-    "HUD, mono readouts, rank + streaks." : {
-      "comment" : "Subtitle for Sentinel display mode.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, Mono-Anzeigen, Rang + Serien."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, mono readouts, rank + streaks."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, lecturas monoespaciadas, rango + rachas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, affichages en monospace, rang + séries."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, letture monospazio, grado + serie."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD、モノスペース表示、ランク＋連続記録。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, 모노스페이스 표시, 등급 + 연속 기록."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, leituras monoespaçadas, patente + sequências."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD, моноширинные показатели, ранг + серии."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HUD 界面、等宽数据显示、等级+连续记录。"
-          }
-        }
-      }
-    },
     "" : {
       "localizations" : {
         "de" : {
@@ -474,7 +64,6 @@
           }
         }
       }
-    
     },
     "?" : {
       "localizations" : {
@@ -539,7 +128,6 @@
           }
         }
       }
-    
     },
     "·" : {
       "localizations" : {
@@ -604,7 +192,6 @@
           }
         }
       }
-    
     },
     "“" : {
       "localizations" : {
@@ -669,7 +256,6 @@
           }
         }
       }
-    
     },
     "/ %lldw" : {
       "localizations" : {
@@ -734,7 +320,6 @@
           }
         }
       }
-    
     },
     "#%@" : {
       "localizations" : {
@@ -799,7 +384,6 @@
           }
         }
       }
-    
     },
     "#Tags" : {
       "localizations" : {
@@ -930,7 +514,6 @@
           }
         }
       }
-    
     },
     "%@ / MO" : {
       "comment" : "A label displaying the price of a subscription plan, including the yearly price, the monthly price, and the savings percentage. The argument is the yearly price of the plan, the second is the monthly price, and",
@@ -997,7 +580,6 @@
           }
         }
       }
-    
     },
     "%@ / month" : {
       "localizations" : {
@@ -1192,7 +774,6 @@
           }
         }
       }
-    
     },
     "%@ of %@" : {
       "localizations" : {
@@ -1451,7 +1032,6 @@
           }
         }
       }
-    
     },
     "%lld entries" : {
       "localizations" : {
@@ -1836,7 +1416,6 @@
           }
         }
       }
-    
     },
     "%lld more entries to go" : {
       "localizations" : {
@@ -2031,7 +1610,6 @@
           }
         }
       }
-    
     },
     "%lld SIGNALS TO CALIBRATION" : {
       "comment" : "A label that shows the number of entries remaining to unlock a deep monthly report. The argument is the number of remaining entries.",
@@ -2098,7 +1676,6 @@
           }
         }
       }
-    
     },
     "%lld voice notes" : {
       "localizations" : {
@@ -2293,7 +1870,6 @@
           }
         }
       }
-    
     },
     "%lld×" : {
       "localizations" : {
@@ -2358,7 +1934,6 @@
           }
         }
       }
-    
     },
     "%lldd" : {
       "localizations" : {
@@ -2423,7 +1998,6 @@
           }
         }
       }
-    
     },
     "%lldD" : {
       "comment" : "A label that shows the current streak of days the user has logged a reflection.",
@@ -2490,7 +2064,6 @@
           }
         }
       }
-    
     },
     "%llds" : {
       "localizations" : {
@@ -2555,7 +2128,6 @@
           }
         }
       }
-    
     },
     "%lldw" : {
       "localizations" : {
@@ -2620,7 +2192,6 @@
           }
         }
       }
-    
     },
     ">" : {
       "comment" : "A symbol that indicates the start of a new question.",
@@ -2687,7 +2258,6 @@
           }
         }
       }
-    
     },
     "◆ SIGNAL" : {
       "comment" : "A label that indicates a special or important message.",
@@ -2754,7 +2324,6 @@
           }
         }
       }
-    
     },
     "○" : {
       "localizations" : {
@@ -2819,7 +2388,6 @@
           }
         }
       }
-    
     },
     "✓" : {
       "localizations" : {
@@ -2884,7 +2452,6 @@
           }
         }
       }
-    
     },
     "$2.99/mo" : {
       "localizations" : {
@@ -3143,7 +2710,6 @@
           }
         }
       }
-    
     },
     "1 entry" : {
       "localizations" : {
@@ -3530,7 +3096,6 @@
           }
         }
       }
-    
     },
     "1 SIGNAL TO CALIBRATION" : {
       "comment" : "A label that reads \"1 SIGNAL TO CALIBRATION\".",
@@ -3597,7 +3162,6 @@
           }
         }
       }
-    
     },
     "1 word" : {
       "localizations" : {
@@ -3726,7 +3290,136 @@
           }
         }
       }
-    
+    },
+    "2D" : {
+      "comment" : "Brain View dimension toggle — 2D mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2D"
+          }
+        }
+      }
+    },
+    "3D" : {
+      "comment" : "Brain View dimension toggle — 3D mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D"
+          }
+        }
+      }
     },
     "5 · High" : {
       "localizations" : {
@@ -3857,7 +3550,6 @@
           }
         }
       }
-    
     },
     "7-day free trial" : {
       "localizations" : {
@@ -3988,7 +3680,6 @@
           }
         }
       }
-    
     },
     "15 Ask questions per month" : {
       "localizations" : {
@@ -4311,7 +4002,6 @@
           }
         }
       }
-    
     },
     "A living map of your people, places,\nand themes is part of Deep." : {
       "comment" : "A description of the benefits of Deep.",
@@ -4378,7 +4068,6 @@
           }
         }
       }
-    
     },
     "A Moment That Shifted Something" : {
       "localizations" : {
@@ -4699,7 +4388,6 @@
           }
         }
       }
-    
     },
     "About" : {
       "localizations" : {
@@ -5020,7 +4708,6 @@
           }
         }
       }
-    
     },
     "Add ${text} to MirrorNotes" : {
       "localizations" : {
@@ -5085,7 +4772,6 @@
           }
         }
       }
-    
     },
     "Add entries with Siri" : {
       "localizations" : {
@@ -5150,7 +4836,6 @@
           }
         }
       }
-    
     },
     "Add Entry" : {
       "comment" : "Short title for the journal entry shortcut.",
@@ -5217,7 +4902,6 @@
           }
         }
       }
-    
     },
     "Add Journal Entry" : {
       "comment" : "Title of the intent to add a journal entry.",
@@ -5284,7 +4968,6 @@
           }
         }
       }
-    
     },
     "Add tags to any entry while writing. Filter your journal by tag to find related entries instantly — workouts, therapy sessions, dreams, anything." : {
       "localizations" : {
@@ -5607,7 +5290,6 @@
           }
         }
       }
-    
     },
     "AI runs on your device" : {
       "localizations" : {
@@ -5866,7 +5548,6 @@
           }
         }
       }
-    
     },
     "All the questions you want — no monthly cap. Ask mirror anything about your journal: patterns, feelings, decisions, progress." : {
       "localizations" : {
@@ -6061,7 +5742,6 @@
           }
         }
       }
-    
     },
     "Analysing your week…" : {
       "localizations" : {
@@ -6192,7 +5872,6 @@
           }
         }
       }
-    
     },
     "ANOMALY · %lld LOW READINGS" : {
       "localizations" : {
@@ -6257,7 +5936,6 @@
           }
         }
       }
-    
     },
     "Answers come only from entries you've written." : {
       "localizations" : {
@@ -6515,7 +6193,6 @@
           }
         }
       }
-    
     },
     "Ask" : {
       "localizations" : {
@@ -6966,7 +6643,6 @@
           }
         }
       }
-    
     },
     "ask anything_" : {
       "comment" : "A placeholder for the text of a question.",
@@ -7033,7 +6709,6 @@
           }
         }
       }
-    
     },
     "Ask is a Core feature" : {
       "localizations" : {
@@ -7228,7 +6903,6 @@
           }
         }
       }
-    
     },
     "Ask mirror anything about your writing. Get grounded answers from your own journal, not generic advice. Core includes 15 questions per month." : {
       "localizations" : {
@@ -8063,7 +7737,6 @@
           }
         }
       }
-    
     },
     "Automatic" : {
       "localizations" : {
@@ -8253,6 +7926,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "平均分"
+          }
+        }
+      }
+    },
+    "B" : {
+      "comment" : "Single-letter Bold formatting toolbar button.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B"
           }
         }
       }
@@ -8450,7 +8188,6 @@
           }
         }
       }
-    
     },
     "Billed monthly · cancel anytime" : {
       "localizations" : {
@@ -8837,7 +8574,6 @@
           }
         }
       }
-    
     },
     "Brain View unlocks after 10 entries." : {
       "comment" : "Unlock message for the Brain View, referencing the number of entries needed.",
@@ -8904,7 +8640,6 @@
           }
         }
       }
-    
     },
     "Briefing" : {
       "comment" : "A label for the insights tab.",
@@ -8971,7 +8706,6 @@
           }
         }
       }
-    
     },
     "BRIEFING" : {
       "comment" : "A label for a widget's main action.",
@@ -9038,7 +8772,6 @@
           }
         }
       }
-    
     },
     "Build a reflection practice" : {
       "localizations" : {
@@ -9425,7 +9158,71 @@
           }
         }
       }
-    
+    },
+    "Calm, card-based, quiet." : {
+      "comment" : "Subtitle for Classic display mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruhig, kartenbasiert, dezent."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calm, card-based, quiet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tranquilo, en tarjetas, discreto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calme, en cartes, discret."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calmo, a schede, discreto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "穏やかで、カード形式で、静か。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "차분하고, 카드 형식이며, 조용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calmo, em cartões, discreto."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спокойный, карточный, тихий."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沉静、卡片式、低调。"
+          }
+        }
+      }
     },
     "Camera" : {
       "localizations" : {
@@ -9620,7 +9417,6 @@
           }
         }
       }
-    
     },
     "Cancel anytime in App Store settings. No charge during trial." : {
       "localizations" : {
@@ -9751,7 +9547,6 @@
           }
         }
       }
-    
     },
     "CHANGELOG" : {
       "comment" : "The title of the changelog.",
@@ -9818,7 +9613,6 @@
           }
         }
       }
-    
     },
     "Check All" : {
       "localizations" : {
@@ -10141,7 +9935,71 @@
           }
         }
       }
-    
+    },
+    "Classic" : {
+      "comment" : "The name of the Classic display mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        }
+      }
     },
     "Clear" : {
       "localizations" : {
@@ -10272,7 +10130,6 @@
           }
         }
       }
-    
     },
     "Clear Mood" : {
       "localizations" : {
@@ -10403,7 +10260,6 @@
           }
         }
       }
-    
     },
     "Clearance" : {
       "comment" : "The title of the subscription screen.",
@@ -10470,7 +10326,6 @@
           }
         }
       }
-    
     },
     "Collapsed so deeper reports stay within reach" : {
       "localizations" : {
@@ -10665,7 +10520,6 @@
           }
         }
       }
-    
     },
     "Come check your daily reflection." : {
       "comment" : "Push notification body when today's reflection should be checked",
@@ -10797,7 +10651,6 @@
           }
         }
       }
-    
     },
     "COMMS LOCKED" : {
       "comment" : "A title for the locked state of the Ask feature.",
@@ -10864,7 +10717,6 @@
           }
         }
       }
-    
     },
     "Compiles while charging to protect device performance." : {
       "localizations" : {
@@ -10929,7 +10781,6 @@
           }
         }
       }
-    
     },
     "COMPILING DEBRIEF" : {
       "comment" : "A label displayed in the middle of a loading card.",
@@ -10996,7 +10847,6 @@
           }
         }
       }
-    
     },
     "Config" : {
       "comment" : "The title of the main settings screen.",
@@ -11063,7 +10913,6 @@
           }
         }
       }
-    
     },
     "Consider taking a moment to check in with yourself." : {
       "localizations" : {
@@ -11192,7 +11041,6 @@
           }
         }
       }
-    
     },
     "CONSTELLATION" : {
       "comment" : "The name of the app.",
@@ -11259,7 +11107,6 @@
           }
         }
       }
-    
     },
     "Content" : {
       "comment" : "Mood label",
@@ -11453,7 +11300,6 @@
           }
         }
       }
-    
     },
     "Copy" : {
       "localizations" : {
@@ -11712,7 +11558,6 @@
           }
         }
       }
-    
     },
     "Core required" : {
       "localizations" : {
@@ -11969,7 +11814,6 @@
           }
         }
       }
-    
     },
     "Couldn't generate report" : {
       "localizations" : {
@@ -13060,7 +12904,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF GENERATION FAILED" : {
       "comment" : "A title for an error card that describes a failed debrief generation.",
@@ -13127,7 +12970,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF IS PART OF DEEP TIER" : {
       "comment" : "A description of the benefits of the Deep tier.",
@@ -13194,7 +13036,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF QUEUED FOR NEXT MONTH" : {
       "comment" : "A label that appears when the user's monthly report is not yet ready.",
@@ -13261,7 +13102,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF QUEUED FOR NIGHT CYCLE" : {
       "localizations" : {
@@ -13326,7 +13166,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF UNLOCKS AT %lld SIGNALS" : {
       "comment" : "A footnote that describes the unlock threshold for the deep monthly report. The argument is the number of entries needed to unlock the report.",
@@ -13393,7 +13232,6 @@
           }
         }
       }
-    
     },
     "DEBRIEF UNLOCKS AT 1 SIGNAL" : {
       "comment" : "A description of the unlock of the user's deep monthly report.",
@@ -13460,7 +13298,6 @@
           }
         }
       }
-    
     },
     "DECODE FAILED — AI WON'T READ THIS NOTE." : {
       "comment" : "A message displayed when a voice note fails to transcribe.",
@@ -13527,7 +13364,6 @@
           }
         }
       }
-    
     },
     "DECODING…" : {
       "comment" : "A label displayed when a voice note is being transcribed.",
@@ -13594,7 +13430,6 @@
           }
         }
       }
-    
     },
     "Deep" : {
       "localizations" : {
@@ -13723,7 +13558,6 @@
           }
         }
       }
-    
     },
     "DEEP CLEARANCE REQUIRED" : {
       "comment" : "A title for a deep clearance required message.",
@@ -13790,7 +13624,6 @@
           }
         }
       }
-    
     },
     "Deep dives into your patterns" : {
       "localizations" : {
@@ -15073,7 +14906,6 @@
           }
         }
       }
-    
     },
     "Discard draft" : {
       "localizations" : {
@@ -15202,7 +15034,6 @@
           }
         }
       }
-    
     },
     "Done" : {
       "localizations" : {
@@ -15333,7 +15164,6 @@
           }
         }
       }
-    
     },
     "Download language models" : {
       "localizations" : {
@@ -15528,7 +15358,6 @@
           }
         }
       }
-    
     },
     "Downloaded file was incomplete (%lld of %lld bytes). Please try again." : {
       "localizations" : {
@@ -15659,7 +15488,6 @@
           }
         }
       }
-    
     },
     "Downloading in the background — lock your phone or switch apps freely, just don't force-quit." : {
       "localizations" : {
@@ -15920,7 +15748,6 @@
           }
         }
       }
-    
     },
     "Edit" : {
       "localizations" : {
@@ -16049,7 +15876,6 @@
           }
         }
       }
-    
     },
     "Enable daily writing reminder" : {
       "localizations" : {
@@ -16501,7 +16327,6 @@
           }
         }
       }
-    
     },
     "entry" : {
       "localizations" : {
@@ -16632,7 +16457,6 @@
           }
         }
       }
-    
     },
     "Entry date" : {
       "localizations" : {
@@ -17019,7 +16843,6 @@
           }
         }
       }
-    
     },
     "Evening" : {
       "localizations" : {
@@ -17214,7 +17037,6 @@
           }
         }
       }
-    
     },
     "Every Sunday, mirror writes a short pattern summary from the week's entries — useful for spotting recurring themes you'd otherwise miss." : {
       "localizations" : {
@@ -17537,7 +17359,6 @@
           }
         }
       }
-    
     },
     "Exit focus mode" : {
       "localizations" : {
@@ -17860,7 +17681,6 @@
           }
         }
       }
-    
     },
     "Feature Guide" : {
       "localizations" : {
@@ -18633,7 +18453,6 @@
           }
         }
       }
-    
     },
     "Full daily reflection" : {
       "localizations" : {
@@ -18764,7 +18583,6 @@
           }
         }
       }
-    
     },
     "FULL SPECTRUM — MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF." : {
       "comment" : "A description of the full version of MirrorNotes.",
@@ -18831,7 +18649,6 @@
           }
         }
       }
-    
     },
     "Full weekly digest" : {
       "localizations" : {
@@ -19732,7 +19549,6 @@
           }
         }
       }
-    
     },
     "How mirror works" : {
       "localizations" : {
@@ -19794,6 +19610,136 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "mirror 的工作原理"
+          }
+        }
+      }
+    },
+    "HUD, mono readouts, rank + streaks." : {
+      "comment" : "Subtitle for Sentinel display mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, Mono-Anzeigen, Rang + Serien."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, mono readouts, rank + streaks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, lecturas monoespaciadas, rango + rachas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, affichages en monospace, rang + séries."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, letture monospazio, grado + serie."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD、モノスペース表示、ランク＋連続記録。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, 모노스페이스 표시, 등급 + 연속 기록."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, leituras monoespaçadas, patente + sequências."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD, моноширинные показатели, ранг + серии."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HUD 界面、等宽数据显示、等级+连续记录。"
+          }
+        }
+      }
+    },
+    "I" : {
+      "comment" : "Single-letter Italic formatting toolbar button.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I"
           }
         }
       }
@@ -20505,7 +20451,6 @@
           }
         }
       }
-    
     },
     "Input" : {
       "localizations" : {
@@ -20570,7 +20515,6 @@
           }
         }
       }
-    
     },
     "Insights" : {
       "localizations" : {
@@ -20701,7 +20645,6 @@
           }
         }
       }
-    
     },
     "INSUFFICIENT SIGNALS THIS MONTH" : {
       "comment" : "A title for a card that displays when the user has not yet written 10 entries for the month.",
@@ -20768,7 +20711,6 @@
           }
         }
       }
-    
     },
     "Journal" : {
       "localizations" : {
@@ -20833,7 +20775,6 @@
           }
         }
       }
-    
     },
     "Joyful" : {
       "comment" : "Mood label",
@@ -20965,7 +20906,6 @@
           }
         }
       }
-    
     },
     "KEEP LOGGING — AUTO-GENERATES WHEN READY" : {
       "comment" : "A label that reads \"Keep logging — auto-generates when ready.\"",
@@ -21032,7 +20972,6 @@
           }
         }
       }
-    
     },
     "Keep mirror open — this takes 1–2 minutes" : {
       "localizations" : {
@@ -21355,7 +21294,6 @@
           }
         }
       }
-    
     },
     "Lifetime" : {
       "localizations" : {
@@ -21614,7 +21552,6 @@
           }
         }
       }
-    
     },
     "Loading…" : {
       "localizations" : {
@@ -21745,7 +21682,6 @@
           }
         }
       }
-    
     },
     "Local AI model not installed. Add gemma-3-1b-it-Q4_K_M.gguf to %@." : {
       "localizations" : {
@@ -21940,7 +21876,6 @@
           }
         }
       }
-    
     },
     "Log stats" : {
       "comment" : "A label displayed above the user's journal stats.",
@@ -22137,7 +22072,6 @@
           }
         }
       }
-    
     },
     "Low" : {
       "localizations" : {
@@ -22269,6 +22203,7 @@
     },
     "M.I.R.R.O.R" : {
       "comment" : "The name of the app.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "de" : {
@@ -22332,10 +22267,10 @@
           }
         }
       }
-    
     },
     "M.I.R.R.O.R — LISTENING" : {
       "comment" : "A label displayed in the Ask view.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "de" : {
@@ -22399,10 +22334,10 @@
           }
         }
       }
-    
     },
     "M.I.R.R.O.R — ONLINE" : {
       "comment" : "A status line at the bottom of the app.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "de" : {
@@ -22466,7 +22401,6 @@
           }
         }
       }
-    
     },
     "Manage or cancel your subscription in the App Store." : {
       "localizations" : {
@@ -22661,7 +22595,6 @@
           }
         }
       }
-    
     },
     "Manual" : {
       "comment" : "A screen that shows how the app works.",
@@ -22728,7 +22661,6 @@
           }
         }
       }
-    
     },
     "MAPPING SIGNAL NETWORK…" : {
       "comment" : "A placeholder text that appears when the brain view is loading.",
@@ -22795,7 +22727,6 @@
           }
         }
       }
-    
     },
     "Mapping your mind…" : {
       "comment" : "A description of the loading state of the Brain View.",
@@ -22862,7 +22793,6 @@
           }
         }
       }
-    
     },
     "MIC ACCESS REQUIRED.\nSETTINGS → PRIVACY → MICROPHONE." : {
       "localizations" : {
@@ -22927,7 +22857,6 @@
           }
         }
       }
-    
     },
     "Microphone access required.\nGo to Settings → Privacy → Microphone." : {
       "localizations" : {
@@ -23122,7 +23051,6 @@
           }
         }
       }
-    
     },
     "Mirror couldn't decrypt some entries just now.\nReopen Brain View in a moment." : {
       "comment" : "A description of a message that appears when entries can't be decrypted.",
@@ -23189,7 +23117,6 @@
           }
         }
       }
-    
     },
     "Mirror couldn't finish that reflection. Try again." : {
       "localizations" : {
@@ -24216,7 +24143,24 @@
         }
       }
     },
+    "MirrorNotes " : {
+      "comment" : "A prefix for a subscription tier name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes " } }
+      }
+    },
     "MirrorNotes %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24537,7 +24481,6 @@
           }
         }
       }
-    
     },
     "MirrorNotes noticed something in your first entries. Open to see." : {
       "comment" : "Push notification body after the first generated nudge",
@@ -24797,7 +24740,6 @@
           }
         }
       }
-    
     },
     "Mixed, leaning low" : {
       "localizations" : {
@@ -24992,7 +24934,6 @@
           }
         }
       }
-    
     },
     "Model installed — reopen this screen to generate" : {
       "localizations" : {
@@ -25123,7 +25064,6 @@
           }
         }
       }
-    
     },
     "Mono" : {
       "localizations" : {
@@ -25446,7 +25386,6 @@
           }
         }
       }
-    
     },
     "Monthly deep report" : {
       "localizations" : {
@@ -25769,7 +25708,6 @@
           }
         }
       }
-    
     },
     "Monthly Report" : {
       "localizations" : {
@@ -26732,7 +26670,6 @@
           }
         }
       }
-    
     },
     "Morning" : {
       "localizations" : {
@@ -26927,7 +26864,6 @@
           }
         }
       }
-    
     },
     "Most Words" : {
       "localizations" : {
@@ -27122,7 +27058,6 @@
           }
         }
       }
-    
     },
     "Mostly %@ this week" : {
       "localizations" : {
@@ -27637,7 +27572,6 @@
           }
         }
       }
-    
     },
     "no entries" : {
       "localizations" : {
@@ -28216,7 +28150,6 @@
           }
         }
       }
-    
     },
     "No recurring themes yet" : {
       "comment" : "A description of the empty state of the Brain View.",
@@ -28283,7 +28216,6 @@
           }
         }
       }
-    
     },
     "No report for %@" : {
       "localizations" : {
@@ -28414,7 +28346,6 @@
           }
         }
       }
-    
     },
     "NO SIGNALS YET" : {
       "localizations" : {
@@ -28479,7 +28410,6 @@
           }
         }
       }
-    
     },
     "No subscription, no payment, nothing to manage." : {
       "comment" : "A description of the benefits of using MirrorNotes without a subscription.",
@@ -28546,7 +28476,6 @@
           }
         }
       }
-    
     },
     "NO SUBSCRIPTION, NO PAYMENT, NOTHING TO MANAGE." : {
       "comment" : "A description of the benefits of using MirrorNotes without a subscription.",
@@ -28613,7 +28542,6 @@
           }
         }
       }
-    
     },
     "No text" : {
       "localizations" : {
@@ -29128,7 +29056,6 @@
           }
         }
       }
-    
     },
     "Numb" : {
       "comment" : "Mood label",
@@ -29516,7 +29443,6 @@
           }
         }
       }
-    
     },
     "Once a month, mirror generates a full reflection on the previous month — emotional arc, recurring patterns, what shifted." : {
       "localizations" : {
@@ -29773,7 +29699,6 @@
           }
         }
       }
-    
     },
     "Only 1 entry written so far." : {
       "localizations" : {
@@ -29904,7 +29829,6 @@
           }
         }
       }
-    
     },
     "Only the insight is saved" : {
       "localizations" : {
@@ -30035,7 +29959,6 @@
           }
         }
       }
-    
     },
     "OPEN TRANSMISSION →" : {
       "comment" : "A label displayed below a prompt.",
@@ -30102,7 +30025,6 @@
           }
         }
       }
-    
     },
     "OPEN TRANSMISSION TO LOG YOUR FIRST SIGNAL." : {
       "comment" : "A description of the first entry.",
@@ -30169,7 +30091,6 @@
           }
         }
       }
-    
     },
     "Overwhelmed" : {
       "comment" : "Mood label",
@@ -30429,7 +30350,6 @@
           }
         }
       }
-    
     },
     "Paused" : {
       "localizations" : {
@@ -30560,7 +30480,6 @@
           }
         }
       }
-    
     },
     "Paused (will restart from 0%)" : {
       "localizations" : {
@@ -30689,7 +30608,6 @@
           }
         }
       }
-    
     },
     "PAYLOAD" : {
       "comment" : "A label displayed above the features of the deep tier.",
@@ -30756,7 +30674,6 @@
           }
         }
       }
-    
     },
     "Peaceful" : {
       "comment" : "Mood label",
@@ -31849,7 +31766,6 @@
           }
         }
       }
-    
     },
     "Process stress and emotions" : {
       "localizations" : {
@@ -32042,7 +31958,6 @@
           }
         }
       }
-    
     },
     "QUERY SIGNAL: %@" : {
       "comment" : "A button that triggers a query to the Mirror app, with the label of the node in uppercase.",
@@ -32109,7 +32024,6 @@
           }
         }
       }
-    
     },
     "Quick-capture widget for your home screen and lock screen. See today's reflection or write a new entry without unlocking the app." : {
       "localizations" : {
@@ -32624,7 +32538,6 @@
           }
         }
       }
-    
     },
     "REC" : {
       "comment" : "A label displayed in the corner of the note.",
@@ -32691,7 +32604,6 @@
           }
         }
       }
-    
     },
     "RECOMMEND CHECK-IN" : {
       "comment" : "A label displayed in a banner that appears when the user has 3 or more consecutive negative entries.",
@@ -32758,7 +32670,6 @@
           }
         }
       }
-    
     },
     "Redo" : {
       "localizations" : {
@@ -33145,7 +33056,6 @@
           }
         }
       }
-    
     },
     "Restricted" : {
       "localizations" : {
@@ -33340,7 +33250,6 @@
           }
         }
       }
-    
     },
     "Retry" : {
       "localizations" : {
@@ -33469,7 +33378,6 @@
           }
         }
       }
-    
     },
     "Retry insights" : {
       "localizations" : {
@@ -33595,6 +33503,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "圆体"
+          }
+        }
+      }
+    },
+    "S" : {
+      "comment" : "Single-letter Strikethrough formatting toolbar button.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
           }
         }
       }
@@ -33729,7 +33702,6 @@
           }
         }
       }
-    
     },
     "Save a new entry to your MirrorNotes journal." : {
       "comment" : "Description of the Add Journal Entry intent.",
@@ -33796,7 +33768,6 @@
           }
         }
       }
-    
     },
     "Save entry" : {
       "localizations" : {
@@ -34055,7 +34026,6 @@
           }
         }
       }
-    
     },
     "Say \"Hey Siri, add a journal entry in mirror\" and dictate — it saves straight to your journal, no need to open the app. Works from Shortcuts too." : {
       "localizations" : {
@@ -34120,7 +34090,6 @@
           }
         }
       }
-    
     },
     "scan entries…" : {
       "comment" : "A placeholder for a search bar in the entries tab.",
@@ -34187,7 +34156,6 @@
           }
         }
       }
-    
     },
     "SCANNING ALL SIGNALS THIS MONTH…" : {
       "comment" : "A description of the loading state of a monthly report.",
@@ -34254,7 +34222,6 @@
           }
         }
       }
-    
     },
     "Schedule" : {
       "localizations" : {
@@ -34319,7 +34286,6 @@
           }
         }
       }
-    
     },
     "Search %lld entries" : {
       "localizations" : {
@@ -34706,7 +34672,6 @@
           }
         }
       }
-    
     },
     "SELECT PLAN" : {
       "comment" : "A label displayed above the list of available plans.",
@@ -34773,7 +34738,6 @@
           }
         }
       }
-    
     },
     "Send feedback" : {
       "localizations" : {
@@ -34835,6 +34799,266 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "发送反馈"
+          }
+        }
+      }
+    },
+    "Sentinel" : {
+      "comment" : "The name of the Sentinel display mode.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel"
+          }
+        }
+      }
+    },
+    "SENTINEL" : {
+      "comment" : "The Sentinel AI's name, shown as a HUD status line.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL"
+          }
+        }
+      }
+    },
+    "SENTINEL — LISTENING" : {
+      "comment" : "Status line shown in the Comms view while the Sentinel AI is transcribing voice input.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — HÖRT ZU"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — LISTENING"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — ESCUCHANDO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — À L'ÉCOUTE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — IN ASCOLTO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — 聞いています"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — 듣는 중"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — OUVINDO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — СЛУШАЕТ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — 聆听中"
+          }
+        }
+      }
+    },
+    "SENTINEL — ONLINE" : {
+      "comment" : "Status line shown at the bottom of the Briefing view when the Sentinel AI is ready.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — ONLINE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — ONLINE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — EN LÍNEA"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — EN LIGNE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — ONLINE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — オンライン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — 온라인"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — ON-LINE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — НА СВЯЗИ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SENTINEL — 在线"
           }
         }
       }
@@ -34904,7 +35128,6 @@
           }
         }
       }
-    
     },
     "SENTINEL DEEP" : {
       "comment" : "The name of the full-feature Sentinel tier.",
@@ -34971,7 +35194,6 @@
           }
         }
       }
-    
     },
     "Sentinel mode, refined" : {
       "localizations" : {
@@ -35486,7 +35708,6 @@
           }
         }
       }
-    
     },
     "SIGNAL" : {
       "comment" : "A label displayed when the user is not selecting a mood.",
@@ -35553,7 +35774,6 @@
           }
         }
       }
-    
     },
     "SIGNAL BREAKDOWN" : {
       "comment" : "A label for the mood distribution chart.",
@@ -35620,7 +35840,6 @@
           }
         }
       }
-    
     },
     "SIGNAL CALENDAR" : {
       "comment" : "A label for the mood calendar.",
@@ -35687,7 +35906,6 @@
           }
         }
       }
-    
     },
     "Signal Capture" : {
       "localizations" : {
@@ -35752,7 +35970,6 @@
           }
         }
       }
-    
     },
     "SIGNAL DETECTED" : {
       "localizations" : {
@@ -35817,7 +36034,6 @@
           }
         }
       }
-    
     },
     "SIGNAL OVER TIME" : {
       "comment" : "A label for the mood chart.",
@@ -35884,7 +36100,6 @@
           }
         }
       }
-    
     },
     "SIGNAL PENDING…" : {
       "comment" : "A placeholder text that reads \"Your nudge arrives soon…\"",
@@ -35951,7 +36166,6 @@
           }
         }
       }
-    
     },
     "SIGNALS NOT READABLE YET" : {
       "comment" : "A label displayed when some recurring themes can't",
@@ -36018,7 +36232,6 @@
           }
         }
       }
-    
     },
     "Smarter lists & toolbar" : {
       "localizations" : {
@@ -36789,7 +37002,6 @@
           }
         }
       }
-    
     },
     "Start journaling" : {
       "localizations" : {
@@ -37240,7 +37452,6 @@
           }
         }
       }
-    
     },
     "Suggested: **Evening** (%@) — best for capturing the full day before it fades." : {
       "localizations" : {
@@ -38075,7 +38286,6 @@
           }
         }
       }
-    
     },
     "The full picture — mood, patterns,\nand monthly deep reflection." : {
       "localizations" : {
@@ -39296,7 +39506,6 @@
           }
         }
       }
-    
     },
     "Today's AI reflection from mirror, on your home screen." : {
       "localizations" : {
@@ -39491,7 +39700,6 @@
           }
         }
       }
-    
     },
     "top mood" : {
       "localizations" : {
@@ -39878,7 +40086,6 @@
           }
         }
       }
-    
     },
     "TRANSMISSION" : {
       "comment" : "A title for the Sentinel version of the widget.",
@@ -39945,7 +40152,6 @@
           }
         }
       }
-    
     },
     "Trend charts, analytics, and low-mood\nalerts are part of Deep." : {
       "localizations" : {
@@ -40140,7 +40346,6 @@
           }
         }
       }
-    
     },
     "Try asking" : {
       "localizations" : {
@@ -40202,6 +40407,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "试着问问看"
+          }
+        }
+      }
+    },
+    "U" : {
+      "comment" : "Single-letter Underline formatting toolbar button.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U"
           }
         }
       }
@@ -40719,7 +40989,6 @@
           }
         }
       }
-    
     },
     "Unlimited Ask, monthly report, mood timeline" : {
       "localizations" : {
@@ -41042,7 +41311,6 @@
           }
         }
       }
-    
     },
     "Unlock with Deep" : {
       "localizations" : {
@@ -41173,7 +41441,6 @@
           }
         }
       }
-    
     },
     "Untitled entry" : {
       "localizations" : {
@@ -41368,7 +41635,6 @@
           }
         }
       }
-    
     },
     "Upgrade your plan" : {
       "localizations" : {
@@ -41757,7 +42023,6 @@
           }
         }
       }
-    
     },
     "Version %@" : {
       "localizations" : {
@@ -41952,7 +42217,6 @@
           }
         }
       }
-    
     },
     "VITALS" : {
       "comment" : "A title for the VITALS app.",
@@ -42019,7 +42283,6 @@
           }
         }
       }
-    
     },
     "Voice Language" : {
       "localizations" : {
@@ -42534,7 +42797,6 @@
           }
         }
       }
-    
     },
     "Voice transcription language" : {
       "localizations" : {
@@ -45108,7 +45370,6 @@
           }
         }
       }
-    
     },
     "What is feeling heavy right now? Just name it." : {
       "comment" : "Writing prompt",
@@ -46269,7 +46530,6 @@
           }
         }
       }
-    
     },
     "What You're Becoming" : {
       "localizations" : {
@@ -48202,7 +48462,6 @@
           }
         }
       }
-    
     },
     "words" : {
       "localizations" : {
@@ -48974,7 +49233,6 @@
           }
         }
       }
-    
     },
     "Yesterday" : {
       "localizations" : {
@@ -49036,6 +49294,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "昨天"
+          }
+        }
+      }
+    },
+    "You" : {
+      "comment" : "Label for the central hub node representing the user in the Brain View map.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tú"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "あなた"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "나"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Você"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你"
           }
         }
       }
