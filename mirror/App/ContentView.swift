@@ -52,8 +52,9 @@ struct ContentView: View {
     /// Sentinel is a HUD — it reads as "futuristic" only against a dark
     /// canvas, the same way a cockpit display or mission-control screen
     /// always renders dark regardless of the room's lighting. Forces dark
-    /// whenever Sentinel is active, independent of the user's Appearance
-    /// setting (which still governs Classic mode as before).
+    /// whenever Sentinel is active; onChange(of: displayMode) below keeps
+    /// the stored Appearance setting itself in sync so Settings never
+    /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
         let style: UIUserInterfaceStyle
         if displayMode == .sentinel {
@@ -104,7 +105,14 @@ struct ContentView: View {
             syncWidgetDisplayMode()
         }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
-        .onChange(of: displayMode) { _, _ in
+        .onChange(of: displayMode) { _, newMode in
+            if newMode == .sentinel {
+                if appearanceMode == "system" || appearanceMode == "light" {
+                    appearanceMode = "dark"
+                }
+            } else {
+                appearanceMode = "system"
+            }
             applyColorScheme(appearanceMode)
             syncWidgetDisplayMode()
         }

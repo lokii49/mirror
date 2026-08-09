@@ -89,7 +89,7 @@ struct BrainView: View {
         .background(.thinMaterial, in: Capsule())
     }
 
-    private func dimensionSegment(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func dimensionSegment(title: LocalizedStringKey, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Group {
                 if displayMode == .sentinel {

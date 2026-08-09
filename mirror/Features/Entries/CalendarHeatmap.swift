@@ -273,15 +273,10 @@ struct CalendarHeatmap: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(mode.rawValue.uppercased())
-                    } else {
-                        Text(mode.localizedName)
-                    }
-                }
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
-                .kerning(displayMode == .sentinel ? 0.3 : 0)
+                Text(mode.localizedName)
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                    .kerning(displayMode == .sentinel ? 0.3 : 0)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
             }
@@ -462,7 +457,7 @@ struct CalendarHeatmap: View {
                     if isToday || isSelected {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(
-                                isSelected ? MirrorTheme.primary : Color.primary.opacity(0.4),
+                                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.4),
                                 lineWidth: isSelected ? 1.5 : 1
                             )
                     }
@@ -623,7 +618,7 @@ struct CalendarHeatmap: View {
                     if isToday || isSelected {
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
                             .stroke(
-                                isSelected ? MirrorTheme.primary : Color.primary.opacity(0.4),
+                                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.4),
                                 lineWidth: isSelected ? 1.5 : 1
                             )
                     }
@@ -730,7 +725,7 @@ struct CalendarHeatmap: View {
                 if isToday || isSelected {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .stroke(
-                            isSelected ? MirrorTheme.primary : Color.primary.opacity(0.45),
+                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.45),
                             lineWidth: isSelected ? 1.5 : 1
                         )
                 }

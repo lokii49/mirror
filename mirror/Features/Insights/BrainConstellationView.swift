@@ -81,7 +81,7 @@ struct BrainConstellationView: View {
                 let hubRect = CGRect(x: hubCenter.x - hubRadius, y: hubCenter.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2)
                 context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 context.stroke(Circle().path(in: hubRect), with: .color(.white.opacity(0.4)), lineWidth: 1 / steadyScale)
-                drawLabel(&context, text: "You", at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
+                drawLabel(&context, text: String(localized: "You"), at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
 
                 // Nodes + progressively revealed labels.
                 for (index, node) in graph.nodes.enumerated() {

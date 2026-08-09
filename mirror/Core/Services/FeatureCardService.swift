@@ -249,6 +249,16 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "2.0.5"
         ),
+        // 2.0.7
+        .init(
+            id: "sentinel-polish-207",
+            title: "Sentinel mode, refined",
+            body: "The HUD look now reaches every screen — Settings, the mood picker, calendar, tags, and the word-goal bar all match. Appearance locks to dark automatically while Sentinel is active, and switches back the moment you return to Classic.",
+            symbolName: "viewfinder",
+            accentColor: MirrorTheme.ember,
+            tier: .free,
+            sinceVersion: "2.0.7"
+        ),
     ]
 }
 

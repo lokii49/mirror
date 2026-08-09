@@ -193,8 +193,11 @@ extension WriteView {
 
     /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
     /// recolored or re-fonted (it's OS chrome), so matching the HUD look
-    /// requires a custom dropdown instead. Dismissed by WriteView's
-    /// full-screen tap-catcher overlay, or by picking an option here.
+    /// requires a custom dropdown instead. Same one-row-per-mood list as
+    /// Classic's Menu (icon + name, top-to-bottom, same order), just drawn
+    /// with mono/ember chrome instead of the grid layout this used to have.
+    /// Dismissed by WriteView's full-screen tap-catcher overlay, or by
+    /// picking an option here.
     var signalPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -219,36 +222,40 @@ extension WriteView {
 
             Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
-                ForEach(moodLabels, id: \.self) { mood in
-                    let isSelected = viewModel.selectedMood == mood
-                    let score = MirrorTheme.moodScore[mood] ?? 3
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        viewModel.selectedMood = isSelected ? nil : mood
-                        withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
-                    } label: {
-                        HStack(spacing: 6) {
-                            SignalBars(score: score, color: MirrorTheme.moodColor(for: mood))
-                            Text(MirrorTheme.localizedMoodName(for: mood).uppercased())
-                                .font(MirrorTheme.mono(10, weight: isSelected ? .bold : .medium))
-                                .kerning(0.2)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            Spacer(minLength: 0)
-                            Text("\(Int(score / 5 * 100))")
-                                .font(MirrorTheme.mono(8.5, weight: .medium))
-                                .foregroundStyle(MirrorTheme.textSecondary.opacity(0.6))
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(moodLabels, id: \.self) { mood in
+                        let isSelected = viewModel.selectedMood == mood
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.selectedMood = isSelected ? nil : mood
+                            withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(MirrorTheme.moodColor(for: mood))
+                                    .frame(width: 8, height: 8)
+                                Text(MirrorTheme.localizedMoodName(for: mood).uppercased())
+                                    .font(MirrorTheme.mono(12, weight: isSelected ? .bold : .medium))
+                                    .kerning(0.3)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                                if isSelected {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(MirrorTheme.moodColor(for: mood))
+                                }
+                            }
+                            .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.10) : Color.clear)
                         }
-                        .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.12) : Color.clear)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
-            .padding(.vertical, 4)
+            .frame(maxHeight: 320)
 
             if viewModel.selectedMood != nil {
                 Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
@@ -375,7 +382,7 @@ extension WriteView {
                         Rectangle()
                             .fill(Color(.systemFill))
                         Rectangle()
-                            .fill(isComplete ? Color.green : MirrorTheme.primary)
+                            .fill(isComplete ? Color.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
                             .frame(width: geo.size.width * progress)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: progress)
                     }
@@ -536,23 +543,5 @@ extension WriteView {
             .padding(.horizontal, 8)
         }
         .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))
-    }
-}
-
-/// Ascending-height bar meter (radio signal strength look) for sentinel's
-/// signal panel — filled bars = mood valence score (1...5), unfilled bars
-/// dim to inkBorder so the row reads as a HUD readout, not a color swatch.
-private struct SignalBars: View {
-    let score: Double
-    let color: Color
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(1...5, id: \.self) { bar in
-                RoundedRectangle(cornerRadius: 1, style: .continuous)
-                    .fill(Double(bar) <= score ? color : MirrorTheme.inkBorder)
-                    .frame(width: 3, height: 4 + CGFloat(bar) * 2)
-            }
-        }
     }
 }

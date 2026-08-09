@@ -45,7 +45,7 @@ struct InsightView: View {
     private var sentinelStatusLine: some View {
         HStack(spacing: 6) {
             Circle().fill(Color.green).frame(width: 6, height: 6)
-            Text("M.I.R.R.O.R — ONLINE")
+            Text("SENTINEL — ONLINE")
                 .font(MirrorTheme.mono(9.5, weight: .bold))
                 .foregroundStyle(Color.green)
                 .kerning(0.6)
@@ -795,12 +795,13 @@ private struct ExplorationTile: View {
     }
 
     private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
-        Image(systemName: icon)
+        let tint = isSentinel ? MirrorTheme.ember : color
+        return Image(systemName: icon)
             .font(.system(size: iconSize, weight: .semibold))
-            .foregroundStyle(color)
+            .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(
-                color.opacity(0.18),
+                tint.opacity(0.18),
                 in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 12, style: .continuous)
             )
     }
@@ -820,7 +821,7 @@ private struct ExplorationTile: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(color, in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule()))
+                        .background(isSentinel ? MirrorTheme.ember : color, in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule()))
                 }
             }
             Text(subtitle)

@@ -47,13 +47,20 @@ struct WhatsNewSheet: View {
     // MARK: - What's New hero card
 
     private var whatsNewHero: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
+        let corner: CGFloat = displayMode == .sentinel ? 14 : 28
+        return ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(
+                    displayMode == .sentinel
+                        ? LinearGradient(colors: [MirrorTheme.ember, .orange.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .overlay {
+                    if displayMode == .sentinel {
+                        RoundedRectangle(cornerRadius: corner, style: .continuous)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                    }
+                }
 
             Circle()
                 .fill(Color.white.opacity(0.06))
@@ -111,8 +118,8 @@ struct WhatsNewSheet: View {
             .padding(24)
         }
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: MirrorTheme.primary.opacity(0.3), radius: 28, x: 0, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.3), radius: 28, x: 0, y: 12)
     }
 
     // MARK: - Tier filter chips (allFeatures mode)
