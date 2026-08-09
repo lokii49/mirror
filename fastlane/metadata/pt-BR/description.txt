@@ -6,6 +6,7 @@ MirrorNotes também ajuda você a refletir com insights privados baseados em IA,
 
 Recursos:
   • Escreva anotações de diário privadas
+  • Alterne entre o modo Classic, tranquilo, e o modo Sentinel, em estilo HUD
   • Adicione marcadores de humor, fotos e notas de voz
   • Navegue e pesquise seu histórico de anotações
   • Veja reflexões diárias e resumos semanais

@@ -1,7 +1,6 @@
-A small but important fix.
+Introducing Sentinel mode — a whole new way to see MirrorNotes.
 
-• Fixed: Brain View could show "No recurring themes yet" even with
-  plenty of entries, if some couldn't be decrypted right when you
-  opened it. It now shows your real themes correctly.
-
-• Performance and stability improvements.
+• A HUD-styled alternate view: mono readouts, ember accents, and a different personality on every screen — Settings, mood picker, calendar, tags, and more.
+• Switch anytime under Settings → Appearance. Classic is still there when you want the calm version back.
+• Redesigned first-run experience.
+• Full translations across all 10 supported languages.
