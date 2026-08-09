@@ -251,9 +251,9 @@ enum FeatureCardRegistry {
         ),
         // 2.0.7
         .init(
-            id: "sentinel-polish-207",
-            title: "Sentinel mode, refined",
-            body: "The HUD look now reaches every screen — Settings, the mood picker, calendar, tags, and the word-goal bar all match. Appearance locks to dark automatically while Sentinel is active, and switches back the moment you return to Classic.",
+            id: "sentinel-launch-207",
+            title: "Introducing Sentinel mode",
+            body: "A whole new way to see MirrorNotes — HUD readouts, mono type, and ember accents on every screen, from Settings to the mood picker. Switch anytime under Settings → Appearance. Classic is still there whenever you want the calm version back.",
             symbolName: "viewfinder",
             accentColor: MirrorTheme.ember,
             tier: .free,
