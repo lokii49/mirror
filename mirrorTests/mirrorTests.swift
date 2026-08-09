@@ -127,7 +127,8 @@ struct InlineStyleRenderingTests {
             canUndo: Binding(get: { canUndo }, set: { canUndo = $0 }),
             canRedo: Binding(get: { canRedo }, set: { canRedo = $0 }),
             fontChoiceRaw: Binding(get: { fontChoiceRaw }, set: { fontChoiceRaw = $0 }),
-            panelState: FormattingPanelState()
+            panelState: FormattingPanelState(),
+            displayMode: .classic
         )
         let coordinator = editor.makeCoordinator()
         let textView = UITextView()
