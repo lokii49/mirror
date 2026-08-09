@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Introducing Sentinel mode" : {
+      "comment" : "Title for the What's New card announcing Sentinel mode's launch.",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Neu: der Sentinel-Modus" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Introducing Sentinel mode" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Presentamos el modo Sentinel" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Découvrez le mode Sentinel" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Ecco la modalità Sentinel" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Sentinelモードが登場" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Sentinel 모드를 소개합니다" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Apresentando o modo Sentinel" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Знакомьтесь: режим Sentinel" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "全新 Sentinel 模式登场" } }
+      }
+    },
+    "A whole new way to see MirrorNotes — HUD readouts, mono type, and ember accents on every screen, from Settings to the mood picker. Switch anytime under Settings → Appearance. Classic is still there whenever you want the calm version back." : {
+      "comment" : "Body for the What's New card announcing Sentinel mode's launch.",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eine völlig neue Art, MirrorNotes zu sehen — HUD-Anzeigen, Mono-Schrift und Ember-Akzente auf jedem Bildschirm, von den Einstellungen bis zur Stimmungsauswahl. Wechsle jederzeit unter Einstellungen → Erscheinungsbild. Classic ist weiterhin da, wenn du die ruhige Version zurückhaben möchtest." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A whole new way to see MirrorNotes — HUD readouts, mono type, and ember accents on every screen, from Settings to the mood picker. Switch anytime under Settings → Appearance. Classic is still there whenever you want the calm version back." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Una forma totalmente nueva de ver MirrorNotes: lecturas HUD, tipografía monoespaciada y acentos color ámbar en cada pantalla, desde Ajustes hasta el selector de estado de ánimo. Cambia cuando quieras en Ajustes → Apariencia. Classic sigue ahí cuando quieras volver a la versión tranquila." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Une toute nouvelle façon de voir MirrorNotes — affichages HUD, police monospace et accents ambrés sur chaque écran, des Réglages au sélecteur d'humeur. Changez à tout moment dans Réglages → Apparence. Classic reste disponible dès que vous voulez retrouver la version calme." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Un modo completamente nuovo di vedere MirrorNotes — letture HUD, carattere monospazio e accenti ambra su ogni schermata, dalle Impostazioni al selettore dell'umore. Cambia quando vuoi in Impostazioni → Aspetto. Classic è sempre lì quando vuoi tornare alla versione tranquilla." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotesのまったく新しい見た目 — 設定から気分セレクターまで、すべての画面にHUD表示、モノスペースフォント、アンバーのアクセントが反映されます。設定 → 外観からいつでも切り替え可能。落ち着いたバージョンに戻りたいときは、Classicがいつでも待っています。" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "MirrorNotes를 완전히 새롭게 만나보세요 — 설정부터 기분 선택기까지, 모든 화면에 HUD 표시, 모노스페이스 글꼴, 앰버 색상 포인트가 적용됩니다. 설정 → 화면 모드에서 언제든 전환할 수 있습니다. 차분한 버전으로 돌아가고 싶을 땐 Classic이 그대로 있습니다." } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Uma forma totalmente nova de ver o MirrorNotes — leituras estilo HUD, fonte monoespaçada e detalhes em âmbar em cada tela, dos Ajustes ao seletor de humor. Troque quando quiser em Ajustes → Aparência. O Classic continua lá sempre que você quiser voltar à versão mais tranquila." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Совершенно новый способ взглянуть на MirrorNotes — HUD-показатели, моноширинный шрифт и янтарные акценты на каждом экране, от настроек до выбора настроения. Переключайтесь в любой момент в Настройки → Оформление. Classic никуда не делся — возвращайтесь к спокойной версии, когда захотите." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "全新方式体验 MirrorNotes——从设置到心情选择器，每个界面都换上 HUD 数据显示、等宽字体和琥珀色点缀。随时可在“设置 → 外观”中切换。想要回到沉静版本时，Classic 一直都在。" } }
+      }
+    },
     "" : {
       "localizations" : {
         "de" : {
