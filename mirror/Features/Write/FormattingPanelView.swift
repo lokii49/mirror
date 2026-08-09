@@ -200,7 +200,7 @@ struct FormattingPanelView: View {
     // MARK: - Inline style button (fixed square)
 
     @ViewBuilder
-    private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false) -> some View {
+    private func inlineButton(_ label: LocalizedStringKey, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false) -> some View {
         let isActive = state.activeInlineStyles.contains(style)
         Button {
             let cmd = inlineCommand(for: style)

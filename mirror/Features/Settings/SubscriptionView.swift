@@ -233,7 +233,7 @@ struct SubscriptionView: View {
         }
     }
 
-    private func tierUpgradeCard(title: String, icon: String, iconColor: Color, bullets: [LocalizedStringKey], packages: [Package]) -> some View {
+    private func tierUpgradeCard(title: LocalizedStringKey, icon: String, iconColor: Color, bullets: [LocalizedStringKey], packages: [Package]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 ZStack {
@@ -246,9 +246,9 @@ struct SubscriptionView: View {
                 }
                 Group {
                     if displayMode == .sentinel {
-                        Text(title.uppercased()).font(MirrorTheme.mono(15, weight: .bold))
+                        Text(title).textCase(.uppercase).font(MirrorTheme.mono(15, weight: .bold))
                     } else {
-                        Text("MirrorNotes \(title)").font(.system(size: 16, weight: .bold))
+                        (Text("MirrorNotes ") + Text(title)).font(.system(size: 16, weight: .bold))
                     }
                 }
             }

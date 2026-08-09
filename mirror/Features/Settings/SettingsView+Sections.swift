@@ -8,7 +8,7 @@ extension SettingsView {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
                 avatarView
-                    .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
+                    .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.25), radius: 10, x: 0, y: 4)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MirrorNotes")
@@ -16,21 +16,11 @@ extension SettingsView {
                         .lineLimit(1)
 
                     if SubscriptionService.allFeaturesFree {
-                        Label("Early Access", systemImage: "sparkles")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(MirrorTheme.primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
+                        planChip("Early Access", systemImage: "sparkles", color: displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
                     } else if subscriptionService.isSubscribed {
                         let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
-                        let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
-                        Label(tierLabel, systemImage: "checkmark.seal.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(tierColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(tierColor.opacity(0.12), in: Capsule())
+                        let tierColor = displayMode == .sentinel ? MirrorTheme.ember : (subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary)
+                        planChip(tierLabel, systemImage: "checkmark.seal.fill", color: tierColor)
                     } else {
                         Text("Free plan")
                             .font(.system(size: 13))
@@ -70,25 +60,30 @@ extension SettingsView {
                 .padding(.bottom, 10)
 
                 Button { showSubscription = true } label: {
+                    let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 13, weight: .semibold))
                         Text("Start 7-day free trial")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 14, weight: .semibold))
+                            .textCase(displayMode == .sentinel ? .uppercase : nil)
                         Spacer(minLength: 4)
                         Text("Core · $2.99/mo")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5) : .system(size: 12, weight: .medium))
                             .opacity(0.65)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
                     }
-                    .foregroundStyle(MirrorTheme.primary)
+                    .foregroundStyle(accent)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 11)
-                    .background(MirrorTheme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(
+                        accent.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 12, style: .continuous)
+                    )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(MirrorTheme.primary.opacity(0.18), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 12, style: .continuous)
+                            .stroke(accent.opacity(displayMode == .sentinel ? 0.35 : 0.18), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -107,29 +102,33 @@ extension SettingsView {
         )
     }
 
-    @ViewBuilder
+    // There's no account system and no profile photo — a person-silhouette
+    // avatar implies personalization that doesn't exist. The app icon is
+    // the only identity this screen actually has, same mark the welcome
+    // screen uses.
     var avatarView: some View {
-        ZStack {
-            Circle()
-                .fill(subscriptionService.isDeep
-                    ? LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    : MirrorTheme.accentGradient)
-                .frame(width: 58, height: 58)
-            Image(systemName: "person.fill")
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(.white)
-        }
+        let corner: CGFloat = displayMode == .sentinel ? 10 : 14
+        return Image("AppIconDisplay")
+            .resizable()
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: corner, style: .continuous)
+                        .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+                }
+            }
     }
 
     // MARK: - Stats Grid
 
     var statsGrid: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Your journal")
-                .font(.system(size: 12, weight: .semibold))
+            Text(displayMode == .sentinel ? "Log stats" : "Your journal")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(1.0)
+                .tracking(displayMode == .sentinel ? 0.6 : 1.0)
                 .padding(.bottom, 14)
 
             LazyVGrid(
@@ -149,16 +148,21 @@ extension SettingsView {
     func statCard(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 10, style: .continuous)
                     .fill(color.opacity(0.12))
                     .frame(width: 36, height: 36)
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(color)
             }
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(color.opacity(0.3), lineWidth: 1)
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(19, weight: .bold) : .system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -203,14 +207,16 @@ extension SettingsView {
     /// duplicated from OnboardingFlow's modeCard (private there) rather than
     /// sharing, since the two need different bindings and this is short
     /// enough that a shared abstraction wouldn't earn its keep.
-    func displayModePickerCard(mode: DisplayMode, title: String, accent: Color) -> some View {
+    func displayModePickerCard(mode: DisplayMode, title: LocalizedStringKey, accent: Color) -> some View {
         let isSelected = displayModeBinding.wrappedValue == mode
         return Button {
             displayModeBinding.wrappedValue = mode
         } label: {
+            let cardCorner: CGFloat = displayMode == .sentinel ? 7 : 12
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
                 if isSelected {
@@ -222,9 +228,9 @@ extension SettingsView {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
-            .background(isSelected ? accent.opacity(0.10) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(isSelected ? accent.opacity(0.10) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: cardCorner, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: cardCorner, style: .continuous)
                     .stroke(isSelected ? accent.opacity(0.5) : MirrorTheme.inkBorder, lineWidth: isSelected ? 1.5 : 1)
             }
         }
@@ -244,14 +250,14 @@ extension SettingsView {
                     Button("Dark") { appearanceMode = "dark" }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(appearanceModeLabel)
-                            .font(.system(size: 13))
-                            .foregroundStyle(MirrorTheme.textSecondary)
+                        SettingsValueText(text: appearanceModeLabel)
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
                 }
+                .disabled(displayMode == .sentinel)
+                .opacity(displayMode == .sentinel ? 0.4 : 1)
             }
 
             SettingsDivider()
@@ -280,6 +286,27 @@ extension SettingsView {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(MirrorTheme.primary.opacity(0.08), in: Capsule())
+    }
+
+    /// Plan/tier chip on the profile card — rectangular mono in Sentinel,
+    /// matching SettingsTierBadge's shape swap, since it's the same kind
+    /// of status readout.
+    func planChip(_ label: LocalizedStringKey, systemImage: String, color: Color) -> some View {
+        Label(label, systemImage: systemImage)
+            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+            .textCase(displayMode == .sentinel ? .uppercase : nil)
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                color.opacity(0.12),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(color.opacity(0.3), lineWidth: 1)
+                }
+            }
     }
 
     func computeLatestEntryText(from snapshot: [Entry]) -> String {

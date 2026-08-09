@@ -83,6 +83,7 @@ private enum OnboardingReason: CaseIterable, Hashable {
 
 struct OnboardingFlow: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var profiles: [UserProfile]
 
     @State private var step: Int = 0
@@ -97,6 +98,8 @@ struct OnboardingFlow: View {
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
     @State private var selectedDisplayMode: DisplayMode = .classic
+    @State private var welcomeAppeared = false
+    @State private var writeBreathe = false
 
     // Derive suggested preset from selected reason
     private var suggestedPreset: NudgePreset {
@@ -112,20 +115,6 @@ struct OnboardingFlow: View {
     var body: some View {
         ZStack {
             MirrorTheme.bgBase
-                .ignoresSafeArea()
-
-            // Ambient glow orbs
-            Circle()
-                .fill(MirrorTheme.primary.opacity(0.07))
-                .frame(width: 320, height: 320)
-                .blur(radius: 60)
-                .offset(x: 120, y: -180)
-                .ignoresSafeArea()
-            Circle()
-                .fill(MirrorTheme.violetDim.opacity(0.6))
-                .frame(width: 260, height: 260)
-                .blur(radius: 50)
-                .offset(x: -100, y: 300)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -152,19 +141,51 @@ struct OnboardingFlow: View {
 
     // MARK: - Progress
 
+    /// The signature motif — the connected-dot mark from the app icon,
+    /// reused as the progress thread here and as the selection mark on
+    /// every choice row below. One shape, three jobs, so it reads as
+    /// deliberate rather than decorative.
+    private var threadDoneColor: Color {
+        isSentinelPreview ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.violet
+    }
+
+    private var threadActiveColor: Color {
+        isSentinelPreview ? MirrorTheme.ember : MirrorTheme.violetLight
+    }
+
+    @ViewBuilder
+    private func threadNode(_ i: Int) -> some View {
+        let size: CGFloat = i == step ? 8 : 6
+        let fill: Color = i < step ? threadDoneColor : (i == step ? threadActiveColor : .clear)
+        Circle()
+            .fill(fill)
+            .overlay {
+                if i > step {
+                    Circle().stroke(MirrorTheme.inkBorder, lineWidth: 1.5)
+                }
+            }
+            .frame(width: size, height: size)
+            .shadow(color: i == step ? threadActiveColor.opacity(0.35) : .clear, radius: 5)
+    }
+
+    private func threadSegment(_ i: Int) -> some View {
+        let fill: Color = i < step ? threadDoneColor.opacity(0.55) : MirrorTheme.inkBorder
+        return Rectangle()
+            .fill(fill)
+            .frame(width: 22, height: 1)
+    }
+
     private var progressIndicator: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(0..<5) { i in
-                Capsule()
-                    .fill(i < step
-                          ? AnyShapeStyle(MirrorTheme.primary.opacity(0.5))
-                          : i == step
-                            ? AnyShapeStyle(MirrorTheme.accentGradient)
-                            : AnyShapeStyle(MirrorTheme.inkBorder))
-                    .frame(width: i == step ? 28 : 8, height: 8)
-                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
+                threadNode(i)
+                if i < 4 {
+                    threadSegment(i)
+                }
             }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
+        .animation(.easeInOut(duration: 0.2), value: selectedDisplayMode)
     }
 
     // MARK: - Steps
@@ -180,6 +201,9 @@ struct OnboardingFlow: View {
                     .frame(width: 110, height: 110)
                     .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                     .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
+                    .opacity(welcomeAppeared ? 1 : 0)
+                    .scaleEffect(welcomeAppeared ? 1 : 0.85)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.7), value: welcomeAppeared)
 
                 // Title — New York serif, tight tracking, strong weight
                 Text("MirrorNotes")
@@ -187,6 +211,9 @@ struct OnboardingFlow: View {
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .tracking(-0.5)
                     .padding(.top, 32)
+                    .opacity(welcomeAppeared ? 1 : 0)
+                    .offset(y: welcomeAppeared ? 0 : 10)
+                    .animation(.easeOut(duration: 0.5).delay(0.15), value: welcomeAppeared)
 
                 // Tagline — same serif family, lighter, italic
                 Text("Understand yourself\nthrough writing.")
@@ -196,6 +223,9 @@ struct OnboardingFlow: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(5)
                     .padding(.top, 10)
+                    .opacity(welcomeAppeared ? 1 : 0)
+                    .offset(y: welcomeAppeared ? 0 : 10)
+                    .animation(.easeOut(duration: 0.5).delay(0.28), value: welcomeAppeared)
 
                 // Divider — visual rhythm break
                 Divider()
@@ -203,17 +233,31 @@ struct OnboardingFlow: View {
                     .padding(.top, 40)
                     .padding(.bottom, 36)
                     .padding(.horizontal, 4)
+                    .opacity(welcomeAppeared ? 1 : 0)
+                    .animation(.easeOut(duration: 0.5).delay(0.4), value: welcomeAppeared)
 
                 // Feature list
                 VStack(alignment: .leading, spacing: 22) {
                     welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                        .opacity(welcomeAppeared ? 1 : 0)
+                        .offset(y: welcomeAppeared ? 0 : 8)
+                        .animation(.easeOut(duration: 0.45).delay(0.5), value: welcomeAppeared)
                     welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
+                        .opacity(welcomeAppeared ? 1 : 0)
+                        .offset(y: welcomeAppeared ? 0 : 8)
+                        .animation(.easeOut(duration: 0.45).delay(0.58), value: welcomeAppeared)
                     welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
+                        .opacity(welcomeAppeared ? 1 : 0)
+                        .offset(y: welcomeAppeared ? 0 : 8)
+                        .animation(.easeOut(duration: 0.45).delay(0.66), value: welcomeAppeared)
                 }
 
                 Spacer(minLength: 20)
             }
             .padding(.horizontal, 36)
+        }
+        .onAppear {
+            welcomeAppeared = true
         }
     }
 
@@ -234,7 +278,7 @@ struct OnboardingFlow: View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("What brings you here?")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(size: 30, weight: .bold))
                 Text("Pick the one that resonates most.")
                     .font(.system(size: 15))
                     .foregroundStyle(MirrorTheme.textSecondary)
@@ -257,7 +301,7 @@ struct OnboardingFlow: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("When should mirror nudge you?")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold))
                     Text("One gentle reminder a day to reflect.")
                         .font(.system(size: 15))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -326,7 +370,7 @@ struct OnboardingFlow: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Write your first entry")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 28, weight: .bold))
                 Text("A sentence is enough. Mirror learns from everything you write.")
                     .font(.system(size: 15))
                     .foregroundStyle(MirrorTheme.textSecondary)
@@ -336,18 +380,37 @@ struct OnboardingFlow: View {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(MirrorTheme.inkMid)
+                    .overlay(alignment: .top) {
+                        // Ruled notebook lines — the one place "journal page" is
+                        // literal, so it's the only place the motif belongs.
+                        VStack(spacing: 25) {
+                            ForEach(0..<5, id: \.self) { _ in
+                                Rectangle()
+                                    .fill(MirrorTheme.textTertiary.opacity(0.10))
+                                    .frame(height: 1)
+                            }
+                        }
+                        .padding(.top, 48)
+                        .padding(.horizontal, 16)
+                        .allowsHitTesting(false)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(
                                 editorFocused
                                     ? AnyShapeStyle(MirrorTheme.violet.opacity(0.45))
-                                    : AnyShapeStyle(MirrorTheme.inkBorder),
+                                    : (firstEntryText.isEmpty
+                                       ? AnyShapeStyle(MirrorTheme.violet.opacity(writeBreathe ? 0.28 : 0.12))
+                                       : AnyShapeStyle(MirrorTheme.inkBorder)),
                                 lineWidth: editorFocused ? 1.5 : 1
                             )
                     }
                     .shadow(
-                        color: editorFocused ? MirrorTheme.violet.opacity(0.15) : .clear,
-                        radius: 16, x: 0, y: 4
+                        color: editorFocused
+                            ? MirrorTheme.violet.opacity(0.15)
+                            : (firstEntryText.isEmpty ? MirrorTheme.violet.opacity(writeBreathe ? 0.14 : 0.04) : .clear),
+                        radius: editorFocused ? 16 : (writeBreathe ? 22 : 10), x: 0, y: 4
                     )
 
                 if firstEntryText.isEmpty {
@@ -367,8 +430,20 @@ struct OnboardingFlow: View {
             }
             .frame(minHeight: 180, maxHeight: 280)
             .animation(.easeInOut(duration: 0.2), value: editorFocused)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+                    writeBreathe = true
+                }
+            }
 
             HStack {
+                if firstEntryText.isEmpty {
+                    Text("Even one line teaches Mirror something.")
+                        .font(.system(size: 12.5, weight: .regular, design: .serif))
+                        .italic()
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                }
                 Spacer()
                 let wordCount = firstEntryText.split(separator: " ").count
                 Text(wordCount == 1 ? "1 word" : "\(wordCount) words")
@@ -388,37 +463,39 @@ struct OnboardingFlow: View {
     }
 
     private var modeStep: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Choose your view")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                Text("Same journal, same on-device AI. Switch anytime in Settings.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            }
-            .padding(.top, 12)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Choose your view")
+                        .font(.system(size: 28, weight: .bold))
+                    Text("Same journal, same on-device AI. Switch anytime in Settings.")
+                        .font(.system(size: 15))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                }
+                .padding(.top, 12)
 
-            HStack(spacing: 12) {
-                modeCard(
-                    mode: .classic,
-                    title: "Classic",
-                    subtitle: "Calm, card-based, quiet.",
-                    accent: MirrorTheme.violet
-                )
-                modeCard(
-                    mode: .sentinel,
-                    title: "Sentinel",
-                    subtitle: "HUD, mono readouts, rank + streaks.",
-                    accent: MirrorTheme.ember
-                )
-            }
+                VStack(spacing: 12) {
+                    modeCard(
+                        mode: .classic,
+                        title: "Classic",
+                        subtitle: "Calm, card-based, quiet.",
+                        accent: MirrorTheme.violet
+                    )
+                    modeCard(
+                        mode: .sentinel,
+                        title: "Sentinel",
+                        subtitle: "HUD, mono readouts, rank + streaks.",
+                        accent: MirrorTheme.ember
+                    )
+                }
 
-            Spacer()
+                Spacer(minLength: 16)
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
     }
 
-    private func modeCard(mode: DisplayMode, title: String, subtitle: String, accent: Color) -> some View {
+    private func modeCard(mode: DisplayMode, title: LocalizedStringKey, subtitle: LocalizedStringKey, accent: Color) -> some View {
         let isSelected = selectedDisplayMode == mode
         return Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -432,28 +509,121 @@ struct OnboardingFlow: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Spacer()
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(accent)
-                    }
+                    Circle()
+                        .fill(isSelected ? accent : .clear)
+                        .overlay {
+                            if !isSelected {
+                                Circle().stroke(MirrorTheme.inkBorder, lineWidth: 1.5)
+                            }
+                        }
+                        .frame(width: 7, height: 7)
+                        .transition(.scale.combined(with: .opacity))
                 }
                 Text(subtitle)
                     .font(.system(size: 12.5))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
+
+                modePreview(mode: mode, accent: accent)
+                    .padding(.top, 4)
             }
             .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-            .background(isSelected ? accent.opacity(0.10) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background(isSelected ? accent.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(0.55) : MirrorTheme.inkBorder, lineWidth: isSelected ? 1.5 : 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? accent.opacity(0.4) : MirrorTheme.inkBorder, lineWidth: 1)
+            }
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 16, bottomLeadingRadius: 16,
+                    style: .continuous
+                )
+                .fill(isSelected ? accent : .clear)
+                .frame(width: 3)
             }
         }
         .buttonStyle(.plain)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedDisplayMode)
+    }
+
+    /// The signature moment: a miniature render of each mode's real chrome —
+    /// not an adjective describing it — so tapping between cards shows the
+    /// whole app's skin swap rather than asking the user to imagine it.
+    @ViewBuilder
+    private func modePreview(mode: DisplayMode, accent: Color) -> some View {
+        let isSelected = selectedDisplayMode == mode
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(MirrorTheme.inkBase)
+
+            if mode == .sentinel {
+                SentinelGridBackground(lineColor: accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                Circle()
+                    .fill(accent.opacity(0.18))
+                    .frame(width: 90, height: 90)
+                    .blur(radius: 30)
+                    .offset(x: 20, y: -30)
+            }
+
+            VStack(spacing: 10) {
+                // Sample chip — mirrors WriteView's real mood/signal control per mode.
+                Group {
+                    if mode == .sentinel {
+                        HStack(spacing: 5) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text("SIGNAL")
+                                .font(MirrorTheme.mono(9.5, weight: .semibold))
+                                .kerning(0.3)
+                        }
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(accent.opacity(0.35), lineWidth: 1))
+                    } else {
+                        HStack(spacing: 5) {
+                            Circle().fill(accent).frame(width: 6, height: 6)
+                            Text("Grateful")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(accent.opacity(0.12), in: Capsule())
+                    }
+                }
+
+                // Sample glyph — the two type voices, shown rather than named.
+                Text("Aa")
+                    .font(mode == .sentinel
+                          ? MirrorTheme.mono(26, weight: .bold)
+                          : .system(size: 26, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
+
+                // Sample journal line — ties the type swatch back to what it's for.
+                Text(mode == .sentinel ? "LOG_042 // ENTRY RECORDED" : "Today felt lighter than—")
+                    .font(mode == .sentinel
+                          ? MirrorTheme.mono(9, weight: .medium)
+                          : .system(size: 12, weight: .regular, design: .serif).italic())
+                    .kerning(mode == .sentinel ? 0.3 : 0)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            }
+
+            if mode == .sentinel {
+                ViewfinderCorners(inset: 6, length: 10, color: accent.opacity(isSelected ? 0.7 : 0.35))
+                    .padding(8)
+            }
+        }
+        .frame(height: 150)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+        }
     }
 
     // MARK: - Choice Buttons
@@ -467,40 +637,43 @@ struct OnboardingFlow: View {
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? color : MirrorTheme.inkRaised)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: reason.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : color.opacity(0.7))
-                }
-                .shadow(color: isSelected ? color.opacity(0.35) : .clear, radius: 8, x: 0, y: 3)
+            HStack(spacing: 12) {
+                Image(systemName: reason.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isSelected ? color : MirrorTheme.textTertiary)
+                    .frame(width: 16)
 
                 Text(reason.label)
-                    .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 15.5, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(color)
-                        .transition(.scale.combined(with: .opacity))
-                }
+
+                Circle()
+                    .fill(isSelected ? color : .clear)
+                    .overlay {
+                        if !isSelected {
+                            Circle().stroke(MirrorTheme.inkBorder, lineWidth: 1.5)
+                        }
+                    }
+                    .frame(width: 7, height: 7)
+                    .transition(.scale.combined(with: .opacity))
             }
             .padding(16)
-            .background(isSelected ? color.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(isSelected ? color.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(
-                        isSelected ? color.opacity(0.45) : MirrorTheme.inkBorder,
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? color.opacity(0.35) : MirrorTheme.inkBorder, lineWidth: 1)
+            }
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 16, bottomLeadingRadius: 16,
+                    style: .continuous
+                )
+                .fill(isSelected ? color : .clear)
+                .frame(width: 3)
             }
         }
         .buttonStyle(.plain)
-        .shadow(color: isSelected ? color.opacity(0.08) : .clear, radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedReason)
     }
 
@@ -515,18 +688,11 @@ struct OnboardingFlow: View {
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected
-                              ? AnyShapeStyle(MirrorTheme.accentGradient)
-                              : AnyShapeStyle(MirrorTheme.inkRaised))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: preset.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : MirrorTheme.textSecondary)
-                }
-                .shadow(color: isSelected ? MirrorTheme.primary.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
+            HStack(spacing: 12) {
+                Image(systemName: preset.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isSelected ? MirrorTheme.violet : MirrorTheme.textTertiary)
+                    .frame(width: 16)
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 7) {
@@ -560,27 +726,32 @@ struct OnboardingFlow: View {
 
                 Spacer()
 
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(MirrorTheme.primary)
-                        .transition(.scale.combined(with: .opacity))
-                }
+                Circle()
+                    .fill(isSelected ? MirrorTheme.violet : .clear)
+                    .overlay {
+                        if !isSelected {
+                            Circle().stroke(MirrorTheme.inkBorder, lineWidth: 1.5)
+                        }
+                    }
+                    .frame(width: 7, height: 7)
+                    .transition(.scale.combined(with: .opacity))
             }
             .padding(16)
-            .background(isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(isSelected ? MirrorTheme.violet.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(
-                        isSelected
-                            ? AnyShapeStyle(MirrorTheme.violet.opacity(0.50))
-                            : AnyShapeStyle(MirrorTheme.inkBorder),
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? MirrorTheme.violet.opacity(0.35) : MirrorTheme.inkBorder, lineWidth: 1)
+            }
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 16, bottomLeadingRadius: 16,
+                    style: .continuous
+                )
+                .fill(isSelected ? MirrorTheme.violet : .clear)
+                .frame(width: 3)
             }
         }
         .buttonStyle(.plain)
-        .shadow(color: isSelected ? MirrorTheme.violet.opacity(0.10) : .clear, radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
     }
 
@@ -620,7 +791,7 @@ struct OnboardingFlow: View {
         }
         .buttonStyle(.plain)
         .disabled(!ctaEnabled)
-        .shadow(color: ctaEnabled ? (isSentinelPreview ? MirrorTheme.ember.opacity(0.28) : MirrorTheme.primary.opacity(0.28)) : .clear, radius: 16, x: 0, y: 6)
+        .shadow(color: ctaEnabled && isSentinelPreview ? MirrorTheme.ember.opacity(0.28) : .clear, radius: 16, x: 0, y: 6)
         .animation(.easeInOut(duration: 0.2), value: ctaEnabled)
         .animation(.easeInOut(duration: 0.2), value: selectedDisplayMode)
     }

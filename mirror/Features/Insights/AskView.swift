@@ -357,7 +357,7 @@ struct AskView: View {
                 pulseHub
                 HStack(spacing: 6) {
                     Circle().fill(MirrorTheme.ember).frame(width: 6, height: 6)
-                    Text("M.I.R.R.O.R — LISTENING")
+                    Text("SENTINEL — LISTENING")
                         .font(MirrorTheme.mono(10, weight: .bold))
                         .foregroundStyle(MirrorTheme.ember)
                         .kerning(0.6)
@@ -440,7 +440,7 @@ struct AskView: View {
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(displayMode == .sentinel ? "M.I.R.R.O.R" : "Ask MirrorNotes")
+                Text(displayMode == .sentinel ? "SENTINEL" : "Ask MirrorNotes")
                     .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 15, weight: .semibold))
                 Text(subscriptionService.isDeep ? "Unlimited questions" : "\(remaining) of 15 questions this month")
                     .font(.system(size: 12, weight: .medium))

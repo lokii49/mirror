@@ -39,7 +39,15 @@ extension WriteView {
                         .frame(minWidth: 60)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.secondarySystemFill), in: Capsule())
+                        .background(
+                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
+                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                        )
+                        .overlay {
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                            }
+                        }
                         .onSubmit { commitTag() }
                         .submitLabel(.done)
                         .focused($tagFieldFocused)
@@ -67,12 +75,21 @@ extension WriteView {
                                 showTagInput = false
                                 if entry == nil { saveDraftToStorage() }
                             } label: {
+                                let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
                                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(MirrorTheme.primary)
+                                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 12, weight: .medium))
+                                    .foregroundStyle(accent)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(MirrorTheme.primary.opacity(0.10), in: Capsule())
+                                    .background(
+                                        accent.opacity(0.10),
+                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                                    )
+                                    .overlay {
+                                        if displayMode == .sentinel {
+                                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(accent.opacity(0.3), lineWidth: 1)
+                                        }
+                                    }
                             }
                             .buttonStyle(.plain)
                         }
