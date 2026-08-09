@@ -6,6 +6,7 @@ MirrorNotes also helps you reflect with private AI-powered insights, including d
 
 Features:
   • Write private journal entries
+  • Switch between calm Classic and HUD-styled Sentinel mode
   • Add mood labels, photos, and voice notes
   • Browse and search your entry history
   • View daily reflections and weekly digests

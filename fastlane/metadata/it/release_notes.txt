@@ -1,8 +1,6 @@
-Una piccola ma importante correzione.
+Ecco la modalità Sentinel — un modo completamente nuovo di vedere MirrorNotes.
 
-• Corretto: la vista Brain poteva mostrare "Nessun tema ricorrente"
-  anche con abbastanza voci — succedeva quando alcune voci non
-  potevano ancora essere decifrate al momento dell'apertura. Ora
-  mostra correttamente i tuoi temi reali.
-
-• Miglioramenti di prestazioni e stabilità.
+• Una vista alternativa in stile HUD: letture monospazio, accenti ambra e una personalità diversa su ogni schermata — Impostazioni, selettore dell'umore, calendario, tag e altro.
+• Cambia quando vuoi in Impostazioni → Aspetto. Classic è sempre lì quando vuoi tornare alla versione tranquilla.
+• Esperienza di primo avvio rinnovata.
+• Traduzioni complete in tutte le 10 lingue supportate.
