@@ -56,6 +56,27 @@ check current list order before inserting):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### AlternativeTo.net — [web-form, needs user, account age gate]
+Large software-discovery directory with License/Platform/Tags filters (has a "Journal" category and
+an AGPL-3.0 license filter) — good fit, not yet in channel map or backlog. Submission form is at
+alternativeto.net/manage/new/ but requires a signed-in account that is **at least 7 days old** before
+it's allowed to submit a new listing, and wants a logo + screenshots uploaded (not just text) —
+confirmed via WebSearch (site itself is EGRESS_BLOCKED for WebFetch, so exact field list unconfirmed).
+Not actionable by this loop even once GitHub scope is fixed, since it needs a human with an aged
+account and image assets. Ready-to-paste copy for whoever does it:
+
+- Name: MirrorNotes
+- Tagline: Privacy-first journaling with on-device AI
+- Website: https://mirrornotes.org
+- Category/Tags: Journal / Diary, Privacy, Productivity, Offline
+- License: AGPL-3.0
+- Platforms: iOS
+- Description: "MirrorNotes is a privacy-first journaling app for iOS. Daily nudges, weekly digests,
+  and an 'ask your journal' chat all run on-device via a local Gemma 3 1B model — no entries need to
+  leave the phone for AI processing. Local-first with free CloudKit sync, no account or signup
+  required, unlimited entries free forever. Open source under AGPL-3.0."
+- App Store: https://apps.apple.com/app/id6769007201 · Repo: https://github.com/lokii49/mirror
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -77,6 +98,18 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   confirmed entry format from README) and added it to Backlog with ready-to-paste copy. Priority-1
   bump and priority-3 email both skipped again, same env blockers. No PRs opened, no comments
   posted, no emails sent this run.
+- 2026-08-16 (run 2): Re-confirmed env blockers with fresh checks (not skipped, since a prior run's
+  fork-existence note contradicted itself): pull_request_read on janhq/awesome-local-ai#131 still
+  rejected ("not configured for this session", scope = lokii49/mirror only); add_repo confirmed raw
+  git clone is possible for public third-party repos but does not unlock GitHub API access, so PR
+  bump/creation remains impossible. Direct socket check to smtp.mail.me.com:587 still times out.
+  curl to opensourcealternative.to and alternativeto.net both 403 at the proxy. Used WebSearch
+  (still working) to find a new candidate directory not yet in channel map/backlog:
+  alternativeto.net — has a Journal category and AGPL license filter, good fit, but requires a
+  7-day-old account plus logo/screenshots to submit, so it's a [web-form, needs user] backlog entry
+  regardless of GitHub scope. Added ready-to-paste copy to Backlog. Priority-1 bump and priority-3
+  email both skipped again, same env blockers, both re-verified this run. No PRs opened, no comments
+  posted, no emails sent.
 
 ## Blocked
 
