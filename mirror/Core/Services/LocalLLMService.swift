@@ -67,6 +67,23 @@ actor LocalLLMService {
     }
 
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+        // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
+        // no bundled weights, no download, better instruction-following than Gemma 3 1B.
+        // Any failure (guardrail rejection, model not ready, etc.) falls through to the
+        // bundled Gemma/llama.cpp path below so generation never hard-fails on capable
+        // devices alone.
+        if FoundationModelEngine.isAvailable {
+            do {
+                return try await FoundationModelEngine.generate(
+                    systemPrompt: systemPrompt,
+                    userMessage: userMessage,
+                    task: task
+                )
+            } catch {
+                // Fall through to Gemma.
+            }
+        }
+
         await resetContext()
         let isBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
         let svc = try llamaService(useGPU: !isBackground)
@@ -129,10 +146,14 @@ actor LocalLLMService {
         return cleaned
     }
 
-    /// Cheap pre-flight check: true when the model is bundled or already installed.
+    /// Cheap pre-flight check: true when generation can happen right now, either via
+    /// Apple's Foundation Models (no download needed) or a bundled/installed Gemma model.
     /// Callers that would otherwise silently swallow generate() errors (auto mood
     /// detection, backfill) should skip work entirely when this is false.
     nonisolated static var isModelAvailable: Bool {
+        if FoundationModelEngine.isAvailable {
+            return true
+        }
         if Bundle.main.url(forResource: modelFileName, withExtension: modelExtension) != nil {
             return true
         }
