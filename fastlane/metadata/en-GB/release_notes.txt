@@ -1,6 +1,5 @@
-Introducing Sentinel mode — a whole new way to see MirrorNotes.
+Smarter on-device reflections.
 
-• A HUD-styled alternate view: mono readouts, ember accents, and a different personality on every screen — Settings, mood picker, calendar, tags, and more.
-• Switch anytime under Settings → Appearance. Classic is still there when you want the calm version back.
-• Redesigned first-run experience.
-• Full translations across all 10 supported languages.
+• On supported devices, MirrorNotes now taps into Apple's on-device Intelligence for sharper, more natural Daily Nudges, Weekly Digests, and Ask answers.
+• Everything still runs entirely on your device — nothing you write ever leaves your phone.
+• Older or unsupported devices are unaffected and keep working exactly as before.
