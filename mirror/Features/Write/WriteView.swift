@@ -25,6 +25,7 @@ struct WriteView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
+    @Environment(\.appDisplayMode) var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]
 
     var entry: Entry? = nil
@@ -71,6 +72,8 @@ struct WriteView: View {
     @State var failedTranscriptionIndexes: Set<Int> = []
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    @State var recPulse = false
+    @State var showSignalPanel = false
     @State var pendingTextCommand: NoteTextCommand?
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
@@ -122,7 +125,12 @@ struct WriteView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            MirrorTheme.inkMid.ignoresSafeArea()
+            if displayMode == .sentinel {
+                MirrorTheme.inkBase.ignoresSafeArea()
+                SentinelGridBackground().ignoresSafeArea()
+            } else {
+                MirrorTheme.inkMid.ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
                 if !focusMode { dateHeader }
@@ -171,6 +179,7 @@ struct WriteView: View {
                     canRedo: $canRedo,
                     fontChoiceRaw: $entryFontChoiceRaw,
                     panelState: panelState,
+                    displayMode: displayMode,
                     onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                 )
                 .padding(.horizontal, 20)
@@ -233,6 +242,26 @@ struct WriteView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay {
+            if displayMode == .sentinel {
+                ViewfinderCorners(inset: 4, length: 18)
+                    .padding(.top, 50)
+                    .padding(.bottom, 96)
+                    .padding(.horizontal, 4)
+            }
+        }
+        .overlay {
+            if showSignalPanel {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
+                    .overlay(alignment: .topTrailing) {
+                        signalPanel
+                            .padding(.top, 96)
+                            .padding(.trailing, 18)
+                    }
+            }
+        }
         .navigationBarBackButtonHidden(true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -286,6 +315,11 @@ struct WriteView: View {
                     editorFocused = true
                 }
             }
+            if displayMode == .sentinel {
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    recPulse = true
+                }
+            }
         }
         .sheet(isPresented: $showPhotoPicker) {
             NativePhotoPicker { result in
@@ -305,6 +339,7 @@ struct WriteView: View {
         )) { item in
             if item.value < photoDataArray.count {
                 FullscreenPhotoView(photoData: photoDataArray[item.value])
+                    .environment(\.appDisplayMode, displayMode)
             }
         }
         .alert("Photo not attached", isPresented: Binding(
@@ -319,6 +354,7 @@ struct WriteView: View {
             VoiceInputSheet { data, duration in
                 appendVoiceNote(data: data, duration: duration)
             }
+            .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {

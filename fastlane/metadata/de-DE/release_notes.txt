@@ -1,8 +1,6 @@
-Eine kleine, aber wichtige Korrektur.
+Neu: der Sentinel-Modus – eine völlig neue Art, MirrorNotes zu sehen.
 
-• Behoben: Die Brain-Ansicht konnte „Keine wiederkehrenden Themen"
-  anzeigen, obwohl genug Einträge vorhanden waren — das passierte,
-  wenn manche Einträge beim Öffnen noch nicht entschlüsselt werden
-  konnten. Jetzt werden deine echten Themen korrekt angezeigt.
-
-• Leistungs- und Stabilitätsverbesserungen.
+• Ein HUD-artiger Alternativ-Look: Mono-Anzeigen, Ember-Akzente und ein eigener Charakter auf jedem Bildschirm – Einstellungen, Stimmungsauswahl, Kalender, Tags und mehr.
+• Wechsle jederzeit unter Einstellungen → Erscheinungsbild. Classic ist weiterhin da, wenn du die ruhige Version zurückhaben möchtest.
+• Überarbeiteter erster Start.
+• Vollständige Übersetzungen in allen 10 unterstützten Sprachen.

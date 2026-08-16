@@ -7,6 +7,8 @@ import SwiftUI
 struct BrainConstellationView: View {
     let graph: BrainGraph
     let onNodeTap: (BrainNode) -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+    private var hubColor: Color { displayMode == .sentinel ? MirrorTheme.ember : Self.violetHubColor }
 
     @State private var steadyScale: CGFloat = 1
     @State private var steadyOffset: CGSize = .zero
@@ -31,7 +33,7 @@ struct BrainConstellationView: View {
     private static let linkColor = Color.white.opacity(0.16)
     private static let linkColorNearHub = Color.white.opacity(0.32)
     private static let linkColorHighlighted = Color.white.opacity(0.9)
-    private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let violetHubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
 
     var body: some View {
         GeometryReader { geo in
@@ -77,9 +79,9 @@ struct BrainConstellationView: View {
                 let hubRadius: CGFloat = 15
                 let hubCenter = graph.hubPosition
                 let hubRect = CGRect(x: hubCenter.x - hubRadius, y: hubCenter.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2)
-                context.fill(Circle().path(in: hubRect), with: .color(Self.hubColor))
+                context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 context.stroke(Circle().path(in: hubRect), with: .color(.white.opacity(0.4)), lineWidth: 1 / steadyScale)
-                drawLabel(&context, text: "You", at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
+                drawLabel(&context, text: String(localized: "You"), at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
 
                 // Nodes + progressively revealed labels.
                 for (index, node) in graph.nodes.enumerated() {
@@ -200,7 +202,7 @@ struct BrainConstellationView: View {
     }
 
     private func nodeColor(_ node: BrainNode) -> Color {
-        node.avgMoodScore.map { MirrorTheme.moodScoreColor($0) } ?? Self.hubColor.opacity(0.75)
+        node.avgMoodScore.map { MirrorTheme.moodScoreColor($0) } ?? hubColor.opacity(0.75)
     }
 
     private var zoomControls: some View {

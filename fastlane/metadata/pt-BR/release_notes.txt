@@ -1,9 +1,6 @@
-Uma pequena correção importante.
+Apresentando o modo Sentinel — uma forma totalmente nova de ver o MirrorNotes.
 
-• Corrigido: a visão Brain podia mostrar "Ainda sem temas
-  recorrentes" mesmo com anotações suficientes — isso acontecia
-  quando algumas anotações ainda não podiam ser descriptografadas no
-  momento da abertura. Agora ela mostra seus temas reais
-  corretamente.
-
-• Melhorias de desempenho e estabilidade.
+• Uma visão alternativa em estilo HUD: leituras monoespaçadas, detalhes em âmbar e uma personalidade diferente em cada tela — Ajustes, seletor de humor, calendário, tags e muito mais.
+• Troque quando quiser em Ajustes → Aparência. O Classic continua lá sempre que você quiser voltar à versão mais tranquila.
+• Experiência de primeiro uso redesenhada.
+• Traduções completas nos 10 idiomas compatíveis.

@@ -9,6 +9,7 @@ struct FullscreenPhotoView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         NavigationStack {
@@ -59,12 +60,17 @@ struct FullscreenPhotoView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") {
+                    Button {
                         onDismiss?()
                         dismiss()
+                    } label: {
+                        if displayMode == .sentinel {
+                            Text("DONE").font(MirrorTheme.mono(15, weight: .medium))
+                        } else {
+                            Text("Done").fontWeight(.medium)
+                        }
                     }
-                    .foregroundStyle(.white)
-                    .fontWeight(.medium)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : .white)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if let image = UIImage(data: photoData) {
