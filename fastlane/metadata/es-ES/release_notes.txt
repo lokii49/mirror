@@ -1,6 +1,5 @@
-Presentamos el modo Sentinel: una forma totalmente nueva de ver MirrorNotes.
+Reflexiones más inteligentes, directamente en tu dispositivo.
 
-• Una vista alternativa con estilo HUD: lecturas monoespaciadas, acentos ámbar y una personalidad distinta en cada pantalla: Ajustes, selector de estado de ánimo, calendario, etiquetas y más.
-• Cambia cuando quieras en Ajustes → Apariencia. Classic sigue ahí cuando quieras volver a la versión tranquila.
-• Experiencia de primer uso rediseñada.
-• Traducciones completas en los 10 idiomas compatibles.
+• En dispositivos compatibles, MirrorNotes ahora aprovecha la Inteligencia en el dispositivo de Apple para Recordatorios diarios, Resúmenes semanales y respuestas de Preguntar más precisas y naturales.
+• Todo sigue funcionando completamente en tu dispositivo: lo que escribes nunca sale de tu teléfono.
+• Los dispositivos más antiguos o no compatibles no se ven afectados y siguen funcionando exactamente igual que antes.
