@@ -43,6 +43,19 @@ repo) — could not confirm exact form fields, WebFetch to the site is blocked i
   with free CloudKit sync, requires no account or signup, and offers unlimited private journal
   entries free forever. The core app is open source under AGPL-3.0."
 
+### schickling/awesome-local-first — [needs GitHub PR, blocked in this env — see Blocked]
+Curated list of local-first software (README sections: Awesome Local-first / What is local first? /
+Applications / Related projects / About). MirrorNotes is local-first with free CloudKit sync — good
+fit for the "Applications" section, not yet in channel map. No CONTRIBUTING.md found via WebFetch;
+entries are plain markdown bullets, alphabetized-ish, format confirmed from README:
+`*   [Name](url): one-line description` or `*   [Name](url) - one-line description`. Ready-to-paste
+entry for whoever/whatever opens the PR (add alphabetically after "Marmalade" or wherever it lands,
+check current list order before inserting):
+
+`*   [MirrorNotes](https://mirrornotes.org): A local-first, privacy-first journaling app for iOS with free CloudKit sync. On-device AI (Gemma 3 1B) powers daily nudges and journal search — nothing needs to leave the device for AI features. Open source, AGPL-3.0.`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -52,6 +65,18 @@ repo) — could not confirm exact form fields, WebFetch to the site is blocked i
   blocked, SMTP egress unreachable from this environment. No PRs opened, no comments posted, no
   emails sent this run. All three blockers are environment/session configuration issues, not
   exhausted targets — see Blocked and Lessons.
+- 2026-08-16: Re-checked all three env blockers per Lessons (test periodically, don't skip): GitHub
+  MCP tools (not just add_repo) confirmed scoped to lokii49/mirror only — pull_request_read and
+  fork_repository against janhq/awesome-local-ai both rejected with "not configured for this
+  session"; no lokii49-owned forks of the four target repos exist (checked via search_repositories,
+  contradicts prior run's note — may have been pruned or never existed). SMTP to smtp.mail.me.com:587
+  still times out. curl to arbitrary domains still 403s via proxy. Found: WebFetch DOES work for
+  github.com/*  URLs specifically (not just api.github.com) even though it fails EGRESS_BLOCKED for
+  other domains — useful for researching target-repo README format without needing repo scope.
+  Used it to research schickling/awesome-local-first (new candidate, good fit, no CONTRIBUTING.md,
+  confirmed entry format from README) and added it to Backlog with ready-to-paste copy. Priority-1
+  bump and priority-3 email both skipped again, same env blockers. No PRs opened, no comments
+  posted, no emails sent this run.
 
 ## Blocked
 
