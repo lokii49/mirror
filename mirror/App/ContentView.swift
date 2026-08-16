@@ -1,6 +1,19 @@
 import SwiftUI
 import SwiftData
 
+/// Exposes the user's chosen display mode (Classic / Sentinel) down the view
+/// tree. Root-level so any screen can branch without re-querying UserProfile.
+private struct DisplayModeKey: EnvironmentKey {
+    static let defaultValue: DisplayMode = .classic
+}
+
+extension EnvironmentValues {
+    var appDisplayMode: DisplayMode {
+        get { self[DisplayModeKey.self] }
+        set { self[DisplayModeKey.self] = newValue }
+    }
+}
+
 private enum AppSidebarItem: String, CaseIterable, Hashable {
     case entries, write, insights, settings
 
@@ -36,12 +49,22 @@ struct ContentView: View {
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
 
+    /// Sentinel is a HUD — it reads as "futuristic" only against a dark
+    /// canvas, the same way a cockpit display or mission-control screen
+    /// always renders dark regardless of the room's lighting. Forces dark
+    /// whenever Sentinel is active; onChange(of: displayMode) below keeps
+    /// the stored Appearance setting itself in sync so Settings never
+    /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
         let style: UIUserInterfaceStyle
-        switch mode {
-        case "light": style = .light
-        case "dark":  style = .dark
-        default:      style = .unspecified
+        if displayMode == .sentinel {
+            style = .dark
+        } else {
+            switch mode {
+            case "light": style = .light
+            case "dark":  style = .dark
+            default:      style = .unspecified
+            }
         }
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
@@ -52,8 +75,20 @@ struct ContentView: View {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
     }
 
+    /// Widgets run in a separate process with no SwiftUI environment of their
+    /// own, so appDisplayMode never reaches them directly — mirrors the
+    /// existing widget.tier pattern (SubscriptionService writes, widgets read)
+    /// to hand them just enough to pick their own Sentinel/Classic chrome.
+    private func syncWidgetDisplayMode() {
+        UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(displayMode.rawValue, forKey: "widget.displayMode")
+    }
+
     private var onboardingComplete: Bool {
         profiles.first?.onboardingComplete ?? false
+    }
+
+    private var displayMode: DisplayMode {
+        profiles.first?.displayMode ?? .classic
     }
 
     var body: some View {
@@ -64,16 +99,33 @@ struct ContentView: View {
                 phoneLayout
             }
         }
-        .onAppear { applyColorScheme(appearanceMode) }
+        .environment(\.appDisplayMode, displayMode)
+        .onAppear {
+            applyColorScheme(appearanceMode)
+            syncWidgetDisplayMode()
+        }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
+        .onChange(of: displayMode) { _, newMode in
+            if newMode == .sentinel {
+                if appearanceMode == "system" || appearanceMode == "light" {
+                    appearanceMode = "dark"
+                }
+            } else {
+                appearanceMode = "system"
+            }
+            applyColorScheme(appearanceMode)
+            syncWidgetDisplayMode()
+        }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
             OnboardingFlow()
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+                .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewSheet(mode: .whatsNew)
+                .environment(\.appDisplayMode, displayMode)
         }
         .onChange(of: sizeClass) { _, newClass in
             if newClass == .regular {
@@ -147,22 +199,23 @@ struct ContentView: View {
     private var phoneLayout: some View {
         TabView(selection: $selectedTab) {
             EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
-                .tabItem { Label("Entries", systemImage: "book.closed") }
+                .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
                 .tag(0)
 
             WriteTabView(onSave: {
                 selectedTab = 0
                 entriesNavResetID = UUID()
             })
-            .tabItem { Label("Write", systemImage: "square.and.pencil") }
+            .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: displayMode == .sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil") }
             .tag(1)
 
             InsightView(viewModel: insightViewModel)
-                .tabItem { Label("Insights", systemImage: "sparkles") }
+                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(2)
         }
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
     }
 
     // MARK: - iPad layout (NavigationSplitView)

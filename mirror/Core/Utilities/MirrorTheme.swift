@@ -145,6 +145,15 @@ enum MirrorTheme {
         )
     }
 
+    // MARK: - Sentinel mode type role
+
+    /// HUD readouts (XP, rank, log ids, timestamps) — the one new type role
+    /// Sentinel mode adds. Route every HUD numeral/label through this
+    /// instead of inline `.font(.system(..., design: .monospaced))` calls.
+    static func mono(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
+
     // MARK: - Shared constants
 
     static let cornerCard: CGFloat = 20
@@ -248,6 +257,21 @@ extension View {
             }
     }
 
+    /// Mode-aware replacement for `.inkSurface` — Classic keeps the rounded
+    /// card; Sentinel switches to a rectangular hairline-bordered panel.
+    /// Reads displayMode itself so call sites don't thread it through.
+    func themedCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: false, classicBase: classicBase))
+    }
+
+    /// Same as `themedCard`, plus the viewfinder corner-bracket overlay in
+    /// Sentinel mode. Reserve for the one hero card per screen — that
+    /// restraint is what makes the brackets read as a signature instead of
+    /// visual noise.
+    func themedHeroCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: true, classicBase: classicBase))
+    }
+
     func mirrorCard(color: Color = MirrorTheme.violet) -> some View {
         self
             .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
@@ -263,5 +287,114 @@ extension View {
 
     func glowShadow(color: Color = MirrorTheme.violet, radius: CGFloat = 28) -> some View {
         self.shadow(color: color.opacity(0.25), radius: radius, x: 0, y: 8)
+    }
+}
+
+/// Which existing Classic card style a themedCard/themedHeroCard falls back
+/// to when displayMode is .classic — keeps Classic mode pixel-identical to
+/// before Sentinel mode existed, even for cards that used the stronger
+/// `.inkCard` elevation rather than the default `.inkSurface`.
+enum ThemedCardClassicBase {
+    case surface, elevated, hero
+}
+
+private struct ThemedCardModifier: ViewModifier {
+    @Environment(\.appDisplayMode) private var displayMode
+    let cornerRadius: CGFloat
+    let isHero: Bool
+    var classicBase: ThemedCardClassicBase = .surface
+
+    func body(content: Content) -> some View {
+        if displayMode == .sentinel {
+            content
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(MirrorTheme.ember.opacity(isHero ? 0.45 : 0.24), lineWidth: 1)
+                }
+                .overlay {
+                    if isHero { ViewfinderCorners() }
+                }
+        } else {
+            switch classicBase {
+            case .surface:  content.inkSurface(cornerRadius: cornerRadius)
+            case .elevated: content.inkCard(cornerRadius: cornerRadius)
+            case .hero:     content.inkHero(cornerRadius: cornerRadius)
+            }
+        }
+    }
+}
+
+/// The Sentinel-mode signature motif — four L-shaped corner brackets, like a
+/// camera viewfinder. Reserved for hero cards only (see themedHeroCard) so
+/// it reads as one deliberate accent per screen, not decoration everywhere.
+/// Faint HUD grid, drawn once per screen as an ignoresSafeArea backdrop.
+/// Never load-bearing for legibility — kept at 5% opacity so it reads as
+/// texture, not noise, behind actual content.
+struct SentinelGridBackground: View {
+    var spacing: CGFloat = 28
+    var lineColor: Color = MirrorTheme.violetLight
+
+    var body: some View {
+        Canvas { context, size in
+            var x: CGFloat = 0
+            while x < size.width {
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(path, with: .color(lineColor.opacity(0.05)), lineWidth: 1)
+                x += spacing
+            }
+            var y: CGFloat = 0
+            while y < size.height {
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(path, with: .color(lineColor.opacity(0.05)), lineWidth: 1)
+                y += spacing
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct ViewfinderCorners: View {
+    var inset: CGFloat = -6
+    var length: CGFloat = 12
+    var color: Color = MirrorTheme.ember
+
+    private func bracket(_ corner: UnitPoint) -> some View {
+        Path { path in
+            switch corner {
+            case .topLeading:
+                path.move(to: CGPoint(x: 0, y: length))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: length, y: 0))
+            case .topTrailing:
+                path.move(to: CGPoint(x: -length, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: length))
+            case .bottomLeading:
+                path.move(to: CGPoint(x: 0, y: -length))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: length, y: 0))
+            default: // bottomTrailing
+                path.move(to: CGPoint(x: -length, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 0, y: -length))
+            }
+        }
+        .stroke(color, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            bracket(.topLeading).offset(x: inset, y: inset)
+            bracket(.topTrailing).offset(x: geo.size.width - inset, y: inset)
+            bracket(.bottomLeading).offset(x: inset, y: geo.size.height - inset)
+            bracket(.bottomTrailing).offset(x: geo.size.width - inset, y: geo.size.height - inset)
+        }
+        .opacity(0.85)
+        .allowsHitTesting(false)
     }
 }

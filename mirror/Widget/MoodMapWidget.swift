@@ -10,6 +10,14 @@ private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
 private let wViolet   = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
 private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 
+// Sentinel accent — matches MirrorTheme.ember's dark-mode hex (0xF97B8B).
+private let wEmber      = Color(red: 0.976, green: 0.482, blue: 0.545)
+private let wSentinelBg = Color(red: 0.043, green: 0.043, blue: 0.055)
+
+private func widgetIsSentinel() -> Bool {
+    UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.displayMode") == "sentinel"
+}
+
 private let widgetMoodScore: [String: Double] = [
     "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
     "Anxious": 2, "Overwhelmed": 1, "Frustrated": 2, "Drained": 1, "Sad": 1, "Numb": 2
@@ -112,23 +120,26 @@ struct MoodMapWidgetView: View {
         return .steady
     }
 
+    private let sentinel = widgetIsSentinel()
+
     var body: some View {
         if isUnlocked {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Moods")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.50))
+                    Text(sentinel ? "VITALS" : "Moods")
+                        .font(sentinel ? .system(size: 10, weight: .bold, design: .monospaced) : .system(size: 11, weight: .bold, design: .rounded))
+                        .tracking(sentinel ? 1.2 : 0)
+                        .foregroundStyle(sentinel ? wEmber.opacity(0.7) : .white.opacity(0.50))
                     Spacer()
                     if let label = trend.label {
                         Text(label)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(sentinel ? .system(size: 9, weight: .semibold, design: .monospaced) : .system(size: 10, weight: .medium))
                             .foregroundStyle(trend.color)
                     }
                 }
                 if points.isEmpty {
-                    Text("Log a mood to see your chart.")
-                        .font(.system(size: 12, weight: .regular, design: .serif))
+                    Text(sentinel ? "LOG A SIGNAL TO SEE YOUR CHART." : "Log a mood to see your chart.")
+                        .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 12, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.40))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
@@ -139,7 +150,7 @@ struct MoodMapWidgetView: View {
                         )
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [wViolet.opacity(0.25), wViolet.opacity(0.03)],
+                                colors: sentinel ? [wEmber.opacity(0.25), wEmber.opacity(0.03)] : [wViolet.opacity(0.25), wViolet.opacity(0.03)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -152,7 +163,7 @@ struct MoodMapWidgetView: View {
                         )
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [wViolet, wViLight],
+                                colors: sentinel ? [wEmber, .orange] : [wViolet, wViLight],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -175,21 +186,29 @@ struct MoodMapWidgetView: View {
             }
             .padding(12)
             .containerBackground(for: .widget) {
-                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+                if sentinel {
+                    wSentinelBg
+                } else {
+                    LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
             }
             .widgetURL(URL(string: "mirror://mood-timeline"))
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.35))
-                Text("Core · $2.99/mo")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(sentinel ? wEmber.opacity(0.5) : .white.opacity(0.35))
+                Text(sentinel ? "CORE · $2.99/MO" : "Core · $2.99/mo")
+                    .font(sentinel ? .system(size: 10, weight: .semibold, design: .monospaced) : .system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .widget) {
-                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+                if sentinel {
+                    wSentinelBg
+                } else {
+                    LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
             }
             .widgetURL(URL(string: "mirror://upgrade"))
         }

@@ -6,6 +6,7 @@ MirrorNotes ti aiuta anche a riflettere con approfondimenti privati basati sull'
 
 Funzionalità:
   • Scrivi voci di diario private
+  • Passa dalla modalità Classic, rilassata, alla modalità Sentinel, in stile HUD
   • Aggiungi etichette dell'umore, foto e note vocali
   • Sfoglia e cerca nella cronologia delle voci
   • Visualizza riflessioni giornaliere e riepiloghi settimanali

@@ -6,6 +6,7 @@ MirrorNotes también te ayuda a reflexionar con información privada impulsada p
 
 Funciones:
   • Escribe entradas de diario privadas
+  • Cambia entre el modo Classic, tranquilo, y el modo Sentinel, con estilo HUD
   • Añade etiquetas de estado de ánimo, fotos y notas de voz
   • Explora y busca en tu historial de entradas
   • Consulta reflexiones diarias y resúmenes semanales

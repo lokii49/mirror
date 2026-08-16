@@ -153,6 +153,8 @@ struct VoiceNoteAttachmentView: View {
     var onRetryTranscription: (() -> Void)? = nil
 
     @State private var player = VoiceNotePlayer()
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -161,9 +163,15 @@ struct VoiceNoteAttachmentView: View {
                     player.toggle(data: data)
                 } label: {
                     ZStack {
-                        Circle()
-                            .fill(Color.accentColor)
-                            .frame(width: 38, height: 38)
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(accent)
+                                .frame(width: 36, height: 36)
+                        } else {
+                            Circle()
+                                .fill(accent)
+                                .frame(width: 38, height: 38)
+                        }
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
@@ -177,19 +185,29 @@ struct VoiceNoteAttachmentView: View {
                         .frame(height: 22)
                     HStack(spacing: 5) {
                         Text(formatDuration(duration))
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.secondary)
                         if let languageName, !languageName.isEmpty {
                             Text("·").foregroundStyle(.quaternary)
-                            Text(languageName)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
+                            Group {
+                                if displayMode == .sentinel {
+                                    Text(languageName.uppercased()).font(MirrorTheme.mono(10, weight: .medium))
+                                } else {
+                                    Text(languageName).font(.system(size: 11, weight: .medium))
+                                }
+                            }
+                            .foregroundStyle(.secondary)
                         }
                         if isTranscribing {
                             Text("·").foregroundStyle(.quaternary)
-                            Text("Transcribing...")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
+                            Group {
+                                if displayMode == .sentinel {
+                                    Text("DECODING…").font(MirrorTheme.mono(10, weight: .medium))
+                                } else {
+                                    Text("Transcribing...").font(.system(size: 11, weight: .medium))
+                                }
+                            }
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -204,7 +222,10 @@ struct VoiceNoteAttachmentView: View {
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
-                            .background(Color(.tertiarySystemFill), in: Circle())
+                            .background(
+                                Color(.tertiarySystemFill),
+                                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Circle())
+                            )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Delete voice note")
@@ -227,14 +248,24 @@ struct VoiceNoteAttachmentView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.orange)
-                    Text("Transcription failed — AI won't reflect on this note.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("DECODE FAILED — AI WON'T READ THIS NOTE.").font(MirrorTheme.mono(10.5, weight: .medium))
+                        } else {
+                            Text("Transcription failed — AI won't reflect on this note.").font(.system(size: 12))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                     Spacer()
                     if let onRetryTranscription {
-                        Button("Retry", action: onRetryTranscription)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                        Button(action: onRetryTranscription) {
+                            if displayMode == .sentinel {
+                                Text("RETRY").font(MirrorTheme.mono(11, weight: .semibold))
+                            } else {
+                                Text("Retry").font(.system(size: 12, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(accent)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -242,11 +273,11 @@ struct VoiceNoteAttachmentView: View {
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.accentColor.opacity(0.06))
+            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 16, style: .continuous)
+                .fill(accent.opacity(0.06))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.accentColor.opacity(0.15), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 16, style: .continuous)
+                        .strokeBorder(accent.opacity(displayMode == .sentinel ? 0.30 : 0.15), lineWidth: 1)
                 }
         }
         .onDisappear { player.stop() }
@@ -260,7 +291,7 @@ struct VoiceNoteAttachmentView: View {
             ForEach(0..<count, id: \.self) { i in
                 let h = heights[(i * 5 + seed) % heights.count]
                 Capsule()
-                    .fill(Color.accentColor.opacity(0.4 + h * 0.45))
+                    .fill(accent.opacity(0.4 + h * 0.45))
                     .frame(width: 2, height: 22 * h + 3)
             }
         }
@@ -269,6 +300,7 @@ struct VoiceNoteAttachmentView: View {
 
 struct VoiceInputSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appDisplayMode) private var displayMode
     let onComplete: (Data, TimeInterval) -> Void
 
     @State private var manager = VoiceInputManager()
@@ -286,9 +318,9 @@ struct VoiceInputSheet: View {
                     if manager.isRecording {
                         liveWaveform
                     } else {
-                        Image(systemName: "waveform")
+                        Image(systemName: displayMode == .sentinel ? "waveform.circle" : "waveform")
                             .font(.system(size: 32, weight: .ultraLight))
-                            .foregroundStyle(.quaternary)
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.5) : Color(.quaternaryLabel))
                     }
                 }
                 .frame(height: 52)
@@ -333,9 +365,14 @@ struct VoiceInputSheet: View {
                             )
 
                         Circle()
-                            .fill(manager.isRecording ? Color.red : Color(.secondarySystemBackground))
+                            .fill(manager.isRecording ? Color.red : (displayMode == .sentinel ? MirrorTheme.inkMid : Color(.secondarySystemBackground)))
                             .frame(width: 80, height: 80)
                             .shadow(color: manager.isRecording ? .red.opacity(0.28) : .clear, radius: 14, y: 5)
+                            .overlay {
+                                if displayMode == .sentinel && !manager.isRecording {
+                                    Circle().stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1.5)
+                                }
+                            }
 
                         if manager.isRecording {
                             RoundedRectangle(cornerRadius: 5)
@@ -344,17 +381,22 @@ struct VoiceInputSheet: View {
                         } else {
                             Image(systemName: "mic.fill")
                                 .font(.system(size: 26, weight: .medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.secondary)
                         }
                     }
                 }
                 .buttonStyle(.plain)
                 .disabled(permissionDenied)
 
-                Text(statusLabel)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 16)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(statusLabel.uppercased()).font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(statusLabel).font(.system(size: 13))
+                    }
+                }
+                .foregroundStyle(.tertiary)
+                .padding(.top, 16)
 
                 Spacer(minLength: 28)
 
@@ -365,10 +407,13 @@ struct VoiceInputSheet: View {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             manager.discardRecording()
                         } label: {
-                            Label("Discard", systemImage: "trash")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.red.opacity(0.8))
+                            if displayMode == .sentinel {
+                                Label("DISCARD", systemImage: "trash").font(MirrorTheme.mono(13, weight: .medium))
+                            } else {
+                                Label("Discard", systemImage: "trash").font(.system(size: 14, weight: .medium))
+                            }
                         }
+                        .foregroundStyle(.red.opacity(0.8))
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 28)
@@ -388,10 +433,15 @@ struct VoiceInputSheet: View {
                         Image(systemName: "mic.slash")
                             .font(.system(size: 30))
                             .foregroundStyle(.red.opacity(0.6))
-                        Text("Microphone access required.\nGo to Settings → Privacy → Microphone.")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text("MIC ACCESS REQUIRED.\nSETTINGS → PRIVACY → MICROPHONE.").font(MirrorTheme.mono(12, weight: .medium))
+                            } else {
+                                Text("Microphone access required.\nGo to Settings → Privacy → Microphone.").font(.system(size: 14))
+                            }
+                        }
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 40)
                 }
@@ -400,7 +450,8 @@ struct VoiceInputSheet: View {
             }
             .animation(.spring(duration: 0.4), value: manager.hasRecording)
             .animation(.spring(duration: 0.35), value: manager.isRecording)
-            .navigationTitle("Voice Note")
+            .background(displayMode == .sentinel ? MirrorTheme.bgBase : Color.clear)
+            .navigationTitle(displayMode == .sentinel ? "Signal Capture" : "Voice Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -410,15 +461,21 @@ struct VoiceInputSheet: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add") {
+                    Button {
                         if manager.isRecording { manager.stopRecording() }
                         if let data = manager.recordingData {
                             onComplete(data, manager.duration)
                         }
                         dismiss()
+                    } label: {
+                        if displayMode == .sentinel {
+                            Text("ADD").font(MirrorTheme.mono(15, weight: .bold))
+                        } else {
+                            Text("Add").font(.system(size: 16, weight: .semibold))
+                        }
                     }
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                     .disabled(!manager.hasRecording && !manager.isRecording)
-                    .font(.system(size: 16, weight: .semibold))
                 }
             }
         }

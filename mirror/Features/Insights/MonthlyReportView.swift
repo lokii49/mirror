@@ -4,6 +4,7 @@ import SwiftData
 struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
 
@@ -55,10 +56,10 @@ struct MonthlyReportView: View {
             .frame(maxWidth: .infinity)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle("Monthly Report")
+        .navigationTitle(displayMode == .sentinel ? "Debrief" : "Monthly Report")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .task {
             await viewModel.loadMonthlyReport(entries: entries, insights: insights, context: modelContext)
         }
@@ -75,22 +76,36 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoBack ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
+                    .foregroundStyle(canGoBack ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textTertiary)
                     .frame(width: 32, height: 32)
-                    .background(canGoBack ? MirrorTheme.violetDim : Color.clear, in: Circle())
+                    .background(canGoBack ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
             .buttonStyle(.plain)
             .disabled(!canGoBack)
 
             VStack(alignment: .center, spacing: 4) {
-                Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
-                    .tracking(0.8)
-                Text(Self.monthFormatter.string(from: selectedMonth))
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(MirrorTheme.textPrimary)
-                    .animation(.none, value: selectedMonth)
+                Group {
+                    if displayMode == .sentinel {
+                        Label("MISSION DEBRIEF", systemImage: "doc.text.magnifyingglass")
+                            .font(MirrorTheme.mono(11, weight: .bold))
+                    } else {
+                        Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                }
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+                .tracking(0.8)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(Self.monthFormatter.string(from: selectedMonth).uppercased())
+                            .font(MirrorTheme.mono(17, weight: .bold))
+                    } else {
+                        Text(Self.monthFormatter.string(from: selectedMonth))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .animation(.none, value: selectedMonth)
             }
             .frame(maxWidth: .infinity)
 
@@ -100,15 +115,15 @@ struct MonthlyReportView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canGoForward ? MirrorTheme.violetLight : MirrorTheme.textTertiary)
+                    .foregroundStyle(canGoForward ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textTertiary)
                     .frame(width: 32, height: 32)
-                    .background(canGoForward ? MirrorTheme.violetDim : Color.clear, in: Circle())
+                    .background(canGoForward ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
             .buttonStyle(.plain)
             .disabled(!canGoForward)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 26)
+        .themedCard(cornerRadius: 26)
     }
 
     @ViewBuilder
@@ -162,10 +177,17 @@ struct MonthlyReportView: View {
         VStack(spacing: 12) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(MirrorTheme.violetLight.opacity(0.5))
-            Text("No report for \(Self.monthFormatter.string(from: selectedMonth))")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MirrorTheme.textPrimary)
+                .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight).opacity(0.5))
+            Group {
+                if displayMode == .sentinel {
+                    Text("NO DEBRIEF · \(Self.monthFormatter.string(from: selectedMonth).uppercased())")
+                        .font(MirrorTheme.mono(14, weight: .semibold))
+                } else {
+                    Text("No report for \(Self.monthFormatter.string(from: selectedMonth))")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(MirrorTheme.textPrimary)
             Text("Reports generate automatically during the month. This month didn't have one.")
                 .font(.system(size: 13))
                 .foregroundStyle(MirrorTheme.textSecondary)
@@ -173,7 +195,7 @@ struct MonthlyReportView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(28)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     private var reportLoadingCard: some View {
@@ -181,19 +203,29 @@ struct MonthlyReportView: View {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.violetDim)
+                        .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.violetLight)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                         .symbolEffect(.variableColor.iterative, isActive: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Building your monthly report")
-                        .font(.system(size: 15, weight: .medium))
-                    Text("Reading all your entries this month…")
-                        .font(.system(size: 13))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("COMPILING DEBRIEF").font(MirrorTheme.mono(14, weight: .semibold))
+                        } else {
+                            Text("Building your monthly report").font(.system(size: 15, weight: .medium))
+                        }
+                    }
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("SCANNING ALL SIGNALS THIS MONTH…").font(MirrorTheme.mono(11, weight: .medium))
+                        } else {
+                            Text("Reading all your entries this month…").font(.system(size: 13))
+                        }
+                    }
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 Spacer()
             }
@@ -201,14 +233,19 @@ struct MonthlyReportView: View {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.orange)
-                Text("Keep mirror open — this takes 1–2 minutes")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.orange)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("KEEP APP OPEN — 1–2 MIN").font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text("Keep mirror open — this takes 1–2 minutes").font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.orange)
                 Spacer()
             }
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 
     private func notEnoughEntriesCard(remaining: Int, total: Int) -> some View {
@@ -216,29 +253,48 @@ struct MonthlyReportView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.violetDim)
+                        .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.violetLight)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text(total == 1 ? "Your deep monthly report unlocks at 1 entry." : "Your deep monthly report unlocks at \(total) entries.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text(remaining == 1 ? "1 SIGNAL TO CALIBRATION" : "\(remaining) SIGNALS TO CALIBRATION")
+                                .font(MirrorTheme.mono(15, weight: .semibold))
+                        } else {
+                            Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                    }
+                    Group {
+                        if displayMode == .sentinel {
+                            Text(total == 1 ? "DEBRIEF UNLOCKS AT 1 SIGNAL" : "DEBRIEF UNLOCKS AT \(total) SIGNALS")
+                                .font(MirrorTheme.mono(11, weight: .medium))
+                        } else {
+                            Text(total == 1 ? "Your deep monthly report unlocks at 1 entry." : "Your deep monthly report unlocks at \(total) entries.")
+                                .font(.system(size: 13))
+                        }
+                    }
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
-                .tint(MirrorTheme.violet)
+                .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
                 .scaleEffect(x: 1, y: 1.4)
-            Text("Keep writing — generates automatically when ready.")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(MirrorTheme.textTertiary)
+            Group {
+                if displayMode == .sentinel {
+                    Text("KEEP LOGGING — AUTO-GENERATES WHEN READY").font(MirrorTheme.mono(10, weight: .medium))
+                } else {
+                    Text("Keep writing — generates automatically when ready.").font(.system(size: 12, weight: .medium))
+                }
+            }
+            .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
@@ -253,23 +309,38 @@ struct MonthlyReportView: View {
                         .foregroundStyle(.orange)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Not enough entries this month")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text(count == 1 ? "Only 1 entry written so far." : "Only \(count) entries written so far.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("INSUFFICIENT SIGNALS THIS MONTH").font(MirrorTheme.mono(14, weight: .semibold))
+                        } else {
+                            Text("Not enough entries this month").font(.system(size: 16, weight: .semibold))
+                        }
+                    }
+                    Group {
+                        if displayMode == .sentinel {
+                            Text(count == 1 ? "ONLY 1 SIGNAL LOGGED" : "ONLY \(count) SIGNALS LOGGED").font(MirrorTheme.mono(11, weight: .medium))
+                        } else {
+                            Text(count == 1 ? "Only 1 entry written so far." : "Only \(count) entries written so far.").font(.system(size: 13))
+                        }
+                    }
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Text("The monthly report needs at least 10 entries to reflect your month meaningfully. With just a few days left, there isn't enough to generate one for this month.")
                 .font(.system(size: 13))
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Keep writing — your report will be ready next month.")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(MirrorTheme.textTertiary)
+            Group {
+                if displayMode == .sentinel {
+                    Text("DEBRIEF QUEUED FOR NEXT MONTH").font(MirrorTheme.mono(10, weight: .medium))
+                } else {
+                    Text("Keep writing — your report will be ready next month.").font(.system(size: 12, weight: .medium))
+                }
+            }
+            .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private var deepLockedCard: some View {
@@ -277,38 +348,56 @@ struct MonthlyReportView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.violetDim)
+                        .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
                     Image(systemName: "flame.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.violetLight)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Deep required")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Monthly reports are part of MirrorNotes Deep.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("DEEP CLEARANCE REQUIRED").font(MirrorTheme.mono(14, weight: .semibold))
+                        } else {
+                            Text("Deep required").font(.system(size: 16, weight: .semibold))
+                        }
+                    }
+                    Group {
+                        if displayMode == .sentinel {
+                            Text("DEBRIEF IS PART OF DEEP TIER").font(MirrorTheme.mono(11, weight: .medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("Monthly reports are part of MirrorNotes Deep.").font(.system(size: 14))
+                        }
+                    }
+                    .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Button(action: { showPaywall = true }) {
-                Text("Upgrade to Deep")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("UPGRADE TO DEEP").font(MirrorTheme.mono(14, weight: .semibold))
+                    } else {
+                        Text("Upgrade to Deep").font(.system(size: 15, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 46)
             }
-            .background(LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .leading, endPoint: .trailing), in: Capsule())
+            .background(
+                LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .leading, endPoint: .trailing),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
+            )
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 
     private var nightlyPendingCard: some View {
         NightlyPendingCard(
-            label: "Report generates overnight",
-            sublabel: "Mirror will prepare this while your phone is charging. To protect device performance.",
+            label: displayMode == .sentinel ? "DEBRIEF QUEUED FOR NIGHT CYCLE" : "Report generates overnight",
+            sublabel: displayMode == .sentinel ? "Compiles while charging to protect device performance." : "Mirror will prepare this while your phone is charging. To protect device performance.",
             icon: "doc.text.magnifyingglass",
             iconColor: MirrorTheme.violet
         )
@@ -316,29 +405,47 @@ struct MonthlyReportView: View {
 
     private func errorCard(message: String, onRetry: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Couldn't generate report", systemImage: "exclamationmark.triangle")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.orange)
+            Group {
+                if displayMode == .sentinel {
+                    Label("DEBRIEF GENERATION FAILED", systemImage: "exclamationmark.triangle")
+                        .font(MirrorTheme.mono(13, weight: .semibold))
+                } else {
+                    Label("Couldn't generate report", systemImage: "exclamationmark.triangle")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
-            Text("Mirror will retry automatically tonight while your phone charges.")
-                .font(.system(size: 13))
-                .foregroundStyle(MirrorTheme.textTertiary)
+            Group {
+                if displayMode == .sentinel {
+                    Text("WILL RETRY TONIGHT WHILE CHARGING").font(MirrorTheme.mono(10, weight: .medium))
+                } else {
+                    Text("Mirror will retry automatically tonight while your phone charges.").font(.system(size: 13))
+                }
+            }
+            .foregroundStyle(MirrorTheme.textTertiary)
             Button(action: onRetry) {
-                Label("Try Again", systemImage: "arrow.clockwise")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                Group {
+                    if displayMode == .sentinel {
+                        Label("RETRY", systemImage: "arrow.clockwise").font(MirrorTheme.mono(12, weight: .semibold))
+                    } else {
+                        Label("Try Again", systemImage: "arrow.clockwise").font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             }
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
 private struct MonthlyStatsStrip: View {
     let entries: [Entry]
+    @Environment(\.appDisplayMode) private var displayMode
 
     private var totalWords: Int {
         entries.reduce(0) { $0 + $1.wordCount }
@@ -377,19 +484,26 @@ private struct MonthlyStatsStrip: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .inkSurface(cornerRadius: 18)
+        .themedCard(cornerRadius: 18)
     }
 
     private func statCell(value: String, label: LocalizedStringKey) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(MirrorTheme.violet)
+                .font(displayMode == .sentinel ? MirrorTheme.mono(18, weight: .bold) : .system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(MirrorTheme.textSecondary)
+            Group {
+                if displayMode == .sentinel {
+                    Text(label).font(MirrorTheme.mono(9, weight: .medium)).textCase(.uppercase)
+                } else {
+                    Text(label).font(.system(size: 11, weight: .medium))
+                }
+            }
+            .foregroundStyle(MirrorTheme.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
     }
@@ -397,6 +511,8 @@ private struct MonthlyStatsStrip: View {
 
 private struct MonthlyReportCard: View {
     let insight: Insight
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private let headerDisplayNames: [String: LocalizedStringKey] = [
         "YOUR MONTH IN ONE IMAGE": "Your Month In One Image",
@@ -435,9 +551,9 @@ private struct MonthlyReportCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                Label(isSentinel ? "MISSION DEBRIEF" : "Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
@@ -464,11 +580,13 @@ private struct MonthlyReportCard: View {
             }
         }
         .padding(22)
-        .inkCard(cornerRadius: 26)
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
-        )
+        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .overlay {
+            if !isSentinel {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
+            }
+        }
     }
 
     private func reportSection(_ section: Section) -> some View {

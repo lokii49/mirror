@@ -4,6 +4,7 @@ import Charts
 
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
     let viewModel: InsightViewModel
@@ -41,10 +42,25 @@ struct InsightView: View {
         return hasher.finalize()
     }
 
+    private var sentinelStatusLine: some View {
+        HStack(spacing: 6) {
+            Circle().fill(Color.green).frame(width: 6, height: 6)
+            Text("SENTINEL — ONLINE")
+                .font(MirrorTheme.mono(9.5, weight: .bold))
+                .foregroundStyle(Color.green)
+                .kerning(0.6)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    if displayMode == .sentinel {
+                        sentinelStatusLine
+                    }
+
                     nudgeSection
 
                     if !pastNudges.isEmpty {
@@ -64,7 +80,7 @@ struct InsightView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
-            .navigationTitle("Insights")
+            .navigationTitle(displayMode == .sentinel ? "Briefing" : "Insights")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -89,13 +105,14 @@ struct InsightView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showPaywall) { PaywallView() }
-            .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView() }
-            .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showWriteFromPrompt) {
                 NavigationStack {
                     WriteView(autoFocus: true, initialText: WritingPrompts.all[promptIndex])
                 }
+                .environment(\.appDisplayMode, displayMode)
             }
         }
         .task {
@@ -302,13 +319,21 @@ struct InsightView: View {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.orange)
-                        Text("\(currentStreak)d")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                        Text(displayMode == .sentinel ? "\(currentStreak)D" : "\(currentStreak)d")
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .bold) : .system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(Color.orange.opacity(0.12), in: Capsule())
+                    .background(
+                        Color.orange.opacity(0.12),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                        }
+                    }
                 }
             }
             nudgeStatusContent
@@ -378,7 +403,7 @@ struct InsightView: View {
             AskView(viewModel: viewModel)
         } label: {
             ExplorationTile(
-                title: "Ask Mirror",
+                title: displayMode == .sentinel ? "Comms" : "Ask Mirror",
                 subtitle: entries.isEmpty
                     ? "Start writing to ask questions"
                     : (entries.count == 1 ? "Search 1 entry" : "Search \(entries.count) entries"),
@@ -397,7 +422,7 @@ struct InsightView: View {
             MoodTimelineView()
         } label: {
             ExplorationTile(
-                title: "Mood Timeline",
+                title: displayMode == .sentinel ? "Vitals" : "Mood Timeline",
                 subtitle: dominantMoodThisWeek.map { mood -> LocalizedStringKey in "Mostly \(MirrorTheme.localizedMoodName(for: mood)) this week" } ?? "See long arcs",
                 icon: "waveform.path.ecg",
                 color: .teal,
@@ -438,7 +463,7 @@ struct InsightView: View {
             MonthlyReportView(viewModel: viewModel)
         } label: {
             ExplorationTile(
-                title: "Monthly Report",
+                title: displayMode == .sentinel ? "Debrief" : "Monthly Report",
                 subtitle: contextLabel,
                 icon: "doc.text.magnifyingglass",
                 color: .indigo,
@@ -577,7 +602,7 @@ private struct PastNudgeCard: View {
             }
         }
         .padding(16)
-        .inkSurface(cornerRadius: 18)
+        .themedCard(cornerRadius: 18)
     }
 }
 
@@ -589,6 +614,9 @@ private struct SectionHeader<Trailing: View>: View {
     let icon: String
     let color: Color
     var trailing: Trailing
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     init(
         title: LocalizedStringKey,
@@ -608,13 +636,24 @@ private struct SectionHeader<Trailing: View>: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(color)
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : color)
                 .frame(width: 30, height: 30)
-                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(
+                    (isSentinel ? MirrorTheme.ember : color).opacity(0.16),
+                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 9, style: .continuous)
+                )
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(MirrorTheme.textPrimary)
+                if isSentinel {
+                    Text(title)
+                        .font(MirrorTheme.mono(13, weight: .bold))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .textCase(.uppercase)
+                        .kerning(0.5)
+                } else {
+                    Text(title)
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                }
                 Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
@@ -633,6 +672,8 @@ private struct SectionHeader<Trailing: View>: View {
 /// rather than blending into the flat light tiles around it.
 private struct BrainEntryCard: View {
     let isDeep: Bool
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
     private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
@@ -649,16 +690,19 @@ private struct BrainEntryCard: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text("Brain View")
+                    Text(isSentinel ? "Constellation" : "Brain View")
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     if !isDeep {
-                        Text("Deep")
-                            .font(.system(size: 9, weight: .bold))
+                        Text(isSentinel ? "DEEP" : "Deep")
+                            .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Self.hubColor, in: Capsule())
+                            .background(
+                                isSentinel ? MirrorTheme.ember : Self.hubColor,
+                                in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                            )
                     }
                 }
                 Text("A living map of your people & themes")
@@ -693,11 +737,11 @@ private struct BrainEntryCard: View {
                     context.fill(Circle().path(in: hubRect), with: .color(Self.hubColor))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: isSentinel ? 10 : 22, style: .continuous))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Self.hubColor.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isSentinel ? 10 : 22, style: .continuous)
+                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.3) : Self.hubColor.opacity(0.35), lineWidth: 1)
         )
     }
 }
@@ -709,6 +753,9 @@ private struct ExplorationTile: View {
     let color: Color
     let badge: LocalizedStringKey?
     var isProminent: Bool = false
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     var body: some View {
         Group {
@@ -738,19 +785,25 @@ private struct ExplorationTile: View {
             }
         }
         .padding(16)
-        .inkSurface(cornerRadius: 22)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(color.opacity(0.30), lineWidth: 1)
-        )
+        .themedCard(cornerRadius: 22)
+        .overlay {
+            if !isSentinel {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(color.opacity(0.30), lineWidth: 1)
+            }
+        }
     }
 
     private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
-        Image(systemName: icon)
+        let tint = isSentinel ? MirrorTheme.ember : color
+        return Image(systemName: icon)
             .font(.system(size: iconSize, weight: .semibold))
-            .foregroundStyle(color)
+            .foregroundStyle(tint)
             .frame(width: size, height: size)
-            .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(
+                tint.opacity(0.18),
+                in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 12, style: .continuous)
+            )
     }
 
     private func textBlock(titleSize: CGFloat, subtitleSize: CGFloat) -> some View {
@@ -763,11 +816,12 @@ private struct ExplorationTile: View {
                     .minimumScaleFactor(0.82)
                 if let badge {
                     Text(badge)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
+                        .textCase(isSentinel ? .uppercase : nil)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(color, in: Capsule())
+                        .background(isSentinel ? MirrorTheme.ember : color, in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule()))
                 }
             }
             Text(subtitle)
@@ -784,33 +838,53 @@ struct NightlyPendingCard: View {
     let sublabel: LocalizedStringKey
     let icon: String
     var iconColor: Color = MirrorTheme.primary
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle()
-                    .fill(iconColor.opacity(0.10))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(iconColor)
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(MirrorTheme.ember.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.ember)
+                } else {
+                    Circle()
+                        .fill(iconColor.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(label)
-                    .font(.system(size: 15, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text(sublabel)
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(label).font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
+                    } else {
+                        Text(label).font(.system(size: 15, weight: .medium))
+                    }
+                }
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(sublabel).font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(sublabel).font(.system(size: 13))
+                    }
+                }
+                .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(iconColor.opacity(0.35))
+                .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.35))
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -852,21 +926,32 @@ struct NeedsMoreEntriesCard: View {
     var iconColor: Color = MirrorTheme.primary
     var unlockLabel: LocalizedStringKey = "First reflection unlocks after 3 entries."
 
+    @Environment(\.appDisplayMode) private var displayMode
+
+    private var done: Int { max(0, total - remaining) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(iconColor.opacity(0.10))
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(iconColor)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : iconColor)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Mirror learns from your writing patterns.")
+                    if displayMode == .sentinel {
+                        Text("CALIBRATING · \(done)/\(total) SIGNALS")
+                            .font(MirrorTheme.mono(13, weight: .bold))
+                            .foregroundStyle(MirrorTheme.ember)
+                            .kerning(0.4)
+                    } else {
+                        Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    Text(displayMode == .sentinel ? "Reading signal patterns." : "Mirror learns from your writing patterns.")
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
@@ -874,11 +959,11 @@ struct NeedsMoreEntriesCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(iconColor.opacity(0.25))
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.25))
                         .frame(height: 6)
                     Capsule()
-                        .fill(iconColor.opacity(0.75))
-                        .frame(width: geo.size.width * CGFloat(max(0, total - remaining)) / CGFloat(total), height: 6)
+                        .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.75))
+                        .frame(width: geo.size.width * CGFloat(done) / CGFloat(total), height: 6)
                 }
             }
             .frame(height: 6)
@@ -887,7 +972,7 @@ struct NeedsMoreEntriesCard: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedHeroCard(cornerRadius: 24)
     }
 }
 
@@ -954,21 +1039,25 @@ private struct ErrorCard: View {
 
 // Used by MonthlyReportView — must stay internal (not private).
 struct ModelNotInstalledCard: View {
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("AI model needed", systemImage: "brain.head.profile")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MirrorTheme.violetLight)
+            Label(isSentinel ? "AI MODEL NEEDED" : "AI model needed", systemImage: isSentinel ? "waveform.path.ecg" : "brain.head.profile")
+                .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 15, weight: .semibold))
+                .kerning(isSentinel ? 0.4 : 0)
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             ModelDownloadStateControl()
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .inkSurface(cornerRadius: isSentinel ? 8 : 22)
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(MirrorTheme.violet.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isSentinel ? 8 : 22, style: .continuous)
+                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.violet.opacity(0.18), lineWidth: 1)
         )
     }
 }
@@ -978,6 +1067,8 @@ struct ModelNotInstalledCard: View {
 /// button wiring and copy for each ModelDownloadState case in one place.
 struct ModelDownloadStateControl: View {
     @State private var manager = ModelDownloadManager.shared
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -995,53 +1086,55 @@ struct ModelDownloadStateControl: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                pillButton("Download Model") { manager.startDownload() }
+                pillButton(isSentinel ? "DOWNLOAD MODEL" : "Download Model") { manager.startDownload() }
             }
 
         case .downloading(let progress, let written, let expected):
             VStack(spacing: 10) {
                 ProgressView(value: progress)
-                    .tint(MirrorTheme.primary)
+                    .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
                     .frame(maxWidth: 220)
                 Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
-                    .font(.system(size: 11))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                Text(isSentinel ? "DOWNLOADING IN BACKGROUND — DO NOT FORCE-QUIT" : "Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
+                    .font(isSentinel ? MirrorTheme.mono(9.5, weight: .semibold) : .system(size: 11))
+                    .kerning(isSentinel ? 0.3 : 0)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .multilineTextAlignment(.center)
-                Button("Pause") { manager.pauseDownload() }
-                    .font(.system(size: 13, weight: .semibold))
+                Button(isSentinel ? "PAUSE" : "Pause") { manager.pauseDownload() }
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : Color.accentColor)
             }
 
         case .paused(let resumable):
             VStack(spacing: 10) {
-                Text(resumable ? "Paused" : "Paused (will restart from 0%)")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                pillButton("Resume") { manager.resumeDownload() }
+                Text(resumable ? (isSentinel ? "PAUSED" : "Paused") : (isSentinel ? "PAUSED (WILL RESTART FROM 0%)" : "Paused (will restart from 0%)"))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                pillButton(isSentinel ? "RESUME" : "Resume") { manager.resumeDownload() }
             }
 
         case .verifying:
             HStack(spacing: 8) {
-                ProgressView()
-                Text("Verifying…")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                ProgressView().tint(isSentinel ? MirrorTheme.ember : nil)
+                Text(isSentinel ? "VERIFYING…" : "Verifying…")
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
+                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
             }
 
         case .installed:
-            Label("Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 14, weight: .medium))
+            Label(isSentinel ? "MODEL ONLINE — REOPEN TO GENERATE" : "Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
+                .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 14, weight: .medium))
                 .foregroundStyle(.green)
 
         case .failed(let message):
             VStack(spacing: 10) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                pillButton("Try Again") { manager.startDownload() }
+                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.startDownload() }
             }
         }
     }
@@ -1049,14 +1142,15 @@ struct ModelDownloadStateControl: View {
     private func pillButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
+                .kerning(isSentinel ? 0.4 : 0)
+                .foregroundStyle(Color.white)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 14)
-                .background(MirrorTheme.accentGradient, in: Capsule())
+                .background(isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient), in: Capsule())
         }
         .buttonStyle(.plain)
-        .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 16, x: 0, y: 6)
+        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 16, x: 0, y: 6)
     }
 }
 
@@ -1069,12 +1163,15 @@ private struct InsightTextView: View {
     var collapsedLineLimit: Int = 5
     var onToggleExpanded: (() -> Void)? = nil
 
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Label(label, systemImage: icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
@@ -1100,21 +1197,33 @@ private struct InsightTextView: View {
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {
                     HStack(spacing: 6) {
-                        Text(isExpanded ? "Show Less" : "Read Full Reflection")
+                        Text(isSentinel
+                             ? (isExpanded ? "SHOW LESS" : "FULL BRIEFING")
+                             : (isExpanded ? "Show Less" : "Read Full Reflection"))
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 11, weight: .bold))
                     }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.violetLight)
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .kerning(isSentinel ? 0.4 : 0)
+                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
-                    .background(MirrorTheme.violetDim, in: Capsule())
+                    .background(
+                        isSentinel ? AnyShapeStyle(MirrorTheme.ember.opacity(0.12)) : AnyShapeStyle(MirrorTheme.violetDim),
+                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if isSentinel {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(22)
-        .inkHero(cornerRadius: 26)
+        .themedHeroCard(cornerRadius: 26, classicBase: .hero)
         .overlay {
             RadialGradient(
                 colors: [accentColor.opacity(0.16), .clear],
@@ -1140,6 +1249,8 @@ private struct InsightTextView: View {
 
 private struct MoodWeekChartView: View {
     let entries: [Entry]
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     private struct MoodPoint: Identifiable {
         let id: UUID
@@ -1169,7 +1280,9 @@ private struct MoodWeekChartView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                    .kerning(isSentinel ? 0.3 : 0)
+                    .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
                 if let mood = dominantMood {
@@ -1177,13 +1290,25 @@ private struct MoodWeekChartView: View {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: mood))
                             .frame(width: 7, height: 7)
-                        Text("Mostly \(MirrorTheme.localizedMoodName(for: mood))")
-                            .font(.system(size: 11, weight: .medium))
+                        Text(isSentinel
+                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
+                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))")
+                            .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
+                            .kerning(isSentinel ? 0.2 : 0)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
-                    .background(MirrorTheme.moodColor(for: mood).opacity(0.1), in: Capsule())
+                    .background(
+                        MirrorTheme.moodColor(for: mood).opacity(0.1),
+                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if isSentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
+                        }
+                    }
                 }
             }
 
@@ -1215,7 +1340,7 @@ private struct MoodWeekChartView: View {
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
                             Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
-                                .font(.system(size: 10))
+                                .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }
@@ -1224,17 +1349,13 @@ private struct MoodWeekChartView: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { _ in
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                        .font(.system(size: 10))
+                        .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                 }
             }
             .frame(height: 130)
         }
         .padding(18)
-        .inkSurface(cornerRadius: 22)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-        )
+        .themedCard(cornerRadius: 22)
     }
 }
 

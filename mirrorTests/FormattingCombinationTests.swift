@@ -53,7 +53,8 @@ private func makeEditorHarness(
         canUndo: Binding(get: { canUndo }, set: { canUndo = $0 }),
         canRedo: Binding(get: { canRedo }, set: { canRedo = $0 }),
         fontChoiceRaw: Binding(get: { fontChoiceRawValue }, set: { fontChoiceRawValue = $0 }),
-        panelState: panelState
+        panelState: panelState,
+        displayMode: .classic
     )
     let coordinator = editor.makeCoordinator()
     let textView = UITextView()

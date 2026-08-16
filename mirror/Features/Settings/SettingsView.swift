@@ -1,8 +1,5 @@
 import SwiftUI
 import SwiftData
-import UserNotifications
-import CloudKit
-import UniformTypeIdentifiers
 
 enum ICloudStatus {
     case checking, active, noAccount, restricted, unavailable, unknown, error
@@ -29,19 +26,37 @@ enum ICloudStatus {
     }
 }
 
+/// Root Settings screen ("Config" in Sentinel) — profile, stats, the
+/// Appearance/Display-mode switch (kept inline since it's the one control
+/// worth surfacing immediately), and a short list of category rows pushing
+/// to ProtocolSettingsView / ArchiveSettingsView / ManualSettingsView /
+/// DiagnosticsSettingsView. Previously this screen held every individual
+/// row (~25 of them) inline — moved out once that made it unmanageable
+/// and hard to give Sentinel screens of their own.
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) var entries: [Entry]
+    @Query var profiles: [UserProfile]
     @Environment(\.modelContext) var modelContext
+    @Environment(\.appDisplayMode) var displayMode
+
+    var displayModeBinding: Binding<DisplayMode> {
+        Binding(
+            get: { profiles.first?.displayMode ?? .classic },
+            set: { newValue in
+                profiles.first?.displayMode = newValue
+                try? modelContext.save()
+            }
+        )
+    }
+
     @State var subscriptionService = SubscriptionService.shared
     @State var error: Error?
     @State var showSubscription = false
 
-    // Stats cache
     @State var cachedTotalWords: Int = 0
     @State var cachedStreak: Int = 0
     @State var cachedLatestEntryText: String = String(localized: "None")
 
-    // MIRROR settings
     @AppStorage("mirrorAppearanceMode") var appearanceMode: String = "system"
     var appearanceModeLabel: String {
         switch appearanceMode {
@@ -50,43 +65,6 @@ struct SettingsView: View {
         default: return String(localized: "System")
         }
     }
-    @AppStorage("nudgeHour") var nudgeHour: Int = 8
-    @AppStorage("nudgeMinute") var nudgeMinute: Int = 0
-    @State var showNudgeTimePicker = false
-    @AppStorage("writingReminderEnabled") var writingReminderEnabled: Bool = false
-    @AppStorage("writingReminderHour") var writingReminderHour: Int = 9
-    @AppStorage("writingReminderMinute") var writingReminderMinute: Int = 0
-    @State var showWritingReminderPicker = false
-    @AppStorage("notificationsEnabled") var notificationsEnabled: Bool = true
-    @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
-    @State var showLanguagePicker = false
-    @State var notificationPermission: UNAuthorizationStatus = .notDetermined
-
-    // YOUR DATA
-    @State var iCloudStatus: ICloudStatus = .checking
-    @State var showDeleteConfirmation = false
-    @State var showHowItWorks = false
-    @State var showFeatureGuide = false
-    @State var showImportPicker = false
-    @State var importResultMessage: String?
-    @State var showImportResult = false
-    @State var encryptionReport: String?
-
-    var nudgeTime: Date {
-        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        c.hour = nudgeHour
-        c.minute = nudgeMinute
-        return Calendar.current.date(from: c) ?? Date()
-    }
-
-    var writingReminderTime: Date {
-        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        c.hour = writingReminderHour
-        c.minute = writingReminderMinute
-        return Calendar.current.date(from: c) ?? Date()
-    }
-
-    var iCloudStatusColor: Color { iCloudStatus.color }
 
     var body: some View {
         NavigationStack {
@@ -95,57 +73,74 @@ struct SettingsView: View {
                     profileCard
                     statsGrid
                     accountSection
-                    mirrorSection
-                    dataSection
-                    aboutSection
-                    #if DEBUG
-                    debugSection
-                    #endif
+                    appearanceSection
+
+                    VStack(spacing: 10) {
+                        NavigationLink {
+                            ProtocolSettingsView()
+                        } label: {
+                            SettingsCategoryRow(
+                                title: displayMode == .sentinel ? "Protocol" : "Journal",
+                                subtitle: "Nudges, digest, transcription",
+                                systemImage: "bell.and.waves.left.and.right.fill",
+                                iconColor: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            ArchiveSettingsView()
+                        } label: {
+                            SettingsCategoryRow(
+                                title: displayMode == .sentinel ? "Archive" : "Your Data",
+                                subtitle: "Export, import, iCloud sync",
+                                systemImage: "archivebox.fill",
+                                iconColor: .blue
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            ManualSettingsView()
+                        } label: {
+                            SettingsCategoryRow(
+                                title: displayMode == .sentinel ? "Manual" : "About",
+                                subtitle: "How it works, privacy, feedback",
+                                systemImage: "book.fill",
+                                iconColor: .green
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        #if DEBUG
+                        NavigationLink {
+                            DiagnosticsSettingsView()
+                        } label: {
+                            SettingsCategoryRow(
+                                title: displayMode == .sentinel ? "Diagnostics" : "Developer",
+                                subtitle: "Debug-only tools",
+                                systemImage: "wrench.and.screwdriver.fill",
+                                iconColor: .red
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        #endif
+                    }
                 }
                 .padding(16)
                 .padding(.bottom, 24)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
-            .navigationTitle("Settings")
+            .navigationTitle(displayMode == .sentinel ? "Config" : "Settings")
             .alert("Something went wrong", isPresented: .constant(error != nil)) {
                 Button("OK") { error = nil }
             } message: {
                 Text(error?.localizedDescription ?? "")
             }
-            .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
-            .fileImporter(
-                isPresented: $showImportPicker,
-                allowedContentTypes: [.plainText],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    guard let url = urls.first else { return }
-                    let count = importEntries(from: url)
-                    if count > 0 {
-                        importResultMessage = count == 1
-                            ? String(localized: "Imported 1 entry.")
-                            : String(localized: "Imported \(count) entries.")
-                    } else {
-                        importResultMessage = String(localized: "No entries found in file.")
-                    }
-                    showImportResult = true
-                case .failure:
-                    importResultMessage = String(localized: "Could not read file.")
-                    showImportResult = true
-                }
-            }
-            .alert("Import", isPresented: $showImportResult) {
-                Button("OK") { importResultMessage = nil }
-            } message: {
-                Text(importResultMessage ?? "")
-            }
             .task {
                 await subscriptionService.refresh()
                 await subscriptionService.loadProducts()
-                await checkNotificationPermission()
-                await checkiCloudStatus()
             }
             .task(id: entries.count) {
                 let snapshot = entries

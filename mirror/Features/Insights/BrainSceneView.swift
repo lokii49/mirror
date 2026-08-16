@@ -193,7 +193,7 @@ private struct BrainSceneView: UIViewRepresentable {
             let hubNode = SCNNode(geometry: hubGeometry)
             hubNode.name = "__hub__"
             scene.rootNode.addChildNode(hubNode)
-            addLabel(text: "You", to: hubNode, sceneRadius: 0.22, alwaysVisible: true, bold: true)
+            addLabel(text: String(localized: "You"), to: hubNode, sceneRadius: 0.22, alwaysVisible: true, bold: true)
 
             var positionByID: [String: SCNVector3] = [:]
             for node in graph.nodes {

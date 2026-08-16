@@ -8,6 +8,7 @@ struct EntriesTabView: View {
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -166,12 +167,14 @@ struct EntriesTabView: View {
             } label: {
                 Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
             }
             Button {
                 withAnimation { showSearch.toggle() }
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
             }
         }
     }
@@ -187,7 +190,7 @@ struct EntriesTabView: View {
                     entryList(snapshot)
                 }
             }
-            .navigationTitle("Entries")
+            .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -261,9 +264,14 @@ struct EntriesTabView: View {
                     selectedTagFilter = nil
                 }
             } label: {
-                Text("Clear")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text("CLEAR").font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text("Clear").font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
@@ -280,16 +288,30 @@ struct EntriesTabView: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(color)
-                Text(label)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.primary)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(label.uppercased()).font(MirrorTheme.mono(11, weight: .medium))
+                    } else {
+                        Text(label).font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.primary)
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color.opacity(0.10), in: Capsule())
+            .background(
+                color.opacity(0.10),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(color.opacity(0.35), lineWidth: 1)
+                }
+            }
         }
         .buttonStyle(.plain)
     }
@@ -322,15 +344,30 @@ struct EntriesTabView: View {
                             if !isSelected { selectedMoodFilter = nil; selectedDateFilter = nil }
                         }
                     } label: {
-                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkRaised,
-                                in: Capsule()
-                            )
-                            .foregroundStyle(isSelected ? MirrorTheme.violetLight : MirrorTheme.textSecondary)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text("#\(MirrorTheme.localizedTagName(for: tag))".uppercased())
+                                    .font(MirrorTheme.mono(11, weight: .medium))
+                            } else {
+                                Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim) : MirrorTheme.inkRaised,
+                            in: displayMode == .sentinel
+                                ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                : AnyShape(Capsule())
+                        )
+                        .overlay {
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke((isSelected ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(isSelected ? 0.4 : 0.2), lineWidth: 1)
+                            }
+                        }
+                        .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -357,7 +394,9 @@ struct EntriesTabView: View {
                                 .fill(MirrorTheme.moodColor(for: mood))
                                 .frame(width: 7, height: 7)
                             Text(MirrorTheme.localizedMoodName(for: mood))
-                                .font(.system(size: 12, weight: .medium))
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
+                                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                                .kerning(displayMode == .sentinel ? 0.3 : 0)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -365,7 +404,9 @@ struct EntriesTabView: View {
                             isSelected
                                 ? MirrorTheme.moodColor(for: mood).opacity(0.20)
                                 : MirrorTheme.inkRaised,
-                            in: Capsule()
+                            in: displayMode == .sentinel
+                                ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                : AnyShape(Capsule())
                         )
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
@@ -380,11 +421,18 @@ struct EntriesTabView: View {
 
     private var searchBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search entries...", text: $searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
+            Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : .secondary)
+            Group {
+                if displayMode == .sentinel {
+                    TextField("scan entries…", text: $searchText)
+                        .font(MirrorTheme.mono(14, weight: .medium))
+                } else {
+                    TextField("Search entries...", text: $searchText)
+                }
+            }
+            .textFieldStyle(.plain)
+            .autocorrectionDisabled()
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -394,7 +442,7 @@ struct EntriesTabView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .futureSurface(cornerRadius: 14)
+        .themedCard(cornerRadius: 14)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(MirrorTheme.bgBase)
@@ -430,14 +478,20 @@ struct EntriesTabView: View {
             }
 
             if snapshot.filteredEntries.isEmpty {
-                Text(emptyFilteredMessage)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 32)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                Group {
+                    if displayMode == .sentinel {
+                        Text(emptyFilteredMessage).font(MirrorTheme.mono(13, weight: .medium)).textCase(.uppercase)
+                    } else {
+                        Text(emptyFilteredMessage).font(.system(size: 14))
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+                .padding(.top, 32)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             } else {
                 EmptyView()
             }
@@ -465,15 +519,19 @@ struct EntriesTabView: View {
                         }
                 } header: {
                     HStack {
-                        Text(monthTitle(for: group.date))
-                            .font(.system(size: 13, weight: .black, design: .rounded))
-                            .tracking(1.5)
+                        Group {
+                            if displayMode == .sentinel {
+                                Text(monthTitle(for: group.date)).font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                            } else {
+                                Text(monthTitle(for: group.date)).font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                            }
+                        }
                         Spacer()
                         Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .textCase(nil)
                     }
-                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
                     .textCase(.uppercase)
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -507,14 +565,24 @@ struct EntriesTabView: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "book.closed")
+            Image(systemName: displayMode == .sentinel ? "viewfinder" : "book.closed")
                 .font(.system(size: 48, weight: .light))
                 .foregroundStyle(.quaternary)
-            Text("No entries yet")
-                .font(.system(size: 20, weight: .semibold))
-            Text("Tap Write to start your first entry.")
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+            Group {
+                if displayMode == .sentinel {
+                    Text("NO SIGNALS YET").font(MirrorTheme.mono(18, weight: .semibold)).tracking(1)
+                } else {
+                    Text("No entries yet").font(.system(size: 20, weight: .semibold))
+                }
+            }
+            Group {
+                if displayMode == .sentinel {
+                    Text("OPEN TRANSMISSION TO LOG YOUR FIRST SIGNAL.").font(MirrorTheme.mono(12, weight: .medium))
+                } else {
+                    Text("Tap Write to start your first entry.").font(.system(size: 15))
+                }
+            }
+            .foregroundStyle(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -527,6 +595,7 @@ struct EntriesTabView: View {
 
 private struct EntryRow: View {
     let entry: Entry
+    @Environment(\.appDisplayMode) private var displayMode
     private let moodLabel: String?
     private let preview: Text
     private let displayWordCount: Int
@@ -577,17 +646,26 @@ private struct EntryRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 6) {
                 Text(entry.createdAt, format: .dateTime.day())
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(17, weight: .bold) : .system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                     .monospacedDigit()
                 Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .font(.system(size: 10, weight: .bold))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(9.5, weight: .bold) : .system(size: 10, weight: .bold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
             }
             .frame(width: 42)
             .padding(.vertical, 10)
-            .background(moodColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(
+                moodColor.opacity(0.10),
+                in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous)
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(moodColor.opacity(0.35), lineWidth: 1)
+                }
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
@@ -614,11 +692,11 @@ private struct EntryRow: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(entry.createdAt, format: .dateTime.hour().minute())
-                        .font(.system(size: 13, weight: .medium))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                     if displayWordCount > 0 {
                         Text("\(displayWordCount)w")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
@@ -628,13 +706,25 @@ private struct EntryRow: View {
                             Circle()
                                 .fill(MirrorTheme.moodColor(for: label))
                                 .frame(width: 7, height: 7)
-                            Text(MirrorTheme.localizedMoodName(for: label))
-                                .font(.system(size: 12, weight: .semibold))
+                            Text(displayMode == .sentinel
+                                 ? MirrorTheme.localizedMoodName(for: label).uppercased()
+                                 : MirrorTheme.localizedMoodName(for: label))
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .semibold) : .system(size: 12, weight: .semibold))
+                                .kerning(displayMode == .sentinel ? 0.3 : 0)
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(MirrorTheme.moodColor(for: label).opacity(0.10), in: Capsule())
+                        .background(
+                            MirrorTheme.moodColor(for: label).opacity(0.10),
+                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                        )
+                        .overlay {
+                            if displayMode == .sentinel {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .stroke(MirrorTheme.moodColor(for: label).opacity(0.3), lineWidth: 1)
+                            }
+                        }
                     }
                 }
             }
@@ -642,7 +732,10 @@ private struct EntryRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(
+            MirrorTheme.inkMid,
+            in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous)
+        )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(moodColor.opacity(moodLabel == nil ? 0.20 : 0.65))
@@ -651,8 +744,8 @@ private struct EntryRow: View {
                 .padding(.leading, 0)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous)
+                .stroke(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.22) : MirrorTheme.inkBorder, lineWidth: 1)
         }
     }
 

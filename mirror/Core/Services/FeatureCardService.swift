@@ -249,6 +249,16 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "2.0.5"
         ),
+        // 2.0.7
+        .init(
+            id: "sentinel-launch-207",
+            title: "Introducing Sentinel mode",
+            body: "A whole new way to see MirrorNotes — HUD readouts, mono type, and ember accents on every screen, from Settings to the mood picker. Switch anytime under Settings → Appearance. Classic is still there whenever you want the calm version back.",
+            symbolName: "viewfinder",
+            accentColor: MirrorTheme.ember,
+            tier: .free,
+            sinceVersion: "2.0.7"
+        ),
     ]
 }
 

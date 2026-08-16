@@ -6,6 +6,7 @@ MirrorNotes hilft dir außerdem beim Reflektieren mit privaten, KI-gestützten E
 
 Funktionen:
   • Private Tagebucheinträge schreiben
+  • Zwischen dem ruhigen Classic- und dem HUD-artigen Sentinel-Modus wechseln
   • Stimmungs-Labels, Fotos und Sprachnotizen hinzufügen
   • Verlauf durchsuchen und durchstöbern
   • Tägliche Reflexionen und Wochenrückblicke ansehen
