@@ -69,9 +69,9 @@ actor LocalLLMService {
     func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
         // no bundled weights, no download, better instruction-following than Gemma 3 1B.
-        // Any failure (guardrail rejection, model not ready, etc.) falls through to the
-        // bundled Gemma/llama.cpp path below so generation never hard-fails on capable
-        // devices alone.
+        // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
+        // when a Gemma model actually exists locally — otherwise the fallback itself throws
+        // LocalLLMError.modelMissing, turning one real failure into a guaranteed second one.
         if FoundationModelEngine.isAvailable {
             do {
                 return try await FoundationModelEngine.generate(
@@ -80,6 +80,7 @@ actor LocalLLMService {
                     task: task
                 )
             } catch {
+                guard Self.isGemmaModelAvailable else { throw error }
                 // Fall through to Gemma.
             }
         }
@@ -151,9 +152,13 @@ actor LocalLLMService {
     /// Callers that would otherwise silently swallow generate() errors (auto mood
     /// detection, backfill) should skip work entirely when this is false.
     nonisolated static var isModelAvailable: Bool {
-        if FoundationModelEngine.isAvailable {
-            return true
-        }
+        FoundationModelEngine.isAvailable || isGemmaModelAvailable
+    }
+
+    /// True when a Gemma model is bundled or already downloaded — independent of Foundation
+    /// Models. Used by `generate()` to decide whether falling back to Gemma on an FM failure
+    /// is worth attempting, versus surfacing the FM error directly.
+    nonisolated static var isGemmaModelAvailable: Bool {
         if Bundle.main.url(forResource: modelFileName, withExtension: modelExtension) != nil {
             return true
         }
