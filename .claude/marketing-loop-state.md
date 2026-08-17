@@ -138,6 +138,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   entry format confirmed (`#### [Name](URL)` + description paragraph). Added ready-to-paste copy to
   Backlog. No PRs opened, no comments posted, no emails sent this run — all three blockers remain
   environment-level (GitHub session scope, general web egress, SMTP egress), not exhausted targets.
+- 2026-08-17 (run 2): Re-confirmed all three env blockers fresh (not stale from memory): `add_repo`
+  for janhq/awesome-local-ai explicitly rejected with "cross-tier adds are not supported in v1"
+  (owner mismatch vs session's lokii49 sources) — priority-1 bump and any direct third-party PR
+  remain impossible. `/dev/tcp` to smtp.mail.me.com:587 still times out. curl to example.com via the
+  agent proxy still 403s (`connect_rejected`, policy denial) — confirmed via proxy status endpoint.
+  Investigated a lead: a pre-existing fork `lokii49/awesome-ios` was in the account's repo list and
+  IS addable/clonable (same owner as session). Added it, cloned, inspected README: it's a fork of
+  vsouza/awesome-ios, a curated list of iOS *developer* resources (SDKs, libraries, analytics tools)
+  with no apps/consumer-directory section — NOT a fit for MirrorNotes. Recorded as a negative finding
+  below so future runs don't re-investigate it. For priority 2, searched for a new candidate directory
+  across several angles (mental-health apps, on-device/edge-AI showcases, Gemma/Gemini community
+  lists, devtool newsletters, awesome-selfhosted) — none were a genuine good fit this run:
+  airhorns/awesome-mental-health is a 1-commit, minimally-maintained repo; Curated-Awesome-Lists/
+  Awesome-Google-Gemini-AI covers Gemini (cloud API) not Gemma (on-device), a real mismatch;
+  console.dev's stated selection criteria require the primary user to be a developer; awesome-selfhosted
+  requires self-hostable server software, which MirrorNotes isn't. Declined to force a low-fit
+  submission (a prior submission was already rejected once for not matching a list's rules). No PRs
+  opened, no comments posted, no emails sent this run — same three env blockers, all re-verified with
+  fresh evidence this run, plus one new negative finding (awesome-ios) that prevents wasted future
+  effort. Flagging to user via notification: this is now 5 consecutive runs since the loop started
+  (2026-08-15) with zero PRs/comments/emails actually sent — the loop is fully blocked on
+  session/environment configuration, not on exhausted targets or missing candidates.
 
 ## Blocked
 
@@ -179,6 +201,16 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - Don't re-run the same blocked diagnostic every single run once confirmed — check whether the
   environment's network policy or session config has changed (e.g. try once every few runs) rather
   than burning an action on it every time, but log every run whether primary actions were possible.
+- The account has a pre-existing fork `lokii49/awesome-ios` (of vsouza/awesome-ios). Do NOT use it —
+  it's a curated list of iOS *developer* resources (SDKs, libraries, analytics/tooling), not an
+  app/consumer directory, so MirrorNotes doesn't fit anywhere in it. Confirmed 2026-08-17 by cloning
+  and reading the README's table of contents (Analytics, ARKit, Authentication, etc — no Apps section).
+- Not every "awesome-X" search hit is worth adding to Backlog. Check actual fit before adding: repo
+  activity/commit count, whether it's about the right underlying tech (e.g. Gemini ≠ Gemma — cloud
+  API vs on-device open-weights model, a real mismatch despite both being Google), and any explicit
+  stated selection criteria (e.g. console.dev requires the primary user to be a developer;
+  awesome-selfhosted requires self-hostable server software). A rejected/spam-flagged submission
+  costs more than skipping a weak candidate for a run.
 
 ## Sent log
 
