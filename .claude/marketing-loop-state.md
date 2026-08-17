@@ -196,6 +196,32 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   this is the 6th consecutive run with zero direct actions taken, all three blockers remain
   environment/session-level, not exhausted targets.
 
+- 2026-08-17 (run 4): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 explicitly rejected with "Access denied: repository ... is not
+  configured for this session. Allowed repositories: lokii49/mirror" — priority-1 bump still
+  impossible. `/dev/tcp` to smtp.mail.me.com:587 still times out — priority-3 email still
+  impossible. curl to example.com and opensourcealternative.to via the agent proxy both still 403
+  (`CONNECT tunnel failed`), proxy status endpoint's allowlist unchanged — general web egress still
+  blocked. Checked `list_repos` for lokii49-owned forks of target repos: forks of all four OPEN-PR
+  upstreams exist (lokii49/awesome-local-ai, lokii49/awesome-privacy, lokii49/awesome-mental-health,
+  lokii49/awesome-note-taking) plus lokii49/awesome-privacy-1 (lissy93 fork) and
+  lokii49/awesome-mentalhealth — but per Lessons this doesn't unlock upstream PR/comment API access
+  (owner scope, not fork existence, gates the session), so no new attempt was made against them. For
+  priority 2, searched several new angles: PKM/journaling lists (doanhthong/awesome-pkm — desktop
+  note-tool focused, no mobile/iOS or journaling section, weak fit, skipped), digital-wellbeing lists
+  (jcanfield/awesome-digital-wellbeing — Apps section is Android screen-time-blocker tools only, no
+  iOS, and its contributing.md is literally unfilled placeholder text ("Make sure you take care of
+  this", "And this as well") signaling a low-quality/template repo, skipped per Lessons' quality bar),
+  AGPL/open-source-directory lists (unicodeveloper/awesome-opensource-apps — WebFetch resolved this to
+  an unrelated Python-scripts repo content, not a fit), and re-verified piotrkulpinski/openalternative
+  (the repo behind opensourcealternative.to) is submission-via-website-only
+  (openalternative.co/submit), confirming the existing Backlog entry is correct (minor: site copy
+  refers to itself as openalternative.co, same product as opensourcealternative.to). No candidate
+  found this run cleared the fit/quality bar, so nothing new added to Backlog. No PRs opened, no
+  comments posted, no emails sent — this is the 7th consecutive run with zero direct actions, all
+  three blockers remain environment/session-level (already flagged to user once at run 2026-08-17
+  run2; not re-flagging since nothing has changed).
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
