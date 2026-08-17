@@ -95,6 +95,21 @@ free forever. Open source under AGPL-3.0.
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### manishmarahatta/awesome-mentalhealth — [needs GitHub PR, blocked in this env — see Blocked]
+Curated mental-health resource list, distinct from dreamingechoes/awesome-mental-health (already OPEN)
+and theimpossibleastronaut/awesome-mentalhealth (blocked-on-click). Has a dedicated "Apps" section
+(Headspace, Pacifica, etc.) plus a "Selfhosted" subsection — MirrorNotes fits "Apps". Small/lightly
+maintained (1 star, 16 commits) but has a real CONTRIBUTING.md with one binding rule confirmed via
+WebFetch: "I don't like expensive products, but I won't list prices or mark free/premium resources" —
+so the submitted description below is deliberately pricing-neutral (no "free forever" / "paid tier"
+language) to comply. Entry format per CONTRIBUTING: `- [Name](url) - Brief description.` Ready-to-paste
+entry for whoever/whatever opens the PR (add under "## Apps", alphabetical-ish placement near
+"Muse"/"Pacifica"):
+
+`- [MirrorNotes](https://mirrornotes.org) - A privacy-first journaling app for iOS with on-device AI (daily nudges, weekly digests, ask-your-journal) — entries never need to leave the phone for AI processing. No account required, iCloud sync, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -160,6 +175,26 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   effort. Flagging to user via notification: this is now 5 consecutive runs since the loop started
   (2026-08-15) with zero PRs/comments/emails actually sent — the loop is fully blocked on
   session/environment configuration, not on exhausted targets or missing candidates.
+- 2026-08-17 (run 3): Re-confirmed all three env blockers fresh this run (not assumed from log):
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("not configured for this
+  session", allowed repos = lokii49/mirror only) — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (`CONNECT tunnel failed`) — general web
+  egress still blocked, confirmed against the proxy status endpoint's unchanged short allowlist. For
+  priority 2, searched several new angles (journaling/diary awesome lists, on-device/mobile-LLM
+  lists, AGPL/copyleft lists, mindfulness/wellness lists). Ruled out as non-fits or duplicates:
+  stevelaskaridis/awesome-mobile-llm (Applications section is academic papers only, no consumer-app
+  listings — confirmed via WebFetch on the raw README); ThetaApps/ios-app-opensource (itself a fork
+  of dkhamsing/open-source-ios-apps, which is already MERGED — submitting there would be redundant);
+  google-ai-edge/gallery (a showcase app you install, not a directory of third-party apps — its
+  "skills" mechanism extends the Gallery app itself, doesn't list external apps). Found one genuine
+  new fit: manishmarahatta/awesome-mentalhealth — distinct from the two mental-health lists already
+  in the channel map, has a real "Apps" section and CONTRIBUTING.md. Note: its CONTRIBUTING.md states
+  "I won't list prices or mark free/premium resources," so the ready-to-paste copy added to Backlog
+  is deliberately pricing-neutral to comply (per the standing rule about matching each list's exact
+  submission rules). Added to Backlog. No PRs opened, no comments posted, no emails sent this run —
+  this is the 6th consecutive run with zero direct actions taken, all three blockers remain
+  environment/session-level, not exhausted targets.
 
 ## Blocked
 
