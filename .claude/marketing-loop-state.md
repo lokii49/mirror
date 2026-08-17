@@ -77,6 +77,24 @@ account and image assets. Ready-to-paste copy for whoever does it:
   required, unlimited entries free forever. Open source under AGPL-3.0."
 - App Store: https://apps.apple.com/app/id6769007201 · Repo: https://github.com/lokii49/mirror
 
+### iAnonymous3000/awesome-privacy-tools — [needs GitHub PR, blocked in this env — see Blocked]
+Large curated privacy-tools list (57 categories: Browsers, Notes, Productivity, AI, etc), not yet in
+channel map or backlog — distinct from pluja/awesome-privacy (already OPEN) and lissy93/awesome-privacy
+(gated). Confirmed via WebFetch (github.com works even though other domains are egress-blocked): no
+CONTRIBUTING.md, default branch `main`, entries are plain `#### [Name](URL)` headers followed by a
+description paragraph (no table, no strict alphabetical enforcement seen). Best-fit category: "Notes"
+(sits alongside Standard Notes, Notesnook). Ready-to-paste entry for whoever/whatever opens the PR:
+
+```
+#### [MirrorNotes](https://mirrornotes.org)
+A privacy-first journaling app for iOS. Daily nudges, weekly digests, and an "ask your journal" chat
+all run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI
+processing. Local-first with free CloudKit sync, no account or signup required, unlimited entries
+free forever. Open source under AGPL-3.0.
+```
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -110,6 +128,16 @@ account and image assets. Ready-to-paste copy for whoever does it:
   regardless of GitHub scope. Added ready-to-paste copy to Backlog. Priority-1 bump and priority-3
   email both skipped again, same env blockers, both re-verified this run. No PRs opened, no comments
   posted, no emails sent.
+- 2026-08-17: Re-confirmed env blockers (periodic check per Lessons): pull_request_read on
+  janhq/awesome-local-ai#131 still rejected ("not configured for this session", scope =
+  lokii49/mirror only) — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out; proxy status endpoint confirms only a short allowlist passes CONNECT, arbitrary domains
+  (tested example.com) still 403 — priority-3 email still impossible. For priority 2, used WebSearch
+  + WebFetch (github.com URLs work) to find a new candidate not yet in channel map/backlog:
+  iAnonymous3000/awesome-privacy-tools — good fit under its "Notes" category, no CONTRIBUTING.md,
+  entry format confirmed (`#### [Name](URL)` + description paragraph). Added ready-to-paste copy to
+  Backlog. No PRs opened, no comments posted, no emails sent this run — all three blockers remain
+  environment-level (GitHub session scope, general web egress, SMTP egress), not exhausted targets.
 
 ## Blocked
 
