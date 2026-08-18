@@ -140,6 +140,24 @@ whatever opens the PR (append under "3. Mobile LLM Apps"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### awesomelistsio/awesome-ai-edge-computing — [needs GitHub PR, blocked in this env — see Blocked]
+Curated edge-AI list (Frameworks and Libraries, Hardware and Accelerators, Deployment Platforms,
+Optimization Tools, Applications, Learning Resources, Books, Community, Contributing, License), not
+yet in channel map or backlog — distinct from all prior on-device-AI candidates (janhq/awesome-local-ai,
+already OPEN; ysyisyourbrother/awesome-on-device-AI, already in Backlog). Strong fit: its own
+"Applications" section already lists a directly comparable app — DailyVox, "On-device AI voice diary
+app using Apple's native frameworks" — confirming consumer journaling/diary apps are in scope, not
+just frameworks/papers. Confirmed via WebFetch (raw README + raw CONTRIBUTING.md): entry format
+`- [Name](URL) - Brief description.`, list "alphabetically sorted (if applicable)", no pricing/
+monetization wording restriction found, standard fork → branch → PR process, maintainers warn against
+self-promotion/early-stage-project submissions but MirrorNotes is a shipped App Store app so this
+should be fine. Ready-to-paste entry for whoever/whatever opens the PR (insert into "Applications"
+section, alphabetically near "DailyVox"):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an "ask your journal" chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -279,6 +297,21 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   sent this run — 9th consecutive run blocked purely on environment/session config (GitHub
   cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since nothing
   about the blockers has changed since the run2 (2026-08-17) flag.
+
+- 2026-08-18 (run 7): Re-confirmed all three env blockers fresh this run (periodic check per Lessons):
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed
+  repositories: lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 56) — priority-3 email still impossible. curl to
+  example.com and opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel
+  failed) — general web egress still blocked. For priority 2, WebSearch + WebFetch found a new
+  genuine candidate: awesomelistsio/awesome-ai-edge-computing — has a real "Applications" section
+  (not just frameworks/papers) that already lists a directly comparable app (DailyVox, an on-device
+  AI voice diary app), confirming journaling/diary apps are in scope. Confirmed entry format and
+  CONTRIBUTING.md rules (no pricing restriction, standard fork/PR flow). Added ready-to-paste copy to
+  Backlog. No PRs opened, no comments posted, no emails sent this run — 10th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress);
+  not re-flagging via notification since nothing about the blockers has changed since the run2
+  (2026-08-17) flag — this is a standing, unchanged condition, not new information.
 
 ## Blocked
 
