@@ -110,6 +110,21 @@ entry for whoever/whatever opens the PR (add under "## Apps", alphabetical-ish p
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### deluks/awesome-ios-apps — [needs GitHub PR, blocked in this env — see Blocked]
+Curated consumer iOS-app list (categories: Health, Multimedia, Productivity, Reading, Social Media,
+Weather), not yet in channel map or backlog — distinct from vsouza/awesome-ios (developer resources,
+already ruled out) and deluks is a different maintainer entirely. No dedicated journaling/diary
+category; best fit is "Productivity" (sits alongside Drafts, Things). Confirmed via WebFetch: entry
+format `[Name](url) - Description.`, alphabetized within each section, no CONTRIBUTING.md at the
+expected path (contribute link in README points to a `contributing.md` that 404s via raw fetch — may
+just be a relative-link/case issue, worth a human double-checking before submitting), no pricing/
+monetization wording restriction seen in the section itself. Ready-to-paste entry (insert
+alphabetically between "Fantastical" and "ScanPro" in the Productivity section):
+
+`[MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app with on-device AI (Gemma 3 1B) for daily nudges and journal search — nothing leaves the device for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -221,6 +236,20 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   comments posted, no emails sent — this is the 7th consecutive run with zero direct actions, all
   three blockers remain environment/session-level (already flagged to user once at run 2026-08-17
   run2; not re-flagging since nothing has changed).
+
+- 2026-08-18 (run 5): Re-confirmed all three env blockers fresh this run (periodic check per
+  Lessons): `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ...
+  Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel failed) — general web
+  egress still blocked. For priority 2, found a genuine new candidate: deluks/awesome-ios-apps, a
+  curated consumer iOS-app directory distinct from vsouza/awesome-ios (already ruled out, dev
+  resources only). Confirmed via WebFetch: no dedicated journaling category, "Productivity" is the
+  best fit, entry format and alphabetical placement confirmed, no pricing-wording restriction seen.
+  Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent this run —
+  8th consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general
+  web egress, SMTP egress); not re-flagging via notification since nothing about the blockers has
+  changed since the run2 (2026-08-17) flag.
 
 ## Blocked
 
