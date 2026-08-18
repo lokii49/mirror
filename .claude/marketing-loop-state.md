@@ -125,6 +125,21 @@ alphabetically between "Fantastical" and "ScanPro" in the Productivity section):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### ysyisyourbrother/awesome-on-device-AI — [needs GitHub PR, blocked in this env — see Blocked]
+Curated list of on-device/edge AI (Papers/Tutorial, Open Source Projects, Contribute), not yet in
+channel map or backlog — distinct from janhq/awesome-local-ai (already OPEN, desktop/server-focused
+tools) and stevelaskaridis/awesome-mobile-llm (already ruled out, papers-only Applications section).
+Confirmed via WebFetch (raw README): has a genuine "Mobile LLM Apps" subsection under "Open Source
+Projects" with one existing entry (Airgap, a local-LLM chatbot framework) — a real fit for a consumer
+app running an on-device model, not just papers. No CONTRIBUTING.md beyond "Open an issue or send a
+pull request" — no format/pricing restrictions found. Entry format confirmed from the one existing
+entry: `**Name**: Description. by Creator. [[code](repo link)]`. Ready-to-paste entry for whoever/
+whatever opens the PR (append under "3. Mobile LLM Apps"):
+
+`**MirrorNotes**: Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an "ask your journal" chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0). by Lokesh Pudari. [[code](https://github.com/lokii49/mirror)]`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -250,6 +265,20 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   8th consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general
   web egress, SMTP egress); not re-flagging via notification since nothing about the blockers has
   changed since the run2 (2026-08-17) flag.
+
+- 2026-08-18 (run 6): Re-confirmed all three env blockers fresh this run (periodic check per Lessons,
+  now with live GitHub MCP tools available for the first time — still blocked): `pull_request_read`
+  on janhq/awesome-local-ai#131 rejected with "Access denied ... Allowed repositories: lokii49/mirror"
+  — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 56) —
+  priority-3 email still impossible. curl to example.com and opensourcealternative.to via the agent
+  proxy both still 403 (CONNECT tunnel failed) — general web egress still blocked. For priority 2,
+  WebSearch + WebFetch (github.com/raw.githubusercontent.com work) found a new genuine candidate:
+  ysyisyourbrother/awesome-on-device-AI — has a real "Mobile LLM Apps" subsection (not just papers)
+  with one existing entry (Airgap), confirmed format from the actual README content, no restrictive
+  CONTRIBUTING. Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails
+  sent this run — 9th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since nothing
+  about the blockers has changed since the run2 (2026-08-17) flag.
 
 ## Blocked
 
