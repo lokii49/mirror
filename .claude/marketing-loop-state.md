@@ -379,6 +379,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
   condition.
 
+- 2026-08-19 (run 10): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124/timeout) — priority-3 email still impossible. curl to example.com via the
+  agent proxy still 403s (`connect_rejected`, policy denial, confirmed via proxy status endpoint) —
+  general web egress still blocked. For priority 2, searched several new angles via
+  search_repositories (awesome journal/diary/gemma/offline-ai/swiftui-apps) — all returned only
+  generic large awesome-lists already known or irrelevant (devtools, ML frameworks, unrelated
+  languages), no new journaling/privacy/on-device-AI/iOS-consumer-app fit found. One candidate
+  investigated and ruled out: tortuvshin/open-apps (a curated open-source app directory with a real
+  iOS/Flutter/Kotlin scope and a submission web form) requires "at least 50 stars, and at least 50
+  lifetime commits" per its own criteria (confirmed via WebFetch on its github.com page) —
+  lokii49/mirror currently has 0 stars, so it does not qualify; recorded as a negative finding below
+  so future runs don't re-investigate it. No new candidate cleared the fit/quality bar this run, so
+  nothing new added to Backlog. No PRs opened, no comments posted, no emails sent — 13th consecutive
+  run blocked purely on environment/session config (GitHub cross-owner scope, general web egress,
+  SMTP egress); not re-flagging via notification since nothing about the blockers has changed since
+  the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -429,6 +448,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   stated selection criteria (e.g. console.dev requires the primary user to be a developer;
   awesome-selfhosted requires self-hostable server software). A rejected/spam-flagged submission
   costs more than skipping a weak candidate for a run.
+- Some directories gate submissions on the *submitting repo's* own popularity, not just topical
+  fit: tortuvshin/open-apps requires ≥50 stars and ≥50 lifetime commits on the source repo before
+  it'll list an app. lokii49/mirror has 0 stars, so it doesn't qualify yet — skip this target until
+  the repo has enough stars, don't re-add it to Backlog until then. Confirmed 2026-08-19.
 
 ## Sent log
 
