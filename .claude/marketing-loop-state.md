@@ -175,6 +175,24 @@ for whoever/whatever opens the PR (append to bottom of "Note Taking" category in
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### naughtyspirit/awesome-ios-apps — [needs GitHub PR, blocked in this env — see Blocked]
+Curated consumer iOS-app list (categories: Finance, Education, Catalogs, Music, Books, Medical,
+Lifestyle, Weather, Games, Health & Fitness, Photo & Video, Sports, Reference, Social Networking,
+Open Source), not yet in channel map or backlog — distinct from vsouza/awesome-ios (dev resources,
+ruled out), deluks/awesome-ios-apps (already in Backlog), ThetaApps/ios-app-opensource (ruled out,
+redundant fork of dkhamsing/open-source-ios-apps which is already MERGED), and
+jogendra/example-ios-apps (beginner example code, not a fit). Confirmed via WebFetch (raw README +
+raw CONTRIBUTING.md): has a dedicated "Open Source" section with format `[App Name](github-link) -
+Description`, no journaling/notes/productivity category exists so Open Source is the right home.
+CONTRIBUTING.md rules: end description with a period, no trailing whitespace, check for duplicates,
+one commit per suggestion — no pricing/monetization wording restriction, no alphabetization
+requirement. No prompt-injection content found in CONTRIBUTING.md. Ready-to-paste entry for
+whoever/whatever opens the PR (append to "Open Source" section):
+
+`[MirrorNotes](https://github.com/lokii49/mirror) - Privacy-first journaling app for iOS with on-device AI (Gemma 3 1B) powering daily nudges, weekly digests, and an ask-your-journal chat — nothing leaves the device for AI processing. Local-first with free CloudKit sync, no account required, unlimited entries free forever, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -344,6 +362,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
   re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this remains a standing, unchanged condition.
+
+- 2026-08-19 (run 9): Re-confirmed all three env blockers fresh this run (periodic check per
+  Lessons): `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ...
+  Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 56) — priority-3 email still impossible. curl to
+  example.com and opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel
+  failed) — general web egress still blocked. For priority 2, WebSearch + WebFetch found a new
+  genuine candidate: naughtyspirit/awesome-ios-apps — has a real "Open Source" section distinct from
+  all prior consumer-iOS-app candidates already ruled out or in Backlog (vsouza/awesome-ios,
+  deluks/awesome-ios-apps, ThetaApps/ios-app-opensource, jogendra/example-ios-apps). Confirmed entry
+  format and CONTRIBUTING.md rules (no pricing/alphabetization restriction, no prompt-injection
+  content). Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent
+  this run — 12th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress); not re-flagging via notification since nothing about the
+  blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
+  condition.
 
 ## Blocked
 
