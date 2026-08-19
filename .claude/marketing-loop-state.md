@@ -158,6 +158,23 @@ section, alphabetically near "DailyVox"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### Axorax/awesome-free-apps (MOBILE.md) — [needs GitHub PR, blocked in this env — see Blocked]
+Curated list of free apps for PC and mobile, split into README.md (desktop) and MOBILE.md (mobile) —
+not yet in channel map or backlog, distinct from all prior candidates (dev-focused awesome-swift/
+awesome-ios lists were ruled out earlier as non-fits since they list libraries, not consumer apps).
+Confirmed via WebFetch (raw MOBILE.md + raw contributing.md): MOBILE.md has a real "Note Taking"
+category with iOS-tagged entries, plus a "Health and Wellness" category — Note Taking is the better
+fit. Entry format confirmed: `- [App Name](url) - Brief description. <platform icons>` using 🍎 for
+iOS and 🟢 for open-source (plus ⭐ for maintainer-recommended, not self-assignable). contributing.md
+confirms: no pricing/freemium wording restriction, but explicitly "Do not change the order of any
+apps like ordering alphabetically" — new entries go to the bottom of their category, not alphabetized.
+Submission is a PR editing only MOBILE.md, commit message format "Add: [name]". Ready-to-paste entry
+for whoever/whatever opens the PR (append to bottom of "Note Taking" category in MOBILE.md):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS with on-device AI (daily nudges, weekly digests, ask-your-journal) — entries never need to leave the phone for AI processing. No account required, iCloud sync, unlimited entries free forever, open source (AGPL-3.0). 🍎 🟢`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -312,6 +329,21 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress);
   not re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this is a standing, unchanged condition, not new information.
+
+- 2026-08-19 (run 8): Re-confirmed all three env blockers fresh this run (periodic check per
+  Lessons): `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ...
+  Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible. curl to example.com via
+  the agent proxy still 403s (CONNECT tunnel failed) — general web egress still blocked. For
+  priority 2, WebSearch + WebFetch found a new genuine candidate: Axorax/awesome-free-apps (its
+  MOBILE.md), which has a real "Note Taking" category with iOS-tagged entries and no pricing
+  restriction, distinct from prior dev-focused awesome-swift/awesome-ios lists already ruled out as
+  non-fits. Confirmed entry format, icon convention, and the "append to bottom, do not alphabetize"
+  contribution rule from contributing.md. Added ready-to-paste copy to Backlog. No PRs opened, no
+  comments posted, no emails sent this run — 11th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
+  re-flagging via notification since nothing about the blockers has changed since the run2
+  (2026-08-17) flag — this remains a standing, unchanged condition.
 
 ## Blocked
 
