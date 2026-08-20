@@ -193,6 +193,24 @@ whoever/whatever opens the PR (append to "Open Source" section):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### alexanderop/awesome-local-first — [needs GitHub PR, blocked in this env — see Blocked]
+Curated local-first list, distinct from schickling/awesome-local-first (already in Backlog) — different
+maintainer, different structure (Core Resources / Dev Tools & Libraries / Real-World Examples /
+Community / Conferences). Confirmed via WebFetch (raw README): has a genuine "Example Applications"
+subsection under "Real-World Examples" with entries like Memex ("Open-source, local-first AI journal
+for iOS and Android") — direct precedent for a local-first journaling app being in scope. Entry format
+confirmed: `[App Name](link) – Brief description of key features and approach`. No separate
+CONTRIBUTING.md; a "🤝 Contributing" section says PRs welcome for tools/libraries/case studies that
+advance local-first/offline-first/sync-centric development. Caveat: curator states a preference for
+"projects that already have a bigger majority level and are also used by many people" — soft
+preference, not a hard numeric gate (unlike tortuvshin/open-apps' 50-star requirement), so still worth
+attempting but flagging the risk. Ready-to-paste entry for whoever/whatever opens the PR (add to
+"Example Applications" under "Knowledge Management & Notes", best-fit subsection):
+
+`[MirrorNotes](https://mirrornotes.org) – Local-first, privacy-first journaling app for iOS with free CloudKit sync. On-device AI (Gemma 3 1B) powers daily nudges and ask-your-journal search — nothing needs to leave the device for AI features. Open source, AGPL-3.0.`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -398,6 +416,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   SMTP egress); not re-flagging via notification since nothing about the blockers has changed since
   the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
 
+- 2026-08-20 (run 11): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, re-checked
+  piotrkulpinski/openalternative's CONTRIBUTING.md directly (confirmed still website-form-only via
+  openalternative.co/submit, matching the existing Backlog entry, no change needed) and checked
+  johnjago/awesome-free-software (no Mobile/iOS/Journal/Notes category exists — desktop/OS software
+  only — ruled out, not added). Investigated privacyguides.org's "Notebooks" recommendation page: has
+  a hard stated criterion that "any cloud sync functionality must be E2EE" — MirrorNotes' CloudKit
+  sync encryption properties aren't confirmed to meet that bar from this environment, and misrepresenting
+  it would violate the standing rule against claiming things not in FEATURES, so skipped rather than
+  risk a false claim or a rejected submission (recorded as a negative finding below). Found one genuine
+  new candidate: alexanderop/awesome-local-first, distinct from schickling/awesome-local-first (already
+  in Backlog) — different maintainer/structure, has a real "Example Applications" subsection with a
+  directly comparable existing entry (Memex, an on-device AI journal app), confirmed entry format.
+  Added ready-to-paste copy to Backlog, flagging the curator's soft popularity preference as a risk
+  note. No PRs opened, no comments posted, no emails sent this run — 14th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress);
+  not re-flagging via notification since nothing about the blockers has changed since the run2
+  (2026-08-17) flag — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -452,6 +492,11 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   fit: tortuvshin/open-apps requires ≥50 stars and ≥50 lifetime commits on the source repo before
   it'll list an app. lokii49/mirror has 0 stars, so it doesn't qualify yet — skip this target until
   the repo has enough stars, don't re-add it to Backlog until then. Confirmed 2026-08-19.
+- privacyguides.org's Notebooks recommendation page requires "any cloud sync functionality must be
+  E2EE" as a hard stated criterion. MirrorNotes uses CloudKit sync, but this loop cannot confirm from
+  this environment whether that sync is end-to-end encrypted in the sense Privacy Guides means — do
+  not submit or claim E2EE there until a human confirms the actual encryption implementation matches
+  the criterion. Confirmed 2026-08-20.
 
 ## Sent log
 
