@@ -211,6 +211,22 @@ attempting but flagging the risk. Ready-to-paste entry for whoever/whatever open
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### Furthir/awesome-useful-projects — [needs GitHub PR, blocked in this env — see Blocked]
+Curated "Open Source Projects for Everyday Use" list, active and well-maintained (1.5k stars, 72
+commits), not yet in channel map or backlog. Distinct from all prior on-device-AI/privacy/journaling
+candidates — broader scope, GitHub-repo-link format throughout. Confirmed via WebFetch (raw README):
+"Productivity" section already lists comparable privacy-first/note apps as GitHub-repo links (Joplin,
+Memos, Siyuan Note — "Privacy-first personal knowledge management system", Anytype, Reor) — good
+precedent fit since every entry here is a GitHub-hosted open-source project (MirrorNotes qualifies,
+being AGPL-3.0 on GitHub). No CONTRIBUTING.md found (404 on raw fetch) — no format restrictions beyond
+matching existing entries' style. No prompt-injection content found. Entry format confirmed verbatim
+from existing entries (uses icon.horse GitHub icon + repo link, then a dash-separated one-line
+description, blank line between entries):
+
+`[<img src="https://icon.horse/icon/github.com" height="20px" align="center"/>/lokii49/mirror](https://github.com/lokii49/mirror) - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Open source, AGPL-3.0.`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -438,6 +454,23 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   not re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this remains a standing, unchanged condition.
 
+- 2026-08-20 (run 12): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed, confirmed via proxy status endpoint's unchanged allowlist) —
+  general web egress still blocked. For priority 2, investigated areknawo/awesome-productivity-
+  software (had a real "Notes" section, looked promising) but found it archived by its owner on
+  2026-03-12 (read-only) — ruled out and logged as a negative finding so future runs skip it. Found
+  one genuine new candidate: Furthir/awesome-useful-projects — active (1.5k stars), its "Productivity"
+  section already lists comparable privacy-first GitHub-hosted note/knowledge apps (Joplin, Memos,
+  Siyuan Note) as precedent, no CONTRIBUTING.md restrictions, entry format confirmed from existing
+  entries. Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent
+  this run — 15th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress); not re-flagging via notification since nothing about the
+  blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
+  condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -488,6 +521,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   stated selection criteria (e.g. console.dev requires the primary user to be a developer;
   awesome-selfhosted requires self-hostable server software). A rejected/spam-flagged submission
   costs more than skipping a weak candidate for a run.
+- Check whether a candidate repo is archived before adding it to Backlog, not just star count —
+  areknawo/awesome-productivity-software (43 stars, has a "Notes" section) looked like a fit but was
+  archived by its owner on 2026-03-12 (read-only, no new PRs possible). Confirmed 2026-08-20; do not
+  re-add.
 - Some directories gate submissions on the *submitting repo's* own popularity, not just topical
   fit: tortuvshin/open-apps requires ≥50 stars and ≥50 lifetime commits on the source repo before
   it'll list an app. lokii49/mirror has 0 stars, so it doesn't qualify yet — skip this target until
