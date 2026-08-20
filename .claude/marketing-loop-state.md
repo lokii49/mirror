@@ -227,6 +227,24 @@ description, blank line between entries):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### XargsUK/awesome-adhd — [needs GitHub PR, blocked in this env — see Blocked]
+Active, well-maintained ADHD resource list (413 stars), distinct from mrseth01/awesome-adhd (smaller,
+not yet checked) — not in channel map or backlog. Confirmed via WebFetch (raw README + raw README
+table dump): has a real "Notetaking" subsection under "Apps" (Glean, Evernote, Notability, Obsidian),
+using a markdown table with one column per platform (iOS/watchOS, Android/GearOS, Windows, macOS,
+Linux, Chrome, Website) and a pricing-symbol legend (✔️ free/open source, 💠 freemium, 💲 paid, ❓
+untested, ⌚ smartwatch). No CONTRIBUTING.md found at the expected root path (404) — README states
+submissions go via a GitHub issue or a Google Form; a PR editing the table directly should also work
+per repo convention (existing entries were clearly added this way). Since MirrorNotes has both a free
+tier and paid tiers (mood timeline/monthly report), 💠 (freemium) is the right symbol — consistent
+with how the list already marks Obsidian (generous free tier, paid sync) as 💠 rather than ✔️.
+Ready-to-paste table row for whoever/whatever opens the PR (append to the Notetaking table, iOS-only
+so all other platform columns stay blank):
+
+`| MirrorNotes | Privacy-first journaling app for iOS. On-device AI (Gemma 3 1B) powers daily nudges and journal search — nothing leaves the device for AI processing. Open source (AGPL-3.0). | [💠](https://apps.apple.com/app/id6769007201) | | | | | | [💠](https://mirrornotes.org) |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -471,6 +489,26 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
   condition.
 
+- 2026-08-20 (run 13): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched
+  several new angles (journal/journalism GitHub search — all academic/unrelated noise; awesome-swiftui
+  variants; awesome privacy-friendly; awesome-gemma; on-device-AI variants — all either already known,
+  too small/unmaintained, or off-topic). Ruled out madimalo/awesome-swiftui as a non-fit (0 stars,
+  SwiftUI clone/demo projects not shipped consumer apps) — logged as negative finding. Found one
+  genuine new candidate: XargsUK/awesome-adhd — active (413 stars), has a real "Notetaking" subsection
+  under "Apps" with a confirmed markdown-table entry format and pricing-symbol legend; MirrorNotes'
+  freemium model (free tier + paid mood-timeline/monthly-report tiers) maps cleanly to the existing
+  💠 convention used for comparable apps like Obsidian. No CONTRIBUTING.md at the expected path;
+  README documents an issue/Google-Form submission path, PR-editing-the-table should also work per
+  repo convention. Added ready-to-paste table row to Backlog. No PRs opened, no comments posted, no
+  emails sent this run — 16th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since nothing
+  about the blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
+  condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -534,6 +572,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   this environment whether that sync is end-to-end encrypted in the sense Privacy Guides means — do
   not submit or claim E2EE there until a human confirms the actual encryption implementation matches
   the criterion. Confirmed 2026-08-20.
+- madimalo/awesome-swiftui is not a fit: 0 stars, 1 fork, and its ~12 entries are SwiftUI clone/demo
+  projects (e.g. "Reminders Clone", social-media clients) rather than shipped consumer apps — wrong
+  category for MirrorNotes even though it nominally has no sections to place things in. Confirmed
+  2026-08-20; do not re-add.
 
 ## Sent log
 
