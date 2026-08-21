@@ -638,6 +638,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this remains a standing, unchanged condition.
 
+- 2026-08-21 (run 21): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched
+  several new angles (journaling/diary GitHub topics, AGPL open-source app directories, digital-
+  minimalism/self-improvement apps, offline-first, SwiftUI apps) via WebSearch and search_repositories
+  — all hits were either already known/logged, generic noise (huge unrelated lists, random small repos
+  matching keywords), or a clear non-fit. Investigated yangwao/awesome-offline (looked plausible from
+  its name) and ruled it out: it's a developer-resources list (articles/talks/libraries), no section
+  for consumer apps — logged as a negative finding. No new candidate cleared the fit/quality bar this
+  run, so nothing new added to Backlog. No PRs opened, no comments posted, no emails sent — 21st
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress); not re-flagging via notification since nothing about the blockers has changed
+  since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -705,6 +721,9 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   projects (e.g. "Reminders Clone", social-media clients) rather than shipped consumer apps — wrong
   category for MirrorNotes even though it nominally has no sections to place things in. Confirmed
   2026-08-20; do not re-add.
+- yangwao/awesome-offline is not a fit: it's a developer-resources list (articles, talks, libraries,
+  podcasts about the offline-first movement), not a directory of consumer apps/products — no section
+  to place MirrorNotes in. Confirmed 2026-08-21 via WebFetch on the raw README; do not re-add.
 - CRK1918/awesome-privacy-list is a fork of pluja/awesome-privacy (confirmed via WebFetch, "forked
   from" attribution present, 0 stars). Submitting there would be redundant with the already-OPEN
   pluja/awesome-privacy#879 PR — do not add. Confirmed 2026-08-21.
