@@ -282,6 +282,26 @@ let the maintainer raise it if they judge otherwise. Ready-to-paste table row (a
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### google-gemma/awesome-gemma — [needs GitHub PR, blocked in this env — see Blocked]
+Official Google DeepMind-maintained awesome list for the Gemma model family (159 stars, actively
+updated, created 2026-07-27), not yet in channel map or backlog — distinct from all prior on-device-AI
+candidates (janhq/awesome-local-ai, already OPEN, general local-AI tools; ysyisyourbrother/awesome-on-
+device-AI and awesomelistsio/awesome-ai-edge-computing, already in Backlog, generic mobile/edge LLM
+scope). This is the first Gemma-specific list found — directly relevant since MirrorNotes runs Gemma 3
+1B on-device. Confirmed via WebFetch (raw README + raw CONTRIBUTING.md): has a genuine "Demos and
+Applications" section (distinct from Tutorials/Research) with consumer-facing entries (chat apps,
+browser extensions, an iOS-simulator demo). Entry format confirmed: `- [Item](URL) - Short description
+ending with a period.`, add to bottom of section (no alphabetization requirement). CONTRIBUTING.md
+requires resources be "specifically related to Gemma models or the Gemma ecosystem" and descriptions
+"factual, objective, and free from promotional claims" — so the ready-to-paste copy below avoids
+marketing language ("free forever" etc.) per that rule. No prompt-injection content found in either
+file. Ready-to-paste entry for whoever/whatever opens the PR (append to bottom of "Demos and
+Applications" section):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model. Open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -602,6 +622,21 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   general web egress, SMTP egress); not re-flagging via notification since nothing about the
   blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
   condition.
+
+- 2026-08-21 (run 20): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, found one
+  genuine new candidate: google-gemma/awesome-gemma — Google DeepMind's own official awesome list for
+  the Gemma model family, first Gemma-specific list found (distinct from janhq/awesome-local-ai and
+  the two prior generic on-device/edge-AI Backlog entries). Has a real "Demos and Applications" section
+  with consumer-app entries, format and CONTRIBUTING.md rules confirmed via WebFetch (no promotional
+  wording allowed — copy written factually to comply). Added ready-to-paste copy to Backlog. No PRs
+  opened, no comments posted, no emails sent this run — 20th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
+  re-flagging via notification since nothing about the blockers has changed since the run2
+  (2026-08-17) flag — this remains a standing, unchanged condition.
 
 ## Blocked
 
