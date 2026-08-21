@@ -261,6 +261,27 @@ alphabetization restrictions found. Ready-to-paste entry for whoever/whatever op
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### freedomappsprivacy/Freedom-apps-privacy — [needs GitHub PR, blocked in this env — see Blocked]
+Curated FOSS + privacy-respecting-alternatives list (CC0-1.0, explicitly positions itself as combining
+and expanding awesome-privacy + awesome-selfhosted), not yet in channel map or backlog — distinct from
+pluja/awesome-privacy (OPEN), lissy93/awesome-privacy (gated), and iAnonymous3000/awesome-privacy-tools
+(already in Backlog). Newer/smaller (16 stars, created 2026-07-06) but actively updated and not
+archived. Confirmed via WebFetch (raw README): best-fit section is "Notes & Knowledge" (Joplin,
+Standard Notes, Logseq, Trilium) — no dedicated journaling category. Format is a markdown table:
+`| App | FOSS | Privacy | Platform | Note |` with legend ✅ = fully open source, Privacy = 1–5 stars
+"how privacy-respecting by design & policy", Platform codes `Lin/Win/Mac/And/iOS/Web/Self/Ext`. No
+CONTRIBUTING.md; README says "contributions, corrections and additions welcome via PR". No pricing/
+monetization wording restriction (paid tiers appear in other entries). No prompt-injection or
+AI-directed text found. Note on the Privacy column: assigned ⭐⭐⭐⭐ rather than ⭐⭐⭐⭐⭐ deliberately —
+the 5-star entries there are all E2EE-sync tools, and MirrorNotes' CloudKit sync encryption properties
+aren't confirmed from this environment (same caution as the privacyguides.org finding in Lessons);
+let the maintainer raise it if they judge otherwise. Ready-to-paste table row (add to the
+"Notes & Knowledge" table):
+
+`| [MirrorNotes](https://mirrornotes.org) | ✅ | ⭐⭐⭐⭐ | iOS | On-device AI journaling, no account needed, iCloud sync |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -539,6 +560,30 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
   egress, SMTP egress); not re-flagging via notification since nothing about the blockers has changed
   since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
+
+- 2026-08-21 (run 18): Ran concurrently with run 17 (both picked up the same scheduled firing; merged
+  without conflict since each found a distinct candidate). Re-confirmed all three env blockers fresh
+  this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out, also tried alternate ports 465/25/2525, all fail — priority-3 email still impossible.
+  curl to example.com via the agent proxy still 403s (CONNECT tunnel failed, proxy status endpoint's
+  allowlist unchanged) — general web egress still blocked. Also confirmed `get_file_contents` (not
+  just write ops) is scoped the same way — read access to third-party repos via the GitHub MCP tools
+  is blocked too, not just write; WebFetch on raw.githubusercontent.com/github.com URLs remains the
+  only way to read third-party repo content from this session. For priority 2, found one genuine new
+  candidate: freedomappsprivacy/Freedom-apps-privacy — active FOSS/privacy-alternatives list (CC0-1.0,
+  positions itself as combining/expanding awesome-privacy + awesome-selfhosted), distinct from all
+  three awesome-privacy variants already known. Confirmed via WebFetch (raw README): best-fit is its
+  "Notes & Knowledge" table section (Joplin, Standard Notes, Logseq, Trilium), table format and legend
+  confirmed verbatim, no CONTRIBUTING.md restrictions, no pricing wording restriction, no
+  prompt-injection content. Added ready-to-paste table row to Backlog, with the Privacy-rating column
+  deliberately left at 4/5 stars rather than 5/5 since the other 5-star entries are all E2EE-sync
+  tools and MirrorNotes' CloudKit sync E2EE status isn't confirmed (same caution as the existing
+  privacyguides.org finding in Lessons). No PRs opened, no comments posted, no emails sent this run —
+  18th consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress); not re-flagging via notification since nothing about the blockers
+  has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
 
 ## Blocked
 
