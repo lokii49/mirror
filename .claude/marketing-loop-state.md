@@ -245,6 +245,22 @@ so all other platform columns stay blank):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### paulaime/awesome-privacy — [needs GitHub PR, blocked in this env — see Blocked]
+Curated privacy-tools list (406 stars, 106 commits, actively maintained), distinct from pluja/awesome-
+privacy (already OPEN in channel map) and lissy93/awesome-privacy (gated) — different maintainer,
+not a fork of either (confirmed via WebFetch: no "forked from" attribution). Ruled out a lookalike
+candidate found in the same search, CRK1918/awesome-privacy-list, as a duplicate: confirmed it IS a
+fork of pluja/awesome-privacy, so submitting there would be redundant with the already-OPEN PR — not
+added. paulaime/awesome-privacy has a real "Note-taking" section (Standard Notes, Joplin, Turtl) —
+good fit for MirrorNotes. Confirmed via WebFetch (raw README on `master` branch — not `main`): entry
+format `* [Name](url) – description.`, no CONTRIBUTING.md found (404 on raw fetch), no pricing/
+alphabetization restrictions found. Ready-to-paste entry for whoever/whatever opens the PR (add to
+"Note-taking" section):
+
+`* [MirrorNotes](https://mirrornotes.org) – A privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -509,6 +525,21 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   about the blockers has changed since the run2 (2026-08-17) flag — this remains a standing, unchanged
   condition.
 
+- 2026-08-21 (run 17): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched
+  privacy/journaling/note-taking angles and found paulaime/awesome-privacy — distinct from pluja
+  (already OPEN) and lissy93 (gated), not a fork, 406 stars/106 commits, has a real "Note-taking"
+  section. Also found and ruled out CRK1918/awesome-privacy-list as a duplicate: confirmed it's a
+  fork of pluja/awesome-privacy, so a submission there would be redundant with the already-OPEN PR —
+  logged as a negative finding so future runs skip it without re-checking. Added paulaime entry to
+  Backlog with confirmed format. No PRs opened, no comments posted, no emails sent this run — 17th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress); not re-flagging via notification since nothing about the blockers has changed
+  since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -576,6 +607,12 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   projects (e.g. "Reminders Clone", social-media clients) rather than shipped consumer apps — wrong
   category for MirrorNotes even though it nominally has no sections to place things in. Confirmed
   2026-08-20; do not re-add.
+- CRK1918/awesome-privacy-list is a fork of pluja/awesome-privacy (confirmed via WebFetch, "forked
+  from" attribution present, 0 stars). Submitting there would be redundant with the already-OPEN
+  pluja/awesome-privacy#879 PR — do not add. Confirmed 2026-08-21.
+- nicknickel/awesome-notes is a weak fit: explicitly desktop-focused ("work on a desktop, though many
+  do have mobile versions"), no journaling/mobile section, only 6 commits total (minimal
+  maintenance). Confirmed 2026-08-21; do not re-add unless it gains a mobile/journaling section.
 
 ## Sent log
 
