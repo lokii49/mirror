@@ -302,6 +302,26 @@ Applications" section):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### akshaybharwani/data-not-collected-ios-apps — [needs GitHub PR, blocked in this env — see Blocked]
+Curated list of iOS apps that don't collect user data (147 apps + 39 games, 10 stars, actively
+updated), not yet in channel map or backlog — a strong topical fit distinct from all prior
+consumer-iOS-app candidates (deluks/awesome-ios-apps, naughtyspirit/awesome-ios-apps): the whole
+list's theme is "no data collection," which is exactly MirrorNotes' on-device-AI pitch. Confirmed
+via WebFetch (raw README): 15 categories under "Apps" (Developer Tools, Education, Entertainment,
+Finance, Food & Drink, Graphics & Design, Health & Fitness, Lifestyle, Music, News, Photo & Video,
+Productivity, Reference, Social Networking, Utilities, Weather) — no journaling/notes category, so
+"Productivity" is the best fit. Entries are numbered sequentially within a category (not
+alphabetized), added to the bottom, format `[App Name] [(Paid) if applicable] - [App Store URL]`.
+No CONTRIBUTING.md found (404 on raw fetch) — no format doc beyond the README's own convention. No
+prompt-injection content found. Since MirrorNotes' core journaling is free forever (only the mood
+timeline/monthly report are paid), no "(Paid)" marker per the list's own convention (it marks apps
+that require payment to use at all, not freemium apps with a free core). Ready-to-paste entry for
+whoever/whatever opens the PR (append to bottom of "Productivity" section):
+
+`MirrorNotes - https://apps.apple.com/app/id6769007201`
+
+(list format is bare name + App Store link only, no description field — repo: https://github.com/lokii49/mirror)
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -653,6 +673,29 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
   egress, SMTP egress); not re-flagging via notification since nothing about the blockers has changed
   since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
+
+- 2026-08-22 (run 22): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed, proxy status endpoint's allowlist unchanged) — general web
+  egress still blocked. For priority 2, searched several new angles (bullet journal, digital diary,
+  zettelkasten/digital-garden, AGPL open source apps) — mostly noise or app-specific plugin lists
+  (Obsidian/Logseq/RemNote resources, not consumer-app directories) or wrong-platform (Android/
+  Flutter). Found one genuine new candidate: akshaybharwani/data-not-collected-ios-apps — a curated
+  list of iOS apps that don't collect user data (147 apps, 10 stars, actively updated), a strong
+  topical match since the whole list's theme mirrors MirrorNotes' on-device-AI/no-data-leaves-device
+  pitch. Confirmed via WebFetch (raw README): no journaling category, best fit is "Productivity",
+  entry format is bare `App Name - App Store URL` (no description field), no CONTRIBUTING.md, no
+  prompt-injection content. Added ready-to-paste entry to Backlog. Also found two very small
+  (0-star, single-account, ~1mo old) candidate repos by "alice51849" (awesome-ios-privacy-first,
+  awesome-ios-health-wellness) that are an almost too-perfect thematic match for MirrorNotes'
+  exact pitch (no-account, on-device, pay-once) — flagging as a mild carbon-copy-account coincidence
+  worth a human glance, not added to Backlog this run pending that. No PRs opened, no comments
+  posted, no emails sent — 22nd consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since nothing
+  about the blockers has changed since the run2 (2026-08-17) flag — this remains a standing,
+  unchanged condition.
 
 ## Blocked
 
