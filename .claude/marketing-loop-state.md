@@ -341,6 +341,23 @@ whatever opens the PR (add to "Journal" subsection under "Text"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### dicktracey909/awesome-adhd-tools — [needs GitHub PR, blocked in this env — see Blocked]
+Curated ADHD tools/apps list (53 stars, actively updated 2026-08-20), distinct from XargsUK/awesome-adhd
+(already in Backlog, different maintainer/structure) — not yet in channel map or backlog. Confirmed via
+WebFetch (raw README): no dedicated journaling section, but "Emotional Regulation" already lists Daylio
+("Mood tracking without writing") as a direct precedent for mood-tracking apps being in scope — good fit
+given MirrorNotes' mood timeline feature. Entry format confirmed: `**[Tool Name](URL)** - Brief
+description explaining what it does and why it benefits ADHD users`. CONTRIBUTING rules: "must be
+genuinely useful for ADHD (not just general productivity)" and "no affiliate links" — no pricing/format
+restriction. The ready-to-paste copy below frames the ADHD-relevant benefit honestly (low-friction
+capture + mood pattern tracking, a commonly-cited ADHD journaling benefit) without inventing any feature
+not in FEATURES. Ready-to-paste entry for whoever/whatever opens the PR (add to "Emotional Regulation"
+section, near Daylio):
+
+`**[MirrorNotes](https://mirrornotes.org)** - Privacy-first journaling app for iOS with a mood timeline and on-device AI (daily nudges, ask-your-journal search). Low-friction capture and mood-pattern tracking without sending entries anywhere — useful for ADHD brains that benefit from quick externalizing over structured planning. No account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -748,6 +765,24 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   AI/dev-tool lists, unrelated topics like game dev, RSS, Black Friday deals, Chinese indie-dev
   showcase). No new candidate cleared the fit/quality bar this run, so nothing new added to Backlog.
   No PRs opened, no comments posted, no emails sent — 24th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
+  re-flagging via notification since nothing about the blockers has changed since the run2
+  (2026-08-17) flag — this remains a standing, unchanged condition.
+
+- 2026-08-23 (run 25): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched
+  several new angles via search_repositories (journaling, ADHD apps, mood/gratitude tracking) — most
+  results were off-topic academic-journal noise (search term collision with "journal" the publication
+  sense) or already known. Found one genuine new candidate: dicktracey909/awesome-adhd-tools —
+  active (53 stars), distinct from XargsUK/awesome-adhd already in Backlog, has an "Emotional
+  Regulation" section that already lists Daylio (mood tracking) as precedent, a fit for MirrorNotes'
+  mood timeline feature. Confirmed entry format and CONTRIBUTING rules (ADHD-specific benefit required,
+  no affiliate links, no pricing restriction) via WebFetch. Added ready-to-paste copy to Backlog,
+  framed honestly around low-friction capture/mood tracking without inventing features. No PRs opened,
+  no comments posted, no emails sent this run — 25th consecutive run blocked purely on
   environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
   re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this remains a standing, unchanged condition.
