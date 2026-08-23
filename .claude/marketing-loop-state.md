@@ -787,6 +787,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-flagging via notification since nothing about the blockers has changed since the run2
   (2026-08-17) flag — this remains a standing, unchanged condition.
 
+- 2026-08-23 (run 26): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel failed) — general web
+  egress still blocked. For priority 2, searched several new angles (digital minimalism/no-tracking
+  directories, AGPL/copyleft software lists, ethical software lists, privacy-respecting service
+  lists, journaling-app GitHub topic page for aggregator repos) — no genuine new fit found. Checked
+  nikivdev/privacy-respecting (2k stars, actively maintained) via WebFetch: confirmed it has no
+  note-taking/journaling/diary/productivity section at all (Search Engines, Social Networks,
+  Messengers, Cloud Storage, VPN, Hosting, Email, OS, Browsers, Video, AI Assistants, Maps only) —
+  logged as a negative finding so future runs skip it. GitHub topic page for "journaling-app" only
+  surfaces individual apps, not curated directories — not a useful discovery channel. No new
+  candidate cleared the fit/quality bar this run, so nothing new added to Backlog. No PRs opened, no
+  comments posted, no emails sent — 26th consecutive run blocked purely on environment/session config
+  (GitHub cross-owner scope, general web egress, SMTP egress). Re-flagging to user via notification
+  this run despite no new information: it has been 6 days / ~24 runs since the last flag
+  (2026-08-17 run2) with the identical block still fully open and 17 ready-to-paste backlog entries
+  now piled up waiting on a human to actually submit them — a periodic reminder seemed warranted
+  given the scale of unactioned backlog, even though the underlying condition itself hasn't changed.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -863,6 +884,12 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - nicknickel/awesome-notes is a weak fit: explicitly desktop-focused ("work on a desktop, though many
   do have mobile versions"), no journaling/mobile section, only 6 commits total (minimal
   maintenance). Confirmed 2026-08-21; do not re-add unless it gains a mobile/journaling section.
+- nikivdev/privacy-respecting (2k stars, active) is not a fit: no note-taking/journaling/diary/
+  productivity section exists at all — only Search Engines, Social Networks, Messengers, Cloud
+  Storage, VPN, Hosting, Email, OS, Browsers, Video Sharing, AI Assistants, Maps. Confirmed
+  2026-08-23 via WebFetch; do not re-add unless it gains a relevant section. Also: GitHub topic pages
+  (e.g. github.com/topics/journaling-app) only surface individual apps, not curated directories —
+  not a useful discovery channel for finding new awesome-lists.
 
 ## Sent log
 
