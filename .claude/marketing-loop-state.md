@@ -322,6 +322,25 @@ whoever/whatever opens the PR (append to bottom of "Productivity" section):
 
 (list format is bare name + App Store link only, no description field — repo: https://github.com/lokii49/mirror)
 
+### mustbeperfect/definitive-opensource — [needs GitHub PR, blocked in this env — see Blocked]
+Large, active "definitive list of the best of (consumer facing) open source" (3.4k stars), not yet in
+channel map or backlog — distinct from all prior candidates, notably explicit that it's for
+consumer-facing apps only (README: "This list is EXCLUSIVELY for apps that you use directly"),
+excluding developer tools. Confirmed via WebFetch: has a "Text" category with a "Journal" subsection
+(alongside Note Taking, Markdown Editor) — direct fit. Entry format is a markdown table used
+consistently across sections: `| [Name](url) \`tags\` | Description | Platform(s) | **Stars** |`.
+Could not fetch the exact existing rows inside the Journal subsection (page truncated on fetch), but
+the table format is confirmed from multiple other sections of the same README, and no CONTRIBUTING.md
+or pricing/format restriction was found. Caveat: this list includes a live GitHub star count column —
+lokii49/mirror currently has 0 stars (confirmed via search_repositories), so the row will show 0 until
+the repo gains stars; not a blocker per the list's own rules (no minimum-star gate found, unlike
+tortuvshin/open-apps), just a cosmetic note for whoever submits. Ready-to-paste row for whoever/
+whatever opens the PR (add to "Journal" subsection under "Text"):
+
+`| [MirrorNotes](https://mirrornotes.org) | Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Open source (AGPL-3.0). | \`iOS\` | **0** |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -696,6 +715,27 @@ whoever/whatever opens the PR (append to bottom of "Productivity" section):
   cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since nothing
   about the blockers has changed since the run2 (2026-08-17) flag — this remains a standing,
   unchanged condition.
+
+- 2026-08-23 (run 23): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (`connect_rejected`, policy denial, proxy status endpoint's allowlist unchanged) —
+  general web egress still blocked. For priority 2, checked piotrkulpinski/open-source-alternatives
+  (6.6k stars, distinct repo from piotrkulpinski/openalternative already in Backlog) and confirmed via
+  WebFetch it's read-only, maintained by the OpenAlternative platform, submissions still go through
+  openalternative.co — no new PR route, matches existing Backlog entry, not re-added. Found one
+  genuine new candidate: mustbeperfect/definitive-opensource — large, active (3.4k stars) consumer-
+  facing-only open source directory with a real "Journal" subsection under "Text" (alongside Note
+  Taking, Markdown Editor). Confirmed table entry format from multiple other sections of the README
+  (exact Journal-subsection rows weren't fetchable due to page truncation, but format is consistent
+  repo-wide); no CONTRIBUTING.md or pricing restriction found. Noted a caveat in the ready-to-paste
+  copy: the list's Stars column will show lokii49/mirror's real count (currently 0, confirmed via
+  search_repositories) since there's no minimum-star gate found (unlike tortuvshin/open-apps). Added
+  ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent this run — 23rd
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress); not re-flagging via notification since nothing about the blockers has changed
+  since the run2 (2026-08-17) flag — this remains a standing, unchanged condition.
 
 ## Blocked
 
