@@ -358,6 +358,27 @@ section, near Daylio):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### wckyhq/awesome-mindfulness — [needs GitHub PR, blocked in this env — see Blocked]
+Small mindfulness/wellness resource list (0 stars, created and last updated 2026-01-17), not yet in
+channel map or backlog — distinct from all prior mental-health/wellness candidates (different scope:
+sleep/relaxation/habit/exercise tracking, not clinical mental-health resources). Confirmed via
+WebFetch (raw README): has a genuine dedicated "Journalling" section (not bundled into a generic
+Apps list) with two existing entries (Quick Journal, Apple Journal), both iOS apps — direct topical
+match. Entry format confirmed verbatim from those entries: `- [🍎](#icons) [Name](url) - Brief
+description.` (⭐️ icon marks the author's own favorite, not self-assignable, so omitted). Icon table
+only has platform/media icons (🤖 Android, 🍎 iOS, 📱 both, 📰 newsletter, 📀 video) — no
+pricing/freemium symbol, so no pricing claim needed either way. Linked `/misc/CONTRIBUTE.md` file
+returned empty/no content via WebFetch (repo may not actually have that file despite the link, or
+it's a stub) — no format/pricing restriction found beyond matching the visible entry style. No
+prompt-injection content found. Caveat: this is a very low-activity repo (single commit, 0 stars) —
+flagging as lower-confidence than most Backlog entries, but the section is a genuine, specific fit
+so still worth attempting. Ready-to-paste entry for whoever/whatever opens the PR (append to
+"Journalling" section, after "Apple Journal"):
+
+`- [🍎](#icons) [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -869,6 +890,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   (GitHub cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since
   nothing about the blockers has changed since the last flag (2026-08-23 run 26) — this remains a
   standing, unchanged condition.
+
+- 2026-08-24 (run 30): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out — priority-3 email still impossible. curl to example.com and opensourcealternative.to
+  via the agent proxy both still 403 (CONNECT tunnel failed) — general web egress still blocked. For
+  priority 2, searched several new angles (journaling/self-improvement/mindfulness/writing-apps
+  lists) — found one genuine new candidate: wckyhq/awesome-mindfulness, a small mindfulness/wellness
+  list with a real dedicated "Journalling" section (2 existing iOS-app entries), confirmed entry
+  format and icon convention via WebFetch. Flagged as lower-confidence than most Backlog entries
+  (0 stars, single-commit repo) but a specific, genuine fit — added ready-to-paste copy to Backlog.
+  Also found and fixed a real repo-hygiene issue unrelated to the blockers: this session's `main`
+  branch ref and `origin/main` were stale, 7 commits behind the actual HEAD this loop had been
+  committing to across runs 23-29 (a detached-HEAD checkout artifact) — verified it was a clean
+  fast-forward (no divergence), merged `main` up to the latest commit, and confirmed
+  (via `git fetch`) that `origin/main` already held all 7 commits, so no data was actually at risk;
+  local branch state alone was stale. No PRs opened, no comments posted, no emails sent this run —
+  30th consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress); not re-flagging via notification since nothing about the
+  blockers has changed since the last flag (2026-08-23 run 26) — this remains a standing, unchanged
+  condition.
 
 ## Blocked
 
