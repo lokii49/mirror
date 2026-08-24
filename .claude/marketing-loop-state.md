@@ -854,6 +854,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   simply because most reachable good-fit targets have already been found, not because the search
   effort lapsed.
 
+- 2026-08-24 (run 29): Re-confirmed all three env blockers fresh this run: `add_repo` for
+  janhq/awesome-local-ai still rejected ("cross-tier adds are not supported in v1 ... session already
+  has repos from owner(s) [lokii49]") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible. For priority 2,
+  searched fresh angles via WebSearch (journaling/diary app privacy directories, self-hosted/AGPL iOS
+  app lists, on-device/mobile-LLM app directories, mental-health app lists) and checked two genuinely
+  new hits via WebFetch: megan201296/awesome-mental-health (Articles/Books/Talks only, no apps
+  section, no CONTRIBUTING, ~12 commits — inactive) and stevelaskaridis/awesome-mobile-llm (a
+  developer/research resources list — papers, frameworks, benchmarks — not a consumer-app directory
+  despite the on-device-AI angle). Both ruled out and logged under Lessons so future runs skip them.
+  No new candidate cleared the fit/quality bar, so nothing added to Backlog. No PRs opened, no
+  comments posted, no emails sent — 29th consecutive run blocked purely on environment/session config
+  (GitHub cross-owner scope, general web egress, SMTP egress); not re-flagging via notification since
+  nothing about the blockers has changed since the last flag (2026-08-23 run 26) — this remains a
+  standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -936,6 +952,13 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   2026-08-23 via WebFetch; do not re-add unless it gains a relevant section. Also: GitHub topic pages
   (e.g. github.com/topics/journaling-app) only surface individual apps, not curated directories —
   not a useful discovery channel for finding new awesome-lists.
+- megan201296/awesome-mental-health is not a fit: only Articles/Books/Talks sections (no apps
+  section at all), no CONTRIBUTING.md or stated submission format beyond "submit a PR", and appears
+  inactive (12 commits total). Confirmed 2026-08-24 via WebFetch; do not re-add.
+- stevelaskaridis/awesome-mobile-llm is not a fit despite the on-device-AI angle: it's a
+  developer/research resources list (papers, frameworks, benchmarks, leaderboards on mobile LLM
+  deployment) with no section for consumer apps — same category of mismatch as other dev-resource
+  lists already ruled out. Confirmed 2026-08-24 via WebFetch; do not re-add.
 
 ## Sent log
 
