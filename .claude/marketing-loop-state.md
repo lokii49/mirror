@@ -808,6 +808,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   now piled up waiting on a human to actually submit them — a periodic reminder seemed warranted
   given the scale of unactioned backlog, even though the underlying condition itself hasn't changed.
 
+- 2026-08-24 (run 27): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel failed) — general web
+  egress still blocked. For priority 2, searched several new angles via search_repositories
+  (note-taking/journaling app directories, indie-iOS lists, mindfulness/meditation, digital
+  wellbeing, pay-once/no-subscription app lists, Gemma-application repos, topic:journal/topic:diary)
+  — no genuine new fit found. Investigated and ruled out: Correia-jpv/fucking-open-source-ios-apps —
+  confirmed via WebFetch it's an auto-generated derivative of dkhamsing/open-source-ios-apps ("This
+  README is generated ... To contribute, make changes to contents.json"), where MirrorNotes is
+  already MERGED (#2274) — submitting separately would be a low-value duplicate of an already-served
+  channel, not added. Re-checked the two alice51849 repos flagged as a coincidence in run 22
+  (awesome-ios-privacy-first, awesome-ios-health-wellness): still 0 stars, still 1 fork/1 open issue
+  each, no growth in 5+ weeks — leaving unadded pending a human glance, per that run's note; nothing
+  new to add there. Crackx17/awesome-pay-once-mac-apps ruled out — Mac apps only, wrong platform for
+  MirrorNotes (iOS). No new candidate cleared the fit/quality bar this run, so nothing new added to
+  Backlog. No PRs opened, no comments posted, no emails sent — 27th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress); not
+  re-flagging via notification since nothing about the blockers has changed since the last flag
+  (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
