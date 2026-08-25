@@ -950,6 +950,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   general web egress, SMTP egress); not re-flagging via notification since nothing about the blockers
   has changed since the last flag (2026-08-23 run 26) — this remains a standing, unchanged condition.
 
+- 2026-08-25 (run 32): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (CONNECT tunnel failed) — general web
+  egress still blocked. For priority 2, searched several new angles via search_repositories/WebSearch
+  (encrypted/private/offline journal lists, buy-once/no-subscription app lists, ethical-software/
+  small-tech directories, Gemma-3-specific app lists, AI-diary/AI-journal directory searches) — all
+  either off-topic noise (academic-journal/publication-sense collisions, huge generic top-star lists
+  already known), zero-result queries, or already-known/logged candidates. No new candidate cleared
+  the fit/quality bar this run, so nothing added to Backlog. No PRs opened, no comments posted, no
+  emails sent — 32nd consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since nothing about the blockers has changed since the
+  last flag (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
