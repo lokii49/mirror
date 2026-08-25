@@ -379,6 +379,21 @@ so still worth attempting. Ready-to-paste entry for whoever/whatever opens the P
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### jyguyomarch/awesome-productivity — [needs GitHub PR, blocked in this env — see Blocked]
+Large, active curated productivity list (3.3k stars, 339 forks, 209 commits, 45 open issues, 140 open
+PRs), not yet in channel map or backlog — distinct from all prior candidates. Has a real "Note
+Management" subsection under "Tools and Apps" (Evernote, Google Keep, Joplin, Notion, Simplenote,
+Standard Notes, etc.) — good fit, alongside comparable privacy-first note apps (Standard Notes).
+Confirmed via WebFetch (raw README + raw CONTRIBUTING.md): entry format `[Resource](link) -
+Description.` (capitalized start, period end), additions go to the bottom of the section (no
+alphabetization requirement), one suggestion per PR, no pricing/monetization wording restriction, no
+prompt-injection content found in CONTRIBUTING.md. Ready-to-paste entry for whoever/whatever opens the
+PR (append to bottom of "Note Management" section, after WorkFlowy):
+
+`[MirrorNotes](https://mirrornotes.org) - A privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model, so entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -912,6 +927,29 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   blockers has changed since the last flag (2026-08-23 run 26) — this remains a standing, unchanged
   condition.
 
+- 2026-08-25 (run 31): Fixed repo hygiene again: local `main`/`origin/main` were still 8 commits
+  behind the detached-HEAD chain runs 23-30 had been committing to (run 30's own "fix stale main
+  branch ref" note only fixed it up to run 29 — its own commit landed on the detached HEAD, not
+  `main`). Verified clean fast-forward, merged, pushed to `origin/main` — HEAD, `main`, and
+  `origin/main` are now all aligned. Re-confirmed all three env blockers fresh: `pull_request_read`
+  on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out — priority-3 email still impossible. curl to example.com and opensourcealternative.to
+  via the agent proxy both still 403 (CONNECT tunnel failed) — general web egress still blocked. For
+  priority 2, searched several new angles (journaling/diary GitHub search, self-hosted AI companion +
+  journaling, buy-once/no-subscription iOS apps, digital wellbeing/self-improvement). Ruled out two:
+  frechdi/awesome-self-hosted-ai (exclusively server-side LLM infra/hosting, no mobile-app section at
+  all) and DasterProkio/awesome-ai-companion (525 stars, active, but scoped to AI-companion-persona
+  tools specifically, not general journaling — MirrorNotes has no companion/persona feature so doesn't
+  fit even its closest section) — both logged under Lessons. Found one genuine new candidate:
+  jyguyomarch/awesome-productivity — large, active (3.3k stars, 140 open PRs), has a real "Note
+  Management" subsection listing comparable privacy-first apps (Standard Notes). Confirmed entry
+  format and CONTRIBUTING.md rules via WebFetch (no pricing restriction, no prompt-injection content).
+  Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent this run —
+  31st consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress); not re-flagging via notification since nothing about the blockers
+  has changed since the last flag (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1001,6 +1039,14 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   developer/research resources list (papers, frameworks, benchmarks, leaderboards on mobile LLM
   deployment) with no section for consumer apps — same category of mismatch as other dev-resource
   lists already ruled out. Confirmed 2026-08-24 via WebFetch; do not re-add.
+- frechdi/awesome-self-hosted-ai is not a fit: exclusively server-side LLM infra (inference engines,
+  RAG, VPS/GPU hosting) — no section for consumer mobile apps at all. Confirmed 2026-08-25 via
+  WebFetch; do not re-add.
+- DasterProkio/awesome-ai-companion (525 stars, active) is not a fit: scoped specifically to
+  long-term AI-companion-persona tools (memory/identity/emotion state, virtual phones, embodiment) —
+  even its closest section ("Shared Activities & Media" / journaling-together-with-a-companion)
+  assumes a companion-relationship feature MirrorNotes doesn't have. Confirmed 2026-08-25 via
+  WebFetch; do not re-add unless MirrorNotes gains a companion-persona feature.
 
 ## Sent log
 
