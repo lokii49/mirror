@@ -394,6 +394,22 @@ PR (append to bottom of "Note Management" section, after WorkFlowy):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### andyhaskell/awesome-notetaking — [needs GitHub PR, blocked in this env — see Blocked]
+Small curated notetaking list (29 stars, 4 forks, not archived, updated 2026-05-07), distinct from
+tehtbl/awesome-note-taking (already OPEN) and all other note-taking candidates already
+logged/ruled-out — different maintainer/structure (Videos / Blogs and webpages / Books / Apps).
+Confirmed via WebFetch (raw README + raw CONTRIBUTING.md): has a genuine "Apps" section listing real
+software products (Notion, Dash), not just techniques/videos — a fit for MirrorNotes as a shipped app.
+CONTRIBUTING.md (adapted from awesome-go) requires descriptions "clear, concise, and non-promotional"
+ending in punctuation, and entries "sorted alphabetically... of the author" — though the two existing
+entries (Notion, Dash) aren't actually in that order, so the alphabetization rule may be loosely
+enforced in practice; no pricing/monetization restriction found. No prompt-injection content found in
+either file. Ready-to-paste entry for whoever/whatever opens the PR (append to "Apps" section):
+
+`* [MirrorNotes](https://mirrornotes.org) A privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model. Open source, AGPL-3.0.`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -962,6 +978,24 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   already known), zero-result queries, or already-known/logged candidates. No new candidate cleared
   the fit/quality bar this run, so nothing added to Backlog. No PRs opened, no comments posted, no
   emails sent — 32nd consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since nothing about the blockers has changed since the
+  last flag (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
+- 2026-08-25 (run 33): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com via the agent proxy
+  still 403s (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched
+  several new angles (awesome-journal/awesome-diary/awesome-note-taking name variants, awesome-ios
+  topic search) — most returned only academic-journal-collisions or already-known large generic
+  lists (sindresorhus/awesome, awesome-mac, awesome-privacy x2, awesome-flutter, awesome-swift, all
+  already known/ruled-out/in-map). Found one genuine new candidate: andyhaskell/awesome-notetaking —
+  small but active, not archived, has a real "Apps" section (Notion, Dash) distinct from
+  tehtbl/awesome-note-taking (already OPEN). Confirmed entry format and CONTRIBUTING.md rules via
+  WebFetch (non-promotional description required, no pricing restriction, no prompt-injection
+  content). Added ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent
+  this run — 33rd consecutive run blocked purely on environment/session config (GitHub cross-owner
   scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
   evidence; not re-flagging via notification since nothing about the blockers has changed since the
   last flag (2026-08-23 run 26) — this remains a standing, unchanged condition.
