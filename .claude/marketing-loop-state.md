@@ -1114,6 +1114,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   via notification since nothing about the blockers has changed since the last flag (2026-08-23
   run 26) — this remains a standing, unchanged condition.
 
+- 2026-08-27 (run 38): Re-confirmed all three env blockers fresh this run: `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out — priority-3 email still impossible. curl to example.com via the agent proxy still 403s
+  (CONNECT tunnel failed) — general web egress still blocked. For priority 2, searched several new
+  angles (journaling/diary iOS privacy directories via WebSearch, on-device-AI/privacy topic combos,
+  no-subscription/buy-once app lists, "awesome-ethical-apps", "awesome-indie-ios" via
+  search_repositories) — mostly zero/irrelevant results or already-known candidates. Investigated
+  jiejuefuyou/awesome-indie-ios (0 stars) and ruled it out: its "Open Source Reference Portfolios"
+  section — the only section that could fit a shipped app — contains only the maintainer's own toy
+  demo repos (autoapp-hello, autoapp-altitude-now, etc.) used to teach build patterns, not a genuine
+  directory accepting third-party app submissions; logged as a negative finding. No new candidate
+  cleared the fit/quality bar this run, consistent with run 28's saturation note. No PRs opened, no
+  comments posted, no emails sent — 38th consecutive run blocked purely on environment/session config
+  (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run
+  with unchanged evidence; not re-flagging via notification since nothing about the blockers has
+  changed since the last flag (2026-08-23 run 26) and the gap since then (4 days / 12 runs) remains
+  shorter than the prior flagging interval — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1199,6 +1218,12 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - megan201296/awesome-mental-health is not a fit: only Articles/Books/Talks sections (no apps
   section at all), no CONTRIBUTING.md or stated submission format beyond "submit a PR", and appears
   inactive (12 commits total). Confirmed 2026-08-24 via WebFetch; do not re-add.
+- jiejuefuyou/awesome-indie-ios (0 stars) is not a fit: it's a resource list for solo devs *building*
+  iOS apps (build tools, monetization, marketing links), not a directory of consumer apps. Its one
+  section that could plausibly hold a shipped app — "Open Source Reference Portfolios" — only
+  contains the maintainer's own toy demo repos (autoapp-hello, autoapp-days-until, etc.) used to
+  teach build patterns to other devs, not a genuine third-party-app submission channel. Confirmed
+  2026-08-27 via WebFetch on the raw README; do not re-add.
 - stevelaskaridis/awesome-mobile-llm is not a fit despite the on-device-AI angle: it's a
   developer/research resources list (papers, frameworks, benchmarks, leaderboards on mobile LLM
   deployment) with no section for consumer apps — same category of mismatch as other dev-resource
