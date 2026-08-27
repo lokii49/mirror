@@ -425,6 +425,25 @@ opens the PR (append to "Note-taking / Personal Knowledge Management" section):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### aspergirl-git/awesome-autism — [needs GitHub PR, blocked in this env — see Blocked]
+Curated ASD/Asperger's resource list (102 stars, active, updated 2026-08-14), not yet in channel map
+or backlog — distinct from all prior mental-health/wellness/ADHD candidates already logged (different
+diagnostic focus: autism rather than mental-health-in-tech, ADHD, or general mindfulness). Confirmed
+via WebFetch (raw README + raw CONTRIBUTING.md): has a real "Applications" section ("Apps to help deal
+with anxiety, depression or autism traits") already listing Woebot (mood tracking) and Calm/Insight
+Timer (meditation) — a direct precedent for mood-tracking/emotional-regulation apps being in scope,
+same pattern as dicktracey909/awesome-adhd-tools' Daylio entry. Entry format confirmed verbatim from
+existing entries: `- [Name](url) description text` (no trailing period, casual descriptive phrase, not
+a full sentence). CONTRIBUTING.md's one binding rule — "Do NOT link to resources you haven't
+watched/read yet; or organizations you are not a part of in some way" — is satisfied since this
+submission is for the developer's own app. No pricing/monetization wording restriction found. No
+prompt-injection content found in either file. Ready-to-paste entry for whoever/whatever opens the PR
+(append to end of "Applications" section, after the Calm/Insight Timer line):
+
+`- [MirrorNotes](https://mirrornotes.org) for private, on-device AI journaling and mood tracking`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1074,6 +1093,26 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   via notification since nothing about the blockers has changed since the last flag (2026-08-23
   run 26) and the gap since then (4 days / 10 runs) remains shorter than the prior flagging interval —
   this remains a standing, unchanged condition.
+
+- 2026-08-27 (run 37): Re-confirmed all three env blockers fresh this run (github MCP server had
+  briefly disconnected/reconnected mid-run, so verified rather than assumed): `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) —
+  priority-3 email still impossible. curl to example.com via the agent proxy still 403s (CONNECT
+  tunnel failed) — general web egress still blocked. For priority 2, found one genuine new candidate:
+  aspergirl-git/awesome-autism — active ASD/Asperger's resource list (102 stars), distinct from all
+  prior mental-health/ADHD/mindfulness candidates already logged. Has a real "Applications" section
+  ("Apps to help deal with anxiety, depression or autism traits") already listing Woebot (mood
+  tracking) and Calm/Insight Timer — precedent for mood-tracking apps being in scope, same pattern as
+  dicktracey909/awesome-adhd-tools' Daylio entry. Confirmed entry format and CONTRIBUTING.md rules via
+  WebFetch (only rule: don't link to unreviewed resources/unaffiliated orgs — satisfied since this is
+  the developer's own app; no pricing/format restriction). Added ready-to-paste copy to Backlog. Also
+  double-checked lissy93/awesome-privacy#671's gate date (2026-08-29, per Channel map) — still 2 days
+  out, not yet actionable. No PRs opened, no comments posted, no emails sent this run — 37th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since nothing about the blockers has changed since the last flag (2026-08-23
+  run 26) — this remains a standing, unchanged condition.
 
 ## Blocked
 
