@@ -1018,6 +1018,30 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   run 26) and the gap since then (3 days / 8 runs) is shorter than the prior flagging interval —
   this remains a standing, unchanged condition.
 
+- 2026-08-27 (run 35): Re-confirmed all three env blockers fresh this run: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible. curl to
+  example.com via the agent proxy still 403s (`connect_rejected`, policy denial, proxy status
+  endpoint's allowlist unchanged) — general web egress still blocked. `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. For priority 2, checked
+  raw.githubusercontent.com/dkhamsing/open-source-ios-apps APPSTORE.md (surfaced by a search hit) and
+  confirmed it's the same generated list as the already-MERGED #2274 (built from the same
+  contents.json), and MirrorNotes is already listed there under Health — not a new channel, no action
+  needed. Investigated mrseth01/awesome-adhd (322 stars, active, distinct from XargsUK/awesome-adhd
+  already in Backlog) and ruled it out: its "Software Tools" section is habit-formation/focus apps
+  (Beeminder, SelfControl, Forest, Habitica) with no journaling/mood-tracking precedent, and entries
+  are bare links with no description field in practice — a real fit/format mismatch, logged under
+  Lessons. Searched several further angles (awesome-gemma-adjacent, mental-wellness/self-reflection,
+  general journaling/diary "awesome list" web search) — all either already-known/logged or generic
+  noise (huge unrelated LLM-tooling lists, individual apps rather than curated directories with a
+  submission path). No new candidate cleared the fit/quality bar this run, consistent with run 28's
+  saturation note. No PRs opened, no comments posted, no emails sent — 35th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  nothing about the blockers has changed since the last flag (2026-08-23 run 26) and the gap since
+  then (4 days / 9 runs) remains shorter than the prior flagging interval — this remains a standing,
+  unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1115,6 +1139,14 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   even its closest section ("Shared Activities & Media" / journaling-together-with-a-companion)
   assumes a companion-relationship feature MirrorNotes doesn't have. Confirmed 2026-08-25 via
   WebFetch; do not re-add unless MirrorNotes gains a companion-persona feature.
+- mrseth01/awesome-adhd (322 stars, active, distinct from XargsUK/awesome-adhd already in Backlog)
+  is not a fit despite being active: its "Software Tools" section is entirely habit-formation/
+  self-control/focus apps (Beeminder, SelfControl, Forest, Habitica, Freedom) with no journaling or
+  mood-tracking precedent — a real category mismatch, unlike dicktracey909/awesome-adhd-tools'
+  "Emotional Regulation" section which already lists Daylio. Entries there are also bare
+  `[Name](url)` links with no description field in current practice (CONTRIBUTING.md nominally asks
+  for one, but no existing entry has one) — confirmed via WebFetch on README + CONTRIBUTING.md
+  2026-08-26; do not re-add unless the section's scope changes.
 
 ## Sent log
 
