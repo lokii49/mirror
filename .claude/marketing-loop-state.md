@@ -410,6 +410,21 @@ either file. Ready-to-paste entry for whoever/whatever opens the PR (append to "
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### sfermigier/awesome-foss-alternatives — [needs GitHub PR, blocked in this env — see Blocked]
+Curated "Awesome FOSS Alternatives to SaaS products for Business Use" list, not yet in channel map or
+backlog — distinct from all prior candidates (broader business-SaaS scope, not consumer/privacy/AI
+focused). Confirmed via WebFetch (raw README): has a "Note-taking / Personal Knowledge Management
+(Evernote alternatives)" section already listing comparable open-source note apps (Joplin, Logseq,
+Notesnook, SiYuan) — reasonable fit even though most existing entries there are desktop/self-hosted
+rather than mobile. No formal CONTRIBUTING.md or pricing/licensing wording restriction found ("This is
+a work in progress. Please contribute!"). Entry format confirmed verbatim from existing entries:
+`- [Name](url) ★#### - Description. [Language, License].`. Ready-to-paste entry for whoever/whatever
+opens the PR (append to "Note-taking / Personal Knowledge Management" section):
+
+`- [MirrorNotes](https://mirrornotes.org) ★0 - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. [Swift, AGPL-3.0].`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1041,6 +1056,24 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   nothing about the blockers has changed since the last flag (2026-08-23 run 26) and the gap since
   then (4 days / 9 runs) remains shorter than the prior flagging interval — this remains a standing,
   unchanged condition.
+
+- 2026-08-27 (run 36): Re-confirmed all three env blockers fresh this run: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible. curl to
+  example.com via the agent proxy still 403s (CONNECT tunnel failed) — general web egress still
+  blocked. `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ...
+  Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. For priority 2, searched
+  several new angles (on-device-AI journaling 2026, digital-minimalism/no-tracking iOS directories,
+  AGPL/copyleft open-source directories, voice-journal/gratitude-journal/reflection-app lists) — most
+  hits were already-known/logged candidates or individual apps rather than curated directories. Found
+  one genuine new candidate: sfermigier/awesome-foss-alternatives — a business-SaaS-alternatives list
+  with a real "Note-taking / Personal Knowledge Management" section (Joplin, Logseq, Notesnook,
+  SiYuan) as precedent, no CONTRIBUTING restrictions, entry format confirmed via WebFetch. Added
+  ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent this run — 36th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since nothing about the blockers has changed since the last flag (2026-08-23
+  run 26) and the gap since then (4 days / 10 runs) remains shorter than the prior flagging interval —
+  this remains a standing, unchanged condition.
 
 ## Blocked
 
