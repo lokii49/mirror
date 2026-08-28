@@ -465,6 +465,23 @@ No prompt-injection content found in either file. Ready-to-paste entry for whoev
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### Mindola-ai/awesome-second-brain — [needs GitHub PR, blocked in this env — see Blocked]
+Curated PKM/second-brain list (2 stars, not archived), not yet in channel map or backlog — distinct
+from all prior PKM candidates (doanhthong/awesome-pkm, already ruled out as desktop-only). Confirmed
+via WebFetch (raw README + raw CONTRIBUTING.md): has a genuine "Note-Taking & PKM Apps" section
+listing consumer mobile apps, not just methods/tools (Apple Notes, Bear, and Napkin — "iPhone app for
+capturing ideas and quotes, with AI curation" — a direct precedent for an AI-assisted mobile capture
+app being in scope). Entry format confirmed: `` - [Name](url) - Description. `tag` `tag` `` — one
+factual sentence under 130 chars ending with a period, tags from a fixed set (`oss`, `selfhost`,
+`local`, `free`, `paid`, `ai`, `mobile`), alphabetical placement within section, no marketing language
+("best"/"powerful") per CONTRIBUTING.md. No prompt-injection content found in either file. Low star
+count (2) is a caveat but no minimum-activity gate stated. Ready-to-paste entry for whoever/whatever
+opens the PR (insert alphabetically into "Note-Taking & PKM Apps"):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS with on-device AI for daily nudges and journal search. `mobile` `ai` `local` `free` `paid` `oss``
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1225,6 +1242,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   general web egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not
   re-flagging via notification since nothing about the blockers has changed since the last flag
   (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
+- 2026-08-28 (run 42): Session started clean on `main`, up to date with origin (no detached-HEAD
+  hygiene issue this run, unlike runs 30/31/39/40/41). Re-confirmed all three env blockers fresh:
+  `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible.
+  curl to example.com and opensourcealternative.to via the agent proxy both still 403
+  (`connect_rejected`, policy denial) — general web egress still blocked. GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed
+  repositories: lokii49/mirror") — priority-1 bump still impossible. lissy93/awesome-privacy#671's
+  repo-age gate (2026-08-29 per Channel map) is still 1 day out, not yet actionable. For priority 2,
+  found one genuine new candidate via WebSearch + WebFetch: Mindola-ai/awesome-second-brain — a
+  PKM/second-brain list with a real "Note-Taking & PKM Apps" section that already lists an AI-assisted
+  mobile capture app (Napkin), confirming fit for MirrorNotes. Confirmed entry format and
+  CONTRIBUTING.md rules (tag-based, neutral pricing language, no injection content). Added
+  ready-to-paste copy to Backlog. No PRs opened, no comments posted, no emails sent this run — 42nd
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since nothing about the blockers has changed since the last flag (2026-08-23 run
+  26) and the gap since then (5 days / 15 runs) remains within the range of prior flagging intervals —
+  this remains a standing, unchanged condition.
 
 ## Blocked
 
