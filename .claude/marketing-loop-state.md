@@ -1203,6 +1203,29 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   (2026-08-23 run 26) and the gap since then (5 days / 14 runs) remains within the range of the prior
   flagging interval — this remains a standing, unchanged condition.
 
+- 2026-08-28 (run 41): Fixed repo hygiene again on session start: detached HEAD with local `main` 18
+  commits behind (same recurring pattern as runs 30/31/39/40) — `git fetch origin main` confirmed
+  `origin/main` already matched, so `git checkout main && git merge --ff-only origin/main` brought
+  local `main` current before this run's commit, landing it on `main` directly. Re-confirmed all three
+  env blockers fresh: GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access
+  denied ... Allowed repositories: lokii49/mirror", confirmed via a sub-agent probe including
+  `get_me` = lokii49) — priority-1 bump still impossible. `/dev/tcp` to smtp.mail.me.com:587 still
+  times out (exit 124) — priority-3 email still impossible. curl to example.com and
+  opensourcealternative.to via the agent proxy both still 403 (`connect_rejected`, policy denial,
+  proxy status endpoint's allowlist unchanged) — general web egress still blocked. lissy93/
+  awesome-privacy#671's repo-age gate (2026-08-29 per Channel map) is still 1 day out. For priority 2,
+  ran several new WebSearch angles not tried in recent runs (journaling/diary awesome lists 2026,
+  buy-once/no-subscription app directories, AGPL app directories, self-care/wellness apps, on-device-AI
+  privacy apps) and WebFetch-checked two candidates that surfaced: duchu/awesome-ios (developer
+  libraries only, no consumer-apps section — same mismatch as vsouza/awesome-ios, do not re-add) and
+  johnjago/awesome-free-software (no dedicated notes/journaling or mobile/iOS section, only a stray
+  Dnote/Signal mention — too weak a fit to force in). No candidate cleared the fit/quality bar this
+  run, consistent with the run 28/39 saturation note. No PRs opened, no comments posted, no emails
+  sent — 41st consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not
+  re-flagging via notification since nothing about the blockers has changed since the last flag
+  (2026-08-23 run 26) — this remains a standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
