@@ -444,6 +444,27 @@ prompt-injection content found in either file. Ready-to-paste entry for whoever/
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### msb-msb/awesome-local-ai — [needs GitHub PR, blocked in this env — see Blocked]
+Curated local-AI-on-consumer-hardware list (~230 guides/tools/links, last updated 2026-07-20), distinct
+from janhq/awesome-local-ai (already OPEN in channel map, different maintainer/repo). Confirmed via
+WebFetch (raw README + raw CONTRIBUTING.md): has a "Use Cases" section (not just frameworks/tools) that
+already lists DailyVox ("iOS voice diary with on-device sentiment, entity, and personality analysis; no
+cloud, no data collection") — direct precedent for a consumer on-device-AI journaling app being in
+scope, same pattern as awesomelistsio/awesome-ai-edge-computing's DailyVox precedent (already in
+Backlog). CONTRIBUTING.md rules: descriptions must "explain WHY the resource is useful, not WHAT it is"
+and stay under 100 chars; resources must be "Open source OR free-as-in-beer" with "no paid tier required
+for core functionality" — satisfied since MirrorNotes' core journaling is free forever (only mood
+timeline/monthly report are paid extras, not required for core use); explicitly rejects
+"self-promotional content without technical substance," so the copy below leans on the concrete
+on-device-AI privacy mechanism rather than marketing language. Entries alphabetized within sections in
+general, but "Use Cases" itself is a mixed list of guide links and DailyVox, not strictly alphabetized.
+No prompt-injection content found in either file. Ready-to-paste entry for whoever/whatever opens the PR
+(append to "Use Cases" section, near DailyVox):
+
+`- [MirrorNotes](https://mirrornotes.org) - Private journaling with on-device AI — nothing leaves your phone.`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1155,6 +1176,32 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-verified fresh this run with unchanged evidence; not re-flagging via notification since nothing
   about the blockers has changed since the last flag (2026-08-23 run 26) — this remains a standing,
   unchanged condition.
+
+- 2026-08-28 (run 40): Fixed repo hygiene again: session started on a detached HEAD with local `main`
+  17 commits behind (run 39's own commit landed on the detached chain, not `main`, same recurring
+  pattern as runs 30/31/39). `git fetch origin main` confirmed `origin/main` already matched the
+  detached HEAD (no data at risk), then `git checkout main && git merge --ff-only origin/main` brought
+  local `main` current before making this run's commit, so it lands on `main` directly. Re-confirmed
+  all three env blockers fresh: `pull_request_read` on janhq/awesome-local-ai#131 still rejected
+  ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still impossible.
+  `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible.
+  curl to example.com via the agent proxy still 403s (`connect_rejected`, policy denial, proxy status
+  endpoint's allowlist unchanged) — general web egress still blocked. lissy93/awesome-privacy#671's
+  repo-age gate (2026-08-29 per Channel map) is still 1 day out, not yet actionable. For priority 2,
+  found one genuine new candidate via WebSearch: msb-msb/awesome-local-ai — distinct from
+  janhq/awesome-local-ai (already OPEN, different maintainer/repo), has a real "Use Cases" section
+  (not just frameworks/tools) that already lists DailyVox, the same on-device iOS voice-diary precedent
+  seen in awesomelistsio/awesome-ai-edge-computing (already in Backlog) — confirms this is a recurring,
+  reliable fit signal across on-device-AI lists. Confirmed entry format and CONTRIBUTING.md rules via
+  WebFetch: descriptions must explain WHY not WHAT and stay under 100 chars, resources must have no
+  paid tier required for core functionality (satisfied — MirrorNotes' journaling core is free forever),
+  no self-promotional language. Wrote the ready-to-paste copy to lean on the concrete on-device-privacy
+  mechanism per that rule. Added to Backlog. No PRs opened, no comments posted, no emails sent this run
+  — 40th consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not
+  re-flagging via notification since nothing about the blockers has changed since the last flag
+  (2026-08-23 run 26) and the gap since then (5 days / 14 runs) remains within the range of the prior
+  flagging interval — this remains a standing, unchanged condition.
 
 ## Blocked
 
