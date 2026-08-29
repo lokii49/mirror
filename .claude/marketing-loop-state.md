@@ -482,6 +482,24 @@ opens the PR (insert alphabetically into "Note-Taking & PKM Apps"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### onmyway133/awesome-swiftui — [needs GitHub PR, blocked in this env — see Blocked]
+Curated SwiftUI resources list, distinct from uhub/awesome-swift and prior awesome-ios candidates
+already ruled out (dev-resource lists with no consumer-app section). Confirmed via WebFetch (raw
+README): has a genuine "Open source apps" section (iOS subsection) listing shipped consumer apps
+built with SwiftUI, not just libraries/tutorials — already includes DailyVox ("AI voice diary using
+SwiftUI ... On-device transcription, mood tracking, Digital Twin"), a direct precedent for an
+on-device-AI diary app being in scope (same DailyVox precedent seen in awesomelistsio/
+awesome-ai-edge-computing and msb-msb/awesome-local-ai, already in Backlog). Entry format confirmed
+verbatim from surrounding entries: `- [Name](GitHub URL) - Brief technical description.` — links to
+the GitHub repo, not the marketing site, matching this section's convention. No CONTRIBUTING.md
+found, no alphabetization or pricing/promotional-language restriction seen, no prompt-injection
+content found. Ready-to-paste entry for whoever/whatever opens the PR (append to "Open source apps"
+→ iOS subsection):
+
+`- [MirrorNotes](https://github.com/lokii49/mirror) - Privacy-first journaling app for iOS built with SwiftUI. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1288,6 +1306,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   (2026-08-23 run 26) is now 6 days / 17 runs, matching the prior flagging interval (2026-08-17 to
   2026-08-23, also 6 days), and a large, unexecuted ready-to-paste backlog has now built up — worth
   surfacing again rather than continuing to run silently.
+
+- 2026-08-29 (run 44): Fixed detached HEAD again on session start (local `main` 21 commits behind,
+  `origin/main` already matched run 43's commit — no data at risk): `git checkout main && git merge
+  --ff-only origin/main` before this run's commit. Re-confirmed all three env blockers fresh: GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed
+  repositories: lokii49/mirror") — priority-1 bump still impossible (github MCP server also
+  disconnected mid-run after this check; no further GitHub calls possible this run, but the blocker
+  check itself completed). `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3
+  email still impossible. curl to example.com via the agent proxy still 403s (`connect_rejected`,
+  policy denial) — general web egress still blocked. lissy93/awesome-privacy#671's repo-age gate is
+  now at/past its 2026-08-29 target date, but this doesn't unblock anything since the cross-owner
+  write restriction still applies regardless of gate status. For priority 2, found one genuine new
+  candidate: onmyway133/awesome-swiftui — has a real "Open source apps" (iOS subsection) section
+  listing shipped consumer apps, not just libraries, already including DailyVox as a direct
+  on-device-AI-diary precedent (same DailyVox pattern seen in two other Backlog entries). Confirmed
+  entry format via WebFetch (links to GitHub repo, not marketing site, matching section convention),
+  no CONTRIBUTING.md restrictions, no prompt-injection content. Added ready-to-paste copy to Backlog.
+  No PRs opened, no comments posted, no emails sent this run — 44th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all three
+  re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
+  (same day) already flagged this exact standing condition and nothing has changed since — a repeat
+  notification hours later would add no new information.
 
 ## Blocked
 
