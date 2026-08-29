@@ -1329,6 +1329,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   (same day) already flagged this exact standing condition and nothing has changed since — a repeat
   notification hours later would add no new information.
 
+- 2026-08-29 (run 45): Local `main` was 22 commits behind `origin/main` at session start (stale
+  cached `remotes/origin/main` ref, not a real push failure) — `git fetch origin main` then
+  `git checkout -B main origin/main` resolved it cleanly, no data lost (run 44's commit was already
+  on origin). Re-confirmed all three env blockers fresh (not skipped, since a full cycle of checks
+  hadn't completed last run due to a mid-run MCP disconnect): `add_repo` for janhq/awesome-local-ai
+  still rejected ("cross-tier adds are not supported in v1"); `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") once the github MCP server reconnected — priority-1 bump still impossible.
+  `/dev/tcp` to smtp.mail.me.com:587 still times out — priority-3 email still impossible. curl to
+  example.com via the agent proxy still 403s (`connect_rejected`) — general web egress still
+  blocked. For priority 2, searched several new angles (voice-journal/voice-typing lists, AGPL-
+  specific iOS directories) — found two leads, both ruled out and logged to Lessons:
+  motoon-eg/open-source-ios-apps-1 is an auto-generated fork/mirror of dkhamsing/open-source-ios-apps
+  (already MERGED there, so redundant); primaprashant/awesome-voice-typing is scoped to voice-typing
+  tools/keyboards specifically, not journaling apps that happen to support voice input — not a
+  genuine fit despite the surface-level voice angle. No new candidate cleared the bar this run,
+  consistent with the saturation noted in recent runs. No PRs opened, no comments posted, no emails
+  sent — 45th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence. Not re-flagging via notification: run 43 (2026-08-29) already flagged this exact
+  standing condition today and nothing has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1440,6 +1462,17 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   `[Name](url)` links with no description field in current practice (CONTRIBUTING.md nominally asks
   for one, but no existing entry has one) — confirmed via WebFetch on README + CONTRIBUTING.md
   2026-08-26; do not re-add unless the section's scope changes.
+- motoon-eg/open-source-ios-apps-1 is a generated mirror/fork of dkhamsing/open-source-ios-apps
+  (README explicitly points back to the dkhamsing repo and states it's auto-generated from
+  contents.json, "please do not update" the README directly) — MirrorNotes is already MERGED into
+  the upstream dkhamsing/open-source-ios-apps#2274, so submitting here would be redundant. Confirmed
+  2026-08-29 via WebFetch; do not re-add.
+- primaprashant/awesome-voice-typing is not a fit despite the voice-input angle: its scope is
+  explicitly "open-source apps, keyboards, menu bar utilities, and CLI tools" for speech-to-text/
+  voice typing specifically (transcription engines, dictation keyboards), not journaling apps that
+  happen to accept voice as one input method. MirrorNotes doesn't belong in a voice-typing-tool
+  directory the way it belongs in note-taking/journaling/privacy lists. Confirmed 2026-08-29 via
+  WebFetch; do not re-add.
 
 ## Sent log
 
