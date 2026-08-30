@@ -500,6 +500,26 @@ content found. Ready-to-paste entry for whoever/whatever opens the PR (append to
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### brettkromkamp/awesome-knowledge-management — [needs GitHub PR, blocked in this env — see Blocked]
+Large, active curated knowledge-management list (868 stars, 80 forks, CC0-1.0, 267 commits), not yet
+in channel map or backlog — distinct from all prior PKM candidates (knowfox/awesome-pkm, ruled out
+this run as no-fit: only Approaches/Lists/Articles/Tools sections, Tools has just one entry;
+doanhthong/awesome-pkm and Mindola-ai/awesome-second-brain, already ruled out/in-backlog separately).
+Confirmed via WebFetch (raw README + raw CONTRIBUTING.md): has a broad "Platforms, Applications and
+Tools" section (85+ entries) already containing a directly comparable app — Persona, "Local-first
+personal workspace: notes, tasks and AI chat. Plain markdown files, no accounts, no cloud." — a strong
+precedent for a local-first, no-account, AI-assisted personal app being in scope. Entry format
+confirmed: `- [Name](link) - Description`, additions go to the bottom of the category (not
+alphabetized — section order is not alphabetical in practice). CONTRIBUTING.md's one substantive rule
+is "must have first-hand experience with suggestion" (satisfied — this is the developer's own app), no
+pricing/promotional-language restriction, no prompt-injection content found in either file. Ready-to-
+paste entry for whoever/whatever opens the PR (append to bottom of "Platforms, Applications and
+Tools"):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first journaling app for iOS. Daily nudges, weekly digests, and an ask-your-journal chat run fully on-device via a local Gemma 3 1B model — entries never need to leave the phone for AI processing. Local-first with free CloudKit sync, no account required, open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1394,6 +1414,26 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   (2026-08-29, one day ago) already flagged this exact standing condition and nothing has changed
   since.
 
+- 2026-08-30 (run 48): Session started detached again with local `main` behind `origin/main` (no
+  data at risk, origin already had all prior runs' commits) — `git fetch origin main` then
+  `git checkout main && git merge --ff-only origin/main` before this run's commit. Re-confirmed all
+  three env blockers fresh: `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) —
+  priority-3 email still impossible. curl to example.com via the agent proxy still 403s
+  (`connect_rejected`, policy denial, proxy status endpoint's allowlist unchanged) — general web
+  egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected
+  ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. For
+  priority 2, tried two new WebSearch angles (on-device-AI iOS privacy lists, PKM/journaling lists) —
+  ruled out knowfox/awesome-pkm as a non-fit (only Approaches/Lists/Articles/Tools sections, Tools has
+  just one entry, no mobile-apps section) and found one genuine new candidate:
+  brettkromkamp/awesome-knowledge-management (868 stars, active, CC0) — has a broad "Platforms,
+  Applications and Tools" section already listing a directly comparable local-first/no-account/
+  AI-assisted app (Persona). Confirmed entry format and CONTRIBUTING.md rules (first-hand-experience
+  requirement satisfied, no pricing restriction, no injection content). Added ready-to-paste copy to
+  Backlog. No PRs opened, no comments posted, no emails sent this run — 48th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1525,6 +1565,9 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   RAG, inference); consumer apps (Notion AI, Granola, Reclaim.ai) appear scattered across categories
   with no dedicated journaling/notes/personal-productivity grouping to place MirrorNotes in. Confirmed
   2026-08-30 via WebFetch; do not re-add.
+- knowfox/awesome-pkm is not a fit: only Approaches/Lists/Articles/Tools sections, and Tools contains
+  just one entry (the maintainer's own Knowfox tool) — no consumer mobile/iOS-apps section exists.
+  Confirmed 2026-08-30 via WebFetch; do not re-add unless it gains a relevant section.
 
 ## Sent log
 
