@@ -1450,6 +1450,28 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already
   flagged this exact standing condition and nothing has changed since.
 
+- 2026-08-31 (run 50): Fixed detached HEAD again on session start (local `main` 5 commits behind
+  `origin/main`, origin already had run 49's commit, no data at risk) — `git checkout main && git
+  merge --ff-only origin/main` before this run's commit. Re-confirmed all three env blockers fresh
+  (run 49 checked them earlier today too, but this is a separate session): `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing sent,
+  Sent log untouched. curl to example.com via the agent proxy still 403s (`connect_rejected`, policy
+  denial), proxy status endpoint's noProxy allowlist unchanged — general web egress still blocked.
+  GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed
+  repositories: lokii49/mirror") — priority-1 bump still impossible. For priority 2, tried two new
+  WebSearch angles (journaling/diary curated-list discovery, AGPL mobile-app directories) — ruled out
+  unicodeveloper/awesome-opensource-apps as a non-fit (it's actually a Python-scripts collection
+  despite the "apps" name, table format credits a contributor per script, no journaling/notes
+  section) and confirmed piotrkulpinski/openalternative (the repo behind opensourcealternative.to,
+  already in Backlog) has no GitHub PR submission path — its own CONTRIBUTING.md confirms
+  openalternative.co/submit is the only route, consistent with the existing Backlog entry, so no
+  change made there. No new candidate cleared the fit/quality bar this run, consistent with the
+  saturation noted since run 28. No PRs opened, no comments posted, no emails sent — 50th consecutive
+  run blocked purely on environment/session config (GitHub cross-owner scope, general web egress,
+  SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging via
+  notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
