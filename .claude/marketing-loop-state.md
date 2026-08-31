@@ -1434,6 +1434,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
   run 43 (2026-08-29) already flagged this exact standing condition and nothing has changed since.
 
+- 2026-08-31 (run 49): Re-confirmed all three env blockers fresh: `/dev/tcp` to smtp.mail.me.com:587
+  still times out (exit 124) — priority-3 email still impossible, nothing sent, Sent log untouched.
+  `add_repo` on janhq/awesome-local-ai still rejected ("cross-tier adds are not supported in v1 ...
+  session already has repos from owner(s) [lokii49]") — priority-1 bump still impossible. curl to
+  example.com via the agent proxy still 403s (`connect_rejected`), proxy status endpoint's noProxy
+  allowlist unchanged (only coding-related domains) — general web egress still blocked. For priority 2,
+  tried two new WebSearch angles (digital-minimalism/no-social-media app lists, AI-journal/local-first
+  app lists) — no new genuinely-fitting directory surfaced (mostly re-surfaced already-known repos or
+  developer/AI-agent lists with no consumer-app section). Checked one concrete candidate via WebFetch,
+  ThetaApps/ios-app-opensource, and ruled it out: confirmed it's a fork of dkhamsing/open-source-ios-apps
+  (already MERGED at #2274), so submitting there would be redundant. Logged to Lessons. No PRs opened,
+  no comments posted, no emails sent — 49th consecutive run blocked purely on environment/session
+  config (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this
+  run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already
+  flagged this exact standing condition and nothing has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1568,6 +1584,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - knowfox/awesome-pkm is not a fit: only Approaches/Lists/Articles/Tools sections, and Tools contains
   just one entry (the maintainer's own Knowfox tool) — no consumer mobile/iOS-apps section exists.
   Confirmed 2026-08-30 via WebFetch; do not re-add unless it gains a relevant section.
+- ThetaApps/ios-app-opensource ("Collaborative List of Open-Source iOS Apps", 22 stars) is a fork of
+  dkhamsing/open-source-ios-apps (confirmed via WebFetch, "forked from" banner present). MirrorNotes
+  is already MERGED into the upstream (#2274) — submitting to the fork would be redundant, same
+  pattern as motoon-eg/open-source-ios-apps-1. Confirmed 2026-08-31; do not re-add.
 
 ## Sent log
 
