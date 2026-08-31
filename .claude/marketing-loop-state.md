@@ -14,9 +14,9 @@ OPEN unmerged (bump if stale >2wk since last touch logged below, polite one-line
 - dreamingechoes/awesome-mental-health#78
 - janhq/awesome-local-ai#131
 - tehtbl/awesome-note-taking#89
-
-Gated / do not touch yet:
-- lissy93/awesome-privacy#671 — blocked on repo-age gate, do NOT touch until repo passes 16wk old (~2026-08-29)
+- lissy93/awesome-privacy#671 — repo-age gate (16wk, ~2026-08-29) has now passed as of this run
+  (2026-08-31); moved out of Gated. Still blocked on the same cross-owner GitHub write restriction as
+  the rest of this list (see Blocked), so no different in practice, but no longer needs the gate check.
 
 Blocked (do not retry via CLI, org OAuth restriction, needs human click):
 - theimpossibleastronaut/awesome-mentalhealth
@@ -1472,6 +1472,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
   has changed since.
 
+- 2026-08-31 (run 51): Session started on a detached HEAD again (local behind `origin/main` by 6
+  commits, no divergence) — `git checkout main && git pull origin main` (fast-forward, no data at
+  risk) before this run's commit. Re-confirmed all three env blockers fresh: GitHub
+  `pull_request_read` on pluja/awesome-privacy#879 still rejected ("Access denied ... Allowed
+  repositories: lokii49/mirror") — priority-1 bump still impossible. `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible, nothing sent, Sent log
+  untouched. curl to opensourcealternative.to via the agent proxy still 403s (`CONNECT tunnel
+  failed`) — general web egress still blocked (WebSearch + WebFetch on github.com/raw.githubusercontent.com
+  still work). Noted lissy93/awesome-privacy#671's repo-age gate (~2026-08-29) has now passed —
+  moved it out of "Gated" into the regular OPEN list in Channel map, though this changes nothing
+  actionable since the cross-owner write restriction still blocks it like the rest of that list. For
+  priority 2, tried two new WebSearch angles (AGPL/copyleft mobile-app directories, local/on-device-LLM
+  mobile-app directories) — all hits were either already-known/logged or non-directories (blog posts,
+  GitHub topic pages, Android-only lists). Checked one concrete new candidate via WebFetch,
+  rafska/awesome-local-llm: ruled out as infra/dev-tooling only, no consumer-app section. Logged to
+  Lessons. No new candidate cleared the fit/quality bar this run, consistent with saturation noted
+  since run 28. No PRs opened, no comments posted, no emails sent — 51st consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1610,6 +1631,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   dkhamsing/open-source-ios-apps (confirmed via WebFetch, "forked from" banner present). MirrorNotes
   is already MERGED into the upstream (#2274) — submitting to the fork would be redundant, same
   pattern as motoon-eg/open-source-ios-apps-1. Confirmed 2026-08-31; do not re-add.
+- rafska/awesome-local-llm is not a fit: sections are Inference platforms/Inference engines/User
+  Interfaces/LLMs/Tools/Hardware/Tutorials/Communities — infra and dev-tooling only, no section for
+  consumer mobile/iOS apps. Confirmed 2026-08-31 via WebFetch on the raw README; do not re-add unless
+  it gains a consumer-apps section.
 
 ## Sent log
 
