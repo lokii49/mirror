@@ -1514,6 +1514,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   and the gap since then (3 days / 9 runs) is shorter than prior flagging intervals — this remains a
   standing, unchanged condition.
 
+- 2026-09-01 (run 53): Ran concurrently with run 52 (a separate scheduled firing landed on origin
+  first — rebased this run's commit on top rather than duplicating the run number). Independently
+  re-confirmed the same three env blockers fresh, same evidence: GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 rejected ("Access denied ... Allowed repositories: lokii49/mirror");
+  `/dev/tcp` to smtp.mail.me.com:587 times out; curl to example.com and opensourcealternative.to via
+  the agent proxy both 403 (`CONNECT tunnel failed`, `connect_rejected`) — general web egress still
+  blocked (WebSearch + WebFetch on github.com/raw.githubusercontent.com still work). For priority 2,
+  tried three WebSearch angles (journaling/diary awesome-lists, Swift consumer-app awesome-lists,
+  gratitude/mood-tracker awesome-lists, no-tracking/offline-first awesome-lists) — no new
+  directory-shaped awesome-list surfaced beyond already-known/logged repos; most hits were GitHub
+  topic pages (not curated lists) or blog/newsletter posts. Checked one concrete new candidate via
+  WebFetch, matteocrippa/awesome-swift: ruled out as a libraries/frameworks list whose only "apps"
+  content is a pointer to dkhamsing/open-source-ios-apps (already MERGED at #2274) — no consumer-app
+  section of its own. Logged to Lessons. No PRs opened, no comments posted, no emails sent — 53rd
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since run 43 (2026-08-29) already flagged this exact standing condition and
+  nothing has changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1656,6 +1675,10 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   Interfaces/LLMs/Tools/Hardware/Tutorials/Communities — infra and dev-tooling only, no section for
   consumer mobile/iOS apps. Confirmed 2026-08-31 via WebFetch on the raw README; do not re-add unless
   it gains a consumer-apps section.
+- matteocrippa/awesome-swift is not a fit: it's a libraries/frameworks list; its only "apps" content
+  is a pointer to dkhamsing/open-source-ios-apps under "Other Awesome Lists" (already MERGED at
+  #2274) — no consumer-app section of its own. Confirmed 2026-09-01 via WebFetch on the raw README;
+  do not re-add.
 
 ## Sent log
 
