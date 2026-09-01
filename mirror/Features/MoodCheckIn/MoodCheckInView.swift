@@ -114,8 +114,11 @@ struct MoodCheckInView: View {
                 )
                 .padding(.bottom, 24)
         }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { dismiss() }
+        .task {
+            // Auto-cancels when the view goes away — a manual "Done" tap won't
+            // leave a stale dismiss() firing 1.6s later against another sheet.
+            try? await Task.sleep(for: .seconds(1.6))
+            dismiss()
         }
     }
 }

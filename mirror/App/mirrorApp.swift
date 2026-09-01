@@ -48,6 +48,7 @@ struct mirrorApp: App {
                 // the permission prompt was added (status .notDetermined = never asked).
                 Task {
                     await requestNotificationPermissionIfNeeded()
+                    await reArmUserReminders()
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
@@ -634,6 +635,28 @@ struct mirrorApp: App {
     }
 
     // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
+
+    /// Re-issue the user-scheduled reminders (writing + mood check-in) on every
+    /// foreground. `scheduleX` clears and re-adds the request and no-ops when
+    /// notifications aren't authorized — so this is idempotent and, critically,
+    /// self-heals the case where the user toggled a reminder on *before*
+    /// granting permission (in which case nothing was ever scheduled and the
+    /// @AppStorage flag stayed on with no matching request).
+    private func reArmUserReminders() async {
+        let d = UserDefaults.standard
+        if d.bool(forKey: "writingReminderEnabled") {
+            await NotificationService.scheduleWritingReminder(
+                hour: d.object(forKey: "writingReminderHour") as? Int ?? 9,
+                minute: d.object(forKey: "writingReminderMinute") as? Int ?? 0
+            )
+        }
+        if d.bool(forKey: "moodCheckInEnabled") {
+            await NotificationService.scheduleMoodCheckIn(
+                hour: d.object(forKey: "moodCheckInHour") as? Int ?? 13,
+                minute: d.object(forKey: "moodCheckInMinute") as? Int ?? 0
+            )
+        }
+    }
 
     private func requestNotificationPermissionIfNeeded() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
