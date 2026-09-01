@@ -253,8 +253,14 @@ struct mirrorApp: App {
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
+        let recentNudges = allInsights
+            .filter { $0.type == .dailyNudge }
+            .sorted { $0.generatedAt > $1.generatedAt }
+            .prefix(4)
+            .map(\.content)
+
         do {
-            let text = try await InsightService.generateNudge(entries: entries)
+            let text = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try context.save()

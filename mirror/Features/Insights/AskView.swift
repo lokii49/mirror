@@ -689,6 +689,10 @@ private struct AskBubblePair: View {
 
 private struct LoadingAskBubble: View {
     let question: String
+    @Environment(\.appDisplayMode) private var displayMode
+
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -697,23 +701,30 @@ private struct LoadingAskBubble: View {
                     Spacer(minLength: 48)
                     Text(question)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isSentinel ? MirrorTheme.textPrimary : MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(MirrorTheme.accentGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .background(
+                            isSentinel ? MirrorTheme.inkMid : MirrorTheme.violetDim,
+                            in: RoundedRectangle(cornerRadius: isSentinel ? 8 : 20, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: isSentinel ? 8 : 20, style: .continuous)
+                                .stroke(isSentinel ? MirrorTheme.ember.opacity(0.4) : MirrorTheme.violet.opacity(0.3), lineWidth: 1)
+                        }
                 }
             }
 
             HStack(alignment: .top, spacing: 0) {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(MirrorTheme.violetLight.opacity(0.4))
+                    .fill(accent.opacity(isSentinel ? 0.6 : 0.4))
                     .frame(width: 2)
                     .padding(.vertical, 3)
 
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
-                        .tint(MirrorTheme.violetLight)
+                        .tint(accent)
                     Text("Searching your journal")
                         .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(MirrorTheme.textSecondary)
