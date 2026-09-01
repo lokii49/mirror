@@ -45,6 +45,10 @@ struct ContentView: View {
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
     @State private var showWhatsNew = false
+    @State private var showRatePrompt = false
+    @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
+    @State private var showMoodCheckIn = false
+    @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var deepLinkEntryID: UUID? = nil
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
@@ -87,6 +91,27 @@ struct ContentView: View {
         profiles.first?.onboardingComplete ?? false
     }
 
+    /// True only when the rate-us gate is wanted AND the screen is free to show
+    /// it — SwiftUI silently drops a second concurrent `.sheet`. Evaluated every
+    /// render, so `.onChange` below fires the moment a blocking sheet clears.
+    /// The milestone flag is consumed only on a real presentation, so a session
+    /// that never clears just defers to the next qualifying entry save.
+    private var canPresentRatePrompt: Bool {
+        reviewPromptCoordinator.isPending
+            && !ReviewRequestManager.hasShownEntryMilestonePrompt
+            && !showPaywall && !showWhatsNew && !showRatePrompt
+            && onboardingComplete
+    }
+
+    /// The mood check-in sheet is triggered by tapping the daily reminder —
+    /// present it once the screen is free of other modals. If it never clears
+    /// in this session, `pending` simply carries to the next launch/tap.
+    private var canPresentMoodCheckIn: Bool {
+        moodCheckInPresenter.pending
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
+            && onboardingComplete
+    }
+
     private var displayMode: DisplayMode {
         profiles.first?.displayMode ?? .classic
     }
@@ -126,6 +151,28 @@ struct ContentView: View {
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewSheet(mode: .whatsNew)
                 .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showRatePrompt) {
+            RateUsPromptSheet()
+                .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showMoodCheckIn) {
+            MoodCheckInView()
+                .environment(\.appDisplayMode, displayMode)
+        }
+        .onChange(of: canPresentRatePrompt) { _, canPresent in
+            guard canPresent else { return }
+            reviewPromptCoordinator.isPending = false
+            ReviewRequestManager.markEntryMilestonePromptShown()
+            showRatePrompt = true
+        }
+        .onChange(of: canPresentMoodCheckIn, initial: true) { _, canPresent in
+            // `initial: true` covers the cold-launch-from-notification case
+            // where `pending` was already set (by the delegate, in app init)
+            // before this view's first render.
+            guard canPresent else { return }
+            moodCheckInPresenter.pending = false
+            showMoodCheckIn = true
         }
         .onChange(of: sizeClass) { _, newClass in
             if newClass == .regular {

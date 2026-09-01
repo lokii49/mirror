@@ -16,6 +16,20 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
             completionHandler([])
         }
     }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier == "mirror.moodCheckIn",
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            Task { @MainActor in
+                MoodCheckInPresenter.shared.pending = true
+            }
+        }
+        completionHandler()
+    }
 }
 
 enum NotificationService {
@@ -25,6 +39,7 @@ enum NotificationService {
     private static let moodAlertID = "mirror.moodAlert"
     private static let monthlyReportID = "mirror.monthlyReport"
     private static let writingReminderID = "mirror.writingReminder"
+    private static let moodCheckInID = "mirror.moodCheckIn"
     private static let title = String(localized: "MirrorNotes", comment: "Push notification title")
 
     /// Context-aware daily nudge — single repeating notification whose content is
@@ -161,6 +176,32 @@ enum NotificationService {
     static func cancelWritingReminder() {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: [writingReminderID])
+    }
+
+    /// All tiers — daily prompt to log how you're feeling right now, separate
+    /// from the Core-only Daily Nudge and from writing a full entry.
+    static func scheduleMoodCheckIn(hour: Int, minute: Int) async {
+        guard await isAuthorized() else { return }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [moodCheckInID])
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = String(localized: "How are you feeling right now?", comment: "Push notification body for the daily mood check-in")
+        content.sound = .default
+
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = minute
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(identifier: moodCheckInID, content: content, trigger: trigger)
+        try? await center.add(request)
+    }
+
+    static func cancelMoodCheckIn() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [moodCheckInID])
     }
 
     static func cancelNudge() {

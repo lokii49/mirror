@@ -20,6 +20,11 @@ struct ProtocolSettingsView: View {
     @AppStorage("writingReminderMinute") private var writingReminderMinute: Int = 0
     @State private var showWritingReminderPicker = false
 
+    @AppStorage("moodCheckInEnabled") private var moodCheckInEnabled: Bool = false
+    @AppStorage("moodCheckInHour") private var moodCheckInHour: Int = 13
+    @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
+    @State private var showMoodCheckInPicker = false
+
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
     @State private var showLanguagePicker = false
@@ -37,6 +42,13 @@ struct ProtocolSettingsView: View {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         c.hour = writingReminderHour
         c.minute = writingReminderMinute
+        return Calendar.current.date(from: c) ?? Date()
+    }
+
+    private var moodCheckInTime: Date {
+        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        c.hour = moodCheckInHour
+        c.minute = moodCheckInMinute
         return Calendar.current.date(from: c) ?? Date()
     }
 
@@ -158,6 +170,67 @@ struct ProtocolSettingsView: View {
                                                 await NotificationService.scheduleWritingReminder(
                                                     hour: writingReminderHour,
                                                     minute: writingReminderMinute
+                                                )
+                                            }
+                                        }
+                                    ),
+                                    displayedComponents: .hourAndMinute
+                                )
+                                .datePickerStyle(.wheel)
+                                .labelsHidden()
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .padding(.top, 4)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    SettingsDivider()
+
+                    // Mood check-in reminder — all tiers, no writing required
+                    Button { withAnimation { showMoodCheckInPicker.toggle() } } label: {
+                        HStack {
+                            SettingsRowLabel(title: "Mood check-in", systemImage: "face.smiling.fill", iconColor: .pink)
+                            Spacer()
+                            SettingsValueText(text: moodCheckInEnabled
+                                ? moodCheckInTime.formatted(date: .omitted, time: .shortened)
+                                : String(localized: "Off"))
+                            SettingsChevron()
+                                .rotationEffect(.degrees(showMoodCheckInPicker ? 90 : 0))
+                                .animation(.easeInOut(duration: 0.2), value: showMoodCheckInPicker)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if showMoodCheckInPicker {
+                        VStack(spacing: 12) {
+                            Toggle("Ask how I'm feeling once a day", isOn: $moodCheckInEnabled)
+                                .font(.system(size: 14))
+                                .onChange(of: moodCheckInEnabled) { _, enabled in
+                                    Task {
+                                        if enabled {
+                                            await NotificationService.scheduleMoodCheckIn(
+                                                hour: moodCheckInHour,
+                                                minute: moodCheckInMinute
+                                            )
+                                        } else {
+                                            NotificationService.cancelMoodCheckIn()
+                                        }
+                                    }
+                                }
+                            if moodCheckInEnabled {
+                                DatePicker(
+                                    "",
+                                    selection: Binding(
+                                        get: { moodCheckInTime },
+                                        set: { date in
+                                            let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                            moodCheckInHour = c.hour ?? 13
+                                            moodCheckInMinute = c.minute ?? 0
+                                            Task {
+                                                await NotificationService.scheduleMoodCheckIn(
+                                                    hour: moodCheckInHour,
+                                                    minute: moodCheckInMinute
                                                 )
                                             }
                                         }
