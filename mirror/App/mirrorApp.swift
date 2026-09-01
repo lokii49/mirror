@@ -48,6 +48,7 @@ struct mirrorApp: App {
                 // the permission prompt was added (status .notDetermined = never asked).
                 Task {
                     await requestNotificationPermissionIfNeeded()
+                    migrateToUnifiedDailyReminder()
                     await reArmUserReminders()
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
@@ -636,26 +637,35 @@ struct mirrorApp: App {
 
     // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
 
-    /// Re-issue the user-scheduled reminders (writing + mood check-in) on every
-    /// foreground. `scheduleX` clears and re-adds the request and no-ops when
-    /// notifications aren't authorized — so this is idempotent and, critically,
-    /// self-heals the case where the user toggled a reminder on *before*
-    /// granting permission (in which case nothing was ever scheduled and the
-    /// @AppStorage flag stayed on with no matching request).
+    /// One-time move from the old separate "writing reminder" to the unified
+    /// daily check-in reminder. Carries the user's chosen time over (unless
+    /// they'd already picked a check-in time) and clears the old request.
+    private func migrateToUnifiedDailyReminder() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: "didMergeDailyReminder") else { return }
+        d.set(true, forKey: "didMergeDailyReminder")
+
+        if d.bool(forKey: "writingReminderEnabled"), !d.bool(forKey: "moodCheckInTimeUserSet") {
+            d.set(d.object(forKey: "writingReminderHour") as? Int ?? 9, forKey: "moodCheckInHour")
+            d.set(d.object(forKey: "writingReminderMinute") as? Int ?? 0, forKey: "moodCheckInMinute")
+        }
+        NotificationService.cancelWritingReminder()
+    }
+
+    /// Re-issue the unified daily check-in reminder on every foreground.
+    /// `scheduleMoodCheckIn` clears-and-re-adds and no-ops when notifications
+    /// aren't authorized — so this is idempotent and self-heals the case where
+    /// the reminder was left on (it's on by default) before permission was
+    /// granted, when nothing would otherwise have been scheduled.
     private func reArmUserReminders() async {
         let d = UserDefaults.standard
-        if d.bool(forKey: "writingReminderEnabled") {
-            await NotificationService.scheduleWritingReminder(
-                hour: d.object(forKey: "writingReminderHour") as? Int ?? 9,
-                minute: d.object(forKey: "writingReminderMinute") as? Int ?? 0
-            )
-        }
-        if d.bool(forKey: "moodCheckInEnabled") {
-            await NotificationService.scheduleMoodCheckIn(
-                hour: d.object(forKey: "moodCheckInHour") as? Int ?? 13,
-                minute: d.object(forKey: "moodCheckInMinute") as? Int ?? 0
-            )
-        }
+        // `moodCheckInEnabled` defaults to true — treat a missing value as on.
+        let enabled = (d.object(forKey: "moodCheckInEnabled") as? Bool) ?? true
+        guard enabled else { return }
+        await NotificationService.scheduleMoodCheckIn(
+            hour: d.object(forKey: "moodCheckInHour") as? Int ?? 9,
+            minute: d.object(forKey: "moodCheckInMinute") as? Int ?? 0
+        )
     }
 
     private func requestNotificationPermissionIfNeeded() async {
