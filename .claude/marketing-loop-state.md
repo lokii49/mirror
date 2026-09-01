@@ -1493,6 +1493,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
   run 43 (2026-08-29) already flagged this exact standing condition and nothing has changed since.
 
+- 2026-09-01 (run 52): Fixed detached HEAD again on session start (local `main` 7 commits behind
+  `origin/main`, origin already had run 51's commit, no data at risk) — `git fetch origin main` then
+  `git checkout main && git merge --ff-only origin/main` before this run's commit. Re-confirmed all
+  three env blockers fresh: `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3
+  email still impossible, nothing sent, Sent log untouched. curl to example.com via the agent proxy
+  still 403s (`connect_rejected`, policy denial), proxy status endpoint's noProxy allowlist unchanged
+  (only coding-related domains) — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. For priority 2, tried two new angles: a
+  WebSearch for journaling/privacy-directory GitHub lists returned only commercial "best-of" blog
+  content (Day One, Reflect, DailyVox comparison posts), not curated directories with a submission
+  path — not usable. A GitHub `search_repositories` query for "awesome journal" sorted by recency
+  returned only noise (security tool lists, auto-generated star-mirror repos, unrelated dev-tool
+  benchmarks) — no genuine new fit. Consistent with the saturation noted since run 28. No new
+  candidate cleared the bar, nothing added to Backlog. No PRs opened, no comments posted, no emails
+  sent — 52nd consecutive run blocked purely on environment/session config (GitHub cross-owner scope,
+  general web egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not
+  re-flagging via notification since run 43 (2026-08-29) already flagged this exact standing condition
+  and the gap since then (3 days / 9 runs) is shorter than prior flagging intervals — this remains a
+  standing, unchanged condition.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
