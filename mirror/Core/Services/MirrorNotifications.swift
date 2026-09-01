@@ -153,26 +153,9 @@ enum NotificationService {
         try? await center.add(request)
     }
 
-    /// All tiers — daily "time to write" reminder at user-chosen time, separate from Core nudge.
-    static func scheduleWritingReminder(hour: Int, minute: Int) async {
-        guard await isAuthorized() else { return }
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [writingReminderID])
-
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = String(localized: "Time to write. What's on your mind today?", comment: "Push notification body for user-scheduled writing reminder")
-        content.sound = .default
-
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: writingReminderID, content: content, trigger: trigger)
-        try? await center.add(request)
-    }
-
+    /// The standalone "time to write" reminder was folded into the unified
+    /// daily check-in reminder (see `scheduleMoodCheckIn`). This only clears
+    /// any leftover request from a build that still scheduled it.
     static func cancelWritingReminder() {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: [writingReminderID])

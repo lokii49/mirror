@@ -15,14 +15,12 @@ struct ProtocolSettingsView: View {
     @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
     @State private var showNudgeTimePicker = false
 
-    @AppStorage("writingReminderEnabled") private var writingReminderEnabled: Bool = false
-    @AppStorage("writingReminderHour") private var writingReminderHour: Int = 9
-    @AppStorage("writingReminderMinute") private var writingReminderMinute: Int = 0
-    @State private var showWritingReminderPicker = false
-
-    @AppStorage("moodCheckInEnabled") private var moodCheckInEnabled: Bool = false
-    @AppStorage("moodCheckInHour") private var moodCheckInHour: Int = 13
+    // One unified daily reminder (replaces the old separate writing reminder).
+    // On by default; tapping the notification opens the mood check-in sheet.
+    @AppStorage("moodCheckInEnabled") private var moodCheckInEnabled: Bool = true
+    @AppStorage("moodCheckInHour") private var moodCheckInHour: Int = 9
     @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
+    @AppStorage("moodCheckInTimeUserSet") private var moodCheckInTimeUserSet: Bool = false
     @State private var showMoodCheckInPicker = false
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
@@ -35,13 +33,6 @@ struct ProtocolSettingsView: View {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         c.hour = nudgeHour
         c.minute = nudgeMinute
-        return Calendar.current.date(from: c) ?? Date()
-    }
-
-    private var writingReminderTime: Date {
-        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        c.hour = writingReminderHour
-        c.minute = writingReminderMinute
         return Calendar.current.date(from: c) ?? Date()
     }
 
@@ -126,71 +117,10 @@ struct ProtocolSettingsView: View {
 
                     SettingsDivider()
 
-                    // Writing reminder — all tiers
-                    Button { withAnimation { showWritingReminderPicker.toggle() } } label: {
-                        HStack {
-                            SettingsRowLabel(title: "Writing reminder", systemImage: "pencil.circle.fill", iconColor: .teal)
-                            Spacer()
-                            SettingsValueText(text: writingReminderEnabled
-                                ? writingReminderTime.formatted(date: .omitted, time: .shortened)
-                                : String(localized: "Off"))
-                            SettingsChevron()
-                                .rotationEffect(.degrees(showWritingReminderPicker ? 90 : 0))
-                                .animation(.easeInOut(duration: 0.2), value: showWritingReminderPicker)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    if showWritingReminderPicker {
-                        VStack(spacing: 12) {
-                            Toggle("Enable daily writing reminder", isOn: $writingReminderEnabled)
-                                .font(.system(size: 14))
-                                .onChange(of: writingReminderEnabled) { _, enabled in
-                                    Task {
-                                        if enabled {
-                                            await NotificationService.scheduleWritingReminder(
-                                                hour: writingReminderHour,
-                                                minute: writingReminderMinute
-                                            )
-                                        } else {
-                                            NotificationService.cancelWritingReminder()
-                                        }
-                                    }
-                                }
-                            if writingReminderEnabled {
-                                DatePicker(
-                                    "",
-                                    selection: Binding(
-                                        get: { writingReminderTime },
-                                        set: { date in
-                                            let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                            writingReminderHour = c.hour ?? 9
-                                            writingReminderMinute = c.minute ?? 0
-                                            Task {
-                                                await NotificationService.scheduleWritingReminder(
-                                                    hour: writingReminderHour,
-                                                    minute: writingReminderMinute
-                                                )
-                                            }
-                                        }
-                                    ),
-                                    displayedComponents: .hourAndMinute
-                                )
-                                .datePickerStyle(.wheel)
-                                .labelsHidden()
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-
-                    SettingsDivider()
-
-                    // Mood check-in reminder — all tiers, no writing required
+                    // Unified daily reminder — all tiers, opens the mood check-in
                     Button { withAnimation { showMoodCheckInPicker.toggle() } } label: {
                         HStack {
-                            SettingsRowLabel(title: "Mood check-in", systemImage: "face.smiling.fill", iconColor: .pink)
+                            SettingsRowLabel(title: "Daily check-in reminder", systemImage: "face.smiling.fill", iconColor: .pink)
                             Spacer()
                             SettingsValueText(text: moodCheckInEnabled
                                 ? moodCheckInTime.formatted(date: .omitted, time: .shortened)
@@ -204,7 +134,7 @@ struct ProtocolSettingsView: View {
 
                     if showMoodCheckInPicker {
                         VStack(spacing: 12) {
-                            Toggle("Ask how I'm feeling once a day", isOn: $moodCheckInEnabled)
+                            Toggle("Remind me to check in once a day", isOn: $moodCheckInEnabled)
                                 .font(.system(size: 14))
                                 .onChange(of: moodCheckInEnabled) { _, enabled in
                                     Task {
@@ -225,8 +155,9 @@ struct ProtocolSettingsView: View {
                                         get: { moodCheckInTime },
                                         set: { date in
                                             let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                            moodCheckInHour = c.hour ?? 13
+                                            moodCheckInHour = c.hour ?? 9
                                             moodCheckInMinute = c.minute ?? 0
+                                            moodCheckInTimeUserSet = true
                                             Task {
                                                 await NotificationService.scheduleMoodCheckIn(
                                                     hour: moodCheckInHour,
