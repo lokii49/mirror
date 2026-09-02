@@ -146,12 +146,20 @@ struct RateUsPromptSheet: View {
     private func requestSystemReview() {
         dismiss()
         // Let the sheet's own dismiss animation finish before the system
-        // prompt appears — same interval ReviewRequestManager already used.
+        // prompt appears.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             guard let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .first(where: { $0.activationState == .foregroundActive }) else { return }
             AppStore.requestReview(in: scene)
+            #if DEBUG
+            // `AppStore.requestReview` renders nothing in an Xcode-installed
+            // build — Apple only shows it from TestFlight / the App Store. Open
+            // the write-review page so the flow is verifiable during dev.
+            if let url = AppConstants.appStoreReviewURL {
+                UIApplication.shared.open(url)
+            }
+            #endif
         }
     }
 }
