@@ -81,17 +81,20 @@ enum MoodLog {
         return byDay
     }
 
-    /// Length of the unbroken run of negative-mood days ending today — or ending
-    /// yesterday, if today has no reading yet.
+    /// How many of the user's most recent mood-*days* are all negative — the
+    /// signal behind the Deep low-mood alert and the Mood Timeline banner.
     ///
-    /// A day with **no** mood event breaks the run: three negative readings
-    /// spread across a two-week gap are not "3 consecutive". A day whose latest
-    /// reading is non-negative also breaks it. Returns 0 when neither today nor
-    /// yesterday has a reading (no active run to speak of).
-    static func consecutiveNegativeDays(
+    /// Walks distinct mood-days newest-first. A day with **no** reading is
+    /// skipped (not counted, not a break) so someone who journals every other
+    /// day still registers; a day whose latest reading is non-negative ends the
+    /// run. Only looks back `maxLookbackDays` from today, and only counts an
+    /// active run — the most recent reading must be today or yesterday, else a
+    /// low patch from weeks ago wouldn't keep re-alerting. Returns 0 otherwise.
+    static func recentNegativeMoodDays(
         entries: [Entry],
         checkIns: [MoodCheckIn],
         negativeMoods: Set<String> = MirrorTheme.negativeMoods,
+        maxLookbackDays: Int = 12,
         calendar: Calendar = .current,
         now: Date = Date()
     ) -> Int {
@@ -99,23 +102,17 @@ enum MoodLog {
         guard !byDay.isEmpty else { return 0 }
 
         let today = calendar.startOfDay(for: now)
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+              let cutoff = calendar.date(byAdding: .day, value: -maxLookbackDays, to: today)
+        else { return 0 }
 
-        let anchor: Date
-        if byDay[today] != nil {
-            anchor = today
-        } else if byDay[yesterday] != nil {
-            anchor = yesterday
-        } else {
-            return 0
-        }
+        let recentDays = byDay.keys.filter { $0 >= cutoff }.sorted(by: >)
+        guard let latest = recentDays.first, latest >= yesterday else { return 0 }
 
         var count = 0
-        var cursor = anchor
-        while let event = byDay[cursor], negativeMoods.contains(event.mood) {
-            count += 1
-            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = prev
+        for day in recentDays {
+            guard let event = byDay[day] else { continue }
+            if negativeMoods.contains(event.mood) { count += 1 } else { break }
         }
         return count
     }

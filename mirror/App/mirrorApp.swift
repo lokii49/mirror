@@ -397,7 +397,7 @@ struct mirrorApp: App {
         return FileManager.default.fileExists(atPath: url.path)
     }
 
-    // MARK: - Mood Alert (Deep only — 3 consecutive negative-mood days)
+    // MARK: - Mood Alert (Deep only — 3+ recent negative-mood days)
 
     private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
 
@@ -453,18 +453,18 @@ struct mirrorApp: App {
         )
         let entries = (try? context.fetch(descriptor)) ?? []
 
-        // Consecutive negative *days* (entry moods + check-ins merged, latest of
-        // the day wins; a day with no reading breaks the run) — not consecutive
-        // entries, which three low entries in one afternoon could falsely trip.
+        // Recent negative mood-*days* (entry moods + check-ins merged, latest of
+        // the day wins) — not consecutive entries, which three low entries in
+        // one afternoon could falsely trip.
         let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
-        let negativeDays = MoodLog.consecutiveNegativeDays(
+        let lowMoodDays = MoodLog.recentNegativeMoodDays(
             entries: entries,
             checkIns: checkIns
         )
 
-        if negativeDays >= 3 {
+        if lowMoodDays >= 3 {
             UserDefaults.standard.set(Date(), forKey: moodAlertCooldownKey)
-            await NotificationService.sendMoodAlert(consecutiveCount: negativeDays)
+            await NotificationService.sendMoodAlert(consecutiveCount: lowMoodDays)
         }
     }
 
