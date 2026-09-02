@@ -31,12 +31,20 @@ struct MoodTimelineView: View {
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedConsecutiveNegativeCount: Int = 0
 
-    private var entryCacheKey: Int {
+    /// Content hash of everything the mood caches depend on — entry moods +
+    /// dates AND check-in moods + dates. `.count` alone misses an in-place edit
+    /// or a remote insert-that-replaces-a-delete arriving via CloudKit.
+    private var moodDataCacheKey: Int {
         var hasher = Hasher()
         hasher.combine(entries.count)
         for entry in entries {
             hasher.combine(entry.encryptedMood)
             hasher.combine(entry.createdAt)
+        }
+        hasher.combine(moodCheckIns.count)
+        for checkIn in moodCheckIns {
+            hasher.combine(checkIn.encryptedMood)
+            hasher.combine(checkIn.createdAt)
         }
         return hasher.finalize()
     }
@@ -245,10 +253,8 @@ struct MoodTimelineView: View {
             .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
         }
-        .task(id: "\(entries.map(\.encryptedMood).hashValue)|\(moodCheckIns.count)") {
+        .task(id: moodDataCacheKey) {
             recomputeHeatmapCache()
-        }
-        .task(id: "\(entryCacheKey)|\(moodCheckIns.count)") {
             recomputeStreakCaches()
         }
     }
