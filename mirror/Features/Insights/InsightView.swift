@@ -35,14 +35,20 @@ struct InsightView: View {
 
     // entries.count alone misses in-place edits: changing an existing entry's mood or date
     // (both editable) must also invalidate cachedThisMonthEntries/cachedCurrentStreak/
-    // cachedWeekMoodEvents, matching the MoodTimelineView encryptedMood-hash precedent.
+    // cachedWeekMoodEvents. Check-in moods+dates folded in too (matching
+    // MoodTimelineView.moodDataCacheKey) so a CloudKit sync that swaps a
+    // check-in without changing the count still triggers a recompute.
     private var entryCacheKey: Int {
         var hasher = Hasher()
         hasher.combine(entries.count)
-        hasher.combine(moodCheckIns.count)
         for entry in entries {
             hasher.combine(entry.encryptedMood)
             hasher.combine(entry.createdAt)
+        }
+        hasher.combine(moodCheckIns.count)
+        for checkIn in moodCheckIns {
+            hasher.combine(checkIn.encryptedMood)
+            hasher.combine(checkIn.createdAt)
         }
         return hasher.finalize()
     }

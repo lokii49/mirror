@@ -99,7 +99,7 @@ struct ContentView: View {
     private var canPresentRatePrompt: Bool {
         reviewPromptCoordinator.isPending
             && !ReviewRequestManager.hasShownEntryMilestonePrompt
-            && !showPaywall && !showWhatsNew && !showRatePrompt
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
             && onboardingComplete
     }
 
@@ -169,8 +169,10 @@ struct ContentView: View {
         .onChange(of: canPresentMoodCheckIn, initial: true) { _, canPresent in
             // `initial: true` covers the cold-launch-from-notification case
             // where `pending` was already set (by the delegate, in app init)
-            // before this view's first render.
-            guard canPresent else { return }
+            // before this view's first render. If a same-tick race with the
+            // rate sheet swallows this presentation, the daily reminder repeats
+            // — the next tap re-sets `pending`.
+            guard canPresent, !showRatePrompt else { return }
             moodCheckInPresenter.pending = false
             showMoodCheckIn = true
         }
