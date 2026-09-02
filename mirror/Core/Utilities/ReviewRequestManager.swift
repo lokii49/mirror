@@ -31,6 +31,13 @@ enum ReviewRequestManager {
         UserDefaults.standard.set(true, forKey: entryMilestoneShownKey)
     }
 
+    #if DEBUG
+    /// Clears the one-shot flag so the gate can be triggered again for testing.
+    static func resetEntryMilestonePromptForTesting() {
+        UserDefaults.standard.removeObject(forKey: entryMilestoneShownKey)
+    }
+    #endif
+
     @MainActor
     static func requestIfEntryMilestoneReached(context: ModelContext) {
         guard !hasShownEntryMilestonePrompt else { return }
