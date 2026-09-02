@@ -1590,6 +1590,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
   (2026-08-29) already flagged this exact standing condition and nothing has changed since.
 
+- 2026-09-02 (out-of-band, user-initiated — not a scheduled run): **mirror 2.0.9 shipped.** PR #27
+  merged to `main` (18 commits); `fastlane ios release` uploaded build 2.0.9 (1) and submitted for
+  App Store review (`automatic_release` off — awaiting Apple approval, then manual "Release this
+  version"). Marketing-relevant product changes:
+  - **Standalone daily mood check-in** — free tier, one tap from a daily reminder, no journaling
+    required. New low-friction hook; worth featuring on mirrornotes.org and in every directory /
+    awesome-list description.
+  - It **syncs across devices via iCloud**, and CloudKit sync went live for the app *for the first
+    time* this release (production schema deployed: `CD_Entry` / `CD_Insight` / `CD_UserProfile` /
+    `CD_MoodCheckIn`). "Your entries and moods sync privately across your devices" is now a
+    **truthful, promotable claim** — it was not before (sync was silently inactive in every prior
+    shipped version).
+  - Less repetitive daily reflections; Ask theme-flash fix (minor).
+  10-locale App Store release notes written + uploaded with the build (`fastlane/metadata/*/
+  release_notes.txt`). **Version-specific marketing copy / screenshots should now target 2.0.9**
+  (channel-map descriptions still reference older versions where applicable).
+  Active dev branch is now **`2.1.0`** (cut from `main`, `MARKETING_VERSION` bumped) — per the
+  standing lesson, the code loop's RemoteTrigger job_config, not a state file, is the source of
+  truth for its target branch; if the `/mirror-loop` code routine is to resume it needs its
+  trigger updated (it stalled at `2.0.6` back in July). No PRs / comments / emails this session.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
