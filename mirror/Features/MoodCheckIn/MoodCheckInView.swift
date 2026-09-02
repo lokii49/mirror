@@ -1,4 +1,6 @@
 import SwiftUI
+import SwiftData
+import WidgetKit
 
 /// Coordinates presentation of the standalone mood check-in sheet. The
 /// notification delegate sets `pending` when the daily reminder is tapped;
@@ -20,9 +22,20 @@ final class MoodCheckInPresenter {
 struct MoodCheckInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.modelContext) private var modelContext
 
     @State private var selected: String?
     @State private var logged: String?
+
+    private func log(_ mood: String) {
+        MoodCheckInStore.add(mood: mood)
+        // Rebuild the widget mood-map blob (entries + check-ins) and refresh so
+        // the Mood Map widget reflects today's check-in right away.
+        mirrorApp.updateWidgetHeatmaps(context: modelContext)
+        WidgetCenter.shared.reloadAllTimelines()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { logged = mood }
+    }
 
     private var isSentinel: Bool { displayMode == .sentinel }
 
@@ -67,9 +80,7 @@ struct MoodCheckInView: View {
             VStack(spacing: 10) {
                 Button {
                     guard let selected else { return }
-                    MoodCheckInStore.add(mood: selected)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { logged = selected }
+                    log(selected)
                 } label: {
                     Text(selected == nil
                          ? "Select a mood"
