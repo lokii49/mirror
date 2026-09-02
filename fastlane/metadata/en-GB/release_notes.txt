@@ -1,5 +1,8 @@
-Smarter on-device reflections.
+A daily check-in for how you feel.
 
-• On supported devices, MirrorNotes now taps into Apple's on-device Intelligence for sharper, more natural Daily Nudges, Weekly Digests, and Ask answers.
-• Everything still runs entirely on your device — nothing you write ever leaves your phone.
-• Older or unsupported devices are unaffected and keep working exactly as before.
+• New — Daily Mood Check-In: one tap from a reminder to note how you're doing. No writing needed, free for everyone, and it now syncs across your devices via iCloud.
+• Your Mood Timeline, Mood Map widget, and mood alerts now factor in these check-ins (Deep).
+• Daily reflections feel less repetitive from one day to the next.
+• Fixed a display glitch in Ask when switching themes.
+
+Everything still runs entirely on your device — nothing you write ever leaves your phone.

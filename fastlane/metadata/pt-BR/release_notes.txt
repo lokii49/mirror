@@ -1,5 +1,8 @@
-Reflexões mais inteligentes, direto no seu dispositivo.
+Um registro diário de como você está.
 
-• Em dispositivos compatíveis, o MirrorNotes agora usa a Inteligência on-device da Apple para Daily Nudges, Weekly Digests e respostas do Ask mais precisas e naturais.
-• Tudo continua rodando inteiramente no seu dispositivo — o que você escreve nunca sai do seu telefone.
-• Dispositivos mais antigos ou não compatíveis não são afetados e continuam funcionando exatamente como antes.
+• Novidade — Check-in de humor diário: um toque a partir de um lembrete para anotar como você está. Sem escrever nada, grátis para todos, e agora sincroniza entre seus dispositivos via iCloud.
+• Sua linha do tempo de humor, o widget Mapa de Humor e os alertas de humor agora consideram esses check-ins (Deep).
+• As reflexões diárias se repetem menos de um dia para o outro.
+• Corrigida uma falha visual no Ask ao trocar de tema.
+
+Tudo continua rodando inteiramente no seu dispositivo — nada do que você escreve sai do seu telefone.

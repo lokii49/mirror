@@ -1,5 +1,8 @@
-Des réflexions plus intelligentes, directement sur votre appareil.
+Un point quotidien sur votre humeur.
 
-• Sur les appareils compatibles, MirrorNotes exploite désormais l'intelligence embarquée d'Apple pour des rappels quotidiens, des résumés hebdomadaires et des réponses Ask plus fines et plus naturelles.
-• Tout continue de fonctionner entièrement sur votre appareil — ce que vous écrivez ne quitte jamais votre téléphone.
-• Les appareils plus anciens ou non compatibles ne sont pas concernés et continuent de fonctionner exactement comme avant.
+• Nouveau — Point humeur quotidien : en un geste depuis un rappel, notez comment vous allez. Aucune saisie, gratuit pour tous, et désormais synchronisé entre vos appareils via iCloud.
+• Votre historique d'humeur, le widget Carte des humeurs et les alertes d'humeur prennent maintenant ces points en compte (Deep).
+• Les réflexions quotidiennes se répètent moins d'un jour à l'autre.
+• Correction d'un défaut d'affichage dans Ask lors du changement de thème.
+
+Tout continue de fonctionner entièrement sur votre appareil : rien de ce que vous écrivez ne quitte jamais votre téléphone.

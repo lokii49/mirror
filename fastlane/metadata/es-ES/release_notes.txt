@@ -1,5 +1,8 @@
-Reflexiones más inteligentes, directamente en tu dispositivo.
+Un registro diario de cómo te sientes.
 
-• En dispositivos compatibles, MirrorNotes ahora aprovecha la Inteligencia en el dispositivo de Apple para Recordatorios diarios, Resúmenes semanales y respuestas de Preguntar más precisas y naturales.
-• Todo sigue funcionando completamente en tu dispositivo: lo que escribes nunca sale de tu teléfono.
-• Los dispositivos más antiguos o no compatibles no se ven afectados y siguen funcionando exactamente igual que antes.
+• Nuevo: Registro de ánimo diario. Un toque desde un recordatorio para anotar cómo estás. Sin escribir nada, gratis para todos, y ahora se sincroniza entre tus dispositivos con iCloud.
+• Tu cronología de ánimo, el widget Mapa de ánimo y las alertas de ánimo ahora tienen en cuenta estos registros (Deep).
+• Las reflexiones diarias se repiten menos de un día para otro.
+• Corregido un fallo visual en Ask al cambiar de tema.
+
+Todo sigue ejecutándose por completo en tu dispositivo: nada de lo que escribes sale nunca de tu teléfono.
