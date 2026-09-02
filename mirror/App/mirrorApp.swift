@@ -51,6 +51,12 @@ struct mirrorApp: App {
                     migrateToUnifiedDailyReminder()
                     await reArmUserReminders()
                 }
+                // Backfill the rate-us gate for users already past 5 entries
+                // (including anyone who only saw Apple's raw prompt on an older
+                // build). Idempotent — one-shot flag, self-guards on count.
+                Task { @MainActor in
+                    ReviewRequestManager.requestIfEntryMilestoneReached(context: sharedModelContainer.mainContext)
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
