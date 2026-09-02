@@ -655,9 +655,16 @@ struct mirrorApp: App {
         guard !d.bool(forKey: "didMergeDailyReminder") else { return }
         d.set(true, forKey: "didMergeDailyReminder")
 
-        if d.bool(forKey: "writingReminderEnabled"), !d.bool(forKey: "moodCheckInTimeUserSet") {
-            d.set(d.object(forKey: "writingReminderHour") as? Int ?? 9, forKey: "moodCheckInHour")
-            d.set(d.object(forKey: "writingReminderMinute") as? Int ?? 0, forKey: "moodCheckInMinute")
+        if d.bool(forKey: "writingReminderEnabled") {
+            // Old reminder was on → carry its time over.
+            if !d.bool(forKey: "moodCheckInTimeUserSet") {
+                d.set(d.object(forKey: "writingReminderHour") as? Int ?? 9, forKey: "moodCheckInHour")
+                d.set(d.object(forKey: "writingReminderMinute") as? Int ?? 0, forKey: "moodCheckInMinute")
+            }
+        } else if d.object(forKey: "writingReminderEnabled") != nil {
+            // Old reminder existed and was explicitly OFF → the check-in
+            // reminder (default on) must not surprise them with a notification.
+            d.set(false, forKey: "moodCheckInEnabled")
         }
         NotificationService.cancelWritingReminder()
     }
