@@ -16,6 +16,20 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
             completionHandler([])
         }
     }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier == "mirror.moodCheckIn",
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            Task { @MainActor in
+                MoodCheckInPresenter.shared.pending = true
+            }
+        }
+        completionHandler()
+    }
 }
 
 enum NotificationService {
@@ -25,6 +39,7 @@ enum NotificationService {
     private static let moodAlertID = "mirror.moodAlert"
     private static let monthlyReportID = "mirror.monthlyReport"
     private static let writingReminderID = "mirror.writingReminder"
+    private static let moodCheckInID = "mirror.moodCheckIn"
     private static let title = String(localized: "MirrorNotes", comment: "Push notification title")
 
     /// Context-aware daily nudge — single repeating notification whose content is
@@ -138,15 +153,24 @@ enum NotificationService {
         try? await center.add(request)
     }
 
-    /// All tiers — daily "time to write" reminder at user-chosen time, separate from Core nudge.
-    static func scheduleWritingReminder(hour: Int, minute: Int) async {
+    /// The standalone "time to write" reminder was folded into the unified
+    /// daily check-in reminder (see `scheduleMoodCheckIn`). This only clears
+    /// any leftover request from a build that still scheduled it.
+    static func cancelWritingReminder() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [writingReminderID])
+    }
+
+    /// All tiers — daily prompt to log how you're feeling right now, separate
+    /// from the Core-only Daily Nudge and from writing a full entry.
+    static func scheduleMoodCheckIn(hour: Int, minute: Int) async {
         guard await isAuthorized() else { return }
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [writingReminderID])
+        center.removePendingNotificationRequests(withIdentifiers: [moodCheckInID])
 
         let content = UNMutableNotificationContent()
         content.title = title
-        content.body = String(localized: "Time to write. What's on your mind today?", comment: "Push notification body for user-scheduled writing reminder")
+        content.body = String(localized: "How are you feeling right now?", comment: "Push notification body for the daily mood check-in")
         content.sound = .default
 
         var components = DateComponents()
@@ -154,13 +178,13 @@ enum NotificationService {
         components.minute = minute
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: writingReminderID, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: moodCheckInID, content: content, trigger: trigger)
         try? await center.add(request)
     }
 
-    static func cancelWritingReminder() {
+    static func cancelMoodCheckIn() {
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [writingReminderID])
+            .removePendingNotificationRequests(withIdentifiers: [moodCheckInID])
     }
 
     static func cancelNudge() {

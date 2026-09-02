@@ -88,6 +88,20 @@ struct DiagnosticsSettingsView: View {
 
                     SettingsDivider()
 
+                    Button {
+                        ReviewRequestManager.resetEntryMilestonePromptForTesting()
+                        // Delay so there's time to close Settings — the gate
+                        // presents from ContentView and won't stack over this sheet.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                            ReviewPromptCoordinator.shared.isPending = true
+                        }
+                    } label: {
+                        SettingsRowLabel(title: "Trigger Rate Prompt (close Settings within 1s)", systemImage: "star.bubble", iconColor: .yellow)
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsDivider()
+
                     Button(role: .destructive) {
                         SampleData.clear(from: modelContext)
                     } label: {

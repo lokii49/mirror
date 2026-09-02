@@ -7,6 +7,11 @@ struct MoodTimelineView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    // Standalone daily mood check-ins. Merged with entry moods via `MoodLog`
+    // into the chart / heatmap / distribution / average / low-mood-days banner
+    // below. NOT the writing streak — that counts days written, and a mood tap
+    // isn't writing.
+    @Query(sort: \MoodCheckIn.createdAt) private var moodCheckIns: [MoodCheckIn]
 
     @State private var subscriptionService = SubscriptionService.shared
     @State private var showPaywall = false
@@ -18,20 +23,28 @@ struct MoodTimelineView: View {
     @State private var cachedDayMoodMap: [String: String] = [:]
     @State private var cachedHeatmapWeeks: [[Date?]] = []
 
-    // currentStreak/consecutiveNegativeCount also scan the full-history `entries` @Query
-    // (not `filteredEntries`) and are read unconditionally from `statsRow`/`moodAlertBanner`,
-    // so they were re-running on every selectedRange tap and paywall sheet toggle despite
-    // depending on neither. Cached via `.task(id:)`, matching the InsightView precedent
+    // currentStreak/consecutiveNegativeCount scan full history and are read
+    // unconditionally from statsRow/moodAlertBanner, so they were re-running on
+    // every selectedRange tap and paywall sheet toggle despite depending on
+    // neither. Cached via `.task(id:)`, matching the InsightView precedent
     // (Log [8]: key on mood+date, not just count, since both are editable in place).
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedConsecutiveNegativeCount: Int = 0
 
-    private var entryCacheKey: Int {
+    /// Content hash of everything the mood caches depend on — entry moods +
+    /// dates AND check-in moods + dates. `.count` alone misses an in-place edit
+    /// or a remote insert-that-replaces-a-delete arriving via CloudKit.
+    private var moodDataCacheKey: Int {
         var hasher = Hasher()
         hasher.combine(entries.count)
         for entry in entries {
             hasher.combine(entry.encryptedMood)
             hasher.combine(entry.createdAt)
+        }
+        hasher.combine(moodCheckIns.count)
+        for checkIn in moodCheckIns {
+            hasher.combine(checkIn.encryptedMood)
+            hasher.combine(checkIn.createdAt)
         }
         return hasher.finalize()
     }
@@ -61,49 +74,42 @@ struct MoodTimelineView: View {
     }
 
 
-    private var filteredEntries: [Entry] {
-        guard let days = selectedRange.days else { return entries }
+    private var rangeInterval: DateInterval? {
+        guard let days = selectedRange.days else { return nil }
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        return entries.filter { $0.createdAt >= cutoff }
+        return DateInterval(start: cutoff, end: .distantFuture)
     }
 
-    private var moodEntries: [Entry] {
-        filteredEntries.filter { $0.mood != nil && !($0.mood!.isEmpty) }
-    }
-
+    /// Range-filtered scatter points — entry moods + check-ins, one merge rule
+    /// (`MoodLog`), mapped to the local chart type.
     private var points: [MoodPoint] {
-        moodEntries
-            .compactMap { entry in
-                guard let mood = entry.mood,
-                      let score = MirrorTheme.moodScore[mood] else { return nil }
-                return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+        MoodLog.events(in: rangeInterval, entries: entries, checkIns: moodCheckIns)
+            .compactMap { event in
+                guard let score = event.score else { return nil }
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
             }
-            .sorted { $0.date < $1.date }
     }
 
     private func recomputeHeatmapCache() {
         let cal = Calendar.current
 
-        let points = entries
-            .compactMap { entry -> MoodPoint? in
-                guard let mood = entry.mood,
-                      let score = MirrorTheme.moodScore[mood] else { return nil }
-                return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+        cachedAllMoodPoints = MoodLog.events(entries: entries, checkIns: moodCheckIns)
+            .compactMap { event in
+                guard let score = event.score else { return nil }
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
             }
-            .sorted { $0.date < $1.date }
-        cachedAllMoodPoints = points
 
-        // Most recent mood per calendar day (points sorted asc → last write wins)
+        // One mood per calendar day, latest reading wins — the shared rule.
         var dayMoodMap: [String: String] = [:]
-        for point in points {
-            let c = cal.dateComponents([.year, .month, .day], from: point.date)
+        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: moodCheckIns, calendar: cal) {
+            let c = cal.dateComponents([.year, .month, .day], from: day)
             let key = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-            dayMoodMap[key] = point.mood
+            dayMoodMap[key] = event.mood
         }
         cachedDayMoodMap = dayMoodMap
 
-        // Array of weeks [[Date?]] from first entry's week to today. Each week = 7 slots (Mon–Sun).
-        guard let earliest = points.first?.date else {
+        // Array of weeks [[Date?]] from first reading's week to today. Each week = 7 slots (Mon–Sun).
+        guard let earliest = cachedAllMoodPoints.first?.date else {
             cachedHeatmapWeeks = []
             return
         }
@@ -135,7 +141,7 @@ struct MoodTimelineView: View {
     }
 
     private var moodDistribution: [(mood: String, count: Int, color: Color)] {
-        let counts = Dictionary(grouping: moodEntries.compactMap(\.mood), by: { $0 })
+        let counts = Dictionary(grouping: points.map(\.mood), by: { $0 })
             .mapValues(\.count)
             .sorted { $0.value > $1.value }
         return counts.map { (mood: $0.key, count: $0.value, color: MirrorTheme.moodColor(for: $0.key)) }
@@ -185,18 +191,12 @@ struct MoodTimelineView: View {
     }
 
     private func recomputeConsecutiveNegativeCache() {
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        var count = 0
-        for entry in entries {
-            guard entry.createdAt >= sevenDaysAgo else { break }
-            guard let mood = entry.mood else { continue }
-            if MirrorTheme.negativeMoods.contains(mood) {
-                count += 1
-            } else {
-                break
-            }
-        }
-        cachedConsecutiveNegativeCount = count
+        // Recent negative mood-days (entry moods + check-ins merged), matching
+        // the Deep Mood Alert in mirrorApp.
+        cachedConsecutiveNegativeCount = MoodLog.recentNegativeMoodDays(
+            entries: entries,
+            checkIns: moodCheckIns
+        )
     }
 
     private var averageMoodScore: Double {
@@ -253,10 +253,8 @@ struct MoodTimelineView: View {
             .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
         }
-        .task(id: entries.map(\.encryptedMood).hashValue) {
+        .task(id: moodDataCacheKey) {
             recomputeHeatmapCache()
-        }
-        .task(id: entryCacheKey) {
             recomputeStreakCaches()
         }
     }
@@ -269,13 +267,13 @@ struct MoodTimelineView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Group {
                     if displayMode == .sentinel {
-                        Text("ANOMALY · \(consecutiveNegativeCount) LOW READINGS")
+                        Text("ANOMALY · LAST \(consecutiveNegativeCount) READINGS LOW")
                             .font(MirrorTheme.mono(12, weight: .bold))
                             .tracking(0.3)
                             .lineLimit(2)
                             .minimumScaleFactor(0.8)
                     } else {
-                        Text("Your last \(consecutiveNegativeCount) entries show low mood")
+                        Text("Your last \(consecutiveNegativeCount) moods have all been low")
                             .font(.system(size: 14, weight: .semibold))
                     }
                 }
@@ -348,7 +346,7 @@ struct MoodTimelineView: View {
     private var statsRow: some View {
         HStack(spacing: 12) {
             statPill(
-                value: "\(moodEntries.count)",
+                value: "\(points.count)",
                 label: "Moods logged",
                 icon: "face.smiling",
                 color: MirrorTheme.primary
@@ -600,7 +598,7 @@ struct MoodTimelineView: View {
                         .font(.system(size: 15, weight: .semibold))
                 }
             }
-            Text("Log your mood when writing entries to see your timeline.")
+            Text("Set a mood on your entries, or use the daily check-in, to see your timeline.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
