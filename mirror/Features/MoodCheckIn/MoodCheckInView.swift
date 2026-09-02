@@ -28,7 +28,8 @@ struct MoodCheckInView: View {
     @State private var logged: String?
 
     private func log(_ mood: String) {
-        MoodCheckInStore.add(mood: mood)
+        modelContext.insert(MoodCheckIn(mood: mood))
+        try? modelContext.save()
         // Rebuild the widget mood-map blob (entries + check-ins) and refresh so
         // the Mood Map widget reflects today's check-in right away.
         mirrorApp.updateWidgetHeatmaps(context: modelContext)

@@ -1,55 +1,33 @@
 import Foundation
+import SwiftData
 
-/// A standalone daily mood signal, captured with one tap from a reminder —
-/// no writing required.
+/// A standalone daily mood signal — one tap from a reminder, no writing.
 ///
-/// Stored as an encrypted JSON blob in `UserDefaults`, NOT as a SwiftData
-/// `@Model`. A new `@Model` type would add a new CKRecord type to the
-/// CloudKit schema (`cloudKitDatabase: .automatic`), which needs a manual
-/// production-schema deploy before it can ship — every prior release only
-/// added fields to existing models, so that path is unproven here. A local
-/// blob sidesteps it entirely. The tradeoff: check-ins don't sync across a
-/// user's devices. For an ephemeral daily signal that's acceptable for v1;
-/// promoting it to a synced model is a deliberate later step.
+/// A SwiftData `@Model` synced via CloudKit (`cloudKitDatabase: .automatic`),
+/// same as `Entry` / `Insight`. The mood label is encrypted at rest with the
+/// shared content key, so CloudKit only ever sees ciphertext.
 ///
 /// Deliberately kept out of every `entries.count`-based eligibility gate
 /// (Daily Nudge / Ask / Weekly Digest / Brain View / the App Store review
-/// milestone): a mood tap isn't "writing an entry."
-struct MoodCheckIn: Identifiable, Codable, Equatable {
-    let id: UUID
-    let mood: String
-    let createdAt: Date
-}
+/// milestone): a mood tap isn't "writing an entry".
+///
+/// CloudKit constraints honored: every stored property has a default value,
+/// and there is no `@Attribute(.unique)` (CloudKit forbids it) — callers
+/// de-duplicate on `id` instead (see `MoodCheckInMigration`).
+@Model final class MoodCheckIn {
+    var id: UUID = UUID()
+    var encryptedMood: String = ""
+    var createdAt: Date = Date()
 
-enum MoodCheckInStore {
-    private static let key = "mirror.moodCheckIns"
-    private static let maxRetained = 400
-
-    static func all() -> [MoodCheckIn] {
-        guard let encrypted = UserDefaults.standard.string(forKey: key),
-              let json = MirrorEncryption.decryptOptionalStringValue(encrypted),
-              let data = json.data(using: .utf8),
-              let records = try? JSONDecoder().decode([MoodCheckIn].self, from: data)
-        else { return [] }
-        return records
+    init(id: UUID = UUID(), mood: String, createdAt: Date = Date()) {
+        self.id = id
+        self.encryptedMood = MirrorEncryption.encryptString(mood)
+        self.createdAt = createdAt
     }
 
-    /// Appends and returns the new full list, so a caller holding an in-memory
-    /// copy can update without re-reading and re-decrypting.
-    @discardableResult
-    static func add(mood: String, createdAt: Date = Date()) -> [MoodCheckIn] {
-        var records = all()
-        records.append(MoodCheckIn(id: UUID(), mood: mood, createdAt: createdAt))
-        if records.count > maxRetained {
-            records.removeFirst(records.count - maxRetained)
-        }
-        save(records)
-        return records
-    }
-
-    private static func save(_ records: [MoodCheckIn]) {
-        guard let data = try? JSONEncoder().encode(records),
-              let json = String(data: data, encoding: .utf8) else { return }
-        UserDefaults.standard.set(MirrorEncryption.encryptString(json), forKey: key)
+    /// Decrypted mood label; nil if this device can't read it yet (content key
+    /// still propagating via iCloud Keychain).
+    var decryptedMood: String? {
+        MirrorEncryption.decryptOptionalStringValue(encryptedMood)
     }
 }

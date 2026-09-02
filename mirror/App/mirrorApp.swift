@@ -57,6 +57,12 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     ReviewRequestManager.requestIfEntryMilestoneReached(context: sharedModelContainer.mainContext)
                 }
+                // One-time move of daily mood check-ins from the legacy encrypted
+                // UserDefaults blob into SwiftData (so they sync via CloudKit).
+                // Idempotent, one-directional, keeps the blob intact.
+                Task { @MainActor in
+                    MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
@@ -450,9 +456,10 @@ struct mirrorApp: App {
         // Consecutive negative *days* (entry moods + check-ins merged, latest of
         // the day wins; a day with no reading breaks the run) — not consecutive
         // entries, which three low entries in one afternoon could falsely trip.
+        let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
         let negativeDays = MoodLog.consecutiveNegativeDays(
             entries: entries,
-            checkIns: MoodCheckInStore.all()
+            checkIns: checkIns
         )
 
         if negativeDays >= 3 {
@@ -586,8 +593,9 @@ struct mirrorApp: App {
 
         // Mood per day: entry moods + standalone daily check-ins, latest reading
         // of the day wins. Single merge rule, shared with every other surface.
+        let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
         var moodByDay: [String: String] = [:]
-        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: MoodCheckInStore.all()) {
+        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: checkIns) {
             moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 

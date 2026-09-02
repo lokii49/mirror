@@ -7,11 +7,11 @@ struct MoodTimelineView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
-    // Standalone daily mood check-ins (UserDefaults-backed, not @Query). Merged
-    // with entry moods via `MoodLog` into the chart / heatmap / distribution /
-    // average / low-mood-days banner below. NOT the writing streak — that counts
-    // days written, and a mood tap isn't writing.
-    @State private var moodCheckIns: [MoodCheckIn] = MoodCheckInStore.all()
+    // Standalone daily mood check-ins. Merged with entry moods via `MoodLog`
+    // into the chart / heatmap / distribution / average / low-mood-days banner
+    // below. NOT the writing streak — that counts days written, and a mood tap
+    // isn't writing.
+    @Query(sort: \MoodCheckIn.createdAt) private var moodCheckIns: [MoodCheckIn]
 
     @State private var subscriptionService = SubscriptionService.shared
     @State private var showPaywall = false
@@ -250,9 +250,6 @@ struct MoodTimelineView: View {
         }
         .task(id: "\(entryCacheKey)|\(moodCheckIns.count)") {
             recomputeStreakCaches()
-        }
-        .task {
-            moodCheckIns = MoodCheckInStore.all()
         }
     }
 
