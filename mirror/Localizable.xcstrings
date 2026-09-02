@@ -6326,7 +6326,8 @@
             "value" : "异常·%lld次低值读数"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Answers come only from entries you've written." : {
       "localizations" : {
@@ -51627,7 +51628,8 @@
             "value" : "你最近 %lld 条条目显示情绪低落"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Your Month In One Image" : {
       "localizations" : {
@@ -52011,6 +52013,136 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的每周反思已准备好。"
+          }
+        }
+      }
+    },
+    "%lld days running with low mood" : {
+      "comment" : "Mood Timeline banner: N consecutive days with a negative mood.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tage in Folge mit gedrückter Stimmung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days running with low mood"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld días seguidos con ánimo bajo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld jours de suite d'humeur basse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld giorni di fila con umore basso"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld日連続で気分が低調です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld일 연속 기분 저조"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld dias seguidos com humor baixo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld дней подряд с подавленным настроением"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续 %lld 天心情低落"
+          }
+        }
+      }
+    },
+    "ANOMALY · %lld LOW-MOOD DAYS" : {
+      "comment" : "Mood Timeline banner (Sentinel theme): N consecutive low-mood days.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · %lld TAGE MIT TIEF"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALY · %lld LOW-MOOD DAYS"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALÍA · %lld DÍAS DE ÁNIMO BAJO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · %lld JOURS D'HUMEUR BASSE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · %lld GIORNI DI UMORE BASSO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "異常 · 低調な気分 %lld日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이상 · 기분 저조 %lld일"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · %lld DIAS DE HUMOR BAIXO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "АНОМАЛИЯ · %lld ДН. НИЗКОГО НАСТРОЕНИЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异常 · %lld 天心情低落"
           }
         }
       }
