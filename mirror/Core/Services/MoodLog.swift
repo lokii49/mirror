@@ -54,8 +54,7 @@ enum MoodLog {
         }
         if origins.contains(.checkIn) {
             for checkIn in checkIns {
-                let mood = checkIn.mood
-                guard !mood.isEmpty else { continue }
+                guard let mood = checkIn.decryptedMood, !mood.isEmpty else { continue }
                 guard range?.contains(checkIn.createdAt) ?? true else { continue }
                 out.append(MoodEvent(id: checkIn.id, date: checkIn.createdAt, mood: mood, origin: .checkIn))
             }
