@@ -183,9 +183,9 @@ struct MoodTimelineView: View {
     }
 
     private func recomputeConsecutiveNegativeCache() {
-        // Consecutive negative *days* (entry moods + check-ins merged), matching
-        // the Deep Mood Alert in mirrorApp. A day with no reading breaks the run.
-        cachedConsecutiveNegativeCount = MoodLog.consecutiveNegativeDays(
+        // Recent negative mood-days (entry moods + check-ins merged), matching
+        // the Deep Mood Alert in mirrorApp.
+        cachedConsecutiveNegativeCount = MoodLog.recentNegativeMoodDays(
             entries: entries,
             checkIns: moodCheckIns
         )
@@ -261,13 +261,13 @@ struct MoodTimelineView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Group {
                     if displayMode == .sentinel {
-                        Text("ANOMALY · \(consecutiveNegativeCount) LOW-MOOD DAYS")
+                        Text("ANOMALY · LAST \(consecutiveNegativeCount) READINGS LOW")
                             .font(MirrorTheme.mono(12, weight: .bold))
                             .tracking(0.3)
                             .lineLimit(2)
                             .minimumScaleFactor(0.8)
                     } else {
-                        Text("\(consecutiveNegativeCount) days running with low mood")
+                        Text("Your last \(consecutiveNegativeCount) moods have all been low")
                             .font(.system(size: 14, weight: .semibold))
                     }
                 }
