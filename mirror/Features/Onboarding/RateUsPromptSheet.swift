@@ -28,24 +28,33 @@ struct RateUsPromptSheet: View {
     private enum Step { case ask, notGreat }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
             switch step {
             case .ask: askStep
             case .notGreat: notGreatStep
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(28)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MirrorTheme.bgBase)
-        .presentationDetents([.medium])
+        .presentationDetents([.height(step == .ask ? 372 : 340)])
         .presentationDragIndicator(.visible)
+        .animation(.easeInOut(duration: 0.25), value: step)
+    }
+
+    private var appLogo: some View {
+        Image("AppIconDisplay")
+            .resizable()
+            .frame(width: 58, height: 58)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 20, x: 0, y: 8)
     }
 
     private var askStep: some View {
         VStack(spacing: 20) {
-            Text("🪞").font(.system(size: 40))
+            appLogo
             VStack(spacing: 8) {
                 Text(displayMode == .sentinel ? "How's the signal?" : "How's mirror going?")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -60,6 +69,8 @@ struct RateUsPromptSheet: View {
                 } label: {
                     Text("🙂  Good")
                         .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
@@ -75,6 +86,8 @@ struct RateUsPromptSheet: View {
                 } label: {
                     Text("🙁  Not really")
                         .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
