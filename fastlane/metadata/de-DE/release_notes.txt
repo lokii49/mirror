@@ -1,5 +1,8 @@
-Klügere Reflexionen – direkt auf deinem Gerät.
+Ein täglicher Check-in für dein Befinden.
 
-• Auf unterstützten Geräten nutzt MirrorNotes jetzt Apples On-Device Intelligence für schärfere, natürlichere Daily Nudges, Weekly Digests und Ask-Antworten.
-• Alles läuft weiterhin vollständig auf deinem Gerät – nichts, was du schreibst, verlässt jemals dein Handy.
-• Ältere oder nicht unterstützte Geräte sind davon nicht betroffen und funktionieren genau wie zuvor.
+• Neu – Täglicher Stimmungs-Check-in: mit einem Tippen aus einer Erinnerung festhalten, wie es dir geht. Kein Schreiben nötig, für alle kostenlos, und jetzt über iCloud zwischen deinen Geräten synchronisiert.
+• Deine Stimmungs-Timeline, das Mood-Map-Widget und die Stimmungshinweise beziehen diese Check-ins jetzt mit ein (Deep).
+• Tägliche Reflexionen wiederholen sich von Tag zu Tag weniger.
+• Anzeigefehler in „Ask“ beim Themenwechsel behoben.
+
+Alles läuft weiterhin vollständig auf deinem Gerät – nichts, was du schreibst, verlässt jemals dein Handy.
