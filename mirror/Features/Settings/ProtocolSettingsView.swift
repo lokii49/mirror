@@ -15,10 +15,13 @@ struct ProtocolSettingsView: View {
     @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
     @State private var showNudgeTimePicker = false
 
-    @AppStorage("writingReminderEnabled") private var writingReminderEnabled: Bool = false
-    @AppStorage("writingReminderHour") private var writingReminderHour: Int = 9
-    @AppStorage("writingReminderMinute") private var writingReminderMinute: Int = 0
-    @State private var showWritingReminderPicker = false
+    // One unified daily reminder (replaces the old separate writing reminder).
+    // On by default; tapping the notification opens the mood check-in sheet.
+    @AppStorage("moodCheckInEnabled") private var moodCheckInEnabled: Bool = true
+    @AppStorage("moodCheckInHour") private var moodCheckInHour: Int = 9
+    @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
+    @AppStorage("moodCheckInTimeUserSet") private var moodCheckInTimeUserSet: Bool = false
+    @State private var showMoodCheckInPicker = false
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
@@ -33,10 +36,10 @@ struct ProtocolSettingsView: View {
         return Calendar.current.date(from: c) ?? Date()
     }
 
-    private var writingReminderTime: Date {
+    private var moodCheckInTime: Date {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        c.hour = writingReminderHour
-        c.minute = writingReminderMinute
+        c.hour = moodCheckInHour
+        c.minute = moodCheckInMinute
         return Calendar.current.date(from: c) ?? Date()
     }
 
@@ -114,50 +117,51 @@ struct ProtocolSettingsView: View {
 
                     SettingsDivider()
 
-                    // Writing reminder — all tiers
-                    Button { withAnimation { showWritingReminderPicker.toggle() } } label: {
+                    // Unified daily reminder — all tiers, opens the mood check-in
+                    Button { withAnimation { showMoodCheckInPicker.toggle() } } label: {
                         HStack {
-                            SettingsRowLabel(title: "Writing reminder", systemImage: "pencil.circle.fill", iconColor: .teal)
+                            SettingsRowLabel(title: "Daily check-in reminder", systemImage: "face.smiling.fill", iconColor: .pink)
                             Spacer()
-                            SettingsValueText(text: writingReminderEnabled
-                                ? writingReminderTime.formatted(date: .omitted, time: .shortened)
+                            SettingsValueText(text: moodCheckInEnabled
+                                ? moodCheckInTime.formatted(date: .omitted, time: .shortened)
                                 : String(localized: "Off"))
                             SettingsChevron()
-                                .rotationEffect(.degrees(showWritingReminderPicker ? 90 : 0))
-                                .animation(.easeInOut(duration: 0.2), value: showWritingReminderPicker)
+                                .rotationEffect(.degrees(showMoodCheckInPicker ? 90 : 0))
+                                .animation(.easeInOut(duration: 0.2), value: showMoodCheckInPicker)
                         }
                     }
                     .buttonStyle(.plain)
 
-                    if showWritingReminderPicker {
+                    if showMoodCheckInPicker {
                         VStack(spacing: 12) {
-                            Toggle("Enable daily writing reminder", isOn: $writingReminderEnabled)
+                            Toggle("Remind me to check in once a day", isOn: $moodCheckInEnabled)
                                 .font(.system(size: 14))
-                                .onChange(of: writingReminderEnabled) { _, enabled in
+                                .onChange(of: moodCheckInEnabled) { _, enabled in
                                     Task {
                                         if enabled {
-                                            await NotificationService.scheduleWritingReminder(
-                                                hour: writingReminderHour,
-                                                minute: writingReminderMinute
+                                            await NotificationService.scheduleMoodCheckIn(
+                                                hour: moodCheckInHour,
+                                                minute: moodCheckInMinute
                                             )
                                         } else {
-                                            NotificationService.cancelWritingReminder()
+                                            NotificationService.cancelMoodCheckIn()
                                         }
                                     }
                                 }
-                            if writingReminderEnabled {
+                            if moodCheckInEnabled {
                                 DatePicker(
                                     "",
                                     selection: Binding(
-                                        get: { writingReminderTime },
+                                        get: { moodCheckInTime },
                                         set: { date in
                                             let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                            writingReminderHour = c.hour ?? 9
-                                            writingReminderMinute = c.minute ?? 0
+                                            moodCheckInHour = c.hour ?? 9
+                                            moodCheckInMinute = c.minute ?? 0
+                                            moodCheckInTimeUserSet = true
                                             Task {
-                                                await NotificationService.scheduleWritingReminder(
-                                                    hour: writingReminderHour,
-                                                    minute: writingReminderMinute
+                                                await NotificationService.scheduleMoodCheckIn(
+                                                    hour: moodCheckInHour,
+                                                    minute: moodCheckInMinute
                                                 )
                                             }
                                         }

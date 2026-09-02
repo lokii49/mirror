@@ -48,6 +48,20 @@ struct mirrorApp: App {
                 // the permission prompt was added (status .notDetermined = never asked).
                 Task {
                     await requestNotificationPermissionIfNeeded()
+                    migrateToUnifiedDailyReminder()
+                    await reArmUserReminders()
+                }
+                // Backfill the rate-us gate for users already past 5 entries
+                // (including anyone who only saw Apple's raw prompt on an older
+                // build). Idempotent — one-shot flag, self-guards on count.
+                Task { @MainActor in
+                    ReviewRequestManager.requestIfEntryMilestoneReached(context: sharedModelContainer.mainContext)
+                }
+                // One-time move of daily mood check-ins from the legacy encrypted
+                // UserDefaults blob into SwiftData (so they sync via CloudKit).
+                // Idempotent, one-directional, keeps the blob intact.
+                Task { @MainActor in
+                    MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
@@ -253,8 +267,14 @@ struct mirrorApp: App {
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
+        let recentNudges = allInsights
+            .filter { $0.type == .dailyNudge }
+            .sorted { $0.generatedAt > $1.generatedAt }
+            .prefix(4)
+            .map(\.content)
+
         do {
-            let text = try await InsightService.generateNudge(entries: entries)
+            let text = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
             context.insert(insight)
             try context.save()
@@ -377,11 +397,8 @@ struct mirrorApp: App {
         return FileManager.default.fileExists(atPath: url.path)
     }
 
-    // MARK: - Mood Alert (Deep only — 3 consecutive negative moods within 7 days)
+    // MARK: - Mood Alert (Deep only — 3+ recent negative-mood days)
 
-    private static let negativeMoods: Set<String> = [
-        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
-    ]
     private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
 
     // MARK: - Mood backfill
@@ -431,26 +448,23 @@ struct mirrorApp: App {
         if let last = UserDefaults.standard.object(forKey: moodAlertCooldownKey) as? Date,
            Date().timeIntervalSince(last) < 86400 { return }
 
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let entries = (try? context.fetch(descriptor)) ?? []
-        let recentEntries = entries.filter { $0.createdAt >= sevenDaysAgo }
 
-        var consecutiveNegative = 0
-        for entry in recentEntries {
-            guard let mood = entry.mood else { continue }  // skip untagged entries, match MoodTimelineView logic
-            if negativeMoods.contains(mood) {
-                consecutiveNegative += 1
-            } else {
-                break
-            }
-        }
+        // Recent negative mood-*days* (entry moods + check-ins merged, latest of
+        // the day wins) — not consecutive entries, which three low entries in
+        // one afternoon could falsely trip.
+        let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
+        let lowMoodDays = MoodLog.recentNegativeMoodDays(
+            entries: entries,
+            checkIns: checkIns
+        )
 
-        if consecutiveNegative >= 3 {
+        if lowMoodDays >= 3 {
             UserDefaults.standard.set(Date(), forKey: moodAlertCooldownKey)
-            await NotificationService.sendMoodAlert(consecutiveCount: consecutiveNegative)
+            await NotificationService.sendMoodAlert(consecutiveCount: lowMoodDays)
         }
     }
 
@@ -570,15 +584,19 @@ struct mirrorApp: App {
         let descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
         let entries = (try? context.fetch(descriptor)) ?? []
 
+        // Entry count per day drives the streak + wrote-today flags below. Stays
+        // entry-only — a mood check-in isn't "writing an entry".
         var countByDay: [String: Int] = [:]
-        var moodByDay: [String: String] = [:]
-
         for entry in entries {
-            let key = widgetDayFormatter.string(from: entry.createdAt)
-            countByDay[key, default: 0] += 1
-            if let mood = entry.mood {
-                moodByDay[key] = mood
-            }
+            countByDay[widgetDayFormatter.string(from: entry.createdAt), default: 0] += 1
+        }
+
+        // Mood per day: entry moods + standalone daily check-ins, latest reading
+        // of the day wins. Single merge rule, shared with every other surface.
+        let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
+        var moodByDay: [String: String] = [:]
+        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: checkIns) {
+            moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
@@ -628,6 +646,44 @@ struct mirrorApp: App {
     }
 
     // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
+
+    /// One-time move from the old separate "writing reminder" to the unified
+    /// daily check-in reminder. Carries the user's chosen time over (unless
+    /// they'd already picked a check-in time) and clears the old request.
+    private func migrateToUnifiedDailyReminder() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: "didMergeDailyReminder") else { return }
+        d.set(true, forKey: "didMergeDailyReminder")
+
+        if d.bool(forKey: "writingReminderEnabled") {
+            // Old reminder was on → carry its time over.
+            if !d.bool(forKey: "moodCheckInTimeUserSet") {
+                d.set(d.object(forKey: "writingReminderHour") as? Int ?? 9, forKey: "moodCheckInHour")
+                d.set(d.object(forKey: "writingReminderMinute") as? Int ?? 0, forKey: "moodCheckInMinute")
+            }
+        } else if d.object(forKey: "writingReminderEnabled") != nil {
+            // Old reminder existed and was explicitly OFF → the check-in
+            // reminder (default on) must not surprise them with a notification.
+            d.set(false, forKey: "moodCheckInEnabled")
+        }
+        NotificationService.cancelWritingReminder()
+    }
+
+    /// Re-issue the unified daily check-in reminder on every foreground.
+    /// `scheduleMoodCheckIn` clears-and-re-adds and no-ops when notifications
+    /// aren't authorized — so this is idempotent and self-heals the case where
+    /// the reminder was left on (it's on by default) before permission was
+    /// granted, when nothing would otherwise have been scheduled.
+    private func reArmUserReminders() async {
+        let d = UserDefaults.standard
+        // `moodCheckInEnabled` defaults to true — treat a missing value as on.
+        let enabled = (d.object(forKey: "moodCheckInEnabled") as? Bool) ?? true
+        guard enabled else { return }
+        await NotificationService.scheduleMoodCheckIn(
+            hour: d.object(forKey: "moodCheckInHour") as? Int ?? 9,
+            minute: d.object(forKey: "moodCheckInMinute") as? Int ?? 0
+        )
+    }
 
     private func requestNotificationPermissionIfNeeded() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()

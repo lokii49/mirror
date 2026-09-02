@@ -6,6 +6,7 @@ enum MirrorModelContainer {
             Entry.self,
             Insight.self,
             UserProfile.self,
+            MoodCheckIn.self,
         ])
         let configuration = ModelConfiguration(
             schema: schema,

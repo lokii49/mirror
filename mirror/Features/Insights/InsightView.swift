@@ -18,26 +18,37 @@ struct InsightView: View {
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
 
-    // moodEntries/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
+    // weekMoodEvents/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
     // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
     // All four are read directly from `body`/its section subviews, so every unrelated @State
     // change in this view (nudgeExpanded, digestExpanded, pastNudgesExpanded, sheet toggles)
     // was re-running them from scratch. Cached via `.task(id:)`, matching the
     // CalendarHeatmap/MoodTimelineView/WriteView/AskView precedent.
-    @State private var cachedMoodEntries: [Entry] = []
     @State private var cachedThisMonthEntries: [Entry] = []
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedPastNudges: [Insight] = []
 
+    // Standalone daily mood check-ins — merged with entry moods via `MoodLog`
+    // for the weekly mood chart.
+    @Query(sort: \MoodCheckIn.createdAt) private var moodCheckIns: [MoodCheckIn]
+    @State private var cachedWeekMoodEvents: [MoodEvent] = []
+
     // entries.count alone misses in-place edits: changing an existing entry's mood or date
-    // (both editable) must also invalidate cachedMoodEntries/cachedThisMonthEntries/
-    // cachedCurrentStreak, matching the MoodTimelineView encryptedMood-hash precedent.
+    // (both editable) must also invalidate cachedThisMonthEntries/cachedCurrentStreak/
+    // cachedWeekMoodEvents. Check-in moods+dates folded in too (matching
+    // MoodTimelineView.moodDataCacheKey) so a CloudKit sync that swaps a
+    // check-in without changing the count still triggers a recompute.
     private var entryCacheKey: Int {
         var hasher = Hasher()
         hasher.combine(entries.count)
         for entry in entries {
             hasher.combine(entry.encryptedMood)
             hasher.combine(entry.createdAt)
+        }
+        hasher.combine(moodCheckIns.count)
+        for checkIn in moodCheckIns {
+            hasher.combine(checkIn.encryptedMood)
+            hasher.combine(checkIn.createdAt)
         }
         return hasher.finalize()
     }
@@ -67,8 +78,8 @@ struct InsightView: View {
                         pastNudgesSection
                     }
 
-                    if moodEntries.count >= 2, chartVisible {
-                        MoodWeekChartView(entries: moodEntries)
+                    if cachedWeekMoodEvents.count >= 2, chartVisible {
+                        MoodWeekChartView(events: cachedWeekMoodEvents)
                     }
 
                     digestSection
@@ -158,8 +169,6 @@ struct InsightView: View {
         }
     }
 
-    private var moodEntries: [Entry] { cachedMoodEntries }
-
     private var currentStreak: Int { cachedCurrentStreak }
 
     private var thisMonthEntries: [Entry] { cachedThisMonthEntries }
@@ -175,7 +184,11 @@ struct InsightView: View {
 
     private func recomputeEntryCaches() {
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        cachedMoodEntries = entries.filter { $0.mood != nil && !($0.mood!.isEmpty) && $0.createdAt >= cutoff }
+        cachedWeekMoodEvents = MoodLog.events(
+            in: DateInterval(start: cutoff, end: .distantFuture),
+            entries: entries,
+            checkIns: moodCheckIns
+        )
 
         let cal = Calendar.current
         let now = Date()
@@ -475,8 +488,8 @@ struct InsightView: View {
     }
 
     private var dominantMoodThisWeek: String? {
-        guard !moodEntries.isEmpty else { return nil }
-        let counts = Dictionary(grouping: moodEntries, by: { $0.mood ?? "" }).mapValues { $0.count }
+        guard !cachedWeekMoodEvents.isEmpty else { return nil }
+        let counts = Dictionary(grouping: cachedWeekMoodEvents, by: { $0.mood }).mapValues { $0.count }
         return counts.max(by: { $0.value < $1.value })?.key
     }
 
@@ -1248,7 +1261,8 @@ private struct InsightTextView: View {
 // MARK: - Mood Week Chart
 
 private struct MoodWeekChartView: View {
-    let entries: [Entry]
+    /// Merged entry moods + daily check-ins for the last 7 days (`MoodLog`).
+    let events: [MoodEvent]
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
@@ -1260,9 +1274,9 @@ private struct MoodWeekChartView: View {
     }
 
     private var points: [MoodPoint] {
-        entries.compactMap { entry in
-            guard let mood = entry.mood, let score = MirrorTheme.moodScore[mood] else { return nil }
-            return MoodPoint(id: entry.id, date: entry.createdAt, mood: mood, score: score)
+        events.compactMap { event in
+            guard let score = event.score else { return nil }
+            return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
         }
     }
 

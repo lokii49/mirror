@@ -25,7 +25,7 @@ Read the user's local journal context and offer ONE specific, personal reflectio
 Rules:
 - Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
 - Reference actual words, moods, dates, or concrete events, not generic advice
-- Open with a varied, natural sentence — never use the same opener twice in a row. Rotate freely among: "Something you mentioned...", "Reading through your entries...", "There's a thread running through your week...", "You've been carrying...", "Between the lines...", "What stands out is...", "One thing that caught my attention...", "Looking at your entries...", "I noticed..." — use this last one rarely, not as a default
+- Open by naming something concrete from a specific entry — an event, an image, a decision, a place, a person, a phrase they used. Start inside the observation itself, not with a wind-up. The first sentence should be different every day and could not have been written about someone else's journal.
 - When using "I" it is always Mirror's voice (e.g. "I noticed"), never the journal writer's voice
 - Address the journal writer as "you/your" throughout
 - 2-3 sentences maximum, under 100 words
@@ -42,7 +42,7 @@ private let WEEKLY_DIGEST_SYSTEM = """
 You are MirrorNotes. Read this person's local journal context and write a structured weekly reflection in the voice of a close friend who understands them.
 Output EXACTLY this format with no extra sections:
 
-THIS WEEK'S THEME: [1-2 sentences naming the theme and why it dominated]
+THIS WEEK'S THEME: [1-2 sentences that name the theme in plain, concrete words — e.g. "Settling into the new apartment" or "The tug-of-war between the launch and sleep" — then say why it dominated]
 YOUR ENERGY: [1-2 sentences about when you seemed most alive or most drained, with a specific detail]
 WHAT'S BUILDING: [1-2 sentences about one real thing growing in you or your life and what it might mean]
 WATCH OUT FOR: [1-2 honest sentences about something that may be quietly costing you]
@@ -86,7 +86,7 @@ You are MirrorNotes. Read this person's full month of journal entries and write 
 
 Write exactly these six sections, each label followed by a colon and one complete sentence:
 
-YOUR MONTH IN ONE IMAGE: One vivid metaphor for the feeling or texture of this month.
+YOUR MONTH IN ONE IMAGE: One vivid metaphor for the feeling or texture of this month, stated directly as an image — e.g. "A house with every light on and no one home."
 THE TENSION AT THE CENTER: The main recurring conflict or friction that ran through their entries.
 A MOMENT THAT SHIFTED SOMETHING: One specific entry or phrase that changed something, even subtly.
 WHAT YOU'RE BECOMING: Who they seem to be growing into, based on what they wrote.
@@ -142,44 +142,57 @@ enum InsightService {
         let name: String
     }
 
-    // Cycles daily so the reflection never starts with the same phrase two days in a row.
-    // All openers are free of I/me/my to survive cleanedInsightOutput without corruption.
-    private static let nudgeOpeners: [String] = [
-        "Reading through your entries",
-        "There's a thread running through your week",
-        "You've been carrying something",
-        "Between the lines of what you wrote",
-        "What stands out across your entries",
-        "One thing that stood out",
-        "Looking at your entries",
-        "Something you mentioned",
-        "What keeps showing up in your writing",
-        "A detail worth sitting with"
-    ]
-
-    private static func todayOpener() -> String {
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-        return nudgeOpeners[dayOfYear % nudgeOpeners.count]
+    /// First few words of each recent nudge, deduped and order-preserved, so the
+    /// prompt can steer the model away from re-using an opening it just used. This
+    /// replaced a fixed 10-phrase opener list that cycled by day-of-year — with
+    /// entries written every ~8-10 days, that cycle kept landing on the same phrase.
+    private static func priorNudgeOpenings(from recentNudges: [String], words: Int = 7) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for nudge in recentNudges {
+            let opening = firstWords(nudge, count: words)
+            guard !opening.isEmpty else { continue }
+            let key = opening.lowercased()
+            if seen.insert(key).inserted {
+                result.append(opening)
+            }
+        }
+        return result
     }
 
-    static func generateNudge(entries: [Entry]) async throws -> String {
+    private static func firstWords(_ text: String, count: Int) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .prefix(count)
+            .joined(separator: " ")
+    }
+
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> String {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let opener = todayOpener()
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
         let withinWindow = sorted.filter { $0.createdAt >= cutoff }
         let recent = withinWindow.isEmpty ? Array(sorted.prefix(1)) : Array(withinWindow.prefix(3))
         let recentIDs = Set(recent.map(\.id))
         let background = Array(sorted.filter { !recentIDs.contains($0.id) }.prefix(20))
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
+
+        var userMessage = buildUserMessage(
+            title: "Daily reflection context",
+            recentEntries: recent,
+            backgroundEntries: background,
+            maxChars: dailyNudgePromptBudget
+        )
+        let openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
+        if !openings.isEmpty {
+            userMessage += "\n\nYour recent reflections already opened with:\n"
+                + openings.map { "- \"\($0)…\"" }.joined(separator: "\n")
+                + "\nOpen today's reflection with a different first sentence built from a different concrete detail."
+        }
+
         return try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
-            userMessage: buildUserMessage(
-                title: "Daily reflection context",
-                recentEntries: recent,
-                backgroundEntries: background,
-                maxChars: dailyNudgePromptBudget,
-                requiredOpener: opener
-            ),
+            userMessage: userMessage,
             task: .dailyNudge,
             responseLanguageInstruction: languageInstruction
         )
@@ -766,14 +779,13 @@ enum InsightService {
         title: String,
         recentEntries: [Entry],
         backgroundEntries: [Entry],
-        maxChars: Int,
-        requiredOpener: String? = nil
+        maxChars: Int
     ) -> String {
         let recentBlock = formatEntries(recentEntries, maxChars: Int(Double(maxChars) * 0.72))
         let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28))
 
         let today = Date().formatted(date: .abbreviated, time: .omitted)
-        var message = """
+        return """
         \(title)
 
         Today: \(today)
@@ -784,12 +796,6 @@ enum InsightService {
         Recent entries:
         \(recentBlock)
         """
-
-        if let opener = requiredOpener {
-            message += "\n\nStart your response with: \"\(opener)...\""
-        }
-
-        return message
     }
 
     private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {

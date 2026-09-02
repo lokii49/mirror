@@ -9,12 +9,12 @@
 /* Begin PBXBuildFile section */
 		2CB2F37AB2B349659532EC01 /* MirrorNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D674E52CEF446BAED78D9A /* MirrorNotifications.swift */; };
 		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
-		48A1B0012FC1000100000001 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48A1B0002FC1000100000001 /* FoundationModels.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
 		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
 		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A72FB47F4F00C6362E /* RevenueCat */; };
 		47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A92FB47F4F00C6362E /* RevenueCatUI */; };
+		48A1B0012FC1000100000001 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48A1B0002FC1000100000001 /* FoundationModels.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,8 +63,8 @@
 		47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MirrorWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		47E752832FB44FE800C6362E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		47E752852FB44FE800C6362E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		48A1B0002FC1000100000001 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = System/Library/Frameworks/FoundationModels.framework; sourceTree = SDKROOT; };
 		47E7529D2FB4507600C6362E /* MirrorWidgetExtensionExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MirrorWidgetExtensionExtension.entitlements; sourceTree = "<group>"; };
+		48A1B0002FC1000100000001 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = System/Library/Frameworks/FoundationModels.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -599,7 +599,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.8;
+				MARKETING_VERSION = 2.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -636,7 +636,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.8;
+				MARKETING_VERSION = 2.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -752,7 +752,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.8;
+				MARKETING_VERSION = 2.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -784,7 +784,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0.8;
+				MARKETING_VERSION = 2.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
