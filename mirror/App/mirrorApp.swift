@@ -585,14 +585,26 @@ struct mirrorApp: App {
         let entries = (try? context.fetch(descriptor)) ?? []
 
         var countByDay: [String: Int] = [:]
-        var moodByDay: [String: String] = [:]
+
+        // Mood per day: entry moods and standalone daily check-ins merged, most
+        // recent event of the day wins — matches MoodTimelineView's heatmap.
+        var moodEvents: [(day: String, date: Date, mood: String)] = []
 
         for entry in entries {
             let key = widgetDayFormatter.string(from: entry.createdAt)
             countByDay[key, default: 0] += 1
             if let mood = entry.mood {
-                moodByDay[key] = mood
+                moodEvents.append((key, entry.createdAt, mood))
             }
+        }
+        for checkIn in MoodCheckInStore.all() {
+            moodEvents.append((widgetDayFormatter.string(from: checkIn.createdAt), checkIn.createdAt, checkIn.mood))
+        }
+        moodEvents.sort { $0.date < $1.date }
+
+        var moodByDay: [String: String] = [:]
+        for event in moodEvents {
+            moodByDay[event.day] = event.mood
         }
 
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
