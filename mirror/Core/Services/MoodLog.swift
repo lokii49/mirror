@@ -84,17 +84,18 @@ enum MoodLog {
     /// How many of the user's most recent mood-*days* are all negative — the
     /// signal behind the Deep low-mood alert and the Mood Timeline banner.
     ///
-    /// Walks distinct mood-days newest-first. A day with **no** reading is
-    /// skipped (not counted, not a break) so someone who journals every other
-    /// day still registers; a day whose latest reading is non-negative ends the
-    /// run. Only looks back `maxLookbackDays` from today, and only counts an
-    /// active run — the most recent reading must be today or yesterday, else a
-    /// low patch from weeks ago wouldn't keep re-alerting. Returns 0 otherwise.
+    /// Walks mood-days newest-first. Days with **no** reading are simply absent
+    /// from the walk (see the loop comment), so someone who journals every
+    /// other day still registers; a day whose latest reading is non-negative
+    /// ends the run. Only looks back `maxLookbackDays`, and only counts an
+    /// active run — the most recent reading must be within `anchorGraceDays` of
+    /// today, else a low patch from weeks ago would keep re-alerting.
     static func recentNegativeMoodDays(
         entries: [Entry],
         checkIns: [MoodCheckIn],
         negativeMoods: Set<String> = MirrorTheme.negativeMoods,
         maxLookbackDays: Int = 12,
+        anchorGraceDays: Int = 2,
         calendar: Calendar = .current,
         now: Date = Date()
     ) -> Int {
@@ -102,16 +103,19 @@ enum MoodLog {
         guard !byDay.isEmpty else { return 0 }
 
         let today = calendar.startOfDay(for: now)
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
-              let cutoff = calendar.date(byAdding: .day, value: -maxLookbackDays, to: today)
+        guard let cutoff = calendar.date(byAdding: .day, value: -maxLookbackDays, to: today),
+              let anchorFloor = calendar.date(byAdding: .day, value: -anchorGraceDays, to: today)
         else { return 0 }
 
-        let recentDays = byDay.keys.filter { $0 >= cutoff }.sorted(by: >)
-        guard let latest = recentDays.first, latest >= yesterday else { return 0 }
+        let recent = byDay
+            .filter { $0.key >= cutoff }
+            .sorted { $0.key > $1.key }
+        guard let latestDay = recent.first?.key, latestDay >= anchorFloor else { return 0 }
 
         var count = 0
-        for day in recentDays {
-            guard let event = byDay[day] else { continue }
+        for (_, event) in recent {
+            // `recent` holds only days that have a reading — gap days are absent,
+            // which IS the gap-skip. Do not rewrite this to iterate calendar days.
             if negativeMoods.contains(event.mood) { count += 1 } else { break }
         }
         return count
