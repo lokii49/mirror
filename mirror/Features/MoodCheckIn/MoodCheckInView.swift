@@ -36,7 +36,7 @@ struct MoodCheckInView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MirrorTheme.bgBase)
-        .presentationDetents([.large])
+        .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
     }
 
