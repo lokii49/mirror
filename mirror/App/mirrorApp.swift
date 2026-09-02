@@ -391,11 +391,8 @@ struct mirrorApp: App {
         return FileManager.default.fileExists(atPath: url.path)
     }
 
-    // MARK: - Mood Alert (Deep only — 3 consecutive negative moods within 7 days)
+    // MARK: - Mood Alert (Deep only — 3 consecutive negative-mood days)
 
-    private static let negativeMoods: Set<String> = [
-        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb",
-    ]
     private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
 
     // MARK: - Mood backfill
@@ -445,26 +442,22 @@ struct mirrorApp: App {
         if let last = UserDefaults.standard.object(forKey: moodAlertCooldownKey) as? Date,
            Date().timeIntervalSince(last) < 86400 { return }
 
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let entries = (try? context.fetch(descriptor)) ?? []
-        let recentEntries = entries.filter { $0.createdAt >= sevenDaysAgo }
 
-        var consecutiveNegative = 0
-        for entry in recentEntries {
-            guard let mood = entry.mood else { continue }  // skip untagged entries, match MoodTimelineView logic
-            if negativeMoods.contains(mood) {
-                consecutiveNegative += 1
-            } else {
-                break
-            }
-        }
+        // Consecutive negative *days* (entry moods + check-ins merged, latest of
+        // the day wins; a day with no reading breaks the run) — not consecutive
+        // entries, which three low entries in one afternoon could falsely trip.
+        let negativeDays = MoodLog.consecutiveNegativeDays(
+            entries: entries,
+            checkIns: MoodCheckInStore.all()
+        )
 
-        if consecutiveNegative >= 3 {
+        if negativeDays >= 3 {
             UserDefaults.standard.set(Date(), forKey: moodAlertCooldownKey)
-            await NotificationService.sendMoodAlert(consecutiveCount: consecutiveNegative)
+            await NotificationService.sendMoodAlert(consecutiveCount: negativeDays)
         }
     }
 
@@ -584,27 +577,18 @@ struct mirrorApp: App {
         let descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
         let entries = (try? context.fetch(descriptor)) ?? []
 
+        // Entry count per day drives the streak + wrote-today flags below. Stays
+        // entry-only — a mood check-in isn't "writing an entry".
         var countByDay: [String: Int] = [:]
-
-        // Mood per day: entry moods and standalone daily check-ins merged, most
-        // recent event of the day wins — matches MoodTimelineView's heatmap.
-        var moodEvents: [(day: String, date: Date, mood: String)] = []
-
         for entry in entries {
-            let key = widgetDayFormatter.string(from: entry.createdAt)
-            countByDay[key, default: 0] += 1
-            if let mood = entry.mood {
-                moodEvents.append((key, entry.createdAt, mood))
-            }
+            countByDay[widgetDayFormatter.string(from: entry.createdAt), default: 0] += 1
         }
-        for checkIn in MoodCheckInStore.all() {
-            moodEvents.append((widgetDayFormatter.string(from: checkIn.createdAt), checkIn.createdAt, checkIn.mood))
-        }
-        moodEvents.sort { $0.date < $1.date }
 
+        // Mood per day: entry moods + standalone daily check-ins, latest reading
+        // of the day wins. Single merge rule, shared with every other surface.
         var moodByDay: [String: String] = [:]
-        for event in moodEvents {
-            moodByDay[event.day] = event.mood
+        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: MoodCheckInStore.all()) {
+            moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
