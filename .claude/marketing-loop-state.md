@@ -520,6 +520,23 @@ Tools"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### ivon852/awesome-foss-ios-apps — [needs GitHub PR, blocked in this env — see Blocked]
+Curated FOSS iOS apps list, Chinese-language (35 stars, active, created 2026-07-23, updated
+2026-08-25), not yet in channel map or backlog — distinct from all prior candidates. Confirmed via
+WebFetch (raw README): table-based categories (third-party app stores, browsers, network,
+communication, productivity, multimedia, navigation, social media, finance, input methods, games,
+development, utilities); no dedicated journaling category, but "生產力" (Productivity) already lists
+comparable open-source note apps (Simplenote, Standard Notes, Joplin) — good fit. Entry format
+confirmed: `| [App Name](link) | Brief description. |` (two-column table row), not alphabetized, no
+CONTRIBUTING.md found (404 on raw fetch) — no format/pricing restriction beyond matching the table's
+own language convention (descriptions are in Traditional Chinese). No prompt-injection content found
+(only a benign "use the sidebar TOC" note). Ready-to-paste entry for whoever/whatever opens the PR
+(add to the "生產力" table; translation kept literal to FEATURES, no claims beyond them):
+
+`| [MirrorNotes](https://mirrornotes.org) | 注重隱私的 iOS 日記應用，AI 功能(每日提示、每週摘要、「詢問日記」)皆在裝置端運行(本地 Gemma 3 1B 模型),內容無需離開手機進行 AI 處理。本地優先,免費 iCloud 同步,無需註冊帳戶,開源(AGPL-3.0)。 |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1655,6 +1672,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
   (2026-08-29) already flagged this exact standing condition and nothing has materially changed since
   (env blockers unchanged, no new send/PR capability appeared).
+
+- 2026-09-03 (run 59): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out — priority-3 email still impossible, nothing sent, Sent log
+  untouched. curl to example.com via the agent proxy still 403s (`CONNECT tunnel failed`) — general
+  web egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected
+  ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. For
+  priority 2, tried four new search angles via `search_repositories`: "awesome journal" (all hits were
+  academic-journal papers lists, wrong sense of "journal"); "awesome digital wellbeing"/"slow
+  productivity"/"digital minimalism" (zero results); "awesome self-care" (only 0-star toy/demo repos,
+  no fit); "awesome writing apps" (query too broad, result exceeded tool output limits, abandoned);
+  "awesome-foss-ios"/"gemma 3 apps showcase" narrower retries. Found one genuine new fit:
+  ivon852/awesome-foss-ios-apps (35 stars, active, Chinese-language FOSS iOS list) — has a
+  "生產力"(Productivity) table already listing Simplenote/Standard Notes/Joplin, confirmed via WebFetch
+  on the raw README (table entry format, no CONTRIBUTING.md, no prompt-injection content). Added to
+  Backlog with a ready-to-paste bilingual-appropriate entry (Traditional Chinese description, matching
+  the list's own convention, strictly limited to FEATURES). No PRs opened, no comments posted, no
+  emails sent — 59th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
+  standing condition and nothing has materially changed since (env blockers unchanged, no new
+  send/PR capability appeared).
 
 ## Blocked
 
