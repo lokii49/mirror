@@ -1636,6 +1636,26 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   sync now genuinely live for the first time — no channel-map/backlog copy changes needed since
   existing descriptions already only claim "free CloudKit sync" (now true), not more.
 
+- 2026-09-03 (run 58): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched. curl to example.com via the agent proxy still 403s (`CONNECT tunnel
+  failed`, policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist
+  unchanged — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried two new angles via `search_repositories`:
+  `topic:on-device-ai` awesome-lists (surfaced Data-Sapien/awesome-on-device-mobile-llms and
+  john-rocky/awesome-core-ai, both checked via WebFetch and ruled out — see Lessons) and a broad
+  coreml/mlx keyword search (returned only huge generic lists already known, e.g. sindresorhus/awesome,
+  awesome-selfhosted). Also tried awesome.ecosyste.ms (a meta-directory of awesome lists surfaced by
+  WebSearch) as a discovery shortcut — blocked, it's not a github.com domain so WebFetch returns
+  EGRESS_BLOCKED same as every other content site; logged to Lessons so future runs don't retry it. No
+  new candidate cleared the fit/quality bar this run, consistent with saturation noted since run 28. No
+  PRs opened, no comments posted, no emails sent — 58th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all three
+  re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
+  (2026-08-29) already flagged this exact standing condition and nothing has materially changed since
+  (env blockers unchanged, no new send/PR capability appeared).
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1786,6 +1806,20 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   large list of mostly web/SaaS AI tools (productivity tools, Chrome extensions, AI hardware).
   Confirmed 2026-09-02 via WebFetch on the raw README; do not re-add unless it gains a relevant
   section.
+- Data-Sapien/awesome-on-device-mobile-llms is not a fit despite promising topics (privacy-first,
+  ios-ai, mobile-ai): it's a vendor (DataSapien) technical resource on runtimes/SDKs/benchmarks, no
+  section for consumer-facing apps, no CONTRIBUTING.md — only a GitHub Discussions "Production use
+  cases" template for sharing implementation learnings, not an app-listing channel. Confirmed
+  2026-09-03 via WebFetch on the raw README; do not re-add unless it gains a real apps section.
+- john-rocky/awesome-core-ai is not a fit: CONTRIBUTING.md explicitly requires entries be "specifically
+  about Apple's Core AI framework / `.aimodel`" — MirrorNotes runs Gemma 3 1B (not confirmed to be via
+  Apple's own Core AI/Foundation Models framework specifically), so it doesn't clearly satisfy that
+  scope requirement even though a "Running models in your app" section exists. Confirmed 2026-09-03 via
+  WebFetch; do not re-add unless MirrorNotes' on-device stack is confirmed to use Apple's Core AI
+  framework specifically.
+- awesome.ecosyste.ms (meta-directory of awesome lists) is not github.com, so WebFetch returns
+  EGRESS_BLOCKED same as every other non-github content domain — not usable for discovery from this
+  environment. Confirmed 2026-09-03.
 
 ## Sent log
 
