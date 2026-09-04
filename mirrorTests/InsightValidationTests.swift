@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import mirror
 
 // A1 of the 2.1.0 design plan (.claude/2.1.0-design-plan.md, Track A1): a fixture-based
@@ -7,29 +8,30 @@ import Testing
 // This does NOT invoke the model. It exercises the exact repair-then-validate pipeline
 // production code runs on real model output — `.cleanedInsightOutput()` /
 // `.cleanedDigestOutput()` / `.cleanedMonthlyReportOutput()` (regex-based repair: strips
-// Markdown/brackets, rewrites a subset of first-person leakage, rewrites a subset of banned
-// clinical phrases) followed by `InsightService.validate(_:for:)` (the structural gate:
-// section-header/length/sentence/ending checks) — against hand-written fixture strings that
-// stand in for what Gemma 3 1B / Foundation Models could plausibly emit. `validate` and the
-// three `cleaned*Output()` methods were bumped from `private` to internal (still same-file
-// scope otherwise) specifically to give this suite a seam; see the comments at each
-// declaration in InsightService.swift.
+// Markdown/brackets, rewrites first-person leakage and banned clinical phrases) followed by
+// `InsightService.validate(_:for:)` (the structural gate: section-header/length/sentence/
+// ending/first-person checks) — against hand-written fixture strings that stand in for what
+// Gemma 3 1B / Foundation Models could plausibly emit. `validate` and the three
+// `cleaned*Output()` methods were bumped from `private` to internal (still same-file scope
+// otherwise) specifically to give this suite a seam; see the comments at each declaration in
+// InsightService.swift.
 //
-// Three kinds of case here:
-//   - PASS  — well-formed output the pipeline should accept (regression safety net)
-//   - REJECT — malformed output the pipeline should catch (regression safety net)
-//   - GAP   — output that violates an explicit rule in the task's `_SYSTEM` prompt, but that
-//             the current repair+validate pipeline does NOT catch. These assert the *current*
-//             permissive behavior on purpose — they are diagnosis, not a claim that the gap is
-//             fine. Each is Track A3 backlog material. If one of these starts failing (the
-//             pipeline now rejects/repairs it), that's real progress — flip it to REJECT/PASS
-//             and note the change in this file's plan doc Log.
+// This suite originally found five gaps (see plan doc Log for the full account) — dailyNudge/
+// ask permitted unrepaired "I am/was/were" journal-writer-voice leaks, monthlyReport had zero
+// first-person enforcement, and "significant"/"patterns indicate" were unguarded anywhere. All
+// five are now closed in InsightService.swift (repair-list additions +
+// `FirstPersonPolicy`/`containsJournalWriterFirstPerson(allowMirrorNoticed:)` +
+// `validateMonthlyReport`'s new first-person check) and the tests below assert the fix, not
+// just the previous gap. If a NEW gap like this turns up later, add a case documented the same
+// way these used to be: assert the pipeline's current (undesired) permissive behavior with a
+// comment explaining which prompt rule it violates and why the pipeline doesn't catch it yet,
+// so it's tracked as a passing, mechanically-verifiable backlog item rather than prose.
 //
 // Running this requires no simulator, no bundled model, no network — pure Swift, milliseconds.
 // It does NOT prove the real model's output matches these fixtures; it proves the pipeline
 // behaves correctly against representative shapes. True end-to-end verification (real
 // `LocalLLMService.generate` output through this same pipeline) needs a device/simulator with
-// the bundled Gemma model and is out of scope here — see Track A2 in the plan doc.
+// the bundled Gemma model and is out of scope here.
 
 @Suite("InsightService validation pipeline")
 struct InsightValidationTests {
@@ -50,17 +52,6 @@ struct InsightValidationTests {
             Issue.record("expected validate() to reject this \(task) text, but it passed — text: \(text)")
         } catch {
             // expected
-        }
-    }
-
-    /// Documents a KNOWN GAP: this text violates an explicit rule in the task's `_SYSTEM`
-    /// prompt, but the pipeline currently does not catch it. Passes as long as the gap is
-    /// still open. If it starts failing, the gap closed — see file header.
-    private func expectStillPermitted(_ text: String, _ task: LocalLLMTask, gap: String) {
-        do {
-            _ = try InsightService.validate(text, for: task)
-        } catch {
-            Issue.record("GAP CLOSED (update Track A3 in .claude/2.1.0-design-plan.md): \(gap) — this now throws \(error), promote this case to expectRejected/expectValid — text: \(text)")
         }
     }
 
@@ -106,28 +97,52 @@ struct InsightValidationTests {
         expectRejected(text.cleanedInsightOutput(), .dailyNudge)
     }
 
-    // GAP: cleanedInsightOutput()'s first-person repair list covers I feel/felt/work/try/
-    // need/want/plan/can/could/will/would/should — it does NOT cover "I am"/"I was"/"I were",
-    // and rejectsFirstPerson is hardcoded false for .dailyNudge (InsightService.swift:476).
-    // So an unambiguous journal-writer-voice leak (not the prompt's sanctioned Mirror-voice
-    // "I noticed") slips through the entire pipeline untouched.
-    @Test func dailyNudge_gap_unrepairedFirstPersonLeak_stillPasses() {
-        let text = "I was overwhelmed by the deadline but I got through it anyway."
-        expectStillPermitted(
-            text.cleanedInsightOutput(), .dailyNudge,
-            gap: "\"I was\"/\"I was...I got\" journal-writer-voice leak — not in cleanedInsightOutput's rewrite list, and rejectsFirstPerson is false for dailyNudge"
-        )
+    // DAILY_NUDGE_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice — this is
+    // the regression test proving that carve-out (FirstPersonPolicy.strictExceptMirrorNoticed)
+    // actually works, not just that first-person is blocked in general.
+    @Test func dailyNudge_mirrorVoiceINoticed_stillPasses() {
+        let text = "I noticed you kept circling back to the launch even in entries that weren't about work at all. That kind of repetition usually means something is still unresolved."
+        expectValid(text.cleanedInsightOutput(), .dailyNudge)
     }
 
-    // GAP: DAILY_NUDGE_SYSTEM explicitly bans "significant" and "patterns indicate" as
-    // clinical phrases; cleanedInsightOutput() only rewrites "this suggests"/"emotional
-    // weariness"/"mental health"/"the source mentions" — these two are unguarded anywhere.
-    @Test func dailyNudge_gap_unbannedClinicalPhrase_stillPasses() {
-        let text = "This week's patterns indicate you are dealing with something significant that keeps resurfacing."
-        expectStillPermitted(
-            text.cleanedInsightOutput(), .dailyNudge,
-            gap: "\"patterns indicate\"/\"significant\" — banned by DAILY_NUDGE_SYSTEM, not in cleanedInsightOutput's rewrite list, not checked by validate()"
-        )
+    // Was a GAP (cleanedInsightOutput's repair list didn't cover "I am"/"I was"/"I were");
+    // now closed — the repair step rewrites it to second person before validate() ever runs.
+    @Test func dailyNudge_firstPersonLeak_nowRepaired() {
+        let raw = "I was struck by how much lighter you felt once you finally said what you'd been holding back."
+        let cleaned = raw.cleanedInsightOutput()
+        #expect(cleaned.contains("you were struck"))
+        #expect(!cleaned.localizedCaseInsensitiveContains("I was"))
+        expectValid(cleaned, .dailyNudge)
+    }
+
+    // A leak using a verb the repair list still doesn't cover (e.g. "think") — proves the
+    // validator-level FirstPersonPolicy.strictExceptMirrorNoticed backstop, not just the repair
+    // step, actually rejects what repair alone can't fix.
+    @Test func dailyNudge_unrepairableFirstPersonLeak_nowRejected() {
+        let text = "I think this week wore you down more than you let yourself admit, even on the days you tried to push through it."
+        expectRejected(text.cleanedInsightOutput(), .dailyNudge)
+    }
+
+    // Was a GAP ("significant"/"patterns indicate" unguarded); now closed via repair rewrite.
+    // The "significant" rewrite is deliberately scoped to "something significant"/"significant
+    // pattern" (see the comment at its declaration) rather than a global word replace — every
+    // prompt also tells the model to quote the writer's own words, and "significant" is an
+    // ordinary word people use unprompted, unlike the other clinical phrases here.
+    @Test func dailyNudge_clinicalPhrase_nowRepaired() {
+        let raw = "Patterns indicate you're dealing with something significant that keeps resurfacing."
+        let cleaned = raw.cleanedInsightOutput()
+        #expect(!cleaned.localizedCaseInsensitiveContains("significant"))
+        #expect(!cleaned.localizedCaseInsensitiveContains("patterns indicate"))
+        expectValid(cleaned, .dailyNudge)
+    }
+
+    // Regression for the scoping decision above: a genuine quote from the entry ("this felt
+    // significant to me") must survive untouched — it isn't one of the two clinical
+    // collocations, so the word-level rewrite must NOT fire on it.
+    @Test func dailyNudge_quotedSignificant_isNotRewritten() {
+        let raw = "You wrote \"this felt significant to me\" on Tuesday, right after the call ended."
+        let cleaned = raw.cleanedInsightOutput()
+        #expect(cleaned.contains("this felt significant to me"))
     }
 
     // MARK: - Ask (validateCompleteProse: 35-char min, 140-word max, 1-6 sentences, or exact no-answer phrase)
@@ -154,16 +169,20 @@ struct InsightValidationTests {
         }
     }
 
-    // GAP: ASK_SYSTEM is stricter than daily nudge — "Address the person as you/your only.
-    // Never use I/me/my as if you are the journal writer" — no Mirror-voice "I noticed"
-    // exception at all. But .ask shares the same rejectsFirstPerson: false as dailyNudge, so
-    // this leaks through identically.
-    @Test func ask_gap_unrepairedFirstPersonLeak_stillPasses() {
-        let text = "I was surprised you asked, but you wrote about this exact worry in three separate entries last month."
-        expectStillPermitted(
-            text.cleanedInsightOutput(), .ask,
-            gap: "\"I was\" leak — ASK_SYSTEM has no Mirror-voice exception (unlike dailyNudge's sanctioned \"I noticed\"), yet rejectsFirstPerson is false here too"
-        )
+    // ASK_SYSTEM grants no Mirror-voice exception at all ("Address the person as you/your
+    // only") — unlike dailyNudge, .ask uses FirstPersonPolicy.strict, so even "I noticed" (the
+    // one phrase dailyNudge explicitly allows) is rejected here. This is the test proving the
+    // two policies genuinely differ, not just that ask blocks *some* first person.
+    @Test func ask_mirrorVoiceINoticed_isRejectedUnlikeDailyNudge() {
+        let text = "I noticed you wrote about this exact worry in three separate entries last month."
+        expectRejected(text.cleanedInsightOutput(), .ask)
+    }
+
+    // Was a GAP; a verb the repair list doesn't cover ("think") now correctly rejected by
+    // FirstPersonPolicy.strict.
+    @Test func ask_unrepairableFirstPersonLeak_nowRejected() {
+        let text = "I think you wrote about this exact worry in three separate entries last month."
+        expectRejected(text.cleanedInsightOutput(), .ask)
     }
 
     // MARK: - Weekly digest (six sections, 20-400 chars each, first-person leak IS checked)
@@ -198,29 +217,37 @@ struct InsightValidationTests {
         expectRejected(text.cleanedDigestOutput(), .weeklyDigest)
     }
 
-    // Unlike dailyNudge/ask, weeklyDigest's validator DOES call
-    // containsJournalWriterFirstPerson — so a leak using a repair-covered verb ("I felt")
-    // never even reaches it (cleanedInsightOutput fixes it first), but one using an
-    // unrepaired conjugation ("I was") survives cleaning and IS caught here. This is the
-    // inverse of the dailyNudge/ask gap cases above: same repair-list hole, but weeklyDigest's
-    // validator net still catches it.
-    @Test func weeklyDigest_unrepairedFirstPersonLeak_stillRejected() {
+    // "I was" is now repaired to second person before validateWeeklyDigest ever sees it —
+    // same fix as dailyNudge_firstPersonLeak_nowRepaired, checked here for the digest pipeline.
+    @Test func weeklyDigest_firstPersonLeak_nowRepairedBeforeValidatorRuns() {
         var bodies = Self.weeklyGoodBodies
         bodies[1] = "I was most alive during the Tuesday walk and most drained during the Thursday deadline crunch."
+        let text = weeklyDigestText(bodies)
+        let cleaned = text.cleanedDigestOutput()
+        #expect(!cleaned.localizedCaseInsensitiveContains("I was"))
+        expectValid(cleaned, .weeklyDigest)
+    }
+
+    // Unlike dailyNudge/ask, weeklyDigest's validator has always called
+    // containsJournalWriterFirstPerson directly — so a leak using a verb the repair list still
+    // doesn't cover ("think") is caught by the validator, independent of the repair-list fix
+    // above.
+    @Test func weeklyDigest_unrepairableFirstPersonLeak_stillRejected() {
+        var bodies = Self.weeklyGoodBodies
+        bodies[1] = "I think you were most alive during the Tuesday walk and most drained during the Thursday deadline crunch."
         let text = weeklyDigestText(bodies)
         expectRejected(text.cleanedDigestOutput(), .weeklyDigest)
     }
 
-    // GAP: same "significant"/"patterns indicate" hole as dailyNudge — WEEKLY_DIGEST_SYSTEM
-    // bans "significant" explicitly; nothing in the pipeline catches it here either.
-    @Test func weeklyDigest_gap_unbannedClinicalPhrase_stillPasses() {
+    // Was a GAP; now closed via repair rewrite (same fix as dailyNudge_clinicalPhrase_nowRepaired).
+    @Test func weeklyDigest_clinicalPhrase_nowRepaired() {
         var bodies = Self.weeklyGoodBodies
-        bodies[3] = "The late nights indicate a significant pattern in how you're managing the project deadline."
+        bodies[3] = "Patterns indicate something significant building in how you're managing the project deadline."
         let text = weeklyDigestText(bodies)
-        expectStillPermitted(
-            text.cleanedDigestOutput(), .weeklyDigest,
-            gap: "\"significant\"/\"indicate a ... pattern\" — banned by WEEKLY_DIGEST_SYSTEM, unguarded"
-        )
+        let cleaned = text.cleanedDigestOutput()
+        #expect(!cleaned.localizedCaseInsensitiveContains("significant"))
+        #expect(!cleaned.localizedCaseInsensitiveContains("patterns indicate"))
+        expectValid(cleaned, .weeklyDigest)
     }
 
     // MARK: - Monthly report (six sections, 15-350 chars, closing section must end "?")
@@ -263,18 +290,15 @@ struct InsightValidationTests {
         expectRejected(text.cleanedMonthlyReportOutput(), .monthlyReport)
     }
 
-    // GAP (the strongest one in this file): validateMonthlyReport never calls
-    // containsJournalWriterFirstPerson at all — unlike weeklyDigest, there is no validator
-    // net here, only the same partial repair list. A journal-writer-voice leak using verbs
-    // outside that list survives completely unguarded.
-    @Test func monthlyReport_gap_firstPersonLeak_stillPasses() {
+    // Was the strongest GAP found: validateMonthlyReport never called
+    // containsJournalWriterFirstPerson at all. Now closed — this section body ("I think...")
+    // uses a verb the repair list doesn't cover, so it reaches the validator's new check and
+    // is rejected, matching the other three tasks' unrepairable-leak behavior.
+    @Test func monthlyReport_firstPersonLeak_nowRejected() {
         var bodies = Self.monthlyGoodBodies
-        bodies[3] = "I am someone who protects my own time as fiercely as I protect everyone else's deadlines."
+        bodies[3] = "I think you protect your own time as fiercely as you protect everyone else's deadlines."
         let text = monthlyReportText(bodies)
-        expectStillPermitted(
-            text.cleanedMonthlyReportOutput(), .monthlyReport,
-            gap: "\"I am\"/\"I protect\" journal-writer-voice leak — validateMonthlyReport has zero first-person check (validateWeeklyDigest has one, this doesn't)"
-        )
+        expectRejected(text.cleanedMonthlyReportOutput(), .monthlyReport)
     }
 
     // MARK: - Emotion (single word from MirrorTheme.moodOptions, case/punctuation-tolerant)
