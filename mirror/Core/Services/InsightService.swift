@@ -474,24 +474,30 @@ enum InsightService {
 
         switch task {
         case .dailyNudge:
+            // DAILY_NUDGE_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice
+            // ("never the journal writer's voice") — .strictExceptMirrorNoticed blocks every
+            // other journal-writer-shaped "I ..."/"my ..." construction but tolerates that one,
+            // matching the prompt's own carve-out instead of a blanket ban or a blanket pass.
             return try validateCompleteProse(
                 trimmed,
                 minimumCharacters: 45,
                 maximumWords: 120,
                 allowedSentenceRange: 1...4,
-                rejectsFirstPerson: false
+                firstPersonPolicy: .strictExceptMirrorNoticed
             )
         case .ask:
             let expectedPhrase = askNoAnswerPhrase ?? askNoAnswerSentinelEN
             if trimmed == askNoAnswerSentinelEN || trimmed == expectedPhrase {
                 return expectedPhrase
             }
+            // ASK_SYSTEM grants no Mirror-voice exception at all ("Address the person as
+            // you/your only") — .strict, not .strictExceptMirrorNoticed.
             return try validateCompleteProse(
                 trimmed,
                 minimumCharacters: 35,
                 maximumWords: 140,
                 allowedSentenceRange: 1...6,
-                rejectsFirstPerson: false
+                firstPersonPolicy: .strict
             )
         case .weeklyDigest:
             return try validateWeeklyDigest(trimmed)
@@ -505,18 +511,29 @@ enum InsightService {
         }
     }
 
+    // .strictExceptMirrorNoticed exists only for dailyNudge's sanctioned "I noticed" — see the
+    // call site in validate(). Every other task that checks first person at all (ask, and
+    // validateWeeklyDigest/validateMonthlyReport below) uses .strict.
+    private enum FirstPersonPolicy {
+        case strict
+        case strictExceptMirrorNoticed
+    }
+
     private static func validateCompleteProse(
         _ text: String,
         minimumCharacters: Int,
         maximumWords: Int,
         allowedSentenceRange: ClosedRange<Int>,
-        rejectsFirstPerson: Bool
+        firstPersonPolicy: FirstPersonPolicy
     ) throws -> String {
         guard text.count >= minimumCharacters else { throw InsightError.incompleteResponse }
         guard endsAsCompleteSentence(text) else { throw InsightError.incompleteResponse }
         guard !hasDanglingEnding(text) else { throw InsightError.incompleteResponse }
-        if rejectsFirstPerson {
+        switch firstPersonPolicy {
+        case .strict:
             guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
+        case .strictExceptMirrorNoticed:
+            guard !containsJournalWriterFirstPerson(text, allowMirrorNoticed: true) else { throw InsightError.incompleteResponse }
         }
 
         let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
@@ -566,7 +583,8 @@ enum InsightService {
             guard body.count >= 15,
                   body.count <= 350,
                   endsAsCompleteSentence(body),
-                  !hasDanglingEnding(body) else {
+                  !hasDanglingEnding(body),
+                  !containsJournalWriterFirstPerson(body) else {
                 throw InsightError.incompleteResponse
             }
             // The closing question must end with "?"
@@ -599,9 +617,16 @@ enum InsightService {
         return danglingEndings.contains { lower.hasSuffix($0) }
     }
 
-    private static func containsJournalWriterFirstPerson(_ text: String) -> Bool {
+    // allowMirrorNoticed: true removes "notice|noticed" from the blocked-verb group — the one
+    // "I ..." construction DAILY_NUDGE_SYSTEM sanctions as Mirror's own voice. Every other
+    // caller (ask, weeklyDigest, monthlyReport) uses the default false — their prompts grant
+    // no such exception.
+    private static func containsJournalWriterFirstPerson(_ text: String, allowMirrorNoticed: Bool = false) -> Bool {
+        let verbGroup = allowMirrorNoticed
+            ? "am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were"
+            : "am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|notice|noticed|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were"
         let blockedPatterns = [
-            #"\bI\s+(am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|notice|noticed|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were)\b"#,
+            "\\bI\\s+(\(verbGroup))\\b",
             #"\bI'm\b"#,
             #"\bI['’]m\b"#,
             #"\bI['’]ll\b"#,
@@ -959,6 +984,17 @@ extension String {
             .replacingOccurrences(of: "I’ve been", with: "you’ve been", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
+            // Placed after "I am trying" above so that specific phrase still matches first —
+            // these generic am/was/were rules only catch what's left. Closes a gap
+            // InsightValidationTests found: containsJournalWriterFirstPerson's blocked-verb
+            // list already includes am/was/were, but nothing here repaired them, so an "I was
+            // overwhelmed..." leak reached the user unrepaired. dailyNudge/ask now also reject
+            // it as a backstop (see FirstPersonPolicy in validateCompleteProse below) — but
+            // repairing it here is strictly better than rejecting it: the output stays usable
+            // instead of forcing a retry.
+            .replacingOccurrences(of: #"\bI am\b"#, with: "you are", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI was\b"#, with: "you were", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI were\b"#, with: "you were", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: "I’ll", with: "you could", options: .caseInsensitive)
             .replacingOccurrences(of: "I'll", with: "you could", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm", with: "you're", options: .caseInsensitive)
@@ -986,6 +1022,17 @@ extension String {
             .replacingOccurrences(of: "this suggests", with: "it sounds like", options: .caseInsensitive)
             .replacingOccurrences(of: "emotional weariness", with: "tiredness", options: .caseInsensitive)
             .replacingOccurrences(of: "mental health", with: "well-being", options: .caseInsensitive)
+            // "significant"/"patterns indicate" are banned explicitly in DAILY_NUDGE_SYSTEM
+            // and WEEKLY_DIGEST_SYSTEM but were unguarded here — another gap
+            // InsightValidationTests found (no repair, no validator check, either prompt).
+            // "significant" alone is NOT rewritten unconditionally — unlike the other phrases
+            // here, it's an ordinary word with everyday non-clinical use, and every prompt also
+            // instructs the model to quote the writer's own words; a global replace would
+            // silently corrupt a genuine quote like "this felt significant to me". Scoped to
+            // the two clinical collocations the prompts' own example phrasing implies instead.
+            .replacingOccurrences(of: "patterns indicate", with: "it looks like", options: .caseInsensitive)
+            .replacingOccurrences(of: #"\bsomething significant\b"#, with: "something real", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bsignificant pattern"#, with: "real pattern", options: [.regularExpression, .caseInsensitive])
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
