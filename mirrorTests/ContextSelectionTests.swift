@@ -58,6 +58,25 @@ struct ContextSelectionTests {
         #expect(result.contains { $0.mood == "Anxious" })
     }
 
+    // The negative-mood bonus is deliberately gated to short entries (see the comment at
+    // substantivenessScore's declaration) — this is the case that gate exists for. Real
+    // background windows are mood-heavy (auto-detected on nearly every entry, ~half the mood
+    // vocabulary is negative), so an ungated flat bonus would let 9 ordinary-length negative
+    // entries collectively outscore one long calm one and crowd it out of the top 5 entirely
+    // (caught in advisor review before this shipped). With the gate, once an entry is already
+    // substantive by length (>= shortEntryWordThreshold), mood stops mattering and word count
+    // alone decides — so the long calm entry still competes fairly instead of always losing.
+    @Test func realisticMixedPool_doesNotCrowdOutLongCalmEntry() {
+        var entries = (1...9).map { entry(daysAgo: $0, words: 300, mood: "Anxious") }  // 9 negative, ordinary length
+        let calmEntry = entry(daysAgo: 10, words: 400, mood: "Peaceful")  // long, calm, slightly older
+        entries.append(calmEntry)
+
+        let result = InsightService.selectRepresentativeExcerpts(from: entries, limit: 5)
+        #expect(result.count == 5)
+        #expect(result.contains { $0.mood == "Peaceful" })
+        #expect(!result.allSatisfy { $0.mood == "Anxious" })
+    }
+
     // Word count alone (no mood bonus) also matters, independent of the case above.
     @Test func longNeutralEntry_outranksRecencyAlone() {
         var entries = (1...5).map { entry(daysAgo: $0, words: 20) }  // 5 short neutral entries, days 1-5
