@@ -890,8 +890,13 @@ enum InsightService {
 
         let recurringTerms = recurringKeywords(from: entries)
         let voiceCount = entries.filter { $0.source == .voice || $0.hasVoiceNotes }.count
-        let excerpts = entries
-            .prefix(5)
+        // A5 (see .claude/2.1.0-design-plan.md): was `entries.prefix(5)` — pure recency, so a
+        // short "quick check-in" from yesterday always displaced a substantive entry from
+        // three weeks ago, even one worth spotting as a recurring pattern. Aggregate stats
+        // above (moodCounts/recurringTerms/dateRange) still read the full `entries` window
+        // upstream callers already bounded by recency (20/14 entries) — only which 5 of those
+        // get quoted as excerpts changes here.
+        let excerpts = selectRepresentativeExcerpts(from: entries, limit: 5)
             .map { entry in
                 let date = entry.createdAt.formatted(date: .abbreviated, time: .omitted)
                 return "- \(date): \(clipped(entry.insightContext, maxChars: 220))"
@@ -908,6 +913,44 @@ enum InsightService {
         """
 
         return clipped(brief, maxChars: maxChars)
+    }
+
+    /// How much an entry is worth surfacing as a long-term-context excerpt, independent of
+    /// recency. A flat bonus for negative moods (not a multiplier) so a short negative entry
+    /// can still outrank a long neutral one, but a very long negative entry doesn't crowd out
+    /// everything else — matches the negative-mood set the app already treats specially
+    /// elsewhere (MirrorTheme.negativeMoods, mood alerts).
+    private static func substantivenessScore(_ entry: Entry) -> Int {
+        var score = entry.wordCount
+        if let mood = entry.mood, MirrorTheme.negativeMoods.contains(mood) {
+            score += 150
+        }
+        return score
+    }
+
+    // Internal (not private) so InsightValidationTests can exercise it — same testable seam
+    // as InsightService.validate above.
+    //
+    // Picks the `limit` most substantive entries from `entries` (by substantivenessScore, tied
+    // scores broken toward more recent) rather than the first `limit` in whatever order they
+    // arrive. Callers already bound `entries` to a recency window upstream (buildMemoryBrief's
+    // callers cap `background` at 20/14 entries) — this only re-ranks which of those get
+    // quoted as excerpts, then re-sorts the selection back to recency order for display so
+    // excerpts still read newest-first. Falls back to plain recency ordering when there's
+    // nothing to trim (ranking would be a no-op).
+    static func selectRepresentativeExcerpts(from entries: [Entry], limit: Int) -> [Entry] {
+        guard entries.count > limit else {
+            return entries.sorted { $0.createdAt > $1.createdAt }
+        }
+        return entries
+            .sorted { a, b in
+                let scoreA = substantivenessScore(a)
+                let scoreB = substantivenessScore(b)
+                if scoreA != scoreB { return scoreA > scoreB }
+                return a.createdAt > b.createdAt
+            }
+            .prefix(limit)
+            .sorted { $0.createdAt > $1.createdAt }
     }
 
     private static func recurringKeywords(from entries: [Entry]) -> [String] {
