@@ -54,8 +54,9 @@ enum LocalLLMTask {
 /// only threads it through to `Insight.generatedByEngine` so a quality regression report can
 /// be traced back to which engine ran, instead of both engines being indistinguishable.
 /// `String` rawValue is what gets persisted/synced (Insight.generatedByEngine), so treat these
-/// cases as a stable wire format, not free to rename.
-enum LLMEngine: String, Codable {
+/// cases as a stable wire format, not free to rename. Only `.rawValue` is ever written —
+/// nothing decodes this enum back from storage, so no `Codable` conformance.
+enum LLMEngine: String {
     case foundationModels
     case gemma
 }

@@ -248,7 +248,9 @@ enum InsightService {
     static func detectEmotion(text: String) async throws -> String {
         let trimmed = String(text.prefix(3000))
         // Emotion detection isn't saved as an Insight (it sets Entry.mood directly), so which
-        // engine ran doesn't need attribution — .engine is discarded here.
+        // engine ran doesn't need attribution — .engine is discarded here. If a future pass
+        // ever persists mood provenance (e.g. an Entry-level "detected by" field), this is the
+        // line to revisit.
         let response = try await localGenerate(
             systemPrompt: EMOTION_DETECT_SYSTEM,
             userMessage: trimmed,
