@@ -33,6 +33,9 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--seedPastBriefings") {
             SampleData.seedPastNudges(into: sharedModelContainer.mainContext)
         }
+        if ProcessInfo.processInfo.arguments.contains("--clearPastBriefingsSamples") {
+            SampleData.clearPastNudgeSamples(from: sharedModelContainer.mainContext)
+        }
         #endif
     }
 
