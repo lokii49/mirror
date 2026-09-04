@@ -274,8 +274,8 @@ struct mirrorApp: App {
             .map(\.content)
 
         do {
-            let text = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
-            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
+            let (text, engine) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
+            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
@@ -340,8 +340,8 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries)
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            let (text, engine) = try await InsightService.generateWeeklyDigest(entries: entries)
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             // scheduleWeeklyDigest is the sole fire — no separate one-time notification
@@ -379,8 +379,8 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
-            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             await NotificationService.scheduleMonthlyReportReminder()

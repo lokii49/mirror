@@ -145,8 +145,8 @@ final class InsightViewModel {
 
         digestState = .loading
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries)
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            let (text, engine) = try await InsightService.generateWeeklyDigest(entries: entries)
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             digestState = .loaded(insight)
@@ -212,10 +212,10 @@ final class InsightViewModel {
 
         monthlyReportState = .loading
         do {
-            let text = try await InsightService.generateMonthlyReport(
+            let (text, engine) = try await InsightService.generateMonthlyReport(
                 monthEntries: thisMonthEntries, allEntries: entries
             )
-            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             monthlyReportState = .loaded(insight)
