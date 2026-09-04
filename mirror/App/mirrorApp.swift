@@ -36,6 +36,17 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearPastBriefingsSamples") {
             SampleData.clearPastNudgeSamples(from: sharedModelContainer.mainContext)
         }
+        // Recovery tool: a UI test run that taps the Classic/Sentinel picker mutates
+        // real UserProfile.displayMode, same as a real user tap -- there's no simctl
+        // "undo" for that once the test exits. Opt-in via launch arg so a stray flip
+        // can be corrected without hand-editing the SwiftData store.
+        if ProcessInfo.processInfo.arguments.contains("--forceSentinelMode") {
+            let context = sharedModelContainer.mainContext
+            if let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first {
+                profile.displayMode = .sentinel
+                try? context.save()
+            }
+        }
         #endif
     }
 
