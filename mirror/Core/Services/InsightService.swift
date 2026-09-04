@@ -168,7 +168,7 @@ enum InsightService {
             .joined(separator: " ")
     }
 
-    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> String {
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
         let withinWindow = sorted.filter { $0.createdAt >= cutoff }
@@ -198,7 +198,7 @@ enum InsightService {
         )
     }
 
-    static func generateWeeklyDigest(entries: [Entry]) async throws -> String {
+    static func generateWeeklyDigest(entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let digestEntries = Array(sorted.prefix(24))
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: digestEntries), task: .weeklyDigest)
@@ -215,7 +215,7 @@ enum InsightService {
         )
     }
 
-    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
+    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         return try await localGenerate(
             systemPrompt: MONTHLY_REPORT_SYSTEM,
@@ -225,7 +225,7 @@ enum InsightService {
         )
     }
 
-    static func ask(question: String, entries: [Entry]) async throws -> String {
+    static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))
@@ -247,13 +247,15 @@ enum InsightService {
 
     static func detectEmotion(text: String) async throws -> String {
         let trimmed = String(text.prefix(3000))
+        // Emotion detection isn't saved as an Insight (it sets Entry.mood directly), so which
+        // engine ran doesn't need attribution — .engine is discarded here.
         let response = try await localGenerate(
             systemPrompt: EMOTION_DETECT_SYSTEM,
             userMessage: trimmed,
             task: .emotion,
             responseLanguageInstruction: nil
         )
-        return normalizeEmotion(response)
+        return normalizeEmotion(response.text)
     }
 
     // Gemma's system prompts are English, so without an explicit directive it tends
@@ -383,7 +385,7 @@ enum InsightService {
         task: LocalLLMTask,
         responseLanguageInstruction: String?,
         askNoAnswerPhrase: String? = nil
-    ) async throws -> String {
+    ) async throws -> (text: String, engine: LLMEngine) {
         let systemPrompt: String
         if let instruction = responseLanguageInstruction {
             systemPrompt = basePrompt + "\n\n" + instruction
@@ -400,15 +402,18 @@ enum InsightService {
         do {
             do {
                 let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                return try validate(first, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(first.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task)
-                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, second.engine)
             }
         } catch let error as InsightError {
             throw error
@@ -417,7 +422,7 @@ enum InsightService {
         }
     }
 
-    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
         let raw = try await LLMGenerationQueue.shared.run {
             try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
@@ -426,14 +431,16 @@ enum InsightService {
             )
         }
 
+        let cleaned: String
         switch task {
         case .weeklyDigest:
-            return raw.cleanedDigestOutput()
+            cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
-            return raw.cleanedMonthlyReportOutput()
+            cleaned = raw.text.cleanedMonthlyReportOutput()
         case .dailyNudge, .ask, .emotion:
-            return raw.cleanedInsightOutput()
+            cleaned = raw.text.cleanedInsightOutput()
         }
+        return (cleaned, raw.engine)
     }
 
     private static func retryUserMessage(original: String, task: LocalLLMTask) -> String {

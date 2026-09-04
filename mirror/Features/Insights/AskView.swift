@@ -583,12 +583,13 @@ struct AskView: View {
         isInputFocused = false
 
         do {
-            let answer = try await InsightService.ask(question: submitted, entries: entries)
+            let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(
                 type: .askResponse,
                 content: answer,
                 periodIdentifier: DateHelpers.monthIdentifier(for: Date()),
-                question: submitted
+                question: submitted,
+                generatedByEngine: engine
             )
             modelContext.insert(insight)
             try modelContext.save()
