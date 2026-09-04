@@ -916,14 +916,25 @@ enum InsightService {
     }
 
     /// How much an entry is worth surfacing as a long-term-context excerpt, independent of
-    /// recency. A flat bonus for negative moods (not a multiplier) so a short negative entry
-    /// can still outrank a long neutral one, but a very long negative entry doesn't crowd out
-    /// everything else — matches the negative-mood set the app already treats specially
-    /// elsewhere (MirrorTheme.negativeMoods, mood alerts).
+    /// recency. The negative-mood bonus is gated to short entries (< shortEntryWordThreshold)
+    /// — it exists to rescue a brief-but-meaningful check-in ("Rough day. Overwhelmed.") that
+    /// word count alone would never surface, not to advantage negative mood in general. A flat
+    /// bonus with no such gate was tried first and failed a realistic-mix check (advisor
+    /// review, 2026-09-04): mood is auto-detected on nearly every entry and roughly half of
+    /// MirrorTheme.moodOptions are negative, so in a typical window where most entries happen
+    /// to be negative-mood at ordinary journal length, the bonus stacked on top of word count
+    /// and crowded out a long, calm, reflective entry entirely — see
+    /// ContextSelectionTests.realisticMixedPool_doesNotCrowdOutLongCalmEntry. Gating the bonus
+    /// to entries already too short to compete on word count avoids that: once an entry is
+    /// substantive by length, mood doesn't need to help it (or hurt everything else).
+    private static let shortEntryWordThreshold = 100
+    private static let shortNegativeEntryBonus = 150
+
     private static func substantivenessScore(_ entry: Entry) -> Int {
         var score = entry.wordCount
-        if let mood = entry.mood, MirrorTheme.negativeMoods.contains(mood) {
-            score += 150
+        if entry.wordCount < shortEntryWordThreshold,
+           let mood = entry.mood, MirrorTheme.negativeMoods.contains(mood) {
+            score += shortNegativeEntryBonus
         }
         return score
     }
