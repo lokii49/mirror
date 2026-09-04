@@ -244,12 +244,16 @@ struct InsightView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
                     Text(pastNudgesExpanded
-                         ? "Hide past reflections"
-                         : "Past reflections (\(pastNudges.count))")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                         // "LOG" would collide with the Sentinel tab bar's own "Log" (entries
+                         // list) — caught while screenshotting this fix, see B1 in
+                         // .claude/2.1.0-design-plan.md.
+                         ? (displayMode == .sentinel ? "HIDE PRIOR BRIEFINGS" : "Hide past reflections")
+                         : (displayMode == .sentinel ? "PRIOR BRIEFINGS (\(pastNudges.count))" : "Past reflections (\(pastNudges.count))"))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .kerning(displayMode == .sentinel ? 0.5 : 0)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                     Spacer()
                     Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 11, weight: .bold))
@@ -257,7 +261,11 @@ struct InsightView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .inkSurface(cornerRadius: 16)
+                // Was raw .inkSurface — Classic-only, so Sentinel showed the rounded ink-card
+                // look here while every other header on this screen (SectionHeader) switched
+                // to the mono/hairline HUD treatment. Track B1 (.claude/2.1.0-design-plan.md):
+                // one silent appDisplayMode divergence, now themed like the rest of the screen.
+                .themedCard(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 

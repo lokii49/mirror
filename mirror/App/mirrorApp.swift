@@ -25,6 +25,15 @@ struct mirrorApp: App {
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
+        #if DEBUG
+        // See SampleData.seedPastNudges — InsightView's "Past reflections" section only
+        // renders once real usage has accumulated a few days of history, so there was no way
+        // to see/screenshot it without days of manual use. Opt-in via launch argument, DEBUG
+        // only, never reachable in a release build.
+        if ProcessInfo.processInfo.arguments.contains("--seedPastBriefings") {
+            SampleData.seedPastNudges(into: sharedModelContainer.mainContext)
+        }
+        #endif
     }
 
     private func configureNavigationBarAppearance() {
