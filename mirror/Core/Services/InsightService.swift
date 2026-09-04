@@ -463,7 +463,12 @@ enum InsightService {
         }
     }
 
-    private static func validate(_ text: String, for task: LocalLLMTask, askNoAnswerPhrase: String? = nil) throws -> String {
+    // Internal (not private) so InsightValidationTests can exercise it directly via
+    // @testable import — this is the one seam the fixture-based structural test harness
+    // (see .claude/2.1.0-design-plan.md, Track A1) needs into otherwise-private validation
+    // logic. No other access change: validateWeeklyDigest/validateMonthlyReport/etc. stay
+    // private and are reached only through this dispatch, same as production callers.
+    static func validate(_ text: String, for task: LocalLLMTask, askNoAnswerPhrase: String? = nil) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw InsightError.emptyResponse }
 
@@ -922,7 +927,12 @@ enum InsightService {
 
 }
 
-private extension String {
+// Not private (see InsightService.validate above for why): InsightValidationTests exercises
+// the full repair-then-validate pipeline these production call sites use, not validate() in
+// isolation, so cleanedInsightOutput/cleanedDigestOutput/cleanedMonthlyReportOutput need the
+// same testable-internal seam. softenDigestFragments stays private — it's an internal helper
+// of cleanedDigestOutput, not a pipeline stage tests need to call directly.
+extension String {
     func cleanedInsightOutput() -> String {
         replacingOccurrences(of: "###", with: "")
             .replacingOccurrences(of: "**", with: "")
