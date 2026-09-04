@@ -368,27 +368,39 @@ enum SampleData {
     /// InsightView's "Past reflections" section only renders once `pastNudges` is non-empty —
     /// real usage only accumulates those one day at a time, so there was no way to see/
     /// screenshot that section's UI without days of real history. Backdated, synthetic
-    /// dailyNudge Insights, cleared the same way as everything else via clearInsights(from:).
+    /// dailyNudge Insights — do NOT clear these via `clearInsights(from:)`, that wipes every
+    /// real Insight too (today's actual nudge/digest/report). Use `clearPastNudgeSamples(from:)`
+    /// below, which only removes entries matching `pastNudgeSampleContent` exactly.
+    static let pastNudgeSampleContent = [
+        "You mentioned the quiet drive home again, and how much lighter you felt once you finally said what you'd been holding back.",
+        "The late nights are starting to show in how short your entries are getting — worth noticing before it becomes the norm.",
+        "You circled back to the same project three times this week. That kind of repetition usually means something is still unresolved.",
+        "Today's entry had more energy in it than the last few — the walk seems to be doing exactly what you hoped.",
+        "You wrote about feeling behind, but the actual list of what you finished this week says otherwise."
+    ]
+
     static func seedPastNudges(into context: ModelContext, count: Int = 5) {
         let calendar = Calendar.current
         let now = Date()
-        let samples = [
-            "You mentioned the quiet drive home again, and how much lighter you felt once you finally said what you'd been holding back.",
-            "The late nights are starting to show in how short your entries are getting — worth noticing before it becomes the norm.",
-            "You circled back to the same project three times this week. That kind of repetition usually means something is still unresolved.",
-            "Today's entry had more energy in it than the last few — the walk seems to be doing exactly what you hoped.",
-            "You wrote about feeling behind, but the actual list of what you finished this week says otherwise."
-        ]
         for i in 0..<count {
             let daysAgo = i + 1
             let date = calendar.date(byAdding: .day, value: -daysAgo, to: now) ?? now
             let insight = Insight(
                 type: .dailyNudge,
-                content: samples[i % samples.count],
+                content: pastNudgeSampleContent[i % pastNudgeSampleContent.count],
                 periodIdentifier: DateHelpers.dayIdentifier(for: date)
             )
             insight.generatedAt = date
             context.insert(insight)
+        }
+        try? context.save()
+    }
+
+    static func clearPastNudgeSamples(from context: ModelContext) {
+        let descriptor = FetchDescriptor<Insight>()
+        let all = (try? context.fetch(descriptor)) ?? []
+        for insight in all where pastNudgeSampleContent.contains(insight.content) {
+            context.delete(insight)
         }
         try? context.save()
     }
