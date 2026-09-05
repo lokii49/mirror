@@ -28,6 +28,7 @@ struct WeeklyDigestView: View {
             HStack {
                 Label("Weekly Digest", systemImage: "calendar.badge.clock")
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
