@@ -396,6 +396,44 @@ enum SampleData {
         try? context.save()
     }
 
+    // MARK: - Current-month bulk (for previewing/screenshotting MonthlyReportView)
+
+    /// `InsightViewModel.loadMonthlyReport` requires >=20 entries dated in the current
+    /// calendar month (>=10 in the last 3 days of the month) before it will generate a real
+    /// report -- there's no way to see MonthlyReportView's actual rendered output without
+    /// that much current-month history. Spreads `count` short entries across the days
+    /// elapsed so far this month, tagged `sampleTag` like every other seed helper here so
+    /// `clearSampleEntries(from:)` removes them along with the rest.
+    static func seedCurrentMonthBulk(into context: ModelContext, count: Int = 25) {
+        let calendar = Calendar.current
+        let now = Date()
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let daysElapsed = max(1, (calendar.dateComponents([.day], from: monthStart, to: now).day ?? 0) + 1)
+
+        let moods = ["Calm", "Energized", "Anxious", "Grateful", "Drained", "Peaceful", "Hopeful", "Joyful"]
+        let bodies = [
+            "Steady day. Kept the list short and actually finished what was on it.",
+            "A bit scattered this morning but it evened out by the afternoon.",
+            "Good conversation over lunch — reminded me why I like this team.",
+            "Slow start, slow finish. Not a bad day, just a quiet one.",
+            "Got outside for a walk between meetings. Small thing, helped a lot.",
+            "Long stretch of focused work. Felt productive in a way that isn't always the case.",
+            "Tired by the evening but in the normal way, not the concerning way.",
+            "Noticed I was more patient today than usual. Worth remembering what helped."
+        ]
+
+        for i in 0..<count {
+            let dayOffset = i % daysElapsed
+            let date = calendar.date(byAdding: .day, value: dayOffset, to: monthStart) ?? monthStart
+            let entry = Entry(text: bodies[i % bodies.count], mood: moods[i % moods.count], source: .typed)
+            entry.createdAt = date
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: date)
+            entry.tags = [sampleTag]
+            context.insert(entry)
+        }
+        try? context.save()
+    }
+
     static func clearPastNudgeSamples(from context: ModelContext) {
         let descriptor = FetchDescriptor<Insight>()
         let all = (try? context.fetch(descriptor)) ?? []

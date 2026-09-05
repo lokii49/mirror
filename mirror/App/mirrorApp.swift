@@ -36,6 +36,13 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearPastBriefingsSamples") {
             SampleData.clearPastNudgeSamples(from: sharedModelContainer.mainContext)
         }
+        // See SampleData.seedCurrentMonthBulk — MonthlyReportView only generates real
+        // output once the current calendar month has >=20 real entries. Scratch-device
+        // only (see 2.1.0-design-plan.md B2 notes): never run against a device with real
+        // journal data, use `simctl clone` first.
+        if ProcessInfo.processInfo.arguments.contains("--seedCurrentMonthBulk") {
+            SampleData.seedCurrentMonthBulk(into: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on
