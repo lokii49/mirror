@@ -61,6 +61,19 @@ struct WidgetBridgeSectionTests {
                 == "A harbor at first light, every boat already pointed out to sea.")
     }
 
+    #if DEBUG
+    @Test func extractsFromCanonicalSampleContent() {
+        // Not a hand-written fixture — the six-section string the repo ships for
+        // the monthly-report capture, with the real header shape.
+        let body = InsightService.firstSectionBody(
+            of: SampleData.monthlyReportSampleContent, labels: monthly
+        )
+        #expect(body?.hasPrefix("A desk lamp left on past midnight") == true)
+        #expect(body?.contains("swinging between those two") == true)
+        #expect(body?.contains("THE TENSION AT THE CENTER") == false)
+    }
+    #endif
+
     @Test func returnsNil_whenFirstHeaderMissing() {
         let content = "YOUR ENERGY: Low but not empty.\nNEXT WEEK: Protect one evening."
         #expect(InsightService.firstSectionBody(of: content, labels: weekly) == nil)

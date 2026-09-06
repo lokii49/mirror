@@ -14,6 +14,14 @@ import WidgetKit
 /// `preGenerateInsightsIfNeeded` as the catch-all — same belt-and-braces shape
 /// the nudge uses.
 ///
+/// The `reloadTimelines` call is gated on the stored value actually changing:
+/// the app-active catch-all runs on *every* foreground, and WidgetKit budgets
+/// timeline reloads — an unconditional reload there would eventually get the
+/// widget throttled, the very thing the reload is meant to avoid. Generation
+/// sites still reload (the value is new); the catch-all goes quiet after the
+/// first pass. (`syncNudgeToWidget` sidesteps this by not reloading at all from
+/// its foreground call — only its generation site does.)
+///
 /// Only ONE section of each multi-section insight crosses the boundary (the one
 /// the widget shows), and it's clipped: journal-derived text stays as small as
 /// possible in the shared container, and a widget can't reflow what it can't fit.
@@ -39,9 +47,12 @@ enum WidgetBridge {
               )
         else { return }
 
-        defaults?.set(clip(theme, max: 200), forKey: WidgetShared.digestThemeKey)
+        let clipped = clip(theme, max: 200)
+        let changed = defaults?.string(forKey: WidgetShared.digestThemeKey) != clipped
+            || defaults?.string(forKey: WidgetShared.digestWeekKey) != week
+        defaults?.set(clipped, forKey: WidgetShared.digestThemeKey)
         defaults?.set(week, forKey: WidgetShared.digestWeekKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: "MirrorWeeklyDigestWidget")
+        if changed { WidgetCenter.shared.reloadTimelines(ofKind: "MirrorWeeklyDigestWidget") }
     }
 
     /// Push the current month's "YOUR MONTH IN ONE IMAGE" metaphor to `MirrorMonthlyReportWidget`.
@@ -58,18 +69,27 @@ enum WidgetBridge {
               )
         else { return }
 
-        defaults?.set(clip(image, max: 280), forKey: WidgetShared.monthlyImageKey)
+        let clipped = clip(image, max: 280)
+        let changed = defaults?.string(forKey: WidgetShared.monthlyImageKey) != clipped
+            || defaults?.string(forKey: WidgetShared.monthlyPeriodKey) != month
+        defaults?.set(clipped, forKey: WidgetShared.monthlyImageKey)
         defaults?.set(month, forKey: WidgetShared.monthlyPeriodKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget")
+        if changed { WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget") }
     }
 
     /// Trim to the last sentence end within `max` characters, else the last word
     /// boundary, so the widget gets a whole thought rather than a mid-word cut.
+    ///
+    /// The sentence boundary is only accepted if it lands past the halfway mark —
+    /// otherwise an early decimal or abbreviation ("felt 3.5 out of ten all week
+    /// and then…") would clip to "felt 3." Below that, fall through to the word
+    /// boundary + ellipsis.
     private static func clip(_ s: String, max: Int) -> String {
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > max else { return trimmed }
         let cut = trimmed.prefix(max)
-        if let sentenceEnd = cut.range(of: "[.!?]", options: [.regularExpression, .backwards]) {
+        if let sentenceEnd = cut.range(of: "[.!?]", options: [.regularExpression, .backwards]),
+           cut.distance(from: cut.startIndex, to: sentenceEnd.lowerBound) > max / 2 {
             return String(cut[..<sentenceEnd.upperBound])
         }
         if let lastSpace = cut.lastIndex(of: " ") {
