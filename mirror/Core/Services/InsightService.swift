@@ -203,6 +203,19 @@ enum InsightService {
     /// of generating a thin digest.
     static let weeklyDigestMinimumWeekEntries = 3
 
+    /// Whether a cached weekly digest is due for regeneration. True only when
+    /// BOTH hold: the 24h cooldown since it was generated has elapsed (bounds LLM
+    /// cost — same guard the monthly report uses), and at least one entry in the
+    /// current week is newer than the digest (there's genuinely new material).
+    /// The second condition matters because a digest can be generated mid-week
+    /// (on-demand from the view) and then go stale as the rest of the week fills
+    /// in under a "THIS WEEK'S THEME" label that promises freshness.
+    static func weeklyDigestIsStale(generatedAt: Date, newestWeekEntry: Date?) -> Bool {
+        guard let newestWeekEntry else { return false }
+        let cooldownElapsed = Date().timeIntervalSince(generatedAt) >= 24 * 60 * 60
+        return cooldownElapsed && newestWeekEntry > generatedAt
+    }
+
     /// The digest is explicitly "this week" — `WeeklyDigestView`, the C1 widget,
     /// and the `THIS WEEK'S THEME` section header all say so. `weekEntries` is the
     /// current ISO week only and is the sole source of the theme; `allEntries`

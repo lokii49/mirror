@@ -374,7 +374,7 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == thisWeek }
         )
         let existing = (try? context.fetch(descriptor)) ?? []
-        guard !existing.contains(where: { $0.type == .weeklyDigest }) else { return }
+        let cachedDigest = existing.first { $0.type == .weeklyDigest }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -384,12 +384,23 @@ struct mirrorApp: App {
         let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
               SubscriptionService.shared.isSubscribed else { return }
+
+        // Already have this week's digest — regenerate only once it's gone stale
+        // (24h cooldown elapsed AND newer entries since), else nothing to do.
+        if let cached = cachedDigest {
+            guard InsightService.weeklyDigestIsStale(
+                generatedAt: cached.generatedAt,
+                newestWeekEntry: weekEntries.first?.createdAt  // entries are sorted newest-first
+            ) else { return }
+        }
+
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if let cached = cachedDigest { context.delete(cached) }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
