@@ -691,6 +691,13 @@ private struct SectionHeader<Trailing: View>: View {
 /// View's own aesthetic, with a tiny static constellation illustration
 /// instead of an SF Symbol chip, so this entry point previews the feature
 /// rather than blending into the flat light tiles around it.
+///
+/// `bg` and `hubColor` are intentionally off-`MirrorTheme`: `bg` is a
+/// near-neutral #17171A (the ink tokens all carry a violet cast that would
+/// tint the constellation art), and `hubColor` is a slightly bluer violet
+/// than `violetLight` to match `BrainView`'s own node palette. These do not
+/// theme-switch — the card is dark in both Classic and Sentinel by design;
+/// only the border and the "Deep" badge follow `isSentinel`.
 private struct BrainEntryCard: View {
     let isDeep: Bool
     @Environment(\.appDisplayMode) private var displayMode
