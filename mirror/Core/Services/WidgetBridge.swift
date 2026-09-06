@@ -41,7 +41,9 @@ enum WidgetBridge {
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == week }
         )
-        guard let digest = (try? context.fetch(descriptor))?.first(where: { $0.type == .weeklyDigest }),
+        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
+        let digest = rows.filter { $0.type == .weeklyDigest }.max { $0.generatedAt < $1.generatedAt }
+        guard let digest,
               let theme = InsightService.firstSectionBody(
                   of: digest.content, labels: InsightService.weeklyDigestSectionLabels
               )
@@ -63,7 +65,9 @@ enum WidgetBridge {
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == month }
         )
-        guard let report = (try? context.fetch(descriptor))?.first(where: { $0.type == .monthlyReport }),
+        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
+        let report = rows.filter { $0.type == .monthlyReport }.max { $0.generatedAt < $1.generatedAt }
+        guard let report,
               let image = InsightService.firstSectionBody(
                   of: report.content, labels: InsightService.monthlyReportSectionLabels
               )

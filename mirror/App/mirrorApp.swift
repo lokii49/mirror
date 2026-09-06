@@ -374,7 +374,12 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == thisWeek }
         )
         let existing = (try? context.fetch(descriptor)) ?? []
-        let cachedDigest = existing.first { $0.type == .weeklyDigest }
+        // Newest wins — a stale digest is superseded by a fresh row, not deleted
+        // (deleting a CloudKit-synced Insight can hand a second device a tombstoned
+        // object mid-sync). Same non-destructive approach the monthly report uses.
+        let cachedDigest = existing
+            .filter { $0.type == .weeklyDigest }
+            .max { $0.generatedAt < $1.generatedAt }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -400,7 +405,6 @@ struct mirrorApp: App {
 
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
-            if let cached = cachedDigest { context.delete(cached) }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()

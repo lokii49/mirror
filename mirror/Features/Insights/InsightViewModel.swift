@@ -117,7 +117,12 @@ final class InsightViewModel {
 
         // The digest is "this week" — gate on entries written this week, not lifetime.
         let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
-        let cachedThisWeek = insights.first { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek }
+        // Newest row wins; a stale digest is superseded by a fresh insert, never
+        // deleted (a CloudKit-synced Insight deletion can hand a second device a
+        // tombstoned object). Matches the monthly report's non-destructive approach.
+        let cachedThisWeek = insights
+            .filter { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek }
+            .max { $0.generatedAt < $1.generatedAt }
 
         // Serve the existing digest for this week unless it's gone stale (24h
         // cooldown elapsed AND newer entries since) — serving before the count
@@ -131,7 +136,7 @@ final class InsightViewModel {
                 digestState = .loaded(cached)
                 return
             }
-            // fall through to regenerate; the old row is dropped after the new one generates
+            // fall through to regenerate
         }
 
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
@@ -158,7 +163,6 @@ final class InsightViewModel {
         digestState = .loading
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
-            if let cached = cachedThisWeek { context.delete(cached) }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
