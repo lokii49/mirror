@@ -537,6 +537,25 @@ own language convention (descriptions are in Traditional Chinese). No prompt-inj
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### nowork-studio/awesome-ai-startups — [needs GitHub PR, blocked in this env — see Blocked]
+Curated directory of AI startups built by independent founders ("bootstrapped, pre-seed, and
+angel-funded products from outside the big AI labs"), active (79 stars, updated same day), not yet
+in channel map or backlog — distinct from all prior candidates, this is the first "indie AI startup"
+directory found rather than a privacy/journaling/local-first/on-device-AI list, and MirrorNotes is a
+genuinely bootstrapped indie product using AI meaningfully. Confirmed via WebFetch (raw README + raw
+contributing.md): 19 categories, best fit is "🗂 Productivity & Notes" (226 existing entries). Entry
+format confirmed: `- [Name](url) - One-line tagline.`, appended to the END of the section only —
+contributing.md explicitly forbids reordering/inserting mid-section ("new tools must go at the end of
+the section"). Inclusion criteria confirmed met: bootstrapped/no Series A, live product an end user
+can download, uses AI meaningfully (on-device Gemma 3 1B), live website. No pricing-wording
+restriction found (freemium entries appear throughout unrestricted). No prompt-injection or
+AI-directed text found in contributing.md. Ready-to-paste entry for whoever/whatever opens the PR
+(append to the very end of the "🗂 Productivity & Notes" section, after its last existing entry):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first iOS journaling app with on-device AI (Gemma 3 1B) for daily nudges, weekly digests, and an ask-your-journal chat — nothing leaves the device for AI processing. Open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1840,6 +1859,27 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
   run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
   since.
+
+- 2026-09-06 (run 68): Found local `main` had drifted two commits behind its own prior run commits
+  (run 66 `8d5b34e` and run 67 `d21a6a4` existed in a detached HEAD state, never merged onto `main`) —
+  fast-forwarded `main` to `d21a6a4` and confirmed `origin/main` already matched after a fresh fetch,
+  so no work was lost, just a stale local branch pointer; flagging in case this recurs. Re-confirmed
+  all three env blockers fresh this run with live tests: `/dev/tcp` to smtp.mail.me.com:587 still times
+  out (exit 124) — priority-3 email still impossible, nothing sent, Sent log untouched (still empty).
+  curl to example.com via the agent proxy still 403s (`connect_rejected` per proxy status endpoint) —
+  general web egress still blocked (github.com content, e.g. raw.githubusercontent.com, still reachable
+  via WebFetch). GitHub `pull_request_read` on janhq/awesome-local-ai#131 and `add_repo` for the same
+  repo both still rejected ("Allowed repositories: lokii49/mirror" / "cross-tier adds are not supported
+  in v1") — priority-1 bump and direct third-party PRs remain impossible. For priority 2, found and
+  vetted one new candidate that cleared the fit bar: nowork-studio/awesome-ai-startups (curated indie/
+  bootstrapped AI-startup directory, distinct from every prior privacy/journaling/local-first/on-device-
+  AI list already logged) — confirmed fit, format, and inclusion criteria via WebFetch on raw README +
+  raw contributing.md, no prompt-injection found, added to Backlog with ready-to-paste copy for the
+  "🗂 Productivity & Notes" section. No PRs opened, no comments posted, no emails sent — 68th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since.
 
 ## Blocked
 
