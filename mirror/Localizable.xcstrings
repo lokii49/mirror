@@ -129,6 +129,18 @@
         }
       }
     },
+    "Deep Scan" : {
+      "comment" : "Sentinel-mode title for the Explore section on the Insights screen.",
+      "extractionState" : "manual"
+    },
+    "Pattern analysis across your log" : {
+      "comment" : "Sentinel-mode subtitle for the Explore section on the Insights screen.",
+      "extractionState" : "manual"
+    },
+    "Weekly digest covers this week — write 3 entries to unlock it." : {
+      "comment" : "Shown when the weekly digest is locked because fewer than 3 entries exist for the current week.",
+      "extractionState" : "manual"
+    },
     "·" : {
       "localizations" : {
         "de" : {
@@ -44940,70 +44952,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每周日发送每周摘要"
-          }
-        }
-      }
-    },
-    "Weekly digest unlocks after 5 entries." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die wöchentliche Zusammenfassung schaltet sich nach 5 Einträgen frei."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weekly digest unlocks after 5 entries."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El resumen semanal se desbloquea después de 5 entradas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le résumé hebdomadaire se débloque après 5 entrées."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il riepilogo settimanale si sblocca dopo 5 voci."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "週間ダイジェストは5件のエントリー後に解放されます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "주간 다이제스트는 항목 5개 이후에 잠금 해제됩니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O resumo semanal é desbloqueado após 5 entradas."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Еженедельная сводка открывается после 5 записей."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每周摘要将在写满 5 条条目后解锁。"
           }
         }
       }
