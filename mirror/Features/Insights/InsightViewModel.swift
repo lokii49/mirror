@@ -115,17 +115,25 @@ final class InsightViewModel {
             return
         }
 
-        // Serve an existing digest for this week before any count gate — deleting
-        // an entry after it generated shouldn't blank it.
-        if let cached = insights.first(where: {
-            $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek
-        }) {
-            digestState = .loaded(cached)
-            return
-        }
-
         // The digest is "this week" — gate on entries written this week, not lifetime.
         let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        let cachedThisWeek = insights.first { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek }
+
+        // Serve the existing digest for this week unless it's gone stale (24h
+        // cooldown elapsed AND newer entries since) — serving before the count
+        // gate means deleting an entry after it generated doesn't blank it.
+        if let cached = cachedThisWeek {
+            let stale = InsightService.weeklyDigestIsStale(
+                generatedAt: cached.generatedAt,
+                newestWeekEntry: weekEntries.map(\.createdAt).max()
+            )
+            guard stale else {
+                digestState = .loaded(cached)
+                return
+            }
+            // fall through to regenerate; the old row is dropped after the new one generates
+        }
+
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
             digestState = .notEnoughEntries(InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count)
             return
@@ -150,6 +158,7 @@ final class InsightViewModel {
         digestState = .loading
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if let cached = cachedThisWeek { context.delete(cached) }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
