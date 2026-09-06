@@ -1822,6 +1822,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
   since.
 
+- 2026-09-06 (run 67): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`, `connect_rejected` per proxy status endpoint's `recentRelayFailures`), noProxy
+  allowlist unchanged — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried two new WebSearch angles ("awesome"
+  journaling/diary/on-device-AI/privacy directories, and "awesome-ai-privacy"/"awesome-privacy-apps"/
+  "awesome-offline-first" readme searches) — both returned only already-known repos (pluja/
+  awesome-privacy, lissy93/awesome-privacy, paulaime/awesome-privacy, iAnonymous3000/
+  awesome-privacy-tools, all already logged) or individual competitor journaling apps via GitHub
+  topic pages (not directories — per existing Lessons note, topic pages aren't a useful discovery
+  channel). No new candidate cleared the fit/quality bar this run, consistent with saturation noted
+  since run 28. No PRs opened, no comments posted, no emails sent — 67th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
