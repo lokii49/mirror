@@ -1,23 +1,19 @@
 import WidgetKit
 import SwiftUI
 
-private let appGroupID        = "group.com.lokesh.mirror"
+private let appGroupID        = WidgetShared.appGroupID
 private let entriesHeatmapKey = "widget.entries.heatmap"
-
-// Shared dark ink palette
-private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
-private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
-private let wViolet   = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
-private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
 private let moodHeatmapKey2   = "widget.mood.heatmap"
 
-// Sentinel accent — matches MirrorTheme.ember's dark-mode hex (0xF97B8B).
-private let wEmber      = Color(red: 0.976, green: 0.482, blue: 0.545)
-private let wSentinelBg = Color(red: 0.043, green: 0.043, blue: 0.055)
+// Palette + app-group reads live in WidgetTheme.swift (shared across all widgets).
+private let wBgTop    = WidgetTheme.bgTop
+private let wBgBottom = WidgetTheme.bgBottom
+private let wViolet   = WidgetTheme.violet
+private let wViLight  = WidgetTheme.violetLight
+private let wEmber    = WidgetTheme.ember
+private let wSentinelBg = WidgetTheme.sentinelBg
 
-private func widgetIsSentinel() -> Bool {
-    UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.displayMode") == "sentinel"
-}
+private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 private let entryDayFormatter: DateFormatter = {
     let f = DateFormatter()
@@ -63,7 +59,7 @@ struct EntriesMapWidgetView: View {
     let entry: EntriesMapEntry
 
     private var isUnlocked: Bool {
-        let tier = UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+        let tier = WidgetShared.tier()
         return tier == "core" || tier == "deep"
     }
 

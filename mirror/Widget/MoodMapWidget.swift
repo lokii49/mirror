@@ -4,19 +4,15 @@ import Charts
 
 private let moodHeatmapKey = "widget.mood.heatmap"
 
-// Shared dark ink palette
-private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
-private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
-private let wViolet   = Color(red: 0.486, green: 0.361, blue: 0.894)  // #7C5CE4
-private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
+// Palette + app-group reads live in WidgetTheme.swift (shared across all widgets).
+private let wBgTop    = WidgetTheme.bgTop
+private let wBgBottom = WidgetTheme.bgBottom
+private let wViolet   = WidgetTheme.violet
+private let wViLight  = WidgetTheme.violetLight
+private let wEmber    = WidgetTheme.ember
+private let wSentinelBg = WidgetTheme.sentinelBg
 
-// Sentinel accent — matches MirrorTheme.ember's dark-mode hex (0xF97B8B).
-private let wEmber      = Color(red: 0.976, green: 0.482, blue: 0.545)
-private let wSentinelBg = Color(red: 0.043, green: 0.043, blue: 0.055)
-
-private func widgetIsSentinel() -> Bool {
-    UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.displayMode") == "sentinel"
-}
+private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 private let widgetMoodScore: [String: Double] = [
     "Joyful": 5, "Grateful": 5, "Peaceful": 4, "Content": 4, "Energized": 4, "Hopeful": 4,
@@ -51,7 +47,7 @@ struct MoodMapProvider: TimelineProvider {
         completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
     }
     private func makeEntry() -> MoodMapEntry {
-        let data = UserDefaults(suiteName: "group.com.lokesh.mirror")?.data(forKey: moodHeatmapKey)
+        let data = UserDefaults(suiteName: WidgetShared.appGroupID)?.data(forKey: moodHeatmapKey)
         let moods = data.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         return MoodMapEntry(date: .now, moodByDay: moods)
     }
@@ -72,7 +68,7 @@ struct MoodMapWidgetView: View {
     let entry: MoodMapEntry
 
     private var isUnlocked: Bool {
-        let tier = UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.tier") ?? "free"
+        let tier = WidgetShared.tier()
         return tier == "core" || tier == "deep"
     }
 
@@ -101,8 +97,8 @@ struct MoodMapWidgetView: View {
         var color: Color {
             switch self {
             case .improving: return .green
-            case .declining: return Color(red: 0.976, green: 0.482, blue: 0.545) // ember
-            case .steady, .none: return Color(red: 0.655, green: 0.545, blue: 0.980).opacity(0.60) // wViLight
+            case .declining: return WidgetTheme.ember
+            case .steady, .none: return WidgetTheme.violetLight.opacity(0.60)
             }
         }
     }
