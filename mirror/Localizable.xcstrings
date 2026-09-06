@@ -129,18 +129,6 @@
         }
       }
     },
-    "Deep Scan" : {
-      "comment" : "Sentinel-mode title for the Explore section on the Insights screen.",
-      "extractionState" : "manual"
-    },
-    "Pattern analysis across your log" : {
-      "comment" : "Sentinel-mode subtitle for the Explore section on the Insights screen.",
-      "extractionState" : "manual"
-    },
-    "Weekly digest covers this week — write 3 entries to unlock it." : {
-      "comment" : "Shown when the weekly digest is locked because fewer than 3 entries exist for the current week.",
-      "extractionState" : "manual"
-    },
     "·" : {
       "localizations" : {
         "de" : {
@@ -14417,6 +14405,10 @@
           }
         }
       }
+    },
+    "Deep Scan" : {
+      "comment" : "Sentinel-mode title for the Explore section on the Insights screen.",
+      "extractionState" : "manual"
     },
     "Default" : {
       "localizations" : {
@@ -31402,6 +31394,10 @@
         }
       }
     },
+    "Pattern analysis across your log" : {
+      "comment" : "Sentinel-mode subtitle for the Explore section on the Insights screen.",
+      "extractionState" : "manual"
+    },
     "Pause" : {
       "localizations" : {
         "de" : {
@@ -44827,6 +44823,10 @@
           }
         }
       }
+    },
+    "Weekly digest covers this week — write 3 entries to unlock it." : {
+      "comment" : "Shown when the weekly digest is locked because fewer than 3 entries exist for the current week.",
+      "extractionState" : "manual"
     },
     "Weekly digest day" : {
       "localizations" : {
