@@ -43,6 +43,12 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--seedCurrentMonthBulk") {
             SampleData.seedCurrentMonthBulk(into: sharedModelContainer.mainContext)
         }
+        // See SampleData.seedMonthlyReportSample — real 6-section generation is too slow to
+        // finish inside a UI-test window on the simulator. Inserts a ready-made monthly
+        // report so MonthlyReportView's loaded layout renders instantly. Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--seedMonthlyReportSample") {
+            SampleData.seedMonthlyReportSample(into: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on

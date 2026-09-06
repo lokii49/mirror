@@ -597,7 +597,8 @@ private struct MonthlyReportCard: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(section.color)
                 Text(headerDisplayNames[section.header] ?? LocalizedStringKey(section.header.localizedCapitalized))
-                    .font(.system(size: 11, weight: .bold))
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(section.color)
                     .tracking(0.3)
             }
