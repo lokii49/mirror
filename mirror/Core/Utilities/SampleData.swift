@@ -403,7 +403,10 @@ enum SampleData {
     /// report -- there's no way to see MonthlyReportView's actual rendered output without
     /// that much current-month history. Spreads `count` short entries across the days
     /// elapsed so far this month, tagged `sampleTag` like every other seed helper here so
-    /// `clearSampleEntries(from:)` removes them along with the rest.
+    /// `clearSampleEntries(from:)` removes them along with the rest. Note: run early in the
+    /// month (day 1-2) and all `count` entries pile onto one or two days — the report still
+    /// generates (the gate counts entries, not distinct days) but any day-distribution
+    /// rendering will look degenerate. Fine for mid-month capture passes, which is the use.
     static func seedCurrentMonthBulk(into context: ModelContext, count: Int = 25) {
         let calendar = Calendar.current
         let now = Date()
@@ -441,8 +444,9 @@ enum SampleData {
     /// real `.loaded` state times out. This inserts a ready-made `.monthlyReport` Insight for
     /// the current month so `MonthlyReportView`'s loaded layout renders immediately. Content
     /// is obviously synthetic and is only for verifying section-block presentation, never
-    /// content quality. Scratch-device only. Cleared by `clearInsights(from:)` or by matching
-    /// `monthlyReportSampleContent`.
+    /// content quality. Scratch-device only. Do NOT clear via `clearInsights(from:)` — that
+    /// wipes real Insights too. Use `clearMonthlyReportSample(from:)` below, which only
+    /// removes an Insight whose content exactly matches `monthlyReportSampleContent`.
     static let monthlyReportSampleContent = """
         YOUR MONTH IN ONE IMAGE: A desk lamp left on past midnight, then a long walk the next morning with the phone left at home. The month kept swinging between those two.
 
@@ -463,6 +467,14 @@ enum SampleData {
         guard !existing.contains(where: { $0.type == .monthlyReport && $0.periodIdentifier == period }) else { return }
         let insight = Insight(type: .monthlyReport, content: monthlyReportSampleContent, periodIdentifier: period)
         context.insert(insight)
+        try? context.save()
+    }
+
+    static func clearMonthlyReportSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for insight in all where insight.content == monthlyReportSampleContent {
+            context.delete(insight)
+        }
         try? context.save()
     }
 
