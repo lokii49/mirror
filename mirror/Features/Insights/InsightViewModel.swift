@@ -149,6 +149,7 @@ final class InsightViewModel {
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncWeeklyDigest(from: context)
             digestState = .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
@@ -218,6 +219,7 @@ final class InsightViewModel {
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncMonthlyReport(from: context)
             monthlyReportState = .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {

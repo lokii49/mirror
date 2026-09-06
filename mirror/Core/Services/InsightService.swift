@@ -752,6 +752,53 @@ enum InsightService {
         ],
     ]
 
+    /// Body text of the FIRST labeled section of a digest / monthly-report string
+    /// — "THIS WEEK'S THEME" for a weekly digest, "YOUR MONTH IN ONE IMAGE" for a
+    /// monthly report — for the home-screen widget bridge (`WidgetBridge`). Only
+    /// that one section crosses the app-group boundary; the full six-section
+    /// insight doesn't fit a widget.
+    ///
+    /// `labels` is the same `weeklyDigestSectionLabels` / `monthlyReportSectionLabels`
+    /// table `WeeklyDigestView.parseDigest` and `MonthlyReportCard.extractBody`
+    /// use, so the widget and the on-screen card can't disagree about where a
+    /// section starts. The header match (`"<alias>:"`) is the same too — and it's
+    /// defeated by `**`-wrapped headers, so this strips the same markdown noise
+    /// `parseDigest` does. Stored `Insight.content` is already `cleaned…Output()`
+    /// (headers un-wrapped, colon-normalized) but a caller may pass raw text.
+    ///
+    /// Returns nil if the first section's header isn't present.
+    static func firstSectionBody(of content: String, labels: [[String: String]]) -> String? {
+        guard let firstSection = labels.first else { return nil }
+        let normalized = content
+            .replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+
+        func headerRange(_ aliases: [String], in text: Substring) -> Range<String.Index>? {
+            aliases
+                .lazy
+                .compactMap { text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) }
+                .min(by: { $0.lowerBound < $1.lowerBound })
+        }
+
+        guard let start = headerRange(Array(firstSection.values), in: Substring(normalized)) else { return nil }
+        let afterHeader = normalized[start.upperBound...]
+
+        var bodyEnd = afterHeader.endIndex
+        for section in labels.dropFirst() {
+            if let next = headerRange(Array(section.values), in: afterHeader) {
+                bodyEnd = next.lowerBound
+                break
+            }
+        }
+
+        let body = afterHeader[..<bodyEnd]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n\n", with: "\n")
+        return body.isEmpty ? nil : body
+    }
+
     private static func buildMonthlyReportMessage(monthEntries: [Entry], allEntries: [Entry]) -> String {
         let totalWords = monthEntries.reduce(0) { $0 + $1.wordCount }
         let avgWords = monthEntries.isEmpty ? 0 : totalWords / monthEntries.count
