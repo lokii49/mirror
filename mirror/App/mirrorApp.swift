@@ -234,6 +234,11 @@ struct mirrorApp: App {
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
+        // Catch-all for the two insight widgets: a digest/report generated in a
+        // previous session or served from cache never hits the write sites above,
+        // same reason syncNudgeToWidget exists.
+        WidgetBridge.syncWeeklyDigest(from: context)
+        WidgetBridge.syncMonthlyReport(from: context)
 
         // Update the daily nudge notification to reflect current state.
         // Content resets on every app open so the message matches today's context.
@@ -385,6 +390,7 @@ struct mirrorApp: App {
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncWeeklyDigest(from: context)
             // scheduleWeeklyDigest is the sole fire — no separate one-time notification
             // to avoid double-banner on Sunday at 7am.
             await NotificationService.scheduleWeeklyDigest()
@@ -424,6 +430,7 @@ struct mirrorApp: App {
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncMonthlyReport(from: context)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch { /* Non-fatal */ }
     }

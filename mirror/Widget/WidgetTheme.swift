@@ -37,6 +37,15 @@ enum WidgetTheme {
 enum WidgetShared {
     static let appGroupID = "group.com.lokesh.mirror"
 
+    // App-group keys for the two 2.1.0 insight widgets. Declared here (not in
+    // `WidgetBridge`) because `WidgetBridge` is app-target-only — it pulls in
+    // SwiftData / `InsightService` — while the widget extension needs to read
+    // these keys too. The app writes them via `WidgetBridge`.
+    static let digestThemeKey   = "widget.digest.theme.text"
+    static let digestWeekKey    = "widget.digest.weekIdentifier"
+    static let monthlyImageKey  = "widget.monthlyReport.image.text"
+    static let monthlyPeriodKey = "widget.monthlyReport.periodIdentifier"
+
     static func isSentinel() -> Bool {
         UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.displayMode") == "sentinel"
     }
@@ -44,5 +53,18 @@ enum WidgetShared {
     /// "free" | "core" | "deep"
     static func tier() -> String {
         UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+    }
+
+    /// Core+ — the gate most premium widgets use (`NudgeWidget`, `PromptWidget`, …).
+    static func isSubscribed() -> Bool {
+        let t = tier()
+        return t == "core" || t == "deep"
+    }
+
+    /// Deep only. A distinct predicate from `isSubscribed()` — the Monthly Report
+    /// widget is priced at Deep ($4.99/mo), not Core, so it must NOT unlock for a
+    /// Core subscriber.
+    static func isDeep() -> Bool {
+        tier() == "deep"
     }
 }
