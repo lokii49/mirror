@@ -93,6 +93,7 @@
 				Widget/DailyNudgeWidget.swift,
 				Widget/EntriesMapWidget.swift,
 				Widget/MoodMapWidget.swift,
+				Widget/WidgetTheme.swift,
 				Widget/WriteWidget.swift,
 				Widget/WritingPromptWidget.swift,
 			);
