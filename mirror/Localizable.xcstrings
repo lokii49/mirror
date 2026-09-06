@@ -1099,6 +1099,72 @@
         }
       }
     },
+    "%lld days running with low mood" : {
+      "comment" : "Mood Timeline banner: N consecutive days with a negative mood.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tage in Folge mit gedrückter Stimmung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days running with low mood"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld días seguidos con ánimo bajo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld jours de suite d'humeur basse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld giorni di fila con umore basso"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld日連続で気分が低調です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld일 연속 기분 저조"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld dias seguidos com humor baixo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld дней подряд с подавленным настроением"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续 %lld 天心情低落"
+          }
+        }
+      }
+    },
     "%lld entries" : {
       "localizations" : {
         "de" : {
@@ -6265,6 +6331,7 @@
       }
     },
     "ANOMALY · %lld LOW READINGS" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6326,8 +6393,138 @@
             "value" : "异常·%lld次低值读数"
           }
         }
-      },
-      "extractionState" : "stale"
+      }
+    },
+    "ANOMALY · %lld LOW-MOOD DAYS" : {
+      "comment" : "Mood Timeline banner (Sentinel theme): N consecutive low-mood days.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · %lld TAGE MIT TIEF"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALY · %lld LOW-MOOD DAYS"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALÍA · %lld DÍAS DE ÁNIMO BAJO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · %lld JOURS D'HUMEUR BASSE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · %lld GIORNI DI UMORE BASSO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "異常 · 低調な気分 %lld日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이상 · 기분 저조 %lld일"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · %lld DIAS DE HUMOR BAIXO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "АНОМАЛИЯ · %lld ДН. НИЗКОГО НАСТРОЕНИЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异常 · %lld 天心情低落"
+          }
+        }
+      }
+    },
+    "ANOMALY · LAST %lld READINGS LOW" : {
+      "comment" : "Mood Timeline banner (Sentinel theme): last N mood readings all negative.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · LETZTE %lld MESSUNGEN NIEDRIG"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALY · LAST %lld READINGS LOW"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALÍA · ÚLTIMAS %lld LECTURAS BAJAS"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIE · %lld DERNIÈRES MESURES BASSES"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · ULTIME %lld RILEVAZIONI BASSE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "異常 · 直近%lld件の測定値が低下"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이상 · 최근 측정값 %lld건 낮음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANOMALIA · ÚLTIMAS %lld LEITURAS BAIXAS"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "АНОМАЛИЯ · ПОСЛЕДНИЕ %lld ЗАМЕРА НИЗКИЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异常 · 最近 %lld 次读数偏低"
+          }
+        }
+      }
     },
     "Answers come only from entries you've written." : {
       "localizations" : {
@@ -19684,6 +19881,10 @@
         }
       }
     },
+    "HIDE PRIOR BRIEFINGS" : {
+      "comment" : "A label for a button that hides the list of past reflections.",
+      "isCommentAutoGenerated" : true
+    },
     "High" : {
       "localizations" : {
         "de" : {
@@ -32478,6 +32679,10 @@
           }
         }
       }
+    },
+    "PRIOR BRIEFINGS (%lld)" : {
+      "comment" : "A label that reads \"PRIOR BRIEFINGS\" or",
+      "isCommentAutoGenerated" : true
     },
     "Privacy policy" : {
       "localizations" : {
@@ -51567,6 +51772,7 @@
       }
     },
     "Your last %lld entries show low mood" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -51628,8 +51834,72 @@
             "value" : "你最近 %lld 条条目显示情绪低落"
           }
         }
-      },
-      "extractionState" : "stale"
+      }
+    },
+    "Your last %lld moods have all been low" : {
+      "comment" : "Mood Timeline banner: the user's last N mood readings were all negative.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine letzten %lld Stimmungen waren alle gedrückt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your last %lld moods have all been low"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus últimos %lld estados de ánimo han sido bajos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos %lld dernières humeurs étaient toutes basses"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi ultimi %lld stati d'animo sono stati tutti bassi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直近%lld回の気分がいずれも低調です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최근 기분 %lld회가 모두 저조합니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seus últimos %lld humores foram todos baixos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние %lld отметок настроения — все низкие"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近 %lld 次心情都很低落"
+          }
+        }
+      }
     },
     "Your Month In One Image" : {
       "localizations" : {
@@ -52013,268 +52283,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的每周反思已准备好。"
-          }
-        }
-      }
-    },
-    "%lld days running with low mood" : {
-      "comment" : "Mood Timeline banner: N consecutive days with a negative mood.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Tage in Folge mit gedrückter Stimmung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld days running with low mood"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld días seguidos con ánimo bajo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld jours de suite d'humeur basse"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld giorni di fila con umore basso"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld日連続で気分が低調です"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld일 연속 기분 저조"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld dias seguidos com humor baixo"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld дней подряд с подавленным настроением"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "连续 %lld 天心情低落"
-          }
-        }
-      },
-      "extractionState" : "stale"
-    },
-    "ANOMALY · %lld LOW-MOOD DAYS" : {
-      "comment" : "Mood Timeline banner (Sentinel theme): N consecutive low-mood days.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIE · %lld TAGE MIT TIEF"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALY · %lld LOW-MOOD DAYS"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALÍA · %lld DÍAS DE ÁNIMO BAJO"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIE · %lld JOURS D'HUMEUR BASSE"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIA · %lld GIORNI DI UMORE BASSO"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "異常 · 低調な気分 %lld日"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이상 · 기분 저조 %lld일"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIA · %lld DIAS DE HUMOR BAIXO"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "АНОМАЛИЯ · %lld ДН. НИЗКОГО НАСТРОЕНИЯ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "异常 · %lld 天心情低落"
-          }
-        }
-      },
-      "extractionState" : "stale"
-    },
-    "Your last %lld moods have all been low" : {
-      "comment" : "Mood Timeline banner: the user's last N mood readings were all negative.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine letzten %lld Stimmungen waren alle gedrückt"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your last %lld moods have all been low"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tus últimos %lld estados de ánimo han sido bajos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vos %lld dernières humeurs étaient toutes basses"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I tuoi ultimi %lld stati d'animo sono stati tutti bassi"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直近%lld回の気分がいずれも低調です"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최근 기분 %lld회가 모두 저조합니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seus últimos %lld humores foram todos baixos"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Последние %lld отметок настроения — все низкие"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你最近 %lld 次心情都很低落"
-          }
-        }
-      }
-    },
-    "ANOMALY · LAST %lld READINGS LOW" : {
-      "comment" : "Mood Timeline banner (Sentinel theme): last N mood readings all negative.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIE · LETZTE %lld MESSUNGEN NIEDRIG"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALY · LAST %lld READINGS LOW"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALÍA · ÚLTIMAS %lld LECTURAS BAJAS"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIE · %lld DERNIÈRES MESURES BASSES"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIA · ULTIME %lld RILEVAZIONI BASSE"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "異常 · 直近%lld件の測定値が低下"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이상 · 최근 측정값 %lld건 낮음"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANOMALIA · ÚLTIMAS %lld LEITURAS BAIXAS"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "АНОМАЛИЯ · ПОСЛЕДНИЕ %lld ЗАМЕРА НИЗКИЕ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "异常 · 最近 %lld 次读数偏低"
           }
         }
       }

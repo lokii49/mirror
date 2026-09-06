@@ -544,10 +544,10 @@ struct InsightView: View {
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
                 remaining: remaining,
-                total: 5,
+                total: 3,
                 icon: "calendar.badge.clock",
                 iconColor: .indigo,
-                unlockLabel: "Weekly digest unlocks after 5 entries."
+                unlockLabel: "Weekly digest covers this week — write 3 entries to unlock it."
             )
         case .subscriptionRequired:
             UpgradePromptCard(
@@ -573,6 +573,8 @@ struct InsightView: View {
             SectionHeader(
                 title: "Explore",
                 subtitle: "Deep dives into your patterns",
+                sentinelTitle: "Deep Scan",
+                sentinelSubtitle: "Pattern analysis across your log",
                 icon: "square.grid.2x2",
                 color: .orange
             )
@@ -632,6 +634,12 @@ private struct PastNudgeCard: View {
 private struct SectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
+    /// Sentinel-mode overrides. Sentinel doesn't just re-case the Classic title
+    /// (SectionHeader already uppercases it) — some sections are renamed outright
+    /// in this mode, the way the tiles under them are (Ask→Comms, etc.). nil =
+    /// use the Classic string.
+    let sentinelTitle: LocalizedStringKey?
+    let sentinelSubtitle: LocalizedStringKey?
     let icon: String
     let color: Color
     var trailing: Trailing
@@ -639,15 +647,22 @@ private struct SectionHeader<Trailing: View>: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
+    private var displayTitle: LocalizedStringKey { isSentinel ? (sentinelTitle ?? title) : title }
+    private var displaySubtitle: LocalizedStringKey { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
+
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
+        sentinelTitle: LocalizedStringKey? = nil,
+        sentinelSubtitle: LocalizedStringKey? = nil,
         icon: String,
         color: Color,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.sentinelTitle = sentinelTitle
+        self.sentinelSubtitle = sentinelSubtitle
         self.icon = icon
         self.color = color
         self.trailing = trailing()
@@ -665,17 +680,17 @@ private struct SectionHeader<Trailing: View>: View {
                 )
             VStack(alignment: .leading, spacing: 1) {
                 if isSentinel {
-                    Text(title)
+                    Text(displayTitle)
                         .font(MirrorTheme.mono(13, weight: .bold))
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .textCase(.uppercase)
                         .kerning(0.5)
                 } else {
-                    Text(title)
+                    Text(displayTitle)
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
-                Text(subtitle)
+                Text(displaySubtitle)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
