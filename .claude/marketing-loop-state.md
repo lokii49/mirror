@@ -1803,6 +1803,25 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   exact standing condition and nothing has materially changed since (env blockers unchanged, no new
   send/PR capability appeared).
 
+- 2026-09-06 (run 66): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com and www.opensourcealternative.to via
+  the agent proxy both still 403 (`CONNECT tunnel failed`, `connect_rejected`/policy denial) —
+  general web egress still blocked. GitHub `pull_request_read` on tehtbl/awesome-note-taking#89
+  (priority-1 bump target) still rejected ("not configured for this session, allowed repositories:
+  lokii49/mirror"); `add_repo` for janhq/awesome-local-ai still rejected ("cross-tier adds are not
+  supported in v1") — priority-1 bump and any direct third-party PR remain impossible. For priority 2,
+  checked two new candidates via WebSearch + WebFetch (raw READMEs): jcanfield/awesome-digital-
+  wellbeing (Apps section has just one entry — Google's own screen-time-limiter — wrong theme
+  entirely, not journaling); tdi/awesome-private-ai (mentions Gemma models but is 100% server/
+  self-hosted AI infra, no consumer mobile-app section). Neither cleared the fit bar; recorded both as
+  negative findings in Lessons. No new candidate found this run, consistent with saturation noted
+  since run 28. No PRs opened, no comments posted, no emails sent — 66th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1967,6 +1986,14 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - awesome.ecosyste.ms (meta-directory of awesome lists) is not github.com, so WebFetch returns
   EGRESS_BLOCKED same as every other non-github content domain — not usable for discovery from this
   environment. Confirmed 2026-09-03.
+- jcanfield/awesome-digital-wellbeing is not a fit: its "Apps" section has exactly one entry (Google's
+  own Android screen-time-limiting system app), and the list's whole theme is reducing/limiting screen
+  use, not journaling or mood tracking. No journaling/diary/mood section exists. Confirmed 2026-09-06
+  via WebFetch on the raw README; do not re-add unless it gains a relevant section.
+- tdi/awesome-private-ai is not a fit despite mentioning Gemma models: it's entirely server/self-hosted
+  AI infrastructure (inference runtimes, model serving, vector DBs, VS Code plugins) with no section
+  for consumer-facing mobile/iOS apps that run AI on-device. Confirmed 2026-09-06 via WebFetch on the
+  raw README; do not re-add unless it gains a consumer-apps section.
 
 ## Sent log
 
