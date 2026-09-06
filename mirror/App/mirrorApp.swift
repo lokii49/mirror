@@ -380,13 +380,16 @@ struct mirrorApp: App {
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let entries = (try? context.fetch(entryDescriptor)) ?? []
-        guard entries.count >= 5, SubscriptionService.shared.isSubscribed else { return }
+        // Digest covers the current week only — gate on this week's entries, not lifetime.
+        let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
+              SubscriptionService.shared.isSubscribed else { return }
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let (text, engine) = try await InsightService.generateWeeklyDigest(entries: entries)
+            let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()

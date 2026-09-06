@@ -198,16 +198,30 @@ enum InsightService {
         )
     }
 
-    static func generateWeeklyDigest(entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
-        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let digestEntries = Array(sorted.prefix(24))
-        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: digestEntries), task: .weeklyDigest)
+    /// Fewer than this many entries in the current week → not enough to find a
+    /// week's theme; the call sites show the "write more this week" state instead
+    /// of generating a thin digest.
+    static let weeklyDigestMinimumWeekEntries = 3
+
+    /// The digest is explicitly "this week" — `WeeklyDigestView`, the C1 widget,
+    /// and the `THIS WEEK'S THEME` section header all say so. `weekEntries` is the
+    /// current ISO week only and is the sole source of the theme; `allEntries`
+    /// (which includes them) is passed as long-term background for continuity in
+    /// `WHAT'S BUILDING` / `NEXT WEEK`, never as digest material.
+    static func generateWeeklyDigest(weekEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        let thisWeek = weekEntries.sorted { $0.createdAt > $1.createdAt }
+        let weekIDs = Set(weekEntries.map(\.id))
+        let priorWeeks = allEntries
+            .filter { !weekIDs.contains($0.id) }
+            .sorted { $0.createdAt > $1.createdAt }
+        let languageSource = thisWeek.isEmpty ? priorWeeks : thisWeek
+        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: languageSource), task: .weeklyDigest)
         return try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
             userMessage: buildUserMessage(
                 title: "Weekly digest context",
-                recentEntries: Array(sorted.prefix(10)),
-                backgroundEntries: Array(sorted.dropFirst(10).prefix(14)),
+                recentEntries: Array(thisWeek.prefix(12)),
+                backgroundEntries: Array(priorWeeks.prefix(14)),
                 maxChars: weeklyDigestPromptBudget
             ),
             task: .weeklyDigest,
