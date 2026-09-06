@@ -434,6 +434,38 @@ enum SampleData {
         try? context.save()
     }
 
+    // MARK: - Monthly report sample (for screenshotting MonthlyReportView's loaded layout)
+
+    /// Real monthly-report generation (6 sections, long-form Gemma output) is too slow to
+    /// finish inside a UI-test window on the simulator — a capture pass that waits for the
+    /// real `.loaded` state times out. This inserts a ready-made `.monthlyReport` Insight for
+    /// the current month so `MonthlyReportView`'s loaded layout renders immediately. Content
+    /// is obviously synthetic and is only for verifying section-block presentation, never
+    /// content quality. Scratch-device only. Cleared by `clearInsights(from:)` or by matching
+    /// `monthlyReportSampleContent`.
+    static let monthlyReportSampleContent = """
+        YOUR MONTH IN ONE IMAGE: A desk lamp left on past midnight, then a long walk the next morning with the phone left at home. The month kept swinging between those two.
+
+        THE TENSION AT THE CENTER: You want to move fast on the work that matters and you also keep noticing that the fast weeks are the ones where you sleep badly and snap at people. The pull between output and steadiness ran under almost every entry.
+
+        A MOMENT THAT SHIFTED SOMETHING: The afternoon you took off mid-week and went to the museum alone. You wrote that nothing collapsed while you were gone — and that it surprised you how much you'd assumed it would.
+
+        WHAT YOU'RE BECOMING: Someone who treats rest as a real commitment rather than a reward for finishing. It's not fully settled yet, but the language in the later entries is different from the early ones.
+
+        WHAT WANTS TO BE RELEASED: The idea that being reachable at all times is the same thing as being responsible. A few entries circled this without quite naming it.
+
+        YOUR QUESTION FOR NEXT MONTH: What would change if you planned the week around the walks first, and fit the work around them?
+        """
+
+    static func seedMonthlyReportSample(into context: ModelContext) {
+        let period = DateHelpers.monthIdentifier(for: Date())
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .monthlyReport && $0.periodIdentifier == period }) else { return }
+        let insight = Insight(type: .monthlyReport, content: monthlyReportSampleContent, periodIdentifier: period)
+        context.insert(insight)
+        try? context.save()
+    }
+
     static func clearPastNudgeSamples(from context: ModelContext) {
         let descriptor = FetchDescriptor<Insight>()
         let all = (try? context.fetch(descriptor)) ?? []
