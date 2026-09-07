@@ -665,9 +665,7 @@ private struct AskBubblePair: View {
                 PeekReveal(enabled: true, cornerRadius: 10) {
                     answerCard
                 } back: {
-                    InsightSignalSource(insight: insight, entries: entries) {
-                        SignalSourceInkBackground()
-                    }
+                    InsightSignalSource(insight: insight, entries: entries)
                 }
                 .padding(.top, 4)
             } else {

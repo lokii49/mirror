@@ -56,12 +56,15 @@ struct PeekReveal<Front: View, Back: View>: View {
     private var showReveal: Bool { active || !trail.isEmpty || forceOpen || demoTrail }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             // Only mounted while something could show through — keeps
-            // `InsightSignalSource.resolve()` off the idle render path.
+            // `InsightSignalSource`'s reconstruction off the idle render path.
+            // `back` may be taller than `front` (a long system prompt) — the
+            // card grows to fit it while held, eased below.
             if showReveal { back }
             frontLayer
         }
+        .animation(.easeOut(duration: 0.16), value: showReveal)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
             if active || forceOpen {
