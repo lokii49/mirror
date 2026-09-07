@@ -16,25 +16,15 @@ struct ReflectionSignalSource: View {
 
     // MARK: Reconstructed context
 
-    private var reconstruction: (recent: [Entry], backgroundCount: Int) {
-        let asOf = insight.generatedAt
-        let prior = entries
-            .filter { $0.createdAt <= asOf }
-            .sorted { $0.createdAt > $1.createdAt }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
-        let within = prior.filter { $0.createdAt >= cutoff }
-        let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
-        let recentIDs = Set(recent.map(\.id))
-        let background = prior.filter { !recentIDs.contains($0.id) }.prefix(20)
-        return (recent, background.count)
-    }
-
-    private var engineLabel: String {
-        switch insight.generatedByEngine {
-        case "foundationModels": return "APPLE FOUNDATION MODELS · ON-DEVICE"
-        case "gemma":            return "GEMMA 3 1B · ON-DEVICE"
-        default:                 return "ON-DEVICE MODEL"
-        }
+    /// Everything the panel needs, built ONCE per render (`body` computes a single
+    /// `let`). The entry array is the full-history `@Query` from `InsightView` —
+    /// filter/sort it once, not once per row.
+    private struct Resolved {
+        let engine: String
+        let generated: String
+        let readClosely: String
+        let backgroundCount: Int
+        let moods: String
     }
 
     private static let dayMonth: DateFormatter = {
@@ -49,30 +39,57 @@ struct ReflectionSignalSource: View {
         return f
     }()
 
-    private var readCloselyValue: String {
-        let recent = reconstruction.recent
-        guard let newest = recent.first?.createdAt, let oldest = recent.last?.createdAt else {
-            return "no earlier entries"
-        }
-        let n = recent.count
-        let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
-            ? Self.dayMonth.string(from: newest)
-            : "\(Self.dayMonth.string(from: oldest)) – \(Self.dayMonth.string(from: newest))"
-        return "\(n) \(n == 1 ? "entry" : "entries") · \(range)"
-    }
+    private func resolve() -> Resolved {
+        let asOf = insight.generatedAt
 
-    private var moodValue: String {
-        let moods = reconstruction.recent
-            .compactMap(\.mood)
-            .reduce(into: [String]()) { acc, m in if !acc.contains(m) { acc.append(m) } }
-            .map { MirrorTheme.localizedMoodName(for: $0).uppercased() }
-        return moods.isEmpty ? "—" : moods.joined(separator: ", ")
+        // Re-runs InsightService.generateNudge's selection as of `asOf`.
+        let prior = entries
+            .filter { $0.createdAt <= asOf }
+            .sorted { $0.createdAt > $1.createdAt }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
+        let within = prior.filter { $0.createdAt >= cutoff }
+        let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
+        let recentIDs = Set(recent.map(\.id))
+        let backgroundCount = prior.filter { !recentIDs.contains($0.id) }.prefix(20).count
+
+        let engine: String
+        switch insight.generatedByEngine {
+        case "foundationModels": engine = "APPLE FOUNDATION MODELS · ON-DEVICE"
+        case "gemma":            engine = "GEMMA 3 1B · ON-DEVICE"
+        default:                 engine = "ON-DEVICE MODEL"
+        }
+
+        let readClosely: String
+        if let newest = recent.first?.createdAt, let oldest = recent.last?.createdAt {
+            let n = recent.count
+            let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
+                ? Self.dayMonth.string(from: newest)
+                : "\(Self.dayMonth.string(from: oldest)) – \(Self.dayMonth.string(from: newest))"
+            readClosely = "\(n) \(n == 1 ? "entry" : "entries") · \(range)"
+        } else {
+            readClosely = "no earlier entries"
+        }
+
+        var seenMoods: [String] = []
+        for m in recent.compactMap(\.mood) where !seenMoods.contains(m) { seenMoods.append(m) }
+        let moods = seenMoods.isEmpty
+            ? "—"
+            : seenMoods.map { MirrorTheme.localizedMoodName(for: $0).uppercased() }.joined(separator: ", ")
+
+        return Resolved(
+            engine: engine,
+            generated: Self.stamp.string(from: asOf),
+            readClosely: readClosely,
+            backgroundCount: backgroundCount,
+            moods: moods
+        )
     }
 
     // MARK: Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let r = resolve()
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: 11, weight: .bold))
@@ -83,13 +100,13 @@ struct ReflectionSignalSource: View {
             .foregroundStyle(MirrorTheme.ember)
 
             VStack(alignment: .leading, spacing: 9) {
-                row("ENGINE", engineLabel)
-                row("GENERATED", Self.stamp.string(from: insight.generatedAt))
-                row("READ CLOSELY", readCloselyValue)
-                if reconstruction.backgroundCount > 0 {
-                    row("CONTEXT", "\(reconstruction.backgroundCount) earlier entries")
+                row("ENGINE", r.engine)
+                row("GENERATED", r.generated)
+                row("READ CLOSELY", r.readClosely)
+                if r.backgroundCount > 0 {
+                    row("CONTEXT", "\(r.backgroundCount) earlier entries")
                 }
-                row("MOOD READ", moodValue)
+                row("MOOD READ", r.moods)
             }
 
             Rectangle()

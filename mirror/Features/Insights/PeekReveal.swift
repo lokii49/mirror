@@ -13,6 +13,10 @@ import UIKit
 /// semantics with no dismiss state to manage.
 struct PeekReveal<Front: View, Back: View>: View {
     var enabled: Bool
+    /// Must match the wrapped card's own radius so the wireframe stroke and the
+    /// clipped back-face line up with the card edge. Sentinel's `themedCard` is
+    /// 10; pass the card's value when wrapping something else.
+    var cornerRadius: CGFloat = 10
     @ViewBuilder var front: Front
     @ViewBuilder var back: Back
 
@@ -22,10 +26,15 @@ struct PeekReveal<Front: View, Back: View>: View {
 
     #if DEBUG
     // Screenshot/QA hook: `--peekRevealAlwaysOn` pins the back-face open so the
-    // held state is capturable without a live touch. No effect in release.
+    // held state is capturable without a live touch. `--peekRevealStayOpen`
+    // keeps it open after the finger lifts, so a UI test can press-and-release
+    // and still assert the reveal fired (a mid-gesture screenshot isn't
+    // possible from XCUITest). No effect in release.
     private let forceOpen = ProcessInfo.processInfo.arguments.contains("--peekRevealAlwaysOn")
+    private let stayOpen = ProcessInfo.processInfo.arguments.contains("--peekRevealStayOpen")
     #else
     private let forceOpen = false
+    private let stayOpen = false
     #endif
     private var showBack: Bool { revealed || forceOpen }
 
@@ -48,24 +57,25 @@ struct PeekReveal<Front: View, Back: View>: View {
             .overlay {
                 if showBack {
                     back
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .transition(.opacity)
                 }
             }
             // The wireframe: the front's silhouette, left behind as it dissolves.
             .overlay {
                 if showBack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1)
                         .transition(.opacity)
                 }
             }
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .modifier(HoldGestureModifier(enabled: enabled, gesture: holdGesture))
             .onChange(of: holding) { _, isHolding in
                 guard enabled else { return }
+                let next = isHolding || stayOpen
                 withAnimation(reduceMotion ? .none : .easeOut(duration: 0.24)) {
-                    revealed = isHolding
+                    revealed = next
                 }
                 if isHolding {
                     UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
