@@ -62,6 +62,22 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--seedTodayReflection") {
             SampleData.seedTodayReflection(into: sharedModelContainer.mainContext)
         }
+        // D2: weekly digest + Ask cards also gate their PeekReveal X-ray on a
+        // loaded Insight. These seed one of each for the current period (lean on
+        // --seedTodayReflection's this-week entries for the reconstruction).
+        // Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--seedWeeklyDigestSample") {
+            SampleData.seedWeeklyDigestSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearWeeklyDigestSample") {
+            SampleData.clearWeeklyDigestSample(from: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--seedAskSample") {
+            SampleData.seedAskSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearAskSample") {
+            SampleData.clearAskSample(from: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on
