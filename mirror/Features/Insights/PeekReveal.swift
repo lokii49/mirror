@@ -1,96 +1,183 @@
 import SwiftUI
 import UIKit
 
-/// Press-and-hold a card to X-ray it — the front dissolves into a wireframe of
-/// itself and a "behind the glass" panel fades in over it, for as long as the
-/// finger stays down. Releasing springs it straight back. This is a Sentinel-mode
-/// signature interaction; in Classic it's inert (renders `front`, no gesture).
+/// Press-and-hold a card, then swipe, to wipe it clear and see what's behind —
+/// like a flashlight moving over frosted glass. The front stays fully opaque; a
+/// soft-edged hole follows the finger, and the swept trail slowly re-frosts
+/// behind it (~1.4s). Lift the finger and the whole thing frosts back over.
 ///
-/// First use: the daily reflection card (`ReflectionSignalSource` as the back).
-/// The gesture is a long-press *sequenced before* a zero-distance drag so the
-/// finger-lift is caught reliably — `@GestureState` auto-resets to its initial
-/// value the instant the gesture ends, which is exactly the "peek while held"
-/// semantics with no dismiss state to manage.
+/// Sentinel-mode signature interaction; in Classic it's inert (renders `front`,
+/// no gesture). First use: the daily reflection card, with `ReflectionSignalSource`
+/// as `back`.
+///
+/// The gesture is a long-press *sequenced before* a zero-distance drag: the
+/// long-press arms it, the drag reports the finger position for as long as it's
+/// down, and `.onEnded` fires on lift.
 struct PeekReveal<Front: View, Back: View>: View {
     var enabled: Bool
-    /// Must match the wrapped card's own radius so the wireframe stroke and the
-    /// clipped back-face line up with the card edge. Sentinel's `themedCard` is
-    /// 10; pass the card's value when wrapping something else.
+    /// Match the wrapped card's own corner radius so the clip and the "inspecting"
+    /// border sit on the card edge. Sentinel's `themedCard` is 10.
     var cornerRadius: CGFloat = 10
     @ViewBuilder var front: Front
     @ViewBuilder var back: Back
 
-    @GestureState private var holding = false
-    @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// One dab of "wiped clear", spawned per drag sample. Fades over `lifetime`.
+    private struct Smudge: Identifiable {
+        let id = UUID()
+        var point: CGPoint
+        var birth: Date
+    }
+
+    @State private var trail: [Smudge] = []
+    @State private var active = false
+
+    private let lifetime: TimeInterval = 1.4
+    private let holeRadius: CGFloat = 74
+    private let maxSmudges = 64
+
     #if DEBUG
-    // Screenshot/QA hook: `--peekRevealAlwaysOn` pins the back-face open so the
-    // held state is capturable without a live touch. `--peekRevealStayOpen`
-    // keeps it open after the finger lifts, so a UI test can press-and-release
-    // and still assert the reveal fired (a mid-gesture screenshot isn't
-    // possible from XCUITest). No effect in release.
+    // `--peekRevealAlwaysOn` fully reveals the back (no wipe) for screenshots.
+    // `--peekRevealStayOpen` freezes the wiped trail (no decay, no clear) so a UI
+    // test can press-drag-release and still screenshot the swept path.
+    // `--peekRevealDemoTrail` paints a fixed diagonal of feathered holes on
+    // appear — screenshots the wipe *rendering* (feather, back-through-holes)
+    // without a live drag.
     private let forceOpen = ProcessInfo.processInfo.arguments.contains("--peekRevealAlwaysOn")
     private let stayOpen = ProcessInfo.processInfo.arguments.contains("--peekRevealStayOpen")
+    private let demoTrail = ProcessInfo.processInfo.arguments.contains("--peekRevealDemoTrail")
     #else
     private let forceOpen = false
     private let stayOpen = false
+    private let demoTrail = false
     #endif
-    private var showBack: Bool { revealed || forceOpen }
 
-    private var holdGesture: some Gesture {
+    private var showReveal: Bool { active || !trail.isEmpty || forceOpen || demoTrail }
+
+    var body: some View {
+        ZStack {
+            // Only mounted while something could show through — keeps
+            // `ReflectionSignalSource.resolve()` off the idle render path.
+            if showReveal { back }
+            frontLayer
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay {
+            if active || forceOpen {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(MirrorTheme.ember.opacity(0.5), lineWidth: 1)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .modifier(RevealGestureModifier(enabled: enabled, gesture: revealGesture))
+        .accessibilityElement(children: .contain)
+        .accessibilityHint(enabled ? "Press, hold and swipe to reveal how this was generated" : "")
+    }
+
+    // MARK: Front (the frosted layer)
+
+    @ViewBuilder private var frontLayer: some View {
+        if forceOpen {
+            front.opacity(0)
+        } else if reduceMotion {
+            // Motion-free fallback: hold reveals the whole back, no wipe/trail.
+            front.opacity(active ? 0 : 1).animation(.easeInOut(duration: 0.2), value: active)
+        } else if trail.isEmpty && !active && !demoTrail {
+            front
+        } else {
+            front.mask {
+                TimelineView(.animation) { timeline in
+                    Canvas { ctx, size in
+                        // Start fully opaque (front visible everywhere)…
+                        ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
+                        // …then subtract a feathered circle per smudge.
+                        ctx.blendMode = .destinationOut
+                        let now = timeline.date
+                        let dabs: [(CGPoint, Double)] = demoTrail
+                            ? Self.demoDabs(in: size)
+                            : trail.enumerated().map { i, s in
+                                let isLive = (active && i == trail.count - 1) || stayOpen
+                                let strength = isLive
+                                    ? 1.0
+                                    : max(0, 1 - now.timeIntervalSince(s.birth) / lifetime)
+                                return (s.point, strength)
+                            }
+                        for (point, strength) in dabs where strength > 0.001 {
+                            let r = holeRadius
+                            ctx.fill(
+                                Path(ellipseIn: CGRect(x: point.x - r, y: point.y - r,
+                                                       width: r * 2, height: r * 2)),
+                                with: .radialGradient(
+                                    Gradient(stops: [
+                                        .init(color: .white.opacity(strength), location: 0),
+                                        .init(color: .white.opacity(strength * 0.82), location: 0.5),
+                                        .init(color: .clear, location: 1),
+                                    ]),
+                                    center: point, startRadius: 0, endRadius: r
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Gesture
+
+    private var revealGesture: some Gesture {
         LongPressGesture(minimumDuration: 0.35)
             .sequenced(before: DragGesture(minimumDistance: 0))
-            .updating($holding) { value, state, _ in
-                // .second(true, _) = long-press satisfied and the drag (the
-                // continued touch) is active. Anything else = not holding.
-                if case .second(true, _) = value { state = true } else { state = false }
+            .onChanged { value in
+                guard case .second(true, let drag?) = value else { return }
+                if !active {
+                    active = true
+                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+                }
+                addSmudge(at: drag.location)
+            }
+            .onEnded { _ in
+                active = false
+                scheduleTrailClear()
             }
     }
 
-    var body: some View {
-        front
-            .opacity(showBack ? 0.06 : 1)
-            .blur(radius: showBack ? 2 : 0)
-            // `back` as an overlay = exactly the front's frame, so the X-ray
-            // panel is the same size as the card it replaces — no ballooning.
-            .overlay {
-                if showBack {
-                    back
-                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        .transition(.opacity)
-                }
-            }
-            // The wireframe: the front's silhouette, left behind as it dissolves.
-            .overlay {
-                if showBack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1)
-                        .transition(.opacity)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .modifier(HoldGestureModifier(enabled: enabled, gesture: holdGesture))
-            .onChange(of: holding) { _, isHolding in
-                guard enabled else { return }
-                let next = isHolding || stayOpen
-                withAnimation(reduceMotion ? .none : .easeOut(duration: 0.24)) {
-                    revealed = next
-                }
-                if isHolding {
-                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityHint(enabled ? "Press and hold to inspect how this was generated" : "")
+    #if DEBUG
+    /// A fixed diagonal sweep, decaying head→tail, for `--peekRevealDemoTrail`.
+    private static func demoDabs(in size: CGSize) -> [(CGPoint, Double)] {
+        let ts: [Double] = [1.0, 0.8, 0.62, 0.45, 0.3, 0.16]
+        return ts.enumerated().map { i, strength in
+            let f = CGFloat(ts.count - 1 - i) / CGFloat(ts.count - 1)  // 0 (tail) → 1 (head)
+            return (CGPoint(x: size.width * (0.2 + 0.6 * f),
+                            y: size.height * (0.25 + 0.4 * f)), strength)
+        }
+    }
+    #endif
+
+    private func addSmudge(at point: CGPoint) {
+        let now = Date()
+        trail.append(Smudge(point: point, birth: now))
+        if !stayOpen {
+            trail.removeAll { now.timeIntervalSince($0.birth) > lifetime }
+        }
+        if trail.count > maxSmudges { trail.removeFirst(trail.count - maxSmudges) }
+    }
+
+    /// After the finger lifts, the trail keeps decaying on its own; once it's had
+    /// time to fade, drop it so `frontLayer` stops driving the per-frame Canvas.
+    private func scheduleTrailClear() {
+        guard !stayOpen else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + lifetime + 0.2) {
+            if !active { trail.removeAll() }
+        }
     }
 }
 
-/// Attaches the hold gesture only when `enabled`, so Classic mode pays nothing
-/// and the card's own taps/long-presses are untouched there. Kept as a modifier
-/// because a gesture can't be conditionally applied inline without changing the
-/// view's type across the branch.
-private struct HoldGestureModifier<G: Gesture>: ViewModifier {
+/// Attaches the gesture only when `enabled` — Classic mode pays nothing and the
+/// card's own taps are untouched. A gesture can't be conditionally applied inline
+/// without changing the view's type across the branch.
+private struct RevealGestureModifier<G: Gesture>: ViewModifier {
     let enabled: Bool
     let gesture: G
 
@@ -105,9 +192,8 @@ private struct HoldGestureModifier<G: Gesture>: ViewModifier {
 
 #if DEBUG
 #Preview("Peek reveal") {
-    // The gesture needs a device/simulator to fire; this preview is for the
-    // resting front and the two card frames lining up. Hold to test the reveal
-    // in a running build.
+    // The wipe needs a live touch; this preview just shows the resting front and
+    // that the two layers line up. Hold-and-swipe to test in a running build.
     PeekReveal(enabled: true) {
         Text("Front card content, a few lines tall so the frames differ.")
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,13 +203,14 @@ private struct HoldGestureModifier<G: Gesture>: ViewModifier {
                 RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
             }
     } back: {
-        Text("BACK · X-RAY PANEL")
+        Text("BEHIND · SIGNAL SOURCE")
             .font(MirrorTheme.mono(12, weight: .bold))
             .foregroundStyle(MirrorTheme.ember)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(22)
-            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10))
+            .background(MirrorTheme.inkMid)
     }
+    .frame(height: 220)
     .environment(\.appDisplayMode, .sentinel)
     .padding()
     .background(MirrorTheme.inkBase)
