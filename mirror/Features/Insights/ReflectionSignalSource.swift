@@ -25,6 +25,10 @@ struct ReflectionSignalSource: View {
         let readClosely: String
         let backgroundCount: Int
         let moods: String
+        /// The (up to 3) entries the reflection read closely — day + one-line
+        /// snippet. Same text the user sees in the entry list; it's their own
+        /// journal on their own device, shown only on a deliberate press-hold.
+        let reading: [(day: String, snippet: String)]
     }
 
     private static let dayMonth: DateFormatter = {
@@ -76,13 +80,33 @@ struct ReflectionSignalSource: View {
             ? "—"
             : seenMoods.map { MirrorTheme.localizedMoodName(for: $0).uppercased() }.joined(separator: ", ")
 
+        let reading = recent.prefix(3).map {
+            (day: Self.dayMonth.string(from: $0.createdAt), snippet: Self.snippet(for: $0))
+        }
+
         return Resolved(
             engine: engine,
             generated: Self.stamp.string(from: asOf),
             readClosely: readClosely,
             backgroundCount: backgroundCount,
-            moods: moods
+            moods: moods,
+            reading: Array(reading)
         )
+    }
+
+    /// One-line gist of an entry for the READING list — text collapsed to a
+    /// single line, else the voice transcript, else a type label.
+    private static func snippet(for entry: Entry) -> String {
+        let raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
+        let oneLine = raw
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !oneLine.isEmpty { return oneLine }
+        if entry.hasVoiceNotes { return "Voice note" }
+        if entry.hasPhoto { return "Photo entry" }
+        return "Untitled"
     }
 
     // MARK: Body
@@ -104,9 +128,31 @@ struct ReflectionSignalSource: View {
                 row("GENERATED", r.generated)
                 row("READ CLOSELY", r.readClosely)
                 if r.backgroundCount > 0 {
-                    row("CONTEXT", "\(r.backgroundCount) earlier entries")
+                    row("CONTEXT", "\(r.backgroundCount) earlier \(r.backgroundCount == 1 ? "entry" : "entries")")
                 }
                 row("MOOD READ", r.moods)
+            }
+
+            if !r.reading.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("READING")
+                        .font(MirrorTheme.mono(10, weight: .bold))
+                        .tracking(0.6)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                    ForEach(Array(r.reading.enumerated()), id: \.offset) { _, item in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.day)
+                                .font(MirrorTheme.mono(10, weight: .medium))
+                                .foregroundStyle(MirrorTheme.textTertiary)
+                                .frame(width: 44, alignment: .leading)
+                            Text(item.snippet)
+                                .font(MirrorTheme.mono(10.5, weight: .regular))
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                }
             }
 
             Rectangle()
