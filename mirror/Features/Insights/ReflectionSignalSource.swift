@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// The "behind the glass" panel for the daily reflection card, shown while the
 /// card is held in Sentinel mode (see `PeekReveal`). It makes mirror's core
@@ -203,18 +204,35 @@ struct ReflectionSignalSource: View {
 
 #if DEBUG
 #Preview("Signal source") {
+    // SwiftData @Model instances need a container — creating them detached throws
+    // "invalid reuse after initialization failure" in the canvas.
+    let container = try! ModelContainer(
+        for: Insight.self, Entry.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let ctx = container.mainContext
+
     let insight = Insight(
         type: .dailyNudge,
         content: "You keep circling back to the same unfinished conversation.",
         periodIdentifier: "2026-09-07",
         generatedByEngine: .gemma
     )
-    let entries: [Entry] = [
-        { let e = Entry(text: "Long day. The review went fine but I couldn't shake it.", mood: "Drained"); e.createdAt = .now.addingTimeInterval(-3600 * 20); return e }(),
-        { let e = Entry(text: "Walked instead of scrolling. Small win.", mood: "Hopeful"); e.createdAt = .now.addingTimeInterval(-3600 * 44); return e }(),
-        { let e = Entry(text: "Couldn't focus. Kept re-reading the same email.", mood: "Anxious"); e.createdAt = .now.addingTimeInterval(-3600 * 70); return e }(),
-        { let e = Entry(text: "Quiet weekend.", mood: nil); e.createdAt = .now.addingTimeInterval(-3600 * 24 * 6); return e }(),
+    ctx.insert(insight)
+
+    let samples: [(String, String?, Double)] = [
+        ("Long day. The review went fine but I couldn't shake it.", "Drained", 20),
+        ("Walked instead of scrolling. Small win.", "Hopeful", 44),
+        ("Couldn't focus. Kept re-reading the same email.", "Anxious", 70),
+        ("Quiet weekend.", nil, 24 * 6),
     ]
+    let entries: [Entry] = samples.map { text, mood, hrs in
+        let e = Entry(text: text, mood: mood)
+        e.createdAt = .now.addingTimeInterval(-3600 * hrs)
+        ctx.insert(e)
+        return e
+    }
+
     return ReflectionSignalSource(insight: insight, entries: entries)
         .environment(\.appDisplayMode, .sentinel)
         .frame(height: 300)  // stands in for the front reflection card's height
@@ -222,5 +240,6 @@ struct ReflectionSignalSource: View {
         .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1) }
         .padding()
         .background(MirrorTheme.inkBase)
+        .modelContainer(container)
 }
 #endif
