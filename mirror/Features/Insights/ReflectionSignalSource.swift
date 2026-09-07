@@ -176,14 +176,23 @@ struct ReflectionSignalSource: View {
             }
             .foregroundStyle(MirrorTheme.violetLight)
         }
-        // Fills the front card's frame exactly (PeekReveal renders this as an
-        // overlay of the front), so the X-ray panel never balloons past the card
-        // it replaces. Content sits at the top; the grid fills whatever's left.
+        // Fills the front card's frame exactly (PeekReveal renders this behind
+        // the front), so the X-ray panel never balloons past the card it
+        // replaces. Content sits at the top; the background matches the front
+        // reflection card's *exactly* — same `inkMid` base, same top-right
+        // accent radial — so a wipe reveals different text on the same surface,
+        // not a differently-coloured box. No HUD grid here: the front card's
+        // interior has none, and a grid only in the wiped band reads as a seam.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(22)
         .background {
             MirrorTheme.inkMid
-            SentinelGridBackground().opacity(0.7)
+            RadialGradient(
+                colors: [MirrorTheme.primary.opacity(0.16), .clear],
+                center: .init(x: 0.90, y: 0.10),
+                startRadius: 0,
+                endRadius: 200
+            )
         }
     }
 
