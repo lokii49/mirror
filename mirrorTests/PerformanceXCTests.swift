@@ -490,4 +490,67 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-tap recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 10: ReflectionSignalSource.resolve() vs cached
+
+    func test_reflectionSignalSourceResolve_perDragSampleVsCached() {
+        let cal = Calendar.current
+        // One reflection Insight, generated "now" — same as ReflectionSignalSource's
+        // real input from InsightView's `.loaded(let insight)` state.
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let insightContainer = try! ModelContainer(for: Insight.self, configurations: config)
+        let insightContext = ModelContext(insightContainer)
+        let insight = Insight(type: .dailyNudge, content: "Reflection", periodIdentifier: "today")
+        insightContext.insert(insight)
+        try! insightContext.save()
+
+        // A press-hold-then-drag-to-wipe gesture reports a location update per touch
+        // sample; 40 approximates one sweep across a card at typical touch sampling rate.
+        let dragSamples = 40
+
+        func recompute(entries: [Entry], asOf: Date) -> (readClosely: String, backgroundCount: Int, readingCount: Int) {
+            let prior = entries
+                .filter { $0.createdAt <= asOf }
+                .sorted { $0.createdAt > $1.createdAt }
+            let cutoff = cal.date(byAdding: .day, value: -14, to: asOf) ?? asOf
+            let within = prior.filter { $0.createdAt >= cutoff }
+            let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
+            let recentIDs = Set(recent.map(\.id))
+            let backgroundCount = prior.filter { !recentIDs.contains($0.id) }.prefix(20).count
+
+            let readClosely: String
+            if let newest = recent.first?.createdAt, let oldest = recent.last?.createdAt {
+                readClosely = "\(recent.count) entries \(newest) \(oldest)"
+            } else {
+                readClosely = "no earlier entries"
+            }
+
+            return (readClosely, backgroundCount, recent.count)
+        }
+
+        // OLD: resolve() re-ran this full-history filter+sort+filter on every call. This view
+        // is only mounted while PeekReveal's `back` slot is showing, but for the entire
+        // press-hold + drag-to-wipe gesture, PeekReveal's own `trail` @State appends a Smudge
+        // per drag sample, re-evaluating this view's `body` (and thus `resolve()`) at
+        // touch-sample frequency — neither `insight` nor `entries` change during the gesture.
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<dragSamples {
+            let _ = recompute(entries: entries, asOf: insight.generatedAt)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: computed once in .task(id: resolveCacheKey) into @State var cached; remaining
+        // drag samples (PeekReveal.body re-evaluating with an unchanged id) read the cache.
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cached = recompute(entries: entries, asOf: insight.generatedAt)
+        for _ in 0..<(dragSamples - 1) { let _ = cached }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[ReflectionSignalSource.resolve] 365 entries × \(dragSamples) drag samples")
+        print("  OLD (per-drag-sample recompute): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 compute + cache):         \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-drag-sample recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }

@@ -15,6 +15,35 @@ struct ReflectionSignalSource: View {
     let insight: Insight
     let entries: [Entry]
 
+    // `resolve()` filters+sorts the full-history `entries` array (InsightView's raw,
+    // unfiltered `@Query`) on every call. This view is only mounted while `PeekReveal`'s
+    // `back` slot is showing (see that file's comment) — but for that entire press-hold +
+    // drag-to-wipe interaction, `PeekReveal`'s own `trail` state appends a `Smudge` per
+    // drag sample, re-evaluating `PeekReveal.body` (and this view's `body` along with it)
+    // at touch-sample frequency, even though neither `insight` nor `entries` change during
+    // the gesture. Same bug shape as the other `.task(id:)`-cached views in this codebase
+    // (CalendarHeatmap/MoodTimelineView/WriteView/AskView/InsightView), just triggered by a
+    // drag gesture instead of a keystroke/toggle — resolve once per underlying-data change,
+    // not once per drag sample.
+    @State private var cached: Resolved?
+
+    /// Hashes only plaintext/ciphertext fields `resolve()` reads (`createdAt`,
+    /// `encryptedMood`, never the decrypted `text`/`mood`), so computing the key never does
+    /// the decryption work being cached — matches the `entryCacheKey` precedent in
+    /// `InsightView.swift`.
+    private var resolveCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(insight.id)
+        hasher.combine(insight.generatedAt)
+        hasher.combine(entries.count)
+        for entry in entries {
+            hasher.combine(entry.id)
+            hasher.combine(entry.createdAt)
+            hasher.combine(entry.encryptedMood)
+        }
+        return hasher.finalize()
+    }
+
     // MARK: Reconstructed context
 
     /// Everything the panel needs, built ONCE per render (`body` computes a single
@@ -119,8 +148,24 @@ struct ReflectionSignalSource: View {
     // MARK: Body
 
     var body: some View {
-        let r = resolve()
-        return VStack(alignment: .leading, spacing: 14) {
+        Group {
+            if let r = cached {
+                content(for: r)
+            } else {
+                // Brief gap on first mount only (press-hold just armed); resolve() itself
+                // is fast enough at realistic entry counts that this is sub-frame, it just
+                // must not re-run on every subsequent drag sample.
+                Color.clear
+            }
+        }
+        .task(id: resolveCacheKey) {
+            cached = resolve()
+        }
+    }
+
+    @ViewBuilder
+    private func content(for r: Resolved) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: 11, weight: .bold))
