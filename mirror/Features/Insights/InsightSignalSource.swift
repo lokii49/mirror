@@ -322,8 +322,7 @@ struct SignalSourceInkBackground: View {
 }
 
 /// The Ask case is the tight one — a one-line answer card is much shorter than
-/// the panel. This shows the panel at the `minHeight: 210` floor the Ask call
-/// site applies; it must not clip the footer.
+/// the panel, so the reveal grows the card while held.
 #Preview("Ask panel — short answer") {
     let container = try! ModelContainer(
         for: Insight.self, Entry.self,
@@ -352,7 +351,7 @@ struct SignalSourceInkBackground: View {
         SignalSourceInkBackground()
     }
         .environment(\.appDisplayMode, .sentinel)
-        .frame(minHeight: 210, alignment: .top)
+        .frame(height: 300, alignment: .top)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1) }
         .padding()

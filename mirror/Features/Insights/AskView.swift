@@ -669,10 +669,6 @@ private struct AskBubblePair: View {
                         SignalSourceInkBackground()
                     }
                 }
-                // Unlike the weekly/monthly hero cards, an Ask answer can be one
-                // line — floor the height so the revealed SIGNAL SOURCE panel
-                // (header + rows + reading + footer) is never clipped.
-                .frame(minHeight: 210, alignment: .top)
                 .padding(.top, 4)
             } else {
                 classicAnswer
@@ -699,7 +695,7 @@ private struct AskBubblePair: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
