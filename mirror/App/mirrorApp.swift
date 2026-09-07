@@ -70,15 +70,18 @@ struct mirrorApp: App {
         if let modeArg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--forceDisplayMode=") }),
            let mode = DisplayMode(rawValue: String(modeArg.dropFirst("--forceDisplayMode=".count))) {
             let context = sharedModelContainer.mainContext
-            let profile = (try? context.fetch(FetchDescriptor<UserProfile>()).first) ?? {
+            if let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first {
+                // Existing profile: only touch the theme, never onboardingComplete —
+                // that's the first-run gate and this arg could be passed on a real device.
+                profile.displayMode = mode
+            } else {
                 // Fresh/erased sim has no profile — make one so this arg also
                 // skips onboarding for screenshot passes, not just sets the theme.
                 let p = UserProfile()
+                p.onboardingComplete = true
+                p.displayMode = mode
                 context.insert(p)
-                return p
-            }()
-            profile.onboardingComplete = true
-            profile.displayMode = mode
+            }
             try? context.save()
         }
         #endif
