@@ -34,7 +34,7 @@ struct PeekReveal<Front: View, Back: View>: View {
     @State private var active = false
 
     private let lifetime: TimeInterval = 1.4
-    private let holeRadius: CGFloat = 66
+    private let holeRadius: CGFloat = 78  // wide enough that consecutive drag dabs overlap in their solid cores
     private let maxSmudges = 64
 
     #if DEBUG
