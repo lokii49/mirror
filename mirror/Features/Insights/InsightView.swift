@@ -369,19 +369,26 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing your reflection", sublabel: "Reading recent entries…", icon: "sparkles")
         case .loaded(let insight):
-            InsightTextView(
-                insight: insight,
-                label: "Daily Reflection",
-                icon: "sparkles",
-                accentColor: MirrorTheme.primary,
-                isExpanded: nudgeExpanded,
-                collapsedLineLimit: 5,
-                onToggleExpanded: {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                        nudgeExpanded.toggle()
+            // Sentinel signature: press-and-hold the reflection to X-ray it —
+            // see which on-device model wrote it, from which entries, and that
+            // nothing left the device. Inert in Classic.
+            PeekReveal(enabled: displayMode == .sentinel) {
+                InsightTextView(
+                    insight: insight,
+                    label: "Daily Reflection",
+                    icon: "sparkles",
+                    accentColor: MirrorTheme.primary,
+                    isExpanded: nudgeExpanded,
+                    collapsedLineLimit: 5,
+                    onToggleExpanded: {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            nudgeExpanded.toggle()
+                        }
                     }
-                }
-            )
+                )
+            } back: {
+                ReflectionSignalSource(insight: insight, entries: entries)
+            }
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             VStack(spacing: 12) {
@@ -1235,7 +1242,11 @@ private struct InsightTextView: View {
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
-                .textSelection(.enabled)
+                // Sentinel wraps this card in PeekReveal — a long-press there
+                // must arm the X-ray, not the text-selection magnifier. Classic
+                // keeps copy-to-select. (`.enabled`/`.disabled` are different
+                // types, so this can't be a ternary — hence the modifier.)
+                .modifier(ConditionalTextSelection(enabled: !isSentinel))
 
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {
@@ -1284,6 +1295,16 @@ private struct InsightTextView: View {
                 .offset(x: -18, y: 8)
                 .allowsHitTesting(false)
         }
+    }
+}
+
+/// `.textSelection(.enabled)` and `.textSelection(.disabled)` resolve to
+/// different types, so the choice can't be a ternary at the call site.
+private struct ConditionalTextSelection: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.textSelection(.enabled) }
+        else { content.textSelection(.disabled) }
     }
 }
 

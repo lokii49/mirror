@@ -487,6 +487,55 @@ enum SampleData {
         try? context.save()
     }
 
+    // MARK: - Today's reflection (for the Sentinel PeekReveal X-ray)
+
+    /// The daily reflection card only enters its `.loaded` state — the only state
+    /// the `PeekReveal` X-ray wraps — when a `.dailyNudge` Insight exists for
+    /// today. Seeds that one Insight (tagged via a recognisable content string,
+    /// engine set so `ReflectionSignalSource` shows a real engine line) plus four
+    /// recent moody entries so the reconstruction has "read closely" / "mood
+    /// read" data. Scratch-device only. Clear with `clearTodayReflectionSample`.
+    static let todayReflectionSampleContent =
+        "You keep coming back to the conversation you didn't finish. Not the argument itself — the part after, where you decided it wasn't worth saying."
+
+    static let todayReflectionEntrySamples: [(text: String, mood: String, hoursAgo: Double)] = [
+        ("Review went fine. Everyone said the right things. I still left feeling like I'd been holding my breath the whole time.", "Drained", 20),
+        ("Took the long way home on purpose. Left the phone in my pocket. First quiet twenty minutes I've had in days.", "Hopeful", 44),
+        ("Kept re-reading the same message trying to decide if I was overthinking it. I was. Probably.", "Anxious", 70),
+        ("Slow morning. Didn't do much. Didn't mind.", "Peaceful", 24 * 5),
+    ]
+
+    static func seedTodayReflection(into context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        let today = DateHelpers.dayIdentifier(for: Date())
+        if !existing.contains(where: { $0.type == .dailyNudge && $0.periodIdentifier == today }) {
+            let insight = Insight(
+                type: .dailyNudge,
+                content: todayReflectionSampleContent,
+                periodIdentifier: today,
+                generatedByEngine: .gemma
+            )
+            context.insert(insight)
+        }
+
+        for sample in todayReflectionEntrySamples {
+            let entry = Entry(text: sample.text, mood: sample.mood, source: .typed)
+            entry.createdAt = Date().addingTimeInterval(-3600 * sample.hoursAgo)
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
+            entry.tags = [sampleTag]
+            context.insert(entry)
+        }
+        try? context.save()
+    }
+
+    static func clearTodayReflectionSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for insight in all where insight.content == todayReflectionSampleContent {
+            context.delete(insight)
+        }
+        clearSampleEntries(from: context)
+    }
+
     // MARK: - Helpers
 
     /// Hidden tag applied to every seeded entry so they can be cleared without touching real entries.
