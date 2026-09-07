@@ -320,4 +320,43 @@ struct SignalSourceInkBackground: View {
         .background(MirrorTheme.inkBase)
         .modelContainer(container)
 }
+
+/// The Ask case is the tight one — a one-line answer card is much shorter than
+/// the panel. This shows the panel at the `minHeight: 210` floor the Ask call
+/// site applies; it must not clip the footer.
+#Preview("Ask panel — short answer") {
+    let container = try! ModelContainer(
+        for: Insight.self, Entry.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let ctx = container.mainContext
+    let insight = Insight(
+        type: .askResponse,
+        content: "Not much — only three entries touch this, all from the same week.",
+        periodIdentifier: "2026-09-07",
+        question: "how have I been sleeping?",
+        generatedByEngine: .gemma
+    )
+    ctx.insert(insight)
+    let entries: [Entry] = [
+        ("Up until 2 again. Knew I would be.", "Drained", 12.0),
+        ("Better night. Phone in the other room.", "Hopeful", 40.0),
+        ("Woke at 5, couldn't get back down.", "Anxious", 66.0),
+    ].map { text, mood, hrs in
+        let e = Entry(text: text, mood: mood)
+        e.createdAt = .now.addingTimeInterval(-3600 * hrs)
+        ctx.insert(e)
+        return e
+    }
+    return InsightSignalSource(insight: insight, entries: entries) {
+        SignalSourceInkBackground()
+    }
+        .environment(\.appDisplayMode, .sentinel)
+        .frame(minHeight: 210, alignment: .top)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1) }
+        .padding()
+        .background(MirrorTheme.inkBase)
+        .modelContainer(container)
+}
 #endif
