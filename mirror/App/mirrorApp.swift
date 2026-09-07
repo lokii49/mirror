@@ -52,6 +52,16 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearMonthlyReportSample") {
             SampleData.clearMonthlyReportSample(from: sharedModelContainer.mainContext)
         }
+        // See SampleData.seedTodayReflection — the daily reflection card only shows
+        // its loaded state (and thus the Sentinel PeekReveal X-ray) when a nudge
+        // Insight exists for today. Seeds one plus a few recent moody entries so
+        // ReflectionSignalSource's reconstruction has something to show. Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--seedTodayReflection") {
+            SampleData.seedTodayReflection(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearTodayReflectionSample") {
+            SampleData.clearTodayReflectionSample(from: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on
