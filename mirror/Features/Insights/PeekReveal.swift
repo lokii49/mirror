@@ -34,7 +34,7 @@ struct PeekReveal<Front: View, Back: View>: View {
     @State private var active = false
 
     private let lifetime: TimeInterval = 1.4
-    private let holeRadius: CGFloat = 74
+    private let holeRadius: CGFloat = 66
     private let maxSmudges = 64
 
     #if DEBUG
@@ -109,9 +109,13 @@ struct PeekReveal<Front: View, Back: View>: View {
                                 Path(ellipseIn: CGRect(x: point.x - r, y: point.y - r,
                                                        width: r * 2, height: r * 2)),
                                 with: .radialGradient(
+                                    // Tight feather: fully clear core out to ~0.68r, the
+                                    // soft edge lives in the last third only — keeps
+                                    // front/back text from overlapping across a wide band.
                                     Gradient(stops: [
                                         .init(color: .white.opacity(strength), location: 0),
-                                        .init(color: .white.opacity(strength * 0.82), location: 0.5),
+                                        .init(color: .white.opacity(strength), location: 0.68),
+                                        .init(color: .white.opacity(strength * 0.5), location: 0.86),
                                         .init(color: .clear, location: 1),
                                     ]),
                                     center: point, startRadius: 0, endRadius: r
