@@ -387,9 +387,7 @@ struct InsightView: View {
                     }
                 )
             } back: {
-                InsightSignalSource(insight: insight, entries: entries) {
-                    SignalSourceInkBackground(accentRadial: true)
-                }
+                InsightSignalSource(insight: insight, entries: entries)
             }
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
@@ -553,9 +551,7 @@ struct InsightView: View {
                     }
                 )
             } back: {
-                InsightSignalSource(insight: insight, entries: entries) {
-                    SignalSourceInkBackground()
-                }
+                InsightSignalSource(insight: insight, entries: entries)
             }
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries(let remaining):

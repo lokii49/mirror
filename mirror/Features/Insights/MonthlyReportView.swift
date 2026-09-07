@@ -135,9 +135,7 @@ struct MonthlyReportView: View {
         PeekReveal(enabled: displayMode == .sentinel) {
             MonthlyReportCard(insight: insight)
         } back: {
-            InsightSignalSource(insight: insight, entries: entries) {
-                SignalSourceInkBackground()
-            }
+            InsightSignalSource(insight: insight, entries: entries)
         }
             .glowShadow(color: MirrorTheme.violet, radius: 28)
     }

@@ -1267,3 +1267,25 @@ extension Entry {
         return parts.joined(separator: "\n\n")
     }
 }
+
+// MARK: - Source disclosure (Sentinel X-ray)
+
+extension InsightService {
+    /// The verbatim system prompt an insight of this type was generated from,
+    /// plus a `file:line` label. Read live from the same constant the generator
+    /// uses (CLAUDE.md: prompts live in `InsightService.swift` only) — the
+    /// Sentinel press-hold X-ray shows this so the generation is inspectable,
+    /// never a paraphrase that can drift.
+    static func systemPrompt(for type: InsightType) -> (ref: String, body: String) {
+        switch type {
+        case .dailyNudge:
+            return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
+        case .weeklyDigest:
+            return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
+        case .monthlyReport:
+            return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
+        case .askResponse:
+            return ("InsightService.swift:69 · ASK_SYSTEM", ASK_SYSTEM)
+        }
+    }
+}
