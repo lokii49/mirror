@@ -7,7 +7,7 @@ import UIKit
 /// behind it (~1.4s). Lift the finger and the whole thing frosts back over.
 ///
 /// Sentinel-mode signature interaction; in Classic it's inert (renders `front`,
-/// no gesture). First use: the daily reflection card, with `ReflectionSignalSource`
+/// no gesture). First use: the daily reflection card, with `InsightSignalSource`
 /// as `back`.
 ///
 /// The gesture is a long-press *sequenced before* a zero-distance drag: the
@@ -58,7 +58,7 @@ struct PeekReveal<Front: View, Back: View>: View {
     var body: some View {
         ZStack {
             // Only mounted while something could show through — keeps
-            // `ReflectionSignalSource.resolve()` off the idle render path.
+            // `InsightSignalSource.resolve()` off the idle render path.
             if showReveal { back }
             frontLayer
         }
@@ -175,6 +175,26 @@ struct PeekReveal<Front: View, Back: View>: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + lifetime + 0.2) {
             if !active { trail.removeAll() }
         }
+    }
+}
+
+/// `.textSelection(.enabled)` and `.textSelection(.disabled)` resolve to
+/// different types, so the choice can't be a ternary at the call site. Every
+/// card `PeekReveal` wraps in Sentinel must DISABLE selection there, or a
+/// long-press arms the text magnifier instead of the X-ray gesture.
+struct ConditionalTextSelection: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.textSelection(.enabled) }
+        else { content.textSelection(.disabled) }
+    }
+}
+
+extension View {
+    /// Selectable text everywhere except Sentinel, where the long-press belongs
+    /// to `PeekReveal`.
+    func selectableUnlessSentinel(_ isSentinel: Bool) -> some View {
+        modifier(ConditionalTextSelection(enabled: !isSentinel))
     }
 }
 

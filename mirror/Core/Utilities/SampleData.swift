@@ -492,7 +492,7 @@ enum SampleData {
     /// The daily reflection card only enters its `.loaded` state — the only state
     /// the `PeekReveal` X-ray wraps — when a `.dailyNudge` Insight exists for
     /// today. Seeds that one Insight (tagged via a recognisable content string,
-    /// engine set so `ReflectionSignalSource` shows a real engine line) plus four
+    /// engine set so `InsightSignalSource` shows a real engine line) plus four
     /// recent moody entries so the reconstruction has "read closely" / "mood
     /// read" data. Scratch-device only. Clear with `clearTodayReflectionSample`.
     static let todayReflectionSampleContent =

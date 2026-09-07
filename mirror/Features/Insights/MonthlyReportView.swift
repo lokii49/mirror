@@ -126,14 +126,29 @@ struct MonthlyReportView: View {
         .themedCard(cornerRadius: 26)
     }
 
+    /// Sentinel signature: press-and-hold the report to X-ray it — which
+    /// on-device model, which month's entries, nothing left the device. Inert
+    /// in Classic. `MonthlyReportCard` is a plain `inkMid` hero card, so the
+    /// panel behind it is plain `inkMid` too.
+    @ViewBuilder
+    private func reportCard(_ insight: Insight) -> some View {
+        PeekReveal(enabled: displayMode == .sentinel) {
+            MonthlyReportCard(insight: insight)
+        } back: {
+            InsightSignalSource(insight: insight, entries: entries) {
+                SignalSourceInkBackground()
+            }
+        }
+            .glowShadow(color: MirrorTheme.violet, radius: 28)
+    }
+
     @ViewBuilder
     private var reportContent: some View {
         if !isCurrentMonth {
             // Past month: show cached report only, no generation
             if let cached = cachedReportForSelectedMonth {
                 MonthlyStatsStrip(entries: selectedMonthEntries)
-                MonthlyReportCard(insight: cached)
-                    .glowShadow(color: MirrorTheme.violet, radius: 28)
+                reportCard(cached)
             } else {
                 pastMonthNoReportCard
             }
@@ -146,8 +161,7 @@ struct MonthlyReportView: View {
                 reportLoadingCard
             case .loaded(let insight):
                 MonthlyStatsStrip(entries: selectedMonthEntries)
-                MonthlyReportCard(insight: insight)
-                    .glowShadow(color: MirrorTheme.violet, radius: 28)
+                reportCard(insight)
             case .notEnoughEntries(let remaining, let total):
                 notEnoughEntriesCard(remaining: remaining, total: total)
             case .endOfMonthTooFewEntries(let count):
@@ -570,7 +584,7 @@ private struct MonthlyReportCard: View {
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(7)
                     .foregroundStyle(MirrorTheme.textPrimary)
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
             } else {
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(sections) { section in
@@ -608,14 +622,14 @@ private struct MonthlyReportCard: View {
                     .italic()
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
                     .padding(.top, 2)
             } else {
                 Text(section.body)
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary)
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
             }
         }
     }

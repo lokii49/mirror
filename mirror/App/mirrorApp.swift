@@ -55,7 +55,7 @@ struct mirrorApp: App {
         // See SampleData.seedTodayReflection — the daily reflection card only shows
         // its loaded state (and thus the Sentinel PeekReveal X-ray) when a nudge
         // Insight exists for today. Seeds one plus a few recent moody entries so
-        // ReflectionSignalSource's reconstruction has something to show. Scratch-device only.
+        // InsightSignalSource's reconstruction has something to show. Scratch-device only.
         if ProcessInfo.processInfo.arguments.contains("--clearTodayReflectionSample") {
             SampleData.clearTodayReflectionSample(from: sharedModelContainer.mainContext)
         }

@@ -387,7 +387,9 @@ struct InsightView: View {
                     }
                 )
             } back: {
-                ReflectionSignalSource(insight: insight, entries: entries)
+                InsightSignalSource(insight: insight, entries: entries) {
+                    SignalSourceInkBackground(accentRadial: true)
+                }
             }
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
@@ -538,15 +540,23 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
         case .loaded(let insight):
-            WeeklyDigestView(
-                insight: insight,
-                isExpanded: digestExpanded,
-                onToggleExpanded: {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                        digestExpanded.toggle()
+            // Sentinel signature: press-and-hold to X-ray — which on-device model,
+            // which entries this week, nothing left the device. Inert in Classic.
+            PeekReveal(enabled: displayMode == .sentinel) {
+                WeeklyDigestView(
+                    insight: insight,
+                    isExpanded: digestExpanded,
+                    onToggleExpanded: {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            digestExpanded.toggle()
+                        }
                     }
+                )
+            } back: {
+                InsightSignalSource(insight: insight, entries: entries) {
+                    SignalSourceInkBackground()
                 }
-            )
+            }
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
@@ -1295,16 +1305,6 @@ private struct InsightTextView: View {
                 .offset(x: -18, y: 8)
                 .allowsHitTesting(false)
         }
-    }
-}
-
-/// `.textSelection(.enabled)` and `.textSelection(.disabled)` resolve to
-/// different types, so the choice can't be a ternary at the call site.
-private struct ConditionalTextSelection: ViewModifier {
-    let enabled: Bool
-    func body(content: Content) -> some View {
-        if enabled { content.textSelection(.enabled) }
-        else { content.textSelection(.disabled) }
     }
 }
 
