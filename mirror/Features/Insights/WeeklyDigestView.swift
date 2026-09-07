@@ -55,7 +55,7 @@ struct WeeklyDigestView: View {
                         .font(.system(size: 15, weight: .regular, design: .serif))
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
-                        .textSelection(.enabled)
+                        .selectableUnlessSentinel(isSentinel)
                 } else {
                     VStack(alignment: .leading, spacing: 18) {
                         ForEach(sections, id: \.title) { section in
@@ -93,7 +93,7 @@ struct WeeklyDigestView: View {
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .lineLimit(4)
-                        .textSelection(.enabled)
+                        .selectableUnlessSentinel(isSentinel)
                 }
             }
 
@@ -278,7 +278,7 @@ struct DigestSectionView: View {
                 .font(.system(size: 15, weight: .regular, design: .serif))
                 .lineSpacing(6)
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .textSelection(.enabled)
+                .selectableUnlessSentinel(isSentinel)
         }
     }
 }
