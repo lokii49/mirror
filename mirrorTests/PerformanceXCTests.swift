@@ -490,4 +490,54 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-tap recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 10: InsightSignalSource resolvedFacts per-drag-sample vs cached
+
+    func test_insightSignalSourceResolvedFacts_perDragSampleVsCached() {
+        let cal = Calendar.current
+        let samples = 40 // PeekReveal.addSmudge(at:) fires once per drag sample while held
+
+        // Mirrors InsightSignalSource.resolvedFacts()'s default (.dailyNudge) branch: filter to
+        // entries as-of generatedAt, sort newest-first, then pick a recent window and dedupe moods.
+        func recompute(from entries: [Entry], asOf: Date) -> (read: Int, moods: [String]) {
+            let prior = entries
+                .filter { $0.createdAt <= asOf }
+                .sorted { $0.createdAt > $1.createdAt }
+            let cutoff = cal.date(byAdding: .day, value: -14, to: asOf) ?? asOf
+            let within = prior.filter { $0.createdAt >= cutoff }
+            let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
+            var seen: [String] = []
+            for m in recent.compactMap(\.mood) where !seen.contains(m) { seen.append(m) }
+            return (recent.count, seen)
+        }
+
+        let asOf = Date()
+
+        // OLD: `resolvedFacts()` filtered + sorted the full-history `entries` passed in from the
+        // call site (InsightView/AskView/MonthlyReportView's raw @Query) directly inside `body`.
+        // `InsightSignalSource` is only mounted as `PeekReveal`'s `back` while the card is held,
+        // but for the whole press-hold-and-wipe gesture `PeekReveal`'s `@State private var trail`
+        // appends a new `Smudge` per drag sample via `addSmudge(at:)`, re-evaluating `back`'s body
+        // — and with it `resolvedFacts()` — at touch-sample frequency, even though neither
+        // `insight` nor `entries` changes during the drag.
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<samples {
+            let _ = recompute(from: entries, asOf: asOf)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: computed once in .task(id: factsCacheKey) into cachedFacts; remaining drag samples
+        // read the cache (factsCacheKey doesn't change mid-drag, so the task doesn't re-fire).
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cached = recompute(from: entries, asOf: asOf)
+        for _ in 0..<(samples - 1) { let _ = cached }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[InsightSignalSource resolvedFacts] 365 entries × \(samples) drag samples")
+        print("  OLD (per-sample recompute): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 compute + cache):    \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-drag-sample recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }

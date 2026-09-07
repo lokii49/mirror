@@ -14,6 +14,33 @@ struct InsightSignalSource: View {
     let insight: Insight
     let entries: [Entry]
 
+    // MARK: Cache — `resolvedFacts()` filters + sorts the full-history `entries`
+    // passed in from the call site (InsightView/AskView/MonthlyReportView's raw
+    // `@Query`, no date/range predicate). This view is only mounted as
+    // `PeekReveal`'s `back` while the card is held (see PeekReveal's own
+    // comment), but for the *whole* press-hold-and-wipe gesture `PeekReveal`
+    // appends a new `Smudge` per drag sample, re-evaluating `back`'s body —
+    // and with it `resolvedFacts()` — at touch-sample frequency, even though
+    // neither `insight` nor `entries` changes during the drag. Same bug shape
+    // as the fixes in CalendarHeatmap/MoodTimelineView/WriteView/AskView/
+    // InsightView (see PerformanceXCTests.swift), just triggered by a drag
+    // instead of a keystroke or toggle.
+    @State private var cachedFacts: [String] = []
+
+    private var factsCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(insight.id)
+        hasher.combine(insight.generatedAt)
+        hasher.combine(insight.type)
+        hasher.combine(insight.question)
+        hasher.combine(entries.count)
+        for entry in entries {
+            hasher.combine(entry.encryptedMood)
+            hasher.combine(entry.createdAt)
+        }
+        return hasher.finalize()
+    }
+
     // MARK: Line model — a syntax-lightly-tinted code listing
 
     private enum Line: Identifiable {
@@ -173,7 +200,7 @@ struct InsightSignalSource: View {
 
         out.append(.rule)
         out.append(.comment("// resolved on this device · \(Self.stamp.string(from: insight.generatedAt))"))
-        for f in resolvedFacts() { out.append(.code(f)) }
+        for f in cachedFacts { out.append(.code(f)) }
         out.append(.comment("// no network call · nothing left this device"))
 
         out.append(.rule)
@@ -228,6 +255,9 @@ struct InsightSignalSource: View {
         // A flat editor ground — deliberately NOT the front card's colour. The
         // wipe is revealing source, not the same surface with other text.
         .background(Color(red: 0.043, green: 0.043, blue: 0.063))
+        .task(id: factsCacheKey) {
+            cachedFacts = resolvedFacts()
+        }
         .overlay(alignment: .top) {
             Rectangle().fill(MirrorTheme.ember.opacity(0.55)).frame(height: 2)
         }
