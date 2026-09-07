@@ -544,6 +544,55 @@ enum SampleData {
         try? context.save()
     }
 
+    // MARK: - Weekly digest / Ask samples (for the Sentinel PeekReveal X-ray, D2)
+
+    /// Weekly digest + Ask cards only enter their `.loaded` state — the state
+    /// `PeekReveal` wraps in Sentinel — when a matching Insight exists. These
+    /// seed one of each for the CURRENT period, engine set so the panel shows a
+    /// real engine line. They lean on `seedTodayReflection`'s four this-week
+    /// entries for the reconstruction, so call that first. Scratch-device only.
+    static let weeklyDigestSampleContent = """
+        THIS WEEK'S THEME: The week kept circling back to the same unfinished conversation — less the disagreement itself than the quiet afterward.
+        YOUR ENERGY: Lower midweek, steadier by the weekend once you stopped checking messages.
+        WHAT'S BUILDING: A habit of taking the long way home without the phone.
+        WATCH OUT FOR: Re-reading old messages to decide whether you overreacted.
+        NEXT WEEK: Notice when "being reachable" is standing in for "being responsible".
+        """
+
+    static let askSampleQuestion = "why do I keep replaying that conversation?"
+    static let askSampleContent =
+        "Across the last few entries it's not the argument you return to — it's the silence right after, where you decided saying more wasn't worth it. The replay seems to be about testing whether that call was self-protection or avoidance."
+
+    static func seedWeeklyDigestSample(into context: ModelContext) {
+        let period = DateHelpers.weekIdentifier(for: Date())
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
+        context.insert(Insight(type: .weeklyDigest, content: weeklyDigestSampleContent,
+                               periodIdentifier: period, generatedByEngine: .gemma))
+        try? context.save()
+    }
+
+    static func seedAskSample(into context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .askResponse && $0.content == askSampleContent }) else { return }
+        context.insert(Insight(type: .askResponse, content: askSampleContent,
+                               periodIdentifier: DateHelpers.dayIdentifier(for: Date()),
+                               question: askSampleQuestion, generatedByEngine: .gemma))
+        try? context.save()
+    }
+
+    static func clearWeeklyDigestSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for i in all where i.content == weeklyDigestSampleContent { context.delete(i) }
+        try? context.save()
+    }
+
+    static func clearAskSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for i in all where i.content == askSampleContent { context.delete(i) }
+        try? context.save()
+    }
+
     // MARK: - Helpers
 
     /// Hidden tag applied to every seeded entry so they can be cleared without touching real entries.
