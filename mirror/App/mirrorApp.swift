@@ -56,11 +56,11 @@ struct mirrorApp: App {
         // its loaded state (and thus the Sentinel PeekReveal X-ray) when a nudge
         // Insight exists for today. Seeds one plus a few recent moody entries so
         // ReflectionSignalSource's reconstruction has something to show. Scratch-device only.
-        if ProcessInfo.processInfo.arguments.contains("--seedTodayReflection") {
-            SampleData.seedTodayReflection(into: sharedModelContainer.mainContext)
-        }
         if ProcessInfo.processInfo.arguments.contains("--clearTodayReflectionSample") {
             SampleData.clearTodayReflectionSample(from: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--seedTodayReflection") {
+            SampleData.seedTodayReflection(into: sharedModelContainer.mainContext)
         }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
