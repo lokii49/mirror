@@ -529,11 +529,19 @@ enum SampleData {
     }
 
     static func clearTodayReflectionSample(from context: ModelContext) {
-        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
-        for insight in all where insight.content == todayReflectionSampleContent {
+        let insights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for insight in insights where insight.content == todayReflectionSampleContent {
             context.delete(insight)
         }
-        clearSampleEntries(from: context)
+        // Content-match, NOT clearSampleEntries — that wipes every sampleTag entry
+        // (seedCurrentMonthBulk, seedYearLongMixed, …), same broad-clear footgun
+        // flagged for clearInsights. Only remove this helper's own four entries.
+        let seededTexts = Set(todayReflectionEntrySamples.map(\.text))
+        let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+        for entry in entries where seededTexts.contains(entry.text) {
+            context.delete(entry)
+        }
+        try? context.save()
     }
 
     // MARK: - Helpers

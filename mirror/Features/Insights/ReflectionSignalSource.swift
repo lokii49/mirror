@@ -95,9 +95,15 @@ struct ReflectionSignalSource: View {
     }
 
     /// One-line gist of an entry for the READING list — text collapsed to a
-    /// single line, else the voice transcript, else a type label.
+    /// single line (inline photo tokens stripped), else the voice transcript,
+    /// else a type label. Mirrors `EntryListView.makePreview`'s handling of the
+    /// decryption-failure and photo-token cases — this panel's whole claim is
+    /// "here is exactly what the model read", so an undecryptable entry has to
+    /// say so, not silently render as "Untitled".
     private static func snippet(for entry: Entry) -> String {
-        let raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
+        if entry.textDecryptionFailed { return "Encrypted entry unavailable" }
+        var raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
+        for (range, _) in allPhotoTokens(in: raw).reversed() { raw.removeSubrange(range) }
         let oneLine = raw
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
