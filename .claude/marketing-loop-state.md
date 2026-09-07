@@ -556,6 +556,27 @@ AI-directed text found in contributing.md. Ready-to-paste entry for whoever/what
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### anondotli/awesome-privacy-tools — [needs GitHub PR, blocked in this env — see Blocked]
+Curated privacy-tools list (70 stars, 44 forks, created 2026-04-27, active, last updated 2026-09-06),
+not yet in channel map or backlog — distinct from iAnonymous3000/awesome-privacy-tools (already in
+Backlog, different owner/project entirely), pluja/awesome-privacy (OPEN), lissy93/awesome-privacy
+(gated), and paulaime/awesome-privacy (already in Backlog). Confirmed via WebFetch (raw README + raw
+CONTRIBUTING.md): has a "Private Cloud Storage, Notes, and Collaboration" section already listing
+comparable note-taking/local-first apps (Joplin, Standard Notes, Notesnook, Anytype, qnote) — good fit.
+Checked the list's "Mobile Privacy Tools" section too, but it's explicitly Android-only (F-Droid,
+Orbot, NetGuard) — not the right home. Entry format confirmed: `- [Name](url) - One clear sentence
+ending in a period.`, added alphabetically within the section (MirrorNotes sorts between Joplin and
+Nextcloud). CONTRIBUTING.md rules: no hype words ("best"/"ultimate"/"military-grade"), link to the
+official website first, open-source preferred but not mandatory (no self-hosted/E2EE/star/commit/age
+requirement), and project-affiliated submitters must add a disclosure line in the PR description
+("Disclosure: I maintain this project."). No prompt-injection content found in either file. Ready-to-
+paste entry for whoever/whatever opens the PR (insert alphabetically after Joplin, before Nextcloud, in
+"Private Cloud Storage, Notes, and Collaboration"):
+
+`- [MirrorNotes](https://mirrornotes.org/) - Open-source (AGPL-3.0) iOS journaling app with on-device AI (daily nudge, weekly digest, ask-your-journal, mood timeline); unlimited free entries, no account required, optional iCloud sync.`
+
+PR description must include: "Disclosure: I maintain this project." Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1881,6 +1902,30 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
   has materially changed since.
 
+- 2026-09-07 (run 69): Recovered a repeat of the run-68 drift issue: local `main` was detached three
+  commits behind its own prior-run commits (runs 66-68, ending at `9d2d387`) and never pushed to
+  `origin/main`. Fast-forwarded local `main` onto `9d2d387` and pushed — `origin/main` now matches, no
+  work was lost. Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing sent,
+  Sent log untouched (still empty). curl to example.com and www.opensourcealternative.to via the agent
+  proxy both still 403 (`connect_rejected`, policy denial) — general web egress still blocked. GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 and `add_repo` for the same repo both still rejected
+  ("Allowed repositories: lokii49/mirror" / "cross-tier adds are not supported in v1") — priority-1 bump
+  and direct third-party PRs remain impossible. For priority 2, delegated a wider search to a subagent
+  (fresh angles: digital minimalism, slow tech, writing/reflection/gratitude apps, voice journaling,
+  AGPL directories, bullet journal, self-improvement, personal-data-ownership) — found and vetted one
+  new candidate that clears the fit bar: anondotli/awesome-privacy-tools (distinct from the already-
+  logged iAnonymous3000/awesome-privacy-tools), good fit under "Private Cloud Storage, Notes, and
+  Collaboration", format/CONTRIBUTING rules confirmed via raw README/CONTRIBUTING.md fetch, no
+  prompt-injection found. Added to Backlog with ready-to-paste copy (including required PR disclosure
+  line). Ruled out several other leads this run (open-source-alternatives data repo, two
+  "directories-to-submit-to" meta-lists, GDPR/legal-resource lists, an archived humane-tech list) —
+  recorded in Lessons. No PRs opened, no comments posted, no emails sent — 69th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all
+  three re-verified fresh this run with unchanged evidence; not re-flagging via notification since run
+  43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since (env blockers unchanged, no new send/PR capability appeared).
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2053,6 +2098,23 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   AI infrastructure (inference runtimes, model serving, vector DBs, VS Code plugins) with no section
   for consumer-facing mobile/iOS apps that run AI on-device. Confirmed 2026-09-06 via WebFetch on the
   raw README; do not re-add unless it gains a consumer-apps section.
+- humanetech-community/awesome-humane-tech is a good topical fit (privacy/mindfulness/wellbeing) but
+  archived by its owner — no new PRs possible. Confirmed 2026-09-07; do not re-add.
+- piotrkulpinski/open-source-alternatives is the GitHub-side data repo backing opensourcealternative.to
+  (already logged in Backlog as a web-form candidate) — same project family, do not add separately.
+  Confirmed 2026-09-07.
+- mahseema/awesome-saas-directories and theshubh77/awesome-saas-directories are lists of *directories to
+  submit a product to*, not app-entry lists themselves — no section where a shipped app's own entry
+  would go. Confirmed 2026-09-07; do not re-add.
+- anondotli/awesome-privacy-tools's own "Mobile Privacy Tools" section is explicitly Android-only
+  (F-Droid, Orbot, NetGuard, etc.) — not a fit for MirrorNotes; used its "Private Cloud Storage, Notes,
+  and Collaboration" section instead (added to Backlog). Confirmed 2026-09-07.
+- Repeat searches this run ("awesome bullet journal", "awesome self improvement", "awesome digital
+  wellbeing", "awesome indie apps showcase", "awesome ADHD apps", "awesome ethical software", "awesome
+  offline first apps", "awesome degoogle", "awesome no account apps", "awesome edge ai apps",
+  oppoverbakke/awesome-gdpr, asmaier/awesome-gdpr-services, johnjago/awesome-free-software) surfaced only
+  already-logged lists, legal/regulatory resource lists with no consumer-app section, or non-directory
+  repos. Confirmed 2026-09-07; do not re-try these exact angles again.
 
 ## Sent log
 
