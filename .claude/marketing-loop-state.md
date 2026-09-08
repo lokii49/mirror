@@ -1926,6 +1926,23 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
   since (env blockers unchanged, no new send/PR capability appeared).
 
+- 2026-09-08 (run 70): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`connect_rejected` per proxy status endpoint) — general web egress still blocked (github.com raw
+  content still reachable via WebFetch). `add_repo` for janhq/awesome-local-ai still rejected
+  ("cross-tier adds are not supported in v1", session scoped to lokii49/* only) — priority-1 bump and
+  direct third-party PRs remain impossible. For priority 2, tried four new WebSearch angles (iOS
+  journaling/diary privacy directories, on-device-AI iOS app lists, self-reflection/gratitude/
+  personal-growth privacy directories, AGPL/copyleft app lists) plus fetched two promising-looking
+  candidates (umitkacar/awesome-mobile-ai, ivanvorobei/awesome-ios) via raw README — both ruled out as
+  developer-resource/library lists with no consumer-app section. No new candidate cleared the fit bar
+  this run; recorded all four negative findings in Lessons. No PRs opened, no comments posted, no
+  emails sent — 70th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
+  standing condition and nothing has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2115,6 +2132,14 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   oppoverbakke/awesome-gdpr, asmaier/awesome-gdpr-services, johnjago/awesome-free-software) surfaced only
   already-logged lists, legal/regulatory resource lists with no consumer-app section, or non-directory
   repos. Confirmed 2026-09-07; do not re-try these exact angles again.
+- umitkacar/awesome-mobile-ai and ivanvorobei/awesome-ios are not fits: both are developer-resource
+  lists (frameworks/libraries/UI components/deployment tooling) with no section for consumer-facing
+  shipped apps. Confirmed 2026-09-08 via WebFetch on raw READMEs; do not re-add.
+- Searches this run ("journaling/diary iOS privacy directory", "on-device AI iOS apps awesome list",
+  "self-reflection/gratitude/personal-growth privacy apps directory", "AGPL/copyleft apps awesome
+  list") surfaced only already-logged lists, GitHub topic pages (not curated directories), individual
+  competitor apps (not submission channels), or dev-resource lists with no consumer-app section.
+  Confirmed 2026-09-08; do not re-try these exact angles again.
 
 ## Sent log
 
