@@ -1,5 +1,8 @@
-Riflessioni più intelligenti, direttamente sul tuo dispositivo.
+Check-in giornaliero dell'umore, widget nella schermata Home e un editor più curato.
 
-• Sui dispositivi compatibili, MirrorNotes ora sfrutta l'Intelligenza on-device di Apple per Daily Nudge, Weekly Digest e risposte di Ask più naturali e precise.
-• Tutto continua a funzionare interamente sul tuo dispositivo: ciò che scrivi non lascia mai il telefono.
-• I dispositivi più datati o non compatibili non sono interessati e continuano a funzionare esattamente come prima.
+• Check-in giornaliero dell'umore: registra come ti senti con un tocco, senza bisogno di scrivere. Se salti il promemoria, MirrorNotes te lo chiede alla successiva apertura dell'app, e un pulsante "Registra umore" negli Approfondimenti ti permette di aggiornarlo quando vuoi. Ogni check-in alimenta la tua Cronologia dell'umore e il widget Mappa dell'umore.
+• Widget settimanale e mensile: il tuo ultimo Riepilogo settimanale e il Report mensile approfondito direttamente nella schermata Home.
+• Il riepilogo della settimana scorsa resta visibile finché non è pronto quello di questa settimana, e i riepiloghi passati ora hanno un archivio dedicato, proprio come le riflessioni.
+• Riflessioni più incisive: gli spunti giornalieri e le risposte di Chiedi vanno dritti al punto, senza frasi di riempimento.
+• Editor: digita "1. " per avviare un elenco numerato come nell'app Note, con una spaziatura più pulita. Invio prosegue l'elenco e ne esce in modo corretto.
+• Correzioni e rifiniture.

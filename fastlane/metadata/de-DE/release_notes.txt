@@ -1,5 +1,8 @@
-Klügere Reflexionen – direkt auf deinem Gerät.
+Täglicher Stimmungs-Check-in, Home-Bildschirm-Widgets und ein besserer Editor.
 
-• Auf unterstützten Geräten nutzt MirrorNotes jetzt Apples On-Device Intelligence für schärfere, natürlichere Daily Nudges, Weekly Digests und Ask-Antworten.
-• Alles läuft weiterhin vollständig auf deinem Gerät – nichts, was du schreibst, verlässt jemals dein Handy.
-• Ältere oder nicht unterstützte Geräte sind davon nicht betroffen und funktionieren genau wie zuvor.
+• Täglicher Stimmungs-Check-in – halte mit einem Tippen fest, wie du dich fühlst, ganz ohne Schreiben. Wenn du deine Erinnerung verpasst, fragt MirrorNotes beim nächsten Öffnen nach, und über „Stimmung erfassen" in den Insights kannst du sie jederzeit aktualisieren. Jeder Check-in fließt in deine Stimmungs-Timeline und das Stimmungskarten-Widget ein.
+• Wochen- & Monats-Widgets – dein neuester Wochenrückblick und der monatliche Tiefenbericht direkt auf dem Home-Bildschirm.
+• Der Rückblick der letzten Woche bleibt sichtbar, bis der aktuelle bereit ist, und vergangene Rückblicke haben jetzt ihr eigenes Archiv – genau wie Reflexionen.
+• Prägnantere Reflexionen – tägliche Impulse und Ask-Antworten kommen ohne Floskeln direkt zur Sache.
+• Editor: Tippe „1. ", um eine nummerierte Liste zu starten, so wie in Notizen, mit sauberen Abständen. Die Eingabetaste setzt die Liste fort – und beendet sie sauber.
+• Fehlerbehebungen und Feinschliff.
