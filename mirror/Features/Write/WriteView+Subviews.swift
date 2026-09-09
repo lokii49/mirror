@@ -288,6 +288,17 @@ extension WriteView {
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
+    var iconForVoiceButton: String {
+        if isRecordingInline { return "stop.circle.fill" }
+        return draftVoiceNotes.isEmpty ? "mic" : "waveform.circle.fill"
+    }
+
+    var voiceButtonAccessibilityLabel: String {
+        if isRecordingInline { return String(localized: "Stop recording") }
+        if isTranscribingVoiceNotes { return String(localized: "Transcribing voice note") }
+        return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
+    }
+
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -517,13 +528,16 @@ extension WriteView {
                 .menuStyle(.button)
                 .buttonStyle(.plain)
 
-                // Voice button
+                // Voice button — records inline; keyboard and caret stay put.
                 Button {
-                    presentVoiceNoteSheet()
+                    toggleInlineRecording()
                 } label: {
-                    Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
+                    Image(systemName: iconForVoiceButton)
                         .font(.system(size: 20))
-                        .foregroundStyle(!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                        .foregroundStyle(
+                            isRecordingInline ? Color.red
+                                : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                        )
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
                             if isTranscribingVoiceNotes {
@@ -547,9 +561,10 @@ extension WriteView {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isTranscribingVoiceNotes ? "Transcribing voice note" : (!draftVoiceNotes.isEmpty ? "Voice notes" : "Add voice note"))
+                .accessibilityLabel(voiceButtonAccessibilityLabel)
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
+            .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
         .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))

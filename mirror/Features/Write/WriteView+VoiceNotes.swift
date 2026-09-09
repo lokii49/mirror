@@ -162,12 +162,46 @@ extension WriteView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    func presentVoiceNoteSheet() {
-        editorFocused = false
-        isKeyboardVisible = false
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            showVoiceInput = true
+    // MARK: - Inline recording (no modal — keyboard and caret stay put, à la Notes)
+
+    func toggleInlineRecording() {
+        if isRecordingInline {
+            finishInlineRecording()
+        } else {
+            startInlineRecording()
         }
+    }
+
+    func startInlineRecording() {
+        Task { @MainActor in
+            let granted = await voiceRecorder.requestPermission()
+            guard granted else {
+                withAnimation { recordingPermissionDenied = true }
+                return
+            }
+            recordingPermissionDenied = false
+            voiceRecorder.startRecording()
+            guard voiceRecorder.isRecording else { return }
+            withAnimation(.easeOut(duration: 0.2)) { isRecordingInline = true }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+    }
+
+    func finishInlineRecording() {
+        guard isRecordingInline else { return }
+        withAnimation(.easeOut(duration: 0.2)) { isRecordingInline = false }
+        if voiceRecorder.isRecording { voiceRecorder.stopRecording() }
+        if let data = voiceRecorder.recordingData, voiceRecorder.duration >= 0.5 {
+            appendVoiceNote(data: data, duration: voiceRecorder.duration)
+        } else {
+            voiceRecorder.discardRecording()
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    func cancelInlineRecording() {
+        withAnimation(.easeOut(duration: 0.2)) { isRecordingInline = false }
+        voiceRecorder.discardRecording()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }

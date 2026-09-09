@@ -408,218 +408,99 @@ struct VoiceNoteAttachmentView: View {
     }
 }
 
-struct VoiceInputSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
-    let onComplete: (Data, TimeInterval) -> Void
+/// Live recording state, shown inline where the finished voice note will land —
+/// the editor keeps its keyboard and caret the whole time (no modal sheet).
+struct InlineRecordingRow: View {
+    var elapsed: TimeInterval
+    var onStop: () -> Void
+    var onCancel: () -> Void
 
-    @State private var manager = VoiceInputManager()
-    @State private var permissionDenied = false
-    @State private var waveformTick = 0
-    private let timer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
+    @Environment(\.appDisplayMode) private var displayMode
     private let waveHeights: [CGFloat] = [0.35, 0.7, 1.0, 0.55, 0.85, 0.45, 0.75, 0.6, 0.9, 0.4, 0.65, 0.8]
+    private var corner: CGFloat { displayMode == .sentinel ? 8 : 16 }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Spacer(minLength: 48)
+        HStack(spacing: 12) {
+            Button(action: onCancel) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .background(Color(.tertiarySystemFill), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Cancel recording")
 
+            TimelineView(.animation) { timeline in
+                let tick = Int(timeline.date.timeIntervalSinceReferenceDate * 8)
+                HStack(alignment: .center, spacing: 2) {
+                    ForEach(0..<14, id: \.self) { i in
+                        let h = waveHeights[(i + tick) % waveHeights.count]
+                        Capsule()
+                            .fill(Color.red.opacity(0.5 + h * 0.4))
+                            .frame(width: 2.5, height: 6 + h * 20)
+                    }
+                }
+            }
+            .frame(height: 26)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
+
+            Text(formatDuration(elapsed))
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .monospacedDigit()
+                .foregroundStyle(.red)
+
+            Button(action: onStop) {
                 ZStack {
-                    if manager.isRecording {
-                        liveWaveform
-                    } else {
-                        Image(systemName: displayMode == .sentinel ? "waveform.circle" : "waveform")
-                            .font(.system(size: 32, weight: .ultraLight))
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.5) : Color(.quaternaryLabel))
-                    }
-                }
-                .frame(height: 52)
-                .animation(.spring(duration: 0.3), value: manager.isRecording)
-
-                Spacer(minLength: 20)
-
-                Text(formatDuration(manager.isRecording ? manager.elapsed : manager.duration))
-                    .font(.system(size: 56, weight: .thin, design: .monospaced))
-                    .monospacedDigit()
-                    .foregroundStyle(
-                        manager.isRecording ? .primary
-                            : manager.hasRecording ? Color.primary.opacity(0.75)
-                            : Color(.quaternaryLabel)
-                    )
-                    .contentTransition(.numericText())
-                    .animation(.linear(duration: 0.1), value: manager.elapsed)
-
-                Spacer(minLength: 36)
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    if manager.isRecording {
-                        manager.stopRecording()
-                    } else if manager.hasRecording {
-                        manager.discardRecording()
-                        manager.startRecording()
-                    } else {
-                        manager.startRecording()
-                    }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .stroke(manager.isRecording ? Color.red.opacity(0.2) : Color.clear, lineWidth: 16)
-                            .frame(width: 104, height: 104)
-                            .scaleEffect(manager.isRecording ? 1.1 : 1)
-                            .animation(
-                                manager.isRecording
-                                    ? .easeInOut(duration: 0.85).repeatForever(autoreverses: true)
-                                    : .spring(duration: 0.3),
-                                value: manager.isRecording
-                            )
-
-                        Circle()
-                            .fill(manager.isRecording ? Color.red : (displayMode == .sentinel ? MirrorTheme.inkMid : Color(.secondarySystemBackground)))
-                            .frame(width: 80, height: 80)
-                            .shadow(color: manager.isRecording ? .red.opacity(0.28) : .clear, radius: 14, y: 5)
-                            .overlay {
-                                if displayMode == .sentinel && !manager.isRecording {
-                                    Circle().stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1.5)
-                                }
-                            }
-
-                        if manager.isRecording {
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(Color.white)
-                                .frame(width: 24, height: 24)
-                        } else {
-                            Image(systemName: "mic.fill")
-                                .font(.system(size: 26, weight: .medium))
-                                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.secondary)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(permissionDenied)
-
-                Group {
-                    if displayMode == .sentinel {
-                        Text(statusLabel.uppercased()).font(MirrorTheme.mono(11, weight: .medium))
-                    } else {
-                        Text(statusLabel).font(.system(size: 13))
-                    }
-                }
-                .foregroundStyle(.tertiary)
-                .padding(.top, 16)
-
-                Spacer(minLength: 28)
-
-                if let data = manager.recordingData, !manager.isRecording {
-                    VStack(spacing: 12) {
-                        VoiceNoteAttachmentView(data: data, duration: manager.duration)
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            manager.discardRecording()
-                        } label: {
-                            if displayMode == .sentinel {
-                                Label("DISCARD", systemImage: "trash").font(MirrorTheme.mono(13, weight: .medium))
-                            } else {
-                                Label("Discard", systemImage: "trash").font(.system(size: 14, weight: .medium))
-                            }
-                        }
-                        .foregroundStyle(.red.opacity(0.8))
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 28)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-
-                if let err = manager.error {
-                    Text(err)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-
-                if permissionDenied {
-                    VStack(spacing: 10) {
-                        Image(systemName: "mic.slash")
-                            .font(.system(size: 30))
-                            .foregroundStyle(.red.opacity(0.6))
-                        Group {
-                            if displayMode == .sentinel {
-                                Text("MIC ACCESS REQUIRED.\nSETTINGS → PRIVACY → MICROPHONE.").font(MirrorTheme.mono(12, weight: .medium))
-                            } else {
-                                Text("Microphone access required.\nGo to Settings → Privacy → Microphone.").font(.system(size: 14))
-                            }
-                        }
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 40)
-                }
-
-                Spacer(minLength: 36)
-            }
-            .animation(.spring(duration: 0.4), value: manager.hasRecording)
-            .animation(.spring(duration: 0.35), value: manager.isRecording)
-            .background(displayMode == .sentinel ? MirrorTheme.bgBase : Color.clear)
-            .navigationTitle(displayMode == .sentinel ? "Signal Capture" : "Voice Note")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        manager.discardRecording()
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        if manager.isRecording { manager.stopRecording() }
-                        if let data = manager.recordingData {
-                            onComplete(data, manager.duration)
-                        }
-                        dismiss()
-                    } label: {
-                        if displayMode == .sentinel {
-                            Text("ADD").font(MirrorTheme.mono(15, weight: .bold))
-                        } else {
-                            Text("Add").font(.system(size: 16, weight: .semibold))
-                        }
-                    }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-                    .disabled(!manager.hasRecording && !manager.isRecording)
+                    Circle().fill(Color.red).frame(width: 34, height: 34)
+                    RoundedRectangle(cornerRadius: 3).fill(.white).frame(width: 12, height: 12)
                 }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Stop and add recording")
         }
-        .task {
-            let granted = await manager.requestPermission()
-            if !granted { permissionDenied = true }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(Color.red.opacity(0.06))
+                .overlay {
+                    RoundedRectangle(cornerRadius: corner, style: .continuous)
+                        .strokeBorder(Color.red.opacity(0.22), lineWidth: 1)
+                }
         }
-        .onReceive(timer) { _ in
-            manager.refreshElapsed()
-            if manager.isRecording { waveformTick += 1 }
-        }
-        .onDisappear {
-            if manager.isRecording { manager.stopRecording() }
-        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Recording")
+        .accessibilityValue(formatDuration(elapsed))
     }
+}
 
-    private var statusLabel: String {
-        if permissionDenied { return String(localized: "No microphone access") }
-        if manager.isRecording { return String(localized: "Tap to stop") }
-        if manager.hasRecording { return String(localized: "Tap to re-record") }
-        return String(localized: "Tap to record")
-    }
+struct MicPermissionNotice: View {
+    var onDismiss: () -> Void
 
-    private var liveWaveform: some View {
-        let count = 13
-        return HStack(alignment: .center, spacing: 3) {
-            ForEach(0..<count, id: \.self) { i in
-                let h = waveHeights[(i + waveformTick) % waveHeights.count]
-                Capsule()
-                    .fill(Color.red.opacity(0.55 + h * 0.35))
-                    .frame(width: 3, height: 52 * h + 6)
-                    .animation(.easeInOut(duration: 0.15), value: waveformTick)
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "mic.slash")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.orange)
+            Text("Microphone access is off — turn it on in Settings › Privacy › Microphone.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

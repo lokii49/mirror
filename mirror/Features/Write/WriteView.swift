@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 import Photos
 import PhotosUI
 import UIKit
@@ -52,7 +53,9 @@ struct WriteView: View {
     /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
     /// the write (and CloudKit modification) when the entry was only opened to read.
     @State var loadedContentHash: Int = 0
-    @State var showVoiceInput = false
+    @State var voiceRecorder = VoiceInputManager()
+    @State var isRecordingInline = false
+    @State var recordingPermissionDenied = false
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
@@ -98,6 +101,10 @@ struct WriteView: View {
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
     @FocusState var editorFocused: Bool
     @FocusState var tagFieldFocused: Bool
+
+    /// Drives the inline voice-recording timer; the handler no-ops unless
+    /// `isRecordingInline`.
+    let recElapsedTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var noteDate: Date { entryDate }
     var hasDraftContent: Bool {
@@ -149,7 +156,7 @@ struct WriteView: View {
                     tagsBar
                 }
 
-                if !draftVoiceNotes.isEmpty {
+                if !draftVoiceNotes.isEmpty || isRecordingInline || recordingPermissionDenied {
                     VStack(spacing: 8) {
                         ForEach(draftVoiceNotes.indices, id: \.self) { index in
                             let note = draftVoiceNotes[index]
@@ -164,6 +171,16 @@ struct WriteView: View {
                                 onDelete: { removeVoiceNote(at: index) },
                                 onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
                             )
+                        }
+                        if isRecordingInline {
+                            InlineRecordingRow(
+                                elapsed: voiceRecorder.elapsed,
+                                onStop: { finishInlineRecording() },
+                                onCancel: { cancelInlineRecording() }
+                            )
+                        }
+                        if recordingPermissionDenied {
+                            MicPermissionNotice { recordingPermissionDenied = false }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -377,11 +394,13 @@ struct WriteView: View {
         } message: {
             Text(photoAttachError ?? "")
         }
-        .sheet(isPresented: $showVoiceInput) {
-            VoiceInputSheet { data, duration in
-                appendVoiceNote(data: data, duration: duration)
-            }
-            .environment(\.appDisplayMode, displayMode)
+        .onReceive(recElapsedTimer) { _ in
+            if isRecordingInline { voiceRecorder.refreshElapsed() }
+        }
+        .onChange(of: voiceRecorder.isRecording) { _, recording in
+            // Recorder stopped itself (interruption, route change, 10-min cap) —
+            // finalize the note we have.
+            if !recording && isRecordingInline { finishInlineRecording() }
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
@@ -437,7 +456,10 @@ struct WriteView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background, entry == nil { flushDraftSave() }
         }
-        .onDisappear { cancelDraftSave() }
+        .onDisappear {
+            cancelDraftSave()
+            if isRecordingInline { voiceRecorder.discardRecording() }
+        }
     }
 
 }
