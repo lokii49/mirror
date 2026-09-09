@@ -157,34 +157,49 @@ struct WriteView: View {
                     tagsBar
                 }
 
-                if !draftVoiceNotes.isEmpty || isRecordingInline || recordingPermissionDenied {
-                    VStack(spacing: 8) {
-                        ForEach(draftVoiceNotes.indices, id: \.self) { index in
-                            let note = draftVoiceNotes[index]
-                            VoiceNoteAttachmentView(
-                                data: note.data,
-                                duration: note.duration,
-                                title: String(localized: "Voice note \(index + 1)"),
-                                transcript: note.transcript,
-                                languageName: note.languageName,
-                                isTranscribing: transcribingVoiceNoteIndexes.contains(index),
-                                transcriptionFailed: failedTranscriptionIndexes.contains(index),
-                                onDelete: { removeVoiceNote(at: index) },
-                                onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
-                            )
+                // Voice notes scroll within a capped band so several of them can't
+                // push the editor off-screen. Recording row / permission notice
+                // stay pinned below it, always reachable.
+                if !draftVoiceNotes.isEmpty {
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ForEach(draftVoiceNotes.indices, id: \.self) { index in
+                                let note = draftVoiceNotes[index]
+                                VoiceNoteAttachmentView(
+                                    data: note.data,
+                                    duration: note.duration,
+                                    title: String(localized: "Voice note \(index + 1)"),
+                                    transcript: note.transcript,
+                                    languageName: note.languageName,
+                                    isTranscribing: transcribingVoiceNoteIndexes.contains(index),
+                                    transcriptionFailed: failedTranscriptionIndexes.contains(index),
+                                    onDelete: { removeVoiceNote(at: index) },
+                                    onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
+                                )
+                            }
                         }
-                        if isRecordingInline {
-                            InlineRecordingRow(
-                                elapsed: voiceRecorder.elapsed,
-                                onStop: { finishInlineRecording() },
-                                onCancel: { cancelInlineRecording() }
-                            )
-                        }
-                        if recordingPermissionDenied {
-                            MicPermissionNotice { recordingPermissionDenied = false }
-                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
                     }
+                    .frame(maxHeight: 220)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                if isRecordingInline {
+                    InlineRecordingRow(
+                        elapsed: voiceRecorder.elapsed,
+                        onStop: { finishInlineRecording() },
+                        onCancel: { cancelInlineRecording() }
+                    )
                     .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                if recordingPermissionDenied {
+                    MicPermissionNotice { recordingPermissionDenied = false }
+                        .padding(.horizontal, 20)
                         .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
