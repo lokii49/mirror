@@ -71,6 +71,7 @@ struct WriteView: View {
     @State var additionalVoiceNoteEnglishTranslations: [String] = []
     @State var transcribingVoiceNoteIndexes: Set<Int> = []
     @State var failedTranscriptionIndexes: Set<Int> = []
+    @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
     @State var recPulse = false
@@ -295,9 +296,6 @@ struct WriteView: View {
                 additionalVoiceNoteLanguageCodes = entry.additionalVoiceNoteLanguageCodes
                 additionalVoiceNoteLanguageNames = entry.additionalVoiceNoteLanguageNames
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
-                if entry.voiceNoteTranscriptionFailed && entry.voiceNoteData != nil {
-                    failedTranscriptionIndexes.insert(0)
-                }
             }
             entryDate = entry?.createdAt ?? Date()
             entryTags = entry?.tags ?? []
@@ -307,6 +305,11 @@ struct WriteView: View {
                 if !initialText.isEmpty && viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
+            } else {
+                // Give any voice note that has audio but no transcript another
+                // pass — including notes that failed on an older build, where
+                // only the first note's failure was ever recorded.
+                rekickPendingTranscriptions()
             }
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
             panelState.onDismiss = { showFormattingPanel = false }

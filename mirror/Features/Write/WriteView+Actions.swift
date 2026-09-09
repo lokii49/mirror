@@ -152,7 +152,7 @@ extension WriteView {
         additionalVoiceNoteLanguageCodes = []
         additionalVoiceNoteLanguageNames = []
         additionalVoiceNoteEnglishTranslations = []
-        transcribingVoiceNoteIndexes = []
+        cancelAllTranscriptions()
     }
 
     func update(_ entry: Entry) {

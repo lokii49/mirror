@@ -25,28 +25,61 @@ extension WriteView {
     }
 
     func transcribeVoiceNote(data: Data, index: Int) {
+        transcriptionTasks[index]?.cancel()
         transcribingVoiceNoteIndexes.insert(index)
         failedTranscriptionIndexes.remove(index)
         let preferred = transcriptionLanguage.isEmpty ? nil : transcriptionLanguage
-        Task {
+        let task = Task {
             do {
                 let result = try await VoiceTranscriptionService.transcribe(audioData: data, preferredLocaleId: preferred)
+                if Task.isCancelled { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     applyTranscription(result, toVoiceNoteAt: index)
                     transcribingVoiceNoteIndexes.remove(index)
                     failedTranscriptionIndexes.remove(index)
+                    transcriptionTasks[index] = nil
                 }
             } catch {
+                if Task.isCancelled { return }
                 await MainActor.run {
                     transcribingVoiceNoteIndexes.remove(index)
                     failedTranscriptionIndexes.insert(index)
+                    transcriptionTasks[index] = nil
                 }
             }
+        }
+        transcriptionTasks[index] = task
+    }
+
+    /// Cancel every in-flight transcription. Voice-note indexes are positional,
+    /// so any structural change (delete) shifts them — a task that resolves
+    /// against its captured index then writes its transcript onto the wrong
+    /// note (and CloudKit-syncs it). Callers re-kick what still needs it.
+    func cancelAllTranscriptions() {
+        for task in transcriptionTasks.values { task.cancel() }
+        transcriptionTasks.removeAll()
+        transcribingVoiceNoteIndexes.removeAll()
+        failedTranscriptionIndexes.removeAll()
+    }
+
+    /// Re-run transcription for any note that has audio but no transcript.
+    /// Used after a delete reshuffles indexes, and on opening a saved entry so
+    /// notes that failed (including on a build before this fix) get another
+    /// pass and their Retry affordance back. Skips sub-second clips that almost
+    /// certainly hold no speech, so a silent note isn't re-decoded every open.
+    func rekickPendingTranscriptions() {
+        for (i, note) in draftVoiceNotes.enumerated() {
+            let emptyTranscript = (note.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            guard emptyTranscript, !note.data.isEmpty, note.duration >= 1.0 else { continue }
+            guard !transcribingVoiceNoteIndexes.contains(i) else { continue }
+            transcribeVoiceNote(data: note.data, index: i)
         }
     }
 
     func applyTranscription(_ transcription: VoiceTranscription, toVoiceNoteAt index: Int) {
         if index == 0 {
+            guard voiceNoteData != nil else { return }
             voiceNoteTranscript = transcription.transcript
             voiceNoteLanguageCode = transcription.languageCode
             voiceNoteLanguageName = transcription.languageName
@@ -62,7 +95,7 @@ extension WriteView {
     }
 
     func removeVoiceNote(at index: Int) {
-        transcribingVoiceNoteIndexes.remove(index)
+        cancelAllTranscriptions()
         if index == 0 {
             voiceNoteData = nil
             voiceNoteDuration = 0
@@ -99,6 +132,7 @@ extension WriteView {
                 additionalVoiceNoteEnglishTranslations.remove(at: additionalIndex)
             }
         }
+        rekickPendingTranscriptions()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
