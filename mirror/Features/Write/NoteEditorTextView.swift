@@ -33,8 +33,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isEditable = true
         textView.isSelectable = true
-        textView.alwaysBounceVertical = true
-        textView.keyboardDismissMode = .interactive
+        // The editor doesn't scroll itself — it lives in WriteView's ScrollView and
+        // grows to fit its content (see sizeThatFits). A non-scrolling text view
+        // can't keep the caret above the keyboard, so scrollCaretToVisible nudges
+        // the enclosing scroll view instead.
+        textView.isScrollEnabled = false
+        textView.alwaysBounceVertical = false
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 24, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         textView.adjustsFontForContentSizeCategory = true
@@ -91,6 +95,17 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
+    }
+
+    /// The editor grows to fit its text — it doesn't scroll (WriteView's
+    /// ScrollView does). Never reports shorter than this so an empty note still
+    /// has a comfortable tap target.
+    private static let minEditorHeight: CGFloat = 240
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0, width != .infinity else { return nil }
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(fitting.height.rounded(.up), Self.minEditorHeight))
     }
 
     func makeCoordinator() -> Coordinator {
@@ -299,6 +314,25 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
             parent.canUndo = textView.undoManager?.canUndo ?? false
             parent.canRedo = textView.undoManager?.canRedo ?? false
+            scrollCaretToVisible(in: textView)
+        }
+
+        /// The text view doesn't scroll (WriteView's ScrollView owns scrolling), so
+        /// keep the caret above the keyboard by nudging the enclosing scroll view.
+        /// A no-op when the caret rect is already fully visible.
+        private func scrollCaretToVisible(in textView: UITextView) {
+            guard let selection = textView.selectedTextRange else { return }
+            let caret = textView.caretRect(for: selection.end)
+            guard !caret.isNull, caret.origin.y.isFinite, caret.height.isFinite else { return }
+
+            var ancestor = textView.superview
+            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+            guard let scrollView = ancestor as? UIScrollView else { return }
+
+            let target = textView.convert(caret, to: scrollView).insetBy(dx: 0, dy: -48)
+            DispatchQueue.main.async {
+                scrollView.scrollRectToVisible(target, animated: true)
+            }
         }
 
         func textView(
@@ -573,6 +607,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
+            scrollCaretToVisible(in: textView)
         }
 
         // Moves cursor to after the list marker when it lands inside the glyph prefix.
