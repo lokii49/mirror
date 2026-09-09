@@ -244,7 +244,46 @@ extension WriteView {
     static let draftMoodKey = "mirror.writeDraft.mood"
     static let draftTagsKey = "mirror.writeDraft.tags"
 
+    /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
+    /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
+    /// array each call, so writing synchronously per character is real input
+    /// latency. Coalesce to one write ~1s after typing stops; background and
+    /// mood changes still flush immediately.
+    func scheduleDraftSave() {
+        guard entry == nil else { return }
+        draftSaveTask?.cancel()
+        draftSaveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            saveDraftToStorage()
+            draftSaveTask = nil
+        }
+    }
+
+    func flushDraftSave() {
+        guard entry == nil else { return }
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+        saveDraftToStorage()
+    }
+
+    /// Drop any pending debounced write without saving — used by the clear /
+    /// discard / delete paths so a straggler can't resurrect a cleared draft.
+    func cancelDraftSave() {
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+    }
+
     func saveDraftToStorage() {
+        guard entry == nil else { return }
+        // A debounced write can land just after clearDraft() emptied everything
+        // (the empty-text onChange schedules one more pass). Don't leave a blank
+        // ciphertext blob behind that restoreDraftFromStorage would rehydrate.
+        let hasText = !viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasText || !entryTags.isEmpty || viewModel.selectedMood != nil else {
+            clearDraftStorage()
+            return
+        }
         let ud = UserDefaults.standard
         ud.set(MirrorEncryption.encryptString(viewModel.text), forKey: Self.draftTextKey)
         ud.set(viewModel.textStyleData, forKey: Self.draftTextStyleKey)
@@ -274,6 +313,7 @@ extension WriteView {
     }
 
     func clearDraftStorage() {
+        cancelDraftSave()
         let ud = UserDefaults.standard
         ud.removeObject(forKey: Self.draftTextKey)
         ud.removeObject(forKey: Self.draftTextStyleKey)

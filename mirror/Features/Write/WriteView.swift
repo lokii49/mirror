@@ -43,6 +43,7 @@ struct WriteView: View {
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
     @State var undoSnapshot = DraftUndoSnapshot()
+    @State var draftSaveTask: Task<Void, Never>? = nil
     @State var showVoiceInput = false
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
@@ -389,17 +390,18 @@ struct WriteView: View {
             .presentationDetents([.large])
         }
         .onChange(of: viewModel.text) { _, _ in
-            if entry == nil { saveDraftToStorage() }
+            if entry == nil { scheduleDraftSave() }
         }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
-            if entry == nil { saveDraftToStorage() }
+            if entry == nil { flushDraftSave() }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background, entry == nil { saveDraftToStorage() }
+            if phase == .background, entry == nil { flushDraftSave() }
         }
+        .onDisappear { cancelDraftSave() }
     }
 
 }
