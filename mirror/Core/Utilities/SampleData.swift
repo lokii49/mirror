@@ -363,6 +363,259 @@ enum SampleData {
         }
     }
 
+    // MARK: - Past nudges (for previewing/screenshotting pastNudgesSection)
+
+    /// InsightView's "Past reflections" section only renders once `pastNudges` is non-empty —
+    /// real usage only accumulates those one day at a time, so there was no way to see/
+    /// screenshot that section's UI without days of real history. Backdated, synthetic
+    /// dailyNudge Insights — do NOT clear these via `clearInsights(from:)`, that wipes every
+    /// real Insight too (today's actual nudge/digest/report). Use `clearPastNudgeSamples(from:)`
+    /// below, which only removes entries matching `pastNudgeSampleContent` exactly.
+    static let pastNudgeSampleContent = [
+        "You mentioned the quiet drive home again, and how much lighter you felt once you finally said what you'd been holding back.",
+        "The late nights are starting to show in how short your entries are getting — worth noticing before it becomes the norm.",
+        "You circled back to the same project three times this week. That kind of repetition usually means something is still unresolved.",
+        "Today's entry had more energy in it than the last few — the walk seems to be doing exactly what you hoped.",
+        "You wrote about feeling behind, but the actual list of what you finished this week says otherwise."
+    ]
+
+    static func seedPastNudges(into context: ModelContext, count: Int = 5) {
+        let calendar = Calendar.current
+        let now = Date()
+        for i in 0..<count {
+            let daysAgo = i + 1
+            let date = calendar.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            let insight = Insight(
+                type: .dailyNudge,
+                content: pastNudgeSampleContent[i % pastNudgeSampleContent.count],
+                periodIdentifier: DateHelpers.dayIdentifier(for: date)
+            )
+            insight.generatedAt = date
+            context.insert(insight)
+        }
+        try? context.save()
+    }
+
+    // MARK: - Current-month bulk (for previewing/screenshotting MonthlyReportView)
+
+    /// `InsightViewModel.loadMonthlyReport` requires >=20 entries dated in the current
+    /// calendar month (>=10 in the last 3 days of the month) before it will generate a real
+    /// report -- there's no way to see MonthlyReportView's actual rendered output without
+    /// that much current-month history. Spreads `count` short entries across the days
+    /// elapsed so far this month, tagged `sampleTag` like every other seed helper here so
+    /// `clearSampleEntries(from:)` removes them along with the rest. Note: run early in the
+    /// month (day 1-2) and all `count` entries pile onto one or two days — the report still
+    /// generates (the gate counts entries, not distinct days) but any day-distribution
+    /// rendering will look degenerate. Fine for mid-month capture passes, which is the use.
+    static func seedCurrentMonthBulk(into context: ModelContext, count: Int = 25) {
+        let calendar = Calendar.current
+        let now = Date()
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let daysElapsed = max(1, (calendar.dateComponents([.day], from: monthStart, to: now).day ?? 0) + 1)
+
+        let moods = ["Calm", "Energized", "Anxious", "Grateful", "Drained", "Peaceful", "Hopeful", "Joyful"]
+        let bodies = [
+            "Steady day. Kept the list short and actually finished what was on it.",
+            "A bit scattered this morning but it evened out by the afternoon.",
+            "Good conversation over lunch — reminded me why I like this team.",
+            "Slow start, slow finish. Not a bad day, just a quiet one.",
+            "Got outside for a walk between meetings. Small thing, helped a lot.",
+            "Long stretch of focused work. Felt productive in a way that isn't always the case.",
+            "Tired by the evening but in the normal way, not the concerning way.",
+            "Noticed I was more patient today than usual. Worth remembering what helped."
+        ]
+
+        for i in 0..<count {
+            let dayOffset = i % daysElapsed
+            let date = calendar.date(byAdding: .day, value: dayOffset, to: monthStart) ?? monthStart
+            let entry = Entry(text: bodies[i % bodies.count], mood: moods[i % moods.count], source: .typed)
+            entry.createdAt = date
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: date)
+            entry.tags = [sampleTag]
+            context.insert(entry)
+        }
+        try? context.save()
+    }
+
+    // MARK: - Monthly report sample (for screenshotting MonthlyReportView's loaded layout)
+
+    /// Real monthly-report generation (6 sections, long-form Gemma output) is too slow to
+    /// finish inside a UI-test window on the simulator — a capture pass that waits for the
+    /// real `.loaded` state times out. This inserts a ready-made `.monthlyReport` Insight for
+    /// the current month so `MonthlyReportView`'s loaded layout renders immediately. Content
+    /// is obviously synthetic and is only for verifying section-block presentation, never
+    /// content quality. Scratch-device only. Do NOT clear via `clearInsights(from:)` — that
+    /// wipes real Insights too. Use `clearMonthlyReportSample(from:)` below, which only
+    /// removes an Insight whose content exactly matches `monthlyReportSampleContent`.
+    static let monthlyReportSampleContent = """
+        YOUR MONTH IN ONE IMAGE: A desk lamp left on past midnight, then a long walk the next morning with the phone left at home. The month kept swinging between those two.
+
+        THE TENSION AT THE CENTER: You want to move fast on the work that matters and you also keep noticing that the fast weeks are the ones where you sleep badly and snap at people. The pull between output and steadiness ran under almost every entry.
+
+        A MOMENT THAT SHIFTED SOMETHING: The afternoon you took off mid-week and went to the museum alone. You wrote that nothing collapsed while you were gone — and that it surprised you how much you'd assumed it would.
+
+        WHAT YOU'RE BECOMING: Someone who treats rest as a real commitment rather than a reward for finishing. It's not fully settled yet, but the language in the later entries is different from the early ones.
+
+        WHAT WANTS TO BE RELEASED: The idea that being reachable at all times is the same thing as being responsible. A few entries circled this without quite naming it.
+
+        YOUR QUESTION FOR NEXT MONTH: What would change if you planned the week around the walks first, and fit the work around them?
+        """
+
+    static func seedMonthlyReportSample(into context: ModelContext) {
+        let period = DateHelpers.monthIdentifier(for: Date())
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .monthlyReport && $0.periodIdentifier == period }) else { return }
+        let insight = Insight(type: .monthlyReport, content: monthlyReportSampleContent, periodIdentifier: period)
+        context.insert(insight)
+        try? context.save()
+    }
+
+    static func clearMonthlyReportSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for insight in all where insight.content == monthlyReportSampleContent {
+            context.delete(insight)
+        }
+        try? context.save()
+    }
+
+    static func clearPastNudgeSamples(from context: ModelContext) {
+        let descriptor = FetchDescriptor<Insight>()
+        let all = (try? context.fetch(descriptor)) ?? []
+        for insight in all where pastNudgeSampleContent.contains(insight.content) {
+            context.delete(insight)
+        }
+        try? context.save()
+    }
+
+    // MARK: - Today's reflection sample (for the Sentinel source sheet)
+
+    /// The daily reflection card only enters its `.loaded` state — the only state
+    /// the source sheet reads — when a `.dailyNudge` Insight exists for
+    /// today. Seeds that one Insight (tagged via a recognisable content string,
+    /// engine set so `InsightSignalSource` shows a real engine line) plus four
+    /// recent moody entries so the reconstruction has "read closely" / "mood
+    /// read" data. Scratch-device only. Clear with `clearTodayReflectionSample`.
+    static let todayReflectionSampleContent =
+        "You keep coming back to the conversation you didn't finish. Not the argument itself — the part after, where you decided it wasn't worth saying."
+
+    static let todayReflectionEntrySamples: [(text: String, mood: String, hoursAgo: Double)] = [
+        ("Review went fine. Everyone said the right things. I still left feeling like I'd been holding my breath the whole time.", "Drained", 20),
+        ("Took the long way home on purpose. Left the phone in my pocket. First quiet twenty minutes I've had in days.", "Hopeful", 44),
+        ("Kept re-reading the same message trying to decide if I was overthinking it. I was. Probably.", "Anxious", 70),
+        ("Slow morning. Didn't do much. Didn't mind.", "Peaceful", 24 * 5),
+    ]
+
+    static func seedTodayReflection(into context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        let today = DateHelpers.dayIdentifier(for: Date())
+        if !existing.contains(where: { $0.type == .dailyNudge && $0.periodIdentifier == today }) {
+            let insight = Insight(
+                type: .dailyNudge,
+                content: todayReflectionSampleContent,
+                periodIdentifier: today,
+                generatedByEngine: .gemma
+            )
+            context.insert(insight)
+        }
+
+        for sample in todayReflectionEntrySamples {
+            let entry = Entry(text: sample.text, mood: sample.mood, source: .typed)
+            entry.createdAt = Date().addingTimeInterval(-3600 * sample.hoursAgo)
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
+            entry.tags = [sampleTag]
+            context.insert(entry)
+        }
+        try? context.save()
+    }
+
+    static func clearTodayReflectionSample(from context: ModelContext) {
+        let insights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for insight in insights where insight.content == todayReflectionSampleContent {
+            context.delete(insight)
+        }
+        // Content-match, NOT clearSampleEntries — that wipes every sampleTag entry
+        // (seedCurrentMonthBulk, seedYearLongMixed, …), same broad-clear footgun
+        // flagged for clearInsights. Only remove this helper's own four entries.
+        let seededTexts = Set(todayReflectionEntrySamples.map(\.text))
+        let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+        for entry in entries where seededTexts.contains(entry.text) {
+            context.delete(entry)
+        }
+        try? context.save()
+    }
+
+    // MARK: - Weekly digest / Ask samples (for the Sentinel source sheet)
+
+    /// Weekly digest + Ask cards only enter their `.loaded` state — the state
+    /// the source sheet reads in Sentinel — when a matching Insight exists. These
+    /// seed one of each for the CURRENT period, engine set so the panel shows a
+    /// real engine line. They lean on `seedTodayReflection`'s four this-week
+    /// entries for the reconstruction, so call that first. Scratch-device only.
+    static let weeklyDigestSampleContent = """
+        THIS WEEK'S THEME: The week kept circling back to the same unfinished conversation — less the disagreement itself than the quiet afterward.
+        YOUR ENERGY: Lower midweek, steadier by the weekend once you stopped checking messages.
+        WHAT'S BUILDING: A habit of taking the long way home without the phone.
+        WATCH OUT FOR: Re-reading old messages to decide whether you overreacted.
+        NEXT WEEK: Notice when "being reachable" is standing in for "being responsible".
+        """
+
+    static let askSampleQuestion = "why do I keep replaying that conversation?"
+    static let askSampleContent =
+        "Across the last few entries it's not the argument you return to — it's the silence right after, where you decided saying more wasn't worth it. The replay seems to be about testing whether that call was self-protection or avoidance."
+
+    static func seedWeeklyDigestSample(into context: ModelContext) {
+        let period = DateHelpers.weekIdentifier(for: Date())
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
+        context.insert(Insight(type: .weeklyDigest, content: weeklyDigestSampleContent,
+                               periodIdentifier: period, generatedByEngine: .gemma))
+        try? context.save()
+    }
+
+    static func seedAskSample(into context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .askResponse && $0.content == askSampleContent }) else { return }
+        context.insert(Insight(type: .askResponse, content: askSampleContent,
+                               periodIdentifier: DateHelpers.dayIdentifier(for: Date()),
+                               question: askSampleQuestion, generatedByEngine: .gemma))
+        try? context.save()
+    }
+
+    static func clearWeeklyDigestSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for i in all where i.content == weeklyDigestSampleContent || i.content == priorWeekDigestSampleContent { context.delete(i) }
+        try? context.save()
+    }
+
+    static let priorWeekDigestSampleContent = """
+        THIS WEEK'S THEME: Last week you were mostly heads-down on the move, and the entries read calmer for it.
+        YOUR ENERGY: Even through the week, a dip on Thursday you traced back to a short night.
+        WHAT'S BUILDING: Morning pages before the first message of the day.
+        WATCH OUT FOR: Treating a full calendar as proof the week went well.
+        NEXT WEEK: Keep one afternoon with nothing scheduled and see what fills it.
+        """
+
+    /// Seeds a digest for the PREVIOUS ISO week so `InsightViewModel` shows the
+    /// `.previousWeek` fallback (this week under 3 entries, no digest yet).
+    /// Scratch-device only.
+    static func seedPriorWeekDigestSample(into context: ModelContext) {
+        guard let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) else { return }
+        let period = DateHelpers.weekIdentifier(for: lastWeek)
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
+        let insight = Insight(type: .weeklyDigest, content: priorWeekDigestSampleContent,
+                              periodIdentifier: period, generatedByEngine: .gemma)
+        insight.generatedAt = lastWeek
+        context.insert(insight)
+        try? context.save()
+    }
+
+    static func clearAskSample(from context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        for i in all where i.content == askSampleContent { context.delete(i) }
+        try? context.save()
+    }
+
     // MARK: - Helpers
 
     /// Hidden tag applied to every seeded entry so they can be cleared without touching real entries.

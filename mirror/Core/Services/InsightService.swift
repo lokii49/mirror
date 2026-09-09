@@ -168,7 +168,7 @@ enum InsightService {
             .joined(separator: " ")
     }
 
-    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> String {
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
         let withinWindow = sorted.filter { $0.createdAt >= cutoff }
@@ -198,16 +198,43 @@ enum InsightService {
         )
     }
 
-    static func generateWeeklyDigest(entries: [Entry]) async throws -> String {
-        let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let digestEntries = Array(sorted.prefix(24))
-        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: digestEntries), task: .weeklyDigest)
+    /// Fewer than this many entries in the current week → not enough to find a
+    /// week's theme; the call sites show the "write more this week" state instead
+    /// of generating a thin digest.
+    static let weeklyDigestMinimumWeekEntries = 3
+
+    /// Whether a cached weekly digest is due for regeneration. True only when
+    /// BOTH hold: the 24h cooldown since it was generated has elapsed (bounds LLM
+    /// cost — same guard the monthly report uses), and at least one entry in the
+    /// current week is newer than the digest (there's genuinely new material).
+    /// The second condition matters because a digest can be generated mid-week
+    /// (on-demand from the view) and then go stale as the rest of the week fills
+    /// in under a "THIS WEEK'S THEME" label that promises freshness.
+    static func weeklyDigestIsStale(generatedAt: Date, newestWeekEntry: Date?) -> Bool {
+        guard let newestWeekEntry else { return false }
+        let cooldownElapsed = Date().timeIntervalSince(generatedAt) >= 24 * 60 * 60
+        return cooldownElapsed && newestWeekEntry > generatedAt
+    }
+
+    /// The digest is explicitly "this week" — `WeeklyDigestView`, the C1 widget,
+    /// and the `THIS WEEK'S THEME` section header all say so. `weekEntries` is the
+    /// current ISO week only and is the sole source of the theme; `allEntries`
+    /// (which includes them) is passed as long-term background for continuity in
+    /// `WHAT'S BUILDING` / `NEXT WEEK`, never as digest material.
+    static func generateWeeklyDigest(weekEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        let thisWeek = weekEntries.sorted { $0.createdAt > $1.createdAt }
+        let weekIDs = Set(weekEntries.map(\.id))
+        let priorWeeks = allEntries
+            .filter { !weekIDs.contains($0.id) }
+            .sorted { $0.createdAt > $1.createdAt }
+        let languageSource = thisWeek.isEmpty ? priorWeeks : thisWeek
+        let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: languageSource), task: .weeklyDigest)
         return try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
             userMessage: buildUserMessage(
                 title: "Weekly digest context",
-                recentEntries: Array(sorted.prefix(10)),
-                backgroundEntries: Array(sorted.dropFirst(10).prefix(14)),
+                recentEntries: Array(thisWeek.prefix(12)),
+                backgroundEntries: Array(priorWeeks.prefix(14)),
                 maxChars: weeklyDigestPromptBudget
             ),
             task: .weeklyDigest,
@@ -215,7 +242,7 @@ enum InsightService {
         )
     }
 
-    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> String {
+    static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         return try await localGenerate(
             systemPrompt: MONTHLY_REPORT_SYSTEM,
@@ -225,7 +252,7 @@ enum InsightService {
         )
     }
 
-    static func ask(question: String, entries: [Entry]) async throws -> String {
+    static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))
@@ -247,13 +274,17 @@ enum InsightService {
 
     static func detectEmotion(text: String) async throws -> String {
         let trimmed = String(text.prefix(3000))
+        // Emotion detection isn't saved as an Insight (it sets Entry.mood directly), so which
+        // engine ran doesn't need attribution — .engine is discarded here. If a future pass
+        // ever persists mood provenance (e.g. an Entry-level "detected by" field), this is the
+        // line to revisit.
         let response = try await localGenerate(
             systemPrompt: EMOTION_DETECT_SYSTEM,
             userMessage: trimmed,
             task: .emotion,
             responseLanguageInstruction: nil
         )
-        return normalizeEmotion(response)
+        return normalizeEmotion(response.text)
     }
 
     // Gemma's system prompts are English, so without an explicit directive it tends
@@ -383,7 +414,7 @@ enum InsightService {
         task: LocalLLMTask,
         responseLanguageInstruction: String?,
         askNoAnswerPhrase: String? = nil
-    ) async throws -> String {
+    ) async throws -> (text: String, engine: LLMEngine) {
         let systemPrompt: String
         if let instruction = responseLanguageInstruction {
             systemPrompt = basePrompt + "\n\n" + instruction
@@ -400,15 +431,18 @@ enum InsightService {
         do {
             do {
                 let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                return try validate(first, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(first.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task)
-                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                return try validate(second, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+                return (validated, second.engine)
             }
         } catch let error as InsightError {
             throw error
@@ -417,7 +451,7 @@ enum InsightService {
         }
     }
 
-    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
         let raw = try await LLMGenerationQueue.shared.run {
             try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
@@ -426,14 +460,16 @@ enum InsightService {
             )
         }
 
+        let cleaned: String
         switch task {
         case .weeklyDigest:
-            return raw.cleanedDigestOutput()
+            cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
-            return raw.cleanedMonthlyReportOutput()
+            cleaned = raw.text.cleanedMonthlyReportOutput()
         case .dailyNudge, .ask, .emotion:
-            return raw.cleanedInsightOutput()
+            cleaned = raw.text.cleanedInsightOutput()
         }
+        return (cleaned, raw.engine)
     }
 
     private static func retryUserMessage(original: String, task: LocalLLMTask) -> String {
@@ -463,30 +499,41 @@ enum InsightService {
         }
     }
 
-    private static func validate(_ text: String, for task: LocalLLMTask, askNoAnswerPhrase: String? = nil) throws -> String {
+    // Internal (not private) so InsightValidationTests can exercise it directly via
+    // @testable import — this is the one seam the fixture-based structural test harness
+    // (see .claude/2.1.0-design-plan.md, Track A1) needs into otherwise-private validation
+    // logic. No other access change: validateWeeklyDigest/validateMonthlyReport/etc. stay
+    // private and are reached only through this dispatch, same as production callers.
+    static func validate(_ text: String, for task: LocalLLMTask, askNoAnswerPhrase: String? = nil) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw InsightError.emptyResponse }
 
         switch task {
         case .dailyNudge:
+            // DAILY_NUDGE_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice
+            // ("never the journal writer's voice") — .strictExceptMirrorNoticed blocks every
+            // other journal-writer-shaped "I ..."/"my ..." construction but tolerates that one,
+            // matching the prompt's own carve-out instead of a blanket ban or a blanket pass.
             return try validateCompleteProse(
                 trimmed,
                 minimumCharacters: 45,
                 maximumWords: 120,
                 allowedSentenceRange: 1...4,
-                rejectsFirstPerson: false
+                firstPersonPolicy: .strictExceptMirrorNoticed
             )
         case .ask:
             let expectedPhrase = askNoAnswerPhrase ?? askNoAnswerSentinelEN
             if trimmed == askNoAnswerSentinelEN || trimmed == expectedPhrase {
                 return expectedPhrase
             }
+            // ASK_SYSTEM grants no Mirror-voice exception at all ("Address the person as
+            // you/your only") — .strict, not .strictExceptMirrorNoticed.
             return try validateCompleteProse(
                 trimmed,
                 minimumCharacters: 35,
                 maximumWords: 140,
                 allowedSentenceRange: 1...6,
-                rejectsFirstPerson: false
+                firstPersonPolicy: .strict
             )
         case .weeklyDigest:
             return try validateWeeklyDigest(trimmed)
@@ -500,18 +547,34 @@ enum InsightService {
         }
     }
 
+    // .strictExceptMirrorNoticed exists only for dailyNudge's sanctioned "I noticed" — see the
+    // call site in validate(). Every other task that checks first person at all (ask, and
+    // validateWeeklyDigest/validateMonthlyReport below) uses .strict.
+    private enum FirstPersonPolicy {
+        case strict
+        case strictExceptMirrorNoticed
+    }
+
     private static func validateCompleteProse(
         _ text: String,
         minimumCharacters: Int,
         maximumWords: Int,
         allowedSentenceRange: ClosedRange<Int>,
-        rejectsFirstPerson: Bool
+        firstPersonPolicy: FirstPersonPolicy
     ) throws -> String {
         guard text.count >= minimumCharacters else { throw InsightError.incompleteResponse }
         guard endsAsCompleteSentence(text) else { throw InsightError.incompleteResponse }
         guard !hasDanglingEnding(text) else { throw InsightError.incompleteResponse }
-        if rejectsFirstPerson {
+        // A 1B model sometimes acknowledges the task ("Okay, you've got it. Let's
+        // see what you can offer.") before the real reflection — no journal grounds
+        // it, and length/first-person/ending checks all pass it. Reject so the
+        // existing retry produces a clean answer.
+        guard !startsWithMetaPreamble(text) else { throw InsightError.incompleteResponse }
+        switch firstPersonPolicy {
+        case .strict:
             guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
+        case .strictExceptMirrorNoticed:
+            guard !containsJournalWriterFirstPerson(text, allowMirrorNoticed: true) else { throw InsightError.incompleteResponse }
         }
 
         let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
@@ -561,7 +624,8 @@ enum InsightService {
             guard body.count >= 15,
                   body.count <= 350,
                   endsAsCompleteSentence(body),
-                  !hasDanglingEnding(body) else {
+                  !hasDanglingEnding(body),
+                  !containsJournalWriterFirstPerson(body) else {
                 throw InsightError.incompleteResponse
             }
             // The closing question must end with "?"
@@ -573,6 +637,39 @@ enum InsightService {
         }
 
         return normalizedText
+    }
+
+    /// True when the response opens with a short sentence that acknowledges the
+    /// request rather than reflecting — a preamble to strip by rejecting. Narrow
+    /// on purpose: the first sentence must be short, match a meta-acknowledgment
+    /// shape, AND be followed by more text (so a legitimate reflection that
+    /// merely opens with "Okay," is untouched). Exercised via `validate(_:for:)`
+    /// in InsightValidationTests, same as the other prose gates here.
+    private static func startsWithMetaPreamble(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return false }
+        let first = String(trimmed[..<end]).lowercased()
+        let rest = trimmed[trimmed.index(after: end)...].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rest.isEmpty else { return false }
+        guard first.split(whereSeparator: { " \n".contains($0) }).count <= 12 else { return false }
+
+        let metaPhrases = [
+            "you've got it", "you got it", "here we go", "here you go",
+            "let's see what you", "let's take a look", "let me take a look",
+            "let me look at", "here's what i", "here is what i",
+            "here's your reflection", "here is your reflection",
+            "here's a reflection", "as you requested", "as requested",
+            "let's begin", "let's get started", "let's dive in",
+            "what you can offer", "let's do this", "on it",
+        ]
+        if metaPhrases.contains(where: { first.contains($0) }) { return true }
+
+        let bareAcks: Set<String> = [
+            "okay", "ok", "alright", "sure", "got it", "understood",
+            "no problem", "of course", "certainly", "sounds good", "will do",
+        ]
+        let stripped = first.trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?-–—"))
+        return bareAcks.contains(stripped)
     }
 
     private static func endsAsCompleteSentence(_ text: String) -> Bool {
@@ -594,9 +691,16 @@ enum InsightService {
         return danglingEndings.contains { lower.hasSuffix($0) }
     }
 
-    private static func containsJournalWriterFirstPerson(_ text: String) -> Bool {
+    // allowMirrorNoticed: true removes "notice|noticed" from the blocked-verb group — the one
+    // "I ..." construction DAILY_NUDGE_SYSTEM sanctions as Mirror's own voice. Every other
+    // caller (ask, weeklyDigest, monthlyReport) uses the default false — their prompts grant
+    // no such exception.
+    private static func containsJournalWriterFirstPerson(_ text: String, allowMirrorNoticed: Bool = false) -> Bool {
+        let verbGroup = allowMirrorNoticed
+            ? "am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were"
+            : "am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|notice|noticed|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were"
         let blockedPatterns = [
-            #"\bI\s+(am|seem|feel|felt|think|thought|work|try|tried|need|needed|want|wanted|notice|noticed|sound|sounds|plan|planned|can|could|will|would|should|have|had|was|were)\b"#,
+            "\\bI\\s+(\(verbGroup))\\b",
             #"\bI'm\b"#,
             #"\bI['’]m\b"#,
             #"\bI['’]ll\b"#,
@@ -712,6 +816,53 @@ enum InsightService {
             "zh": "给下个月的你的问题",
         ],
     ]
+
+    /// Body text of the FIRST labeled section of a digest / monthly-report string
+    /// — "THIS WEEK'S THEME" for a weekly digest, "YOUR MONTH IN ONE IMAGE" for a
+    /// monthly report — for the home-screen widget bridge (`WidgetBridge`). Only
+    /// that one section crosses the app-group boundary; the full six-section
+    /// insight doesn't fit a widget.
+    ///
+    /// `labels` is the same `weeklyDigestSectionLabels` / `monthlyReportSectionLabels`
+    /// table `WeeklyDigestView.parseDigest` and `MonthlyReportCard.extractBody`
+    /// use, so the widget and the on-screen card can't disagree about where a
+    /// section starts. The header match (`"<alias>:"`) is the same too — and it's
+    /// defeated by `**`-wrapped headers, so this strips the same markdown noise
+    /// `parseDigest` does. Stored `Insight.content` is already `cleaned…Output()`
+    /// (headers un-wrapped, colon-normalized) but a caller may pass raw text.
+    ///
+    /// Returns nil if the first section's header isn't present.
+    static func firstSectionBody(of content: String, labels: [[String: String]]) -> String? {
+        guard let firstSection = labels.first else { return nil }
+        let normalized = content
+            .replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+
+        func headerRange(_ aliases: [String], in text: Substring) -> Range<String.Index>? {
+            aliases
+                .lazy
+                .compactMap { text.range(of: "\($0):", options: [.caseInsensitive, .diacriticInsensitive]) }
+                .min(by: { $0.lowerBound < $1.lowerBound })
+        }
+
+        guard let start = headerRange(Array(firstSection.values), in: Substring(normalized)) else { return nil }
+        let afterHeader = normalized[start.upperBound...]
+
+        var bodyEnd = afterHeader.endIndex
+        for section in labels.dropFirst() {
+            if let next = headerRange(Array(section.values), in: afterHeader) {
+                bodyEnd = next.lowerBound
+                break
+            }
+        }
+
+        let body = afterHeader[..<bodyEnd]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n\n", with: "\n")
+        return body.isEmpty ? nil : body
+    }
 
     private static func buildMonthlyReportMessage(monthEntries: [Entry], allEntries: [Entry]) -> String {
         let totalWords = monthEntries.reduce(0) { $0 + $1.wordCount }
@@ -860,8 +1011,13 @@ enum InsightService {
 
         let recurringTerms = recurringKeywords(from: entries)
         let voiceCount = entries.filter { $0.source == .voice || $0.hasVoiceNotes }.count
-        let excerpts = entries
-            .prefix(5)
+        // A5 (see .claude/2.1.0-design-plan.md): was `entries.prefix(5)` — pure recency, so a
+        // short "quick check-in" from yesterday always displaced a substantive entry from
+        // three weeks ago, even one worth spotting as a recurring pattern. Aggregate stats
+        // above (moodCounts/recurringTerms/dateRange) still read the full `entries` window
+        // upstream callers already bounded by recency (20/14 entries) — only which 5 of those
+        // get quoted as excerpts changes here.
+        let excerpts = selectRepresentativeExcerpts(from: entries, limit: 5)
             .map { entry in
                 let date = entry.createdAt.formatted(date: .abbreviated, time: .omitted)
                 return "- \(date): \(clipped(entry.insightContext, maxChars: 220))"
@@ -878,6 +1034,55 @@ enum InsightService {
         """
 
         return clipped(brief, maxChars: maxChars)
+    }
+
+    /// How much an entry is worth surfacing as a long-term-context excerpt, independent of
+    /// recency. The negative-mood bonus is gated to short entries (< shortEntryWordThreshold)
+    /// — it exists to rescue a brief-but-meaningful check-in ("Rough day. Overwhelmed.") that
+    /// word count alone would never surface, not to advantage negative mood in general. A flat
+    /// bonus with no such gate was tried first and failed a realistic-mix check (advisor
+    /// review, 2026-09-04): mood is auto-detected on nearly every entry and roughly half of
+    /// MirrorTheme.moodOptions are negative, so in a typical window where most entries happen
+    /// to be negative-mood at ordinary journal length, the bonus stacked on top of word count
+    /// and crowded out a long, calm, reflective entry entirely — see
+    /// ContextSelectionTests.realisticMixedPool_doesNotCrowdOutLongCalmEntry. Gating the bonus
+    /// to entries already too short to compete on word count avoids that: once an entry is
+    /// substantive by length, mood doesn't need to help it (or hurt everything else).
+    private static let shortEntryWordThreshold = 100
+    private static let shortNegativeEntryBonus = 150
+
+    private static func substantivenessScore(_ entry: Entry) -> Int {
+        var score = entry.wordCount
+        if entry.wordCount < shortEntryWordThreshold,
+           let mood = entry.mood, MirrorTheme.negativeMoods.contains(mood) {
+            score += shortNegativeEntryBonus
+        }
+        return score
+    }
+
+    // Internal (not private) so InsightValidationTests can exercise it — same testable seam
+    // as InsightService.validate above.
+    //
+    // Picks the `limit` most substantive entries from `entries` (by substantivenessScore, tied
+    // scores broken toward more recent) rather than the first `limit` in whatever order they
+    // arrive. Callers already bound `entries` to a recency window upstream (buildMemoryBrief's
+    // callers cap `background` at 20/14 entries) — this only re-ranks which of those get
+    // quoted as excerpts, then re-sorts the selection back to recency order for display so
+    // excerpts still read newest-first. Falls back to plain recency ordering when there's
+    // nothing to trim (ranking would be a no-op).
+    static func selectRepresentativeExcerpts(from entries: [Entry], limit: Int) -> [Entry] {
+        guard entries.count > limit else {
+            return entries.sorted { $0.createdAt > $1.createdAt }
+        }
+        return entries
+            .sorted { a, b in
+                let scoreA = substantivenessScore(a)
+                let scoreB = substantivenessScore(b)
+                if scoreA != scoreB { return scoreA > scoreB }
+                return a.createdAt > b.createdAt
+            }
+            .prefix(limit)
+            .sorted { $0.createdAt > $1.createdAt }
     }
 
     private static func recurringKeywords(from entries: [Entry]) -> [String] {
@@ -922,7 +1127,12 @@ enum InsightService {
 
 }
 
-private extension String {
+// Not private (see InsightService.validate above for why): InsightValidationTests exercises
+// the full repair-then-validate pipeline these production call sites use, not validate() in
+// isolation, so cleanedInsightOutput/cleanedDigestOutput/cleanedMonthlyReportOutput need the
+// same testable-internal seam. softenDigestFragments stays private — it's an internal helper
+// of cleanedDigestOutput, not a pipeline stage tests need to call directly.
+extension String {
     func cleanedInsightOutput() -> String {
         replacingOccurrences(of: "###", with: "")
             .replacingOccurrences(of: "**", with: "")
@@ -949,6 +1159,17 @@ private extension String {
             .replacingOccurrences(of: "I’ve been", with: "you’ve been", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm trying", with: "you're trying", options: .caseInsensitive)
             .replacingOccurrences(of: "I am trying", with: "you're trying", options: .caseInsensitive)
+            // Placed after "I am trying" above so that specific phrase still matches first —
+            // these generic am/was/were rules only catch what's left. Closes a gap
+            // InsightValidationTests found: containsJournalWriterFirstPerson's blocked-verb
+            // list already includes am/was/were, but nothing here repaired them, so an "I was
+            // overwhelmed..." leak reached the user unrepaired. dailyNudge/ask now also reject
+            // it as a backstop (see FirstPersonPolicy in validateCompleteProse below) — but
+            // repairing it here is strictly better than rejecting it: the output stays usable
+            // instead of forcing a retry.
+            .replacingOccurrences(of: #"\bI am\b"#, with: "you are", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI was\b"#, with: "you were", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bI were\b"#, with: "you were", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: "I’ll", with: "you could", options: .caseInsensitive)
             .replacingOccurrences(of: "I'll", with: "you could", options: .caseInsensitive)
             .replacingOccurrences(of: "I'm", with: "you're", options: .caseInsensitive)
@@ -976,6 +1197,17 @@ private extension String {
             .replacingOccurrences(of: "this suggests", with: "it sounds like", options: .caseInsensitive)
             .replacingOccurrences(of: "emotional weariness", with: "tiredness", options: .caseInsensitive)
             .replacingOccurrences(of: "mental health", with: "well-being", options: .caseInsensitive)
+            // "significant"/"patterns indicate" are banned explicitly in DAILY_NUDGE_SYSTEM
+            // and WEEKLY_DIGEST_SYSTEM but were unguarded here — another gap
+            // InsightValidationTests found (no repair, no validator check, either prompt).
+            // "significant" alone is NOT rewritten unconditionally — unlike the other phrases
+            // here, it's an ordinary word with everyday non-clinical use, and every prompt also
+            // instructs the model to quote the writer's own words; a global replace would
+            // silently corrupt a genuine quote like "this felt significant to me". Scoped to
+            // the two clinical collocations the prompts' own example phrasing implies instead.
+            .replacingOccurrences(of: "patterns indicate", with: "it looks like", options: .caseInsensitive)
+            .replacingOccurrences(of: #"\bsomething significant\b"#, with: "something real", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bsignificant pattern"#, with: "real pattern", options: [.regularExpression, .caseInsensitive])
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -1071,5 +1303,27 @@ extension Entry {
         }
 
         return parts.joined(separator: "\n\n")
+    }
+}
+
+// MARK: - Source disclosure (Sentinel X-ray)
+
+extension InsightService {
+    /// The verbatim system prompt an insight of this type was generated from,
+    /// plus a `file:line` label. Read live from the same constant the generator
+    /// uses (CLAUDE.md: prompts live in `InsightService.swift` only) — the
+    /// Sentinel press-hold X-ray shows this so the generation is inspectable,
+    /// never a paraphrase that can drift.
+    static func systemPrompt(for type: InsightType) -> (ref: String, body: String) {
+        switch type {
+        case .dailyNudge:
+            return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
+        case .weeklyDigest:
+            return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
+        case .monthlyReport:
+            return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
+        case .askResponse:
+            return ("InsightService.swift:69 · ASK_SYSTEM", ASK_SYSTEM)
+        }
     }
 }

@@ -1,8 +1,8 @@
-Un registro diario de cómo te sientes.
+Registro diario de estado de ánimo, widgets en la pantalla de inicio y un editor más preciso.
 
-• Nuevo: Registro de ánimo diario. Un toque desde un recordatorio para anotar cómo estás. Sin escribir nada, gratis para todos, y ahora se sincroniza entre tus dispositivos con iCloud.
-• Tu cronología de ánimo, el widget Mapa de ánimo y las alertas de ánimo ahora tienen en cuenta estos registros (Deep).
-• Las reflexiones diarias se repiten menos de un día para otro.
-• Corregido un fallo visual en Ask al cambiar de tema.
-
-Todo sigue ejecutándose por completo en tu dispositivo: nada de lo que escribes sale nunca de tu teléfono.
+• Registro diario de estado de ánimo: anota cómo te sientes con un solo toque, sin necesidad de escribir. Si se te pasa el recordatorio, MirrorNotes te lo pregunta la próxima vez que abras la app, y un botón "Registrar ánimo" en Ideas te permite actualizarlo cuando quieras. Cada registro alimenta tu Línea de tiempo de ánimo y el widget Mapa de ánimo.
+• Widgets semanal y mensual: tu último Resumen semanal y tu Informe mensual a fondo directamente en la pantalla de inicio.
+• El resumen de la semana pasada sigue visible hasta que esté listo el de esta semana, y los resúmenes anteriores ya tienen su propio archivo, igual que las reflexiones.
+• Reflexiones más directas: los impulsos diarios y las respuestas de Pregunta van al grano, sin frases de relleno.
+• Editor: escribe "1. " para empezar una lista numerada como en Notas, con un espaciado más limpio. Intro continúa la lista y también la cierra correctamente.
+• Correcciones y mejoras.

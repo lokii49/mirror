@@ -6,7 +6,10 @@ import FoundationModels
 /// Wraps Apple's on-device Foundation Models framework (iOS 26+, Apple Intelligence-capable
 /// devices only). Mirrors `LocalLLMService.generate`'s signature so `LocalLLMService` can route
 /// to this engine first and fall back to the bundled Gemma/llama.cpp path transparently —
-/// `InsightService` never needs to know which engine actually ran.
+/// callers don't have to branch on which engine ran. `LocalLLMService.generate` does report
+/// which one actually served the request (see `LLMEngine`), but purely for diagnostic
+/// attribution on the saved `Insight` — nothing in the generation/validation pipeline branches
+/// on it.
 enum FoundationModelEngine {
 
     nonisolated enum UnavailableReason {

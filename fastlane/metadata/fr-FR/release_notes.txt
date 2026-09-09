@@ -1,8 +1,8 @@
-Un point quotidien sur votre humeur.
+Point humeur quotidien, widgets sur l'écran d'accueil et un éditeur plus soigné.
 
-• Nouveau — Point humeur quotidien : en un geste depuis un rappel, notez comment vous allez. Aucune saisie, gratuit pour tous, et désormais synchronisé entre vos appareils via iCloud.
-• Votre historique d'humeur, le widget Carte des humeurs et les alertes d'humeur prennent maintenant ces points en compte (Deep).
-• Les réflexions quotidiennes se répètent moins d'un jour à l'autre.
-• Correction d'un défaut d'affichage dans Ask lors du changement de thème.
-
-Tout continue de fonctionner entièrement sur votre appareil : rien de ce que vous écrivez ne quitte jamais votre téléphone.
+• Point humeur quotidien : notez comment vous vous sentez d'un seul geste, sans rien écrire. Si vous manquez votre rappel, MirrorNotes vous le demande à la prochaine ouverture, et un bouton « Noter l'humeur » dans les Analyses vous permet de la mettre à jour à tout moment. Chaque point alimente votre Frise des humeurs et le widget Carte des humeurs.
+• Widgets hebdomadaire et mensuel : votre dernière Synthèse hebdomadaire et votre Rapport mensuel approfondi directement sur l'écran d'accueil.
+• La synthèse de la semaine dernière reste visible jusqu'à ce que celle de cette semaine soit prête, et les synthèses passées ont désormais leurs propres archives, comme les réflexions.
+• Réflexions plus directes : les suggestions quotidiennes et les réponses à Demander vont droit au but, sans formules inutiles.
+• Éditeur : tapez « 1. » pour démarrer une liste numérotée comme dans Notes, avec un espacement plus net. Retour poursuit la liste, et en sort proprement.
+• Corrections et améliorations.

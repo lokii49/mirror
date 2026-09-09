@@ -16,6 +16,10 @@ enum DigestState {
     case idle
     case loading
     case loaded(Insight)
+    /// This week isn't unlocked yet, but an earlier week's digest exists — show
+    /// it as a fallback so the section isn't just a progress bar. `remaining` is
+    /// how many more entries this week unlocks a fresh one.
+    case previousWeek(Insight, remaining: Int)
     case notEnoughEntries(Int)
     case subscriptionRequired
     case pendingNightlyGeneration
@@ -110,20 +114,46 @@ final class InsightViewModel {
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
         let coordinatorKey = "digest_\(thisWeek)"
 
-        guard entries.count >= 5 else {
-            digestState = .notEnoughEntries(5 - entries.count)
-            return
-        }
-
         guard SubscriptionService.shared.isSubscribed else {
             digestState = .subscriptionRequired
             return
         }
 
-        if let cached = insights.first(where: {
-            $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek
-        }) {
-            digestState = .loaded(cached)
+        // The digest is "this week" — gate on entries written this week, not lifetime.
+        let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        // Newest row wins; a stale digest is superseded by a fresh insert, never
+        // deleted (a CloudKit-synced Insight deletion can hand a second device a
+        // tombstoned object). Matches the monthly report's non-destructive approach.
+        let cachedThisWeek = insights
+            .filter { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek }
+            .max { $0.generatedAt < $1.generatedAt }
+
+        // Serve the existing digest for this week unless it's gone stale (24h
+        // cooldown elapsed AND newer entries since) — serving before the count
+        // gate means deleting an entry after it generated doesn't blank it.
+        if let cached = cachedThisWeek {
+            let stale = InsightService.weeklyDigestIsStale(
+                generatedAt: cached.generatedAt,
+                newestWeekEntry: weekEntries.map(\.createdAt).max()
+            )
+            guard stale else {
+                digestState = .loaded(cached)
+                return
+            }
+            // fall through to regenerate
+        }
+
+        guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
+            let remaining = InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count
+            // Fall back to the most recent earlier week's digest until this week
+            // has enough entries — better than a bare "1/3" progress bar.
+            if let prior = insights
+                .filter({ $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek })
+                .max(by: { $0.generatedAt < $1.generatedAt }) {
+                digestState = .previousWeek(prior, remaining: remaining)
+            } else {
+                digestState = .notEnoughEntries(remaining)
+            }
             return
         }
 
@@ -145,10 +175,11 @@ final class InsightViewModel {
 
         digestState = .loading
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries)
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncWeeklyDigest(from: context)
             digestState = .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
@@ -212,12 +243,13 @@ final class InsightViewModel {
 
         monthlyReportState = .loading
         do {
-            let text = try await InsightService.generateMonthlyReport(
+            let (text, engine) = try await InsightService.generateMonthlyReport(
                 monthEntries: thisMonthEntries, allEntries: entries
             )
-            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncMonthlyReport(from: context)
             monthlyReportState = .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {

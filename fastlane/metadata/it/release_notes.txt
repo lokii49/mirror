@@ -1,8 +1,8 @@
-Un check-in quotidiano su come stai.
+Check-in giornaliero dell'umore, widget nella schermata Home e un editor più curato.
 
-• Novità — Check-in dell'umore giornaliero: con un tocco da un promemoria annoti come stai. Senza scrivere nulla, gratis per tutti, e ora si sincronizza tra i tuoi dispositivi via iCloud.
-• La tua cronologia dell'umore, il widget Mappa dell'umore e gli avvisi sull'umore ora tengono conto di questi check-in (Deep).
-• Le riflessioni quotidiane si ripetono meno da un giorno all'altro.
-• Corretto un difetto grafico in Ask al cambio di tema.
-
-Tutto continua a funzionare interamente sul tuo dispositivo: nulla di ciò che scrivi lascia mai il telefono.
+• Check-in giornaliero dell'umore: registra come ti senti con un tocco, senza bisogno di scrivere. Se salti il promemoria, MirrorNotes te lo chiede alla successiva apertura dell'app, e un pulsante "Registra umore" negli Approfondimenti ti permette di aggiornarlo quando vuoi. Ogni check-in alimenta la tua Cronologia dell'umore e il widget Mappa dell'umore.
+• Widget settimanale e mensile: il tuo ultimo Riepilogo settimanale e il Report mensile approfondito direttamente nella schermata Home.
+• Il riepilogo della settimana scorsa resta visibile finché non è pronto quello di questa settimana, e i riepiloghi passati ora hanno un archivio dedicato, proprio come le riflessioni.
+• Riflessioni più incisive: gli spunti giornalieri e le risposte di Chiedi vanno dritti al punto, senza frasi di riempimento.
+• Editor: digita "1. " per avviare un elenco numerato come nell'app Note, con una spaziatura più pulita. Invio prosegue l'elenco e ne esce in modo corretto.
+• Correzioni e rifiniture.

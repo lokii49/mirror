@@ -583,12 +583,13 @@ struct AskView: View {
         isInputFocused = false
 
         do {
-            let answer = try await InsightService.ask(question: submitted, entries: entries)
+            let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(
                 type: .askResponse,
                 content: answer,
                 periodIdentifier: DateHelpers.monthIdentifier(for: Date()),
-                question: submitted
+                question: submitted,
+                generatedByEngine: engine
             )
             modelContext.insert(insight)
             try modelContext.save()
@@ -656,34 +657,67 @@ private struct AskBubblePair: View {
                 }
             }
 
-            HStack(alignment: .top, spacing: 0) {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(accent.opacity(isSentinel ? 0.6 : 0.4))
-                    .frame(width: 2)
-                    .padding(.vertical, 3)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    if isSentinel {
-                        Text("◆ SIGNAL")
-                            .font(MirrorTheme.mono(9, weight: .bold))
-                            .foregroundStyle(MirrorTheme.ember)
-                            .kerning(0.4)
-                    }
-                    Text(insight.content)
-                        .font(.system(size: 15, weight: .regular, design: .serif))
-                        .lineSpacing(6)
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                        .textSelection(.enabled)
-
-                    Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(MirrorTheme.textTertiary)
-                }
-                .padding(.leading, 14)
+            if isSentinel {
+                answerCard.padding(.top, 4)
+            } else {
+                classicAnswer
+                    .padding(.top, 4)
             }
-            .padding(.top, 4)
         }
         .padding(.vertical, 4)
+    }
+
+    // Sentinel — bordered inkMid answer card. The "◆ SIGNAL" row carries the
+    // "how this was generated" button.
+    private var answerCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("◆ SIGNAL")
+                    .font(MirrorTheme.mono(9, weight: .bold))
+                    .foregroundStyle(MirrorTheme.ember)
+                    .kerning(0.4)
+                Spacer()
+                InsightSourceButton(insight: insight)
+            }
+            Text(insight.content)
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .lineSpacing(6)
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .textSelection(.disabled)
+            Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(MirrorTheme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MirrorTheme.ember.opacity(0.24), lineWidth: 1)
+        }
+    }
+
+    // Classic — unchanged left-rule block.
+    private var classicAnswer: some View {
+        HStack(alignment: .top, spacing: 0) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(accent.opacity(0.4))
+                .frame(width: 2)
+                .padding(.vertical, 3)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(insight.content)
+                    .font(.system(size: 15, weight: .regular, design: .serif))
+                    .lineSpacing(6)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .textSelection(.enabled)
+
+                Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            }
+            .padding(.leading, 14)
+        }
     }
 }
 

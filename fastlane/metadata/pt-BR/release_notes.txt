@@ -1,8 +1,8 @@
-Um registro diário de como você está.
+Check-in diário de humor, widgets na tela de início e um editor mais caprichado.
 
-• Novidade — Check-in de humor diário: um toque a partir de um lembrete para anotar como você está. Sem escrever nada, grátis para todos, e agora sincroniza entre seus dispositivos via iCloud.
-• Sua linha do tempo de humor, o widget Mapa de Humor e os alertas de humor agora consideram esses check-ins (Deep).
-• As reflexões diárias se repetem menos de um dia para o outro.
-• Corrigida uma falha visual no Ask ao trocar de tema.
-
-Tudo continua rodando inteiramente no seu dispositivo — nada do que você escreve sai do seu telefone.
+• Check-in diário de humor: registre como você está se sentindo com um toque, sem precisar escrever. Se você perder o lembrete, o MirrorNotes pergunta na próxima vez que abrir o app, e um botão "Registrar humor" nos Insights permite atualizar quando quiser. Cada check-in alimenta sua Linha do Tempo de Humor e o widget Mapa de Humor.
+• Widgets semanal e mensal: seu Resumo Semanal e Relatório Mensal Detalhado mais recentes direto na tela de início.
+• O resumo da semana passada continua visível até o desta semana ficar pronto, e os resumos anteriores agora têm um arquivo próprio, assim como as reflexões.
+• Reflexões mais diretas: os lembretes diários e as respostas do Perguntar vão direto ao ponto, sem enrolação.
+• Editor: digite "1. " para começar uma lista numerada como no app Notas, com espaçamento mais limpo. Return continua a lista e sai dela corretamente.
+• Correções e ajustes.
