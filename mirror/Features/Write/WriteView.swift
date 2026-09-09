@@ -27,12 +27,13 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]
 
     /// iPad presents the formatting panel as a popover off the Aa button;
-    /// iPhone as an overlay above the keyboard.
-    var usesPopoverPanel: Bool { horizontalSizeClass == .regular }
+    /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
+    /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
+    /// class reports `.compact` on iPad, which sent it down the iPhone path.
+    var usesPopoverPanel: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
@@ -294,15 +295,17 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if (isKeyboardVisible || editorFocused) && !focusMode {
+            let iPhonePanelOpen = showFormattingPanel && !usesPopoverPanel
+            if ((isKeyboardVisible || editorFocused) && !focusMode) || iPhonePanelOpen {
                 VStack(spacing: 0) {
                     toolRow
-                    // Panel sits where the keyboard was — below the toolRow, so the
-                    // Aa button that toggles it stays put.
-                    if showFormattingPanel && !usesPopoverPanel {
+                    // iPhone: the panel takes the keyboard's place (the keyboard is
+                    // resigned when it opens), so the editor above stays fully
+                    // visible. Formatting still applies to the current selection.
+                    if iPhonePanelOpen {
                         FormattingPanelView(state: panelState, presentation: .sheet)
                             .environment(\.appDisplayMode, displayMode)
-                            .frame(maxHeight: 300)
+                            .frame(height: 300)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
@@ -443,11 +446,11 @@ struct WriteView: View {
             if open { computeTagSuggestions() }
         }
         .onChange(of: editorFocused) { _, focused in
-            // iPhone: the panel rides on the keyboard, so losing focus should
-            // close it. iPad: the panel is a popover; presenting it can briefly
-            // drop first-responder, and closing here would dismiss the popover
-            // the instant it opened.
-            if !focused && !usesPopoverPanel { showFormattingPanel = false }
+            // iPhone: keyboard and panel are mutually exclusive — tapping back
+            // into the editor (which raises the keyboard) closes the panel.
+            if focused && showFormattingPanel && !usesPopoverPanel {
+                showFormattingPanel = false
+            }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             if entry == nil { flushDraftSave() }
