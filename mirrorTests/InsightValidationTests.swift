@@ -105,6 +105,33 @@ struct InsightValidationTests {
         expectValid(text.cleanedInsightOutput(), .dailyNudge)
     }
 
+    // Was a GAP: a 1B model prepends a task acknowledgment ("Okay, you've got it.
+    // Let's see what you can offer.") before the real reflection, and every gate
+    // (length, first-person, complete-ending) passed it. Now `startsWithMetaPreamble`
+    // in validateCompleteProse rejects it so localGenerate retries.
+    @Test func dailyNudge_metaPreamble_rejected() {
+        let text = "Okay, you've got it. Let's see what you can offer.\n\nThe rain outside feels like a gentle reminder of the quiet spaces you've been trying to carve out."
+        expectRejected(text.cleanedInsightOutput(), .dailyNudge)
+    }
+
+    @Test func dailyNudge_bareAcknowledgmentPreamble_rejected() {
+        let text = "Sure. You wrote about the missed call three times this week, each time a little shorter than the last."
+        expectRejected(text.cleanedInsightOutput(), .dailyNudge)
+    }
+
+    // The negative case that matters: a real reflection whose first sentence
+    // merely begins with "Okay," (and carries actual content) must still pass —
+    // the preamble check keys on a SHORT meta first sentence, not the lead word.
+    @Test func dailyNudge_reflectionOpeningWithOkay_stillPasses() {
+        let text = "Okay, the entry about your mother's health is still sitting heavy — you wrote it in fragments, which you usually only do when something scares you."
+        expectValid(text.cleanedInsightOutput(), .dailyNudge)
+    }
+
+    @Test func ask_metaPreamble_rejected() {
+        let text = "Here's what I found. You wrote about feeling stretched thin at work on Monday and again on Thursday."
+        expectRejected(text.cleanedInsightOutput(), .ask)
+    }
+
     // Was a GAP (cleanedInsightOutput's repair list didn't cover "I am"/"I was"/"I were");
     // now closed — the repair step rewrites it to second person before validate() ever runs.
     @Test func dailyNudge_firstPersonLeak_nowRepaired() {
