@@ -103,6 +103,19 @@ struct InsightView: View {
                     .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        // Same single presentation site as the daily reminder /
+                        // auto-prompt (ContentView owns the sheet) — a second
+                        // concurrent .sheet here would be silently dropped.
+                        MoodCheckInPresenter.shared.pending = true
+                    } label: {
+                        Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                    }
+                    .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     if shouldShowRefresh {
                         Button {
                             Task {
@@ -125,6 +138,12 @@ struct InsightView: View {
                 }
                 .environment(\.appDisplayMode, displayMode)
             }
+        }
+        .onChange(of: showPaywall || showPaywallAfterFirstNudge || showSettings || showWriteFromPrompt) { _, up in
+            // These sheets live on this view, so ContentView (which owns the
+            // mood check-in sheet) can't see them. Report up so a queued
+            // check-in waits its turn instead of racing into a dropped sheet.
+            MoodCheckInPresenter.shared.blockedByOtherSheet = up
         }
         .task {
             async let showChart: Void = showChartAfterInitialRender()
