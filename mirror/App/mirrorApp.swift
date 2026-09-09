@@ -72,6 +72,11 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearWeeklyDigestSample") {
             SampleData.clearWeeklyDigestSample(from: sharedModelContainer.mainContext)
         }
+        // Prior-week digest only — drives InsightViewModel's `.previousWeek`
+        // fallback (this week has no digest yet). Do NOT also seed this week's.
+        if ProcessInfo.processInfo.arguments.contains("--seedPriorWeekDigestSample") {
+            SampleData.seedPriorWeekDigestSample(into: sharedModelContainer.mainContext)
+        }
         if ProcessInfo.processInfo.arguments.contains("--seedAskSample") {
             SampleData.seedAskSample(into: sharedModelContainer.mainContext)
         }

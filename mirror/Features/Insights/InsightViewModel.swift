@@ -16,6 +16,10 @@ enum DigestState {
     case idle
     case loading
     case loaded(Insight)
+    /// This week isn't unlocked yet, but an earlier week's digest exists — show
+    /// it as a fallback so the section isn't just a progress bar. `remaining` is
+    /// how many more entries this week unlocks a fresh one.
+    case previousWeek(Insight, remaining: Int)
     case notEnoughEntries(Int)
     case subscriptionRequired
     case pendingNightlyGeneration
@@ -140,7 +144,16 @@ final class InsightViewModel {
         }
 
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
-            digestState = .notEnoughEntries(InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count)
+            let remaining = InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count
+            // Fall back to the most recent earlier week's digest until this week
+            // has enough entries — better than a bare "1/3" progress bar.
+            if let prior = insights
+                .filter({ $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek })
+                .max(by: { $0.generatedAt < $1.generatedAt }) {
+                digestState = .previousWeek(prior, remaining: remaining)
+            } else {
+                digestState = .notEnoughEntries(remaining)
+            }
             return
         }
 
