@@ -17,33 +17,34 @@ extension WriteView {
                 dismiss()
                 return
             }
-            if hasDraftContent {
-                update(entry)
-                entry.createdAt = entryDate
-                entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
-                entry.tags = entryTags
-                entry.fontChoice = entryFontChoiceRaw
-                entry.photoDataArray = photoDataArray
-                entry.voiceNoteData = voiceNoteData
-                entry.voiceNoteDuration = voiceNoteDuration
-                entry.voiceNoteTranscript = voiceNoteTranscript
-                entry.voiceNoteLanguageCode = voiceNoteLanguageCode
-                entry.voiceNoteLanguageName = voiceNoteLanguageName
-                entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
-                entry.additionalVoiceNoteData = additionalVoiceNoteData
-                entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
-                entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
-                entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
-                entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
-                entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
-                entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
-                autoDetectMoodIfNeeded(for: entry)
-                // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
-                let ctx = modelContext
-                Task { @MainActor in
-                    try? ctx.save()
-                    await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
-                }
+            // Always persist edits to an existing entry — including an emptied one.
+            // Guarding on `hasDraftContent` silently reverted "select all, delete, save".
+            // The explicit way to remove an entry is the trash button (startDeleteWithUndo).
+            update(entry)
+            entry.createdAt = entryDate
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
+            entry.tags = entryTags
+            entry.fontChoice = entryFontChoiceRaw
+            entry.photoDataArray = photoDataArray
+            entry.voiceNoteData = voiceNoteData
+            entry.voiceNoteDuration = voiceNoteDuration
+            entry.voiceNoteTranscript = voiceNoteTranscript
+            entry.voiceNoteLanguageCode = voiceNoteLanguageCode
+            entry.voiceNoteLanguageName = voiceNoteLanguageName
+            entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
+            entry.additionalVoiceNoteData = additionalVoiceNoteData
+            entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
+            entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+            entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
+            entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
+            entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
+            entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
+            autoDetectMoodIfNeeded(for: entry)
+            // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
+            let ctx = modelContext
+            Task { @MainActor in
+                try? ctx.save()
+                await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
             }
         } else {
             if hasDraftContent {
