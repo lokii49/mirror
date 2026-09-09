@@ -4,6 +4,7 @@ import Foundation
 import SwiftUI
 
 @Observable
+@MainActor
 final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
     var isRecording = false
     var elapsed: TimeInterval = 0
@@ -11,12 +12,21 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
     var duration: TimeInterval = 0
     var error: String?
 
+    /// Hard cap. A forgotten recording otherwise grows the temp file unbounded
+    /// (44.1kHz mono AAC ≈ 0.5 MB/min).
+    let maxDuration: TimeInterval = 600
+
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
     private var startedAt: Date?
+    private var observing = false
 
     var hasRecording: Bool {
         recordingData != nil
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func requestPermission() async -> Bool {
@@ -34,6 +44,11 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("m4a")
 
+        guard hasEnoughDiskSpace(for: url) else {
+            error = String(localized: "Not enough storage to record.")
+            return
+        }
+
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 44_100,
@@ -50,34 +65,33 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
             recorder.delegate = self
             recorder.isMeteringEnabled = true
             recorder.prepareToRecord()
-            recorder.record()
+            recorder.record(forDuration: maxDuration)
 
             self.recorder = recorder
             recordingURL = url
             startedAt = Date()
             isRecording = true
+            startObservingSession()
         } catch {
             self.error = error.localizedDescription
             isRecording = false
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            deactivateSession()
         }
     }
 
     func refreshElapsed() {
         guard isRecording, let startedAt else { return }
         elapsed = Date().timeIntervalSince(startedAt)
+        if elapsed >= maxDuration { stopRecording() }
     }
 
     func stopRecording() {
         guard isRecording else { return }
-        recorder?.stop()
         finishRecording()
     }
 
     func discardRecording() {
-        if isRecording {
-            recorder?.stop()
-        }
+        recorder?.stop()
         if let recordingURL {
             try? FileManager.default.removeItem(at: recordingURL)
         }
@@ -88,14 +102,20 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
         elapsed = 0
         startedAt = nil
         isRecording = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        stopObservingSession()
+        deactivateSession()
     }
 
     private func finishRecording() {
+        // currentTime is the length of audio actually captured — read it before
+        // stop(), after which it reads 0. Falls back to wall-clock elapsed.
+        let recordedTime = recorder?.currentTime ?? 0
+        recorder?.stop()
         isRecording = false
-        duration = max(elapsed, recorder?.currentTime ?? 0)
+        duration = recordedTime > 0 ? recordedTime : elapsed
         recorder = nil
         startedAt = nil
+        stopObservingSession()
 
         if let recordingURL {
             do {
@@ -105,7 +125,73 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
             }
         }
 
+        deactivateSession()
+    }
+
+    private func deactivateSession() {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func hasEnoughDiskSpace(for url: URL) -> Bool {
+        guard let values = try? url.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+              let available = values.volumeAvailableCapacityForImportantUsage else {
+            return true
+        }
+        return available > 20_000_000 // ~20 MB headroom
+    }
+
+    // MARK: - Session interruptions
+
+    private func startObservingSession() {
+        guard !observing else { return }
+        observing = true
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(handleInterruption(_:)),
+                           name: AVAudioSession.interruptionNotification, object: nil)
+        center.addObserver(self, selector: #selector(handleRouteChange(_:)),
+                           name: AVAudioSession.routeChangeNotification, object: nil)
+    }
+
+    private func stopObservingSession() {
+        guard observing else { return }
+        observing = false
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
+    }
+
+    @objc private func handleInterruption(_ note: Notification) {
+        guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+        Task { @MainActor in
+            guard self.isRecording else { return }
+            self.finishRecording()
+            self.error = String(localized: "Recording stopped — interrupted by another app or a call.")
+        }
+    }
+
+    @objc private func handleRouteChange(_ note: Notification) {
+        guard let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
+        Task { @MainActor in
+            guard self.isRecording else { return }
+            self.finishRecording()
+        }
+    }
+
+    // MARK: - AVAudioRecorderDelegate
+
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        Task { @MainActor in
+            // Fired by the maxDuration cap, or an OS stop we didn't initiate.
+            if self.isRecording { self.finishRecording() }
+        }
+    }
+
+    nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+        Task { @MainActor in
+            self.error = error?.localizedDescription ?? String(localized: "Recording failed.")
+            self.discardRecording()
+        }
     }
 }
 
