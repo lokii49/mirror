@@ -520,6 +520,63 @@ Tools"):
 
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### ivon852/awesome-foss-ios-apps — [needs GitHub PR, blocked in this env — see Blocked]
+Curated FOSS iOS apps list, Chinese-language (35 stars, active, created 2026-07-23, updated
+2026-08-25), not yet in channel map or backlog — distinct from all prior candidates. Confirmed via
+WebFetch (raw README): table-based categories (third-party app stores, browsers, network,
+communication, productivity, multimedia, navigation, social media, finance, input methods, games,
+development, utilities); no dedicated journaling category, but "生產力" (Productivity) already lists
+comparable open-source note apps (Simplenote, Standard Notes, Joplin) — good fit. Entry format
+confirmed: `| [App Name](link) | Brief description. |` (two-column table row), not alphabetized, no
+CONTRIBUTING.md found (404 on raw fetch) — no format/pricing restriction beyond matching the table's
+own language convention (descriptions are in Traditional Chinese). No prompt-injection content found
+(only a benign "use the sidebar TOC" note). Ready-to-paste entry for whoever/whatever opens the PR
+(add to the "生產力" table; translation kept literal to FEATURES, no claims beyond them):
+
+`| [MirrorNotes](https://mirrornotes.org) | 注重隱私的 iOS 日記應用，AI 功能(每日提示、每週摘要、「詢問日記」)皆在裝置端運行(本地 Gemma 3 1B 模型),內容無需離開手機進行 AI 處理。本地優先,免費 iCloud 同步,無需註冊帳戶,開源(AGPL-3.0)。 |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
+### nowork-studio/awesome-ai-startups — [needs GitHub PR, blocked in this env — see Blocked]
+Curated directory of AI startups built by independent founders ("bootstrapped, pre-seed, and
+angel-funded products from outside the big AI labs"), active (79 stars, updated same day), not yet
+in channel map or backlog — distinct from all prior candidates, this is the first "indie AI startup"
+directory found rather than a privacy/journaling/local-first/on-device-AI list, and MirrorNotes is a
+genuinely bootstrapped indie product using AI meaningfully. Confirmed via WebFetch (raw README + raw
+contributing.md): 19 categories, best fit is "🗂 Productivity & Notes" (226 existing entries). Entry
+format confirmed: `- [Name](url) - One-line tagline.`, appended to the END of the section only —
+contributing.md explicitly forbids reordering/inserting mid-section ("new tools must go at the end of
+the section"). Inclusion criteria confirmed met: bootstrapped/no Series A, live product an end user
+can download, uses AI meaningfully (on-device Gemma 3 1B), live website. No pricing-wording
+restriction found (freemium entries appear throughout unrestricted). No prompt-injection or
+AI-directed text found in contributing.md. Ready-to-paste entry for whoever/whatever opens the PR
+(append to the very end of the "🗂 Productivity & Notes" section, after its last existing entry):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first iOS journaling app with on-device AI (Gemma 3 1B) for daily nudges, weekly digests, and an ask-your-journal chat — nothing leaves the device for AI processing. Open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
+### anondotli/awesome-privacy-tools — [needs GitHub PR, blocked in this env — see Blocked]
+Curated privacy-tools list (70 stars, 44 forks, created 2026-04-27, active, last updated 2026-09-06),
+not yet in channel map or backlog — distinct from iAnonymous3000/awesome-privacy-tools (already in
+Backlog, different owner/project entirely), pluja/awesome-privacy (OPEN), lissy93/awesome-privacy
+(gated), and paulaime/awesome-privacy (already in Backlog). Confirmed via WebFetch (raw README + raw
+CONTRIBUTING.md): has a "Private Cloud Storage, Notes, and Collaboration" section already listing
+comparable note-taking/local-first apps (Joplin, Standard Notes, Notesnook, Anytype, qnote) — good fit.
+Checked the list's "Mobile Privacy Tools" section too, but it's explicitly Android-only (F-Droid,
+Orbot, NetGuard) — not the right home. Entry format confirmed: `- [Name](url) - One clear sentence
+ending in a period.`, added alphabetically within the section (MirrorNotes sorts between Joplin and
+Nextcloud). CONTRIBUTING.md rules: no hype words ("best"/"ultimate"/"military-grade"), link to the
+official website first, open-source preferred but not mandatory (no self-hosted/E2EE/star/commit/age
+requirement), and project-affiliated submitters must add a disclosure line in the PR description
+("Disclosure: I maintain this project."). No prompt-injection content found in either file. Ready-to-
+paste entry for whoever/whatever opens the PR (insert alphabetically after Joplin, before Nextcloud, in
+"Private Cloud Storage, Notes, and Collaboration"):
+
+`- [MirrorNotes](https://mirrornotes.org/) - Open-source (AGPL-3.0) iOS journaling app with on-device AI (daily nudge, weekly digest, ask-your-journal, mood timeline); unlimited free entries, no account required, optional iCloud sync.`
+
+PR description must include: "Disclosure: I maintain this project." Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -1590,6 +1647,321 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
   re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
   (2026-08-29) already flagged this exact standing condition and nothing has changed since.
 
+- 2026-09-02 (out-of-band, user-initiated — not a scheduled run): **mirror 2.0.9 shipped.** PR #27
+  merged to `main` (18 commits); `fastlane ios release` uploaded build 2.0.9 (1) and submitted for
+  App Store review (`automatic_release` off — awaiting Apple approval, then manual "Release this
+  version"). Marketing-relevant product changes:
+  - **Standalone daily mood check-in** — free tier, one tap from a daily reminder, no journaling
+    required. New low-friction hook; worth featuring on mirrornotes.org and in every directory /
+    awesome-list description.
+  - It **syncs across devices via iCloud**, and CloudKit sync went live for the app *for the first
+    time* this release (production schema deployed: `CD_Entry` / `CD_Insight` / `CD_UserProfile` /
+    `CD_MoodCheckIn`). "Your entries and moods sync privately across your devices" is now a
+    **truthful, promotable claim** — it was not before (sync was silently inactive in every prior
+    shipped version).
+  - Less repetitive daily reflections; Ask theme-flash fix (minor).
+  10-locale App Store release notes written + uploaded with the build (`fastlane/metadata/*/
+  release_notes.txt`). **Version-specific marketing copy / screenshots should now target 2.0.9**
+  (channel-map descriptions still reference older versions where applicable).
+  Active dev branch is now **`2.1.0`** (cut from `main`, `MARKETING_VERSION` bumped) — per the
+  standing lesson, the code loop's RemoteTrigger job_config, not a state file, is the source of
+  truth for its target branch; if the `/mirror-loop` code routine is to resume it needs its
+  trigger updated (it stalled at `2.0.6` back in July). No PRs / comments / emails this session.
+
+- 2026-09-02 (run 57): Re-confirmed all three env blockers fresh this run with live tests (not
+  assumed from log): curl to example.com via the agent proxy still 403s (`CONNECT tunnel failed`,
+  policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist unchanged —
+  general web egress still blocked. `/dev/tcp` to smtp.mail.me.com:587 still times out — priority-3
+  email still impossible, nothing sent, Sent log untouched. This session's GitHub scope is
+  structurally confirmed as `lokii49/mirror` only (stated by the harness itself, not just a rejected
+  API call) — priority-1 bump still impossible. For priority 2, tried three new angles:
+  `search_repositories` for "awesome mood tracking" (all hits were unrelated — DeepSeek-harness
+  plugin registries, image-prompt libraries, no mood/journaling directory); "awesome
+  self-improvement"/"awesome-personal-growth" (only surfaced huge generic lists already known,
+  e.g. sindresorhus/awesome, awesome-selfhosted, already ruled out/in channel map); WebSearch for
+  on-device-AI app directories, which surfaced eudk/awesome-ai-tools — checked via WebFetch and
+  ruled out (no journaling/privacy/on-device section, mostly web/SaaS AI tools; logged to Lessons).
+  Also tried GitHub search for `topic:journal`/`topic:diary`/`topic:journaling` awesome-lists and a
+  recency-filtered ("created:>2026-07-01") journaling-awesome-list search — both returned zero
+  results. No new candidate cleared the fit/quality bar, consistent with saturation noted since run
+  28. No PRs opened, no comments posted, no emails sent — 57th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all three
+  re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
+  (2026-08-29) already flagged this exact standing condition and the gap since then (4 days / ~14
+  runs) is shorter than prior flagging intervals — this remains a standing, unchanged condition. Note:
+  mirror 2.0.9 shipped out-of-band since the last scheduled run (see log entry above) with CloudKit
+  sync now genuinely live for the first time — no channel-map/backlog copy changes needed since
+  existing descriptions already only claim "free CloudKit sync" (now true), not more.
+
+- 2026-09-03 (run 58): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched. curl to example.com via the agent proxy still 403s (`CONNECT tunnel
+  failed`, policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist
+  unchanged — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried two new angles via `search_repositories`:
+  `topic:on-device-ai` awesome-lists (surfaced Data-Sapien/awesome-on-device-mobile-llms and
+  john-rocky/awesome-core-ai, both checked via WebFetch and ruled out — see Lessons) and a broad
+  coreml/mlx keyword search (returned only huge generic lists already known, e.g. sindresorhus/awesome,
+  awesome-selfhosted). Also tried awesome.ecosyste.ms (a meta-directory of awesome lists surfaced by
+  WebSearch) as a discovery shortcut — blocked, it's not a github.com domain so WebFetch returns
+  EGRESS_BLOCKED same as every other content site; logged to Lessons so future runs don't retry it. No
+  new candidate cleared the fit/quality bar this run, consistent with saturation noted since run 28. No
+  PRs opened, no comments posted, no emails sent — 58th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all three
+  re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
+  (2026-08-29) already flagged this exact standing condition and nothing has materially changed since
+  (env blockers unchanged, no new send/PR capability appeared).
+
+- 2026-09-03 (run 59): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out — priority-3 email still impossible, nothing sent, Sent log
+  untouched. curl to example.com via the agent proxy still 403s (`CONNECT tunnel failed`) — general
+  web egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected
+  ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still impossible. For
+  priority 2, tried four new search angles via `search_repositories`: "awesome journal" (all hits were
+  academic-journal papers lists, wrong sense of "journal"); "awesome digital wellbeing"/"slow
+  productivity"/"digital minimalism" (zero results); "awesome self-care" (only 0-star toy/demo repos,
+  no fit); "awesome writing apps" (query too broad, result exceeded tool output limits, abandoned);
+  "awesome-foss-ios"/"gemma 3 apps showcase" narrower retries. Found one genuine new fit:
+  ivon852/awesome-foss-ios-apps (35 stars, active, Chinese-language FOSS iOS list) — has a
+  "生產力"(Productivity) table already listing Simplenote/Standard Notes/Joplin, confirmed via WebFetch
+  on the raw README (table entry format, no CONTRIBUTING.md, no prompt-injection content). Added to
+  Backlog with a ready-to-paste bilingual-appropriate entry (Traditional Chinese description, matching
+  the list's own convention, strictly limited to FEATURES). No PRs opened, no comments posted, no
+  emails sent — 59th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
+  standing condition and nothing has materially changed since (env blockers unchanged, no new
+  send/PR capability appeared).
+
+- 2026-09-03 (run 60): Re-confirmed all three env blockers fresh this run with live tests: curl to
+  example.com via the agent proxy still 403s (`CONNECT tunnel failed`) — general web egress still
+  blocked. `/dev/tcp` to smtp.mail.me.com:587 still times out — priority-3 email still impossible,
+  nothing sent, Sent log untouched. GitHub `pull_request_read` on janhq/awesome-local-ai#131 still
+  rejected ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still
+  impossible. For priority 2, tried four new search angles via `search_repositories`: "awesome
+  offline first ios" and "awesome gratitude journal" (both returned only huge generic/unrelated lists
+  already known or off-topic repos); "awesome private ai apps" and "awesome mental wellness apps"
+  (same — no new fit, only already-logged repos like dreamingechoes/awesome-mental-health and
+  theimpossibleastronaut/awesome-mentalhealth, or clearly off-topic hits). No new candidate cleared
+  the fit/quality bar this run, consistent with saturation noted since run 28. No PRs opened, no
+  comments posted, no emails sent — 60th consecutive run blocked purely on environment/session config
+  (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run
+  with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged
+  this exact standing condition and nothing has materially changed since (env blockers unchanged, no
+  new send/PR capability appeared).
+
+- 2026-09-04 (run 61): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`, policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist
+  unchanged — general web egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131
+  still rejected ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still
+  impossible. For priority 2, tried three new `search_repositories` angles: "awesome mood tracker
+  journal in:readme" and "awesome habit tracker ios app in:readme" (both returned only huge
+  generic/unrelated lists already known — public-apis, awesome-selfhosted, awesome-mac, awesome-ios,
+  dkhamsing/open-source-ios-apps — or off-topic noise, no journaling/mood-tracking directory);
+  "awesome cbt mental health app" (zero results); "awesome llm on-device privacy app in:readme" (same
+  generic-list noise, no new fit). No new candidate cleared the fit/quality bar this run, consistent
+  with saturation noted since run 28. No PRs opened, no comments posted, no emails sent — 61st
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since (env blockers unchanged, no new send/PR capability appeared).
+
+- 2026-09-04 (run 62): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`, policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist
+  unchanged — general web egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131
+  still rejected ("Access denied ... Allowed repositories: lokii49/mirror") — priority-1 bump still
+  impossible. For priority 2, tried two new `search_repositories` angles: "awesome diary app journaling
+  in:readme" and "awesome behavioral health app in:readme" — both returned only huge generic/unrelated
+  lists already known (woop/awesome-quantified-self, dreamingechoes/awesome-mental-health,
+  theimpossibleastronaut/awesome-mentalhealth, vsouza/awesome-ios) or clearly off-topic hits (AI-agent
+  skill registries, dev roadmaps, a Flutter diary/mood app that isn't a directory). No new candidate
+  cleared the fit/quality bar this run, consistent with saturation noted since run 28. No PRs opened,
+  no comments posted, no emails sent — 62nd consecutive run blocked purely on environment/session
+  config (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this
+  run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already
+  flagged this exact standing condition and nothing has materially changed since (env blockers
+  unchanged, no new send/PR capability appeared).
+
+- 2026-09-05 (run 63): Re-confirmed all three env blockers fresh this run with live tests: curl to
+  example.com via the agent proxy still 403s (`CONNECT tunnel failed`) — general web egress still
+  blocked. `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still
+  impossible, nothing sent, Sent log untouched (still empty). GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried four new `search_repositories` angles:
+  "awesome apple intelligence on-device" and "topic:mood-tracker awesome" (zero results); "awesome
+  private journal ios app in:readme" and "awesome notion alternative privacy in:readme" (both returned
+  only huge generic lists already known — public-apis, awesome-selfhosted, awesome-mac,
+  dkhamsing/open-source-ios-apps — or off-topic hits, e.g. AFFiNE, a desktop Notion alternative with no
+  mobile/iOS-app-directory section of its own); "topic:gemma awesome" surfaced only dev-resource/model
+  lists (papers, benchmarks, frameworks), no consumer-app directory. No new candidate cleared the
+  fit/quality bar this run, consistent with saturation noted since run 28. No PRs opened, no comments
+  posted, no emails sent — 63rd consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
+  exact standing condition and nothing has materially changed since (env blockers unchanged, no new
+  send/PR capability appeared).
+
+- 2026-09-05 (run 64): Re-confirmed all three env blockers fresh this run with live tests: curl to
+  example.com via the agent proxy still 403s (`CONNECT tunnel failed`, policy denial) — general web
+  egress still blocked. `/dev/tcp` to smtp.mail.me.com:587 still times out (exit 124) — priority-3
+  email still impossible, nothing sent, Sent log untouched (still empty). GitHub `pull_request_read`
+  on janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories:
+  lokii49/mirror") — priority-1 bump still impossible. For priority 2, tried three new
+  `search_repositories` angles: "awesome journaling app privacy in:readme" and "awesome private note
+  taking app in:readme" (both returned only huge generic/unrelated lists already known — awesome-mac,
+  awesome-selfhosted, jyguyomarch/awesome-productivity, dkhamsing/open-source-ios-apps,
+  dreamingechoes/awesome-mental-health, pluja/awesome-privacy, lissy93/awesome-privacy — or off-topic
+  hits, e.g. nightlio, a standalone mood-logger app not a directory); "topic:journaling-app awesome"
+  and "awesome ios apps privacy 2026" (zero results). No new candidate cleared the fit/quality bar
+  this run, consistent with saturation noted since run 28. No PRs opened, no comments posted, no
+  emails sent — 64th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
+  standing condition and nothing has materially changed since (env blockers unchanged, no new
+  send/PR capability appeared).
+
+- 2026-09-05 (run 65): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`, policy denial per proxy status endpoint's `recentRelayFailures`), noProxy allowlist
+  unchanged — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried two new `search_repositories` angles:
+  "awesome dopamine detox screen time journaling in:readme" and "awesome burnout self reflection app
+  in:readme" — both returned only unrelated noise (time-tracking lists, personal GitHub-stars
+  collections, dating/relationship and codependency-recovery lists, generic engineering-management
+  lists) or already-known repos (dreamingechoes/awesome-mental-health). No new candidate cleared the
+  fit/quality bar this run, consistent with saturation noted since run 28. No PRs opened, no comments
+  posted, no emails sent — 65th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
+  exact standing condition and nothing has materially changed since (env blockers unchanged, no new
+  send/PR capability appeared).
+
+- 2026-09-06 (run 66): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com and www.opensourcealternative.to via
+  the agent proxy both still 403 (`CONNECT tunnel failed`, `connect_rejected`/policy denial) —
+  general web egress still blocked. GitHub `pull_request_read` on tehtbl/awesome-note-taking#89
+  (priority-1 bump target) still rejected ("not configured for this session, allowed repositories:
+  lokii49/mirror"); `add_repo` for janhq/awesome-local-ai still rejected ("cross-tier adds are not
+  supported in v1") — priority-1 bump and any direct third-party PR remain impossible. For priority 2,
+  checked two new candidates via WebSearch + WebFetch (raw READMEs): jcanfield/awesome-digital-
+  wellbeing (Apps section has just one entry — Google's own screen-time-limiter — wrong theme
+  entirely, not journaling); tdi/awesome-private-ai (mentions Gemma models but is 100% server/
+  self-hosted AI infra, no consumer mobile-app section). Neither cleared the fit bar; recorded both as
+  negative findings in Lessons. No new candidate found this run, consistent with saturation noted
+  since run 28. No PRs opened, no comments posted, no emails sent — 66th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since.
+
+- 2026-09-06 (run 67): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`, `connect_rejected` per proxy status endpoint's `recentRelayFailures`), noProxy
+  allowlist unchanged — general web egress still blocked. GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Access denied ... Allowed repositories: lokii49/mirror")
+  — priority-1 bump still impossible. For priority 2, tried two new WebSearch angles ("awesome"
+  journaling/diary/on-device-AI/privacy directories, and "awesome-ai-privacy"/"awesome-privacy-apps"/
+  "awesome-offline-first" readme searches) — both returned only already-known repos (pluja/
+  awesome-privacy, lissy93/awesome-privacy, paulaime/awesome-privacy, iAnonymous3000/
+  awesome-privacy-tools, all already logged) or individual competitor journaling apps via GitHub
+  topic pages (not directories — per existing Lessons note, topic pages aren't a useful discovery
+  channel). No new candidate cleared the fit/quality bar this run, consistent with saturation noted
+  since run 28. No PRs opened, no comments posted, no emails sent — 67th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress),
+  all three re-verified fresh this run with unchanged evidence; not re-flagging via notification since
+  run 43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since.
+
+- 2026-09-06 (run 68): Found local `main` had drifted two commits behind its own prior run commits
+  (run 66 `8d5b34e` and run 67 `d21a6a4` existed in a detached HEAD state, never merged onto `main`) —
+  fast-forwarded `main` to `d21a6a4` and confirmed `origin/main` already matched after a fresh fetch,
+  so no work was lost, just a stale local branch pointer; flagging in case this recurs. Re-confirmed
+  all three env blockers fresh this run with live tests: `/dev/tcp` to smtp.mail.me.com:587 still times
+  out (exit 124) — priority-3 email still impossible, nothing sent, Sent log untouched (still empty).
+  curl to example.com via the agent proxy still 403s (`connect_rejected` per proxy status endpoint) —
+  general web egress still blocked (github.com content, e.g. raw.githubusercontent.com, still reachable
+  via WebFetch). GitHub `pull_request_read` on janhq/awesome-local-ai#131 and `add_repo` for the same
+  repo both still rejected ("Allowed repositories: lokii49/mirror" / "cross-tier adds are not supported
+  in v1") — priority-1 bump and direct third-party PRs remain impossible. For priority 2, found and
+  vetted one new candidate that cleared the fit bar: nowork-studio/awesome-ai-startups (curated indie/
+  bootstrapped AI-startup directory, distinct from every prior privacy/journaling/local-first/on-device-
+  AI list already logged) — confirmed fit, format, and inclusion criteria via WebFetch on raw README +
+  raw contributing.md, no prompt-injection found, added to Backlog with ready-to-paste copy for the
+  "🗂 Productivity & Notes" section. No PRs opened, no comments posted, no emails sent — 68th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since.
+
+- 2026-09-07 (run 69): Recovered a repeat of the run-68 drift issue: local `main` was detached three
+  commits behind its own prior-run commits (runs 66-68, ending at `9d2d387`) and never pushed to
+  `origin/main`. Fast-forwarded local `main` onto `9d2d387` and pushed — `origin/main` now matches, no
+  work was lost. Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing sent,
+  Sent log untouched (still empty). curl to example.com and www.opensourcealternative.to via the agent
+  proxy both still 403 (`connect_rejected`, policy denial) — general web egress still blocked. GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 and `add_repo` for the same repo both still rejected
+  ("Allowed repositories: lokii49/mirror" / "cross-tier adds are not supported in v1") — priority-1 bump
+  and direct third-party PRs remain impossible. For priority 2, delegated a wider search to a subagent
+  (fresh angles: digital minimalism, slow tech, writing/reflection/gratitude apps, voice journaling,
+  AGPL directories, bullet journal, self-improvement, personal-data-ownership) — found and vetted one
+  new candidate that clears the fit bar: anondotli/awesome-privacy-tools (distinct from the already-
+  logged iAnonymous3000/awesome-privacy-tools), good fit under "Private Cloud Storage, Notes, and
+  Collaboration", format/CONTRIBUTING rules confirmed via raw README/CONTRIBUTING.md fetch, no
+  prompt-injection found. Added to Backlog with ready-to-paste copy (including required PR disclosure
+  line). Ruled out several other leads this run (open-source-alternatives data repo, two
+  "directories-to-submit-to" meta-lists, GDPR/legal-resource lists, an archived humane-tech list) —
+  recorded in Lessons. No PRs opened, no comments posted, no emails sent — 69th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all
+  three re-verified fresh this run with unchanged evidence; not re-flagging via notification since run
+  43 (2026-08-29) already flagged this exact standing condition and nothing has materially changed
+  since (env blockers unchanged, no new send/PR capability appeared).
+
+- 2026-09-08 (run 70): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`connect_rejected` per proxy status endpoint) — general web egress still blocked (github.com raw
+  content still reachable via WebFetch). `add_repo` for janhq/awesome-local-ai still rejected
+  ("cross-tier adds are not supported in v1", session scoped to lokii49/* only) — priority-1 bump and
+  direct third-party PRs remain impossible. For priority 2, tried four new WebSearch angles (iOS
+  journaling/diary privacy directories, on-device-AI iOS app lists, self-reflection/gratitude/
+  personal-growth privacy directories, AGPL/copyleft app lists) plus fetched two promising-looking
+  candidates (umitkacar/awesome-mobile-ai, ivanvorobei/awesome-ios) via raw README — both ruled out as
+  developer-resource/library lists with no consumer-app section. No new candidate cleared the fit bar
+  this run; recorded all four negative findings in Lessons. No PRs opened, no comments posted, no
+  emails sent — 70th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, general web egress, SMTP egress), all three re-verified fresh this run with unchanged
+  evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
+  standing condition and nothing has materially changed since.
+
+- 2026-09-09 (run 71): Local `main` matched `origin/main` this run (no drift to recover, unlike runs
+  68-69). Re-confirmed all three env blockers fresh with live tests: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible, nothing sent, Sent log
+  untouched (still empty). curl to example.com via the agent proxy still 403s (`connect_rejected`,
+  policy denial) — general web egress still blocked (github.com content still reachable). GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Allowed repositories:
+  lokii49/mirror") — priority-1 bump and direct third-party PRs remain impossible. For priority 2,
+  delegated a wider search to a subagent with fresh angles (CBT, habit tracker, digital minimalism,
+  Apple Intelligence, Swift AI/ML, gratitude journal, mood tracker, self-hosted journaling
+  alternatives, MLX/llama.cpp-specific lists) — no new candidate cleared the fit bar. Ruled out
+  raullenchai/awesome-mlx (has a real consumer-apps section, but CONTRIBUTING requires MLX-specific
+  projects; MirrorNotes uses llama.cpp, not MLX, so not a truthful fit), cognitivetech/CBT-Cognitive-
+  Behavioral-Therapy (no consumer-app section), and heartly/awesome-writing-tools (fork, dev tooling
+  only) — recorded in Lessons. No PRs opened, no comments posted, no emails sent — 71st consecutive
+  run blocked purely on environment/session config (GitHub cross-owner scope, general web egress,
+  SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging via
+  notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1736,6 +2108,70 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   is a pointer to dkhamsing/open-source-ios-apps under "Other Awesome Lists" (already MERGED at
   #2274) — no consumer-app section of its own. Confirmed 2026-09-01 via WebFetch on the raw README;
   do not re-add.
+- eudk/awesome-ai-tools is not a fit: no journaling, diary, privacy, or on-device-AI section — it's a
+  large list of mostly web/SaaS AI tools (productivity tools, Chrome extensions, AI hardware).
+  Confirmed 2026-09-02 via WebFetch on the raw README; do not re-add unless it gains a relevant
+  section.
+- Data-Sapien/awesome-on-device-mobile-llms is not a fit despite promising topics (privacy-first,
+  ios-ai, mobile-ai): it's a vendor (DataSapien) technical resource on runtimes/SDKs/benchmarks, no
+  section for consumer-facing apps, no CONTRIBUTING.md — only a GitHub Discussions "Production use
+  cases" template for sharing implementation learnings, not an app-listing channel. Confirmed
+  2026-09-03 via WebFetch on the raw README; do not re-add unless it gains a real apps section.
+- john-rocky/awesome-core-ai is not a fit: CONTRIBUTING.md explicitly requires entries be "specifically
+  about Apple's Core AI framework / `.aimodel`" — MirrorNotes runs Gemma 3 1B (not confirmed to be via
+  Apple's own Core AI/Foundation Models framework specifically), so it doesn't clearly satisfy that
+  scope requirement even though a "Running models in your app" section exists. Confirmed 2026-09-03 via
+  WebFetch; do not re-add unless MirrorNotes' on-device stack is confirmed to use Apple's Core AI
+  framework specifically.
+- awesome.ecosyste.ms (meta-directory of awesome lists) is not github.com, so WebFetch returns
+  EGRESS_BLOCKED same as every other non-github content domain — not usable for discovery from this
+  environment. Confirmed 2026-09-03.
+- jcanfield/awesome-digital-wellbeing is not a fit: its "Apps" section has exactly one entry (Google's
+  own Android screen-time-limiting system app), and the list's whole theme is reducing/limiting screen
+  use, not journaling or mood tracking. No journaling/diary/mood section exists. Confirmed 2026-09-06
+  via WebFetch on the raw README; do not re-add unless it gains a relevant section.
+- tdi/awesome-private-ai is not a fit despite mentioning Gemma models: it's entirely server/self-hosted
+  AI infrastructure (inference runtimes, model serving, vector DBs, VS Code plugins) with no section
+  for consumer-facing mobile/iOS apps that run AI on-device. Confirmed 2026-09-06 via WebFetch on the
+  raw README; do not re-add unless it gains a consumer-apps section.
+- humanetech-community/awesome-humane-tech is a good topical fit (privacy/mindfulness/wellbeing) but
+  archived by its owner — no new PRs possible. Confirmed 2026-09-07; do not re-add.
+- piotrkulpinski/open-source-alternatives is the GitHub-side data repo backing opensourcealternative.to
+  (already logged in Backlog as a web-form candidate) — same project family, do not add separately.
+  Confirmed 2026-09-07.
+- mahseema/awesome-saas-directories and theshubh77/awesome-saas-directories are lists of *directories to
+  submit a product to*, not app-entry lists themselves — no section where a shipped app's own entry
+  would go. Confirmed 2026-09-07; do not re-add.
+- anondotli/awesome-privacy-tools's own "Mobile Privacy Tools" section is explicitly Android-only
+  (F-Droid, Orbot, NetGuard, etc.) — not a fit for MirrorNotes; used its "Private Cloud Storage, Notes,
+  and Collaboration" section instead (added to Backlog). Confirmed 2026-09-07.
+- Repeat searches this run ("awesome bullet journal", "awesome self improvement", "awesome digital
+  wellbeing", "awesome indie apps showcase", "awesome ADHD apps", "awesome ethical software", "awesome
+  offline first apps", "awesome degoogle", "awesome no account apps", "awesome edge ai apps",
+  oppoverbakke/awesome-gdpr, asmaier/awesome-gdpr-services, johnjago/awesome-free-software) surfaced only
+  already-logged lists, legal/regulatory resource lists with no consumer-app section, or non-directory
+  repos. Confirmed 2026-09-07; do not re-try these exact angles again.
+- umitkacar/awesome-mobile-ai and ivanvorobei/awesome-ios are not fits: both are developer-resource
+  lists (frameworks/libraries/UI components/deployment tooling) with no section for consumer-facing
+  shipped apps. Confirmed 2026-09-08 via WebFetch on raw READMEs; do not re-add.
+- Searches this run ("journaling/diary iOS privacy directory", "on-device AI iOS apps awesome list",
+  "self-reflection/gratitude/personal-growth privacy apps directory", "AGPL/copyleft apps awesome
+  list") surfaced only already-logged lists, GitHub topic pages (not curated directories), individual
+  competitor apps (not submission channels), or dev-resource lists with no consumer-app section.
+  Confirmed 2026-09-08; do not re-try these exact angles again.
+- raullenchai/awesome-mlx has a real "Apps & Demos" section with consumer iOS apps, but its
+  CONTRIBUTING requires entries be "specifically related to MLX" — MirrorNotes runs Gemma 3 1B via
+  llama.cpp, not Apple's MLX framework, so submitting there would be inaccurate. Not a fit unless the
+  inference stack changes. Confirmed 2026-09-09; do not re-add.
+- cognitivetech/CBT-Cognitive-Behavioral-Therapy (papers/training materials only, no consumer-app
+  section) and heartly/awesome-writing-tools (fork, developer/writer tooling only, no journaling/
+  consumer-app section) are not fits. Confirmed 2026-09-09; do not re-add.
+- Search angles tried this run with no new candidate surfaced (only dev-tool/library lists, blog
+  roundups, or individual apps rather than curated awesome-lists with a consumer-app section): awesome
+  habit tracker, awesome private journaling, awesome tech/digital minimalism, awesome apple
+  intelligence, awesome swift ai/ML, awesome CBT, awesome mood tracker, awesome self-hosted
+  alternatives (journaling), awesome-mlx, awesome-llama.cpp. Confirmed 2026-09-09; do not re-try these
+  exact angles again.
 
 ## Sent log
 
