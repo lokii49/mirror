@@ -389,6 +389,7 @@ struct InsightView: View {
             } back: {
                 InsightSignalSource(insight: insight, entries: entries)
             }
+                .id(insight.id)  // reset the latched panel if the insight changes
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             VStack(spacing: 12) {
@@ -553,6 +554,7 @@ struct InsightView: View {
             } back: {
                 InsightSignalSource(insight: insight, entries: entries)
             }
+                .id(insight.id)
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
