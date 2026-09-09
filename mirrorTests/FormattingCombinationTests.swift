@@ -528,6 +528,40 @@ struct NumberedListTests {
         #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
     }
 
+    // Device-shaped repro: after the empty item is created, the caret can sit at
+    // the START of that paragraph (before the render-only "N.\t" marker) rather
+    // than after it — UIKit parks it at the logical boundary. Return from there
+    // must still exit the list. The old `\n` handler resolved the paragraph from
+    // `caret - 1`, which pointed back into the previous, content-bearing item, so
+    // it kept calling insertListRow ("4.", "5.", …). Headless/sim don't leave the
+    // caret there on their own, so drive it explicitly.
+    @Test func returnOnEmptyItemExitsEvenWhenCaretAtParagraphStart() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let display = try #require(h.textView.attributedText).string as NSString
+        let markerRange = display.range(of: "4.\t")
+        #expect(markerRange.location != NSNotFound)
+        // Force the caret to the paragraph start, before the render-only marker —
+        // where UIKit parks it on device after the empty item is created.
+        h.textView.selectedRange = NSRange(location: markerRange.location, length: 0)
+
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: markerRange.location, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let after = try #require(h.textView.attributedText).string
+        #expect(!after.contains("4.\t"), "must exit the list, not keep item 4 — got: \(after)")
+        #expect(!after.contains("5.\t"), "must not spawn item 5 — got: \(after)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
+    }
+
     // Return in the MIDDLE of a numbered item: splits it, and the cursor must
     // land right after the new row's marker (before the moved text), not at the
     // end of the document. This is the position `insertListRow` computes from
