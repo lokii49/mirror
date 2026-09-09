@@ -1943,6 +1943,25 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this exact
   standing condition and nothing has materially changed since.
 
+- 2026-09-09 (run 71): Local `main` matched `origin/main` this run (no drift to recover, unlike runs
+  68-69). Re-confirmed all three env blockers fresh with live tests: `/dev/tcp` to
+  smtp.mail.me.com:587 still times out — priority-3 email still impossible, nothing sent, Sent log
+  untouched (still empty). curl to example.com via the agent proxy still 403s (`connect_rejected`,
+  policy denial) — general web egress still blocked (github.com content still reachable). GitHub
+  `pull_request_read` on janhq/awesome-local-ai#131 still rejected ("Allowed repositories:
+  lokii49/mirror") — priority-1 bump and direct third-party PRs remain impossible. For priority 2,
+  delegated a wider search to a subagent with fresh angles (CBT, habit tracker, digital minimalism,
+  Apple Intelligence, Swift AI/ML, gratitude journal, mood tracker, self-hosted journaling
+  alternatives, MLX/llama.cpp-specific lists) — no new candidate cleared the fit bar. Ruled out
+  raullenchai/awesome-mlx (has a real consumer-apps section, but CONTRIBUTING requires MLX-specific
+  projects; MirrorNotes uses llama.cpp, not MLX, so not a truthful fit), cognitivetech/CBT-Cognitive-
+  Behavioral-Therapy (no consumer-app section), and heartly/awesome-writing-tools (fork, dev tooling
+  only) — recorded in Lessons. No PRs opened, no comments posted, no emails sent — 71st consecutive
+  run blocked purely on environment/session config (GitHub cross-owner scope, general web egress,
+  SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging via
+  notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2140,6 +2159,19 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   list") surfaced only already-logged lists, GitHub topic pages (not curated directories), individual
   competitor apps (not submission channels), or dev-resource lists with no consumer-app section.
   Confirmed 2026-09-08; do not re-try these exact angles again.
+- raullenchai/awesome-mlx has a real "Apps & Demos" section with consumer iOS apps, but its
+  CONTRIBUTING requires entries be "specifically related to MLX" — MirrorNotes runs Gemma 3 1B via
+  llama.cpp, not Apple's MLX framework, so submitting there would be inaccurate. Not a fit unless the
+  inference stack changes. Confirmed 2026-09-09; do not re-add.
+- cognitivetech/CBT-Cognitive-Behavioral-Therapy (papers/training materials only, no consumer-app
+  section) and heartly/awesome-writing-tools (fork, developer/writer tooling only, no journaling/
+  consumer-app section) are not fits. Confirmed 2026-09-09; do not re-add.
+- Search angles tried this run with no new candidate surfaced (only dev-tool/library lists, blog
+  roundups, or individual apps rather than curated awesome-lists with a consumer-app section): awesome
+  habit tracker, awesome private journaling, awesome tech/digital minimalism, awesome apple
+  intelligence, awesome swift ai/ML, awesome CBT, awesome mood tracker, awesome self-hosted
+  alternatives (journaling), awesome-mlx, awesome-llama.cpp. Confirmed 2026-09-09; do not re-try these
+  exact angles again.
 
 ## Sent log
 
