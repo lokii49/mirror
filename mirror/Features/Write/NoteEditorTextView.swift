@@ -1589,17 +1589,32 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
-            // For numbered lists, cursor goes after the placeholder marker (re-rendered with the real number)
-            textView.selectedRange = bounded(
-                NSRange(location: insertionRange.location + insertion.count, length: 0),
-                in: textView.text
-            )
             isApplyingStyledText = false
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
             // Re-render to show correct number
             if newStyle == .numberedList { invalidateRenderedCache() }
             applyStyledText(to: textView, preservingSelection: false)
+
+            // Place the cursor AFTER the re-render (applyStyledText clears the
+            // selection) at the end of the new row's marker. Setting it before the
+            // re-render, as this used to, left it wherever UIKit dropped it — so
+            // the next Return read the *previous* row's paragraph, saw content,
+            // and kept spawning rows instead of exiting the list.
+            let display = (textView.text ?? "") as NSString
+            let newRowLoc = min(insertionRange.location + 1, max(0, display.length))
+            let newRowRange = display.paragraphRange(for: NSRange(location: min(newRowLoc, max(0, display.length - 1)), length: 0))
+            let newRowMarkerLen = newStyle == .numberedList
+                ? numberedListMarkerLength(in: display.substring(with: newRowRange))
+                : ((staticListMarkerPrefix(for: newStyle, level: rowLevel) as NSString?)?.length ?? 0)
+            // Guard the assignment like exitList does, so it doesn't re-enter
+            // textViewDidChangeSelection's panel/font refresh on every list Return.
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(
+                NSRange(location: newRowRange.location + newRowMarkerLen, length: 0),
+                in: textView.text
+            )
+            isApplyingStyledText = false
             textView.typingAttributes = styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel, fontChoice: rowFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)

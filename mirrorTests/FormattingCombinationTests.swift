@@ -493,6 +493,69 @@ struct NumberedListTests {
         #expect(!shouldChange)
         #expect(!(h.textView.text ?? "").contains("\t"), "empty numbered item exits the list on Return")
     }
+
+    // Repro: type items, Return to make a new empty item, Return again on that
+    // empty item — should exit the list, not keep spawning 4, 5, 6…
+    @Test func returnTwiceAfterLastItemExitsList() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        // Return at end of "three" → new empty item 4
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let afterFirst = try #require(h.textView.attributedText).string
+        #expect(afterFirst.contains("4.\t"), "first Return makes item 4, got: \(afterFirst)")
+        // The cursor must land after the new row's "4.\t" marker. If it lands
+        // earlier (the bug: insertListRow set the selection before its re-render
+        // wiped it), the next Return reads the previous, content-bearing row and
+        // spawns item 5 instead of exiting.
+        let displayLen = (h.textView.text as NSString).length
+        #expect(h.textView.selectedRange.location == displayLen,
+                "cursor must sit at end of the new row's marker, got \(h.textView.selectedRange.location) of \(displayLen)")
+
+        // Return again on the now-empty item 4, driven from the REAL cursor the
+        // editor left behind — this is the path the bug broke.
+        let cursor = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor, length: 0), replacementText: "\n")
+        #expect(!shouldChange)
+        let afterSecond = try #require(h.textView.attributedText).string
+        #expect(!afterSecond.contains("4.\t"), "second Return on the empty item must exit, not keep it — got: \(afterSecond)")
+        #expect(!afterSecond.contains("5.\t"), "second Return must not spawn item 5 — got: \(afterSecond)")
+        // The three real items stay numbered; the empty trailing row drops back
+        // to plain text and isn't persisted until something is typed into it.
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
+    }
+
+    // Return in the MIDDLE of a numbered item: splits it, and the cursor must
+    // land right after the new row's marker (before the moved text), not at the
+    // end of the document. This is the position `insertListRow` computes from
+    // the re-rendered display; if it were still set before the re-render (the
+    // bug), the caret would be wherever UIKit dropped it after setAttributedText.
+    @Test func returnMidNumberedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(
+            text: "abcdef",
+            textStyleData: style(.init(paragraphStyles: [.numberedList]))
+        )
+        // Displayed: "1.\tabcdef" — marker is 2 chars + tab. Split between "abc" and "def".
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tabc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("2.\tdef"), "second row carries 'def', got: \(rendered)")
+        // Caret sits just after "2.\t", i.e. immediately before "def".
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker (before 'def' at \(defRange.location)), got \(h.textView.selectedRange.location)")
+    }
 }
 
 // MARK: - Backspace-merging differently-styled paragraphs
