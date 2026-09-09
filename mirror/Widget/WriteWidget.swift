@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-private let appGroupID = "group.com.lokesh.mirror"
+private let appGroupID = WidgetShared.appGroupID
 
 struct WriteTimelineEntry: TimelineEntry {
     let date: Date
@@ -38,7 +38,7 @@ struct WriteCircularView: View {
     let entry: WriteTimelineEntry
 
     private var isUnlocked: Bool {
-        let tier = UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+        let tier = WidgetShared.tier()
         return tier == "core" || tier == "deep"
     }
 
@@ -71,7 +71,7 @@ struct WriteRectangularView: View {
     let entry: WriteTimelineEntry
 
     private var isUnlocked: Bool {
-        let tier = UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+        let tier = WidgetShared.tier()
         return tier == "core" || tier == "deep"
     }
 

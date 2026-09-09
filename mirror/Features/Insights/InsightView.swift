@@ -17,6 +17,7 @@ struct InsightView: View {
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
+    @State private var pastDigestsExpanded = false
 
     // weekMoodEvents/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
     // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
@@ -27,6 +28,7 @@ struct InsightView: View {
     @State private var cachedThisMonthEntries: [Entry] = []
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedPastNudges: [Insight] = []
+    @State private var cachedPastDigests: [Insight] = []
 
     // Standalone daily mood check-ins — merged with entry moods via `MoodLog`
     // for the weekly mood chart.
@@ -84,6 +86,10 @@ struct InsightView: View {
 
                     digestSection
 
+                    if !pastDigests.isEmpty {
+                        pastDigestsSection
+                    }
+
                     explorationSection
                 }
                 .padding(16)
@@ -101,6 +107,19 @@ struct InsightView: View {
                             .font(.system(size: 17, weight: .semibold))
                     }
                     .accessibilityLabel("Settings")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        // Same single presentation site as the daily reminder /
+                        // auto-prompt (ContentView owns the sheet) — a second
+                        // concurrent .sheet here would be silently dropped.
+                        MoodCheckInPresenter.shared.pending = true
+                    } label: {
+                        Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                    }
+                    .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if shouldShowRefresh {
@@ -126,6 +145,12 @@ struct InsightView: View {
                 .environment(\.appDisplayMode, displayMode)
             }
         }
+        .onChange(of: showPaywall || showPaywallAfterFirstNudge || showSettings || showWriteFromPrompt) { _, up in
+            // These sheets live on this view, so ContentView (which owns the
+            // mood check-in sheet) can't see them. Report up so a queued
+            // check-in waits its turn instead of racing into a dropped sheet.
+            MoodCheckInPresenter.shared.blockedByOtherSheet = up
+        }
         .task {
             async let showChart: Void = showChartAfterInitialRender()
             async let load: Void = refreshInsights()
@@ -135,7 +160,7 @@ struct InsightView: View {
             recomputeEntryCaches()
         }
         .task(id: insights.count) {
-            recomputePastNudgesCache()
+            recomputeInsightCaches()
         }
         .onChange(of: entries.count) { _, _ in
             nudgeExpanded = false
@@ -180,6 +205,17 @@ struct InsightView: View {
     private var pastNudges: [Insight] {
         guard SubscriptionService.shared.isSubscribed else { return [] }
         return cachedPastNudges
+    }
+
+    /// Earlier weeks' digests, newest first. When the current digest state is the
+    /// `.previousWeek` fallback, its hero already shows the newest one — drop it
+    /// here so the archive list doesn't repeat it.
+    private var pastDigests: [Insight] {
+        guard SubscriptionService.shared.isSubscribed else { return [] }
+        if case .previousWeek = viewModel.digestState {
+            return Array(cachedPastDigests.dropFirst())
+        }
+        return cachedPastDigests
     }
 
     private func recomputeEntryCaches() {
@@ -227,10 +263,14 @@ struct InsightView: View {
         cachedCurrentStreak = streak
     }
 
-    private func recomputePastNudgesCache() {
+    private func recomputeInsightCaches() {
         let today = DateHelpers.dayIdentifier(for: Date())
+        let thisWeek = DateHelpers.weekIdentifier(for: Date())
         cachedPastNudges = insights
             .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
+            .sorted { $0.generatedAt > $1.generatedAt }
+        cachedPastDigests = insights
+            .filter { $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek }
             .sorted { $0.generatedAt > $1.generatedAt }
     }
 
@@ -244,12 +284,16 @@ struct InsightView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
                     Text(pastNudgesExpanded
-                         ? "Hide past reflections"
-                         : "Past reflections (\(pastNudges.count))")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.textSecondary)
+                         // "LOG" would collide with the Sentinel tab bar's own "Log" (entries
+                         // list) — caught while screenshotting this fix, see B1 in
+                         // .claude/2.1.0-design-plan.md.
+                         ? (displayMode == .sentinel ? "HIDE PRIOR BRIEFINGS" : "Hide past reflections")
+                         : (displayMode == .sentinel ? "PRIOR BRIEFINGS (\(pastNudges.count))" : "Past reflections (\(pastNudges.count))"))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .kerning(displayMode == .sentinel ? 0.5 : 0)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                     Spacer()
                     Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 11, weight: .bold))
@@ -257,7 +301,11 @@ struct InsightView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .inkSurface(cornerRadius: 16)
+                // Was raw .inkSurface — Classic-only, so Sentinel showed the rounded ink-card
+                // look here while every other header on this screen (SectionHeader) switched
+                // to the mono/hairline HUD treatment. Track B1 (.claude/2.1.0-design-plan.md):
+                // one silent appDisplayMode divergence, now themed like the rest of the screen.
+                .themedCard(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -265,6 +313,45 @@ struct InsightView: View {
                 VStack(spacing: 10) {
                     ForEach(pastNudges.prefix(14)) { insight in
                         PastNudgeCard(insight: insight)
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var pastDigestsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                    pastDigestsExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
+                    Text(pastDigestsExpanded
+                         ? (displayMode == .sentinel ? "HIDE PRIOR DIGESTS" : "Hide past digests")
+                         : (displayMode == .sentinel ? "PRIOR DIGESTS (\(pastDigests.count))" : "Past digests (\(pastDigests.count))"))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .kerning(displayMode == .sentinel ? 0.5 : 0)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
+                    Spacer()
+                    Image(systemName: pastDigestsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .themedCard(cornerRadius: 16)
+            }
+            .buttonStyle(.plain)
+
+            if pastDigestsExpanded {
+                VStack(spacing: 10) {
+                    ForEach(pastDigests.prefix(14)) { insight in
+                        PastDigestCard(insight: insight)
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -368,6 +455,7 @@ struct InsightView: View {
                 accentColor: MirrorTheme.primary,
                 isExpanded: nudgeExpanded,
                 collapsedLineLimit: 5,
+                showSourceButton: displayMode == .sentinel,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         nudgeExpanded.toggle()
@@ -526,6 +614,7 @@ struct InsightView: View {
             WeeklyDigestView(
                 insight: insight,
                 isExpanded: digestExpanded,
+                showSourceButton: displayMode == .sentinel,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         digestExpanded.toggle()
@@ -533,13 +622,36 @@ struct InsightView: View {
                 }
             )
                 .glowShadow(color: .indigo, radius: 28)
+        case .previousWeek(let insight, _):
+            VStack(alignment: .leading, spacing: 10) {
+                Label(
+                    displayMode == .sentinel
+                        ? "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE"
+                        : "Last week's digest — write 3 entries this week for a fresh one.",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .medium))
+                .kerning(displayMode == .sentinel ? 0.4 : 0)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.85) : .secondary)
+                WeeklyDigestView(
+                    insight: insight,
+                    isExpanded: digestExpanded,
+                    showSourceButton: displayMode == .sentinel,
+                    onToggleExpanded: {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            digestExpanded.toggle()
+                        }
+                    }
+                )
+                    .glowShadow(color: .indigo, radius: 28)
+            }
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
                 remaining: remaining,
-                total: 5,
+                total: 3,
                 icon: "calendar.badge.clock",
                 iconColor: .indigo,
-                unlockLabel: "Weekly digest unlocks after 5 entries."
+                unlockLabel: "Weekly digest covers this week — write 3 entries to unlock it."
             )
         case .subscriptionRequired:
             UpgradePromptCard(
@@ -565,6 +677,8 @@ struct InsightView: View {
             SectionHeader(
                 title: "Explore",
                 subtitle: "Deep dives into your patterns",
+                sentinelTitle: "Deep Scan",
+                sentinelSubtitle: "Pattern analysis across your log",
                 icon: "square.grid.2x2",
                 color: .orange
             )
@@ -579,6 +693,25 @@ struct InsightView: View {
 }
 
 // MARK: - Past Nudge Card
+
+/// One earlier week's digest in the "Past digests" archive — the real
+/// `WeeklyDigestView` renderer with its own collapse state so each row can be
+/// opened independently.
+private struct PastDigestCard: View {
+    let insight: Insight
+    @State private var expanded = false
+
+    var body: some View {
+        WeeklyDigestView(
+            insight: insight,
+            isExpanded: expanded,
+            showSourceButton: false,
+            onToggleExpanded: {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
+            }
+        )
+    }
+}
 
 private struct PastNudgeCard: View {
     let insight: Insight
@@ -624,6 +757,12 @@ private struct PastNudgeCard: View {
 private struct SectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
+    /// Sentinel-mode overrides. Sentinel doesn't just re-case the Classic title
+    /// (SectionHeader already uppercases it) — some sections are renamed outright
+    /// in this mode, the way the tiles under them are (Ask→Comms, etc.). nil =
+    /// use the Classic string.
+    let sentinelTitle: LocalizedStringKey?
+    let sentinelSubtitle: LocalizedStringKey?
     let icon: String
     let color: Color
     var trailing: Trailing
@@ -631,15 +770,22 @@ private struct SectionHeader<Trailing: View>: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
+    private var displayTitle: LocalizedStringKey { isSentinel ? (sentinelTitle ?? title) : title }
+    private var displaySubtitle: LocalizedStringKey { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
+
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
+        sentinelTitle: LocalizedStringKey? = nil,
+        sentinelSubtitle: LocalizedStringKey? = nil,
         icon: String,
         color: Color,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.sentinelTitle = sentinelTitle
+        self.sentinelSubtitle = sentinelSubtitle
         self.icon = icon
         self.color = color
         self.trailing = trailing()
@@ -657,17 +803,17 @@ private struct SectionHeader<Trailing: View>: View {
                 )
             VStack(alignment: .leading, spacing: 1) {
                 if isSentinel {
-                    Text(title)
+                    Text(displayTitle)
                         .font(MirrorTheme.mono(13, weight: .bold))
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .textCase(.uppercase)
                         .kerning(0.5)
                 } else {
-                    Text(title)
+                    Text(displayTitle)
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
-                Text(subtitle)
+                Text(displaySubtitle)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
@@ -683,6 +829,13 @@ private struct SectionHeader<Trailing: View>: View {
 /// View's own aesthetic, with a tiny static constellation illustration
 /// instead of an SF Symbol chip, so this entry point previews the feature
 /// rather than blending into the flat light tiles around it.
+///
+/// `bg` and `hubColor` are intentionally off-`MirrorTheme`: `bg` is a
+/// near-neutral #17171A (the ink tokens all carry a violet cast that would
+/// tint the constellation art), and `hubColor` is a slightly bluer violet
+/// than `violetLight` to match `BrainView`'s own node palette. These do not
+/// theme-switch — the card is dark in both Classic and Sentinel by design;
+/// only the border and the "Deep" badge follow `isSentinel`.
 private struct BrainEntryCard: View {
     let isDeep: Bool
     @Environment(\.appDisplayMode) private var displayMode
@@ -1174,6 +1327,7 @@ private struct InsightTextView: View {
     var accentColor: Color = MirrorTheme.primary
     var isExpanded: Bool = true
     var collapsedLineLimit: Int = 5
+    var showSourceButton: Bool = false
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
@@ -1181,12 +1335,13 @@ private struct InsightTextView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 8) {
                 Label(label, systemImage: icon)
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
+                if showSourceButton { InsightSourceButton(insight: insight) }
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
@@ -1205,7 +1360,7 @@ private struct InsightTextView: View {
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
-                .textSelection(.enabled)
+                .selectableUnlessSentinel(isSentinel)
 
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {

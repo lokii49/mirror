@@ -1,20 +1,16 @@
 import WidgetKit
 import SwiftUI
 
-private let appGroupID = "group.com.lokesh.mirror"
+private let appGroupID = WidgetShared.appGroupID
 
-// Shared dark ink palette
-private let wBgTop    = Color(red: 0.110, green: 0.094, blue: 0.188)  // #1C1830
-private let wBgBottom = Color(red: 0.067, green: 0.055, blue: 0.110)  // #110E1C
-private let wViLight  = Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
+// Palette + app-group reads live in WidgetTheme.swift (shared across all widgets).
+private let wBgTop    = WidgetTheme.bgTop
+private let wBgBottom = WidgetTheme.bgBottom
+private let wViLight  = WidgetTheme.violetLight
+private let wEmber    = WidgetTheme.ember
+private let wSentinelBg = WidgetTheme.sentinelBg
 
-// Sentinel accent — matches MirrorTheme.ember's dark-mode hex (0xF97B8B).
-private let wEmber      = Color(red: 0.976, green: 0.482, blue: 0.545)
-private let wSentinelBg = Color(red: 0.043, green: 0.043, blue: 0.055)
-
-private func widgetIsSentinel() -> Bool {
-    UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.displayMode") == "sentinel"
-}
+private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 private let writingPrompts: [LocalizedStringKey] = [
     "What made you smile today?",
@@ -164,7 +160,7 @@ struct PromptWidgetView: View {
     let entry: PromptWidgetEntry
 
     private var isUnlocked: Bool {
-        let tier = UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.tier") ?? "free"
+        let tier = WidgetShared.tier()
         return tier == "core" || tier == "deep"
     }
 

@@ -49,6 +49,18 @@ enum LocalLLMTask {
     }
 }
 
+/// Which engine actually produced a generation — diagnostic attribution only (Track A6, see
+/// .claude/2.1.0-design-plan.md). `InsightService` still doesn't branch behavior on this; it
+/// only threads it through to `Insight.generatedByEngine` so a quality regression report can
+/// be traced back to which engine ran, instead of both engines being indistinguishable.
+/// `String` rawValue is what gets persisted/synced (Insight.generatedByEngine), so treat these
+/// cases as a stable wire format, not free to rename. Only `.rawValue` is ever written —
+/// nothing decodes this enum back from storage, so no `Codable` conformance.
+enum LLMEngine: String {
+    case foundationModels
+    case gemma
+}
+
 actor LocalLLMService {
     static let shared = LocalLLMService()
 
@@ -66,7 +78,7 @@ actor LocalLLMService {
         service = nil
     }
 
-    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
+    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
         // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
         // no bundled weights, no download, better instruction-following than Gemma 3 1B.
         // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
@@ -74,11 +86,12 @@ actor LocalLLMService {
         // LocalLLMError.modelMissing, turning one real failure into a guaranteed second one.
         if FoundationModelEngine.isAvailable {
             do {
-                return try await FoundationModelEngine.generate(
+                let text = try await FoundationModelEngine.generate(
                     systemPrompt: systemPrompt,
                     userMessage: userMessage,
                     task: task
                 )
+                return (text, .foundationModels)
             } catch {
                 guard Self.isGemmaModelAvailable else { throw error }
                 // Fall through to Gemma.
@@ -144,7 +157,7 @@ actor LocalLLMService {
         try Task.checkCancellation()
         let cleaned = clean(output)
         guard !cleaned.isEmpty else { throw LocalLLMError.emptyResponse }
-        return cleaned
+        return (cleaned, .gemma)
     }
 
     /// Cheap pre-flight check: true when generation can happen right now, either via

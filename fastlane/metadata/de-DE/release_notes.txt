@@ -1,8 +1,8 @@
-Ein täglicher Check-in für dein Befinden.
+Täglicher Stimmungs-Check-in, Home-Bildschirm-Widgets und ein besserer Editor.
 
-• Neu – Täglicher Stimmungs-Check-in: mit einem Tippen aus einer Erinnerung festhalten, wie es dir geht. Kein Schreiben nötig, für alle kostenlos, und jetzt über iCloud zwischen deinen Geräten synchronisiert.
-• Deine Stimmungs-Timeline, das Mood-Map-Widget und die Stimmungshinweise beziehen diese Check-ins jetzt mit ein (Deep).
-• Tägliche Reflexionen wiederholen sich von Tag zu Tag weniger.
-• Anzeigefehler in „Ask“ beim Themenwechsel behoben.
-
-Alles läuft weiterhin vollständig auf deinem Gerät – nichts, was du schreibst, verlässt jemals dein Handy.
+• Täglicher Stimmungs-Check-in – halte mit einem Tippen fest, wie du dich fühlst, ganz ohne Schreiben. Wenn du deine Erinnerung verpasst, fragt MirrorNotes beim nächsten Öffnen nach, und über „Stimmung erfassen" in den Insights kannst du sie jederzeit aktualisieren. Jeder Check-in fließt in deine Stimmungs-Timeline und das Stimmungskarten-Widget ein.
+• Wochen- & Monats-Widgets – dein neuester Wochenrückblick und der monatliche Tiefenbericht direkt auf dem Home-Bildschirm.
+• Der Rückblick der letzten Woche bleibt sichtbar, bis der aktuelle bereit ist, und vergangene Rückblicke haben jetzt ihr eigenes Archiv – genau wie Reflexionen.
+• Prägnantere Reflexionen – tägliche Impulse und Ask-Antworten kommen ohne Floskeln direkt zur Sache.
+• Editor: Tippe „1. ", um eine nummerierte Liste zu starten, so wie in Notizen, mit sauberen Abständen. Die Eingabetaste setzt die Liste fort – und beendet sie sauber.
+• Fehlerbehebungen und Feinschliff.

@@ -358,6 +358,240 @@ struct ReturnKeyContinuationTests {
     }
 }
 
+// MARK: - Numbered list: marker spacing + "1. " auto-start
+
+@MainActor
+struct NumberedListTests {
+
+    // The marker separator is a tab now (was two spaces) so single- and
+    // double-digit rows align via the paragraph tab stop.
+    @Test func numberedMarkerUsesTabSeparator() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList]))
+        )
+        let rendered = try #require(h.textView.attributedText).string as NSString
+        // First paragraph: "1" "." "\t" "one"
+        #expect(rendered.hasPrefix("1.\t"), "got: \(rendered)")
+        #expect(rendered.contains("2.\ttwo"))
+    }
+
+    // Ten items — the marker still parses and the stored text carries no marker,
+    // so numbering is purely a render concern regardless of digit count.
+    @Test func numberedListTwoDigitRowsStoreNoMarker() throws {
+        let lines = (1...10).map { "line\($0)" }.joined(separator: "\n")
+        let h = makeEditorHarness(
+            text: lines,
+            textStyleData: style(.init(paragraphStyles: Array(repeating: .numberedList, count: 10)))
+        )
+        let attributed = try #require(h.textView.attributedText)
+        #expect(attributed.string.contains("10.\tline10"))
+        #expect(h.getText() == lines, "stored logical text must never contain the ordinal marker")
+
+        // The gap fix: text after the tab lands at `headIndent` for every row,
+        // so "1." and "10." align. Check the paragraph style carries the stop.
+        let firstPS = try #require(attributed.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(firstPS.tabStops.first?.location == firstPS.headIndent)
+        let tenthRow = (attributed.string as NSString).range(of: "10.\t").location
+        let tenthPS = try #require(attributed.attribute(.paragraphStyle, at: tenthRow, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(tenthPS.tabStops.first?.location == tenthPS.headIndent)
+    }
+
+    @Test func typingDigitDotSpaceStartsNumberedList() throws {
+        let h = makeEditorHarness(text: "1.", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 2, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == false, "the typed space is consumed by the conversion")
+
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList])
+        #expect(h.getText() == "", "the typed \"1.\" prefix is absorbed into the marker")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\t"))
+    }
+
+    @Test func typingDigitDotSpaceInFrontOfExistingTextConverts() throws {
+        let h = makeEditorHarness(text: "3.buy milk", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 2, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == false)
+        #expect(h.getText() == "buy milk", "renderer renumbers from 1 — the typed 3 is dropped")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tbuy milk"))
+    }
+
+    @Test func typingSpaceAfterVersionNumberDoesNotConvert() {
+        let h = makeEditorHarness(text: "1.2", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 3, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 3, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == true, "\"1.2\" is not a \"<digits>.\" prefix — leave it alone")
+        #expect(h.getStyleData() == nil)
+    }
+
+    @Test func typingDigitDotSpaceInsideExistingListItemDoesNotReconvert() {
+        // Cursor mid-content on an existing numbered row, user types a space.
+        let h = makeEditorHarness(
+            text: "hello",
+            textStyleData: style(.init(paragraphStyles: [.numberedList]))
+        )
+        let rendered = (h.textView.attributedText?.string ?? "") as NSString
+        let markerLen = rendered.range(of: "\t").location + 1
+        h.textView.selectedRange = NSRange(location: markerLen + 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        _ = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: markerLen + 2, length: 0),
+            replacementText: " "
+        )
+        let doc = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data())
+        #expect(doc?.paragraphStyles == [.numberedList], "still exactly one numbered paragraph")
+    }
+
+    @Test func numberedListContinuesOnReturn() throws {
+        let h = makeEditorHarness(text: "first", textStyleData: style(.init(paragraphStyles: [.numberedList])))
+        let end = (h.textView.text as NSString).length
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange, "list continuation is handled manually")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tfirst"))
+        #expect(rendered.contains("2.\t"), "new row carries the next ordinal, got: \(rendered)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList])
+    }
+
+    @Test func returnOnEmptyNumberedItemExitsList() {
+        let h = makeEditorHarness(text: "", textStyleData: style(.init(paragraphStyles: [.numberedList])))
+        let end = (h.textView.text as NSString).length
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        #expect(!(h.textView.text ?? "").contains("\t"), "empty numbered item exits the list on Return")
+    }
+
+    // Repro: type items, Return to make a new empty item, Return again on that
+    // empty item — should exit the list, not keep spawning 4, 5, 6…
+    @Test func returnTwiceAfterLastItemExitsList() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        // Return at end of "three" → new empty item 4
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let afterFirst = try #require(h.textView.attributedText).string
+        #expect(afterFirst.contains("4.\t"), "first Return makes item 4, got: \(afterFirst)")
+        // The cursor must land after the new row's "4.\t" marker. If it lands
+        // earlier (the bug: insertListRow set the selection before its re-render
+        // wiped it), the next Return reads the previous, content-bearing row and
+        // spawns item 5 instead of exiting.
+        let displayLen = (h.textView.text as NSString).length
+        #expect(h.textView.selectedRange.location == displayLen,
+                "cursor must sit at end of the new row's marker, got \(h.textView.selectedRange.location) of \(displayLen)")
+
+        // Return again on the now-empty item 4, driven from the REAL cursor the
+        // editor left behind — this is the path the bug broke.
+        let cursor = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor, length: 0), replacementText: "\n")
+        #expect(!shouldChange)
+        let afterSecond = try #require(h.textView.attributedText).string
+        #expect(!afterSecond.contains("4.\t"), "second Return on the empty item must exit, not keep it — got: \(afterSecond)")
+        #expect(!afterSecond.contains("5.\t"), "second Return must not spawn item 5 — got: \(afterSecond)")
+        // The three real items stay numbered; the empty trailing row drops back
+        // to plain text and isn't persisted until something is typed into it.
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
+    }
+
+    // Device-shaped repro: after the empty item is created, the caret can sit at
+    // the START of that paragraph (before the render-only "N.\t" marker) rather
+    // than after it — UIKit parks it at the logical boundary. Return from there
+    // must still exit the list. The old `\n` handler resolved the paragraph from
+    // `caret - 1`, which pointed back into the previous, content-bearing item, so
+    // it kept calling insertListRow ("4.", "5.", …). Headless/sim don't leave the
+    // caret there on their own, so drive it explicitly.
+    @Test func returnOnEmptyItemExitsEvenWhenCaretAtParagraphStart() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let display = try #require(h.textView.attributedText).string as NSString
+        let markerRange = display.range(of: "4.\t")
+        #expect(markerRange.location != NSNotFound)
+        // Force the caret to the paragraph start, before the render-only marker —
+        // where UIKit parks it on device after the empty item is created.
+        h.textView.selectedRange = NSRange(location: markerRange.location, length: 0)
+
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: markerRange.location, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let after = try #require(h.textView.attributedText).string
+        #expect(!after.contains("4.\t"), "must exit the list, not keep item 4 — got: \(after)")
+        #expect(!after.contains("5.\t"), "must not spawn item 5 — got: \(after)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
+    }
+
+    // Return in the MIDDLE of a numbered item: splits it, and the cursor must
+    // land right after the new row's marker (before the moved text), not at the
+    // end of the document. This is the position `insertListRow` computes from
+    // the re-rendered display; if it were still set before the re-render (the
+    // bug), the caret would be wherever UIKit dropped it after setAttributedText.
+    @Test func returnMidNumberedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(
+            text: "abcdef",
+            textStyleData: style(.init(paragraphStyles: [.numberedList]))
+        )
+        // Displayed: "1.\tabcdef" — marker is 2 chars + tab. Split between "abc" and "def".
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tabc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("2.\tdef"), "second row carries 'def', got: \(rendered)")
+        // Caret sits just after "2.\t", i.e. immediately before "def".
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker (before 'def' at \(defRange.location)), got \(h.textView.selectedRange.location)")
+    }
+}
+
 // MARK: - Backspace-merging differently-styled paragraphs
 
 @MainActor

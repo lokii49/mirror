@@ -127,13 +127,18 @@ struct MonthlyReportView: View {
     }
 
     @ViewBuilder
+    private func reportCard(_ insight: Insight) -> some View {
+        MonthlyReportCard(insight: insight, showSourceButton: displayMode == .sentinel)
+            .glowShadow(color: MirrorTheme.violet, radius: 28)
+    }
+
+    @ViewBuilder
     private var reportContent: some View {
         if !isCurrentMonth {
             // Past month: show cached report only, no generation
             if let cached = cachedReportForSelectedMonth {
                 MonthlyStatsStrip(entries: selectedMonthEntries)
-                MonthlyReportCard(insight: cached)
-                    .glowShadow(color: MirrorTheme.violet, radius: 28)
+                reportCard(cached)
             } else {
                 pastMonthNoReportCard
             }
@@ -146,8 +151,7 @@ struct MonthlyReportView: View {
                 reportLoadingCard
             case .loaded(let insight):
                 MonthlyStatsStrip(entries: selectedMonthEntries)
-                MonthlyReportCard(insight: insight)
-                    .glowShadow(color: MirrorTheme.violet, radius: 28)
+                reportCard(insight)
             case .notEnoughEntries(let remaining, let total):
                 notEnoughEntriesCard(remaining: remaining, total: total)
             case .endOfMonthTooFewEntries(let count):
@@ -511,6 +515,7 @@ private struct MonthlyStatsStrip: View {
 
 private struct MonthlyReportCard: View {
     let insight: Insight
+    var showSourceButton: Bool = false
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
@@ -550,12 +555,13 @@ private struct MonthlyReportCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Label(isSentinel ? "MISSION DEBRIEF" : "Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
+                if showSourceButton { InsightSourceButton(insight: insight) }
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
@@ -570,7 +576,7 @@ private struct MonthlyReportCard: View {
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(7)
                     .foregroundStyle(MirrorTheme.textPrimary)
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
             } else {
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(sections) { section in
@@ -597,7 +603,8 @@ private struct MonthlyReportCard: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(section.color)
                 Text(headerDisplayNames[section.header] ?? LocalizedStringKey(section.header.localizedCapitalized))
-                    .font(.system(size: 11, weight: .bold))
+                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                    .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(section.color)
                     .tracking(0.3)
             }
@@ -607,14 +614,14 @@ private struct MonthlyReportCard: View {
                     .italic()
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
                     .padding(.top, 2)
             } else {
                 Text(section.body)
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary)
-                    .textSelection(.enabled)
+                    .selectableUnlessSentinel(isSentinel)
             }
         }
     }

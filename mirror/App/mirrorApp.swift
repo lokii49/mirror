@@ -25,6 +25,95 @@ struct mirrorApp: App {
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
+        #if DEBUG
+        // See SampleData.seedPastNudges — InsightView's "Past reflections" section only
+        // renders once real usage has accumulated a few days of history, so there was no way
+        // to see/screenshot it without days of manual use. Opt-in via launch argument, DEBUG
+        // only, never reachable in a release build.
+        if ProcessInfo.processInfo.arguments.contains("--seedPastBriefings") {
+            SampleData.seedPastNudges(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearPastBriefingsSamples") {
+            SampleData.clearPastNudgeSamples(from: sharedModelContainer.mainContext)
+        }
+        // See SampleData.seedCurrentMonthBulk — MonthlyReportView only generates real
+        // output once the current calendar month has >=20 real entries. Scratch-device
+        // only (see 2.1.0-design-plan.md B2 notes): never run against a device with real
+        // journal data, use `simctl clone` first.
+        if ProcessInfo.processInfo.arguments.contains("--seedCurrentMonthBulk") {
+            SampleData.seedCurrentMonthBulk(into: sharedModelContainer.mainContext)
+        }
+        // See SampleData.seedMonthlyReportSample — real 6-section generation is too slow to
+        // finish inside a UI-test window on the simulator. Inserts a ready-made monthly
+        // report so MonthlyReportView's loaded layout renders instantly. Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--seedMonthlyReportSample") {
+            SampleData.seedMonthlyReportSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearMonthlyReportSample") {
+            SampleData.clearMonthlyReportSample(from: sharedModelContainer.mainContext)
+        }
+        // See SampleData.seedTodayReflection — the daily reflection card only shows
+        // its loaded state (and thus the Sentinel source sheet) when a nudge
+        // Insight exists for today. Seeds one plus a few recent moody entries so
+        // InsightSignalSource's reconstruction has something to show. Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--clearTodayReflectionSample") {
+            SampleData.clearTodayReflectionSample(from: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--seedTodayReflection") {
+            SampleData.seedTodayReflection(into: sharedModelContainer.mainContext)
+        }
+        // weekly digest + Ask cards also gate their source sheet on a
+        // loaded Insight. These seed one of each for the current period (lean on
+        // --seedTodayReflection's this-week entries for the reconstruction).
+        // Scratch-device only.
+        if ProcessInfo.processInfo.arguments.contains("--seedWeeklyDigestSample") {
+            SampleData.seedWeeklyDigestSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearWeeklyDigestSample") {
+            SampleData.clearWeeklyDigestSample(from: sharedModelContainer.mainContext)
+        }
+        // Prior-week digest only — drives InsightViewModel's `.previousWeek`
+        // fallback (this week has no digest yet). Do NOT also seed this week's.
+        if ProcessInfo.processInfo.arguments.contains("--seedPriorWeekDigestSample") {
+            SampleData.seedPriorWeekDigestSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--seedAskSample") {
+            SampleData.seedAskSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearAskSample") {
+            SampleData.clearAskSample(from: sharedModelContainer.mainContext)
+        }
+        // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
+        // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
+        // "undo" for that once the test exits, and screenshot passes need both modes on
+        // demand without a manual tap round-trip. Opt-in via launch arg
+        // (--forceDisplayMode=classic or --forceDisplayMode=sentinel), DEBUG only.
+        if let modeArg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--forceDisplayMode=") }),
+           let mode = DisplayMode(rawValue: String(modeArg.dropFirst("--forceDisplayMode=".count))) {
+            let context = sharedModelContainer.mainContext
+            if let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first {
+                // Existing profile: only touch the theme, never onboardingComplete —
+                // that's the first-run gate and this arg could be passed on a real device.
+                profile.displayMode = mode
+            } else {
+                // Fresh/erased sim has no profile — make one so this arg also
+                // skips onboarding for screenshot passes, not just sets the theme.
+                let p = UserProfile()
+                p.onboardingComplete = true
+                p.displayMode = mode
+                context.insert(p)
+            }
+            try? context.save()
+        }
+        // Screenshot passes need light/dark on demand without a Settings round-trip.
+        // Writes the same AppStorage key the Appearance setting uses. DEBUG only.
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--forceAppearance=") }) {
+            let value = String(arg.dropFirst("--forceAppearance=".count))
+            if ["light", "dark", "system"].contains(value) {
+                UserDefaults.standard.set(value, forKey: "mirrorAppearanceMode")
+            }
+        }
+        #endif
     }
 
     private func configureNavigationBarAppearance() {
@@ -193,6 +282,11 @@ struct mirrorApp: App {
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
+        // Catch-all for the two insight widgets: a digest/report generated in a
+        // previous session or served from cache never hits the write sites above,
+        // same reason syncNudgeToWidget exists.
+        WidgetBridge.syncWeeklyDigest(from: context)
+        WidgetBridge.syncMonthlyReport(from: context)
 
         // Update the daily nudge notification to reflect current state.
         // Content resets on every app open so the message matches today's context.
@@ -274,8 +368,8 @@ struct mirrorApp: App {
             .map(\.content)
 
         do {
-            let text = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
-            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today)
+            let (text, engine) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
+            let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
@@ -328,22 +422,41 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == thisWeek }
         )
         let existing = (try? context.fetch(descriptor)) ?? []
-        guard !existing.contains(where: { $0.type == .weeklyDigest }) else { return }
+        // Newest wins — a stale digest is superseded by a fresh row, not deleted
+        // (deleting a CloudKit-synced Insight can hand a second device a tombstoned
+        // object mid-sync). Same non-destructive approach the monthly report uses.
+        let cachedDigest = existing
+            .filter { $0.type == .weeklyDigest }
+            .max { $0.generatedAt < $1.generatedAt }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let entries = (try? context.fetch(entryDescriptor)) ?? []
-        guard entries.count >= 5, SubscriptionService.shared.isSubscribed else { return }
+        // Digest covers the current week only — gate on this week's entries, not lifetime.
+        let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
+              SubscriptionService.shared.isSubscribed else { return }
+
+        // Already have this week's digest — regenerate only once it's gone stale
+        // (24h cooldown elapsed AND newer entries since), else nothing to do.
+        if let cached = cachedDigest {
+            guard InsightService.weeklyDigestIsStale(
+                generatedAt: cached.generatedAt,
+                newestWeekEntry: weekEntries.first?.createdAt  // entries are sorted newest-first
+            ) else { return }
+        }
+
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateWeeklyDigest(entries: entries)
-            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek)
+            let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncWeeklyDigest(from: context)
             // scheduleWeeklyDigest is the sole fire — no separate one-time notification
             // to avoid double-banner on Sunday at 7am.
             await NotificationService.scheduleWeeklyDigest()
@@ -379,10 +492,11 @@ struct mirrorApp: App {
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
-            let text = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
-            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth)
+            let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
+            let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            WidgetBridge.syncMonthlyReport(from: context)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch { /* Non-fatal */ }
     }

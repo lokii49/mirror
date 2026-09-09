@@ -11,11 +11,22 @@ import WidgetKit
 final class MoodCheckInPresenter {
     static let shared = MoodCheckInPresenter()
     private init() {}
+
+    /// Set by any entry point (reminder tap, foreground auto-prompt, the
+    /// Insights "Log mood" button). `ContentView` presents when the screen is
+    /// clear; if it can't, this stays set and presents on the next chance.
     var pending = false
+
+    /// InsightView owns sheets ContentView can't see (`showPaywallAfterFirstNudge`
+    /// especially — a once-per-user conversion moment). It reports them here so
+    /// `pending` waits its turn instead of racing them into a dropped sheet.
+    var blockedByOtherSheet = false
 }
 
 /// A dedicated mood log, fully independent of journal entries and of the
-/// Write screen. Reached only from the daily reminder notification. Pick a
+/// Write screen. Reached from the daily reminder notification, from the
+/// auto-prompt when the app opens past the preferred check-in time with no
+/// mood logged today, and from the "Log mood" button on Insights. Pick a
 /// mood (tap to select, tap again to deselect), then confirm with the button
 /// — nothing is saved on the first tap, so an accidental wrong tap is
 /// harmless.
@@ -49,8 +60,10 @@ struct MoodCheckInView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MirrorTheme.bgBase)
-        .presentationDetents([.medium])
+        // inkRaised is the "elevated card / sheet" token — near-white in Classic
+        // light so the pastel mood chips read against it, not the pale page bg.
+        .background(MirrorTheme.inkRaised)
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 
@@ -87,12 +100,14 @@ struct MoodCheckInView: View {
                          ? "Select a mood"
                          : "Log \(MirrorTheme.localizedMoodName(for: selected!))")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                        // White on the 30%-grey disabled fill was unreadable in
+                        // light mode — use a real muted style when nothing's picked.
+                        .foregroundStyle(selected == nil ? AnyShapeStyle(MirrorTheme.textPrimary.opacity(0.5)) : AnyShapeStyle(Color.white))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             selected == nil
-                                ? AnyShapeStyle(Color.secondary.opacity(0.3))
+                                ? AnyShapeStyle(MirrorTheme.inkBorder)
                                 : (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient)),
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
@@ -119,19 +134,30 @@ struct MoodCheckInView: View {
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            Text(MirrorTheme.localizedMoodName(for: mood))
-                .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
-                .foregroundStyle(isSelected ? .white : color)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(
-                    isSelected ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.14)),
-                    in: RoundedRectangle(cornerRadius: 11, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .stroke(color.opacity(isSelected ? 0.9 : 0.35), lineWidth: isSelected ? 2 : 1)
-                }
+            HStack(spacing: 7) {
+                // Colour swatch carries the mood identity; the label stays a
+                // high-contrast text colour so pale moods (Numb, Joyful) are
+                // still readable on the near-white sheet.
+                Circle()
+                    .fill(isSelected ? Color.white : color)
+                    .frame(width: 9, height: 9)
+                    .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
+                Text(MirrorTheme.localizedMoodName(for: mood))
+                    .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(
+                isSelected ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.16)),
+                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(color.opacity(isSelected ? 0.9 : 0.6), lineWidth: isSelected ? 2 : 1.5)
+            }
         }
         .buttonStyle(.plain)
     }
@@ -150,7 +176,7 @@ struct MoodCheckInView: View {
             Text(isSentinel ? "LOGGED — \(MirrorTheme.localizedMoodName(for: mood).uppercased())" : "\(MirrorTheme.localizedMoodName(for: mood)), logged.")
                 .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(MirrorTheme.textPrimary)
-            Text("See you tomorrow.")
+            Text("Added to your mood timeline.")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
             Spacer()

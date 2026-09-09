@@ -9,5 +9,7 @@ struct MirrorWidgetExtensionBundle: WidgetBundle {
         MirrorMoodMapWidget()
         MirrorNudgeWidget()
         MirrorPromptWidget()
+        MirrorWeeklyDigestWidget()
+        MirrorMonthlyReportWidget()
     }
 }
