@@ -358,6 +358,143 @@ struct ReturnKeyContinuationTests {
     }
 }
 
+// MARK: - Numbered list: marker spacing + "1. " auto-start
+
+@MainActor
+struct NumberedListTests {
+
+    // The marker separator is a tab now (was two spaces) so single- and
+    // double-digit rows align via the paragraph tab stop.
+    @Test func numberedMarkerUsesTabSeparator() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList]))
+        )
+        let rendered = try #require(h.textView.attributedText).string as NSString
+        // First paragraph: "1" "." "\t" "one"
+        #expect(rendered.hasPrefix("1.\t"), "got: \(rendered)")
+        #expect(rendered.contains("2.\ttwo"))
+    }
+
+    // Ten items — the marker still parses and the stored text carries no marker,
+    // so numbering is purely a render concern regardless of digit count.
+    @Test func numberedListTwoDigitRowsStoreNoMarker() throws {
+        let lines = (1...10).map { "line\($0)" }.joined(separator: "\n")
+        let h = makeEditorHarness(
+            text: lines,
+            textStyleData: style(.init(paragraphStyles: Array(repeating: .numberedList, count: 10)))
+        )
+        let attributed = try #require(h.textView.attributedText)
+        #expect(attributed.string.contains("10.\tline10"))
+        #expect(h.getText() == lines, "stored logical text must never contain the ordinal marker")
+
+        // The gap fix: text after the tab lands at `headIndent` for every row,
+        // so "1." and "10." align. Check the paragraph style carries the stop.
+        let firstPS = try #require(attributed.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(firstPS.tabStops.first?.location == firstPS.headIndent)
+        let tenthRow = (attributed.string as NSString).range(of: "10.\t").location
+        let tenthPS = try #require(attributed.attribute(.paragraphStyle, at: tenthRow, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(tenthPS.tabStops.first?.location == tenthPS.headIndent)
+    }
+
+    @Test func typingDigitDotSpaceStartsNumberedList() throws {
+        let h = makeEditorHarness(text: "1.", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 2, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == false, "the typed space is consumed by the conversion")
+
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList])
+        #expect(h.getText() == "", "the typed \"1.\" prefix is absorbed into the marker")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\t"))
+    }
+
+    @Test func typingDigitDotSpaceInFrontOfExistingTextConverts() throws {
+        let h = makeEditorHarness(text: "3.buy milk", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 2, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == false)
+        #expect(h.getText() == "buy milk", "renderer renumbers from 1 — the typed 3 is dropped")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tbuy milk"))
+    }
+
+    @Test func typingSpaceAfterVersionNumberDoesNotConvert() {
+        let h = makeEditorHarness(text: "1.2", textStyleData: nil)
+        h.textView.selectedRange = NSRange(location: 3, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        let shouldInsert = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: 3, length: 0),
+            replacementText: " "
+        )
+        #expect(shouldInsert == true, "\"1.2\" is not a \"<digits>.\" prefix — leave it alone")
+        #expect(h.getStyleData() == nil)
+    }
+
+    @Test func typingDigitDotSpaceInsideExistingListItemDoesNotReconvert() {
+        // Cursor mid-content on an existing numbered row, user types a space.
+        let h = makeEditorHarness(
+            text: "hello",
+            textStyleData: style(.init(paragraphStyles: [.numberedList]))
+        )
+        let rendered = (h.textView.attributedText?.string ?? "") as NSString
+        let markerLen = rendered.range(of: "\t").location + 1
+        h.textView.selectedRange = NSRange(location: markerLen + 2, length: 0)
+        h.coordinator.textViewDidBeginEditing(h.textView)
+
+        _ = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: markerLen + 2, length: 0),
+            replacementText: " "
+        )
+        let doc = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data())
+        #expect(doc?.paragraphStyles == [.numberedList], "still exactly one numbered paragraph")
+    }
+
+    @Test func numberedListContinuesOnReturn() throws {
+        let h = makeEditorHarness(text: "first", textStyleData: style(.init(paragraphStyles: [.numberedList])))
+        let end = (h.textView.text as NSString).length
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange, "list continuation is handled manually")
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("1.\tfirst"))
+        #expect(rendered.contains("2.\t"), "new row carries the next ordinal, got: \(rendered)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.numberedList, .numberedList])
+    }
+
+    @Test func returnOnEmptyNumberedItemExitsList() {
+        let h = makeEditorHarness(text: "", textStyleData: style(.init(paragraphStyles: [.numberedList])))
+        let end = (h.textView.text as NSString).length
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        #expect(!(h.textView.text ?? "").contains("\t"), "empty numbered item exits the list on Return")
+    }
+}
+
 // MARK: - Backspace-merging differently-styled paragraphs
 
 @MainActor

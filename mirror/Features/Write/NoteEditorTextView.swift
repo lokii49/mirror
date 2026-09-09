@@ -326,6 +326,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return false
             }
 
+            // Notes-style shortcut: "1. " at the head of a body paragraph starts a
+            // numbered list. Must run BEFORE insertsTextAfterListMarker (which only
+            // fires on existing list paragraphs) — the guard here is style == .body.
+            if replacement == " ",
+               autoStartNumberedList(range: range, rendered: rendered, textView: textView) {
+                return false
+            }
+
             if !replacement.isEmpty,
                replacement != "\n",
                insertsTextAfterListMarker(replacement, range: range, rendered: rendered, textView: textView) {
@@ -422,6 +430,48 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
+            return true
+        }
+
+        /// Typing a space right after "<digits>." at the start of a `.body`
+        /// paragraph converts it to a numbered-list item, consuming the typed
+        /// "<digits>." prefix. The renderer renumbers the block from 1, so "5. "
+        /// still becomes item 1 — same as the Aa-panel toggle.
+        private func autoStartNumberedList(range: NSRange, rendered: String, textView: UITextView) -> Bool {
+            let nsText = rendered as NSString
+            guard range.length == 0, range.location <= nsText.length else { return false }
+
+            let lookup = min(range.location, max(0, nsText.length - 1))
+            let paraRange = nsText.paragraphRange(for: NSRange(location: lookup, length: 0))
+            guard range.location >= paraRange.location else { return false }
+            guard textStyle(at: paraRange.location, in: textView.attributedText) == .body else { return false }
+
+            let headLen = range.location - paraRange.location
+            guard headLen >= 2 else { return false }
+            let head = nsText.substring(with: NSRange(location: paraRange.location, length: headLen))
+            guard head.hasSuffix("."), head.dropLast().allSatisfy({ $0.isNumber }) else { return false }
+
+            // Drop the typed "<digits>." — keep the paragraph body for now.
+            let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
+            let prefixRange = bounded(NSRange(location: paraRange.location, length: headLen), in: mutable.string)
+            mutable.replaceCharacters(in: prefixRange, with: "")
+
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            isApplyingStyledText = false
+            parent.text = logicalText(from: textView)
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            syncRenderedCache(from: textView)
+
+            // Hand off to the shared command path — it covers the empty-doc,
+            // ghost-paragraph, encode, marker-insert, cursor and panel-state cases
+            // that a hand-rolled conversion here would each have to re-solve
+            // (an empty paragraph after the prefix removal is exactly one of them).
+            let caret = bounded(NSRange(location: paraRange.location, length: 0), in: textView.text)
+            textView.selectedRange = caret
+            lastKnownCursorLocation = caret.location
+            apply(.numberedList, to: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             return true
         }
 
@@ -643,7 +693,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let marker = staticListMarkerPrefix(for: targetStyle) {
                     textView.selectedRange = bounded(NSRange(location: marker.count, length: 0), in: textView.text)
                 } else if targetStyle == .numberedList {
-                    textView.selectedRange = bounded(NSRange(location: "1.  ".count, length: 0), in: textView.text)
+                    textView.selectedRange = bounded(NSRange(location: "1.\t".count, length: 0), in: textView.text)
                 }
                 textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: cursorFontChoice)
                 updatePlaceholder(in: textView)
@@ -656,6 +706,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             if isListStyle(currentStyle) && !isListStyle(targetStyle) {
                 stripListMarkerAndApply(targetStyle, at: cursorLocation, in: textView)
                 parent.activeParagraphStyle = targetStyle
+                // Keep the Aa panel highlight in lockstep, same as every sibling
+                // branch — the strip's selection change usually refreshes it, but
+                // don't leave it to that.
+                parent.panelState.activeParagraphStyle = targetStyle
                 return
             }
 
@@ -1043,16 +1097,24 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return checklistAttributes(checked: false, level: level, fontChoice: fontChoice)
             case .checklistChecked:
                 return checklistAttributes(checked: true, level: level, fontChoice: fontChoice)
-            case .bulletedList, .dashedList, .numberedList:
+            case .bulletedList, .dashedList:
                 return listAttributes(level: level, fontChoice: fontChoice)
+            case .numberedList:
+                return listAttributes(level: level, fontChoice: fontChoice, numbered: true)
             case .body:
                 return bodyAttributes(fontChoice: fontChoice)
             }
         }
 
-        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
+        private func attributes(for paragraph: String, storedStyle: NoteParagraphTextStyle = .body, allowLegacyDetection: Bool = true, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             if storedStyle != .body {
                 return attributes(for: storedStyle, level: level, fontChoice: fontChoice)
+            }
+            // Only infer block style from a leading "# " / "○ " / 4-space on true
+            // legacy entries. New-schema content stores its style explicitly, so
+            // such a prefix there is literal text the user typed, not a marker.
+            guard allowLegacyDetection else {
+                return bodyAttributes(fontChoice: fontChoice)
             }
             if paragraph.hasPrefix("### ") { return attributes(for: .subheading, fontChoice: fontChoice) }
             if paragraph.hasPrefix("## ") { return attributes(for: .heading, fontChoice: fontChoice) }
@@ -1076,11 +1138,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             return attrs
         }
 
-        private func listAttributes(level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
+        private func listAttributes(level: Int = 0, fontChoice: WritingFontChoice, numbered: Bool = false) -> [NSAttributedString.Key: Any] {
             let offset = CGFloat(level) * 20
             let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
             ps.firstLineHeadIndent = offset
-            ps.headIndent = 28 + offset
+            if numbered {
+                // Marker is "N.\t". The tab stop == headIndent, so the text after
+                // the tab and the wrapped lines share one left edge. 20pt is a
+                // tight, Notes-like gap that still clears a single digit; a
+                // two-digit "10." overruns it and falls to the 38pt stop (its
+                // wrapped lines still align at 20 — acceptable past 10 items).
+                ps.headIndent = 20 + offset
+                ps.tabStops = [
+                    NSTextTab(textAlignment: .left, location: 20 + offset),
+                    NSTextTab(textAlignment: .left, location: 38 + offset),
+                ]
+            } else {
+                ps.headIndent = 28 + offset
+            }
             return [
                 .font: bodyFont(for: fontChoice),
                 .foregroundColor: UIColor.label,
@@ -1124,7 +1199,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             if rawText.isEmpty,
                let firstStyle = decodedTextStyles().first {
-                let marker = staticListMarkerPrefix(for: firstStyle) ?? (firstStyle == .numberedList ? "1.  " : nil)
+                let marker = staticListMarkerPrefix(for: firstStyle) ?? (firstStyle == .numberedList ? "1.\t" : nil)
                 if let marker {
                     let firstFontChoice = decodedFontChoices().first.flatMap(WritingFontChoice.init(rawValue:)) ?? entryDefaultFontChoice
                     let paragraph = NSMutableAttributedString(string: marker, attributes: attributes(for: firstStyle, fontChoice: firstFontChoice))
@@ -1178,7 +1253,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let lineBreak = offset < rawParagraphs.count - 1 ? "\n" : ""
                 let rawParagraph = rawLine + lineBreak
                 let legacyStyle = self.legacyStyle(in: rawParagraph)
-                let storedStyle = storedStyles.indices.contains(paragraphIndex) ? storedStyles[paragraphIndex] : legacyStyle
+                // A stored style entry means new-schema content: block style is
+                // authoritative and legacy markdown/checklist prefix parsing
+                // ("# ", "○ ", 4-space) must NOT run — otherwise a paragraph the
+                // user literally typed starting with "# " has that prefix
+                // stripped from display (and gets title attributes) on every
+                // full re-render, silently mangling their text.
+                let hasStoredStyle = storedStyles.indices.contains(paragraphIndex)
+                let storedStyle = hasStoredStyle ? storedStyles[paragraphIndex] : legacyStyle
                 let indentLevel = storedIndents.indices.contains(paragraphIndex) ? storedIndents[paragraphIndex] : 0
                 let hasFontOverride = storedFontChoices.indices.contains(paragraphIndex)
                 let fontChoice = hasFontOverride
@@ -1192,15 +1274,20 @@ struct NoteEditorTextView: UIViewRepresentable {
                     numberedListCounter = 0
                 }
 
-                let prefix = self.legacyMarkdownPrefix(in: rawParagraph)
-                let legacyChecklistPrefix = self.legacyChecklistPrefix(in: rawParagraph)
-                let rawDisplayParagraph = prefix.map { String(rawParagraph.dropFirst($0.count)) }
-                    ?? legacyChecklistPrefix.map { String(rawParagraph.dropFirst($0.count)) }
-                    ?? rawParagraph
+                let rawDisplayParagraph: String
+                if hasStoredStyle {
+                    rawDisplayParagraph = rawParagraph
+                } else {
+                    let prefix = self.legacyMarkdownPrefix(in: rawParagraph)
+                    let legacyChecklistPrefix = self.legacyChecklistPrefix(in: rawParagraph)
+                    rawDisplayParagraph = prefix.map { String(rawParagraph.dropFirst($0.count)) }
+                        ?? legacyChecklistPrefix.map { String(rawParagraph.dropFirst($0.count)) }
+                        ?? rawParagraph
+                }
 
                 let listMarker: String
                 if storedStyle == .numberedList {
-                    listMarker = "\(numberedListCounter).  "
+                    listMarker = "\(numberedListCounter).\t"
                 } else {
                     listMarker = self.staticListMarkerPrefix(for: storedStyle, level: indentLevel) ?? ""
                 }
@@ -1211,7 +1298,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 let paragraph = NSMutableAttributedString(
                     string: displayParagraph,
-                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle, level: indentLevel, fontChoice: fontChoice)
+                    attributes: self.attributes(for: rawParagraph, storedStyle: storedStyle, allowLegacyDetection: !hasStoredStyle, level: indentLevel, fontChoice: fontChoice)
                 )
                 if storedStyle != .body, paragraph.length > 0 {
                     paragraph.addAttribute(Self.paragraphStyleAttribute, value: storedStyle.rawValue, range: NSRange(location: 0, length: paragraph.length))
@@ -1484,7 +1571,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             let newStyle: NoteParagraphTextStyle = (style == .checklistChecked) ? .checklistUnchecked : style
             let rowLevel = indentLevelValue(at: max(0, range.location - 1), in: textView.attributedText)
             let rowFontChoice = fontChoiceValue(at: max(0, range.location - 1), in: textView.attributedText)
-            let marker = staticListMarkerPrefix(for: newStyle, level: rowLevel) ?? (newStyle == .numberedList ? "N.  " : "")
+            // Numbered placeholder must be digit-shaped ("1.\t", not "N.\t"): the
+            // logical-text pass (`logicalText` / `renderedString`) strips a numbered
+            // marker via `numberedListMarkerLength`, which only matches digits. A
+            // "N.\t" placeholder survives into the paragraph's stored content and
+            // the re-render then prepends the real number on top of it → "2.\tN.\t".
+            // Matches the placeholder used by the paste path.
+            let marker = staticListMarkerPrefix(for: newStyle, level: rowLevel) ?? (newStyle == .numberedList ? "1.\t" : "")
             let insertion = "\n" + marker
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
             let insertionRange = bounded(range, in: mutable.string)
@@ -1496,7 +1589,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
-            // For numbered lists, cursor goes after the placeholder "N." (will be re-rendered with real number)
+            // For numbered lists, cursor goes after the placeholder marker (re-rendered with the real number)
             textView.selectedRange = bounded(
                 NSRange(location: insertionRange.location + insertion.count, length: 0),
                 in: textView.text
@@ -1578,7 +1671,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func numberedListMarkerLength(in paragraph: String) -> Int {
-            // Matches "1.  ", "10.  ", "100.  " etc.
+            // Current markers use a tab ("1.\t"); entries saved before that used two
+            // spaces ("1.  "). Both must parse — `logicalText` strips whatever a
+            // stored entry baked in on load.
             let ns = paragraph as NSString
             var i = 0
             while i < ns.length {
@@ -1586,10 +1681,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if c >= 48 && c <= 57 { i += 1 } // digit
                 else { break }
             }
-            // Must have at least one digit, then "." and at least two spaces
+            // At least one digit, then "."
             guard i > 0, i < ns.length, ns.character(at: i) == 46 else { return 0 } // "."
             i += 1
-            guard i < ns.length, ns.character(at: i) == 32 else { return 0 } // " "
+            guard i < ns.length else { return 0 }
+            if ns.character(at: i) == 9 { return i + 1 } // "\t"
+            guard ns.character(at: i) == 32 else { return 0 } // " "
             i += 1
             guard i < ns.length, ns.character(at: i) == 32 else { return 0 } // "  "
             return i + 1
