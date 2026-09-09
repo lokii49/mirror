@@ -128,8 +128,7 @@ struct MonthlyReportView: View {
 
     /// Sentinel signature: press-and-hold the report to X-ray it — which
     /// on-device model, which month's entries, nothing left the device. Inert
-    /// in Classic. `MonthlyReportCard` is a plain `inkMid` hero card, so the
-    /// panel behind it is plain `inkMid` too.
+    /// in Classic.
     @ViewBuilder
     private func reportCard(_ insight: Insight) -> some View {
         PeekReveal(enabled: displayMode == .sentinel) {
@@ -137,6 +136,7 @@ struct MonthlyReportView: View {
         } back: {
             InsightSignalSource(insight: insight, entries: entries)
         }
+            .id(insight.id)
             .glowShadow(color: MirrorTheme.violet, radius: 28)
     }
 

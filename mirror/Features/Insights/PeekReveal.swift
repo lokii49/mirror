@@ -3,8 +3,12 @@ import UIKit
 
 /// Press-and-hold a card, then swipe, to wipe it clear and see what's behind —
 /// like a flashlight moving over frosted glass. The front stays fully opaque; a
-/// soft-edged hole follows the finger, and the swept trail slowly re-frosts
-/// behind it (~1.4s). Lift the finger and the whole thing frosts back over.
+/// soft-edged hole follows the finger.
+///
+/// When the finger lifts after a real wipe, the panel **latches open**: `back`
+/// stays fully revealed (front hidden, ember border, a close control) so its
+/// contents are tappable — e.g. `InsightSignalSource`'s prompt link. Tap the
+/// close control, or a plain wipe with no drag just frosts back over.
 ///
 /// Sentinel-mode signature interaction; in Classic it's inert (renders `front`,
 /// no gesture). First use: the daily reflection card, with `InsightSignalSource`
@@ -32,6 +36,11 @@ struct PeekReveal<Front: View, Back: View>: View {
 
     @State private var trail: [Smudge] = []
     @State private var active = false
+    /// Set true when a wipe drag actually moved, checked in `.onEnded` to decide
+    /// whether to latch the panel open.
+    @State private var didWipe = false
+    /// Panel held fully open after a wipe so `back` can be interacted with.
+    @State private var latched = false
 
     private let lifetime: TimeInterval = 1.4
     private let holeRadius: CGFloat = 78  // wide enough that consecutive drag dabs overlap in their solid cores
@@ -56,15 +65,25 @@ struct PeekReveal<Front: View, Back: View>: View {
     private var showReveal: Bool { active || !trail.isEmpty || forceOpen || demoTrail }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Only mounted while something could show through — keeps
-            // `InsightSignalSource`'s reconstruction off the idle render path.
-            // `back` may be taller than `front` (a long system prompt) — the
-            // card grows to fit it while held, eased below.
-            if showReveal { back }
+        Group {
+            if latched {
+                latchedPanel
+            } else {
+                wipeStack
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: latched)
+    }
+
+    /// The card while resting or being wiped. `back` fills `front`'s frame and is
+    /// clipped to it — it never grows the card or spills past its edge.
+    private var wipeStack: some View {
+        ZStack {
+            if showReveal {
+                back.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
             frontLayer
         }
-        .animation(.easeOut(duration: 0.16), value: showReveal)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
             if active || forceOpen {
@@ -76,6 +95,34 @@ struct PeekReveal<Front: View, Back: View>: View {
         .modifier(RevealGestureModifier(enabled: enabled, gesture: revealGesture))
         .accessibilityElement(children: .contain)
         .accessibilityHint(enabled ? "Press, hold and swipe to reveal how this was generated" : "")
+    }
+
+    /// After a wipe: `back` shown in full at its natural height (the card grows
+    /// to fit — this is deliberate, not the wipe's transient peek), with a close
+    /// control. Now tappable, so `InsightSignalSource`'s prompt link works.
+    private var latchedPanel: some View {
+        back
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1)
+            }
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    withAnimation { latched = false }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .padding(7)
+                        .background(MirrorTheme.inkMid, in: Circle())
+                        .overlay { Circle().stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                .padding(10)
+                .accessibilityLabel("Close")
+            }
+            .transition(.opacity)
     }
 
     // MARK: Front (the frosted layer)
@@ -140,13 +187,23 @@ struct PeekReveal<Front: View, Back: View>: View {
                 guard case .second(true, let drag?) = value else { return }
                 if !active {
                     active = true
+                    didWipe = false
                     UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
                 }
+                if drag.translation.width != 0 || drag.translation.height != 0 { didWipe = true }
                 addSmudge(at: drag.location)
             }
             .onEnded { _ in
                 active = false
-                scheduleTrailClear()
+                // A real wipe (or reduceMotion, where there's no wipe to do)
+                // latches the panel open so its contents can be tapped.
+                if didWipe || reduceMotion {
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    trail.removeAll()
+                    withAnimation { latched = true }
+                } else {
+                    scheduleTrailClear()
+                }
             }
     }
 

@@ -1,235 +1,281 @@
 import SwiftUI
 import SwiftData
 
-/// The "behind the glass" panel shown while an insight card is held in Sentinel
-/// mode (see `PeekReveal`). Press-hold-and-wipe the card and this is what's
-/// underneath: the **actual code that generated it** — the verbatim system
-/// prompt (read live from `InsightService`, never a paraphrase) and the real
-/// entry-selection excerpt, with `file:line` refs. Then a few facts resolved on
-/// this device, and the promise: nothing left it.
+/// The "behind the glass" panel revealed by press-hold-and-wipe on an insight
+/// card in Sentinel mode (`PeekReveal`). It makes mirror's core promise
+/// inspectable: this text came from a model on *this* device, from *these*
+/// entries, and nothing was sent anywhere.
 ///
-/// One panel, four insight types (`insight.type`) — each shows its own prompt
-/// and its own selection code.
+/// A compact HUD — engine, what it read, mood, "never left this device" — sized
+/// so a finger-width wipe can frame it. The `Insight` doesn't record which
+/// entries fed it, so the read/context rows are RECONSTRUCTED by re-running the
+/// matching generator's selection as of `insight.generatedAt` (approximate:
+/// entries added or deleted since shift it, but the shape is honest).
+///
+/// The last row is the `file:line` of the verbatim system prompt — tap it (the
+/// panel latches open after a wipe, see `PeekReveal`) for the whole prompt in a
+/// sheet. Nothing here is a paraphrase: the prompt is read live from the same
+/// `InsightService` constant the generator uses.
 struct InsightSignalSource: View {
     let insight: Insight
     let entries: [Entry]
 
-    // MARK: Line model — a syntax-lightly-tinted code listing
-
-    private enum Line: Identifiable {
-        case comment(String)      // // …            → tertiary
-        case rule                 // ────────────────
-        case ref(String)          // file · SYMBOL   → ember
-        case code(String)         // Swift-ish       → primary
-        case prompt(String)       // prompt body     → secondary, wraps
-        var id: String {
-            switch self {
-            case .comment(let s): return "c\(s)"
-            case .rule:           return "rule\(UUID())"
-            case .ref(let s):     return "r\(s)"
-            case .code(let s):    return "k\(s)"
-            case .prompt(let s):  return "p\(s)"
-            }
-        }
-    }
-
-    // MARK: Real selection-code excerpts (hand-transcribed; refs are exact)
-
-    private static func selection(for type: InsightType) -> (ref: String, code: [String]) {
-        switch type {
-        case .dailyNudge:
-            return ("InsightService.swift:171 · generateNudge(entries:)", [
-                "let cutoff = Calendar.current.date(",
-                "    byAdding: .day, value: -14, to: Date())",
-                "let recent = withinWindow.isEmpty",
-                "    ? Array(sorted.prefix(1))",
-                "    : Array(withinWindow.prefix(3))",
-                "let background = sorted",
-                "    .filter { !recentIDs.contains($0.id) }",
-                "    .prefix(20)",
-            ])
-        case .weeklyDigest:
-            return ("InsightService.swift:224 · generateWeeklyDigest", [
-                "let thisWeek = weekEntries.sorted {",
-                "    $0.createdAt > $1.createdAt }",
-                "let priorWeeks = allEntries.filter {",
-                "    !weekIDs.contains($0.id) }",
-                "recentEntries:     thisWeek.prefix(12)",
-                "backgroundEntries: priorWeeks.prefix(14)",
-            ])
-        case .monthlyReport:
-            return ("InsightService.swift:829 · buildMonthlyReportMessage", [
-                "// the model reads AGGREGATES, not entry text:",
-                "totalWords / avgWords / voiceCount",
-                "moodCounts.prefix(5)   moodArc.prefix(12)",
-                "weekGroups (entries grouped by week)",
-                "+ memory brief over allEntries",
-                "    .filter { !monthIDs.contains($0.id) }",
-                "    .prefix(20)",
-            ])
-        case .askResponse:
-            return ("InsightService.swift:255 · ask(question:entries:)", [
-                "let relevant = SearchService.search(",
-                "    query: question, in: sorted, limit: 10)",
-                "let background = sorted",
-                "    .filter { !relevantIDs.contains($0.id) }",
-                "    .prefix(8)",
-            ])
-        }
-    }
-
-    // MARK: Facts resolved at display
+    @State private var showPrompt = false
 
     private static let stamp: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "d MMM yyyy · HH:mm"
-        return f
+        let f = DateFormatter(); f.dateFormat = "d MMM yyyy · HH:mm"; return f
     }()
     private static let dayMonth: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "d MMM"
-        return f
+        let f = DateFormatter(); f.dateFormat = "d MMM"; return f
     }()
 
-    private func engineLine() -> String {
+    // MARK: Reconstruction
+
+    private struct Resolved {
+        var rows: [(label: String, value: String)]
+        var reading: [(day: String, snippet: String)]
+        var note: String?
+    }
+
+    private func engineLabel() -> String {
         switch insight.generatedByEngine {
-        case "foundationModels": return "engine    apple foundation models · on-device"
-        case "gemma":            return "engine    gemma 3 1B · on-device"
-        default:                 return "engine    on-device model"
+        case "foundationModels": return "APPLE FOUNDATION MODELS · ON-DEVICE"
+        case "gemma":            return "GEMMA 3 1B · ON-DEVICE"
+        default:                 return "ON-DEVICE MODEL"
         }
     }
 
-    /// Re-runs the generator's own selection as of `insight.generatedAt` so the
-    /// "read" / "context" lines are honest about which entries fed this one.
-    private func resolvedFacts() -> [String] {
+    private static func span(_ list: [Entry]) -> String {
+        guard let newest = list.first?.createdAt, let oldest = list.last?.createdAt else { return "no entries" }
+        let n = list.count
+        let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
+            ? dayMonth.string(from: newest)
+            : "\(dayMonth.string(from: oldest)) – \(dayMonth.string(from: newest))"
+        return "\(n) \(n == 1 ? "entry" : "entries") · \(range)"
+    }
+
+    private static func moods(_ list: [Entry]) -> String {
+        var seen: [String] = []
+        for m in list.compactMap(\.mood) where !seen.contains(m) { seen.append(m) }
+        return seen.isEmpty ? "—" : seen.prefix(4).map { MirrorTheme.localizedMoodName(for: $0).uppercased() }.joined(separator: ", ")
+    }
+
+    private static func snippet(for entry: Entry) -> String {
+        if entry.textDecryptionFailed { return "Encrypted entry unavailable" }
+        var raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
+        for (range, _) in allPhotoTokens(in: raw).reversed() { raw.removeSubrange(range) }
+        let oneLine = raw
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !oneLine.isEmpty { return oneLine }
+        if entry.hasVoiceNotes { return "Voice note" }
+        if entry.hasPhoto { return "Photo entry" }
+        return "Untitled"
+    }
+
+    private static func readingList(_ list: [Entry]) -> [(day: String, snippet: String)] {
+        list.prefix(3).map { (day: dayMonth.string(from: $0.createdAt), snippet: snippet(for: $0)) }
+    }
+
+    private func resolve() -> Resolved {
         let asOf = insight.generatedAt
-        let prior = entries
-            .filter { $0.createdAt <= asOf }
-            .sorted { $0.createdAt > $1.createdAt }
+        let prior = entries.filter { $0.createdAt <= asOf }.sorted { $0.createdAt > $1.createdAt }
+        var rows: [(String, String)] = [
+            ("ENGINE", engineLabel()),
+            ("GENERATED", Self.stamp.string(from: asOf)),
+        ]
 
-        func span(_ list: [Entry]) -> String {
-            guard let newest = list.first?.createdAt, let oldest = list.last?.createdAt else { return "0 entries" }
-            let n = list.count
-            let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
-                ? Self.dayMonth.string(from: newest)
-                : "\(Self.dayMonth.string(from: oldest))–\(Self.dayMonth.string(from: newest))"
-            return "\(n) \(n == 1 ? "entry" : "entries") · \(range)"
-        }
-        func moods(_ list: [Entry]) -> String {
-            var seen: [String] = []
-            for m in list.compactMap(\.mood) where !seen.contains(m) { seen.append(m) }
-            return seen.isEmpty ? "—" : seen.prefix(4).map { MirrorTheme.localizedMoodName(for: $0).lowercased() }.joined(separator: ", ")
-        }
-
-        var lines = [engineLine()]
         switch insight.type {
         case .weeklyDigest:
             let wk = DateHelpers.weekIdentifier(for: asOf)
             let thisWeek = Array(prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == wk }.prefix(12))
             let earlier = prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
-            lines.append("read      this week · \(span(thisWeek))")
-            if earlier > 0 { lines.append("context   \(earlier) earlier \(earlier == 1 ? "entry" : "entries")") }
-            lines.append("mood      \(moods(thisWeek))")
+            rows.append(("THIS WEEK", Self.span(thisWeek)))
+            if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
+            rows.append(("MOOD READ", Self.moods(thisWeek)))
+            return Resolved(rows: rows, reading: Self.readingList(thisWeek), note: nil)
+
         case .monthlyReport:
             let mo = DateHelpers.monthIdentifier(for: asOf)
             let monthE = Array(prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == mo })
             let earlier = prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) != mo }.prefix(20).count
-            lines.append("read      this month · \(span(monthE)) (as aggregates)")
-            if earlier > 0 { lines.append("context   \(earlier) earlier \(earlier == 1 ? "entry" : "entries")") }
-            lines.append("mood      \(moods(monthE))")
+            rows.append(("THIS MONTH", Self.span(monthE)))
+            if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
+            rows.append(("MOOD ARC", Self.moods(monthE)))
+            return Resolved(rows: rows, reading: [], note: "Read as monthly aggregates, not entry-by-entry.")
+
         case .askResponse:
             let q = (insight.question ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let matched = SearchService.search(query: q, in: prior, limit: 10)
             let scanned = prior.filter { !Set(matched.map(\.id)).contains($0.id) }.prefix(8).count
-            lines.append("query     \(q.isEmpty ? "—" : q)")
-            lines.append("matched   \(matched.isEmpty ? "no entries" : span(matched))")
-            if scanned > 0 { lines.append("context   \(scanned) more scanned") }
-        default:
+            if !q.isEmpty { rows.append(("QUESTION", q)) }
+            rows.append(("MATCHED", matched.isEmpty ? "no entries matched" : "\(matched.count) \(matched.count == 1 ? "entry" : "entries")"))
+            if scanned > 0 { rows.append(("SCANNED", "\(scanned) more \(scanned == 1 ? "entry" : "entries")")) }
+            rows.append(("MOOD READ", Self.moods(matched)))
+            return Resolved(rows: rows, reading: Self.readingList(matched), note: nil)
+
+        case .dailyNudge:
             let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
             let within = prior.filter { $0.createdAt >= cutoff }
             let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
-            let bg = prior.filter { !Set(recent.map(\.id)).contains($0.id) }.prefix(20).count
-            lines.append("read      \(span(recent))")
-            if bg > 0 { lines.append("context   \(bg) earlier \(bg == 1 ? "entry" : "entries")") }
-            lines.append("mood      \(moods(recent))")
+            let background = prior.filter { !Set(recent.map(\.id)).contains($0.id) }.prefix(20).count
+            rows.append(("READ CLOSELY", Self.span(recent)))
+            if background > 0 { rows.append(("CONTEXT", "\(background) earlier \(background == 1 ? "entry" : "entries")")) }
+            rows.append(("MOOD READ", Self.moods(recent)))
+            return Resolved(rows: rows, reading: Self.readingList(recent), note: nil)
         }
-        return lines
     }
 
-    // MARK: Assembled listing
-
-    /// The concise mechanism first — selection code + what it resolved to — so
-    /// it lands inside the wipe. The verbatim prompt follows (truncated, with an
-    /// exact `file:line` ref to the rest): full, it's 15–25 lines and buries
-    /// everything else below the fold.
-    private func lines() -> [Line] {
-        let prompt = InsightService.systemPrompt(for: insight.type)
-        let sel = Self.selection(for: insight.type)
-        var out: [Line] = []
-
-        out.append(.ref(sel.ref))
-        out.append(.rule)
-        for c in sel.code { out.append(.code(c)) }
-
-        out.append(.rule)
-        out.append(.comment("// resolved on this device · \(Self.stamp.string(from: insight.generatedAt))"))
-        for f in resolvedFacts() { out.append(.code(f)) }
-        out.append(.comment("// no network call · nothing left this device"))
-
-        out.append(.rule)
-        out.append(.ref(prompt.ref))
-        let promptLines = prompt.body.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        let shown = 8
-        for raw in promptLines.prefix(shown) { out.append(.prompt(raw)) }
-        if promptLines.count > shown {
-            out.append(.comment("// … \(promptLines.count - shown) more lines — open InsightService.swift to read the rest"))
-        }
-        return out
-    }
-
-    // MARK: Body — a code pane
+    // MARK: Body
 
     var body: some View {
-        // No inner ScrollView: while the finger is down driving the wipe, a
-        // nested scroll can't get touches (the gesture is on the PeekReveal
-        // container). So the listing renders at full height and the card grows
-        // to fit it while held — see the Ask call site.
-        VStack(alignment: .leading, spacing: 3) {
-            ForEach(lines()) { line in
-                switch line {
-                case .rule:
-                    Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
-                        .padding(.vertical, 4)
-                case .ref(let s):
-                    Text(s)
-                        .font(MirrorTheme.mono(10.5, weight: .bold))
-                        .foregroundStyle(MirrorTheme.ember)
-                        .textSelection(.enabled)
-                case .comment(let s):
-                    Text(s)
-                        .font(MirrorTheme.mono(10, weight: .regular))
-                        .foregroundStyle(MirrorTheme.textTertiary)
-                case .code(let s):
-                    Text(s)
-                        .font(MirrorTheme.mono(10.5, weight: .regular))
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                        .textSelection(.enabled)
-                case .prompt(let s):
-                    Text(s.isEmpty ? " " : s)
-                        .font(MirrorTheme.mono(10.5, weight: .regular))
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+        let r = resolve()
+        let promptRef = InsightService.systemPrompt(for: insight.type).ref
+
+        return VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 6) {
+                Image(systemName: "shield.lefthalf.filled").font(.system(size: 11, weight: .bold))
+                Text("SIGNAL SOURCE").font(MirrorTheme.mono(11, weight: .bold)).tracking(1.4)
+            }
+            .foregroundStyle(MirrorTheme.ember)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(r.rows.enumerated()), id: \.offset) { _, item in
+                    row(item.label, item.value)
                 }
             }
+
+            if let note = r.note {
+                Text(note)
+                    .font(MirrorTheme.mono(9.5, weight: .regular))
+                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if !r.reading.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("READING")
+                        .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.6)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                    ForEach(Array(r.reading.enumerated()), id: \.offset) { _, item in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.day)
+                                .font(MirrorTheme.mono(10, weight: .medium))
+                                .foregroundStyle(MirrorTheme.textTertiary)
+                                .frame(width: 44, alignment: .leading)
+                            Text(item.snippet)
+                                .font(MirrorTheme.mono(10.5, weight: .regular))
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                                .lineLimit(1).truncationMode(.tail)
+                        }
+                    }
+                }
+            }
+
+            Rectangle().fill(MirrorTheme.ember.opacity(0.3)).frame(height: 1).padding(.top, 1)
+
+            // The prompt. A one-liner in the HUD; the whole thing behind a tap
+            // (the panel latches open after a wipe, so this is a real target).
+            Button {
+                showPrompt = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "curlybraces").font(.system(size: 10, weight: .bold))
+                    Text(promptRef).font(MirrorTheme.mono(10, weight: .bold)).tracking(0.4)
+                    Spacer(minLength: 4)
+                    Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(MirrorTheme.ember)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                Text("NO NETWORK · NEVER LEFT THIS DEVICE")
+                    .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.8)
+            }
+            .foregroundStyle(MirrorTheme.violetLight)
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(16)
-        // A flat editor ground — deliberately NOT the front card's colour. The
-        // wipe is revealing source, not the same surface with other text.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(20)
+        // A flat editor ground with an ember top rule — deliberately its own
+        // surface, not the front card's colour. The wipe reveals a different
+        // layer, not the same card with other words on it.
         .background(Color(red: 0.043, green: 0.043, blue: 0.063))
         .overlay(alignment: .top) {
             Rectangle().fill(MirrorTheme.ember.opacity(0.55)).frame(height: 2)
+        }
+        .sheet(isPresented: $showPrompt) {
+            SystemPromptSheet(type: insight.type)
+        }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label)
+                .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.6)
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .frame(width: 92, alignment: .leading)
+            Text(value)
+                .font(MirrorTheme.mono(11, weight: .medium))
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .lineLimit(3).truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Full system prompt
+
+/// The verbatim system prompt, in a scrollable sheet. Read live from
+/// `InsightService.systemPrompt(for:)` — the same constant the generator sends,
+/// never a copy that can drift.
+struct SystemPromptSheet: View {
+    let type: InsightType
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let p = InsightService.systemPrompt(for: type)
+        // "InsightService.swift:22 · DAILY_NUDGE_SYSTEM" → symbol for the title,
+        // full ref shown in the body.
+        let symbol = p.ref.split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) } ?? p.ref
+        return NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(p.ref)
+                        .font(MirrorTheme.mono(11, weight: .bold))
+                        .foregroundStyle(MirrorTheme.ember)
+                        .textSelection(.enabled)
+                    Text("This is the exact instruction sent to the on-device model. Nothing about it changes per entry — it's the same every time an insight of this kind is generated.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+
+                    Text(p.body)
+                        .font(MirrorTheme.mono(12, weight: .regular))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(MirrorTheme.ember.opacity(0.25), lineWidth: 1)
+                        }
+                }
+                .padding(20)
+            }
+            .background(MirrorTheme.inkBase)
+            .navigationTitle(symbol)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -242,11 +288,8 @@ private func signalSourcePreview(_ type: InsightType, question: String? = nil) -
     )
     let ctx = container.mainContext
     let insight = Insight(
-        type: type,
-        content: "placeholder",
-        periodIdentifier: "2026-09-07",
-        question: question,
-        generatedByEngine: .gemma
+        type: type, content: "placeholder",
+        periodIdentifier: "2026-09-07", question: question, generatedByEngine: .gemma
     )
     ctx.insert(insight)
     let entries: [Entry] = [
@@ -259,18 +302,18 @@ private func signalSourcePreview(_ type: InsightType, question: String? = nil) -
         ctx.insert(e)
         return e
     }
-    return ScrollView {
-        InsightSignalSource(insight: insight, entries: entries)
-            .environment(\.appDisplayMode, .sentinel)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.5), lineWidth: 1) }
-            .padding()
-    }
+    return InsightSignalSource(insight: insight, entries: entries)
+        .environment(\.appDisplayMode, .sentinel)
+        .frame(height: 320)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.5), lineWidth: 1) }
+        .padding()
         .background(MirrorTheme.inkBase)
         .modelContainer(container)
 }
 
-#Preview("Source — daily")   { signalSourcePreview(.dailyNudge) }
-#Preview("Source — ask")     { signalSourcePreview(.askResponse, question: "how have I been sleeping?") }
-#Preview("Source — monthly") { signalSourcePreview(.monthlyReport) }
+#Preview("Signal — daily")   { signalSourcePreview(.dailyNudge) }
+#Preview("Signal — ask")     { signalSourcePreview(.askResponse, question: "how have I been sleeping?") }
+#Preview("Signal — monthly") { signalSourcePreview(.monthlyReport) }
+#Preview("Prompt sheet")     { SystemPromptSheet(type: .dailyNudge) }
 #endif

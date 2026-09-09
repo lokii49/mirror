@@ -667,6 +667,7 @@ private struct AskBubblePair: View {
                 } back: {
                     InsightSignalSource(insight: insight, entries: entries)
                 }
+                .id(insight.id)
                 .padding(.top, 4)
             } else {
                 classicAnswer
