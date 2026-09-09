@@ -259,6 +259,44 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "2.0.7"
         ),
+        // 2.1.0
+        .init(
+            id: "mood-checkin-210",
+            title: "Daily mood check-in",
+            body: "Log how you're feeling in one tap — no writing required. If you haven't checked in by your reminder time, mirror asks when you next open the app, and a Log mood button on Insights lets you update whenever you want. Every check-in feeds your Mood Timeline and the Mood Map widget.",
+            symbolName: "face.smiling",
+            accentColor: .pink,
+            tier: .free,
+            sinceVersion: "2.1.0"
+        ),
+        .init(
+            id: "insight-widgets-210",
+            title: "Weekly & monthly widgets",
+            body: "The Weekly Digest and Monthly Deep Report now have home screen widgets — your latest reflection sits on the home screen, no need to open the app.",
+            symbolName: "square.grid.2x2",
+            accentColor: .indigo,
+            tier: .core,
+            sinceVersion: "2.1.0"
+        ),
+        .init(
+            id: "show-your-work-210",
+            title: "Every AI card shows its work",
+            body: "In Sentinel mode, tap a card's source button to see exactly which entries — and which prompt — produced a reflection, weekly digest, monthly report, or Ask answer. Drag across to wipe between the result and where it came from.",
+            symbolName: "rectangle.and.text.magnifyingglass",
+            accentColor: MirrorTheme.ember,
+            tier: .free,
+            sinceVersion: "2.1.0"
+        ),
+        .init(
+            id: "editor-numbered-lists-210",
+            title: "Numbered lists, done right",
+            body: "Type \"1. \" to start a numbered list, the way Notes does it. Tighter spacing between the number and your text, and Return continues the list cleanly.",
+            symbolName: "list.number",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "2.1.0",
+            showInFeatureGuide: false
+        ),
     ]
 }
 
