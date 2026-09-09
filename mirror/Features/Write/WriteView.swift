@@ -150,18 +150,19 @@ struct WriteView: View {
                 MirrorTheme.inkMid.ignoresSafeArea()
             }
 
-            VStack(spacing: 0) {
-                if !focusMode { dateHeader }
+            // The whole write surface scrolls as one — header, tags, voice notes
+            // and the editor. Scrolling up past the voice notes brings the editor
+            // with it; the editor itself doesn't scroll (it grows to fit its text,
+            // see NoteEditorTextView.sizeThatFits).
+            ScrollView {
+                VStack(spacing: 0) {
+                    if !focusMode { dateHeader }
 
-                if !focusMode {
-                    tagsBar
-                }
+                    if !focusMode {
+                        tagsBar
+                    }
 
-                // Voice notes scroll within a capped band so several of them can't
-                // push the editor off-screen. Recording row / permission notice
-                // stay pinned below it, always reachable.
-                if !draftVoiceNotes.isEmpty {
-                    ScrollView {
+                    if !draftVoiceNotes.isEmpty {
                         VStack(spacing: 8) {
                             ForEach(draftVoiceNotes.indices, id: \.self) { index in
                                 let note = draftVoiceNotes[index]
@@ -180,55 +181,55 @@ struct WriteView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    .frame(maxHeight: 220)
-                    .scrollBounceBehavior(.basedOnSize)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
 
-                if isRecordingInline {
-                    InlineRecordingRow(
-                        elapsed: voiceRecorder.elapsed,
-                        onStop: { finishInlineRecording() },
-                        onCancel: { cancelInlineRecording() }
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                if recordingPermissionDenied {
-                    MicPermissionNotice { recordingPermissionDenied = false }
+                    if isRecordingInline {
+                        InlineRecordingRow(
+                            elapsed: voiceRecorder.elapsed,
+                            onStop: { finishInlineRecording() },
+                            onCancel: { cancelInlineRecording() }
+                        )
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                    }
 
-                NoteEditorTextView(
-                    text: $viewModel.text,
-                    textStyleData: $viewModel.textStyleData,
-                    inlineStyleData: $inlineStyleData,
-                    photoDataArray: $photoDataArray,
-                    command: $pendingTextCommand,
-                    commandRevision: $textCommandRevision,
-                    isFocused: Binding(
-                        get: { editorFocused },
-                        set: { editorFocused = $0 }
-                    ),
-                    activeParagraphStyle: $activeParagraphStyle,
-                    activeInlineStyles: $activeInlineStyles,
-                    showFormattingPanel: $showFormattingPanel,
-                    canUndo: $canUndo,
-                    canRedo: $canRedo,
-                    fontChoiceRaw: $entryFontChoiceRaw,
-                    panelState: panelState,
-                    displayMode: displayMode,
-                    onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
-                )
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if recordingPermissionDenied {
+                        MicPermissionNotice { recordingPermissionDenied = false }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    NoteEditorTextView(
+                        text: $viewModel.text,
+                        textStyleData: $viewModel.textStyleData,
+                        inlineStyleData: $inlineStyleData,
+                        photoDataArray: $photoDataArray,
+                        command: $pendingTextCommand,
+                        commandRevision: $textCommandRevision,
+                        isFocused: Binding(
+                            get: { editorFocused },
+                            set: { editorFocused = $0 }
+                        ),
+                        activeParagraphStyle: $activeParagraphStyle,
+                        activeInlineStyles: $activeInlineStyles,
+                        showFormattingPanel: $showFormattingPanel,
+                        canUndo: $canUndo,
+                        canRedo: $canRedo,
+                        fontChoiceRaw: $entryFontChoiceRaw,
+                        panelState: panelState,
+                        displayMode: displayMode,
+                        onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity)
+                }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
 
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")
