@@ -279,8 +279,7 @@ extension WriteView {
         // A debounced write can land just after clearDraft() emptied everything
         // (the empty-text onChange schedules one more pass). Don't leave a blank
         // ciphertext blob behind that restoreDraftFromStorage would rehydrate.
-        let hasText = !viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        guard hasText || !entryTags.isEmpty || viewModel.selectedMood != nil else {
+        guard hasDraftContent || !entryTags.isEmpty || viewModel.selectedMood != nil else {
             clearDraftStorage()
             return
         }
@@ -293,7 +292,49 @@ extension WriteView {
         ud.set(try? JSONEncoder().encode(encryptedTags), forKey: Self.draftTagsKey)
     }
 
+    /// Voice-note / photo blobs for a new-entry draft. Kept out of
+    /// saveDraftToStorage (which runs on the debounced text path) — attachments
+    /// change rarely and a voice note can be megabytes.
+    func saveDraftAttachments() {
+        guard entry == nil else { return }
+        let notes = draftVoiceNotes.map {
+            DraftAttachmentStore.VoiceNote(
+                data: $0.data,
+                duration: $0.duration,
+                transcript: $0.transcript,
+                languageCode: nil,
+                languageName: $0.languageName,
+                englishTranslation: $0.englishTranslation
+            )
+        }
+        DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
+    }
+
+    func restoreDraftAttachments() {
+        guard entry == nil, let restored = DraftAttachmentStore.load() else { return }
+        if photoDataArray.isEmpty, !restored.photos.isEmpty {
+            photoDataArray = restored.photos
+        }
+        guard voiceNoteData == nil, additionalVoiceNoteData.isEmpty,
+              let first = restored.voiceNotes.first else { return }
+        voiceNoteData = first.data
+        voiceNoteDuration = first.duration
+        voiceNoteTranscript = first.transcript
+        voiceNoteLanguageCode = first.languageCode
+        voiceNoteLanguageName = first.languageName
+        voiceNoteEnglishTranslation = first.englishTranslation
+        for note in restored.voiceNotes.dropFirst() {
+            additionalVoiceNoteData.append(note.data)
+            additionalVoiceNoteDurations.append(note.duration)
+            additionalVoiceNoteTranscripts.append(note.transcript ?? "")
+            additionalVoiceNoteLanguageCodes.append(note.languageCode ?? "")
+            additionalVoiceNoteLanguageNames.append(note.languageName ?? "")
+            additionalVoiceNoteEnglishTranslations.append(note.englishTranslation ?? "")
+        }
+    }
+
     func restoreDraftFromStorage() {
+        restoreDraftAttachments()
         let ud = UserDefaults.standard
         let saved = ud.string(forKey: Self.draftTextKey) ?? ""
         guard !saved.isEmpty else { return }
@@ -314,6 +355,7 @@ extension WriteView {
 
     func clearDraftStorage() {
         cancelDraftSave()
+        DraftAttachmentStore.clear()
         let ud = UserDefaults.standard
         ud.removeObject(forKey: Self.draftTextKey)
         ud.removeObject(forKey: Self.draftTextStyleKey)
