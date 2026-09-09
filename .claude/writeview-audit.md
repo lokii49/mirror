@@ -38,14 +38,15 @@ A journaling app does not need most of what Notes' editor carries. Explicitly ou
 These lose or corrupt user content. In an app whose entire pitch is "your data is always
 yours," these outrank every polish item.
 
-> **STATUS — all of Group 1 fixed** on branch `writeview-group1-fixes` (off `2.1.1`), 7 commits,
-> `xcodebuild build-for-testing` green, `mirrorTests` green except 4 `ThemeExtractionServiceTests`
-> that fail identically on the base commit (`NaturalLanguage` model drift, unrelated).
+> **STATUS — all of Group 1 fixed** on branch `writeview-group1-fixes` (off `2.1.1`), 8 commits
+> (7 fixes + 1 review pass), `xcodebuild build-for-testing` green, `mirrorTests` green except 4
+> `ThemeExtractionServiceTests` that fail identically on the base commit `82c4e39` (`NaturalLanguage`
+> model drift, unrelated — verified in a worktree).
 > **No CloudKit schema change** — nothing here touches the SwiftData model, so it's mergeable
 > without a Console "Deploy Schema Changes" pass.
 > - 1.1 + 1.5 → `4036337` — transcription keyed by retained `Task`, cancel-all + re-kick on delete, self-heal on open
 > - 1.2 → `6aadb3f` — `DraftAttachmentStore`, encrypted photo/voice blobs in Application Support
-> - 1.3 → `384de4c` — always `update(entry)` for an existing entry
+> - 1.3 → `384de4c` + review pass — save an emptied entry, but skip the write (and CloudKit modification) when an entry was only opened to read
 > - 1.4 → `7222109` — 25s timeout per recognition pass, cancellation-aware `recognize()`
 > - 1.6 → `9c8c1c8` — real duration, `AVAudioRecorderDelegate`, interruption/route observers, 10-min cap
 > - 1.7 → `503d930` — `AVAudioPlayerDelegate`, single `active` player
