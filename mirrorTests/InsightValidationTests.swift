@@ -132,6 +132,36 @@ struct InsightValidationTests {
         expectRejected(text.cleanedInsightOutput(), .ask)
     }
 
+    // Was a GAP: the announce line ended with ":" not ".!?", so it had no sentence
+    // break before the colon — `startsWithMetaPreamble`'s ≤12-word guard saw the
+    // whole first paragraph as one sentence and bailed, and length/sentence/
+    // first-person all passed. Now `strippingLeadingMetaPreamble` drops the colon
+    // line in repair, so the insight opens on the real observation.
+    @Test func dailyNudge_colonAnnouncePreamble_stripped() {
+        let text = "Okay, here's a reflection for you, your friend:\n\nIt feels like today you're wrestling with the idea of building something lasting, and that is both exhilarating and a little terrifying, isn't it?"
+        let cleaned = text.cleanedInsightOutput()
+        #expect(cleaned.hasPrefix("It feels like today"))
+        #expect(!cleaned.localizedCaseInsensitiveContains("here's a reflection"))
+        #expect(!cleaned.localizedCaseInsensitiveContains("friend"))
+        expectValid(cleaned, .dailyNudge)
+    }
+
+    @Test func dailyNudge_friendVocative_stripped() {
+        let text = "You've been carrying the move quietly, my friend, and the entry about the empty kitchen said more than the ones where you tried to explain it."
+        let cleaned = text.cleanedInsightOutput()
+        #expect(!cleaned.localizedCaseInsensitiveContains("friend"))
+        expectValid(cleaned, .dailyNudge)
+    }
+
+    // Negative case: a real reflection with a legitimate mid-sentence colon (no
+    // announce marker, no leading acknowledgment) must pass through untouched.
+    @Test func dailyNudge_legitimateColon_notStripped() {
+        let text = "One line keeps standing out: you wrote that the quiet after everyone left felt less lonely than the noise before it. That shift is worth noticing."
+        let cleaned = text.cleanedInsightOutput()
+        #expect(cleaned.hasPrefix("One line keeps standing out"))
+        expectValid(cleaned, .dailyNudge)
+    }
+
     // Was a GAP (cleanedInsightOutput's repair list didn't cover "I am"/"I was"/"I were");
     // now closed — the repair step rewrites it to second person before validate() ever runs.
     @Test func dailyNudge_firstPersonLeak_nowRepaired() {
