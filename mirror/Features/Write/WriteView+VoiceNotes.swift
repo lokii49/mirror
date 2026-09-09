@@ -22,6 +22,7 @@ extension WriteView {
             noteIndex = additionalVoiceNoteData.count
         }
         transcribeVoiceNote(data: data, index: noteIndex)
+        if entry == nil { saveDraftAttachments() }
     }
 
     func transcribeVoiceNote(data: Data, index: Int) {
@@ -92,6 +93,7 @@ extension WriteView {
             additionalVoiceNoteLanguageNames[additionalIndex] = transcription.languageName
             additionalVoiceNoteEnglishTranslations[additionalIndex] = transcription.englishTranslation
         }
+        if entry == nil { saveDraftAttachments() }
     }
 
     func removeVoiceNote(at index: Int) {
@@ -133,6 +135,7 @@ extension WriteView {
             }
         }
         rekickPendingTranscriptions()
+        if entry == nil { saveDraftAttachments() }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 

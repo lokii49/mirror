@@ -401,6 +401,9 @@ struct WriteView: View {
         .onChange(of: viewModel.selectedMood) { _, _ in
             if entry == nil { flushDraftSave() }
         }
+        .onChange(of: photoDataArray) { _, _ in
+            if entry == nil { saveDraftAttachments() }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background, entry == nil { flushDraftSave() }
         }
