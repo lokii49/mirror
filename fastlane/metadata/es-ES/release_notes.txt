@@ -1,5 +1,8 @@
-Reflexiones más inteligentes, directamente en tu dispositivo.
+Registro diario de estado de ánimo, widgets en la pantalla de inicio y un editor más preciso.
 
-• En dispositivos compatibles, MirrorNotes ahora aprovecha la Inteligencia en el dispositivo de Apple para Recordatorios diarios, Resúmenes semanales y respuestas de Preguntar más precisas y naturales.
-• Todo sigue funcionando completamente en tu dispositivo: lo que escribes nunca sale de tu teléfono.
-• Los dispositivos más antiguos o no compatibles no se ven afectados y siguen funcionando exactamente igual que antes.
+• Registro diario de estado de ánimo: anota cómo te sientes con un solo toque, sin necesidad de escribir. Si se te pasa el recordatorio, MirrorNotes te lo pregunta la próxima vez que abras la app, y un botón "Registrar ánimo" en Ideas te permite actualizarlo cuando quieras. Cada registro alimenta tu Línea de tiempo de ánimo y el widget Mapa de ánimo.
+• Widgets semanal y mensual: tu último Resumen semanal y tu Informe mensual a fondo directamente en la pantalla de inicio.
+• El resumen de la semana pasada sigue visible hasta que esté listo el de esta semana, y los resúmenes anteriores ya tienen su propio archivo, igual que las reflexiones.
+• Reflexiones más directas: los impulsos diarios y las respuestas de Pregunta van al grano, sin frases de relleno.
+• Editor: escribe "1. " para empezar una lista numerada como en Notas, con un espaciado más limpio. Intro continúa la lista y también la cierra correctamente.
+• Correcciones y mejoras.

@@ -1,5 +1,8 @@
-Smarter on-device reflections.
+Daily mood check-in, home screen widgets, and a sharper editor.
 
-• On supported devices, MirrorNotes now taps into Apple's on-device Intelligence for sharper, more natural Daily Nudges, Weekly Digests, and Ask answers.
-• Everything still runs entirely on your device — nothing you write ever leaves your phone.
-• Older or unsupported devices are unaffected and keep working exactly as before.
+• Daily mood check-in — log how you're feeling in one tap, no writing needed. If you miss your reminder, MirrorNotes asks next time you open the app, and a Log mood button on Insights lets you update anytime. Every check-in feeds your Mood Timeline and the Mood Map widget.
+• Weekly & Monthly widgets — your latest Weekly Digest and Monthly Deep Report right on the home screen.
+• Last week's digest stays visible until this week's is ready, and past digests now have their own archive — just like reflections.
+• Sharper reflections — Daily Nudges and Ask answers get straight to the point, no filler openers.
+• Editor: type "1. " to start a numbered list the way Notes does it, with cleaner spacing. Return continues the list, and continues out of it cleanly.
+• Fixes and polish.
