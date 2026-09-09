@@ -21,26 +21,52 @@ let highlightColors: [Color] = [
     /// through onCommand(.fontFamily) like every other paragraph-level command.
     var fontChoiceRaw: String = WritingFontChoice.system.rawValue
     var onCommand: ((NoteTextCommand) -> Void)?
-    var onDismiss: (() -> Void)?
 }
 
 struct FormattingPanelView: View {
     var state: FormattingPanelState
+    /// iPhone: shown as an overlay above the keyboard — keep the grabber and let
+    /// the rows scroll on short screens. iPad: shown in a `.popover`, which
+    /// supplies its own chrome and sizes to content.
+    var presentation: Presentation = .sheet
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
     private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
     private var cornerRadius: CGFloat { displayMode == .sentinel ? 6 : 10 }
 
+    enum Presentation { case sheet, popover }
+
     var body: some View {
+        Group {
+            if presentation == .sheet {
+                ScrollView { panelRows }
+            } else {
+                panelRows
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : Color(.secondarySystemBackground))
+        .overlay(alignment: .top) {
+            if displayMode == .sentinel {
+                Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
+            }
+        }
+    }
+
+    private var panelRows: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // Handle bar (Apple Notes style — tap Aa again to dismiss)
-            Capsule()
-                .fill(Color(.systemGray4))
-                .frame(width: 36, height: 5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+            if presentation == .sheet {
+                // Handle bar (Apple Notes style — tap Aa again to dismiss)
+                Capsule()
+                    .fill(Color(.systemGray4))
+                    .frame(width: 36, height: 5)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+            } else {
+                Spacer(minLength: 8)
+            }
 
             // Row 0: Font family — applies everywhere this entry's body text
             // appears (Write, entry list preview, entry detail view).
@@ -133,13 +159,6 @@ struct FormattingPanelView: View {
             .padding(.top, 10)
 
             Spacer(minLength: 12)
-        }
-        .frame(maxWidth: .infinity)
-        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : Color(.secondarySystemBackground))
-        .overlay(alignment: .top) {
-            if displayMode == .sentinel {
-                Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
-            }
         }
     }
 

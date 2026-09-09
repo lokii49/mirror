@@ -26,7 +26,12 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]
+
+    /// iPad presents the formatting panel as a popover off the Aa button;
+    /// iPhone as an overlay above the keyboard.
+    var usesPopoverPanel: Bool { horizontalSizeClass == .regular }
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
@@ -273,7 +278,16 @@ struct WriteView: View {
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if (isKeyboardVisible || editorFocused) && !focusMode {
-                toolRow
+                VStack(spacing: 0) {
+                    if showFormattingPanel && !usesPopoverPanel {
+                        FormattingPanelView(state: panelState, presentation: .sheet)
+                            .environment(\.appDisplayMode, displayMode)
+                            .frame(maxHeight: 300)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    toolRow
+                }
+                .animation(.easeOut(duration: 0.22), value: showFormattingPanel)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -322,7 +336,6 @@ struct WriteView: View {
             }
             loadedContentHash = currentContentHash()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
-            panelState.onDismiss = { showFormattingPanel = false }
             panelState.fontChoiceRaw = entryFontChoiceRaw
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
@@ -407,6 +420,13 @@ struct WriteView: View {
         }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
+        }
+        .onChange(of: editorFocused) { _, focused in
+            // iPhone: the panel rides on the keyboard, so losing focus should
+            // close it. iPad: the panel is a popover; presenting it can briefly
+            // drop first-responder, and closing here would dismiss the popover
+            // the instant it opened.
+            if !focused && !usesPopoverPanel { showFormattingPanel = false }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             if entry == nil { flushDraftSave() }

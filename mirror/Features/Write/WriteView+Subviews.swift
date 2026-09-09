@@ -428,10 +428,20 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
-                // Formatting panel
+                // Formatting panel — popover off this button on iPad, overlay
+                // above the keyboard on iPhone (see WriteView.safeAreaInset).
                 FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showFormattingPanel.toggle()
+                }
+                .popover(isPresented: Binding(
+                    get: { showFormattingPanel && usesPopoverPanel },
+                    set: { if !$0 { showFormattingPanel = false } }
+                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
+                    FormattingPanelView(state: panelState, presentation: .popover)
+                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
+                        .presentationCompactAdaptation(.popover)
+                        .environment(\.appDisplayMode, displayMode)
                 }
 
                 Spacer(minLength: 0)
