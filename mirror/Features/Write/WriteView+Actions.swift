@@ -4,32 +4,10 @@ import UIKit
 
 extension WriteView {
     func applyTextCommand(_ command: NoteTextCommand) {
-        // Don't raise the keyboard while the iPhone panel is open — it sits in the
-        // keyboard's place and the command applies to the current selection anyway.
-        if !(showFormattingPanel && !usesPopoverPanel) {
-            editorFocused = true
-        }
+        editorFocused = true
         pendingTextCommand = command
         textCommandRevision += 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-
-    /// iPad: toggle the popover. iPhone: swap the panel in for the keyboard (or
-    /// back). Keeping them mutually exclusive is what keeps the editor visible.
-    func toggleFormattingPanel() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        if usesPopoverPanel {
-            showFormattingPanel.toggle()
-            return
-        }
-        if showFormattingPanel {
-            showFormattingPanel = false
-            editorFocused = true
-        } else {
-            editorFocused = false
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            withAnimation(.easeOut(duration: 0.2)) { showFormattingPanel = true }
-        }
     }
 
     /// Fingerprint of everything a save would write for an existing entry. Used

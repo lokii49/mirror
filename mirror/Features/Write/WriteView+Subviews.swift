@@ -442,7 +442,8 @@ extension WriteView {
                 // Formatting panel — popover off this button on iPad, overlay
                 // above the keyboard on iPhone (see WriteView.safeAreaInset).
                 FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
-                    toggleFormattingPanel()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showFormattingPanel.toggle()
                 }
                 .popover(isPresented: Binding(
                     get: { showFormattingPanel && usesPopoverPanel },
