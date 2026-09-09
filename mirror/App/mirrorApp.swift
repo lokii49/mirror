@@ -152,6 +152,11 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
+                // One-time: re-clean daily reflections cached before the
+                // announce-line / "friend" vocative strip landed (076b9f5).
+                Task { @MainActor in
+                    CachedInsightRepair.runIfNeeded(context: sharedModelContainer.mainContext)
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
