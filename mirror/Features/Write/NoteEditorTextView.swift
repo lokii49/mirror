@@ -353,7 +353,18 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             if replacement == "\n" {
                 let nsText = rendered as NSString
-                let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, range.location - 1), length: 0))
+                // Resolve the paragraph the caret is *in*. The `- 1` fallback is only
+                // right when the caret sits at the end of the text (where
+                // paragraphRange(for: length) returns an empty range at the tail);
+                // for a caret at the START of a line — e.g. a freshly created empty
+                // list item, where UIKit parks the caret before the render-only
+                // marker — `- 1` wrongly resolves the *previous* paragraph, so an
+                // empty item Return would see the prior item's text and keep
+                // spawning rows instead of exiting the list.
+                let lookupLoc = range.location >= nsText.length
+                    ? max(0, nsText.length - 1)
+                    : range.location
+                let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, lookupLoc), length: 0))
                 let paragraph = nsText.substring(with: paragraphRange)
                 let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
                 if isListStyle(style) {
