@@ -60,8 +60,10 @@ struct MoodCheckInView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MirrorTheme.bgBase)
-        .presentationDetents([.medium])
+        // inkRaised is the "elevated card / sheet" token — near-white in Classic
+        // light so the pastel mood chips read against it, not the pale page bg.
+        .background(MirrorTheme.inkRaised)
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 
@@ -98,12 +100,14 @@ struct MoodCheckInView: View {
                          ? "Select a mood"
                          : "Log \(MirrorTheme.localizedMoodName(for: selected!))")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                        // White on the 30%-grey disabled fill was unreadable in
+                        // light mode — use a real muted style when nothing's picked.
+                        .foregroundStyle(selected == nil ? AnyShapeStyle(MirrorTheme.textPrimary.opacity(0.5)) : AnyShapeStyle(Color.white))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             selected == nil
-                                ? AnyShapeStyle(Color.secondary.opacity(0.3))
+                                ? AnyShapeStyle(MirrorTheme.inkBorder)
                                 : (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient)),
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
@@ -130,19 +134,30 @@ struct MoodCheckInView: View {
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            Text(MirrorTheme.localizedMoodName(for: mood))
-                .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
-                .foregroundStyle(isSelected ? .white : color)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(
-                    isSelected ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.14)),
-                    in: RoundedRectangle(cornerRadius: 11, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .stroke(color.opacity(isSelected ? 0.9 : 0.35), lineWidth: isSelected ? 2 : 1)
-                }
+            HStack(spacing: 7) {
+                // Colour swatch carries the mood identity; the label stays a
+                // high-contrast text colour so pale moods (Numb, Joyful) are
+                // still readable on the near-white sheet.
+                Circle()
+                    .fill(isSelected ? Color.white : color)
+                    .frame(width: 9, height: 9)
+                    .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
+                Text(MirrorTheme.localizedMoodName(for: mood))
+                    .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(
+                isSelected ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.16)),
+                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(color.opacity(isSelected ? 0.9 : 0.6), lineWidth: isSelected ? 2 : 1.5)
+            }
         }
         .buttonStyle(.plain)
     }

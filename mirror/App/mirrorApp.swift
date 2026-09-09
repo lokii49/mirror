@@ -105,6 +105,14 @@ struct mirrorApp: App {
             }
             try? context.save()
         }
+        // Screenshot passes need light/dark on demand without a Settings round-trip.
+        // Writes the same AppStorage key the Appearance setting uses. DEBUG only.
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--forceAppearance=") }) {
+            let value = String(arg.dropFirst("--forceAppearance=".count))
+            if ["light", "dark", "system"].contains(value) {
+                UserDefaults.standard.set(value, forKey: "mirrorAppearanceMode")
+            }
+        }
         #endif
     }
 
