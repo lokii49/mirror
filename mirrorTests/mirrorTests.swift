@@ -186,7 +186,6 @@ struct FormattingPanelStateTests {
         #expect(state.activeInlineStyles.isEmpty)
         #expect(state.activeHighlightIndex == nil)
         #expect(state.onCommand == nil)
-        #expect(state.onDismiss == nil)
     }
 
     @Test func setParagraphStyle() {
@@ -235,14 +234,6 @@ struct FormattingPanelStateTests {
         let isActive = state.activeHighlightIndex == 3
         state.onCommand?(.highlight(index: isActive ? nil : 3))
         #expect(received == .highlight(index: 3))
-    }
-
-    @Test func onDismissCalled() {
-        let state = FormattingPanelState()
-        var dismissed = false
-        state.onDismiss = { dismissed = true }
-        state.onDismiss?()
-        #expect(dismissed)
     }
 
     // Bulk ops row visibility condition
