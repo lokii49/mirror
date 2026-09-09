@@ -296,13 +296,15 @@ struct WriteView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if (isKeyboardVisible || editorFocused) && !focusMode {
                 VStack(spacing: 0) {
+                    toolRow
+                    // Panel sits where the keyboard was — below the toolRow, so the
+                    // Aa button that toggles it stays put.
                     if showFormattingPanel && !usesPopoverPanel {
                         FormattingPanelView(state: panelState, presentation: .sheet)
                             .environment(\.appDisplayMode, displayMode)
                             .frame(maxHeight: 300)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    toolRow
                 }
                 .animation(.easeOut(duration: 0.22), value: showFormattingPanel)
             }

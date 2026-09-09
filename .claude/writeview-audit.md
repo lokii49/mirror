@@ -186,16 +186,33 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 
 ## Group 2 — Structural gaps vs. Notes (the "does it feel like Notes" items)
 
-> **STATUS — 2.1 done** (`c241eb5`, same branch). Chosen approach: **iPad `.popover` off the Aa
-> button + iPhone overlay above the keyboard** (full panel, not a compact bar). `textView.inputView`
-> hosting and all `becomeFirstResponder` forcing removed; `FormattingPanelView` gained a
-> `.sheet`/`.popover` presentation mode. Verified on iPhone 17 sim (panel opens over a live
-> keyboard, toolRow stays visible and usable, editor keeps its caret). **iPad popover: code-complete,
-> not yet hands-on verified** — `cliclick` couldn't drive the iPad sim reliably; the editor-blur
-> auto-close is guarded off for the popover case as a precaution.
-> Build green. 3 new user-facing strings (from Group 1) still need a catalog extraction pass.
+> **STATUS — 2.1 + 2.2 code-complete, NOT verified.** Build green after each. Simulator UI
+> automation was unreliable this whole session (cliclick coordinates + a stale install that kept
+> serving an old binary), so the screenshots taken during testing can't be trusted to show the
+> new code. Both need a hands-on / real-device pass.
 >
-> **2.2–2.5 not started.** 2.5 (panel height/Dynamic Type) is partly mooted — the overlay now
+> **2.1** (`c241eb5` + a follow-up): **iPad `.popover` off the Aa button + iPhone overlay in the
+> keyboard's place, below the toolRow** (full panel, not a compact bar). `textView.inputView`
+> hosting and all `becomeFirstResponder` forcing removed; `FormattingPanelView` gained a
+> `.sheet`/`.popover` presentation mode; caret-move → panel-highlight sync already existed in
+> `textViewDidChangeSelection`. iPad editor-blur auto-close is guarded off for the popover.
+> To check: panel opens over a live keyboard on iPhone; caret + typing work with it open;
+> caret moving between Body/Heading updates the panel; iPad popover stays up and doesn't drop
+> the keyboard.
+>
+> **2.2** (`<pending>`): mic button records **inline** — `InlineRecordingRow` (elapsed / waveform
+> / Stop / Cancel) appears where the finished note lands, keyboard + caret stay put. Recorder
+> self-stops (interruption, cap) are finalized via `onChange`. `VoiceInputSheet` and the modal
+> plumbing deleted (compiler-confirmed; not launch-confirmed). Mic-denied shows an inline notice.
+> To check: record → row appears, keyboard stays → Stop → note attaches + transcribes; Cancel
+> discards; a call mid-recording finalizes cleanly.
+>
+> 3 new user-facing strings (Group 1) + a few more (2.2) still need a catalog extraction pass.
+> **Next session: run `/run-skill-generator`** — the `--uitesting` launch arg, the
+> `-derivedDataPath` install path, and "HW keyboard suppresses `isKeyboardVisible` so the toolRow
+> never shows" are the three facts that ate most of this round.
+>
+> **2.3–2.5 not started.** 2.5 (panel height/Dynamic Type) is partly mooted — the overlay now
 > scrolls and the popover self-sizes — but the fixed `.system(size:)` / 44–50pt button frames
 > inside `FormattingPanelView` still ignore Dynamic Type; a `@ScaledMetric` pass is still owed.
 > The iPhone bar is the **existing toolRow** (undo/redo/Aa/photo/mic) — inline B/I/U still require
