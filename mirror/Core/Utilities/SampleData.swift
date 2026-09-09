@@ -487,10 +487,10 @@ enum SampleData {
         try? context.save()
     }
 
-    // MARK: - Today's reflection (for the Sentinel PeekReveal X-ray)
+    // MARK: - Today's reflection sample (for the Sentinel source sheet)
 
     /// The daily reflection card only enters its `.loaded` state — the only state
-    /// the `PeekReveal` X-ray wraps — when a `.dailyNudge` Insight exists for
+    /// the source sheet reads — when a `.dailyNudge` Insight exists for
     /// today. Seeds that one Insight (tagged via a recognisable content string,
     /// engine set so `InsightSignalSource` shows a real engine line) plus four
     /// recent moody entries so the reconstruction has "read closely" / "mood
@@ -544,10 +544,10 @@ enum SampleData {
         try? context.save()
     }
 
-    // MARK: - Weekly digest / Ask samples (for the Sentinel PeekReveal X-ray, D2)
+    // MARK: - Weekly digest / Ask samples (for the Sentinel source sheet)
 
     /// Weekly digest + Ask cards only enter their `.loaded` state — the state
-    /// `PeekReveal` wraps in Sentinel — when a matching Insight exists. These
+    /// the source sheet reads in Sentinel — when a matching Insight exists. These
     /// seed one of each for the CURRENT period, engine set so the panel shows a
     /// real engine line. They lean on `seedTodayReflection`'s four this-week
     /// entries for the reconstruction, so call that first. Scratch-device only.

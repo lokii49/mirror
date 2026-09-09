@@ -126,17 +126,9 @@ struct MonthlyReportView: View {
         .themedCard(cornerRadius: 26)
     }
 
-    /// Sentinel signature: press-and-hold the report to X-ray it — which
-    /// on-device model, which month's entries, nothing left the device. Inert
-    /// in Classic.
     @ViewBuilder
     private func reportCard(_ insight: Insight) -> some View {
-        PeekReveal(enabled: displayMode == .sentinel) {
-            MonthlyReportCard(insight: insight)
-        } back: {
-            InsightSignalSource(insight: insight, entries: entries)
-        }
-            .id(insight.id)
+        MonthlyReportCard(insight: insight, showSourceButton: displayMode == .sentinel)
             .glowShadow(color: MirrorTheme.violet, radius: 28)
     }
 
@@ -523,6 +515,7 @@ private struct MonthlyStatsStrip: View {
 
 private struct MonthlyReportCard: View {
     let insight: Insight
+    var showSourceButton: Bool = false
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
@@ -562,12 +555,13 @@ private struct MonthlyReportCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Label(isSentinel ? "MISSION DEBRIEF" : "Monthly Deep Report", systemImage: "doc.text.magnifyingglass")
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
+                if showSourceButton { InsightSourceButton(insight: insight) }
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)

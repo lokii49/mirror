@@ -1,26 +1,46 @@
 import SwiftUI
 import SwiftData
 
-/// The "behind the glass" panel revealed by press-hold-and-wipe on an insight
-/// card in Sentinel mode (`PeekReveal`). It makes mirror's core promise
-/// inspectable: this text came from a model on *this* device, from *these*
-/// entries, and nothing was sent anywhere.
+/// "How this was generated" — opened from `InsightSourceButton` on an insight
+/// card in Sentinel mode. Makes mirror's core promise inspectable: this text
+/// came from a model on *this* device, from *these* entries, and nothing was
+/// sent anywhere.
 ///
-/// A compact HUD — engine, what it read, mood, "never left this device" — sized
-/// so a finger-width wipe can frame it. The `Insight` doesn't record which
-/// entries fed it, so the read/context rows are RECONSTRUCTED by re-running the
-/// matching generator's selection as of `insight.generatedAt` (approximate:
-/// entries added or deleted since shift it, but the shape is honest).
-///
-/// The last row is the `file:line` of the verbatim system prompt — tap it (the
-/// panel latches open after a wipe, see `PeekReveal`) for the whole prompt in a
-/// sheet. Nothing here is a paraphrase: the prompt is read live from the same
-/// `InsightService` constant the generator uses.
+/// A `NavigationStack` sheet: the provenance HUD, then a link to the verbatim
+/// system prompt. `entries` comes from a fresh `@Query` so no call site has to
+/// thread it through.
+struct InsightSourceSheet: View {
+    let insight: Insight
+    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                InsightSignalSource(insight: insight, entries: entries)
+                    .padding(20)
+            }
+            .background(MirrorTheme.inkBase)
+            .navigationTitle("How this was generated")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: InsightType.self) { SystemPromptDetail(type: $0) }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// The provenance HUD. Engine, what it read, mood, "never left this device",
+/// and a link to the system prompt. The read/context rows are RECONSTRUCTED by
+/// re-running the matching generator's selection as of `insight.generatedAt`
+/// (approximate — entries added or deleted since shift it, but the shape is
+/// honest).
 struct InsightSignalSource: View {
     let insight: Insight
     let entries: [Entry]
-
-    @State private var showPrompt = false
 
     private static let stamp: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "d MMM yyyy · HH:mm"; return f
@@ -28,8 +48,6 @@ struct InsightSignalSource: View {
     private static let dayMonth: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "d MMM"; return f
     }()
-
-    // MARK: Reconstruction
 
     private struct Resolved {
         var rows: [(label: String, value: String)]
@@ -128,13 +146,13 @@ struct InsightSignalSource: View {
         }
     }
 
-    // MARK: Body
-
     var body: some View {
         let r = resolve()
-        let promptRef = InsightService.systemPrompt(for: insight.type).ref
+        let symbol = InsightService.systemPrompt(for: insight.type).ref
+            .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
+            ?? "system prompt"
 
-        return VStack(alignment: .leading, spacing: 13) {
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "shield.lefthalf.filled").font(.system(size: 11, weight: .bold))
                 Text("SIGNAL SOURCE").font(MirrorTheme.mono(11, weight: .bold)).tracking(1.4)
@@ -168,24 +186,21 @@ struct InsightSignalSource: View {
                             Text(item.snippet)
                                 .font(MirrorTheme.mono(10.5, weight: .regular))
                                 .foregroundStyle(MirrorTheme.textPrimary)
-                                .lineLimit(1).truncationMode(.tail)
+                                .lineLimit(2).truncationMode(.tail)
                         }
                     }
                 }
             }
 
-            Rectangle().fill(MirrorTheme.ember.opacity(0.3)).frame(height: 1).padding(.top, 1)
+            Rectangle().fill(MirrorTheme.ember.opacity(0.3)).frame(height: 1)
 
-            // The prompt. A one-liner in the HUD; the whole thing behind a tap
-            // (the panel latches open after a wipe, so this is a real target).
-            Button {
-                showPrompt = true
-            } label: {
+            NavigationLink(value: insight.type) {
                 HStack(spacing: 6) {
                     Image(systemName: "curlybraces").font(.system(size: 10, weight: .bold))
-                    Text(promptRef).font(MirrorTheme.mono(10, weight: .bold)).tracking(0.4)
+                    Text("SYSTEM PROMPT · \(symbol)")
+                        .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.4)
                     Spacer(minLength: 4)
-                    Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold))
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
                 }
                 .foregroundStyle(MirrorTheme.ember)
                 .contentShape(Rectangle())
@@ -199,17 +214,13 @@ struct InsightSignalSource: View {
             }
             .foregroundStyle(MirrorTheme.violetLight)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(20)
-        // A flat editor ground with an ember top rule — deliberately its own
-        // surface, not the front card's colour. The wipe reveals a different
-        // layer, not the same card with other words on it.
-        .background(Color(red: 0.043, green: 0.043, blue: 0.063))
-        .overlay(alignment: .top) {
-            Rectangle().fill(MirrorTheme.ember.opacity(0.55)).frame(height: 2)
-        }
-        .sheet(isPresented: $showPrompt) {
-            SystemPromptSheet(type: insight.type)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
         }
     }
 
@@ -228,60 +239,45 @@ struct InsightSignalSource: View {
     }
 }
 
-// MARK: - Full system prompt
-
-/// The verbatim system prompt, in a scrollable sheet. Read live from
-/// `InsightService.systemPrompt(for:)` — the same constant the generator sends,
-/// never a copy that can drift.
-struct SystemPromptSheet: View {
+/// The verbatim system prompt — read live from `InsightService.systemPrompt(for:)`,
+/// the same constant the generator sends. Pushed from `InsightSourceSheet`.
+struct SystemPromptDetail: View {
     let type: InsightType
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let p = InsightService.systemPrompt(for: type)
-        // "InsightService.swift:22 · DAILY_NUDGE_SYSTEM" → symbol for the title,
-        // full ref shown in the body.
-        let symbol = p.ref.split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) } ?? p.ref
-        return NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(p.ref)
-                        .font(MirrorTheme.mono(11, weight: .bold))
-                        .foregroundStyle(MirrorTheme.ember)
-                        .textSelection(.enabled)
-                    Text("This is the exact instruction sent to the on-device model. Nothing about it changes per entry — it's the same every time an insight of this kind is generated.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(MirrorTheme.textSecondary)
-
-                    Text(p.body)
-                        .font(MirrorTheme.mono(12, weight: .regular))
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(Color(red: 0.043, green: 0.043, blue: 0.063),
-                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(MirrorTheme.ember.opacity(0.25), lineWidth: 1)
-                        }
-                }
-                .padding(20)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(p.ref)
+                    .font(MirrorTheme.mono(11, weight: .bold))
+                    .foregroundStyle(MirrorTheme.ember)
+                    .textSelection(.enabled)
+                Text("The exact instruction sent to the on-device model. It doesn't change per entry — the same text every time an insight of this kind is generated.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                Text(p.body)
+                    .font(MirrorTheme.mono(12, weight: .regular))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(MirrorTheme.ember.opacity(0.25), lineWidth: 1)
+                    }
             }
-            .background(MirrorTheme.inkBase)
-            .navigationTitle(symbol)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .padding(20)
         }
+        .background(MirrorTheme.inkBase)
+        .navigationTitle("System prompt")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #if DEBUG
-private func signalSourcePreview(_ type: InsightType, question: String? = nil) -> some View {
+private func sheetPreview(_ type: InsightType, question: String? = nil) -> some View {
     let container = try! ModelContainer(
         for: Insight.self, Entry.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -292,28 +288,21 @@ private func signalSourcePreview(_ type: InsightType, question: String? = nil) -
         periodIdentifier: "2026-09-07", question: question, generatedByEngine: .gemma
     )
     ctx.insert(insight)
-    let entries: [Entry] = [
+    for (text, mood, hrs) in [
         ("Long day. Review went fine, couldn't shake it.", "Drained", 20.0),
         ("Walked instead of scrolling. Small win.", "Hopeful", 44.0),
         ("Re-read the same email six times.", "Anxious", 70.0),
-    ].map { text, mood, hrs in
+    ] {
         let e = Entry(text: text, mood: mood)
         e.createdAt = .now.addingTimeInterval(-3600 * hrs)
         ctx.insert(e)
-        return e
     }
-    return InsightSignalSource(insight: insight, entries: entries)
+    return InsightSourceSheet(insight: insight)
         .environment(\.appDisplayMode, .sentinel)
-        .frame(height: 320)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay { RoundedRectangle(cornerRadius: 10).stroke(MirrorTheme.ember.opacity(0.5), lineWidth: 1) }
-        .padding()
-        .background(MirrorTheme.inkBase)
         .modelContainer(container)
 }
 
-#Preview("Signal — daily")   { signalSourcePreview(.dailyNudge) }
-#Preview("Signal — ask")     { signalSourcePreview(.askResponse, question: "how have I been sleeping?") }
-#Preview("Signal — monthly") { signalSourcePreview(.monthlyReport) }
-#Preview("Prompt sheet")     { SystemPromptSheet(type: .dailyNudge) }
+#Preview("Source — daily")   { sheetPreview(.dailyNudge) }
+#Preview("Source — ask")     { sheetPreview(.askResponse, question: "how have I been sleeping?") }
+#Preview("Source — monthly") { sheetPreview(.monthlyReport) }
 #endif

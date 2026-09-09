@@ -4,6 +4,7 @@ import SwiftData
 struct WeeklyDigestView: View {
     let insight: Insight
     var isExpanded: Bool = true
+    var showSourceButton: Bool = false
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
@@ -25,13 +26,14 @@ struct WeeklyDigestView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Label("Weekly Digest", systemImage: "calendar.badge.clock")
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
+                if showSourceButton { InsightSourceButton(insight: insight) }
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
