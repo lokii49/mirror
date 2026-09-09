@@ -9,9 +9,41 @@ struct VoiceTranscription: Codable {
     let englishTranslation: String
 }
 
+/// Minimal async semaphore — serializes speech recognition (see `gate` below).
+private actor AsyncSemaphore {
+    private var permits: Int
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(value: Int) { permits = value }
+
+    func wait() async {
+        if permits > 0 {
+            permits -= 1
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func signal() {
+        if waiters.isEmpty {
+            permits += 1
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
+}
+
 enum VoiceTranscriptionService {
+    /// One recognition at a time. `SFSpeechRecognizer` on-device recognition is
+    /// effectively single-slot — two concurrent requests (e.g. recording two
+    /// voice notes back to back) make one fail. Callers queue behind this.
+    private static let gate = AsyncSemaphore(value: 1)
+
     /// - Parameter preferredLocaleId: locale identifier from user settings (e.g. "te-IN"). nil = auto-detect order.
     static func transcribe(audioData: Data, preferredLocaleId: String? = nil) async throws -> VoiceTranscription {
+        await gate.wait()
+        defer { Task { await gate.signal() } }
+
         let authStatus = await requestAuthorization()
         guard authStatus == .authorized else {
             throw InsightError.serviceUnavailable("Speech recognition permission is required for local transcription.")
@@ -39,7 +71,7 @@ enum VoiceTranscriptionService {
             request.shouldReportPartialResults = false
 
             do {
-                let transcript = try await withTimeout(seconds: 25) {
+                let transcript = try await withTimeout(seconds: 45) {
                     try await recognize(request: request, recognizer: recognizer)
                 }
 
