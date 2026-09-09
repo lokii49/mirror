@@ -61,15 +61,17 @@ enum DraftAttachmentStore {
         guard let fileURL, let raw = try? Data(contentsOf: fileURL),
               let payload = try? JSONDecoder().decode(Payload.self, from: raw) else { return nil }
 
+        // Decrypt each blob independently — one unreadable photo shouldn't take a
+        // recoverable voice note down with it.
         var photos: [Data] = []
         for blob in payload.photos {
-            guard let decrypted = MirrorEncryption.decryptOptionalData(blob) else { return nil }
+            guard let decrypted = MirrorEncryption.decryptOptionalData(blob) else { continue }
             photos.append(decrypted)
         }
 
         var notes: [VoiceNote] = []
         for note in payload.voiceNotes {
-            guard let audio = MirrorEncryption.decryptOptionalData(note.data) else { return nil }
+            guard let audio = MirrorEncryption.decryptOptionalData(note.data) else { continue }
             notes.append(VoiceNote(
                 data: audio,
                 duration: note.duration,

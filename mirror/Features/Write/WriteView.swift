@@ -44,6 +44,9 @@ struct WriteView: View {
     @State var deleteCountdown: Int = 10
     @State var undoSnapshot = DraftUndoSnapshot()
     @State var draftSaveTask: Task<Void, Never>? = nil
+    /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
+    /// the write (and CloudKit modification) when the entry was only opened to read.
+    @State var loadedContentHash: Int = 0
     @State var showVoiceInput = false
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
@@ -305,12 +308,19 @@ struct WriteView: View {
                 if !initialText.isEmpty && viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
-            } else {
-                // Give any voice note that has audio but no transcript another
-                // pass — including notes that failed on an older build, where
-                // only the first note's failure was ever recorded.
+                // A restored draft only persists audio, not transcripts — decode
+                // anything still missing one. Rare, and there's no saved entry to
+                // spuriously dirty.
                 rekickPendingTranscriptions()
+            } else {
+                // Opening a saved entry: surface a Retry for any note with audio
+                // but no transcript (including notes that failed on an older
+                // build, where only the first note's failure was recorded).
+                // Don't auto-decode here — that would set isTranscribingVoiceNotes
+                // and disable Save on every open.
+                markPendingNotesForRetry()
             }
+            loadedContentHash = currentContentHash()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
             panelState.onDismiss = { showFormattingPanel = false }
             panelState.fontChoiceRaw = entryFontChoiceRaw

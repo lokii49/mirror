@@ -64,17 +64,30 @@ extension WriteView {
         failedTranscriptionIndexes.removeAll()
     }
 
-    /// Re-run transcription for any note that has audio but no transcript.
-    /// Used after a delete reshuffles indexes, and on opening a saved entry so
-    /// notes that failed (including on a build before this fix) get another
-    /// pass and their Retry affordance back. Skips sub-second clips that almost
-    /// certainly hold no speech, so a silent note isn't re-decoded every open.
+    /// Re-run transcription for any note that has audio but no transcript. Used
+    /// for a restored draft (audio persists, transcripts don't) and after a
+    /// delete that cancelled an in-flight pass. NOT called on opening a saved
+    /// entry — that would set isTranscribingVoiceNotes and disable Save every
+    /// time. Skips sub-second clips that almost certainly hold no speech.
     func rekickPendingTranscriptions() {
         for (i, note) in draftVoiceNotes.enumerated() {
             let emptyTranscript = (note.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             guard emptyTranscript, !note.data.isEmpty, note.duration >= 1.0 else { continue }
             guard !transcribingVoiceNoteIndexes.contains(i) else { continue }
             transcribeVoiceNote(data: note.data, index: i)
+        }
+    }
+
+    /// Mark every note that has audio but no transcript as needing a retry, so
+    /// its Retry button and "AI won't reflect on this" notice appear. Used on
+    /// opening a saved entry — previously only the first note's failure was
+    /// tracked, so additional failed notes showed nothing and were silently
+    /// dropped from insightContext.
+    func markPendingNotesForRetry() {
+        for (i, note) in draftVoiceNotes.enumerated() {
+            let emptyTranscript = (note.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            guard emptyTranscript, !note.data.isEmpty, note.duration >= 1.0 else { continue }
+            failedTranscriptionIndexes.insert(i)
         }
     }
 
@@ -93,10 +106,16 @@ extension WriteView {
             additionalVoiceNoteLanguageNames[additionalIndex] = transcription.languageName
             additionalVoiceNoteEnglishTranslations[additionalIndex] = transcription.englishTranslation
         }
-        if entry == nil { saveDraftAttachments() }
+        // Not re-persisting the draft here: a transcript completion would rewrite
+        // every (multi-MB) audio blob. The draft keeps the audio; a restored
+        // draft re-decodes anything still missing a transcript.
     }
 
     func removeVoiceNote(at index: Int) {
+        // Indexes are positional and about to shift; every in-flight pass is
+        // keyed to a stale one. Cancel them all, then resume decoding only if
+        // something was actually running — otherwise just restore Retry state.
+        let hadTranscriptionInFlight = !transcribingVoiceNoteIndexes.isEmpty
         cancelAllTranscriptions()
         if index == 0 {
             voiceNoteData = nil
@@ -134,7 +153,11 @@ extension WriteView {
                 additionalVoiceNoteEnglishTranslations.remove(at: additionalIndex)
             }
         }
-        rekickPendingTranscriptions()
+        if hadTranscriptionInFlight {
+            rekickPendingTranscriptions()
+        } else {
+            markPendingNotesForRetry()
+        }
         if entry == nil { saveDraftAttachments() }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
