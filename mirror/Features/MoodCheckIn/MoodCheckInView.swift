@@ -11,11 +11,22 @@ import WidgetKit
 final class MoodCheckInPresenter {
     static let shared = MoodCheckInPresenter()
     private init() {}
+
+    /// Set by any entry point (reminder tap, foreground auto-prompt, the
+    /// Insights "Log mood" button). `ContentView` presents when the screen is
+    /// clear; if it can't, this stays set and presents on the next chance.
     var pending = false
+
+    /// InsightView owns sheets ContentView can't see (`showPaywallAfterFirstNudge`
+    /// especially — a once-per-user conversion moment). It reports them here so
+    /// `pending` waits its turn instead of racing them into a dropped sheet.
+    var blockedByOtherSheet = false
 }
 
 /// A dedicated mood log, fully independent of journal entries and of the
-/// Write screen. Reached only from the daily reminder notification. Pick a
+/// Write screen. Reached from the daily reminder notification, from the
+/// auto-prompt when the app opens past the preferred check-in time with no
+/// mood logged today, and from the "Log mood" button on Insights. Pick a
 /// mood (tap to select, tap again to deselect), then confirm with the button
 /// — nothing is saved on the first tap, so an accidental wrong tap is
 /// harmless.
@@ -150,7 +161,7 @@ struct MoodCheckInView: View {
             Text(isSentinel ? "LOGGED — \(MirrorTheme.localizedMoodName(for: mood).uppercased())" : "\(MirrorTheme.localizedMoodName(for: mood)), logged.")
                 .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(MirrorTheme.textPrimary)
-            Text("See you tomorrow.")
+            Text("Added to your mood timeline.")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
             Spacer()

@@ -39,6 +39,8 @@ private enum AppSidebarItem: String, CaseIterable, Hashable {
 struct ContentView: View {
     @Query private var profiles: [UserProfile]
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
     @State private var selectedSidebarItem: AppSidebarItem? = .write
     @State private var insightViewModel = InsightViewModel()
@@ -52,6 +54,17 @@ struct ContentView: View {
     @State private var deepLinkEntryID: UUID? = nil
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
+
+    // Auto mood check-in prompt: if the user hasn't logged a mood today and it's
+    // past their preferred check-in time, surface the sheet the next time the app
+    // comes to the foreground. `moodCheckInShownDay` is stamped at the single
+    // presentation site below (any path — auto, notification tap, manual button),
+    // so the prompt fires at most once per day and a dismissed reminder isn't
+    // re-nagged an hour later.
+    @AppStorage("moodCheckInEnabled") private var moodCheckInEnabled: Bool = true
+    @AppStorage("moodCheckInHour") private var moodCheckInHour: Int = 9
+    @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
+    @AppStorage("moodCheckInShownDay") private var moodCheckInShownDay: String = ""
 
     /// Sentinel is a HUD — it reads as "futuristic" only against a dark
     /// canvas, the same way a cockpit display or mission-control screen
@@ -109,11 +122,49 @@ struct ContentView: View {
     private var canPresentMoodCheckIn: Bool {
         moodCheckInPresenter.pending
             && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
+            && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
     }
 
     private var displayMode: DisplayMode {
         profiles.first?.displayMode ?? .classic
+    }
+
+    /// Runs on every foreground. Sets `MoodCheckInPresenter.pending` — which the
+    /// existing modal-gated flow turns into a presentation — when the user is
+    /// past their preferred time today and no mood (check-in or entry) is on the
+    /// books for today yet.
+    private func maybeAutoPromptMoodCheckIn() {
+        guard onboardingComplete, moodCheckInEnabled, !isUITesting else { return }
+        // Don't race the What's New sheet: SwiftUI drops the second concurrent sheet.
+        guard !featureCardService.shouldShowWhatsNew else { return }
+
+        let now = Date()
+        let cal = Calendar.current
+        let todayKey = DateHelpers.dayIdentifier(for: now)
+        guard moodCheckInShownDay != todayKey, !moodCheckInPresenter.pending else { return }
+        guard let preferred = cal.date(bySettingHour: moodCheckInHour, minute: moodCheckInMinute, second: 0, of: now),
+              now >= preferred else { return }
+
+        let startOfDay = cal.startOfDay(for: now)
+        Task { @MainActor in
+            // Let the legacy check-in migration (its own Task in mirrorApp's
+            // `.active` block) land first, so a check-in imported for today isn't missed.
+            try? await Task.sleep(for: .seconds(2))
+            guard moodCheckInShownDay != todayKey, !moodCheckInPresenter.pending else { return }
+
+            let checkIns = (try? modelContext.fetch(
+                FetchDescriptor<MoodCheckIn>(predicate: #Predicate { $0.createdAt >= startOfDay })
+            )) ?? []
+            let todaysEntries = (try? modelContext.fetch(
+                FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfDay })
+            )) ?? []
+            // Single "what was the mood, and when" rule — merges both sources.
+            let byDay = MoodLog.dailyMoods(entries: todaysEntries, checkIns: checkIns, calendar: cal)
+            guard byDay[startOfDay] == nil else { return }
+
+            moodCheckInPresenter.pending = true
+        }
     }
 
     var body: some View {
@@ -174,7 +225,11 @@ struct ContentView: View {
             // — the next tap re-sets `pending`.
             guard canPresent, !showRatePrompt else { return }
             moodCheckInPresenter.pending = false
+            moodCheckInShownDay = DateHelpers.dayIdentifier(for: Date())
             showMoodCheckIn = true
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { maybeAutoPromptMoodCheckIn() }
         }
         .onChange(of: sizeClass) { _, newClass in
             if newClass == .regular {
