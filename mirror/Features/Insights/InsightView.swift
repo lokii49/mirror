@@ -17,6 +17,7 @@ struct InsightView: View {
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
+    @State private var pastDigestsExpanded = false
 
     // weekMoodEvents/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
     // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
@@ -27,6 +28,7 @@ struct InsightView: View {
     @State private var cachedThisMonthEntries: [Entry] = []
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedPastNudges: [Insight] = []
+    @State private var cachedPastDigests: [Insight] = []
 
     // Standalone daily mood check-ins — merged with entry moods via `MoodLog`
     // for the weekly mood chart.
@@ -83,6 +85,10 @@ struct InsightView: View {
                     }
 
                     digestSection
+
+                    if !pastDigests.isEmpty {
+                        pastDigestsSection
+                    }
 
                     explorationSection
                 }
@@ -154,7 +160,7 @@ struct InsightView: View {
             recomputeEntryCaches()
         }
         .task(id: insights.count) {
-            recomputePastNudgesCache()
+            recomputeInsightCaches()
         }
         .onChange(of: entries.count) { _, _ in
             nudgeExpanded = false
@@ -199,6 +205,17 @@ struct InsightView: View {
     private var pastNudges: [Insight] {
         guard SubscriptionService.shared.isSubscribed else { return [] }
         return cachedPastNudges
+    }
+
+    /// Earlier weeks' digests, newest first. When the current digest state is the
+    /// `.previousWeek` fallback, its hero already shows the newest one — drop it
+    /// here so the archive list doesn't repeat it.
+    private var pastDigests: [Insight] {
+        guard SubscriptionService.shared.isSubscribed else { return [] }
+        if case .previousWeek = viewModel.digestState {
+            return Array(cachedPastDigests.dropFirst())
+        }
+        return cachedPastDigests
     }
 
     private func recomputeEntryCaches() {
@@ -246,10 +263,14 @@ struct InsightView: View {
         cachedCurrentStreak = streak
     }
 
-    private func recomputePastNudgesCache() {
+    private func recomputeInsightCaches() {
         let today = DateHelpers.dayIdentifier(for: Date())
+        let thisWeek = DateHelpers.weekIdentifier(for: Date())
         cachedPastNudges = insights
             .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
+            .sorted { $0.generatedAt > $1.generatedAt }
+        cachedPastDigests = insights
+            .filter { $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek }
             .sorted { $0.generatedAt > $1.generatedAt }
     }
 
@@ -292,6 +313,45 @@ struct InsightView: View {
                 VStack(spacing: 10) {
                     ForEach(pastNudges.prefix(14)) { insight in
                         PastNudgeCard(insight: insight)
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var pastDigestsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                    pastDigestsExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
+                    Text(pastDigestsExpanded
+                         ? (displayMode == .sentinel ? "HIDE PRIOR DIGESTS" : "Hide past digests")
+                         : (displayMode == .sentinel ? "PRIOR DIGESTS (\(pastDigests.count))" : "Past digests (\(pastDigests.count))"))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .kerning(displayMode == .sentinel ? 0.5 : 0)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
+                    Spacer()
+                    Image(systemName: pastDigestsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .themedCard(cornerRadius: 16)
+            }
+            .buttonStyle(.plain)
+
+            if pastDigestsExpanded {
+                VStack(spacing: 10) {
+                    ForEach(pastDigests.prefix(14)) { insight in
+                        PastDigestCard(insight: insight)
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -562,6 +622,29 @@ struct InsightView: View {
                 }
             )
                 .glowShadow(color: .indigo, radius: 28)
+        case .previousWeek(let insight, _):
+            VStack(alignment: .leading, spacing: 10) {
+                Label(
+                    displayMode == .sentinel
+                        ? "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE"
+                        : "Last week's digest — write 3 entries this week for a fresh one.",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .medium))
+                .kerning(displayMode == .sentinel ? 0.4 : 0)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.85) : .secondary)
+                WeeklyDigestView(
+                    insight: insight,
+                    isExpanded: digestExpanded,
+                    showSourceButton: displayMode == .sentinel,
+                    onToggleExpanded: {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            digestExpanded.toggle()
+                        }
+                    }
+                )
+                    .glowShadow(color: .indigo, radius: 28)
+            }
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
                 remaining: remaining,
@@ -610,6 +693,25 @@ struct InsightView: View {
 }
 
 // MARK: - Past Nudge Card
+
+/// One earlier week's digest in the "Past digests" archive — the real
+/// `WeeklyDigestView` renderer with its own collapse state so each row can be
+/// opened independently.
+private struct PastDigestCard: View {
+    let insight: Insight
+    @State private var expanded = false
+
+    var body: some View {
+        WeeklyDigestView(
+            insight: insight,
+            isExpanded: expanded,
+            showSourceButton: false,
+            onToggleExpanded: {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
+            }
+        )
+    }
+}
 
 private struct PastNudgeCard: View {
     let insight: Insight

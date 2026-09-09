@@ -583,7 +583,30 @@ enum SampleData {
 
     static func clearWeeklyDigestSample(from context: ModelContext) {
         let all = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
-        for i in all where i.content == weeklyDigestSampleContent { context.delete(i) }
+        for i in all where i.content == weeklyDigestSampleContent || i.content == priorWeekDigestSampleContent { context.delete(i) }
+        try? context.save()
+    }
+
+    static let priorWeekDigestSampleContent = """
+        THIS WEEK'S THEME: Last week you were mostly heads-down on the move, and the entries read calmer for it.
+        YOUR ENERGY: Even through the week, a dip on Thursday you traced back to a short night.
+        WHAT'S BUILDING: Morning pages before the first message of the day.
+        WATCH OUT FOR: Treating a full calendar as proof the week went well.
+        NEXT WEEK: Keep one afternoon with nothing scheduled and see what fills it.
+        """
+
+    /// Seeds a digest for the PREVIOUS ISO week so `InsightViewModel` shows the
+    /// `.previousWeek` fallback (this week under 3 entries, no digest yet).
+    /// Scratch-device only.
+    static func seedPriorWeekDigestSample(into context: ModelContext) {
+        guard let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) else { return }
+        let period = DateHelpers.weekIdentifier(for: lastWeek)
+        let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
+        guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
+        let insight = Insight(type: .weeklyDigest, content: priorWeekDigestSampleContent,
+                              periodIdentifier: period, generatedByEngine: .gemma)
+        insight.generatedAt = lastWeek
+        context.insert(insight)
         try? context.save()
     }
 
