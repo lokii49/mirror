@@ -21,8 +21,10 @@ enum InsightError: LocalizedError {
 
 private let DAILY_NUDGE_SYSTEM = """
 You are MirrorNotes, a private on-device journaling companion.
-Read the user's local journal context and offer ONE specific, personal reflection in the voice of a close friend who knows them well.
+Read the user's local journal context and offer ONE specific, personal reflection — warm and familiar, the way a close friend who knows them well would talk.
 Rules:
+- Output only the reflection itself. No preamble, no "Here's a reflection", no announce line ending in a colon — start on the first observation
+- Never address the writer as "friend", "my friend", or any nickname — only "you" and "your"
 - Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
 - Reference actual words, moods, dates, or concrete events, not generic advice
 - Open by naming something concrete from a specific entry — an event, an image, a decision, a place, a person, a phrase they used. Start inside the observation itself, not with a wind-up. The first sentence should be different every day and could not have been written about someone else's journal.
@@ -647,7 +649,10 @@ enum InsightService {
     /// in InsightValidationTests, same as the other prose gates here.
     private static func startsWithMetaPreamble(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return false }
+        // ":" is a delimiter too — an announce line ("Here's a reflection for you:")
+        // has no "." before the colon, so without it the whole first paragraph
+        // reads as one long "sentence" and the ≤12-word guard below bails.
+        guard let end = trimmed.firstIndex(where: { ".!?:".contains($0) }) else { return false }
         let first = String(trimmed[..<end]).lowercased()
         let rest = trimmed[trimmed.index(after: end)...].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !rest.isEmpty else { return false }
@@ -1133,8 +1138,53 @@ enum InsightService {
 // same testable-internal seam. softenDigestFragments stays private — it's an internal helper
 // of cleanedDigestOutput, not a pipeline stage tests need to call directly.
 extension String {
+    /// A 1B model sometimes prefixes the reflection with an announce line that
+    /// ends in a colon — "Okay, here's a reflection for you:", "Here's your
+    /// reflection, friend:". Drop it so the insight opens on the actual
+    /// observation. Conservative: only fires when a short leading segment ends
+    /// with the first colon (no sentence break before it), carries an announce-y
+    /// marker, and real prose follows.
+    func strippingLeadingMetaPreamble() -> String {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let colon = trimmed.firstIndex(of: ":") else { return trimmed }
+        if let stop = trimmed.firstIndex(where: { ".!?\n".contains($0) }), stop < colon {
+            return trimmed
+        }
+        let head = String(trimmed[..<colon]).lowercased()
+        let tail = trimmed[trimmed.index(after: colon)...].trimmingCharacters(in: .whitespacesAndNewlines)
+        let headWords = head.split(whereSeparator: { " \n".contains($0) })
+        guard tail.count >= 40, headWords.count <= 15 else { return trimmed }
+
+        let firstWord = headWords.first
+            .map(String.init)?
+            .trimmingCharacters(in: CharacterSet(charactersIn: ",.!?-–—")) ?? ""
+        let opensWithAck = ["okay", "ok", "alright", "sure", "right", "so"].contains(firstWord)
+
+        let announceMarkers = [
+            #"\bhere'?s\b"#, #"\bhere is\b"#, #"\bhere you go\b"#,
+            #"\breflection\b"#, #"\bbased on (your|the)\b"#,
+            #"\bas (requested|you asked|you requested)\b"#,
+        ]
+        let announces = announceMarkers.contains {
+            head.range(of: $0, options: [.regularExpression]) != nil
+        }
+        guard opensWithAck || announces else { return trimmed }
+        return tail
+    }
+
+    /// The model picking up "voice of a close friend" and addressing the writer
+    /// as "friend" — a vocative, not a reference to anyone in their entries
+    /// (those are never called just "friend"). Runs before the " my " → " your "
+    /// rewrite below so "my friend" is caught in its original form too.
+    func strippingFriendVocative() -> String {
+        replacingOccurrences(of: #"(?i)\s*,\s*(my|your)\s+friend\b"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)^\s*(my|your)\s+friend\s*,\s*"#, with: "", options: .regularExpression)
+    }
+
     func cleanedInsightOutput() -> String {
-        replacingOccurrences(of: "###", with: "")
+        strippingLeadingMetaPreamble()
+            .strippingFriendVocative()
+            .replacingOccurrences(of: "###", with: "")
             .replacingOccurrences(of: "**", with: "")
             .replacingOccurrences(of: "*", with: "")
             .replacingOccurrences(of: "[", with: "")
