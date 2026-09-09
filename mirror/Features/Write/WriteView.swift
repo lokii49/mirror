@@ -295,21 +295,8 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            let iPhonePanelOpen = showFormattingPanel && !usesPopoverPanel
-            if ((isKeyboardVisible || editorFocused) && !focusMode) || iPhonePanelOpen {
-                VStack(spacing: 0) {
-                    toolRow
-                    // iPhone: the panel takes the keyboard's place (the keyboard is
-                    // resigned when it opens), so the editor above stays fully
-                    // visible. Formatting still applies to the current selection.
-                    if iPhonePanelOpen {
-                        FormattingPanelView(state: panelState, presentation: .sheet)
-                            .environment(\.appDisplayMode, displayMode)
-                            .frame(height: 300)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .animation(.easeOut(duration: 0.22), value: showFormattingPanel)
+            if (isKeyboardVisible || editorFocused) && !focusMode {
+                toolRow
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -446,11 +433,9 @@ struct WriteView: View {
             if open { computeTagSuggestions() }
         }
         .onChange(of: editorFocused) { _, focused in
-            // iPhone: keyboard and panel are mutually exclusive — tapping back
-            // into the editor (which raises the keyboard) closes the panel.
-            if focused && showFormattingPanel && !usesPopoverPanel {
-                showFormattingPanel = false
-            }
+            // When the editor fully loses focus (keyboard/panel dismissed), drop
+            // the panel state so it doesn't reopen on the next focus.
+            if !focused { showFormattingPanel = false }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             if entry == nil { flushDraftSave() }

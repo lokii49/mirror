@@ -2357,14 +2357,48 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // MARK: - Formatting panel
 
-        /// The panel is presented by WriteView — a popover off the Aa button on
-        /// iPad, an overlay above the live keyboard on iPhone — never as
-        /// `textView.inputView`, which replaced the keyboard so you couldn't type
-        /// or dictate while formatting. All this does now is sync the panel's
-        /// active-style highlights to the caret before it appears.
+        private var formattingPanelHost: UIHostingController<AnyView>?
+
+        /// iPad presents the panel as a SwiftUI `.popover` off the Aa button, so
+        /// the keyboard is never touched. iPhone swaps the panel in as the text
+        /// view's `inputView`: the keyboard is visually replaced but the text
+        /// view keeps first responder, so the selection survives and typing
+        /// resumes the moment the panel closes — the Apple Notes model. (A panel
+        /// stacked above a live keyboard leaves no room for the editor on a phone.)
         func updateFormattingPanel(textView: UITextView, visible: Bool) {
+            let usesInputView = UIDevice.current.userInterfaceIdiom == .phone
+
+            guard usesInputView else {
+                if textView.inputView != nil {
+                    textView.inputView = nil
+                    textView.reloadInputViews()
+                }
+                if visible { refreshActiveInlineStyles(in: textView) }
+                return
+            }
+
             if visible {
                 refreshActiveInlineStyles(in: textView)
+                if formattingPanelHost == nil {
+                    let hc = UIHostingController(rootView: AnyView(
+                        FormattingPanelView(state: parent.panelState, presentation: .sheet)
+                            .environment(\.appDisplayMode, parent.displayMode)
+                    ))
+                    hc.view.backgroundColor = .clear
+                    formattingPanelHost = hc
+                }
+                if let panel = formattingPanelHost?.view {
+                    let frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
+                    if panel.frame != frame { panel.frame = frame }
+                    if textView.inputView !== panel {
+                        textView.inputView = panel
+                        textView.reloadInputViews()
+                        if !textView.isFirstResponder { textView.becomeFirstResponder() }
+                    }
+                }
+            } else if textView.inputView != nil {
+                textView.inputView = nil
+                textView.reloadInputViews()
             }
         }
     }
