@@ -565,6 +565,11 @@ enum InsightService {
         guard text.count >= minimumCharacters else { throw InsightError.incompleteResponse }
         guard endsAsCompleteSentence(text) else { throw InsightError.incompleteResponse }
         guard !hasDanglingEnding(text) else { throw InsightError.incompleteResponse }
+        // A 1B model sometimes acknowledges the task ("Okay, you've got it. Let's
+        // see what you can offer.") before the real reflection — no journal grounds
+        // it, and length/first-person/ending checks all pass it. Reject so the
+        // existing retry produces a clean answer.
+        guard !startsWithMetaPreamble(text) else { throw InsightError.incompleteResponse }
         switch firstPersonPolicy {
         case .strict:
             guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
@@ -632,6 +637,39 @@ enum InsightService {
         }
 
         return normalizedText
+    }
+
+    /// True when the response opens with a short sentence that acknowledges the
+    /// request rather than reflecting — a preamble to strip by rejecting. Narrow
+    /// on purpose: the first sentence must be short, match a meta-acknowledgment
+    /// shape, AND be followed by more text (so a legitimate reflection that
+    /// merely opens with "Okay," is untouched). Exercised via `validate(_:for:)`
+    /// in InsightValidationTests, same as the other prose gates here.
+    private static func startsWithMetaPreamble(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return false }
+        let first = String(trimmed[..<end]).lowercased()
+        let rest = trimmed[trimmed.index(after: end)...].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rest.isEmpty else { return false }
+        guard first.split(whereSeparator: { " \n".contains($0) }).count <= 12 else { return false }
+
+        let metaPhrases = [
+            "you've got it", "you got it", "here we go", "here you go",
+            "let's see what you", "let's take a look", "let me take a look",
+            "let me look at", "here's what i", "here is what i",
+            "here's your reflection", "here is your reflection",
+            "here's a reflection", "as you requested", "as requested",
+            "let's begin", "let's get started", "let's dive in",
+            "what you can offer", "let's do this", "on it",
+        ]
+        if metaPhrases.contains(where: { first.contains($0) }) { return true }
+
+        let bareAcks: Set<String> = [
+            "okay", "ok", "alright", "sure", "got it", "understood",
+            "no problem", "of course", "certainly", "sounds good", "will do",
+        ]
+        let stripped = first.trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?-–—"))
+        return bareAcks.contains(stripped)
     }
 
     private static func endsAsCompleteSentence(_ text: String) -> Bool {
