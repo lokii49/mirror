@@ -110,23 +110,33 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
 }
 
 @Observable
-final class VoiceNotePlayer {
+final class VoiceNotePlayer: NSObject, AVAudioPlayerDelegate {
     var isPlaying = false
     var error: String?
 
     private var player: AVAudioPlayer?
+
+    /// Only one voice note plays at a time. Each attachment row owns its own
+    /// player, so without this two could play at once and one's stop() would
+    /// deactivate the shared AVAudioSession under the other. weak so a dismissed
+    /// view's player isn't retained.
+    private static weak var active: VoiceNotePlayer?
 
     func toggle(data: Data) {
         isPlaying ? stop() : play(data: data)
     }
 
     func play(data: Data) {
+        Self.active?.stop()
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-            player = try AVAudioPlayer(data: data)
-            player?.play()
+            let newPlayer = try AVAudioPlayer(data: data)
+            newPlayer.delegate = self
+            player = newPlayer
+            newPlayer.play()
             isPlaying = true
+            Self.active = self
         } catch {
             self.error = error.localizedDescription
             isPlaying = false
@@ -137,7 +147,21 @@ final class VoiceNotePlayer {
         player?.stop()
         player = nil
         isPlaying = false
+        if Self.active === self { Self.active = nil }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    // Without a delegate, isPlaying never returns to false at end of playback and
+    // the row's button stays stuck showing "pause".
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in self.stop() }
+    }
+
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        Task { @MainActor in
+            self.error = error?.localizedDescription
+            self.stop()
+        }
     }
 }
 
