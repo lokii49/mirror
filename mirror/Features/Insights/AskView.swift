@@ -282,7 +282,7 @@ struct AskView: View {
                         Spacer(minLength: 12)
 
                         ForEach(chatHistory) { insight in
-                            AskBubblePair(insight: insight, entries: entries)
+                            AskBubblePair(insight: insight)
                         }
 
                         if isLoading {
@@ -631,7 +631,6 @@ struct AskView: View {
 
 private struct AskBubblePair: View {
     let insight: Insight
-    var entries: [Entry] = []
     @Environment(\.appDisplayMode) private var displayMode
 
     private var isSentinel: Bool { displayMode == .sentinel }
@@ -659,16 +658,7 @@ private struct AskBubblePair: View {
             }
 
             if isSentinel {
-                // Sentinel: the answer is a proper inkMid card, and a
-                // press-and-hold X-rays it — which on-device model, which
-                // entries matched the question, nothing left the device.
-                PeekReveal(enabled: true, cornerRadius: 10) {
-                    answerCard
-                } back: {
-                    InsightSignalSource(insight: insight, entries: entries)
-                }
-                .id(insight.id)
-                .padding(.top, 4)
+                answerCard.padding(.top, 4)
             } else {
                 classicAnswer
                     .padding(.top, 4)
@@ -677,14 +667,18 @@ private struct AskBubblePair: View {
         .padding(.vertical, 4)
     }
 
-    // Sentinel — bordered inkMid card so `PeekReveal` reveals different text on
-    // the same surface (see `InsightSignalSource`).
+    // Sentinel — bordered inkMid answer card. The "◆ SIGNAL" row carries the
+    // "how this was generated" button.
     private var answerCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("◆ SIGNAL")
-                .font(MirrorTheme.mono(9, weight: .bold))
-                .foregroundStyle(MirrorTheme.ember)
-                .kerning(0.4)
+            HStack(spacing: 8) {
+                Text("◆ SIGNAL")
+                    .font(MirrorTheme.mono(9, weight: .bold))
+                    .foregroundStyle(MirrorTheme.ember)
+                    .kerning(0.4)
+                Spacer()
+                InsightSourceButton(insight: insight)
+            }
             Text(insight.content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
                 .lineSpacing(6)

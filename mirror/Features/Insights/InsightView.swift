@@ -369,27 +369,20 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing your reflection", sublabel: "Reading recent entries…", icon: "sparkles")
         case .loaded(let insight):
-            // Sentinel signature: press-and-hold the reflection to X-ray it —
-            // see which on-device model wrote it, from which entries, and that
-            // nothing left the device. Inert in Classic.
-            PeekReveal(enabled: displayMode == .sentinel) {
-                InsightTextView(
-                    insight: insight,
-                    label: "Daily Reflection",
-                    icon: "sparkles",
-                    accentColor: MirrorTheme.primary,
-                    isExpanded: nudgeExpanded,
-                    collapsedLineLimit: 5,
-                    onToggleExpanded: {
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                            nudgeExpanded.toggle()
-                        }
+            InsightTextView(
+                insight: insight,
+                label: "Daily Reflection",
+                icon: "sparkles",
+                accentColor: MirrorTheme.primary,
+                isExpanded: nudgeExpanded,
+                collapsedLineLimit: 5,
+                showSourceButton: displayMode == .sentinel,
+                onToggleExpanded: {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        nudgeExpanded.toggle()
                     }
-                )
-            } back: {
-                InsightSignalSource(insight: insight, entries: entries)
-            }
-                .id(insight.id)  // reset the latched panel if the insight changes
+                }
+            )
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             VStack(spacing: 12) {
@@ -539,22 +532,16 @@ struct InsightView: View {
         case .loading:
             LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
         case .loaded(let insight):
-            // Sentinel signature: press-and-hold to X-ray — which on-device model,
-            // which entries this week, nothing left the device. Inert in Classic.
-            PeekReveal(enabled: displayMode == .sentinel) {
-                WeeklyDigestView(
-                    insight: insight,
-                    isExpanded: digestExpanded,
-                    onToggleExpanded: {
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                            digestExpanded.toggle()
-                        }
+            WeeklyDigestView(
+                insight: insight,
+                isExpanded: digestExpanded,
+                showSourceButton: displayMode == .sentinel,
+                onToggleExpanded: {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        digestExpanded.toggle()
                     }
-                )
-            } back: {
-                InsightSignalSource(insight: insight, entries: entries)
-            }
-                .id(insight.id)
+                }
+            )
                 .glowShadow(color: .indigo, radius: 28)
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
@@ -1219,6 +1206,7 @@ private struct InsightTextView: View {
     var accentColor: Color = MirrorTheme.primary
     var isExpanded: Bool = true
     var collapsedLineLimit: Int = 5
+    var showSourceButton: Bool = false
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
@@ -1226,12 +1214,13 @@ private struct InsightTextView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 8) {
                 Label(label, systemImage: icon)
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     .tracking(0.8)
                 Spacer()
+                if showSourceButton { InsightSourceButton(insight: insight) }
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
@@ -1250,11 +1239,7 @@ private struct InsightTextView: View {
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
-                // Sentinel wraps this card in PeekReveal — a long-press there
-                // must arm the X-ray, not the text-selection magnifier. Classic
-                // keeps copy-to-select. (`.enabled`/`.disabled` are different
-                // types, so this can't be a ternary — hence the modifier.)
-                .modifier(ConditionalTextSelection(enabled: !isSentinel))
+                .selectableUnlessSentinel(isSentinel)
 
             if let onToggleExpanded {
                 Button(action: onToggleExpanded) {
