@@ -10,6 +10,26 @@ extension WriteView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
+    /// Fingerprint of everything a save would write for an existing entry. Used
+    /// to skip the write when the entry was only opened to read — the trimmed
+    /// text is compared, so an emptied entry still differs and still saves (1.3).
+    func currentContentHash() -> Int {
+        var h = Hasher()
+        h.combine(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        h.combine(viewModel.selectedMood)
+        h.combine(entryTags)
+        h.combine(entryDate)
+        h.combine(entryFontChoiceRaw)
+        h.combine(viewModel.textStyleData)
+        h.combine(inlineStyleData)
+        h.combine(photoDataArray)
+        h.combine(voiceNoteData)
+        h.combine(voiceNoteTranscript)
+        h.combine(additionalVoiceNoteData)
+        h.combine(additionalVoiceNoteTranscripts)
+        return h.finalize()
+    }
+
     func saveAndDismiss() {
         guard !isTranscribingVoiceNotes else { return }
         if let entry {
@@ -17,9 +37,15 @@ extension WriteView {
                 dismiss()
                 return
             }
-            // Always persist edits to an existing entry — including an emptied one.
-            // Guarding on `hasDraftContent` silently reverted "select all, delete, save".
-            // The explicit way to remove an entry is the trash button (startDeleteWithUndo).
+            // Persist only when something actually changed — including an emptied
+            // entry, whose trimmed text differs from what loaded (1.3). Opening an
+            // entry just to read it no longer rewrites it or dirties its CloudKit
+            // record. The explicit delete path is the trash button.
+            guard currentContentHash() != loadedContentHash else {
+                dismiss()
+                DispatchQueue.main.async { onSaveComplete?() }
+                return
+            }
             update(entry)
             entry.createdAt = entryDate
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
