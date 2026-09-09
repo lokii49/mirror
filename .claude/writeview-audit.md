@@ -186,6 +186,21 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 
 ## Group 2 — Structural gaps vs. Notes (the "does it feel like Notes" items)
 
+> **STATUS — 2.1 done** (`c241eb5`, same branch). Chosen approach: **iPad `.popover` off the Aa
+> button + iPhone overlay above the keyboard** (full panel, not a compact bar). `textView.inputView`
+> hosting and all `becomeFirstResponder` forcing removed; `FormattingPanelView` gained a
+> `.sheet`/`.popover` presentation mode. Verified on iPhone 17 sim (panel opens over a live
+> keyboard, toolRow stays visible and usable, editor keeps its caret). **iPad popover: code-complete,
+> not yet hands-on verified** — `cliclick` couldn't drive the iPad sim reliably; the editor-blur
+> auto-close is guarded off for the popover case as a precaution.
+> Build green. 3 new user-facing strings (from Group 1) still need a catalog extraction pass.
+>
+> **2.2–2.5 not started.** 2.5 (panel height/Dynamic Type) is partly mooted — the overlay now
+> scrolls and the popover self-sizes — but the fixed `.system(size:)` / 44–50pt button frames
+> inside `FormattingPanelView` still ignore Dynamic Type; a `@ScaledMetric` pass is still owed.
+> The iPhone bar is the **existing toolRow** (undo/redo/Aa/photo/mic) — inline B/I/U still require
+> opening the panel; add them to the bar if that's wanted.
+
 ### 2.1 The Aa panel replaces the keyboard instead of floating over it
 `NoteEditorTextView.swift:2383` — `textView.inputView = panelUIView; textView.reloadInputViews()`.
 
