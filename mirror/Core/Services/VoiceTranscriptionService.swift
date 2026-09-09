@@ -1,6 +1,6 @@
 import Foundation
 import NaturalLanguage
-import Speech
+@preconcurrency import Speech
 
 struct VoiceTranscription: Codable {
     let transcript: String
@@ -39,7 +39,9 @@ enum VoiceTranscriptionService {
             request.shouldReportPartialResults = false
 
             do {
-                let transcript = try await recognize(request: request, recognizer: recognizer)
+                let transcript = try await withTimeout(seconds: 25) {
+                    try await recognize(request: request, recognizer: recognizer)
+                }
 
                 // Skip NL validation when the user explicitly chose this locale.
                 let isUserPreferred = preferred.map { $0.identifier == locale.identifier } ?? false
@@ -101,32 +103,76 @@ enum VoiceTranscriptionService {
         return locales
     }
 
+    /// Guards the continuation against the recognition callback firing more than
+    /// once (error then a late final result, etc.) and holds the task so a
+    /// cancellation or timeout can stop it.
+    private final class RecognitionBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var resumed = false
+        nonisolated(unsafe) var task: SFSpeechRecognitionTask?
+
+        /// Returns true exactly once — the caller that gets true owns the resume.
+        func claim() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if resumed { return false }
+            resumed = true
+            return true
+        }
+    }
+
     private static func recognize(
         request: SFSpeechURLRecognitionRequest,
         recognizer: SFSpeechRecognizer
     ) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            var didResume = false
-            var task: SFSpeechRecognitionTask?
-            task = recognizer.recognitionTask(with: request) { result, error in
-                if let error, !didResume {
-                    didResume = true
-                    task?.cancel()
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                guard let result, result.isFinal, !didResume else { return }
-                let transcript = result.bestTranscription.formattedString
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                didResume = true
-                task?.finish()
-                if transcript.isEmpty {
-                    continuation.resume(throwing: InsightError.emptyResponse)
-                } else {
-                    continuation.resume(returning: transcript)
+        let box = RecognitionBox()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                box.task = recognizer.recognitionTask(with: request) { result, error in
+                    if let error {
+                        if box.claim() {
+                            box.task?.cancel()
+                            continuation.resume(throwing: error)
+                        }
+                        return
+                    }
+                    guard let result, result.isFinal else { return }
+                    let transcript = result.bestTranscription.formattedString
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if box.claim() {
+                        box.task?.finish()
+                        if transcript.isEmpty {
+                            continuation.resume(throwing: InsightError.emptyResponse)
+                        } else {
+                            continuation.resume(returning: transcript)
+                        }
+                    }
                 }
             }
+        } onCancel: {
+            box.task?.cancel()
+        }
+    }
+
+    /// Bounds a recognition pass. Without this, a wedged SFSpeechRecognitionTask
+    /// that never delivers a final result or an error hangs the continuation
+    /// forever — and the Write screen's save button stays disabled the whole
+    /// time (`isTranscribingVoiceNotes`). On timeout the loop moves to the next
+    /// locale, or the call surfaces as a failed transcription with a Retry.
+    private static func withTimeout<T: Sendable>(
+        seconds: Double,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw InsightError.serviceUnavailable("Transcription timed out.")
+            }
+            guard let result = try await group.next() else {
+                throw InsightError.serviceUnavailable("Transcription timed out.")
+            }
+            group.cancelAll()
+            return result
         }
     }
 
