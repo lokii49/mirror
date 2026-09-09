@@ -19,9 +19,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var canUndo: Bool
     @Binding var canRedo: Bool
     // Per-entry, not global — owned by WriteView, mirrored into panelState so the
-    // formatting panel (hosted as this text view's inputView, a separate SwiftUI
-    // tree) can read/mutate it. Declaring it as a @Binding here is what makes
-    // SwiftUI re-invoke updateUIView when it changes.
+    // formatting panel (presented by WriteView, a separate SwiftUI tree) can
+    // read/mutate it. Declaring it as a @Binding here is what makes SwiftUI
+    // re-invoke updateUIView when it changes.
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
@@ -117,8 +117,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         var lastAppliedCommandRevision = 0
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
-        // formatting panel hosted in UITextView.inputView
-        private var formattingPanelHost: UIHostingController<AnyView>?
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
@@ -2357,39 +2355,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.panelState.activeHighlightIndex = highlightIndex
         }
 
-        // MARK: - Formatting panel (keyboard replacement)
+        // MARK: - Formatting panel
 
+        /// The panel is presented by WriteView — a popover off the Aa button on
+        /// iPad, an overlay above the live keyboard on iPhone — never as
+        /// `textView.inputView`, which replaced the keyboard so you couldn't type
+        /// or dictate while formatting. All this does now is sync the panel's
+        /// active-style highlights to the caret before it appears.
         func updateFormattingPanel(textView: UITextView, visible: Bool) {
             if visible {
-                // Refresh panel state to current cursor position before the panel renders
                 refreshActiveInlineStyles(in: textView)
-                // Create host controller once only. FormattingPanelState is @Observable so the
-                // existing view auto-updates — replacing rootView on every updateUIView call
-                // tears down the SwiftUI tree and drops in-flight button taps.
-                if formattingPanelHost == nil {
-                    let rootView = AnyView(
-                        FormattingPanelView(state: parent.panelState)
-                            .environment(\.appDisplayMode, parent.displayMode)
-                    )
-                    let hc = UIHostingController(rootView: rootView)
-                    hc.view.backgroundColor = .secondarySystemBackground
-                    formattingPanelHost = hc
-                }
-                let panelUIView = formattingPanelHost?.view
-                // +56 vs. the original 290 to fit the font-family row added above the
-                // paragraph-style row.
-                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
-                if panelUIView?.frame != newFrame { panelUIView?.frame = newFrame }
-                if textView.inputView !== panelUIView {
-                    textView.inputView = panelUIView
-                    textView.reloadInputViews()
-                    if !textView.isFirstResponder { textView.becomeFirstResponder() }
-                }
-            } else {
-                if textView.inputView != nil {
-                    textView.inputView = nil
-                    textView.reloadInputViews()
-                }
             }
         }
     }
