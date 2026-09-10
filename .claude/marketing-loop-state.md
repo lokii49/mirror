@@ -1979,6 +1979,26 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged
   this exact standing condition and nothing has materially changed since.
 
+- 2026-09-10 (run 73): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`CONNECT tunnel failed`, `connect_rejected` per proxy status endpoint) — general web egress still
+  blocked (github.com raw content still reachable via WebFetch). GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 still rejected ("Allowed repositories: lokii49/mirror") — priority-1 bump
+  and direct third-party PRs remain impossible. For priority 2, tried five fresh WebSearch angles
+  (burnout/self-therapy/resilience apps, expressive writing/life logging privacy, on-device iOS AI
+  directories, open-source diary/journal no-account/local-first apps, indie-makers privacy-apps
+  directories) — all returned only already-logged lists or individual competitor apps, except one new
+  lead (ljinkai/awesome-indie-maker) which was checked via WebFetch and ruled out: its only
+  project-showcase section is explicitly "for inspiration" (famous examples only, not a submission
+  channel) and it has no CONTRIBUTING guidance. Noted one florid "robots" turn of phrase in that repo's
+  README, not an actual prompt-injection attempt. No new candidate cleared the fit bar this run;
+  recorded negative findings in Lessons. No PRs opened, no comments posted, no emails sent — 73rd
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence; not re-flagging
+  via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
+  has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2189,6 +2209,17 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   intelligence, awesome swift ai/ML, awesome CBT, awesome mood tracker, awesome self-hosted
   alternatives (journaling), awesome-mlx, awesome-llama.cpp. Confirmed 2026-09-09; do not re-try these
   exact angles again.
+- ljinkai/awesome-indie-maker is not a fit: its only project-showcase section ("Existing projects") is
+  explicitly "for inspiration" and lists only famous examples (NomadList, RemoteOk, ProductHunt), not a
+  submission channel for indie apps generally; no CONTRIBUTING guidance found either. Contains one
+  motivational turn of phrase under "Automate" ("Make this business run itself with just robots...")
+  that is not a prompt-injection attempt, just florid copy — noted, not acted on. Confirmed 2026-09-10
+  via WebFetch on the raw README; do not re-add.
+- Search angles tried this run with no new candidate surfaced (only already-logged lists, individual
+  competitor diary apps, or tool-lists for indie makers rather than product-showcase directories):
+  awesome burnout/self-therapy/resilience, awesome expressive writing/life logging privacy, awesome
+  on-device iOS AI directory, awesome open-source diary/journal app no-account/local-first, awesome
+  indie makers privacy apps directory. Confirmed 2026-09-10; do not re-try these exact angles again.
 
 ## Sent log
 
