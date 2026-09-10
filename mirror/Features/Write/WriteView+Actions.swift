@@ -10,6 +10,26 @@ extension WriteView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
+    /// Fingerprint of everything a save would write for an existing entry. Used
+    /// to skip the write when the entry was only opened to read — the trimmed
+    /// text is compared, so an emptied entry still differs and still saves (1.3).
+    func currentContentHash() -> Int {
+        var h = Hasher()
+        h.combine(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        h.combine(viewModel.selectedMood)
+        h.combine(entryTags)
+        h.combine(entryDate)
+        h.combine(entryFontChoiceRaw)
+        h.combine(viewModel.textStyleData)
+        h.combine(inlineStyleData)
+        h.combine(photoDataArray)
+        h.combine(voiceNoteData)
+        h.combine(voiceNoteTranscript)
+        h.combine(additionalVoiceNoteData)
+        h.combine(additionalVoiceNoteTranscripts)
+        return h.finalize()
+    }
+
     func saveAndDismiss() {
         guard !isTranscribingVoiceNotes else { return }
         if let entry {
@@ -17,33 +37,40 @@ extension WriteView {
                 dismiss()
                 return
             }
-            if hasDraftContent {
-                update(entry)
-                entry.createdAt = entryDate
-                entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
-                entry.tags = entryTags
-                entry.fontChoice = entryFontChoiceRaw
-                entry.photoDataArray = photoDataArray
-                entry.voiceNoteData = voiceNoteData
-                entry.voiceNoteDuration = voiceNoteDuration
-                entry.voiceNoteTranscript = voiceNoteTranscript
-                entry.voiceNoteLanguageCode = voiceNoteLanguageCode
-                entry.voiceNoteLanguageName = voiceNoteLanguageName
-                entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
-                entry.additionalVoiceNoteData = additionalVoiceNoteData
-                entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
-                entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
-                entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
-                entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
-                entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
-                entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
-                autoDetectMoodIfNeeded(for: entry)
-                // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
-                let ctx = modelContext
-                Task { @MainActor in
-                    try? ctx.save()
-                    await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
-                }
+            // Persist only when something actually changed — including an emptied
+            // entry, whose trimmed text differs from what loaded (1.3). Opening an
+            // entry just to read it no longer rewrites it or dirties its CloudKit
+            // record. The explicit delete path is the trash button.
+            guard currentContentHash() != loadedContentHash else {
+                dismiss()
+                DispatchQueue.main.async { onSaveComplete?() }
+                return
+            }
+            update(entry)
+            entry.createdAt = entryDate
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
+            entry.tags = entryTags
+            entry.fontChoice = entryFontChoiceRaw
+            entry.photoDataArray = photoDataArray
+            entry.voiceNoteData = voiceNoteData
+            entry.voiceNoteDuration = voiceNoteDuration
+            entry.voiceNoteTranscript = voiceNoteTranscript
+            entry.voiceNoteLanguageCode = voiceNoteLanguageCode
+            entry.voiceNoteLanguageName = voiceNoteLanguageName
+            entry.voiceNoteEnglishTranslation = voiceNoteEnglishTranslation
+            entry.additionalVoiceNoteData = additionalVoiceNoteData
+            entry.additionalVoiceNoteDurations = additionalVoiceNoteDurations
+            entry.additionalVoiceNoteTranscripts = additionalVoiceNoteTranscripts
+            entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
+            entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
+            entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
+            entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
+            autoDetectMoodIfNeeded(for: entry)
+            // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
+            let ctx = modelContext
+            Task { @MainActor in
+                try? ctx.save()
+                await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
             }
         } else {
             if hasDraftContent {
@@ -151,7 +178,7 @@ extension WriteView {
         additionalVoiceNoteLanguageCodes = []
         additionalVoiceNoteLanguageNames = []
         additionalVoiceNoteEnglishTranslations = []
-        transcribingVoiceNoteIndexes = []
+        cancelAllTranscriptions()
     }
 
     func update(_ entry: Entry) {
@@ -243,7 +270,45 @@ extension WriteView {
     static let draftMoodKey = "mirror.writeDraft.mood"
     static let draftTagsKey = "mirror.writeDraft.tags"
 
+    /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
+    /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
+    /// array each call, so writing synchronously per character is real input
+    /// latency. Coalesce to one write ~1s after typing stops; background and
+    /// mood changes still flush immediately.
+    func scheduleDraftSave() {
+        guard entry == nil else { return }
+        draftSaveTask?.cancel()
+        draftSaveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            saveDraftToStorage()
+            draftSaveTask = nil
+        }
+    }
+
+    func flushDraftSave() {
+        guard entry == nil else { return }
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+        saveDraftToStorage()
+    }
+
+    /// Drop any pending debounced write without saving — used by the clear /
+    /// discard / delete paths so a straggler can't resurrect a cleared draft.
+    func cancelDraftSave() {
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+    }
+
     func saveDraftToStorage() {
+        guard entry == nil else { return }
+        // A debounced write can land just after clearDraft() emptied everything
+        // (the empty-text onChange schedules one more pass). Don't leave a blank
+        // ciphertext blob behind that restoreDraftFromStorage would rehydrate.
+        guard hasDraftContent || !entryTags.isEmpty || viewModel.selectedMood != nil else {
+            clearDraftStorage()
+            return
+        }
         let ud = UserDefaults.standard
         ud.set(MirrorEncryption.encryptString(viewModel.text), forKey: Self.draftTextKey)
         ud.set(viewModel.textStyleData, forKey: Self.draftTextStyleKey)
@@ -253,7 +318,49 @@ extension WriteView {
         ud.set(try? JSONEncoder().encode(encryptedTags), forKey: Self.draftTagsKey)
     }
 
+    /// Voice-note / photo blobs for a new-entry draft. Kept out of
+    /// saveDraftToStorage (which runs on the debounced text path) — attachments
+    /// change rarely and a voice note can be megabytes.
+    func saveDraftAttachments() {
+        guard entry == nil else { return }
+        let notes = draftVoiceNotes.map {
+            DraftAttachmentStore.VoiceNote(
+                data: $0.data,
+                duration: $0.duration,
+                transcript: $0.transcript,
+                languageCode: nil,
+                languageName: $0.languageName,
+                englishTranslation: $0.englishTranslation
+            )
+        }
+        DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
+    }
+
+    func restoreDraftAttachments() {
+        guard entry == nil, let restored = DraftAttachmentStore.load() else { return }
+        if photoDataArray.isEmpty, !restored.photos.isEmpty {
+            photoDataArray = restored.photos
+        }
+        guard voiceNoteData == nil, additionalVoiceNoteData.isEmpty,
+              let first = restored.voiceNotes.first else { return }
+        voiceNoteData = first.data
+        voiceNoteDuration = first.duration
+        voiceNoteTranscript = first.transcript
+        voiceNoteLanguageCode = first.languageCode
+        voiceNoteLanguageName = first.languageName
+        voiceNoteEnglishTranslation = first.englishTranslation
+        for note in restored.voiceNotes.dropFirst() {
+            additionalVoiceNoteData.append(note.data)
+            additionalVoiceNoteDurations.append(note.duration)
+            additionalVoiceNoteTranscripts.append(note.transcript ?? "")
+            additionalVoiceNoteLanguageCodes.append(note.languageCode ?? "")
+            additionalVoiceNoteLanguageNames.append(note.languageName ?? "")
+            additionalVoiceNoteEnglishTranslations.append(note.englishTranslation ?? "")
+        }
+    }
+
     func restoreDraftFromStorage() {
+        restoreDraftAttachments()
         let ud = UserDefaults.standard
         let saved = ud.string(forKey: Self.draftTextKey) ?? ""
         guard !saved.isEmpty else { return }
@@ -273,6 +380,8 @@ extension WriteView {
     }
 
     func clearDraftStorage() {
+        cancelDraftSave()
+        DraftAttachmentStore.clear()
         let ud = UserDefaults.standard
         ud.removeObject(forKey: Self.draftTextKey)
         ud.removeObject(forKey: Self.draftTextStyleKey)

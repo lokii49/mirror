@@ -288,6 +288,17 @@ extension WriteView {
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
+    var iconForVoiceButton: String {
+        if isRecordingInline { return "stop.circle.fill" }
+        return draftVoiceNotes.isEmpty ? "mic" : "waveform.circle.fill"
+    }
+
+    var voiceButtonAccessibilityLabel: String {
+        if isRecordingInline { return String(localized: "Stop recording") }
+        if isTranscribingVoiceNotes { return String(localized: "Transcribing voice note") }
+        return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
+    }
+
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -428,10 +439,20 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
-                // Formatting panel
+                // Formatting panel — popover off this button on iPad, overlay
+                // above the keyboard on iPhone (see WriteView.safeAreaInset).
                 FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showFormattingPanel.toggle()
+                }
+                .popover(isPresented: Binding(
+                    get: { showFormattingPanel && usesPopoverPanel },
+                    set: { if !$0 { showFormattingPanel = false } }
+                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
+                    FormattingPanelView(state: panelState, presentation: .popover)
+                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
+                        .presentationCompactAdaptation(.popover)
+                        .environment(\.appDisplayMode, displayMode)
                 }
 
                 Spacer(minLength: 0)
@@ -507,13 +528,16 @@ extension WriteView {
                 .menuStyle(.button)
                 .buttonStyle(.plain)
 
-                // Voice button
+                // Voice button — records inline; keyboard and caret stay put.
                 Button {
-                    presentVoiceNoteSheet()
+                    toggleInlineRecording()
                 } label: {
-                    Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
+                    Image(systemName: iconForVoiceButton)
                         .font(.system(size: 20))
-                        .foregroundStyle(!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                        .foregroundStyle(
+                            isRecordingInline ? Color.red
+                                : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                        )
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
                             if isTranscribingVoiceNotes {
@@ -537,9 +561,10 @@ extension WriteView {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isTranscribingVoiceNotes ? "Transcribing voice note" : (!draftVoiceNotes.isEmpty ? "Voice notes" : "Add voice note"))
+                .accessibilityLabel(voiceButtonAccessibilityLabel)
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
+            .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
         .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))

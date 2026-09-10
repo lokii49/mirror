@@ -354,7 +354,7 @@ struct ContentView: View {
     }
 }
 
-// Write tab wraps WriteView in a NavigationStack so it can push VoiceInputSheet
+// Write tab wraps WriteView in a NavigationStack for its toolbar + sheets.
 private struct WriteTabView: View {
     var onSave: (() -> Void)? = nil
 
