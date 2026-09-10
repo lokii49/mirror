@@ -19,9 +19,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var canUndo: Bool
     @Binding var canRedo: Bool
     // Per-entry, not global — owned by WriteView, mirrored into panelState so the
-    // formatting panel (hosted as this text view's inputView, a separate SwiftUI
-    // tree) can read/mutate it. Declaring it as a @Binding here is what makes
-    // SwiftUI re-invoke updateUIView when it changes.
+    // formatting panel (presented by WriteView, a separate SwiftUI tree) can
+    // read/mutate it. Declaring it as a @Binding here is what makes SwiftUI
+    // re-invoke updateUIView when it changes.
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
@@ -33,8 +33,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isEditable = true
         textView.isSelectable = true
-        textView.alwaysBounceVertical = true
-        textView.keyboardDismissMode = .interactive
+        // The editor doesn't scroll itself — it lives in WriteView's ScrollView and
+        // grows to fit its content (see sizeThatFits). A non-scrolling text view
+        // can't keep the caret above the keyboard, so scrollCaretToVisible nudges
+        // the enclosing scroll view instead.
+        textView.isScrollEnabled = false
+        textView.alwaysBounceVertical = false
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 24, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         textView.adjustsFontForContentSizeCategory = true
@@ -93,6 +97,17 @@ struct NoteEditorTextView: UIViewRepresentable {
         context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
     }
 
+    /// The editor grows to fit its text — it doesn't scroll (WriteView's
+    /// ScrollView does). Never reports shorter than this so an empty note still
+    /// has a comfortable tap target.
+    private static let minEditorHeight: CGFloat = 240
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0, width != .infinity else { return nil }
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(fitting.height.rounded(.up), Self.minEditorHeight))
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
@@ -117,8 +132,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         var lastAppliedCommandRevision = 0
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
-        // formatting panel hosted in UITextView.inputView
-        private var formattingPanelHost: UIHostingController<AnyView>?
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
@@ -301,6 +314,25 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
             parent.canUndo = textView.undoManager?.canUndo ?? false
             parent.canRedo = textView.undoManager?.canRedo ?? false
+            scrollCaretToVisible(in: textView)
+        }
+
+        /// The text view doesn't scroll (WriteView's ScrollView owns scrolling), so
+        /// keep the caret above the keyboard by nudging the enclosing scroll view.
+        /// A no-op when the caret rect is already fully visible.
+        private func scrollCaretToVisible(in textView: UITextView) {
+            guard let selection = textView.selectedTextRange else { return }
+            let caret = textView.caretRect(for: selection.end)
+            guard !caret.isNull, caret.origin.y.isFinite, caret.height.isFinite else { return }
+
+            var ancestor = textView.superview
+            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+            guard let scrollView = ancestor as? UIScrollView else { return }
+
+            let target = textView.convert(caret, to: scrollView).insetBy(dx: 0, dy: -48)
+            DispatchQueue.main.async {
+                scrollView.scrollRectToVisible(target, animated: true)
+            }
         }
 
         func textView(
@@ -575,6 +607,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
+            scrollCaretToVisible(in: textView)
         }
 
         // Moves cursor to after the list marker when it lands inside the glyph prefix.
@@ -2357,39 +2390,50 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.panelState.activeHighlightIndex = highlightIndex
         }
 
-        // MARK: - Formatting panel (keyboard replacement)
+        // MARK: - Formatting panel
 
+        private var formattingPanelHost: UIHostingController<AnyView>?
+
+        /// iPad presents the panel as a SwiftUI `.popover` off the Aa button, so
+        /// the keyboard is never touched. iPhone swaps the panel in as the text
+        /// view's `inputView`: the keyboard is visually replaced but the text
+        /// view keeps first responder, so the selection survives and typing
+        /// resumes the moment the panel closes — the Apple Notes model. (A panel
+        /// stacked above a live keyboard leaves no room for the editor on a phone.)
         func updateFormattingPanel(textView: UITextView, visible: Bool) {
-            if visible {
-                // Refresh panel state to current cursor position before the panel renders
-                refreshActiveInlineStyles(in: textView)
-                // Create host controller once only. FormattingPanelState is @Observable so the
-                // existing view auto-updates — replacing rootView on every updateUIView call
-                // tears down the SwiftUI tree and drops in-flight button taps.
-                if formattingPanelHost == nil {
-                    let rootView = AnyView(
-                        FormattingPanelView(state: parent.panelState)
-                            .environment(\.appDisplayMode, parent.displayMode)
-                    )
-                    let hc = UIHostingController(rootView: rootView)
-                    hc.view.backgroundColor = .secondarySystemBackground
-                    formattingPanelHost = hc
-                }
-                let panelUIView = formattingPanelHost?.view
-                // +56 vs. the original 290 to fit the font-family row added above the
-                // paragraph-style row.
-                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
-                if panelUIView?.frame != newFrame { panelUIView?.frame = newFrame }
-                if textView.inputView !== panelUIView {
-                    textView.inputView = panelUIView
-                    textView.reloadInputViews()
-                    if !textView.isFirstResponder { textView.becomeFirstResponder() }
-                }
-            } else {
+            let usesInputView = UIDevice.current.userInterfaceIdiom == .phone
+
+            guard usesInputView else {
                 if textView.inputView != nil {
                     textView.inputView = nil
                     textView.reloadInputViews()
                 }
+                if visible { refreshActiveInlineStyles(in: textView) }
+                return
+            }
+
+            if visible {
+                refreshActiveInlineStyles(in: textView)
+                if formattingPanelHost == nil {
+                    let hc = UIHostingController(rootView: AnyView(
+                        FormattingPanelView(state: parent.panelState, presentation: .sheet)
+                            .environment(\.appDisplayMode, parent.displayMode)
+                    ))
+                    hc.view.backgroundColor = .clear
+                    formattingPanelHost = hc
+                }
+                if let panel = formattingPanelHost?.view {
+                    let frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
+                    if panel.frame != frame { panel.frame = frame }
+                    if textView.inputView !== panel {
+                        textView.inputView = panel
+                        textView.reloadInputViews()
+                        if !textView.isFirstResponder { textView.becomeFirstResponder() }
+                    }
+                }
+            } else if textView.inputView != nil {
+                textView.inputView = nil
+                textView.reloadInputViews()
             }
         }
     }
