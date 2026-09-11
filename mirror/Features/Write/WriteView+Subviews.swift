@@ -324,7 +324,9 @@ extension WriteView {
                         .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                 }
                 .buttonStyle(.plain)
-                .disabled(isTranscribingVoiceNotes)
+                // Save anyway while a voice note is still transcribing (1.4) —
+                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
+                // off to write straight into the saved entry once it finishes.
                 .accessibilityLabel("Save entry")
             }
         } else {
@@ -359,7 +361,10 @@ extension WriteView {
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(!hasDraftContent || isTranscribingVoiceNotes)
+                // Save anyway while a voice note is still transcribing (1.4) —
+                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
+                // off to write straight into the saved entry once it finishes.
+                .disabled(!hasDraftContent)
                 .accessibilityLabel("Save entry")
             }
         }

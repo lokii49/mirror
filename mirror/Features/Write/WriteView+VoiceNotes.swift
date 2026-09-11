@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UIKit
 
 extension WriteView {
@@ -109,6 +110,85 @@ extension WriteView {
         // Not re-persisting the draft here: a transcript completion would rewrite
         // every (multi-MB) audio blob. The draft keeps the audio; a restored
         // draft re-decodes anything still missing a transcript.
+    }
+
+    // MARK: - Save anyway while transcribing (1.4)
+
+    /// "Save anyway" while a voice note is still transcribing: the in-flight
+    /// pass writes into `applyTranscription(_:toVoiceNoteAt:)`, which targets
+    /// this view's own `@State` — but the view is about to dismiss (existing
+    /// entry) or reset for a fresh draft (new entry), so that write would
+    /// land nowhere anyone reads, or worse, land on whatever a *new* draft's
+    /// note ends up at the same index (same corruption class as 1.1/1.5).
+    /// Cancels the `@State`-bound tasks and restarts the transcription from
+    /// scratch as self-contained tasks that capture `savedEntry` + `context`
+    /// directly, independent of anything this view does next — not a
+    /// hand-off of the in-flight pass itself, which is discarded.
+    /// `VoiceTranscriptionService` serializes passes behind its own
+    /// semaphore, so this costs at most one extra ~25s-capped pass.
+    func continueTranscriptionAfterSaveAnyway(for savedEntry: Entry, in context: ModelContext) {
+        for index in transcribingVoiceNoteIndexes {
+            guard draftVoiceNotes.indices.contains(index) else { continue }
+            let data = draftVoiceNotes[index].data
+            transcriptionTasks[index]?.cancel()
+            let preferred = transcriptionLanguage.isEmpty ? nil : transcriptionLanguage
+            Task {
+                do {
+                    let result = try await VoiceTranscriptionService.transcribe(audioData: data, preferredLocaleId: preferred)
+                    await MainActor.run {
+                        WriteView.applyTranscription(result, to: savedEntry, atIndex: index)
+                        try? context.save()
+                    }
+                } catch {
+                    await MainActor.run {
+                        if index == 0, savedEntry.voiceNoteData != nil {
+                            savedEntry.voiceNoteTranscriptionFailed = true
+                            try? context.save()
+                        }
+                        // Additional-note failure isn't a stored flag (matches the
+                        // live path) — markPendingNotesForRetry() infers it from an
+                        // empty transcript + present audio the next time this
+                        // entry is opened.
+                    }
+                }
+            }
+        }
+        // These tasks are now self-contained — stop tracking them against
+        // this view's state so a fresh draft starts with a clean slate.
+        transcribingVoiceNoteIndexes.removeAll()
+        transcriptionTasks.removeAll()
+        failedTranscriptionIndexes.removeAll()
+    }
+
+    /// `applyTranscription(_:toVoiceNoteAt:)`'s counterpart for a note whose
+    /// transcription outlived this view — writes straight to the persisted
+    /// `Entry` instead of `@State`. `static` (reads no `self`): keeps the
+    /// detached `Task` above from implicitly capturing the view, and makes
+    /// the index arithmetic unit-testable without a mic or a live `WriteView`.
+    static func applyTranscription(_ transcription: VoiceTranscription, to entry: Entry, atIndex index: Int) {
+        if index == 0 {
+            guard entry.voiceNoteData != nil else { return }
+            entry.voiceNoteTranscript = transcription.transcript
+            entry.voiceNoteLanguageCode = transcription.languageCode
+            entry.voiceNoteLanguageName = transcription.languageName
+            entry.voiceNoteEnglishTranslation = transcription.englishTranslation
+            entry.voiceNoteTranscriptionFailed = false
+        } else {
+            let additionalIndex = index - 1
+            var transcripts = entry.additionalVoiceNoteTranscripts
+            var codes = entry.additionalVoiceNoteLanguageCodes
+            var names = entry.additionalVoiceNoteLanguageNames
+            var translations = entry.additionalVoiceNoteEnglishTranslations
+            guard transcripts.indices.contains(additionalIndex) else { return }
+            transcripts[additionalIndex] = transcription.transcript
+            if codes.indices.contains(additionalIndex) { codes[additionalIndex] = transcription.languageCode }
+            if names.indices.contains(additionalIndex) { names[additionalIndex] = transcription.languageName }
+            if translations.indices.contains(additionalIndex) { translations[additionalIndex] = transcription.englishTranslation }
+            entry.additionalVoiceNoteTranscripts = transcripts
+            entry.additionalVoiceNoteLanguageCodes = codes
+            entry.additionalVoiceNoteLanguageNames = names
+            entry.additionalVoiceNoteEnglishTranslations = translations
+        }
     }
 
     func removeVoiceNote(at index: Int) {
