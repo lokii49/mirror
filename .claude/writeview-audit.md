@@ -456,6 +456,74 @@ Fix: surface partial results as progress; cap total locales tried; distinguish "
 model for this language" from "recognition failed" in the error shown on the attachment row.
 Effort: M. Sentinel parity: "DECODE FAILED" / "Transcription failed" copy exists for both.
 
+> **STATUS — locale cap + error distinction fixed on `2.1.1`; partial-results progress
+> explicitly deferred.** Two of the three `Fix:` items landed; the third needs a UI-shape
+> decision (a progress bar? a streaming preview of the transcript-so-far? something else) this
+> pass didn't make — flagged, not silently dropped.
+>
+> **Distinguishing "no offline model" from "recognition failed", the headline ask**: added
+> `VoiceTranscriptionError` (`VoiceTranscriptionService.swift`) — 4 cases
+> (`permissionDenied`/`noOfflineModelAvailable`/`timedOut`/`recognitionFailed`), each with real
+> `errorDescription` copy. This mattered more than the audit item implied: every failure
+> already threw `InsightError.serviceUnavailable(String)`, but `InsightError.errorDescription`
+> **ignores that associated string** and always returns its own fixed, Insight-flavored text
+> ("...Mirror will try again tonight while your phone charges" — meaningless for voice), and
+> nothing ever unwrapped the enum to read the string directly either — so every distinct
+> failure reason was being discarded twice over, not shown with the wrong specificity.
+> `WriteView`/`WriteView+VoiceNotes.swift`/`WriteView.swift` gained a parallel
+> `transcriptionFailureMessages: [Int: String]` alongside the existing `failedTranscriptionIndexes: Set<Int>`
+> (kept in sync at every insert/remove/removeAll site), threaded into
+> `VoiceNoteAttachmentView`'s new `transcriptionFailureMessage` param, which now composes the
+> attachment row's failure line from the real reason instead of a single fixed string — falling
+> back to the old generic copy when there's no real error to report (e.g. a failure inferred on
+> reopening a saved entry, which only ever sees "audio present, transcript missing," never *why*).
+>
+> **Classification priority, corrected by advisor before commit**: the naive version classified
+> whatever `lastError` happened to hold when the locale loop exhausted. The common real case —
+> one locale's on-device model decodes the audio fine, but the NL-based language re-validation
+> rejects it as the wrong language, then every other candidate locale gets skipped for having no
+> downloaded model — never throws a catchable error at all (`continue`, not `catch`), so
+> `lastError` stays whatever an *earlier, unrelated* locale's attempt threw (or `nil`), and the
+> naive version would show a stale or generic message instead of the true "no model for this
+> language" reason. Fixed by tracking `nlRejectedAny` separately and preferring
+> `.noOfflineModelAvailable` over both a stale `lastError` and the generic `.recognitionFailed`
+> when rejection-by-language is the only thing that actually happened.
+>
+> **Cancellation, second advisor catch**: `VoiceTranscriptionError.classify(_:)` maps any
+> non-`VoiceTranscriptionError` (a raw `SFSpeechRecognizer` `NSError`, a `CancellationError`)
+> to `.recognitionFailed` so nothing unreadable reaches the UI — correct for a real failure, but
+> a task cancelled out from under a recognition pass (delete, or the 1.4 save-anyway handoff)
+> would classify the same way and write "Transcription failed." for what wasn't a failure at
+> all. `transcribeVoiceNote`'s catch already guarded `if Task.isCancelled`; added `|| error is
+> CancellationError` as belt-and-suspenders in case that flag and the thrown error type were
+> ever to disagree at that exact point — cheap, can't hurt, directly closes the gap either way.
+>
+> **Locale cap**: added `maxLocalesAttempted = 6` — `localeList()` can offer ~28 candidates, but
+> only ones with a *downloaded* on-device model reach an actual recognition pass
+> (`supportsOnDeviceRecognition`), so this was already bounded in practice by how many models a
+> given device happens to have, just not by anything explicit. Six passes (~4.5min worst case
+> at the existing 45s/pass timeout) is a real, stated ceiling instead of "whatever the device
+> happens to carry."
+>
+> **NL-validation brittleness** (the third bullet — `count >= 20` exemption, silent `continue`
+> on disagreement) — read but not touched. It's characterized as "brittle," not broken, and
+> changing a heuristic threshold without data on how often it actually misfires would be
+> guessing; left as documented, not silently dropped.
+>
+> **Partial-results progress — deferred, not attempted.** This is a real UI-shape decision (a
+> progress bar reading pass N of 6? a live-updating transcript preview via
+> `shouldReportPartialResults = true`, which changes `recognize()`'s continuation-based
+> single-result design into a streaming one?) that wasn't this pass's call to make alone.
+> Noted here so it isn't silently dropped from the audit; picking a direction needs a decision,
+> not more code.
+>
+> Verified: `xcodebuild build` green, `build-for-testing` green, `mirrorTests` 195/195 (192
+> prior + 3 new `VoiceTranscriptionErrorTests`, covering `classify(_:)`'s pass-through/fallback
+> behavior and that every case has a distinct, non-empty description). **Not** verified: the
+> locale-loop classification logic itself (`nlRejectedAny`, the cap, the cancellation guard) —
+> exercising that needs real `SFSpeechRecognizer` behavior across multiple locales, which isn't
+> mockable in this test target. Reasoned through and reviewed, not exercised by a test.
+
 ### 2.5 Formatting panel height is a hardcoded 346pt
 `NoteEditorTextView.swift:2381` — `CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)`.
 (Now `height: 360` after the STATUS block below — line numbers have also shifted.)

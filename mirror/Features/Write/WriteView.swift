@@ -82,6 +82,13 @@ struct WriteView: View {
     @State var additionalVoiceNoteEnglishTranslations: [String] = []
     @State var transcribingVoiceNoteIndexes: Set<Int> = []
     @State var failedTranscriptionIndexes: Set<Int> = []
+    /// Why each index in `failedTranscriptionIndexes` failed — e.g. "This
+    /// language isn't available for offline transcription on this device."
+    /// vs. a generic "Transcription failed." Absent for an index means either
+    /// it hasn't failed, or it was inferred as failed on reopen
+    /// (`markPendingNotesForRetry()`) with no real error to report — falls
+    /// back to the existing generic copy in that case (audit 2.4).
+    @State var transcriptionFailureMessages: [Int: String] = [:]
     @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
@@ -173,6 +180,7 @@ struct WriteView: View {
                                     languageName: note.languageName,
                                     isTranscribing: transcribingVoiceNoteIndexes.contains(index),
                                     transcriptionFailed: failedTranscriptionIndexes.contains(index),
+                                    transcriptionFailureMessage: transcriptionFailureMessages[index],
                                     onDelete: { removeVoiceNote(at: index) },
                                     onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
                                 )
