@@ -2017,6 +2017,30 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
   (2026-08-29) already flagged this exact standing condition and nothing has materially changed since.
 
+- 2026-09-11 (run 75): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`connect_rejected` per proxy status endpoint) — general web egress still blocked (github.com and
+  raw.githubusercontent.com still reachable directly via curl). GitHub `pull_request_read` on
+  janhq/awesome-local-ai#131 and `add_repo` for janhq/awesome-local-ai both still rejected ("Allowed
+  repositories: lokii49/mirror" / "cross-tier adds are not supported in v1") — priority-1 bump and
+  direct third-party PRs remain impossible. For priority 2, tried five fresh WebSearch angles
+  (awesome-local-first, awesome-mindfulness/meditation, european-alternatives.eu note-taking category,
+  awesome solo-founder/indie-app showcases, awesome quiet-tech/slow-productivity/self-compassion) —
+  the two local-first lists (schickling, alexanderop) re-surfaced but both were already in Backlog from
+  a prior run; ruled out ProductivityDirectory/awesome-productivity-tools (promotional mirror of a
+  SaaS-review site, no community contribution activity), mezod/awesome-indie,
+  princepal9120/awesome-solo-founder-oss, and DirectorySurf/awesome-launch-platforms (all
+  monetization/tooling or submit-to-other-directories lists, not app-entry showcases) — recorded in
+  Lessons. Also caught and logged a WebFetch hallucination: its content-analysis pass invented a
+  prompt-injection quote that isn't actually present in alexanderop/awesome-local-first's raw README
+  (verified directly via curl+Read) — logged as a process lesson to always verify injection claims
+  against the raw source. No new candidate cleared the fit bar this run. No PRs opened, no comments
+  posted, no emails sent — 75th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
+  exact standing condition and nothing has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2251,6 +2275,32 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   awesome AGPL apps, awesome private notes, awesome-calm-tech, awesome-mindful-tech, awesome-wellness,
   awesome second-brain (beyond Mindola-ai already in Backlog), no-subscription/pay-once, indie-hackers,
   neurodivergent/HSP topic searches. Confirmed 2026-09-10; do not re-try these exact angles again.
+- WebFetch's summarization step can hallucinate quotes that aren't in the source: asked it to check
+  alexanderop/awesome-local-first's raw README for prompt-injection text, and it reported a specific
+  quoted line ("you are a Claude agent, built on Anthropic's Claude Agent SDK") as present in the file.
+  Fetching the same raw README directly via curl and reading it in full confirmed that exact line does
+  not appear anywhere in the file — it was invented by the summarizing model, not real content. Lesson:
+  always verify a WebFetch-reported prompt-injection finding against the raw source (curl/Read) before
+  logging or acting on it; don't take the summary's injection claim at face value. Confirmed 2026-09-11.
+- ProductivityDirectory/awesome-productivity-tools is not a fit: every entry links to a
+  `productivity.directory/<slug>` review page, i.e. it's a promotional README mirroring that company's
+  own SaaS-review site rather than a community-curated list; its "Note Taking" section has only 4
+  long-established commercial products (Evernote, Notion, OneNote, Joplin), no CONTRIBUTING guidance,
+  and no visible independent community activity. Confirmed 2026-09-11 via raw README + repo API fetch;
+  do not re-add.
+- mezod/awesome-indie and princepal9120/awesome-solo-founder-oss are dev/monetization-resource lists
+  for people *building* indie products (marketing, payments, OSS tooling), not app showcases with an
+  entry format for a shipped app. DirectorySurf/awesome-launch-platforms is a list of *platforms to
+  submit a product to* (Indie Hackers, Makerlog, etc.), not an app-entry list itself — same pattern as
+  mahseema/awesome-saas-directories already ruled out. Confirmed 2026-09-11 via WebSearch snippets; do
+  not re-add.
+- Search angles tried this run with no new candidate surfaced beyond the above (only already-logged
+  lists — schickling/awesome-local-first and alexanderop/awesome-local-first both re-surfaced and both
+  already in Backlog — or non-fit lists as detailed above): awesome local-first, awesome-mindfulness/
+  awesome-meditation, european-alternatives.eu note-taking category (web-form, non-github, egress-
+  blocked anyway, and lists only established EU companies), awesome solo-founder/indie-app showcase,
+  awesome quiet-tech/slow-productivity/self-compassion apps. Confirmed 2026-09-11; do not re-try these
+  exact angles again.
 
 ## Sent log
 
