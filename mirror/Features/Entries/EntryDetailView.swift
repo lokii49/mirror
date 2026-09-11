@@ -416,6 +416,12 @@ private struct InlineEntryContent: View {
         } else if style == .monospaced {
             Text(displayLine)
                 .font(.system(size: 16, weight: .regular, design: .monospaced))
+        } else if style == .blockQuote {
+            Text(displayLine)
+                .font(.system(.body, design: writingFontDesign(at: index)))
+                .foregroundStyle(.secondary)
+                .lineSpacing(6)
+                .padding(.leading, 16)
         } else if style == .checklistUnchecked || style == .checklistChecked {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")

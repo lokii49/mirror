@@ -128,6 +128,7 @@ struct FormattingPanelView: View {
                     paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
                     paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
                     paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
+                    paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular).italic())
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 2)
@@ -418,6 +419,7 @@ struct FormattingPanelView: View {
         case .subheading: return .subheading
         case .body:       return .body
         case .monospaced: return .monospaced
+        case .blockQuote: return .blockQuote
         default:          return .body
         }
     }

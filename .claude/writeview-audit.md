@@ -31,6 +31,43 @@ A journaling app does not need most of what Notes' editor carries. Explicitly ou
 - **Inline link** (URL on selected text) — Notes supports it; low effort, occasionally wanted.
 - Everything else below is about making the editor we already have behave correctly.
 
+> **STATUS — Block quote shipped on `2.1.1`; inline link scoped and deferred, not attempted.**
+>
+> **Block quote**: added `.blockQuote` to `NoteParagraphTextStyle` and `NoteTextCommand`,
+> `NoteEditorTextView.attributes(for:)` (16pt head/first-line indent, `UIColor.secondaryLabel`,
+> body font — deliberately **not** italic: baking italic into the paragraph style's own font
+> would fight the Italic inline toggle, which reads/writes `.traitItalic` on the rendered font
+> directly via `applyInlineStyles`/`isStyleApplied` — a quoted paragraph would make the "I"
+> button read as falsely active, and toggling it off would silently strip the quote's font
+> trait), the Return-key single-block-reset condition, and `paragraphStyle(for command:)`. New
+> "Quote" button added to the Aa panel's Row 1 (already horizontal-scrolling from the 2.5 fix).
+> `staticListMarkerPrefix` correctly falls through its `default: nil` — no list marker.
+>
+> Also fixed a parity gap the first pass missed: `EntryDetailView.styledText(for:at:)` — the
+> **read-only** entry view, which has its own if/else style→font mapping rather than reusing the
+> editor's — had no `.blockQuote` branch, so a quoted paragraph would render correctly while
+> typing but silently lose its styling (fall through to plain body) the moment the entry was
+> reopened for reading. Added a matching branch there (secondary color + 16pt leading padding,
+> same non-italic treatment). `SampleData.swift`'s `NoteParagraphTextStyle` usages are literal
+> arrays, not exhaustive switches — nothing to add there.
+>
+> Verified: `xcodebuild build` green, `xcodebuild build-for-testing` green, `mirrorTests`
+> 205/205 (was 199/199 before this item). Added `blockQuoteIsMutedAndIndentedButNotItalic`,
+> `blockQuoteRoundTripsThroughEncodedTextStyleData` (Codable-level — the interactive
+> `apply(.blockQuote, ...)` toolbar path needs `textView.isFirstResponder`, which this file's
+> headless harness cannot simulate, per its own documented scope), and added `.blockQuote` to
+> the existing `titleHeadingSubheadingHaveNoMarker` and
+> `headingSubheadingTitleMonoResetTypingToBodyOnReturn` loops. Not verified on-device or via
+> UI test (environment instability this session — see 2.3's STATUS block).
+>
+> **Inline link — scoped, explicitly deferred, not started.** Not actually "low effort" as
+> originally guessed: needs (1) a URL-entry UI on a text selection (prompt/alert/sheet — no
+> existing pattern in this codebase to reuse), (2) new persisted storage — `InlineStyleRange`
+> today only carries bold/italic/underline/strikethrough/highlightIndex, so a link is a stored-
+> format change, not an additive enum case like block quote was, and (3) tap handling that
+> doesn't collide with the checklist marker's existing tap gesture (`handleTap`/`FakeTap` in
+> `FormattingCombinationTests.swift`). Left for a dedicated follow-up.
+
 ---
 
 ## Group 1 — Data loss & correctness (fix first)
@@ -689,6 +726,24 @@ response.
 Fix: once the panel is a keyboard accessory / popover (2.1) rather than a swapped `inputView`,
 the teardown race goes away and these can likely become synchronous. Re-evaluate then.
 Effort: folded into 2.1. Sentinel parity: N/A.
+
+> **STATUS — checked, still genuinely blocked. Not attempted.** This item's own fix note
+> premises on 2.1 having changed *how the iPhone panel is presented* — but re-reading 2.1's
+> actual STATUS block and the current code: 2.1 gave **iPad** a `.popover` (`usesPopoverPanel`,
+> `WriteView.swift:35`); iPhone still swaps the formatting panel in as `textView.inputView`
+> (`usesInputView`, `NoteEditorTextView.swift:2432`, unchanged). The teardown race the
+> `DispatchQueue.main.async` hop guards against — the panel host being torn down and rebuilt
+> mid-tap — is still real on iPhone, which is the device this async hop actually matters for.
+>
+> Making these synchronous now, without first re-architecting the iPhone panel the way 2.1 did
+> for iPad, would very likely reintroduce the dropped-tap bug the async hop was added to fix in
+> the first place. Doing that re-architecture properly (iPhone panel as a keyboard accessory
+> view instead of a swapped `inputView`) is a real UI-structure change — closer in size to
+> redoing 2.1 itself than to a one-line "make it synchronous" — and not something to take on
+> inside this pass, especially with the simulator's UI-test runner currently unreliable
+> (`FBSOpenApplicationServiceErrorDomain` launch denials under machine load, seen repeatedly
+> this session) to verify a change of that size against. Left open, correctly scoped now
+> instead of assumed-resolved by a dependency that only half-landed.
 
 ### 3.5 `@Query` loads every entry into the write screen
 
