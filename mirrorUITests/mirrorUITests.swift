@@ -10,7 +10,11 @@ final class mirrorUITests: XCTestCase {
 
     private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        // --clearWriteTestState wipes the draft + all Entry/Insight rows on launch.
+        // The draft otherwise survives relaunch (persisted UserDefaults), so
+        // without this every test's typed text piles onto the last, breaking
+        // cursor-position and panel-layout assumptions in later tests.
+        app.launchArguments = ["--uitesting", "--clearWriteTestState"]
         app.launch()
         Thread.sleep(forTimeInterval: 2)
         return app

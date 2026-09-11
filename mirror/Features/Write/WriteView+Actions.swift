@@ -381,6 +381,13 @@ extension WriteView {
 
     func clearDraftStorage() {
         cancelDraftSave()
+        Self.clearAllDraftStorage()
+    }
+
+    /// Static counterpart of `clearDraftStorage()` for call sites with no live
+    /// `WriteView` instance (app-launch test-state reset) — same keys, no
+    /// in-flight debounced-save task to cancel.
+    static func clearAllDraftStorage() {
         DraftAttachmentStore.clear()
         let ud = UserDefaults.standard
         ud.removeObject(forKey: Self.draftTextKey)
