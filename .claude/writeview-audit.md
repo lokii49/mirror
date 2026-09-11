@@ -625,7 +625,9 @@ Effort: S to verify.
   the toolRow / panel on a full screen of text.
 
 > **STATUS — three of four resolved on `2.1.1`, no code changes needed; one stays open.** Went
-> through each of the four claims individually rather than taking any at face value:
+> through each of the four claims individually rather than taking any at face value. The
+> fourth went through two write-ups before landing here — the first got the mechanism wrong,
+> caught before commit; the corrected version still can't be settled by reading code alone.
 >
 > - **Placeholder for a photo-only draft — retracted, was a false theory.** A photo isn't
 >   inserted as an invisible attachment against an empty `text` binding; `insertPhotoToken(in:)`
@@ -634,21 +636,31 @@ Effort: S to verify.
 >   token), then calls `updatePlaceholder(in:)` directly. So `parent.text.isEmpty` is false the
 >   moment a photo lands, and the placeholder hides correctly with no text ever typed. Traced
 >   the actual insertion call path rather than trusting the `:962` condition read in isolation.
-> - **"No scroll to cursor on keyboard show" — partially retracted, genuinely unclear rest.**
->   A mechanism exists: `scrollCaretToVisible(in:)` (`NoteEditorTextView.swift:323`) nudges the
->   enclosing `ScrollView` toward the caret, called from `textViewDidChangeSelection` (:610,
->   tap-to-position) and `textViewDidChange` (:317, while typing) — so "no handling seen" is
->   wrong, something is there. What's *not* established, and I stopped short of checking on
->   device: the clearance is a fixed `.insetBy(dx: 0, dy: -48)` (:333), and the formatting
->   panel (`FormattingPanelView.swift`) stacks rows that are individually 44–50pt tall — very
->   likely taller than 48pt total when open, which is exactly the "hidden behind the panel"
->   case the audit item names. Also unverified: the nudge runs inside one
->   `DispatchQueue.main.async`, one runloop turn, not synced to the ~0.25s keyboard-appear
->   animation, so the first-focus tap may compute the target rect against pre-keyboard bounds;
->   and `textViewDidChangeSelection` early-returns on `!isFirstResponder`, so whether the very
->   *first* focus tap gets a scroll at all depends on UIKit's ordering of first-responder vs.
->   selection-change callbacks — not traced. Leaving open pending on-device verification with
->   the panel up on a full screen of text; not claiming this is fixed.
+> - **"No scroll to cursor on keyboard show" — "no handling seen" is wrong; whether it's
+>   *sufficient* stays open.** A mechanism exists: `scrollCaretToVisible(in:)`
+>   (`NoteEditorTextView.swift:323`) nudges the enclosing `ScrollView` toward the caret, called
+>   from `textViewDidChangeSelection` (:610, tap-to-position) and `textViewDidChange` (:317,
+>   while typing).
+>
+>   First write-up here flagged the formatting panel as the risk — its stacked 44–50pt rows vs.
+>   the nudge's fixed 48pt clearance — on the assumption the panel is an overlay stacked *on
+>   top of* the keyboard. Wrong, caught on a second pass: `updateFormattingPanel(textView:
+>   visible:)` (`:2404`) sets `textView.inputView = panel` — on iPhone the panel *replaces* the
+>   keyboard as the input view, the identical slot, not a second surface. That kills the
+>   height-comparison theory outright.
+>
+>   What it doesn't settle: whether the enclosing `ScrollView` (`WriteView.swift:156`) gets an
+>   automatic keyboard-safe-area inset at all — no `.ignoresSafeArea(.keyboard)` opt-out is
+>   present, which usually means SwiftUI's standard automatic avoidance applies, but I didn't
+>   verify that on device and the function's own doc comment (`:36-38`, `"the text view doesn't
+>   scroll … so keep the caret above the keyboard by nudging the enclosing scroll view"`) reads
+>   as if the manual nudge is *the* mechanism, not a secondary refinement on top of automatic
+>   avoidance. Both readings are defensible from the code alone — automatic avoidance could be
+>   handling the region-clears-the-panel part while the nudge only handles "scroll to this
+>   specific point within that region" (my current read), or avoidance could be absent/
+>   insufficient and the 48pt nudge is the entire budget (the original worry, on inset grounds
+>   rather than height grounds). Not resolving this from a code read a third time — needs
+>   on-device confirmation with the panel open on a full screen of text. Left open.
 > - **`keyboardDismissMode` — already correct**, nothing to do; the audit item itself said so.
 > - **Word-count staircase — real, left as-is.** Bare count for 1–49 words, `"Nw / Xw"` from 50
 >   up to goal, checkmark at goal. Shipped unchanged since `57f493c` (1.0.9, a squash commit —
@@ -656,8 +668,8 @@ Effort: S to verify.
 >   confusion either; leaving unchanged pending a concrete complaint rather than guessing at a
 >   rationale that isn't in the code or history.
 >
-> No build/test run needed — no source changed. One sub-item (scroll-to-cursor under the open
-> panel) stays open, not closed by this pass.
+> No build/test run needed — no source changed. One sub-item (scroll-to-cursor clearance under
+> the open panel, on inset grounds not height grounds) stays open, not closed by this pass.
 
 ---
 
