@@ -735,7 +735,9 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.8)
 
         // Clear highlight button uses "xmark" SF symbol
-        let clearBtn = app.buttons.matching(NSPredicate(format: "label == 'xmark'")).firstMatch
+        // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
+        // "No highlight", so a label-based lookup no longer matches).
+        let clearBtn = app.buttons["xmark"]
         XCTAssertTrue(clearBtn.waitForExistence(timeout: 3), "Clear highlight (xmark) button must exist")
 
         snapshot(app, name: "panel_highlight_row")
@@ -753,7 +755,9 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        let clearBtn = app.buttons.matching(NSPredicate(format: "label == 'xmark'")).firstMatch
+        // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
+        // "No highlight", so a label-based lookup no longer matches).
+        let clearBtn = app.buttons["xmark"]
         XCTAssertTrue(clearBtn.waitForExistence(timeout: 3))
         clearBtn.tap()
         Thread.sleep(forTimeInterval: 0.4)
@@ -776,16 +780,19 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        // Highlight color buttons have no labels — locate them after xmark button
-        // They are in the same HStack row as xmark; total 6 buttons (1 clear + 5 colors)
-        // We tap each, then re-tap clear to reset
-        let clearBtn = app.buttons.matching(NSPredicate(format: "label == 'xmark'")).firstMatch
+        // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
+        // "No highlight", so a label-based lookup no longer matches).
+        let clearBtn = app.buttons["xmark"]
         XCTAssertTrue(clearBtn.waitForExistence(timeout: 3))
 
-        // Scroll to bottom of panel to ensure highlight row is visible
-        let panel = app.otherElements.containing(.button, identifier: "xmark").firstMatch
-
-        // Tap each color by coordinate offset from xmark — use otherElements approach
+        // Audit 3.1 gave each swatch a real VoiceOver label (HighlightPalette.name) —
+        // tap each by name instead of by coordinate guesswork (Classic palette names).
+        for name in ["Pink", "Purple", "Orange", "Mint", "Blue"] {
+            let swatch = app.buttons[name]
+            XCTAssertTrue(swatch.waitForExistence(timeout: 3), "\(name) highlight swatch must exist")
+            swatch.tap()
+            Thread.sleep(forTimeInterval: 0.2)
+        }
         snapshot(app, name: "panel_highlight_colors_visible")
 
         // Verify tapping clear doesn't crash

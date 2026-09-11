@@ -1,13 +1,47 @@
 import SwiftUI
 import UIKit
 
-let highlightColors: [Color] = [
-    Color(red: 1.0, green: 0.75, blue: 0.80),   // pink
-    Color(red: 0.82, green: 0.75, blue: 1.0),   // purple
-    Color(red: 1.0, green: 0.84, blue: 0.60),   // orange/yellow
-    Color(red: 0.70, green: 0.95, blue: 0.85),  // mint
-    Color(red: 0.68, green: 0.85, blue: 1.0),   // blue
-]
+/// Highlight swatches for the formatting panel and the editor's rendered
+/// highlight attribute. Each entry is a light/dark-adaptive `Color`
+/// (`MirrorTheme.hex`) — the original set was fixed light-mode RGB literals
+/// with no dark counterpart, so highlighted text read washed-out / low
+/// contrast in dark mode, and there was no Sentinel variant at all (audit 3.2).
+enum HighlightPalette {
+    static func colors(for displayMode: DisplayMode) -> [Color] {
+        displayMode == .sentinel ? sentinel : classic
+    }
+
+    /// VoiceOver label for swatch `index` — the swatches carry no visible
+    /// text, so without this every one reads as just "button" (audit 3.1).
+    static func name(for index: Int, displayMode: DisplayMode) -> String {
+        let names = displayMode == .sentinel
+            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
+            : ["Pink", "Purple", "Orange", "Mint", "Blue"]
+        guard names.indices.contains(index) else { return "Highlight" }
+        return names[index]
+    }
+
+    /// Same 5 hues as the original light pastels, each paired with a
+    /// deepened dark-mode counterpart.
+    private static let classic: [Color] = [
+        MirrorTheme.hex(0x5C2430, 0xFFBFCC),   // pink / rose
+        MirrorTheme.hex(0x3B2A66, 0xD1BFFF),   // purple
+        MirrorTheme.hex(0x5C441A, 0xFFD699),   // orange / yellow
+        MirrorTheme.hex(0x1F4D3B, 0xB3F2D9),   // mint
+        MirrorTheme.hex(0x1F3D5C, 0xADD9FF),   // blue
+    ]
+
+    /// Previously fell back to the Classic pastels, clashing with the
+    /// mono/ember language everything else in the panel branches for.
+    /// Stays in-family (ember + warm neutrals).
+    private static let sentinel: [Color] = [
+        MirrorTheme.ember,
+        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
+        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
+        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
+        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
+    ]
+}
 
 @Observable final class FormattingPanelState {
     var activeParagraphStyle: NoteParagraphTextStyle = .body
@@ -96,10 +130,10 @@ struct FormattingPanelView: View {
 
             // Row 2: Inline styles (fixed-size square buttons, left-aligned)
             HStack(spacing: 8) {
-                inlineButton("B",  style: .bold,          font: .system(size: 17, weight: .bold))
-                inlineButton("I",  style: .italic,        font: .system(size: 17).italic())
-                inlineButton("U",  style: .underline,     font: .system(size: 17), underline: true)
-                inlineButton("S",  style: .strikethrough, font: .system(size: 17), strikethrough: true)
+                inlineButton("B",  style: .bold,          font: .system(size: 17, weight: .bold),          accessibilityLabel: "Bold")
+                inlineButton("I",  style: .italic,        font: .system(size: 17).italic(),                accessibilityLabel: "Italic")
+                inlineButton("U",  style: .underline,     font: .system(size: 17), underline: true,        accessibilityLabel: "Underline")
+                inlineButton("S",  style: .strikethrough, font: .system(size: 17), strikethrough: true,    accessibilityLabel: "Strikethrough")
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
@@ -107,13 +141,13 @@ struct FormattingPanelView: View {
 
             // Row 3: List types + indent controls
             HStack(spacing: 8) {
-                listButton(icon: "list.bullet", command: .bulletedList)
-                listButton(icon: "list.dash",   command: .dashedList)
-                listButton(icon: "list.number", command: .numberedList)
-                listButton(icon: "checklist",   command: .checklist)
+                listButton(icon: "list.bullet", command: .bulletedList, accessibilityLabel: "Bulleted list")
+                listButton(icon: "list.dash",   command: .dashedList,   accessibilityLabel: "Dashed list")
+                listButton(icon: "list.number", command: .numberedList, accessibilityLabel: "Numbered list")
+                listButton(icon: "checklist",   command: .checklist,    accessibilityLabel: "Checklist")
                 Spacer(minLength: 0)
-                listButton(icon: "decrease.indent", command: .indentLess)
-                listButton(icon: "increase.indent", command: .indentMore)
+                listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent")
+                listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent")
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -149,8 +183,14 @@ struct FormattingPanelView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                // Identifier keeps the old symbol-derived name ("xmark") so
+                // existing lookups still find it; the label carries the
+                // VoiceOver-facing name.
+                .accessibilityIdentifier("xmark")
+                .accessibilityLabel("No highlight")
+                .accessibilityAddTraits(state.activeHighlightIndex == nil ? .isSelected : [])
 
-                ForEach(0..<highlightColors.count, id: \.self) { idx in
+                ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
                     highlightButton(index: idx)
                 }
                 Spacer(minLength: 0)
@@ -187,6 +227,7 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Paragraph style button
@@ -214,12 +255,13 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Inline style button (fixed square)
 
     @ViewBuilder
-    private func inlineButton(_ label: LocalizedStringKey, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false) -> some View {
+    private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false, accessibilityLabel: String) -> some View {
         let isActive = state.activeInlineStyles.contains(style)
         Button {
             let cmd = inlineCommand(for: style)
@@ -243,12 +285,18 @@ struct FormattingPanelView: View {
             )
         }
         .buttonStyle(.plain)
+        // Identifier keeps the plain glyph ("B") so existing lookups (and
+        // test hooks) still find it; the label carries the VoiceOver name —
+        // bare "B"/"I"/"U"/"S" read as just their letter otherwise (audit 3.1).
+        .accessibilityIdentifier(label)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - List button (fixed square icon)
 
     @ViewBuilder
-    private func listButton(icon: String, command: NoteTextCommand) -> some View {
+    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String) -> some View {
         let isActive = listIsActive(command: command)
         Button {
             DispatchQueue.main.async { state.onCommand?(command) }
@@ -263,6 +311,12 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        // Identifier keeps the SF Symbol name so existing lookups still find
+        // it; the label carries the human name — icon-only buttons otherwise
+        // read to VoiceOver as the raw symbol name, e.g. "list.bullet" (3.1).
+        .accessibilityIdentifier(icon)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Bulk checklist button
@@ -299,7 +353,7 @@ struct FormattingPanelView: View {
             DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(highlightColors[index])
+                .fill(HighlightPalette.colors(for: displayMode)[index])
                 .frame(width: 44, height: 36)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
@@ -307,6 +361,10 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        // Swatches carry no visible text — without a label VoiceOver just
+        // reads "button" for all five (audit 3.1).
+        .accessibilityLabel(HighlightPalette.name(for: index, displayMode: displayMode))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Helpers
