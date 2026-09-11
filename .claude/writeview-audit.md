@@ -186,37 +186,76 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 
 ## Group 2 — Structural gaps vs. Notes (the "does it feel like Notes" items)
 
-> **STATUS — 2.1 + 2.2 code-complete, NOT verified.** Build green after each. Simulator UI
-> automation was unreliable this whole session (cliclick coordinates + a stale install that kept
-> serving an old binary), so the screenshots taken during testing can't be trusted to show the
-> new code. Both need a hands-on / real-device pass.
+> **STATUS — merged to `2.1.1` (2026-09-10, merge `fcc9164`). Build green. 2.1 + 2.2
+> code-complete; user verifying by hand.**
 >
-> **2.1** (`c241eb5` + a follow-up): **iPad `.popover` off the Aa button + iPhone overlay in the
-> keyboard's place, below the toolRow** (full panel, not a compact bar). `textView.inputView`
-> hosting and all `becomeFirstResponder` forcing removed; `FormattingPanelView` gained a
-> `.sheet`/`.popover` presentation mode; caret-move → panel-highlight sync already existed in
-> `textViewDidChangeSelection`. iPad editor-blur auto-close is guarded off for the popover.
-> To check: panel opens over a live keyboard on iPhone; caret + typing work with it open;
-> caret moving between Body/Heading updates the panel; iPad popover stays up and doesn't drop
-> the keyboard.
+> **2.1 — RESOLVED as an iPad-only fix.** The original complaint ("panel replaces the
+> keyboard") stands *by design* on iPhone. Final mechanism (`5ef6587`, the last commit to
+> touch this — supersedes the earlier `c241eb5` / `1f757f5` overlay attempt this block used
+> to describe):
+> - **iPhone** — panel is the text view's `inputView` (`NoteEditorTextView.swift:2403`,
+>   `usesInputView = idiom == .phone`). Keyboard is *visually swapped* for the panel but the
+>   text view keeps first responder, so the selection survives and typing resumes the instant
+>   the panel closes. This is the Apple Notes model — a panel stacked over a live keyboard
+>   leaves no room for the editor on a phone. The earlier "resign keyboard, panel below the
+>   toolRow" overlay was reverted: resigning first responder dropped the selection so tools
+>   couldn't act on it, and re-focusing was racy.
+> - **iPad** — `.popover` off the Aa button (`WriteView+Subviews.swift:448`), keyboard never
+>   touched. `usesPopoverPanel = idiom == .pad` (keyed off idiom, *not* `horizontalSizeClass`
+>   — WriteView sits in a `NavigationSplitView` detail pane which reports `.compact` on iPad).
+> - `FormattingPanelView` gained `Presentation { .sheet, .popover }` — `.sheet` scrolls + shows
+>   a grabber (iPhone inputView), `.popover` is bare (iPad supplies its own chrome).
+> - User to verify by hand: iPhone Aa swaps keyboard↔panel, second Aa / tap-into-editor brings
+>   the keyboard back, formatting acts on the current selection; iPad popover stays up and
+>   doesn't drop the keyboard; caret moving between Body/Heading updates the panel highlight.
 >
-> **2.2** (`<pending>`): mic button records **inline** — `InlineRecordingRow` (elapsed / waveform
-> / Stop / Cancel) appears where the finished note lands, keyboard + caret stay put. Recorder
-> self-stops (interruption, cap) are finalized via `onChange`. `VoiceInputSheet` and the modal
-> plumbing deleted (compiler-confirmed; not launch-confirmed). Mic-denied shows an inline notice.
-> To check: record → row appears, keyboard stays → Stop → note attaches + transcribes; Cancel
-> discards; a call mid-recording finalizes cleanly.
+> **2.2** (`58b45d8`): mic button records **inline** — `InlineRecordingRow`
+> (`VoiceInputManager.swift:413`: elapsed / waveform / Stop / Cancel) renders where the
+> finished note lands (`WriteView.swift:187`), keyboard + caret stay put.
+> `startInlineRecording` / `finishInlineRecording` / `cancelInlineRecording`
+> (`WriteView+VoiceNotes.swift:167`) are permission-gated; recorder self-stops (interruption,
+> 10-min cap) are finalized via `onChange(of: voiceRecorder.isRecording)`
+> (`WriteView.swift:411`). `VoiceInputSheet` and the modal plumbing deleted
+> (compiler-confirmed). Mic-denied shows `MicPermissionNotice` inline.
+> User to verify by hand: record → row appears, keyboard stays → Stop → note attaches +
+> transcribes; Cancel discards; a call mid-recording finalizes cleanly (device only).
+>
+> **Debt still live after the 2.1 decision** (the reverted overlay design had been assumed to
+> close these):
+> - **2.5** — iPhone panel height is still the hardcoded `CGRect(... height: 346)` at
+>   `NoteEditorTextView.swift:2426`. Clips on SE / landscape / large Dynamic Type. The `.popover`
+>   branch self-sizes, so 2.5 is now iPhone-only + the `@ScaledMetric` pass on the fixed
+>   `.system(size:)` / 44–50pt button frames inside `FormattingPanelView`.
+> - **3.4** — the `DispatchQueue.main.async` hop on every panel command is still load-bearing
+>   on iPhone (inputView teardown race). Only the iPad popover path is free of it.
+> - `InlineRecordingRow` cancel button uses `Color(.tertiarySystemFill)`
+>   (`VoiceInputManager.swift:429`) — same theme-ignoring pattern 3.3 flags for the delete button.
+> - Stale code comments describing the abandoned overlay: `FormattingPanelView.swift:28`,
+>   `WriteView+Subviews.swift:443`, and the `.sheet` case name is now a misnomer (it's
+>   inputView-hosted, not a sheet).
+>
+> **`mirrorUITests` modernized (2026-09-10/11), NOT re-verified clean — needs a re-run.**
+> First run on `2.1.1` iPhone 17 Pro (pre-fix): **28 failed / 3 passed**, every failure a
+> renamed accessibility label, not an app regression — Aa `"Text formatting"` → `"Formatting"`,
+> mic → `"Record voice note"`, checklist button gone from the toolRow (May 2026), plus the
+> `app.cells.firstMatch` entry-list tap hitting the calendar heatmap instead of a row.
+> Fixed: label refs, `applyChecklistViaPanel`/`open`/`closeFormattingPanel` helpers,
+> `openEntryForEditing` (locates rows by text, not cell index), `discardDraft` assertion
+> rewritten for the undo-countdown behavior (`startDeleteWithUndo`, `WriteView+Actions.swift:195`
+> — clears immediately, button stays enabled as the undo affordance), `keyboardIconButton_closesPanel`
+> replaced with `aaButton_closesPanelAndRestoresKeyboard` (no keyboard icon in the panel anymore —
+> closes via "Hide formatting", asserts `app.keyboards` presence as the 2.1 proof), and a new
+> `testVoice_micButton_recordsInlineWithoutModal` for 2.2. Test target compiles clean.
+> Re-run attempt (`test-without-building`, same sim) was **not usable** — the machine
+> thrashed and the run took 8 hours instead of ~10 minutes (individual tests up to 2895s vs.
+> the normal ~15s), so most of the 12 failures in that run are timeout artifacts, not
+> necessarily real. What did survive at pathological duration and still passed: the toolRow
+> label fixes, the Aa-toggle close, the undo-aware discard rewrite, and `openEntryForEditing`.
+> **Needs a clean re-run** before the suite counts as verifying 2.1/2.2.
 >
 > 3 new user-facing strings (Group 1) + a few more (2.2) still need a catalog extraction pass.
-> **Next session: run `/run-skill-generator`** — the `--uitesting` launch arg, the
-> `-derivedDataPath` install path, and "HW keyboard suppresses `isKeyboardVisible` so the toolRow
-> never shows" are the three facts that ate most of this round.
 >
-> **2.3–2.5 not started.** 2.5 (panel height/Dynamic Type) is partly mooted — the overlay now
-> scrolls and the popover self-sizes — but the fixed `.system(size:)` / 44–50pt button frames
-> inside `FormattingPanelView` still ignore Dynamic Type; a `@ScaledMetric` pass is still owed.
-> The iPhone bar is the **existing toolRow** (undo/redo/Aa/photo/mic) — inline B/I/U still require
-> opening the panel; add them to the bar if that's wanted.
+> **2.3–2.4 not started.**
 
 ### 2.1 The Aa panel replaces the keyboard instead of floating over it
 `NoteEditorTextView.swift:2383` — `textView.inputView = panelUIView; textView.reloadInputViews()`.
