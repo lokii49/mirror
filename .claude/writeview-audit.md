@@ -699,6 +699,47 @@ feels heavy on long entries. Consider caching the logical text and invalidating 
 edits only.
 Effort: M (needs profiling first). Sentinel parity: N/A.
 
+> **STATUS — profiled on `2.1.1`, no code change.** No Instruments access in this environment,
+> so substituted a real wall-clock measurement for a guess: added
+> `mirrorTests/NoteEditorRenderCostTests.swift`, which calls `Coordinator.logicalText(from:)` +
+> `.displayTextEquivalent(for:)` directly against a populated `UITextView` — the exact pair
+> `updateUIView:75` calls on every SwiftUI update pass, confirmed by reading it: **both** sides
+> of that comparison do a full-document rebuild, not just the one `logicalText` call the audit
+> item named; `applyStyledText`'s own change-detection cache only protects the render step
+> downstream of this comparison, never this comparison itself.
+>
+> **Measured** (Simulator, Debug config, Apple Silicon — a floor, not a device-representative
+> figure): **1.34ms** at ~5k chars (no photos), **1.98ms** at ~10k chars (no photos), **0.85ms**
+> at ~5k chars with 3 inline photos (exercises `allPhotoTokens`' sort + the attachment-char
+> rebuild loop the no-photo cases skip entirely — no meaningfully higher than the no-photo
+> case at the same size). All three against a 16.67ms frame budget at 60fps, which is the
+> budget for the *whole* update pass, not just this comparison.
+>
+> **Verdict confirmed, not just assumed**: this is not the thing making typing feel heavy on
+> long entries, at these sizes, on this hardware. Left as documented headroom, per the item's
+> own "not a Group 1 bug" line — no caching added. The `updateUIView:75` double full-document
+> rebuild is real and deliberately left unfixed by this decision, not an unnoticed gap; a
+> future reader hitting a real perf complaint on long entries should start there, with actual
+> Instruments time-profile data from a real device before changing anything, not re-derive
+> this finding from scratch.
+>
+> **Durable artifact**: the three tests double as a regression guard, not just one-time
+> evidence — bounds set at roughly 3x the measured figures (headroom for machine variance,
+> still tight enough to catch an accidental algorithmic regression, e.g. an O(n²) reintroduction
+> would blow well past them). If `logicalText`/`displayTextEquivalent` ever gets meaningfully
+> more expensive, these trip before a user notices.
+>
+> **Method caveats, stated rather than hidden behind a clean number**: Debug config in
+> Simulator on Apple Silicon isn't a slow real device — absolute numbers here are a floor. The
+> populated `UITextView` carries plain (unstyled) attributed text, so `textStyle(at:)`/
+> `indentLevelValue(at:)` take their early-return paths on every paragraph rather than reading
+> real paragraph-style attributes — a length-driven cost approximation, not a claim that
+> styling itself is free.
+>
+> Verified: `xcodebuild build` green, `build-for-testing` green, `mirrorTests` 198/198 (195
+> prior + 3 new `NoteEditorRenderCostTests`). This item's own tests *are* the verification —
+> there's no separate "did the fix work" check since the fix was measuring, not changing code.
+
 ### 3.7 Dead code in `WriteViewModel`
 
 > **FIXED** (2026-09-11). Both methods deleted, confirmed zero callers (grepped
