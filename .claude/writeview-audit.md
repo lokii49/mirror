@@ -241,8 +241,11 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 >   `WriteView+Subviews.swift:443`, and the `.sheet` case name is now a misnomer (it's
 >   inputView-hosted, not a sheet).
 >
-> **`mirrorUITests` modernized (2026-09-10/11) — 30/32 passing clean on iPhone 17 Pro sim**
-> (25/32 before 3.1/3.2/3.3, below, fixed the highlight-row label bug).
+> **`mirrorUITests` modernized (2026-09-10/11) — 31/32 passing clean on iPhone 17 Pro sim**
+> (25/32 before 3.1/3.2/3.3, below, fixed the highlight-row label bug; 31/32 after also
+> fixing `paragraphStyle_cycleThroughAll`'s horizontal-scroll tap). Only
+> `testVoice_micButton_recordsInlineWithoutModal` remains, likely an environment limit
+> (no mic input on this sandboxed host), not confirmed as an app bug.
 > Original suite (last touched 2026-05-13, predates the panel rework): 28 failed / 3 passed,
 > every failure a renamed accessibility label, not an app regression — Aa `"Text formatting"`
 > → `"Formatting"`, mic → `"Record voice note"`, checklist button gone from the toolRow
@@ -290,11 +293,16 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 > `app.buttons["xmark"]` (identifier lookup). All 3 **now pass**. The 346pt-clipping theory
 > was never confirmed and is retracted — no evidence the highlight row is actually clipped.
 >
-> **2 still fail / unresolved (down from 6 — 30/32 passing):**
-> - **`paragraphStyle_cycleThroughAll`** — "Mono" button reports a frame with its right edge
->   past the screen width; it's the last item in a horizontal-scroll row and XCUITest doesn't
->   auto-scroll before tapping. Test bug (missing an explicit scroll), not an app bug — every
->   other test that taps a single paragraph style individually passes. Not yet fixed.
+> **`paragraphStyle_cycleThroughAll` fixed.** "Mono" is the rightmost item in the
+> paragraph-style row's horizontal `ScrollView`; a synthetic `.tap()` doesn't auto-scroll like
+> VoiceOver does, so it's off-screen with a degenerate frame — and even *reading*
+> `.isHittable` on it throws ("Activation point invalid"), so the fix has to scroll
+> unconditionally before touching the Mono element at all, not gate on a hittability check.
+> Fix: drag from "Subheading" (the prior, still-hittable button in the same row) via
+> `XCUICoordinate.press(forDuration:thenDragTo:)` before targeting Mono. Verified in isolation
+> — failed before, passes clean at normal speed (28s) after.
+>
+> **1 still fails / unresolved (down from 6 — 31/32 passing):**
 > - **`testVoice_micButton_recordsInlineWithoutModal`** — mic tapped, no permission dialog
 >   fired (already decided from an earlier run), then neither the recording row nor the
 >   permission notice ever appeared. Most likely this sandboxed sim host has no usable mic

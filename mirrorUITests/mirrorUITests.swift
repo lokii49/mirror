@@ -443,6 +443,21 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.8)
 
         for label in ["Title", "Heading", "Subheading", "Mono", "Body"] {
+            // "Mono" is the rightmost item in the paragraph-style row's horizontal
+            // ScrollView — a synthetic tap doesn't auto-scroll like VoiceOver does,
+            // so it's off-screen with a degenerate frame. Even reading `.isHittable`
+            // on it throws ("Activation point invalid"), so scroll unconditionally
+            // *before* touching the Mono element at all: drag from "Subheading"
+            // (the previous, still-hittable button in the same row) to bring Mono
+            // into view.
+            if label == "Mono" {
+                let anchor = app.buttons["Subheading"]
+                if anchor.exists {
+                    let start = anchor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                    start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: -250, dy: 0)))
+                    Thread.sleep(forTimeInterval: 0.4)
+                }
+            }
             let btn = app.buttons[label]
             XCTAssertTrue(btn.waitForExistence(timeout: 3))
             btn.tap()
