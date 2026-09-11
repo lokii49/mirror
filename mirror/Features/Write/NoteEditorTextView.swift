@@ -1945,7 +1945,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
                 mutable.removeAttribute(.backgroundColor, range: applyRange)
                 if let idx = index {
-                    let uiColor = UIColor(highlightColors[idx])
+                    let uiColor = UIColor(HighlightPalette.colors(for: parent.displayMode)[idx])
                     mutable.addAttribute(.backgroundColor, value: uiColor, range: applyRange)
                     mutable.addAttribute(Self.highlightIndexAttribute, value: idx, range: applyRange)
                 }
@@ -1958,7 +1958,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 typing.removeValue(forKey: Self.highlightIndexAttribute)
                 typing.removeValue(forKey: .backgroundColor)
                 if let idx = index {
-                    typing[.backgroundColor] = UIColor(highlightColors[idx])
+                    typing[.backgroundColor] = UIColor(HighlightPalette.colors(for: parent.displayMode)[idx])
                     typing[Self.highlightIndexAttribute] = idx
                 }
                 textView.typingAttributes = typing
@@ -2229,6 +2229,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                   !doc.ranges.isEmpty else { return }
 
             let logicalOffsets = buildLogicalOffsetMap(from: attributed)
+            let highlightColors = HighlightPalette.colors(for: parent.displayMode)
 
             for styleRange in doc.ranges {
                 let displayStart = logicalToDisplay(logical: styleRange.location, map: logicalOffsets)

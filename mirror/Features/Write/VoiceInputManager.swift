@@ -333,7 +333,7 @@ struct VoiceNoteAttachmentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
                             .background(
-                                Color(.tertiarySystemFill),
+                                displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill),
                                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Circle())
                             )
                     }
@@ -426,7 +426,10 @@ struct InlineRecordingRow: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 32, height: 32)
-                    .background(Color(.tertiarySystemFill), in: Circle())
+                    .background(
+                        displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill),
+                        in: Circle()
+                    )
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Cancel recording")

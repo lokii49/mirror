@@ -241,7 +241,8 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 >   `WriteView+Subviews.swift:443`, and the `.sheet` case name is now a misnomer (it's
 >   inputView-hosted, not a sheet).
 >
-> **`mirrorUITests` modernized (2026-09-10/11) — 25/32 passing clean on iPhone 17 Pro sim.**
+> **`mirrorUITests` modernized (2026-09-10/11) — 30/32 passing clean on iPhone 17 Pro sim**
+> (25/32 before 3.1/3.2/3.3, below, fixed the highlight-row label bug).
 > Original suite (last touched 2026-05-13, predates the panel rework): 28 failed / 3 passed,
 > every failure a renamed accessibility label, not an app regression — Aa `"Text formatting"`
 > → `"Formatting"`, mic → `"Record voice note"`, checklist button gone from the toolRow
@@ -280,16 +281,16 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 > Left the toolRow's `--clearWriteTestState` reset alone — the undo-tap at the end of the new
 > test restores the entry rather than actually deleting it, so it stays side-effect-free.
 >
-> **6 still fail / unresolved:**
-> - **3 highlight-row tests** (`clearButtonPresent`/`clearHighlight`/`colorCellsTappable`) —
->   reproducible **3/3** runs at normal speed (not timeout flake, confirmed again on a calm
->   machine), likely tied to 2.5's hardcoded 346pt panel height cutting the panel before the
->   highlight row (last row, no checklist active so no bulk-ops row pushing it down further)
->   lays out. Tried to instrument further (scroll + accessibility-tree dump before/after) but
->   the diagnostic run's XCTRunner itself was denied launch by the sim (`FBSOpenApplicationServiceErrorDomain`,
->   `RequestDenied`) — this environment can't sustain the back-to-back simulator runs needed to
->   dig further headlessly. **Needs Xcode's live view debugger on a real run** — not root-caused
->   past "reproducible, likely 2.5."
+> **Highlight-row mystery solved by 3.1 (below): it was a test bug, not 2.5.** The "clear
+> highlight" (xmark) button had no explicit `accessibilityLabel` — its default SwiftUI/UIKit
+> label was never actually the literal string `"xmark"` the 3 tests matched against
+> (`NSPredicate(format: "label == 'xmark'")`), so they never found it, regardless of layout.
+> 3.1 gave it a real explicit `accessibilityIdentifier("xmark")` (kept stable for exactly this
+> reason) + `accessibilityLabel("No highlight")`; tests switched from the label predicate to
+> `app.buttons["xmark"]` (identifier lookup). All 3 **now pass**. The 346pt-clipping theory
+> was never confirmed and is retracted — no evidence the highlight row is actually clipped.
+>
+> **2 still fail / unresolved (down from 6 — 30/32 passing):**
 > - **`paragraphStyle_cycleThroughAll`** — "Mono" button reports a frame with its right edge
 >   past the screen width; it's the last item in a horizontal-scroll row and XCUITest doesn't
 >   auto-scroll before tapping. Test bug (missing an explicit scroll), not an app bug — every
@@ -393,6 +394,26 @@ Effort: M. Sentinel parity: both themes share the fixed sizes — fixing helps b
 ---
 
 ## Group 3 — Polish, accessibility, perf
+
+> **STATUS — 3.1, 3.2, 3.3 fixed** (2026-09-11), on `2.1.1`. `xcodebuild build` green.
+> mirrorUITests 25/32 → 30/32 (fixed the highlight-row test's stale label lookup as a
+> side effect of 3.1 — see Group 2 STATUS above).
+> - **3.1** — real `.accessibilityLabel` on every inline/list/highlight button ("Bold",
+>   "Bulleted list", "Pink", …), `.accessibilityAddTraits(.isSelected)` on every toggle
+>   (inline, paragraph, font, list, highlight). Kept the old glyph/icon-name as
+>   `.accessibilityIdentifier` on each so existing UI-test lookups (`app.buttons["B"]`,
+>   `app.buttons["checklist"]`) still resolve — only the VoiceOver-facing label changed.
+> - **3.2** — `highlightColors` replaced by `HighlightPalette.colors(for: displayMode)`
+>   (`FormattingPanelView.swift`): 5 light/dark-adaptive pairs for Classic (same hues,
+>   deepened dark variants — `MirrorTheme.hex`, made internal to reuse it) + a distinct
+>   ember/warm-neutral set for Sentinel. Applied in both the panel swatches and the
+>   editor's own highlight-attribute rendering (`NoteEditorTextView.swift` — 3 call sites,
+>   was reading the same fixed light pastels for the actual highlighted text, not just
+>   the panel UI).
+> - **3.3** — `VoiceInputManager.swift`'s voice-note delete button *and* the newly-added
+>   `InlineRecordingRow`'s cancel button (spotted during 2.1/2.2 verification, same
+>   pattern) both now branch `displayMode == .sentinel ? MirrorTheme.inkMid :
+>   Color(.tertiarySystemFill)` like every sibling control.
 
 ### 3.1 Formatting panel is nearly invisible to VoiceOver
 `FormattingPanelView.swift` throughout.
