@@ -1000,6 +1000,48 @@ final class mirrorUITests: XCTestCase {
         }
     }
 
+    /// Long-press must show the voice-memo vs. live-dictation hint WITHOUT
+    /// also starting a recording (audit 2.3). The two gestures live on the
+    /// same view (a plain view + .onTapGesture/.onLongPressGesture, not a
+    /// Button — see the comment at the call site) specifically because a
+    /// SwiftUI Button's own tap still fires alongside a .simultaneousGesture
+    /// long-press; this test is what actually proves the fix, not just the
+    /// comment claiming it.
+    func testVoice_micButtonLongPress_showsHintWithoutRecording() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+        _ = focusEditor(in: app)
+
+        let mic = app.buttons["Record voice note"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 5), "Mic button must exist in the toolRow")
+        mic.press(forDuration: 0.6)
+        Thread.sleep(forTimeInterval: 0.5)
+
+        XCTAssertTrue(app.staticTexts["Voice Note"].waitForExistence(timeout: 3),
+                      "Long-press must show the voice-note-vs-dictation hint")
+        XCTAssertFalse(app.otherElements["Recording"].exists,
+                       "Long-press must not also start an inline recording")
+        XCTAssertFalse(app.buttons["Stop and add recording"].exists,
+                       "Long-press must not also start an inline recording")
+
+        // Dismiss the popover, then confirm a normal tap still records —
+        // the gesture split didn't break the primary action.
+        app.tap()
+        Thread.sleep(forTimeInterval: 0.3)
+        mic.tap()
+        Thread.sleep(forTimeInterval: 0.5)
+        dismissSystemDialogs(app)
+        Thread.sleep(forTimeInterval: 0.8)
+        let recordingRow = app.otherElements["Recording"]
+        let stopButton = app.buttons["Stop and add recording"]
+        let permissionNotice = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "Microphone access is off")
+        ).firstMatch
+        let recording = recordingRow.waitForExistence(timeout: 3) || stopButton.exists
+        XCTAssertTrue(recording || permissionNotice.exists,
+                      "A plain tap after the long-press hint must still start recording")
+    }
+
     // MARK: - Performance
 
     @MainActor

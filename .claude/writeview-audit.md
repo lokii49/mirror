@@ -438,6 +438,39 @@ only to the modal recorder. Consider: (a) documenting/keeping keyboard dictation
 Effort: S (framing/UX) to L (in-app streaming recognition). Sentinel parity: toolbar icons
 branch already.
 
+> **STATUS — (b) shipped on `2.1.1` at the S-effort scope; (a) is this popover's copy, not
+> separate documentation; in-app streaming recognition (the L option) not attempted.**
+>
+> No coach-mark/tip pattern existed anywhere in the app to reuse (checked — grepped for
+> `onLongPressGesture`/`CoachMark`/`TipView`/`infoPopover` across `Features/`), and inventing
+> one for a single button felt like a bigger decision than this item's own S-effort framing.
+> Instead: long-press the mic button (`WriteView+Subviews.swift`) reveals a small popover —
+> "Voice Note" / "Records audio and transcribes it afterward — good for a longer memo." / "For
+> live dictation as you type, use the mic key on your keyboard." That *is* the (a)
+> documentation this item asked for — it doesn't additionally exist in onboarding or Settings,
+> neither of which mentions dictation today (checked, not assumed).
+>
+> **Gesture-conflict bug, caught by advisor before commit**: the first version wrapped the mic
+> in a SwiftUI `Button` with the hint on a `.simultaneousGesture` long-press. `Button`'s own tap
+> gesture still fires alongside a simultaneous long-press — they don't mutually exclude — so a
+> long-press meant to read the hint would *also* start a recording behind the popover, the worst
+> possible outcome for a discoverability affordance. Rewritten as a plain `Image` view with
+> explicit `.onTapGesture`/`.onLongPressGesture` instead of a `Button` — mutually exclusive by
+> construction. Added `.accessibilityAddTraits(.isButton)` (lost when dropping `Button`) and
+> `.accessibilityAction(named: "What this does")` — long-press is invisible to VoiceOver
+> entirely, so without an explicit accessibility action a VoiceOver user would have no way to
+> reach the same explanation at all.
+>
+> **Verification gap, stated plainly**: added `mirrorUITests.testVoice_micButtonLongPress_
+> showsHintWithoutRecording` (long-presses the mic, asserts the hint text appears *and* no
+> recording started, then confirms a plain tap afterward still records normally). **This test
+> has not actually passed** — both runs died in `FBSOpenApplicationServiceErrorDomain`
+> (`RequestDenied`) before the app even launched, with machine load at 110–130 at the time
+> (checked via `uptime`, not guessed at). The fix is reasoned to be correct (plain-view
+> mutually-exclusive gestures are the standard, documented pattern for exactly this "tap vs.
+> long-press on one control" case) but is **not** simulator- or device-verified. `xcodebuild
+> build` is green; that's the only verification this pass actually got.
+
 ### 2.4 Post-hoc transcription is single-shot with no partial results
 `VoiceTranscriptionService.swift:39` — `request.shouldReportPartialResults = false`, and the
 service tries locales sequentially, each a full recognition pass over the whole file
