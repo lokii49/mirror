@@ -299,6 +299,29 @@ extension WriteView {
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
     }
 
+    /// Two mic affordances exist and do different things (audit 2.3): this
+    /// button attaches an audio memo, transcribed after the fact; the system
+    /// keyboard's own mic key does live, word-by-word dictation straight into
+    /// the text. Nothing else in the app ever says so — this is that
+    /// explanation, surfaced on long-press rather than always-visible copy
+    /// cluttering an otherwise icon-only toolbar row.
+    @ViewBuilder
+    private var voiceButtonHintContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Voice Note")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+            Text("Records audio and transcribes it afterward — good for a longer memo.")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
+                .foregroundStyle(.secondary)
+            Text("For live dictation as you type, use the mic key on your keyboard.")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(width: 240, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -534,39 +557,59 @@ extension WriteView {
                 .buttonStyle(.plain)
 
                 // Voice button — records inline; keyboard and caret stay put.
-                Button {
-                    toggleInlineRecording()
-                } label: {
-                    Image(systemName: iconForVoiceButton)
-                        .font(.system(size: 20))
-                        .foregroundStyle(
-                            isRecordingInline ? Color.red
-                                : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
-                        )
-                        .frame(width: 44, height: 44)
-                        .overlay(alignment: .topTrailing) {
-                            if isTranscribingVoiceNotes {
-                                ProgressView()
-                                    .scaleEffect(0.55)
-                                    .frame(width: 16, height: 16)
-                                    .background(Color(.systemBackground).opacity(0.85), in: Circle())
-                                    .offset(x: 6, y: -6)
-                            } else if draftVoiceNotes.count > 1 {
-                                Text("\(draftVoiceNotes.count)")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                    )
-                                    .offset(x: 4, y: -2)
-                            }
+                // Plain view + explicit tap/long-press gestures, not a Button:
+                // a Button's own tap gesture recognizer still fires alongside a
+                // .simultaneousGesture long-press (they don't mutually exclude),
+                // which would start a recording behind the long-press hint
+                // popover below (audit 2.3) — the worst outcome for a
+                // discoverability affordance. .onTapGesture/.onLongPressGesture
+                // on a plain view are mutually exclusive by construction.
+                Image(systemName: iconForVoiceButton)
+                    .font(.system(size: 20))
+                    .foregroundStyle(
+                        isRecordingInline ? Color.red
+                            : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                    )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .overlay(alignment: .topTrailing) {
+                        if isTranscribingVoiceNotes {
+                            ProgressView()
+                                .scaleEffect(0.55)
+                                .frame(width: 16, height: 16)
+                                .background(Color(.systemBackground).opacity(0.85), in: Circle())
+                                .offset(x: 6, y: -6)
+                        } else if draftVoiceNotes.count > 1 {
+                            Text("\(draftVoiceNotes.count)")
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(
+                                    displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
+                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                                )
+                                .offset(x: 4, y: -2)
                         }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(voiceButtonAccessibilityLabel)
+                    }
+                    .onTapGesture {
+                        toggleInlineRecording()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.45) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showVoiceButtonHint = true
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(voiceButtonAccessibilityLabel)
+                    // VoiceOver has no long-press gesture — this is the only way
+                    // a VoiceOver user reaches the same explanation (audit 2.3).
+                    .accessibilityAction(named: Text("What this does")) {
+                        showVoiceButtonHint = true
+                    }
+                    .popover(isPresented: $showVoiceButtonHint) {
+                        voiceButtonHintContent
+                            .presentationCompactAdaptation(.popover)
+                    }
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
             .animation(.easeInOut(duration: 0.15), value: isRecordingInline)

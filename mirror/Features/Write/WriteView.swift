@@ -64,6 +64,13 @@ struct WriteView: View {
     @State var inlineStyleData: Data? = nil
     @State var activeInlineStyles = InlineStyleSet()
     @State var showFormattingPanel = false
+    /// Long-press on the mic button (audit 2.3) — the app's own mic only
+    /// leads to a post-hoc-transcribed voice memo; live word-by-word
+    /// dictation exists (the system keyboard's mic key) but nothing in the
+    /// app ever points to it. Rather than inventing a new coach-mark system
+    /// for one button, or building in-app streaming recognition (the L-effort
+    /// option), this makes the existing distinction discoverable in place.
+    @State var showVoiceButtonHint = false
     @State var canUndo = false
     @State var canRedo = false
     @State var panelState = FormattingPanelState()
