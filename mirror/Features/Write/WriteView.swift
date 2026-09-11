@@ -27,7 +27,6 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
-    @Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]
 
     /// iPad presents the formatting panel as a popover off the Aa button;
     /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
@@ -361,7 +360,6 @@ struct WriteView: View {
             }
             loadedContentHash = currentContentHash()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
-            panelState.fontChoiceRaw = entryFontChoiceRaw
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true
