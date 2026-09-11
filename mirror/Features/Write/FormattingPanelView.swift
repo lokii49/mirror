@@ -63,6 +63,15 @@ struct FormattingPanelView: View {
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
     private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
     private var cornerRadius: CGFloat { displayMode == .sentinel ? 6 : 10 }
+    /// Shared Dynamic Type scale factor (audit 2.5) — every fixed point size and
+    /// button dimension below is `base * typeScale` instead of a bare literal, so
+    /// the panel respects accessibility text sizes the way the editor itself does
+    /// (`NoteEditorTextView` sets `adjustsFontForContentSizeCategory = true`).
+    /// One shared `@ScaledMetric` base of 1.0 keeps every row's relative
+    /// proportions (Title 22pt vs. Mono 13pt, etc.) intact while scaling as a
+    /// group — the officially recommended pattern for a cluster of custom point
+    /// sizes that should move together rather than each having its own metric.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1.0
 
     enum Presentation { case sheet, popover }
 
@@ -114,84 +123,101 @@ struct FormattingPanelView: View {
             // Row 1: Paragraph styles — horizontal scroll, each in its own font
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 22, weight: .black))
-                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18, weight: .bold))
-                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15, weight: .semibold))
-                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14, weight: .regular))
-                    paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13, design: .monospaced))
+                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 22 * typeScale, weight: .black))
+                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18 * typeScale, weight: .bold))
+                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
+                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
+                    paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 2)
             }
 
-            // Row 2: Inline styles (fixed-size square buttons, left-aligned)
-            HStack(spacing: 8) {
-                inlineButton("B",  style: .bold,          font: .system(size: 17, weight: .bold),          accessibilityLabel: "Bold")
-                inlineButton("I",  style: .italic,        font: .system(size: 17).italic(),                accessibilityLabel: "Italic")
-                inlineButton("U",  style: .underline,     font: .system(size: 17), underline: true,        accessibilityLabel: "Underline")
-                inlineButton("S",  style: .strikethrough, font: .system(size: 17), strikethrough: true,    accessibilityLabel: "Strikethrough")
-                Spacer(minLength: 0)
+            // Row 2: Inline styles (fixed-size square buttons). Horizontally
+            // scrolling like rows 0/1 — at large Dynamic Type sizes four square
+            // buttons plus spacing no longer fit an iPhone SE's width (audit 2.5).
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    inlineButton("B",  style: .bold,          font: .system(size: 17 * typeScale, weight: .bold),          accessibilityLabel: "Bold")
+                    inlineButton("I",  style: .italic,        font: .system(size: 17 * typeScale).italic(),                accessibilityLabel: "Italic")
+                    inlineButton("U",  style: .underline,     font: .system(size: 17 * typeScale), underline: true,        accessibilityLabel: "Underline")
+                    inlineButton("S",  style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true,    accessibilityLabel: "Strikethrough")
+                }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
             .padding(.top, 10)
 
-            // Row 3: List types + indent controls
+            // Row 3: List types (scrolling, same reasoning as row 2) + indent
+            // controls, which stay pinned outside the scroll region rather than
+            // being pushed off with a trailing Spacer — a Spacer can't rescue an
+            // overflow, it just makes the indent buttons unreachable (audit 2.5).
+            // The indent pair keeps a fixed (unscaled) frame — if it scaled with
+            // typeScale too, two 50pt-wide buttons growing at once would eat most
+            // of a 375pt (iPhone SE) row's width and leave next to no scrollable
+            // viewport for the four list-type buttons at large Dynamic Type sizes.
+            // The glyph inside still scales, just within that fixed box.
             HStack(spacing: 8) {
-                listButton(icon: "list.bullet", command: .bulletedList, accessibilityLabel: "Bulleted list")
-                listButton(icon: "list.dash",   command: .dashedList,   accessibilityLabel: "Dashed list")
-                listButton(icon: "list.number", command: .numberedList, accessibilityLabel: "Numbered list")
-                listButton(icon: "checklist",   command: .checklist,    accessibilityLabel: "Checklist")
-                Spacer(minLength: 0)
-                listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent")
-                listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        listButton(icon: "list.bullet", command: .bulletedList, accessibilityLabel: "Bulleted list")
+                        listButton(icon: "list.dash",   command: .dashedList,   accessibilityLabel: "Dashed list")
+                        listButton(icon: "list.number", command: .numberedList, accessibilityLabel: "Numbered list")
+                        listButton(icon: "checklist",   command: .checklist,    accessibilityLabel: "Checklist")
+                    }
+                }
+                listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent", scaleFrame: false)
+                listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent", scaleFrame: false)
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
 
             // Row 3b: Checklist bulk ops — only when cursor is on a checklist line
             if state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked {
-                HStack(spacing: 8) {
-                    bulkChecklistButton("Check All",   command: .checkAllItems)
-                    bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
-                    bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
-                    bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        bulkChecklistButton("Check All",   command: .checkAllItems)
+                        bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
+                        bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
+                        bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
                 .padding(.top, 10)
             }
 
-            // Row 4: Highlight colors
-            HStack(spacing: 8) {
-                Button {
-                    DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(idleFill)
-                            .frame(width: 44, height: 36)
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
+            // Row 4: Highlight colors (scrolling, same reasoning as row 2)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(idleFill)
+                                .frame(width: 44 * typeScale, height: 36 * typeScale)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12 * typeScale, weight: .semibold))
+                                .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .stroke(state.activeHighlightIndex == nil ? accent : Color.clear, lineWidth: 2)
+                        )
                     }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(state.activeHighlightIndex == nil ? accent : Color.clear, lineWidth: 2)
-                    )
-                }
-                .buttonStyle(.plain)
-                // Identifier keeps the old symbol-derived name ("xmark") so
-                // existing lookups still find it; the label carries the
-                // VoiceOver-facing name.
-                .accessibilityIdentifier("xmark")
-                .accessibilityLabel("No highlight")
-                .accessibilityAddTraits(state.activeHighlightIndex == nil ? .isSelected : [])
+                    .buttonStyle(.plain)
+                    // Identifier keeps the old symbol-derived name ("xmark") so
+                    // existing lookups still find it; the label carries the
+                    // VoiceOver-facing name.
+                    .accessibilityIdentifier("xmark")
+                    .accessibilityLabel("No highlight")
+                    .accessibilityAddTraits(state.activeHighlightIndex == nil ? .isSelected : [])
 
-                ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
-                    highlightButton(index: idx)
+                    ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
+                        highlightButton(index: idx)
+                    }
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
             .padding(.top, 10)
 
             Spacer(minLength: 12)
@@ -208,11 +234,11 @@ struct FormattingPanelView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(choice.label)
-                .font(.system(size: 14, weight: .regular, design: choice.swiftUIDesign))
+                .font(.system(size: 14 * typeScale, weight: .regular, design: choice.swiftUIDesign))
                 .lineLimit(1)
                 .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
-                .frame(height: 44)
+                .frame(height: 44 * typeScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -240,7 +266,7 @@ struct FormattingPanelView: View {
                 .lineLimit(1)
                 .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
-                .frame(height: 50)
+                .frame(height: 50 * typeScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -274,7 +300,7 @@ struct FormattingPanelView: View {
             }
             .font(font)
             .foregroundStyle(isActive ? accent : Color.primary)
-            .frame(width: 50, height: 44)
+            .frame(width: 50 * typeScale, height: 44 * typeScale)
             .background(
                 isActive ? accent.opacity(0.12) : idleFill,
                 in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -292,15 +318,23 @@ struct FormattingPanelView: View {
     // MARK: - List button (fixed square icon)
 
     @ViewBuilder
-    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String) -> some View {
+    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String, scaleFrame: Bool = true) -> some View {
         let isActive = listIsActive(command: command)
+        let frameScale = scaleFrame ? typeScale : 1
+        // When the frame is pinned (scaleFrame == false, the indent pair — see
+        // the call site), the glyph still needs to scale "within" that fixed
+        // 44pt-tall box, not past it: an unbounded 18 * typeScale glyph would
+        // render larger than its own hit target at large accessibility sizes
+        // (SwiftUI doesn't clip an oversized Image to its frame, so it'd look
+        // big while tapping small). Capped at 24 — comfortably inside 44pt.
+        let iconSize = scaleFrame ? 18 * typeScale : min(18 * typeScale, 24)
         Button {
             DispatchQueue.main.async { state.onCommand?(command) }
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 18))
+                .font(.system(size: iconSize))
                 .foregroundStyle(isActive ? accent : Color.primary)
-                .frame(width: 50, height: 44)
+                .frame(width: 50 * frameScale, height: 44 * frameScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -324,16 +358,16 @@ struct FormattingPanelView: View {
         } label: {
             Group {
                 if displayMode == .sentinel {
-                    Text(label).font(MirrorTheme.mono(11, weight: .medium)).textCase(.uppercase)
+                    Text(label).font(MirrorTheme.mono(11 * typeScale, weight: .medium)).textCase(.uppercase)
                 } else {
-                    Text(label).font(.system(size: 12, weight: .medium))
+                    Text(label).font(.system(size: 12 * typeScale, weight: .medium))
                 }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .foregroundStyle(Color.primary)
             .padding(.horizontal, 10)
-            .frame(height: 36)
+            .frame(height: 36 * typeScale)
             .background(idleFill, in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 5 : 8))
         }
         .buttonStyle(.plain)
@@ -350,7 +384,7 @@ struct FormattingPanelView: View {
         } label: {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(HighlightPalette.colors(for: displayMode)[index])
-                .frame(width: 44, height: 36)
+                .frame(width: 44 * typeScale, height: 36 * typeScale)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(isActive ? accent : Color.clear, lineWidth: 2)

@@ -458,6 +458,7 @@ Effort: M. Sentinel parity: "DECODE FAILED" / "Transcription failed" copy exists
 
 ### 2.5 Formatting panel height is a hardcoded 346pt
 `NoteEditorTextView.swift:2381` — `CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)`.
+(Now `height: 360` after the STATUS block below — line numbers have also shifted.)
 
 - Clips on iPhone SE and in landscape.
 - Ignores Dynamic Type entirely: `FormattingPanelView` uses fixed `.system(size:)` and fixed
@@ -470,7 +471,61 @@ Fix: `@ScaledMetric` for sizes; measure the hosting controller's `sizeThatFits` 
 literal; add a `.popover` branch for `horizontalSizeClass == .regular`.
 Effort: M. Sentinel parity: both themes share the fixed sizes — fixing helps both.
 
----
+> **STATUS — Dynamic Type + the 346pt literal fixed on `2.1.1`; the iPad bullet was already
+> stale.** `usesPopoverPanel` (`WriteView.swift:35`) shipped with the 2.1 work earlier this
+> session — iPad already gets a `.popover`, not a bottom input view. Only the first two bullets
+> were live.
+>
+> **`@ScaledMetric` pass (`FormattingPanelView.swift`)**: one shared `@ScaledMetric(relativeTo:
+> .body) private var typeScale: CGFloat = 1.0` — the officially recommended pattern for a
+> cluster of custom point sizes that should scale together while keeping their relative
+> proportions (Title 22pt vs. Mono 13pt, etc.), rather than 15 separate metrics. Every fixed
+> font size and button `frame(width:height:)` in the file is now `base * typeScale`.
+>
+> **Horizontal overflow, caught by advisor before this was "just" a font pass**: scaling
+> button sizes without giving rows 2 ("B"/"I"/"U"/"S"), 3 (list types + indent), 3b (checklist
+> bulk ops), and 4 (highlights) the same horizontal `ScrollView` rows 0/1 already have would
+> have made large Dynamic Type sizes *worse*, not better — content would grow past an iPhone
+> SE's 375pt width with a trailing `Spacer(minLength: 0)` that cannot rescue an overflow, only
+> push the tail out of reach. Wrapped all four in `ScrollView(.horizontal)`, matching rows 0/1.
+> Row 3's indent-increase/decrease pair stays pinned outside the scroll region (so it's never
+> the thing scrolled out of reach) with a **fixed, unscaled frame** — `listButton(...,
+> scaleFrame: false)` — because two 50pt-wide buttons scaling *in addition to* the four
+> scrolling list buttons would eat most of the SE-width row and leave the scrollable region a
+> sliver at large accessibility sizes; the glyph inside still scales, just within that fixed
+> box.
+>
+> **The 346pt literal was a real, if tiny, bug — not the imprecise "clips on iPhone SE" the
+> item described.** Added `mirrorTests/FormattingPanelSizingTests.swift`, which measures
+> `FormattingPanelView`'s actual `sizeThatFits` at 375pt width (iPhone SE) via
+> `UIHostingController`, with the checklist bulk-ops row active — the panel's tallest
+> configuration, which a bare `FormattingPanelState()` skips by default and which the first
+> draft of this test missed (caught by advisor). At the system default text size, that
+> configuration measures **347pt — 1pt over** the old 346pt literal, meaning the panel's own
+> bottom row was being clipped by exactly 1pt on stock settings, before any Dynamic Type is
+> involved. Bumped the literal to **360pt** (`NoteEditorTextView.swift`) for real headroom
+> instead of a number that happened to almost work. Confirmed via the same test that
+> `accessibility3` still exceeds 360pt (bounded under 900pt — the test doesn't assert an exact
+> figure, only that it's grown *and* stayed sane) and relies on `panelRows`' own `ScrollView`
+> in the `.sheet` presentation — that's expected and by design, not a bug: bumping
+> the literal further would eat into the editor's own visible area for no benefit, since the
+> panel already scrolls past 360pt regardless of how high the fixed frame goes.
+>
+> **What's verified vs. reasoned**: the height numbers above are measured, not eyeballed —
+> `xcodebuild build` green, `build-for-testing` green, `mirrorTests` 192/192 (190 prior + 2 new
+> `FormattingPanelSizingTests`, individually confirmed `Passed`). The horizontal-scroll fix
+> itself is **not** exercised by any test — nothing in the suite drives a `ScrollView(.horizontal)`
+> — so "192/192 green" here is a no-regression signal for the height/scaling math, not proof
+> that rows 2–4 are actually reachable by scrolling on a real SE at `accessibility5`. That
+> needs an on-device check, same caveat as 3.9's still-open scroll-to-cursor item.
+>
+> **Known gap, not fixed here**: `formattingPanelHost` (`updateFormattingPanel(textView:
+> visible:)`) is built once on first show and its `rootView` is never refreshed after that.
+> `typeScale` resolves from the environment at that one construction, so a user who changes
+> the system text size *while the panel is already showing* keeps the old scale until the
+> panel is torn down and rebuilt (e.g. dismissing and reopening it) — not a regression from
+> this fix, but this fix makes the staleness more visible than it was when everything was a
+> fixed literal. Pre-existing pattern, out of scope for 2.5.
 
 ## Group 3 — Polish, accessibility, perf
 

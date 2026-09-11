@@ -2424,7 +2424,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                     formattingPanelHost = hc
                 }
                 if let panel = formattingPanelHost?.view {
-                    let frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
+                    // 360, not 346: at the system default text size, the panel's
+                    // tallest configuration (a checklist paragraph active, so the
+                    // bulk-ops row is showing) measures 347pt on an iPhone SE's
+                    // 375pt width — mirrorTests/FormattingPanelSizingTests.swift
+                    // pins this down. 346 clipped that row's bottom edge by 1pt
+                    // before this was ever measured; 360 gives real headroom
+                    // instead of a coincidence. Larger Dynamic Type sizes still
+                    // exceed this and rely on panelRows' own ScrollView (audit 2.5).
+                    let frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 360)
                     if panel.frame != frame { panel.frame = frame }
                     if textView.inputView !== panel {
                         textView.inputView = panel
