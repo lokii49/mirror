@@ -47,15 +47,15 @@ yours," these outrank every polish item.
 > - 1.1 + 1.5 → `4036337` — transcription keyed by retained `Task`, cancel-all + re-kick on delete, self-heal on open
 > - 1.2 → `6aadb3f` — `DraftAttachmentStore`, encrypted photo/voice blobs in Application Support
 > - 1.3 → `384de4c` + review pass — save an emptied entry, but skip the write (and CloudKit modification) when an entry was only opened to read
-> - 1.4 → `7222109` — 25s timeout per recognition pass, cancellation-aware `recognize()`
+> - 1.4 → `7222109` — 25s timeout per recognition pass, cancellation-aware `recognize()`;
+>   `+ 55dd2c3` — save-anyway while transcribing, full STATUS block below
 > - 1.6 → `9c8c1c8` — real duration, `AVAudioRecorderDelegate`, interruption/route observers, 10-min cap
 > - 1.7 → `503d930` — `AVAudioPlayerDelegate`, single `active` player
 > - 1.8 → `beb0576` — debounced draft autosave
 >
-> Deferred, needs its own follow-up: **1.4 "Save anyway" while transcribing** (saving mid-pass
-> writes to a dismissed view's state — same bug class; the timeout + 1.5 self-heal cover the
-> "stuck" case). **Sentinel "REC" pulse** (`WriteView+Subviews.swift:62`) assessed — it's ambient
-> chrome, never wired to recording state, so no change made.
+> **1.4 "Save anyway" while transcribing** — now also fixed, on `2.1.1` directly (see STATUS
+> block under 1.4 below). **Sentinel "REC" pulse** (`WriteView+Subviews.swift:62`) assessed —
+> it's ambient chrome, never wired to recording state, so no change made.
 
 ### 1.1 Deleting a voice note reassigns an in-flight transcript to the wrong audio
 `WriteView+VoiceNotes.swift:64` (`removeVoiceNote(at:)`), `:27` (`transcribeVoiceNote`).
@@ -116,6 +116,77 @@ Fix: wrap `recognize` in a timeout (e.g. `Task` + `withThrowingTaskGroup` racing
 shown). Separately, allow "Save anyway" while transcribing (transcript can fill in later /
 be retried from the entry).
 Effort: M. Sentinel parity: copy already exists for both themes.
+
+> **STATUS — "Save anyway" half fixed on `2.1.1` directly** (timeout half was already done —
+> `7222109`, 25s cap + cancellation-aware `recognize()`, see Group 1 header). This closes the
+> remaining gap: the Save buttons no longer disable while a voice note is transcribing.
+>
+> Root cause matched 1.1/1.5's class exactly: `applyTranscription(_:toVoiceNoteAt:)` writes
+> into this view's own `@State`, keyed by a positional index. Saving mid-transcription either
+> dismisses the view (existing entry) or resets the draft to a blank one (new entry) — either
+> way the in-flight task's eventual write lands nowhere anyone reads, or worse, onto whatever
+> a fresh draft's note ends up at the same index.
+>
+> Fix: `continueTranscriptionAfterSaveAnyway(for:in:)` (`WriteView+VoiceNotes.swift`) cancels
+> every `@State`-bound transcription task still running at save time and restarts each one
+> from scratch as a self-contained `Task` that captures the persisted `Entry` + `ModelContext`
+> directly — independent of this view's lifecycle. It writes through a new `static func
+> applyTranscription(_:to:atIndex:)` (no `self` capture; unit-testable without a mic or a live
+> `WriteView`) instead of the `@State`-targeting original. This restarts the pass rather than
+> handing off the in-flight one — accepted: `VoiceTranscriptionService` serializes passes
+> behind its own semaphore, so it costs at most one extra ~25s-capped pass, and avoids ever
+> having two writers (the dismissed view's dying task, the new self-contained one) racing on
+> the same index. On failure, index-0 sets `entry.voiceNoteTranscriptionFailed`; an
+> additional-note failure isn't a stored flag (matches the live path) — `markPendingNotesForRetry()`
+> infers it from empty-transcript + present-audio the next time the entry reopens. Wired into
+> both `saveAndDismiss()` (existing-entry branch, plus the new-entry branch for defensive
+> consistency) and `saveDraft()`, before either function's draft/task cleanup. Removed
+> `.disabled(isTranscribingVoiceNotes)` from both Save buttons in `WriteView+Subviews.swift`.
+>
+> **Guard-order fix, caught by advisor before commit**: the handoff call in
+> `saveAndDismiss()` originally sat *after* two early-return guards
+> (`!entry.textDecryptionFailed`, `currentContentHash() != loadedContentHash`). A Retry-
+> triggered transcription on an already-saved entry (tap Retry on a `voiceNoteTranscriptionFailed`
+> entry, then Save before it resolves) changes neither of those — the transcript hasn't
+> landed yet — so the content-hash guard would fire and dismiss before the handoff ever ran,
+> reproducing the exact bug on the one path Retry exists for. Moved the handoff to the top of
+> the `if let entry` block, before both guards.
+>
+> **Follow-on regression from that move, also caught by advisor**: moving the handoff earlier
+> also moved it ahead of `entry.voiceNoteTranscriptionFailed = … && failedTranscriptionIndexes
+> .contains(0)` — but the handoff's last step is `failedTranscriptionIndexes.removeAll()`. Net
+> effect: saving while *any* note was transcribing would always write `false` to the flag,
+> even for an unrelated note (e.g. index 0) that was already known-failed and just waiting on
+> a Retry that hadn't resolved yet — silently dropping its "AI won't reflect on this" state.
+> Fixed by snapshotting `failedTranscriptionIndexes` into a local `failedAtSave` right before
+> the handoff runs, and reading that snapshot instead. `saveDraft()` and the new-entry branch
+> of `saveAndDismiss()` both already assign the flag before their own handoff call, so they
+> needed no change — verified by re-reading both after the fix.
+>
+> **Unit test added**: `mirrorTests/VoiceNoteTranscriptionTests.swift`, 4 cases covering
+> `WriteView.applyTranscription(_:to:atIndex:)`'s index arithmetic directly (index 0 → primary
+> fields only; index N → `additionalIndex N-1` only, siblings untouched; index 0 with no
+> primary audio is a no-op; an out-of-range additional index is a no-op). Made the function
+> `static` specifically to enable this — no mic, no live `WriteView` needed.
+>
+> Drive-by fix, not part of 1.4 itself: `saveDraft()` was missing the
+> `savedEntry.voiceNoteTranscriptionFailed = …` assignment that both branches of
+> `saveAndDismiss()` already had — added for parity.
+>
+> Known limitation, not fixed here: `autoDetectMoodIfNeeded(for:)` runs at save time with the
+> transcript still empty, and `backfillMissingMoodsIfNeeded` only targets entries with
+> `encryptedMood == nil` — so a mood inferred from a voice-only entry's text won't be
+> recomputed once the transcript lands after a "save anyway". Pre-existing gap, out of scope
+> for 1.4.
+>
+> Verified: `xcodebuild build` green, `build-for-testing` green (iPhone 17 sim, iOS 26.5),
+> `mirrorTests` 190/190 green (`xcrun xcresulttool get test-results summary` confirms
+> `"failedTests": 0`, `"totalTestCount": 190`, including the 4 new
+> `VoiceNoteTranscriptionTests` cases individually confirmed `"Passed"` via `xcresulttool get
+> test-results tests`). **Not** exercised end-to-end in `mirrorUITests` — the simulator has no
+> real mic (see `testVoice_micButton_recordsInlineWithoutModal`'s existing limitation), so the
+> record → save-anyway → transcript-lands-on-the-persisted-entry flow is device-only and
+> unverified beyond code review + the unit-level index-arithmetic coverage above.
 
 ### 1.5 Transcription failure on notes 2+ is never persisted
 `WriteView.swift:297` and `WriteView+Actions.swift:39,72` only ever track index 0

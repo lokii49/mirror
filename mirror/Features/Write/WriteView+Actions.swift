@@ -30,9 +30,26 @@ extension WriteView {
         return h.finalize()
     }
 
+    /// Saves and dismisses even while a voice note is still transcribing
+    /// (1.4) — the in-flight pass is handed off to
+    /// `continueTranscriptionAfterSaveAnyway` so it keeps running against the
+    /// saved entry after this view is gone, instead of being silently
+    /// abandoned or corrupting whatever comes next.
     func saveAndDismiss() {
-        guard !isTranscribingVoiceNotes else { return }
         if let entry {
+            // Snapshot before the handoff below clears failedTranscriptionIndexes —
+            // line ~80 still needs to know what was failed *at save time* to set
+            // entry.voiceNoteTranscriptionFailed correctly.
+            let failedAtSave = failedTranscriptionIndexes
+            // Checked before both early-return guards below: a Retry-triggered
+            // transcription (voiceNoteTranscriptionFailed entry, mic re-tapped)
+            // changes neither textDecryptionFailed nor currentContentHash() — the
+            // transcript hasn't landed yet — so either guard would dismiss without
+            // ever handing the in-flight pass off, leaving it writing into a
+            // dismissed view's @State (1.4).
+            if isTranscribingVoiceNotes {
+                continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
+            }
             guard !entry.textDecryptionFailed else {
                 dismiss()
                 return
@@ -64,8 +81,11 @@ extension WriteView {
             entry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
             entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
             entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
-            entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
+            entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedAtSave.contains(0)
             autoDetectMoodIfNeeded(for: entry)
+            // continueTranscriptionAfterSaveAnyway(for:in:) already ran above,
+            // before the early-return guards — transcribingVoiceNoteIndexes is
+            // empty here.
             // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
             let ctx = modelContext
             Task { @MainActor in
@@ -100,6 +120,9 @@ extension WriteView {
                 modelContext.insert(entry)
                 try? modelContext.save()
                 autoDetectMoodIfNeeded(for: entry)
+                if isTranscribingVoiceNotes {
+                    continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
+                }
                 ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
                 let ctx = modelContext
                 Task { @MainActor in
@@ -120,8 +143,10 @@ extension WriteView {
         }
     }
 
+    /// Saves even while a voice note is still transcribing (1.4) — see
+    /// `saveAndDismiss()`'s doc comment.
     func saveDraft() {
-        guard entry == nil, hasDraftContent, !isTranscribingVoiceNotes else { return }
+        guard entry == nil, hasDraftContent else { return }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
         savedEntry.createdAt = entryDate
@@ -144,9 +169,13 @@ extension WriteView {
         savedEntry.additionalVoiceNoteLanguageCodes = additionalVoiceNoteLanguageCodes
         savedEntry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
         savedEntry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
+        savedEntry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
         modelContext.insert(savedEntry)
         try? modelContext.save()
         autoDetectMoodIfNeeded(for: savedEntry)
+        if isTranscribingVoiceNotes {
+            continueTranscriptionAfterSaveAnyway(for: savedEntry, in: modelContext)
+        }
         ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         clearDraft()
