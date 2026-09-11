@@ -1426,8 +1426,19 @@ struct NoteEditorTextView: UIViewRepresentable {
             attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: targetSize)
 
             let result = NSMutableAttributedString(attachment: attachment)
+            // Font/color matter here even though nothing visible renders them on the
+            // attachment glyph itself: when a photo lands as the last character with
+            // nothing typed after it (e.g. attaching to a blank entry — see
+            // textWithInlinePhotoToken's no-trailing-newline case), there's no real
+            // text run left for UIKit's own typing-attributes-on-selection-change
+            // inheritance (or our updateTypingAttributes) to read from. Without them
+            // here, a cursor placed right after the photo inherits nothing and UIKit
+            // falls back to its own tiny default font/black text for whatever gets
+            // typed next.
             result.addAttributes([
-                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8)
+                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8),
+                .font: bodyFont(for: entryDefaultFontChoice),
+                .foregroundColor: UIColor.label
             ], range: NSRange(location: 0, length: result.length))
             return result
         }
