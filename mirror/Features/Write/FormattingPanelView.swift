@@ -50,10 +50,6 @@ enum HighlightPalette {
     /// The font family the *current paragraph/selection* is using — drives the
     /// font row's highlight, same role activeParagraphStyle plays for block style.
     var activeFontChoice: WritingFontChoice = .system
-    /// Entry-wide fallback only (empty document, or a paragraph with no explicit
-    /// override) — no longer mutated by tapping a font button; that now goes
-    /// through onCommand(.fontFamily) like every other paragraph-level command.
-    var fontChoiceRaw: String = WritingFontChoice.system.rawValue
     var onCommand: ((NoteTextCommand) -> Void)?
 }
 

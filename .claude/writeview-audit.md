@@ -464,6 +464,16 @@ the teardown race goes away and these can likely become synchronous. Re-evaluate
 Effort: folded into 2.1. Sentinel parity: N/A.
 
 ### 3.5 `@Query` loads every entry into the write screen
+
+> **FIXED** (2026-09-11). `allEntries` removed from `WriteView`. `computeTagSuggestions()`
+> (unchanged call site — still only runs when the tag-input row opens) now fetches on demand:
+> `var descriptor = FetchDescriptor<Entry>(); descriptor.propertiesToFetch =
+> [\.encryptedTagsStorage]` (`propertiesToFetch` is a settable property on the descriptor, not
+> an initializer arg — first attempt didn't compile). `.tags` is computed/encrypted, backed by
+> `encryptedTagsStorage`, so that's the stored property to scope the fetch to. `WriteView` no
+> longer observes/re-renders on entry changes elsewhere in the app. `xcodebuild build` green,
+> `mirrorTests` 186/186 green.
+
 `WriteView.swift:29` — `@Query(sort: \Entry.createdAt, order: .reverse) var allEntries: [Entry]`.
 
 Only consumer found is `computeTagSuggestions()` (`WriteView+Tags.swift:144`), which just
@@ -496,6 +506,12 @@ edits only.
 Effort: M (needs profiling first). Sentinel parity: N/A.
 
 ### 3.7 Dead code in `WriteViewModel`
+
+> **FIXED** (2026-09-11). Both methods deleted, confirmed zero callers (grepped
+> `mirror/`/`mirrorTests/`/`mirrorUITests/`). `import SwiftData` in `WriteViewModel.swift` also
+> dropped — it was only there for `save(context: ModelContext)`'s parameter type; `Entry` (used
+> in `configure(entry:)`) doesn't need the import at a use site, only where it's declared.
+
 `WriteViewModel.swift:30` (`save(context:)`) and `:42` (`updateEntry(_:)`) have no callers —
 `WriteView+Actions.swift` does its own `Entry` construction and insertion. `save` also
 doesn't set `wordCount`. Confirmed: only `WriteViewModel()` / `.text` / `.textStyleData` /
@@ -504,6 +520,19 @@ methods to avoid someone wiring them up later.
 Effort: XS.
 
 ### 3.8 `panelState.fontChoiceRaw` set once, never updated
+
+> **RESOLVED — the property was dead, not stale.** Verified: nothing reads
+> `panelState.fontChoiceRaw` (grepped every `.fontChoiceRaw` reference in `mirror/`). The
+> render path that matters — `entryDefaultFontChoice` in `NoteEditorTextView.swift:1780` — was
+> already reading `parent.fontChoiceRaw` directly, i.e. the live `entryFontChoiceRaw` binding,
+> not the panel's copy. The panel's own active-state highlight uses a *different*, correctly
+> live-refreshed property, `activeFontChoice` (updated on every caret move via
+> `fontChoiceValue(at:in:)`). So there was no drift to fix — `fontChoiceRaw` on
+> `FormattingPanelState` was write-once, read-never. Deleted the property and its one
+> assignment (`WriteView.swift:363`); one unit test (`FormattingCombinationTests.swift:40`)
+> also set it redundantly alongside the real binding — removed that line too.
+> `xcodebuild build-for-testing` green, `mirrorTests` 186/186 green.
+
 `WriteView.swift:312` sets `panelState.fontChoiceRaw = entryFontChoiceRaw` in `onAppear` and
 never again, while `entryFontChoiceRaw` continues to be edited (via `.fontFamily` commands)
 and saved to `entry.fontChoice` (`WriteView+Actions.swift:25,55,103`). The panel comment

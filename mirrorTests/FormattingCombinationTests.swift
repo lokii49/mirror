@@ -37,7 +37,6 @@ private func makeEditorHarness(
     var canRedo = false
     var fontChoiceRawValue = fontChoiceRaw
     let panelState = FormattingPanelState()
-    panelState.fontChoiceRaw = fontChoiceRaw
 
     let editor = NoteEditorTextView(
         text: Binding(get: { text }, set: { text = $0 }),
