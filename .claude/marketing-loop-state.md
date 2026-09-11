@@ -1999,6 +1999,24 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   via notification since run 43 (2026-08-29) already flagged this exact standing condition and nothing
   has materially changed since.
 
+- 2026-09-10 (run 74): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still returns
+  `000`/403 (`connect_rejected` per proxy status endpoint) — general web egress still blocked
+  (github.com raw content still reachable). `add_repo` for janhq/awesome-local-ai still rejected
+  ("cross-tier adds are not supported in v1", session scoped to lokii49/* only) — priority-1 bump and
+  direct third-party PRs remain impossible. For priority 2, delegated a wider search to a subagent
+  with fresh angles (awesome-anxiety, awesome-therapy, awesome-self-tracking/personal-analytics,
+  awesome AGPL apps, awesome private notes, awesome-calm-tech/mindful-tech/wellness, awesome
+  second-brain, small-language-model app showcases, no-subscription/indie-hackers/neurodivergent
+  angles) — no new candidate cleared the fit bar. Ruled out agi-templar/Awesome-Small-Language-Model,
+  slashml/awesome-small-language-models (both SLM dev-tooling lists, no consumer-app section), and
+  Alex0x47/awesome-indie-hackers-tools (product-building tooling, no shipped-app section) — recorded
+  in Lessons. No PRs opened, no comments posted, no emails sent — 74th consecutive run blocked purely
+  on environment/session config (GitHub cross-owner scope, general web egress, SMTP egress), all three
+  re-verified fresh this run with unchanged evidence; not re-flagging via notification since run 43
+  (2026-08-29) already flagged this exact standing condition and nothing has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2220,6 +2238,19 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   awesome burnout/self-therapy/resilience, awesome expressive writing/life logging privacy, awesome
   on-device iOS AI directory, awesome open-source diary/journal app no-account/local-first, awesome
   indie makers privacy apps directory. Confirmed 2026-09-10; do not re-try these exact angles again.
+- agi-templar/Awesome-Small-Language-Model and slashml/awesome-small-language-models are not fits:
+  both are SLM model/weights/dev-tooling lists — their "Applications and Use Cases" sections cover
+  generic use-case categories, not shipped end-user apps. Confirmed 2026-09-10 via raw README fetch;
+  do not re-add.
+- Alex0x47/awesome-indie-hackers-tools is not a fit: purely dev/build tooling (AI, Analytics,
+  Boilerplates, Marketing, SEO, Legal, Hosting) for people building products, no shipped-consumer-app
+  section. Confirmed 2026-09-10 via raw README fetch; do not re-add.
+- Search angles tried this run with no new candidate surfaced (zero GitHub name-search hits, or hits
+  that were dev-tooling/infra lists, already-logged repos, or unrelated topics): awesome-anxiety,
+  awesome-therapy, awesome-self-tracking, awesome-personal-analytics, awesome-personal-data-stores,
+  awesome AGPL apps, awesome private notes, awesome-calm-tech, awesome-mindful-tech, awesome-wellness,
+  awesome second-brain (beyond Mindola-ai already in Backlog), no-subscription/pay-once, indie-hackers,
+  neurodivergent/HSP topic searches. Confirmed 2026-09-10; do not re-try these exact angles again.
 
 ## Sent log
 
