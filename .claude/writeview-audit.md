@@ -266,19 +266,34 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 > `Entry`/`Insight` rows (`SampleData.clear(from:)`, already existed) on launch;
 > `launchApp()` now passes it. Took the suite from 22/32 → 25/32.
 >
-> **7 still fail** after both fixes:
+> **Re-isolated the 2 ambiguous ones on a calm machine (load avg back to ~3):**
+> `Regression_openAaOnChecklistLine` **passed clean** — confirmed as residual-load noise, not
+> a real bug. `editEntry_deleteButtonShowsConfirmation` **failed again at normal speed**
+> (21-33s, 2/2) — genuinely reproducible, but the *test's premise was wrong*, not the app:
+> `WriteView+Subviews.swift:307,333` shows "Delete entry" and "Discard draft" call the **same**
+> `startDeleteWithUndo()` — an existing entry is no longer deleted via confirmation dialog, it
+> gets the same immediate-clear + 10s-undo-countdown as a discarded draft. Renamed to
+> `testToolbar_editEntry_deleteButtonShowsUndoCountdown` and rewritten to assert the undo
+> banner ("Entry will be deleted" + "Undo" button) instead of a `Delete`/`Cancel` dialog —
+> not yet re-run (this environment's simulator/XCTRunner launch denied requests under
+> repeated back-to-back runs; compiles clean, verified by reading the handler code directly).
+> Left the toolRow's `--clearWriteTestState` reset alone — the undo-tap at the end of the new
+> test restores the entry rather than actually deleting it, so it stays side-effect-free.
+>
+> **6 still fail / unresolved:**
 > - **3 highlight-row tests** (`clearButtonPresent`/`clearHighlight`/`colorCellsTappable`) —
->   reproducible at normal speed (not timeout flake), likely tied to 2.5's hardcoded 346pt
->   panel height cutting the panel before the highlight row (last row, no checklist active so
->   no bulk-ops row pushing it down further) lays out. Not root-caused past that — see 2.5 above.
+>   reproducible **3/3** runs at normal speed (not timeout flake, confirmed again on a calm
+>   machine), likely tied to 2.5's hardcoded 346pt panel height cutting the panel before the
+>   highlight row (last row, no checklist active so no bulk-ops row pushing it down further)
+>   lays out. Tried to instrument further (scroll + accessibility-tree dump before/after) but
+>   the diagnostic run's XCTRunner itself was denied launch by the sim (`FBSOpenApplicationServiceErrorDomain`,
+>   `RequestDenied`) — this environment can't sustain the back-to-back simulator runs needed to
+>   dig further headlessly. **Needs Xcode's live view debugger on a real run** — not root-caused
+>   past "reproducible, likely 2.5."
 > - **`paragraphStyle_cycleThroughAll`** — "Mono" button reports a frame with its right edge
 >   past the screen width; it's the last item in a horizontal-scroll row and XCUITest doesn't
 >   auto-scroll before tapping. Test bug (missing an explicit scroll), not an app bug — every
->   other test that taps a single paragraph style individually passes.
-> - **`Regression_openAaOnChecklistLine`**, **`editEntry_deleteButtonShowsConfirmation`** —
->   both took 4-10x their normal duration in the run that failed them (load avg was still
->   elevated, 19-77, from an earlier session — see below); inconclusive, most likely residual
->   machine load rather than real bugs. Not re-isolated to confirm.
+>   other test that taps a single paragraph style individually passes. Not yet fixed.
 > - **`testVoice_micButton_recordsInlineWithoutModal`** — mic tapped, no permission dialog
 >   fired (already decided from an earlier run), then neither the recording row nor the
 >   permission notice ever appeared. Most likely this sandboxed sim host has no usable mic

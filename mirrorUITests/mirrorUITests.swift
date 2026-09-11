@@ -202,9 +202,12 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "toolbar_edit_entry_mode")
     }
 
-    /// Delete entry button → shows confirmation dialog.
+    /// Delete entry → same immediate-clear + undo-countdown as discard
+    /// (`startDeleteWithUndo`, `WriteView+Actions.swift:195`), not a
+    /// confirmation dialog — "Delete entry" and "Discard draft" share the
+    /// same handler (`WriteView+Subviews.swift:307,333`).
     @MainActor
-    func testToolbar_editEntry_deleteButtonShowsConfirmation() throws {
+    func testToolbar_editEntry_deleteButtonShowsUndoCountdown() throws {
         let app = launchApp()
         tapWriteTab(in: app)
 
@@ -219,17 +222,22 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Delete entry"].tap()
         Thread.sleep(forTimeInterval: 0.5)
 
-        // Confirmation dialog must appear
+        // Editor clears immediately; the undo affordance appears instead of a dialog.
+        let editorText = tv.value as? String ?? ""
         XCTAssertTrue(
-            app.buttons["Delete"].waitForExistence(timeout: 3),
-            "Delete confirmation button must appear"
+            editorText.isEmpty || editorText == tv.placeholderValue,
+            "Editor must be empty immediately after Delete entry. Got: \"\(editorText)\""
         )
-        XCTAssertTrue(app.buttons["Cancel"].exists, "Cancel button must appear in confirmation")
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 3), "Undo button must appear")
+        XCTAssertTrue(app.staticTexts["Entry will be deleted"].exists, "Delete-pending banner must appear")
 
-        snapshot(app, name: "toolbar_delete_confirmation_dialog")
+        snapshot(app, name: "toolbar_delete_undo_countdown")
 
-        // Cancel to avoid deleting in subsequent tests
-        app.buttons["Cancel"].tap()
+        // Undo to restore the entry, avoiding side effects in subsequent tests.
+        app.buttons["Undo"].tap()
+        Thread.sleep(forTimeInterval: 0.5)
+        let restoredText = tv.value as? String ?? ""
+        XCTAssertTrue(restoredText.contains("Entry to delete"), "Undo must restore the entry text")
     }
 
     // MARK: - ToolRow (keyboard accessory bar)
