@@ -225,7 +225,14 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 > - **2.5** — iPhone panel height is still the hardcoded `CGRect(... height: 346)` at
 >   `NoteEditorTextView.swift:2426`. Clips on SE / landscape / large Dynamic Type. The `.popover`
 >   branch self-sizes, so 2.5 is now iPhone-only + the `@ScaledMetric` pass on the fixed
->   `.system(size:)` / 44–50pt button frames inside `FormattingPanelView`.
+>   `.system(size:)` / 44–50pt button frames inside `FormattingPanelView`. **Now has a
+>   reproducible symptom**: on iPhone 17 Pro sim with no checklist active (so no bulk-ops row
+>   pushing it further down), the highlight color row — the panel's last row — fails to appear
+>   in 3 separate UI-test runs (`testFormattingPanel_highlights_clearButtonPresent` /
+>   `clearHighlight` / `colorCellsTappable`, all reproducible, not timing-flake — same ~25-33s
+>   as passing tests). Consistent with the 346pt fixed-height `ScrollView` cutting the panel
+>   before the highlight row lays out. Not root-caused past that — needs Xcode's view debugger
+>   on a live panel, which wasn't done. **Candidate for 2.5's fix, not a separate item.**
 > - **3.4** — the `DispatchQueue.main.async` hop on every panel command is still load-bearing
 >   on iPhone (inputView teardown race). Only the iPad popover path is free of it.
 > - `InlineRecordingRow` cancel button uses `Color(.tertiarySystemFill)`
@@ -234,24 +241,54 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 >   `WriteView+Subviews.swift:443`, and the `.sheet` case name is now a misnomer (it's
 >   inputView-hosted, not a sheet).
 >
-> **`mirrorUITests` modernized (2026-09-10/11), NOT re-verified clean — needs a re-run.**
-> First run on `2.1.1` iPhone 17 Pro (pre-fix): **28 failed / 3 passed**, every failure a
-> renamed accessibility label, not an app regression — Aa `"Text formatting"` → `"Formatting"`,
-> mic → `"Record voice note"`, checklist button gone from the toolRow (May 2026), plus the
-> `app.cells.firstMatch` entry-list tap hitting the calendar heatmap instead of a row.
+> **`mirrorUITests` modernized (2026-09-10/11) — 25/32 passing clean on iPhone 17 Pro sim.**
+> Original suite (last touched 2026-05-13, predates the panel rework): 28 failed / 3 passed,
+> every failure a renamed accessibility label, not an app regression — Aa `"Text formatting"`
+> → `"Formatting"`, mic → `"Record voice note"`, checklist button gone from the toolRow
+> (May 2026), plus `app.cells.firstMatch` hitting the calendar heatmap instead of an entry row.
 > Fixed: label refs, `applyChecklistViaPanel`/`open`/`closeFormattingPanel` helpers,
-> `openEntryForEditing` (locates rows by text, not cell index), `discardDraft` assertion
-> rewritten for the undo-countdown behavior (`startDeleteWithUndo`, `WriteView+Actions.swift:195`
-> — clears immediately, button stays enabled as the undo affordance), `keyboardIconButton_closesPanel`
-> replaced with `aaButton_closesPanelAndRestoresKeyboard` (no keyboard icon in the panel anymore —
-> closes via "Hide formatting", asserts `app.keyboards` presence as the 2.1 proof), and a new
-> `testVoice_micButton_recordsInlineWithoutModal` for 2.2. Test target compiles clean.
-> Re-run attempt (`test-without-building`, same sim) was **not usable** — the machine
-> thrashed and the run took 8 hours instead of ~10 minutes (individual tests up to 2895s vs.
-> the normal ~15s), so most of the 12 failures in that run are timeout artifacts, not
-> necessarily real. What did survive at pathological duration and still passed: the toolRow
-> label fixes, the Aa-toggle close, the undo-aware discard rewrite, and `openEntryForEditing`.
-> **Needs a clean re-run** before the suite counts as verifying 2.1/2.2.
+> `openEntryForEditing` (locates rows by text), `discardDraft` assertion rewritten for the
+> undo-countdown behavior (`startDeleteWithUndo`, `WriteView+Actions.swift:195` — clears
+> immediately, button stays enabled as the undo affordance), `keyboardIconButton_closesPanel`
+> replaced with `aaButton_closesPanelAndRestoresKeyboard` (no keyboard icon in the panel
+> anymore — closes via "Hide formatting", asserts `app.keyboards` presence as the 2.1 proof),
+> and a new `testVoice_micButton_recordsInlineWithoutModal` for 2.2.
+>
+> **Second bug found and fixed: cross-test draft contamination.** `--uitesting` only skips
+> onboarding (`ContentView.swift:92`) — the draft (`UserDefaults` + `DraftAttachmentStore`) and
+> every `Entry`/`Insight` persist on-disk across app relaunches, and no test cleaned up after
+> itself. Each `XCUIApplication().launch()` restored the *previous* test's draft, so by test 20
+> the editor held every prior test's typed text concatenated together, breaking cursor-position
+> and panel-layout assumptions. Confirmed by re-running 2 failures in isolation — both passed
+> clean with identical code. Fix: new `--clearWriteTestState` launch arg (DEBUG-only,
+> `mirrorApp.swift`, matching the existing `--seedX`/`--clearX` pattern) wipes the draft
+> (`WriteView.clearAllDraftStorage()`, a new static split off `clearDraftStorage()`) and all
+> `Entry`/`Insight` rows (`SampleData.clear(from:)`, already existed) on launch;
+> `launchApp()` now passes it. Took the suite from 22/32 → 25/32.
+>
+> **7 still fail** after both fixes:
+> - **3 highlight-row tests** (`clearButtonPresent`/`clearHighlight`/`colorCellsTappable`) —
+>   reproducible at normal speed (not timeout flake), likely tied to 2.5's hardcoded 346pt
+>   panel height cutting the panel before the highlight row (last row, no checklist active so
+>   no bulk-ops row pushing it down further) lays out. Not root-caused past that — see 2.5 above.
+> - **`paragraphStyle_cycleThroughAll`** — "Mono" button reports a frame with its right edge
+>   past the screen width; it's the last item in a horizontal-scroll row and XCUITest doesn't
+>   auto-scroll before tapping. Test bug (missing an explicit scroll), not an app bug — every
+>   other test that taps a single paragraph style individually passes.
+> - **`Regression_openAaOnChecklistLine`**, **`editEntry_deleteButtonShowsConfirmation`** —
+>   both took 4-10x their normal duration in the run that failed them (load avg was still
+>   elevated, 19-77, from an earlier session — see below); inconclusive, most likely residual
+>   machine load rather than real bugs. Not re-isolated to confirm.
+> - **`testVoice_micButton_recordsInlineWithoutModal`** — mic tapped, no permission dialog
+>   fired (already decided from an earlier run), then neither the recording row nor the
+>   permission notice ever appeared. Most likely this sandboxed sim host has no usable mic
+>   input device at all (silent `AVAudioRecorder` failure) — consistent with the existing
+>   "real mic — device only" caveat, but not confirmed against a device or a host with mic
+>   access, so can't rule out a real bug.
+>
+> Clean-vs-degraded matters here: a first re-run attempt on a thrashing machine (load avg
+> 16-157) took 8 hours instead of ~10 minutes and produced mostly-bogus failures — always
+> check `uptime` before trusting a run's failures as real.
 >
 > 3 new user-facing strings (Group 1) + a few more (2.2) still need a catalog extraction pass.
 >

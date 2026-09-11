@@ -113,6 +113,16 @@ struct mirrorApp: App {
                 UserDefaults.standard.set(value, forKey: "mirrorAppearanceMode")
             }
         }
+        // mirrorUITests relaunches the app per test method but the draft
+        // (UserDefaults + DraftAttachmentStore) and every saved Entry/Insight
+        // persist on-disk across launches — without this, WriteView tests
+        // accumulate every prior test's typed text into one ballooning draft.
+        // Opt-in via launch arg, DEBUG only, scratch-device only (wipes ALL
+        // entries — never pass this against a device with real journal data).
+        if ProcessInfo.processInfo.arguments.contains("--clearWriteTestState") {
+            WriteView.clearAllDraftStorage()
+            SampleData.clear(from: sharedModelContainer.mainContext)
+        }
         #endif
     }
 
