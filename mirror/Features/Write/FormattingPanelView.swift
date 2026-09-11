@@ -128,7 +128,7 @@ struct FormattingPanelView: View {
                     paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
                     paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
                     paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
-                    paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular).italic())
+                    paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 2)
