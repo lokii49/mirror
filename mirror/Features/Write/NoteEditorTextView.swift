@@ -1232,9 +1232,36 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let updated = nsText.replacingCharacters(in: selectedRange, with: insertion)
             parent.text = updated
+            // applyStyledText's own updateTypingAttributes call (at its end)
+            // runs BEFORE the selectedRange move below, so it computes typing
+            // attributes against the pre-insert cursor location, not where the
+            // cursor is about to land — stale by construction, not a guard
+            // misfiring. photoAttachmentString's attachment run carries no
+            // .font / .foregroundColor of its own either, so with nothing
+            // correct ever computed for the new position, UIKit fell back to
+            // its own default (small, black) typing attributes — text typed
+            // right after an attached photo rendered wrong-colored and
+            // wrong-sized until the next edit forced a real recompute.
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(NSRange(location: selectedRange.location + insertion.count, length: 0), in: textView.text)
             updatePlaceholder(in: textView)
+            // Recompute against the actual post-move cursor position.
+            // Usually that's a real character (e.g. a photo inserted right
+            // before existing text takes on that text's own style) — but a
+            // photo appended at the end lands the cursor on a genuinely empty
+            // trailing paragraph with no character to read attributes from,
+            // the same case bodyAttributes covers at the top of
+            // updateTypingAttributes for a wholly empty document.
+            let newCursorLoc = textView.selectedRange.location
+            let currentLength = (textView.text as NSString?)?.length ?? 0
+            if newCursorLoc >= currentLength {
+                textView.typingAttributes = bodyAttributes
+            } else {
+                let style = textStyle(at: newCursorLoc, in: textView.attributedText)
+                let level = indentLevelValue(at: newCursorLoc, in: textView.attributedText)
+                let fontChoice = fontChoiceValue(at: newCursorLoc, in: textView.attributedText)
+                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            }
         }
 
         private func renderedAttributedText(for rawText: String, width: CGFloat) -> NSMutableAttributedString {
