@@ -76,11 +76,36 @@ struct ParagraphStyleRenderingTests {
     }
 
     @Test func titleHeadingSubheadingHaveNoMarker() throws {
-        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced] {
+        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced, .blockQuote] {
             let h = makeEditorHarness(text: "hello", textStyleData: style(.init(paragraphStyles: [s])))
             let rendered = try #require(h.textView.attributedText)
             #expect(rendered.string == "hello", "\(s) should not add a marker prefix")
         }
+    }
+
+    @Test func blockQuoteIsMutedAndIndentedButNotItalic() throws {
+        // Deliberately not italic — see NoteEditorTextView.attributes(for:) comment:
+        // baking italic into the paragraph style's own font would fight the Italic
+        // inline toggle, which manages .traitItalic on the rendered font directly.
+        let h = makeEditorHarness(text: "quoted", textStyleData: style(.init(paragraphStyles: [.blockQuote])))
+        let rendered = try #require(h.textView.attributedText)
+        let font = try #require(rendered.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(!font.fontDescriptor.symbolicTraits.contains(.traitItalic), "block quote must not force italic")
+        let color = rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+        #expect(color == UIColor.secondaryLabel)
+        let ps = try #require(rendered.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(ps.headIndent > 0)
+        #expect(ps.firstLineHeadIndent > 0)
+    }
+
+    @Test func blockQuoteRoundTripsThroughEncodedTextStyleData() throws {
+        // NoteParagraphTextStyle is String-backed Codable and persisted verbatim in
+        // encodedTextStyleData — a rawValue collision or typo would silently decode
+        // to the wrong style (or fail entirely) without ever touching the editor.
+        let doc = NoteTextStyleDocument(paragraphStyles: [.body, .blockQuote, .heading], indentLevels: nil, fontChoices: nil)
+        let data = try JSONEncoder().encode(doc)
+        let decoded = try JSONDecoder().decode(NoteTextStyleDocument.self, from: data)
+        #expect(decoded.paragraphStyles == [.body, .blockQuote, .heading])
     }
 
     @Test func bulletedDashedNumberedChecklistHaveMarkers() throws {
@@ -313,7 +338,7 @@ struct BulkChecklistTests {
 struct ReturnKeyContinuationTests {
 
     @Test func headingSubheadingTitleMonoResetTypingToBodyOnReturn() {
-        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced] {
+        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced, .blockQuote] {
             let h = makeEditorHarness(text: "Section", textStyleData: style(.init(paragraphStyles: [s])))
             let endLocation = (h.textView.text as NSString).length
             let shouldChange = h.coordinator.textView(

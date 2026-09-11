@@ -9,6 +9,7 @@ enum NoteTextCommand: Equatable {
     case subheading
     case body
     case monospaced
+    case blockQuote
     case bulletedList
     case dashedList
     case numberedList
@@ -37,6 +38,7 @@ enum NoteParagraphTextStyle: String, Codable {
     case heading
     case subheading
     case monospaced
+    case blockQuote
     case checklistUnchecked
     case checklistChecked
     case bulletedList

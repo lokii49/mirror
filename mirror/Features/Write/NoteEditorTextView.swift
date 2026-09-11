@@ -409,8 +409,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     }
                     return false
                 }
-                if style == .title || style == .heading || style == .subheading || style == .monospaced {
-                    // Headings/titles/mono are one-line blocks by convention — continuing
+                if style == .title || style == .heading || style == .subheading || style == .monospaced || style == .blockQuote {
+                    // Headings/titles/mono/quote are one-line blocks by convention — continuing
                     // to type after Return should drop back to body text, not keep
                     // growing as another heading. Only affects what's typed *after* the
                     // break; text split off mid-paragraph keeps its own attributes.
@@ -1137,6 +1137,27 @@ struct NoteEditorTextView: UIViewRepresentable {
                     .foregroundColor: UIColor.label,
                     .paragraphStyle: paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
                 ]
+            case .blockQuote:
+                let ps = paragraphStyle(lineSpacing: 5, paragraphSpacing: 8)
+                // A single, non-wrapping indent — quotes here are a body-text
+                // treatment (muted, set in), not a list, so there's no
+                // marker/tab-stop machinery to keep first-line and wrapped-line
+                // indents in sync the way listAttributes/checklistAttributes do.
+                // Deliberately not italic: the Italic inline toggle manages
+                // .traitItalic on the rendered font directly (applyInlineStyles /
+                // isStyleApplied), so baking italic into the paragraph style's
+                // own base font would make the "I" button read as falsely
+                // selected on every quote, and toggling it off would silently
+                // strip the quote's font trait. Indent + secondaryLabel alone
+                // reads clearly as a quote without touching that toggle's
+                // territory (secondaryLabel also matches .subheading's choice).
+                ps.headIndent = 16
+                ps.firstLineHeadIndent = 16
+                return [
+                    .font: bodyFont(for: fontChoice),
+                    .foregroundColor: UIColor.secondaryLabel,
+                    .paragraphStyle: ps
+                ]
             case .checklistUnchecked:
                 return checklistAttributes(checked: false, level: level, fontChoice: fontChoice)
             case .checklistChecked:
@@ -1518,6 +1539,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .heading:      return .heading
             case .subheading:   return .subheading
             case .monospaced:   return .monospaced
+            case .blockQuote:   return .blockQuote
             default:            return .body
             }
         }
