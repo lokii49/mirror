@@ -30,6 +30,7 @@ extension WriteView {
         transcriptionTasks[index]?.cancel()
         transcribingVoiceNoteIndexes.insert(index)
         failedTranscriptionIndexes.remove(index)
+        transcriptionFailureMessages[index] = nil
         let preferred = transcriptionLanguage.isEmpty ? nil : transcriptionLanguage
         let task = Task {
             do {
@@ -40,13 +41,24 @@ extension WriteView {
                     applyTranscription(result, toVoiceNoteAt: index)
                     transcribingVoiceNoteIndexes.remove(index)
                     failedTranscriptionIndexes.remove(index)
+                    transcriptionFailureMessages[index] = nil
                     transcriptionTasks[index] = nil
                 }
             } catch {
-                if Task.isCancelled { return }
+                // Belt-and-suspenders against writing "Transcription failed." for
+                // a cancellation, not a real failure: Task.isCancelled covers
+                // the common case (this task was cancelled), and the explicit
+                // CancellationError check covers it even if that flag and the
+                // thrown error type were ever to disagree at this exact point.
+                if Task.isCancelled || error is CancellationError { return }
                 await MainActor.run {
                     transcribingVoiceNoteIndexes.remove(index)
                     failedTranscriptionIndexes.insert(index)
+                    // Distinguishes "no offline model for this language" from a
+                    // generic recognition failure on the attachment row instead
+                    // of collapsing every reason into the same fixed copy
+                    // (audit 2.4). classify() never surfaces a raw system error.
+                    transcriptionFailureMessages[index] = VoiceTranscriptionError.classify(error).errorDescription
                     transcriptionTasks[index] = nil
                 }
             }
@@ -63,6 +75,7 @@ extension WriteView {
         transcriptionTasks.removeAll()
         transcribingVoiceNoteIndexes.removeAll()
         failedTranscriptionIndexes.removeAll()
+        transcriptionFailureMessages.removeAll()
     }
 
     /// Re-run transcription for any note that has audio but no transcript. Used
@@ -158,6 +171,7 @@ extension WriteView {
         transcribingVoiceNoteIndexes.removeAll()
         transcriptionTasks.removeAll()
         failedTranscriptionIndexes.removeAll()
+        transcriptionFailureMessages.removeAll()
     }
 
     /// `applyTranscription(_:toVoiceNoteAt:)`'s counterpart for a note whose

@@ -259,12 +259,22 @@ struct VoiceNoteAttachmentView: View {
     var languageName: String? = nil
     var isTranscribing: Bool = false
     var transcriptionFailed: Bool = false
+    /// Why it failed — e.g. "This language isn't available for offline
+    /// transcription on this device." vs. a generic recognition failure.
+    /// `nil` falls back to the previous fixed copy (audit 2.4) — e.g. a
+    /// failure inferred on reopening a saved entry has no real error to
+    /// report, only "audio present, transcript missing."
+    var transcriptionFailureMessage: String? = nil
     var onDelete: (() -> Void)? = nil
     var onRetryTranscription: (() -> Void)? = nil
 
     @State private var player = VoiceNotePlayer()
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
+    private var failureLine: String {
+        let reason = transcriptionFailureMessage ?? String(localized: "Transcription failed.")
+        return "\(reason) \(String(localized: "AI won't reflect on this note."))"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -360,12 +370,13 @@ struct VoiceNoteAttachmentView: View {
                         .foregroundStyle(.orange)
                     Group {
                         if displayMode == .sentinel {
-                            Text("DECODE FAILED — AI WON'T READ THIS NOTE.").font(MirrorTheme.mono(10.5, weight: .medium))
+                            Text(failureLine.uppercased()).font(MirrorTheme.mono(10.5, weight: .medium))
                         } else {
-                            Text("Transcription failed — AI won't reflect on this note.").font(.system(size: 12))
+                            Text(failureLine).font(.system(size: 12))
                         }
                     }
                     .foregroundStyle(.secondary)
+                    .lineLimit(3)
                     Spacer()
                     if let onRetryTranscription {
                         Button(action: onRetryTranscription) {
