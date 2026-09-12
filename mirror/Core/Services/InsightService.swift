@@ -402,17 +402,48 @@ enum InsightService {
             .sorted { $0.createdAt > $1.createdAt }
         let languageSource = thisWeek.isEmpty ? priorWeeks : thisWeek
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: languageSource), task: .weeklyDigest)
-        return try await localGenerate(
+        let recentEntries = Array(thisWeek.prefix(12))
+        let backgroundEntries = Array(priorWeeks.prefix(14))
+        let userMessage = buildUserMessage(
+            title: "Weekly digest context",
+            recentEntries: recentEntries,
+            backgroundEntries: backgroundEntries,
+            maxChars: weeklyDigestPromptBudget
+        )
+
+        let first = try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
-            userMessage: buildUserMessage(
-                title: "Weekly digest context",
-                recentEntries: Array(thisWeek.prefix(12)),
-                backgroundEntries: Array(priorWeeks.prefix(14)),
-                maxChars: weeklyDigestPromptBudget
-            ),
+            userMessage: userMessage,
             task: .weeklyDigest,
             responseLanguageInstruction: languageInstruction
         )
+        // Same isUngrounded backstop as generateNudge, applied to the whole digest (all six
+        // sections) rather than per-section — WEEKLY_DIGEST_SYSTEM's "reference actual words,
+        // moods, dates, or phrases" rule applies to the digest as a whole, and a digest has far
+        // more words than a nudge to land a real one in, so the same one-shared-word threshold
+        // is if anything looser here, not stricter.
+        //
+        // No repeatsPriorOpening equivalent here — scoped to grounding only, per what was asked.
+        // Absence of an observed repeated-template failure for digests is NOT evidence it can't
+        // happen: the nudge repeat was only caught because a user happened to scroll its history
+        // list, and PastDigestCard (X-ray-wired the same way) could be sitting on an unnoticed
+        // duplicate right now. Left open, not ruled out.
+        guard isUngrounded(first.text, sourceEntries: recentEntries + backgroundEntries) else { return first }
+
+        let retryMessage = userMessage + """
+
+
+            IMPORTANT: your digest above didn't reference anything actually written in the entries above — no shared word, event, or detail in any section. It read as generic, invented content rather than a reflection of what's there. Start over, naming a specific word, event, or detail actually present in the entries above.
+            """
+        // Same fail-open shape as generateNudge's retry: `first` is a valid, already-validated
+        // digest, just ungrounded — falling back to it on a retry failure beats no digest at all.
+        guard let second = try? await localGenerate(
+            systemPrompt: WEEKLY_DIGEST_SYSTEM,
+            userMessage: retryMessage,
+            task: .weeklyDigest,
+            responseLanguageInstruction: languageInstruction
+        ) else { return first }
+        return second
     }
 
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {

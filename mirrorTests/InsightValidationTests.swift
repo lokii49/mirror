@@ -640,4 +640,41 @@ struct InsightValidationTests {
         #expect(recent.count == 3)
         #expect(background.count == 20)
     }
+
+    // MARK: - isUngrounded applied to weekly digests. generateWeeklyDigest reuses the exact
+    // same detector as generateNudge, checked against the whole six-section digest text rather
+    // than per-section — these confirm it behaves correctly on that longer, structured shape,
+    // not just a 2-3 sentence nudge.
+
+    @Test func isUngrounded_weeklyDigestFabricated_detected() {
+        let entries = [
+            Entry(text: "Shipped the launch today after three weeks of late nights. Team was relieved."),
+            Entry(text: "Slept badly again, kept replaying the client call in my head."),
+        ]
+        let digest = weeklyDigestText([
+            "The rain outside feels like a gentle echo of the quiet spaces you've been carving out.",
+            "You seemed most alive on rainy afternoons, most drained during quiet evenings.",
+            "Something gentle is building in the quiet spaces of your days.",
+            "Watch out for letting the quiet moments slip away unnoticed.",
+            "Sit by a rainy window for ten minutes with nothing else to do.",
+            "Keep carving out those gentle, quiet spaces next week too.",
+        ])
+        #expect(InsightService.isUngrounded(digest, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_weeklyDigestGrounded_notDetected() {
+        let entries = [
+            Entry(text: "Shipped the launch today after three weeks of late nights. Team was relieved."),
+            Entry(text: "Slept badly again, kept replaying the client call in my head."),
+        ]
+        let digest = weeklyDigestText([
+            "This week was dominated by the launch finally shipping after three weeks of late nights.",
+            "You were most alive when the launch went out, most drained replaying the client call at night.",
+            "The relief from finally shipping is building into something steadier.",
+            "Watch out for the late nights becoming a habit even after the launch is behind you.",
+            "Send the team a thank-you for the three weeks of late nights.",
+            "Let the sleep catch up now that the launch and the client call are behind you.",
+        ])
+        #expect(!InsightService.isUngrounded(digest, sourceEntries: entries))
+    }
 }
