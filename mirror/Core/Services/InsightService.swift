@@ -310,7 +310,7 @@ enum InsightService {
             .sorted { $0.generatedAt < $1.generatedAt }
     }
 
-    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
         let (recent, background) = dailyNudgeContext(from: entries, asOf: Date())
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
 
@@ -335,7 +335,7 @@ enum InsightService {
         )
         let violatesRepeat = repeatsPriorOpening(first.text, openings: openings)
         let violatesGrounding = isUngrounded(first.text, sourceEntries: recent + background)
-        guard violatesRepeat || violatesGrounding else { return first }
+        guard violatesRepeat || violatesGrounding else { return (first.text, first.engine, false) }
 
         // Named the violation(s) directly rather than just repeating the general instruction —
         // a list buried in the prompt was already ignored once. One retry only, result accepted
@@ -362,13 +362,17 @@ enum InsightService {
         // broken. If the retry throws (contextExhausted on a second full pass is realistic on
         // the older/slower devices that are this guard's whole population), fall back to `first`
         // rather than propagating: a flawed nudge beats no nudge at all that day.
+        //
+        // `degraded: true` either way — the retry result is never re-checked against either
+        // guard (see note above), so even a successful `second` is not verified clean. The
+        // caller uses this to soften today's push notification rather than skip generation.
         guard let second = try? await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: retryMessage,
             task: .dailyNudge,
             responseLanguageInstruction: languageInstruction
-        ) else { return first }
-        return second
+        ) else { return (first.text, first.engine, true) }
+        return (second.text, second.engine, true)
     }
 
     /// Fewer than this many entries in the current week → not enough to find a

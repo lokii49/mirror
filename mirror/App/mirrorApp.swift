@@ -383,7 +383,7 @@ struct mirrorApp: App {
             .map(\.content)
 
         do {
-            let (text, engine) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
+            let (text, engine, degraded) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -396,14 +396,22 @@ struct mirrorApp: App {
             if SubscriptionService.shared.isSubscribed {
                 // Update the repeating nudge content to "ready" so it fires correctly at nudge time.
                 // No second one-time notification — that would double-fire at the same minute.
+                // `insightReady: !degraded` — a nudge that tripped the grounding/repeat guard is
+                // still saved and shown as a card (a flawed reflection beats none), but the push
+                // falls back to the generic "come check" body instead of promising a "ready"
+                // reflection the guard couldn't confirm is actually good.
                 await NotificationService.rescheduleContextualNudge(
                     hasWrittenToday: true,
-                    insightReady: true,
+                    insightReady: !degraded,
                     hour: hour,
                     minute: minute
                 )
             } else {
-                // First nudge for free users — one-time hook to drive paywall conversion
+                // First nudge for free users — one-time hook to drive paywall conversion.
+                // NOT gated on `degraded`: the Insight above is already saved, which makes
+                // `hasSeenFirst` true on every later call — there is no "next day" retry for a
+                // free user, this is the only time this ever fires for them. A flawed first
+                // nudge still beats never showing the paywall hook at all.
                 await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
             }
         } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
@@ -817,19 +825,32 @@ struct mirrorApp: App {
     private func requestNotificationPermissionIfNeeded() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         guard settings.authorizationStatus == .notDetermined else { return }
+        // Gated on entries.count >= 3 — the same threshold runDailyNudgeIfNeeded uses for nudge
+        // eligibility — rather than on an existing daily-nudge Insight: permission must resolve
+        // *before* the first nudge generates, or scheduleFirstNudgeHook's isAuthorized() check
+        // silently no-ops and, since the Insight it would have announced is already saved by
+        // then, never gets a second chance (hasSeenFirst locks out that path for non-subscribers
+        // for good). This backfill (originally added for users who onboarded before a permission
+        // prompt existed at all) is now the ONLY place permission is requested — OnboardingFlow
+        // no longer asks at Day 0.
+        let context = sharedModelContainer.mainContext
+        let entryCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
+        guard entryCount >= 3 else { return }
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-        if granted, SubscriptionService.shared.isSubscribed {
-            let context = sharedModelContainer.mainContext
-            let insightReady = mirrorApp.hasDailyNudgeForToday(context: context)
-            let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
-            await NotificationService.rescheduleContextualNudge(
-                hasWrittenToday: hasWrittenToday,
-                insightReady: insightReady,
-                hour: NotificationService.nudgeHour(),
-                minute: NotificationService.nudgeMinute()
-            )
-        }
+        guard granted else { return }
+        // Not gated on subscription — free users get the same repeating "come write" reminder
+        // (insightReady false → generic body) at their chosen hour that onboarding used to
+        // schedule unconditionally on Day 0. Only the Core/Deep "your reflection is ready" body
+        // needs a subscription; the reminder itself doesn't.
+        let insightReady = mirrorApp.hasDailyNudgeForToday(context: context) && SubscriptionService.shared.isSubscribed
+        let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+        await NotificationService.rescheduleContextualNudge(
+            hasWrittenToday: hasWrittenToday,
+            insightReady: insightReady,
+            hour: NotificationService.nudgeHour(),
+            minute: NotificationService.nudgeMinute()
+        )
     }
 
     // MARK: - Background time extension for mid-session generation
