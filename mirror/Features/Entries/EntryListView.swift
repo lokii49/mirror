@@ -18,6 +18,7 @@ struct EntriesTabView: View {
     @State private var selectedDateFilter: Date? = nil
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
+    @State private var showOnThisDay = false
     @State private var snapshotCache: EntryListSnapshot? = nil
     @State private var sortOrder: EntrySortOrder = .newestFirst
 
@@ -154,8 +155,24 @@ struct EntriesTabView: View {
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
+    // Computed on every render off the existing @Query — cheap (date-component comparison only,
+    // no decryption) even for a large journal, and typically yields 0-2 entries.
+    private var onThisDayMatches: [Entry] {
+        OnThisDayService.matches(in: entries)
+    }
+
     private var trailingToolbar: some View {
         HStack(spacing: 16) {
+            if !onThisDayMatches.isEmpty {
+                Button {
+                    showOnThisDay = true
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
+                }
+                .accessibilityLabel("On This Day")
+            }
             Menu {
                 ForEach(EntrySortOrder.allCases, id: \.self) { order in
                     Button {
@@ -218,6 +235,12 @@ struct EntriesTabView: View {
                         showEntryDetail = false
                         self.selectedEntry = nil
                     }
+                }
+            }
+            .sheet(isPresented: $showOnThisDay) {
+                OnThisDayView(entries: onThisDayMatches) { entry in
+                    selectedEntry = entry
+                    showEntryDetail = true
                 }
             }
             .task(id: snapshotDeps) {

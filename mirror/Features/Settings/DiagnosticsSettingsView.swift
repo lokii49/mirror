@@ -99,6 +99,15 @@ struct DiagnosticsSettingsView: View {
 
                     SettingsDivider()
 
+                    Button {
+                        SampleData.seedOnThisDaySample(into: modelContext)
+                    } label: {
+                        SettingsRowLabel(title: "Load On This Day Sample", systemImage: "clock.arrow.circlepath", iconColor: .orange)
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsDivider()
+
                     Button(role: .destructive) {
                         SampleData.clearSampleEntries(from: modelContext)
                     } label: {

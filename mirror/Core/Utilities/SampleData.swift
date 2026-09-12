@@ -621,6 +621,29 @@ enum SampleData {
     /// Hidden tag applied to every seeded entry so they can be cleared without touching real entries.
     static let sampleTag = "__sample__"
 
+    // MARK: - On This Day sample (for verifying OnThisDayView without waiting years)
+
+    /// Two entries dated exactly 1 and 2 years ago today, tagged `sampleTag` like every other
+    /// seed helper here — the only way to see OnThisDayService/OnThisDayView's real matching
+    /// behavior without a journal that's actually years old.
+    static func seedOnThisDaySample(into context: ModelContext) {
+        let calendar = Calendar.current
+        let now = Date()
+        let fixtures: [(yearsAgo: Int, mood: String, text: String)] = [
+            (1, "Hopeful", "A year ago today — trying to remember what this exact week felt like."),
+            (2, "Calm", "Two years back on this exact date, a very different chapter of things."),
+        ]
+        for fixture in fixtures {
+            guard let date = calendar.date(byAdding: .year, value: -fixture.yearsAgo, to: now) else { continue }
+            let entry = Entry(text: fixture.text, mood: fixture.mood, source: .typed)
+            entry.createdAt = date
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: date)
+            entry.tags = [sampleTag]
+            context.insert(entry)
+        }
+        try? context.save()
+    }
+
     static func clearSampleEntries(from context: ModelContext) {
         let descriptor = FetchDescriptor<Entry>()
         let all = (try? context.fetch(descriptor)) ?? []
