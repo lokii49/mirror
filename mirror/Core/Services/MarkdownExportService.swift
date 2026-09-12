@@ -34,7 +34,11 @@ enum MarkdownExportService {
         let nsText = text as NSString
         var lines: [String] = []
         var paragraphIndex = 0
-        var numberedCounter = 0
+        // Keyed by indent level — matches NoteEditorTextView's renderer so a
+        // nested numbered sub-list restarts at 1 instead of continuing the
+        // parent sequence, and exported Markdown numbering matches what the
+        // editor actually displays.
+        var numberedCounters: [Int: Int] = [:]
 
         nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, subRange, _, _ in
             let style = paragraphIndex < paragraphStyles.count ? paragraphStyles[paragraphIndex] : .body
@@ -42,7 +46,14 @@ enum MarkdownExportService {
             let raw = nsText.substring(with: subRange)
             let styled = applyingInlineStyles(raw: raw, paragraphStart: subRange.location, ranges: inlineRanges)
 
-            numberedCounter = style == .numberedList ? numberedCounter + 1 : 0
+            var numberedCounter = 0
+            if style == .numberedList {
+                numberedCounters = numberedCounters.filter { $0.key <= level }
+                numberedCounter = (numberedCounters[level] ?? 0) + 1
+                numberedCounters[level] = numberedCounter
+            } else {
+                numberedCounters.removeAll()
+            }
             lines.append(markdownLine(for: styled, style: style, level: level, number: numberedCounter))
             paragraphIndex += 1
         }

@@ -383,6 +383,45 @@ private struct InlineEntryContent: View {
         return document.ranges
     }
 
+    private var indentLevels: [Int] {
+        guard let textStyleData,
+              let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: textStyleData) else {
+            return []
+        }
+        return document.indentLevels ?? []
+    }
+
+    /// Ordinal for a numbered-list paragraph at `index`, restarting per indent
+    /// level so a nested sub-list reads 1, 2 instead of continuing the parent's
+    /// count — same rule `NoteEditorTextView`'s renderer and
+    /// `MarkdownExportService` use, kept in sync so a number doesn't change
+    /// depending on which surface shows it.
+    private func listMarker(for style: NoteParagraphTextStyle, level: Int, index: Int) -> String {
+        switch style {
+        case .bulletedList: return level == 0 ? "•" : (level == 1 ? "◦" : "▸")
+        case .dashedList:    return level == 1 ? "·" : "–"
+        case .numberedList:  return "\(numberedOrdinal(at: index))."
+        default:             return ""
+        }
+    }
+
+    private func numberedOrdinal(at index: Int) -> Int {
+        var counters: [Int: Int] = [:]
+        var result = 1
+        for i in 0...index {
+            guard paragraphStyles.indices.contains(i), paragraphStyles[i] == .numberedList else {
+                counters.removeAll()
+                continue
+            }
+            let level = indentLevels.indices.contains(i) ? indentLevels[i] : 0
+            counters = counters.filter { $0.key <= level }
+            let next = (counters[level] ?? 0) + 1
+            counters[level] = next
+            if i == index { result = next }
+        }
+        return result
+    }
+
     private func writingFontUIDesign(at index: Int) -> UIFontDescriptor.SystemDesign {
         let override = fontChoices.indices.contains(index) ? fontChoices[index] : nil
         return WritingFontChoice.resolved(entryDefault: fontChoice, override: override).uiDesign
@@ -527,6 +566,24 @@ private struct InlineEntryContent: View {
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
+        } else if style == .bulletedList || style == .dashedList || style == .numberedList {
+            // Previously fell through to the plain-body `else` below — bulleted,
+            // dashed, and numbered paragraphs rendered as unmarked plain text
+            // here even though the editor shows glyphs/numbers and indent for
+            // them. Markers/indent match NoteEditorTextView's; numbering uses
+            // the same per-level-restart rule as `numberedOrdinal(at:)`.
+            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let level = indentLevels.indices.contains(index) ? indentLevels[index] : 0
+            let marker = listMarker(for: style, level: level, index: index)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(marker)
+                    .font(.system(size: style == .numberedList ? 17 : 20, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 22, alignment: style == .numberedList ? .trailing : .center)
+                Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+            }
+            .padding(.leading, CGFloat(level) * 20)
         } else {
             let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font))

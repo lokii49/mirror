@@ -134,6 +134,28 @@ struct ParagraphStyleRenderingTests {
         #expect(rendered.string.contains("3."))
     }
 
+    // Indenting a numbered item nests it under its parent — the nested run
+    // should restart at 1 rather than continuing the outer sequence, and the
+    // outer list should resume its own count (3, not 5) once it returns to
+    // the shallower level. Was previously a single flat counter ignoring
+    // indent level entirely.
+    @Test func numberedListRestartsOrdinalOnNestedIndent() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nsub one\nsub two\nthird",
+            textStyleData: style(.init(
+                paragraphStyles: [.numberedList, .numberedList, .numberedList, .numberedList, .numberedList],
+                indentLevels: [0, 0, 1, 1, 0]
+            ))
+        )
+        let lines = try #require(h.textView.attributedText).string.components(separatedBy: "\n")
+        #expect(lines.count == 5)
+        #expect(lines[0].hasPrefix("1."))
+        #expect(lines[1].hasPrefix("2."))
+        #expect(lines[2].hasPrefix("1."), "nested sub-list should restart at 1, got \(lines[2])")
+        #expect(lines[3].hasPrefix("2."))
+        #expect(lines[4].hasPrefix("3."), "outer list should resume at 3, got \(lines[4])")
+    }
+
     @Test func monospacedUsesMonospacedFontRegardlessOfChosenFamily() throws {
         for family: WritingFontChoice in [.system, .serif, .rounded, .monospaced] {
             let h = makeEditorHarness(

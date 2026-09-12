@@ -20,6 +20,7 @@ enum NoteTextCommand: Equatable {
     case strikethrough
     case highlight(index: Int?)   // nil = remove highlight; 0-4 = apply color
     case link(url: String?)       // nil = remove link; non-nil = apply/update URL
+    case clearFormatting          // strips bold/italic/underline/strikethrough/highlight/link; leaves paragraph style alone
     case checkAllItems
     case uncheckAllItems
     case deleteCheckedItems
@@ -101,6 +102,9 @@ struct InlineStyleRange: Codable, Equatable {
     /// Absolute URL string. Optional with a decode default so existing stored
     /// entries (encoded before this field existed) still decode fine.
     var linkURL: String? = nil
+    /// Index into `TextColorPalette`. Optional with a decode default, same
+    /// reasoning as `linkURL` — existing stored entries predate this field.
+    var textColorIndex: Int? = nil
 }
 
 struct InlineStyleDocument: Codable {

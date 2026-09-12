@@ -663,6 +663,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .link(let url):
                 applyLink(urlString: url, in: textView)
                 return
+            case .clearFormatting:
+                applyClearFormatting(in: textView)
+                return
             case .fontFamily(let choice):
                 applyFontFamily(choice, in: textView)
                 return
@@ -1348,7 +1351,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let storedIndents = decodedIndentLevels()
             let storedFontChoices = decodedFontChoices()
             var paragraphIndex = startingParagraph
-            var numberedListCounter = 0
+            // Keyed by indent level so a nested numbered sub-list restarts at 1
+            // instead of continuing the parent's sequence (StoryPad/flutter_quill
+            // doesn't nest numbered lists at all; Notes and Notion both restart
+            // per level, which is what this matches). A level's counter is
+            // dropped once a shallower-or-equal-level paragraph is seen, so
+            // returning to the outer list resumes its own count rather than the
+            // nested one.
+            var numberedListCounters: [Int: Int] = [:]
 
             for (offset, rawLine) in rawParagraphs.enumerated() {
                 let lineBreak = offset < rawParagraphs.count - 1 ? "\n" : ""
@@ -1368,11 +1378,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                     ? (WritingFontChoice(rawValue: storedFontChoices[paragraphIndex]) ?? entryDefaultFontChoice)
                     : entryDefaultFontChoice
 
-                // Track numbered list counter for sequential numbering
+                // Track numbered list counter per indent level for sequential
+                // numbering that restarts on nesting (see comment at declaration).
+                var numberedListCounter = 0
                 if storedStyle == .numberedList {
-                    numberedListCounter += 1
+                    numberedListCounters = numberedListCounters.filter { $0.key <= indentLevel }
+                    numberedListCounter = (numberedListCounters[indentLevel] ?? 0) + 1
+                    numberedListCounters[indentLevel] = numberedListCounter
                 } else {
-                    numberedListCounter = 0
+                    numberedListCounters.removeAll()
                 }
 
                 let rawDisplayParagraph: String
@@ -2065,6 +2079,50 @@ struct NoteEditorTextView: UIViewRepresentable {
             applyAttributedText(mutable, to: textView)
             textView.selectedRange = bounded(targetRange, in: textView.text)
             isApplyingStyledText = false
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        /// Clears character-level formatting only (bold/italic/underline/
+        /// strikethrough/highlight/link) — mirrors the scope of Notes' equivalent.
+        /// Paragraph style (heading/list/etc) is untouched; that's a separate
+        /// concern with its own toolbar row.
+        func applyClearFormatting(in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: attributed.string)
+                let mutable = NSMutableAttributedString(attributedString: attributed)
+                mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
+                    let font = (value as? UIFont) ?? self.serifBodyFont
+                    let plain = font.withTrait(.traitBold, add: false).withTrait(.traitItalic, add: false)
+                    mutable.addAttribute(.font, value: plain, range: range)
+                }
+                mutable.removeAttribute(.underlineStyle, range: applyRange)
+                mutable.removeAttribute(.strikethroughStyle, range: applyRange)
+                mutable.removeAttribute(.backgroundColor, range: applyRange)
+                mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
+                mutable.removeAttribute(.link, range: applyRange)
+
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                var typing = textView.typingAttributes
+                if let font = typing[.font] as? UIFont {
+                    typing[.font] = font.withTrait(.traitBold, add: false).withTrait(.traitItalic, add: false)
+                }
+                typing.removeValue(forKey: .underlineStyle)
+                typing.removeValue(forKey: .strikethroughStyle)
+                typing.removeValue(forKey: .backgroundColor)
+                typing.removeValue(forKey: Self.highlightIndexAttribute)
+                typing.removeValue(forKey: .link)
+                textView.typingAttributes = typing
+            }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
             syncRenderedCache(from: textView)
