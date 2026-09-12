@@ -453,7 +453,7 @@ private struct InlineEntryContent: View {
             if let idx = range.highlightIndex, idx < highlightColors.count {
                 mutable.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: localRange)
             }
-            if let urlString = range.linkURL, let url = URL(string: urlString) {
+            if let url = validatedLinkURL(from: range.linkURL) {
                 mutable.addAttribute(.link, value: url, range: localRange)
             }
         }

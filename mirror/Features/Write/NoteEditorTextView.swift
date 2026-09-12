@@ -2049,8 +2049,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let mutable = NSMutableAttributedString(attributedString: attributed)
-            let trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !trimmed.isEmpty, let url = URL(string: trimmed) {
+            if let url = validatedLinkURL(from: urlString) {
                 mutable.addAttribute(.link, value: url, range: targetRange)
             } else {
                 mutable.removeAttribute(.link, range: targetRange)
@@ -2374,7 +2373,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
                     attributed.addAttribute(Self.highlightIndexAttribute, value: idx, range: displayRange)
                 }
-                if let urlString = styleRange.linkURL, let url = URL(string: urlString) {
+                if let url = validatedLinkURL(from: styleRange.linkURL) {
                     attributed.addAttribute(.link, value: url, range: displayRange)
                 }
             }
