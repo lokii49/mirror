@@ -2041,6 +2041,27 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
   exact standing condition and nothing has materially changed since.
 
+- 2026-09-12 (run 76): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`connect_rejected`, confirmed via proxy status endpoint) — general web egress still blocked
+  (github.com and raw.githubusercontent.com still reachable directly via curl; api.github.com for
+  non-session repos still rejected). GitHub `pull_request_read` on janhq/awesome-local-ai#131 and
+  `add_repo` for janhq/awesome-local-ai both still rejected ("Allowed repositories: lokii49/mirror" /
+  "cross-tier adds are not supported in v1") — priority-1 bump and direct third-party PRs remain
+  impossible. For priority 2, tried six fresh WebSearch angles (awesome CoreML on-device apps
+  showcase, awesome llama.cpp apps showcase iOS, awesome digital-minimalism/slow-productivity apps
+  directory, open-source Day One journal alternatives, awesome bullet-journal/gratitude-journal apps,
+  awesome on-device-AI privacy apps directory 2026) — surfaced two new candidates, both checked via
+  raw README fetch and ruled out: diegoleme/awesome-open-source-alternatives (strictly "alternative to
+  [named product]" sections, no Day One/journaling section or category) and ai-collection/ai-collection
+  (evolved into a monetized commercial-AI-SaaS directory, no personal-journaling/privacy category) —
+  recorded in Lessons. No new candidate cleared the fit bar this run. No PRs opened, no comments
+  posted, no emails sent — 76th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
+  exact standing condition and nothing has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2301,6 +2322,19 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   blocked anyway, and lists only established EU companies), awesome solo-founder/indie-app showcase,
   awesome quiet-tech/slow-productivity/self-compassion apps. Confirmed 2026-09-11; do not re-try these
   exact angles again.
+- diegoleme/awesome-open-source-alternatives is not a fit: every section is "alternatives to [specific
+  named proprietary product]" (1Password, Asana, Evernote, etc.) with no section for Day One or
+  journaling apps generally, and no generic "journaling" category exists to add one. Confirmed
+  2026-09-12 via raw README fetch; do not re-add unless it gains a Day One/journaling section.
+- ai-collection/ai-collection (9.1k stars) is not a fit despite "awesome" origins: it has evolved into
+  a monetized directory of commercial AI SaaS products/websites (image/video/music generators, AI
+  detectors, chatbots) with no personal-journaling or privacy-app category, and most current entries
+  read as paid listings. Confirmed 2026-09-12 via raw README fetch; do not re-add.
+- Search angles tried this run with no new candidate surfaced (only already-logged/ruled-out lists or
+  individual competitor journal apps, not directories): awesome CoreML on-device apps showcase, awesome
+  llama.cpp apps showcase iOS, awesome digital-minimalism/slow-productivity apps directory, open-source
+  Day One alternatives, awesome bullet-journal/gratitude-journal apps, awesome on-device-AI privacy apps
+  directory 2026. Confirmed 2026-09-12; do not re-try these exact angles again.
 
 ## Sent log
 
