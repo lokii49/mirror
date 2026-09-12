@@ -120,6 +120,12 @@ enum MarkdownExportService {
         if style.italic { result = "*\(result)*" }
         if style.bold { result = "**\(result)**" }
         if style.highlightIndex != nil { result = "==\(result)==" }
+        // Deliberately no wrapping for textColorIndex: CommonMark has no color
+        // syntax, and the palette's actual hex is display-mode dependent
+        // (this service has no displayMode) — unlike highlight, which has the
+        // multimarkdown ==mark== convention as a reasonable stand-in, there's
+        // no equivalent for arbitrary foreground color, so it's dropped rather
+        // than baked in as light-mode-only inline HTML a reader can't toggle.
         // Outermost: other emphasis nests inside the link text, e.g. [**bold**](url).
         if let urlString = style.linkURL, !urlString.isEmpty { result = "[\(result)](\(urlString))" }
         return result

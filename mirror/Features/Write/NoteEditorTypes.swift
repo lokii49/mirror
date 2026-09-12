@@ -19,6 +19,7 @@ enum NoteTextCommand: Equatable {
     case underline
     case strikethrough
     case highlight(index: Int?)   // nil = remove highlight; 0-4 = apply color
+    case textColor(index: Int?)   // nil = remove text color; 0-4 = apply from TextColorPalette
     case link(url: String?)       // nil = remove link; non-nil = apply/update URL
     case clearFormatting          // strips bold/italic/underline/strikethrough/highlight/link; leaves paragraph style alone
     case checkAllItems

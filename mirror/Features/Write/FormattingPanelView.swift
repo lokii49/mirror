@@ -43,10 +43,45 @@ enum HighlightPalette {
     ]
 }
 
+/// Foreground text colors for the Aa panel's Text Color row and the editor's
+/// rendered `.foregroundColor` attribute. Same light/dark-adaptive shape as
+/// `HighlightPalette` but tuned as legible foreground ink rather than a
+/// background wash — a highlight's pastel would fail contrast as text color.
+enum TextColorPalette {
+    static func colors(for displayMode: DisplayMode) -> [Color] {
+        displayMode == .sentinel ? sentinel : classic
+    }
+
+    static func name(for index: Int, displayMode: DisplayMode) -> String {
+        let names = displayMode == .sentinel
+            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
+            : ["Red", "Orange", "Green", "Blue", "Purple"]
+        guard names.indices.contains(index) else { return "Text color" }
+        return names[index]
+    }
+
+    private static let classic: [Color] = [
+        MirrorTheme.hex(0xC0392B, 0xFF6B5B),   // red
+        MirrorTheme.hex(0xB8631A, 0xFFA94D),   // orange
+        MirrorTheme.hex(0x1F7A4D, 0x5FE0A0),   // green
+        MirrorTheme.hex(0x1F5FA8, 0x6FB8FF),   // blue
+        MirrorTheme.hex(0x6A3FA0, 0xC79BFF),   // purple
+    ]
+
+    private static let sentinel: [Color] = [
+        MirrorTheme.ember,
+        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
+        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
+        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
+        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
+    ]
+}
+
 @Observable final class FormattingPanelState {
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil
+    var activeTextColorIndex: Int? = nil
     /// The font family the *current paragraph/selection* is using — drives the
     /// font row's highlight, same role activeParagraphStyle plays for block style.
     var activeFontChoice: WritingFontChoice = .system
@@ -196,7 +231,12 @@ struct FormattingPanelView: View {
                 .padding(.top, 10)
             }
 
-            // Row 4: Highlight colors (scrolling, same reasoning as row 2)
+            // Row 4: Highlight + text colors sharing one horizontally-scrolling
+            // row (not two stacked rows) — a second full row pushed the
+            // default-size panel past its fixed 360pt input-view budget
+            // (FormattingPanelSizingTests). Same fix rows 2/3 already use for
+            // cramped width: let the row scroll further right instead of
+            // growing taller.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     Button {
@@ -225,6 +265,35 @@ struct FormattingPanelView: View {
 
                     ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
                         highlightButton(index: idx)
+                    }
+
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.12))
+                        .frame(width: 1, height: 28 * typeScale)
+                        .padding(.horizontal, 2)
+
+                    Button {
+                        DispatchQueue.main.async { state.onCommand?(.textColor(index: nil)) }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(idleFill)
+                                .frame(width: 44 * typeScale, height: 36 * typeScale)
+                            Text("A")
+                                .font(.system(size: 16 * typeScale, weight: .semibold))
+                                .foregroundStyle(state.activeTextColorIndex == nil ? accent : Color.primary)
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .stroke(state.activeTextColorIndex == nil ? accent : Color.clear, lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Default text color")
+                    .accessibilityAddTraits(state.activeTextColorIndex == nil ? .isSelected : [])
+
+                    ForEach(0..<TextColorPalette.colors(for: displayMode).count, id: \.self) { idx in
+                        textColorButton(index: idx)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -442,6 +511,31 @@ struct FormattingPanelView: View {
         // Swatches carry no visible text — without a label VoiceOver just
         // reads "button" for all five (audit 3.1).
         .accessibilityLabel(HighlightPalette.name(for: index, displayMode: displayMode))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private func textColorButton(index: Int) -> some View {
+        let isActive = state.activeTextColorIndex == index
+        let color = TextColorPalette.colors(for: displayMode)[index]
+        return Button {
+            let newIndex = isActive ? nil : index
+            DispatchQueue.main.async { state.onCommand?(.textColor(index: newIndex)) }
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(idleFill)
+                    .frame(width: 44 * typeScale, height: 36 * typeScale)
+                Text("A")
+                    .font(.system(size: 16 * typeScale, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(isActive ? accent : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(TextColorPalette.name(for: index, displayMode: displayMode))
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
