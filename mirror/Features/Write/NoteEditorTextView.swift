@@ -716,7 +716,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             )
             let targetStyle: NoteParagraphTextStyle
             if command == .checklist {
-                targetStyle = isListStyle(currentStyle) ? .body : .checklistUnchecked
+                // Matches bulleted/dashed/numbered below: only clears to .body when
+                // a checklist is already active — was clearing on ANY active list
+                // type (isListStyle), so tapping Checklist on a bulleted/dashed/
+                // numbered row deleted the list instead of converting it, unlike
+                // every other list-type button which converts in place.
+                let isChecklist = currentStyle == .checklistUnchecked || currentStyle == .checklistChecked
+                targetStyle = isChecklist ? .body : .checklistUnchecked
             } else if command == .bulletedList {
                 targetStyle = currentStyle == .bulletedList ? .body : .bulletedList
             } else if command == .dashedList {
