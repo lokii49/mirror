@@ -700,12 +700,13 @@ struct InsightView: View {
 private struct PastDigestCard: View {
     let insight: Insight
     @State private var expanded = false
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         WeeklyDigestView(
             insight: insight,
             isExpanded: expanded,
-            showSourceButton: false,
+            showSourceButton: displayMode == .sentinel,
             onToggleExpanded: {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
             }
@@ -716,6 +717,7 @@ private struct PastDigestCard: View {
 private struct PastNudgeCard: View {
     let insight: Insight
     @State private var isExpanded = false
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -724,6 +726,7 @@ private struct PastNudgeCard: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
+                if displayMode == .sentinel { InsightSourceButton(insight: insight) }
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MirrorTheme.primary.opacity(0.5))
