@@ -84,6 +84,12 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearAskSample") {
             SampleData.clearAskSample(from: sharedModelContainer.mainContext)
         }
+        if ProcessInfo.processInfo.arguments.contains("--seedRichInlineStylesSample") {
+            SampleData.seedRichInlineStylesSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearRichInlineStylesSample") {
+            SampleData.clearRichInlineStylesSample(from: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on

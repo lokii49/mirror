@@ -112,6 +112,9 @@ struct WriteView: View {
     @State var tagText: String = ""
     @State var showTagInput = false
     @State var existingTagSuggestions: [String] = []
+    @State var showLinkEditor = false
+    @State var linkEditorURLText = ""
+    @State var linkEditorHasExisting = false
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
     @FocusState var editorFocused: Bool
     @FocusState var tagFieldFocused: Bool
@@ -375,6 +378,11 @@ struct WriteView: View {
             }
             loadedContentHash = currentContentHash()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
+            panelState.onRequestLinkEditor = {
+                linkEditorURLText = panelState.activeLinkURL ?? ""
+                linkEditorHasExisting = panelState.activeLinkURL != nil
+                showLinkEditor = true
+            }
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true
@@ -414,6 +422,17 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(photoAttachError ?? "")
+        }
+        .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
+            TextField("https://example.com", text: $linkEditorURLText)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Save") { applyTextCommand(.link(url: linkEditorURLText)) }
+            if linkEditorHasExisting {
+                Button("Remove Link", role: .destructive) { applyTextCommand(.link(url: nil)) }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .onReceive(recElapsedTimer) { _ in
             if isRecordingInline { voiceRecorder.refreshElapsed() }

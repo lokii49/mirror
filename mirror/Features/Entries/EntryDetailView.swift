@@ -100,7 +100,7 @@ struct EntryDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
                     } else {
                         Text("No text")
                             .font(.system(size: 17, weight: .regular, design: writingFontDesign))
@@ -354,8 +354,10 @@ private struct OnThisDaySection: View {
 private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
+    let inlineStyleData: Data?
     let photoDataArray: [Data]
     let fontChoice: String?
+    @Environment(\.appDisplayMode) private var displayMode
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
         guard let textStyleData,
@@ -373,13 +375,96 @@ private struct InlineEntryContent: View {
         return document.fontChoices ?? []
     }
 
-    private func writingFontDesign(at index: Int) -> Font.Design {
+    private var inlineRanges: [InlineStyleRange] {
+        guard let inlineStyleData,
+              let document = try? JSONDecoder().decode(InlineStyleDocument.self, from: inlineStyleData) else {
+            return []
+        }
+        return document.ranges
+    }
+
+    private func writingFontUIDesign(at index: Int) -> UIFontDescriptor.SystemDesign {
         let override = fontChoices.indices.contains(index) ? fontChoices[index] : nil
-        return WritingFontChoice.resolved(entryDefault: fontChoice, override: override).swiftUIDesign
+        return WritingFontChoice.resolved(entryDefault: fontChoice, override: override).uiDesign
     }
 
     private var displayLines: [String] {
         text.components(separatedBy: .newlines)
+    }
+
+    /// Cumulative UTF-16 (NSString) offset of `displayLines[index]`'s start —
+    /// the same coordinate space `InlineStyleRange.location` was recorded in
+    /// (paragraph breaks = newlines, one line here per paragraph there).
+    private func paragraphStartOffset(at index: Int) -> Int {
+        var offset = 0
+        for i in 0..<index where displayLines.indices.contains(i) {
+            offset += (displayLines[i] as NSString).length + 1  // +1 for the newline
+        }
+        return offset
+    }
+
+    private func designedFont(size: CGFloat, weight: UIFont.Weight, design: UIFontDescriptor.SystemDesign) -> UIFont {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
+        return UIFont(descriptor: descriptor, size: size)
+    }
+
+    /// Bridges to `AttributedString` so `Text` renders bold/italic/underline/
+    /// strikethrough/highlight/link runs that `styledText(for:at:)`'s plain
+    /// `Text(line)` used to silently drop — the read view previously ignored
+    /// every inline style `inlineStyleData` stores, matching characters only
+    /// against paragraph-level style.
+    /// `raw` is the *full* paragraph text (matching `InlineStyleRange`'s
+    /// coordinate space) — `dropPrefixCount` trims a legacy markdown-ish
+    /// prefix (e.g. "### ") off the front of the *result*, after ranges are
+    /// applied against the untrimmed offsets, since that prefix isn't present
+    /// in `paragraphStartOffset`'s count for newer (non-legacy) entries. In
+    /// practice legacy-prefixed entries predate inlineStyleData entirely, so
+    /// this is defensive rather than a case that actually occurs.
+    private func styledLine(_ raw: String, paragraphStart: Int, baseFont: UIFont, dropPrefixCount: Int = 0) -> AttributedString {
+        let ns = raw as NSString
+        let mutable = NSMutableAttributedString(string: raw, attributes: [.font: baseFont])
+        guard !inlineRanges.isEmpty, ns.length > 0 else {
+            return trimmedPrefix(AttributedString(mutable), count: dropPrefixCount)
+        }
+
+        let paragraphEnd = paragraphStart + ns.length
+        let highlightColors = HighlightPalette.colors(for: displayMode)
+
+        for range in inlineRanges {
+            let start = max(range.location, paragraphStart)
+            let end = min(range.location + range.length, paragraphEnd)
+            guard end > start else { continue }
+            let localRange = NSRange(location: start - paragraphStart, length: end - start)
+            guard localRange.location >= 0, NSMaxRange(localRange) <= ns.length else { continue }
+
+            if range.bold || range.italic {
+                var font = baseFont
+                if range.bold { font = font.withTrait(.traitBold, add: true) }
+                if range.italic { font = font.withTrait(.traitItalic, add: true) }
+                mutable.addAttribute(.font, value: font, range: localRange)
+            }
+            if range.underline {
+                mutable.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: localRange)
+            }
+            if range.strikethrough {
+                mutable.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: localRange)
+            }
+            if let idx = range.highlightIndex, idx < highlightColors.count {
+                mutable.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: localRange)
+            }
+            if let urlString = range.linkURL, let url = URL(string: urlString) {
+                mutable.addAttribute(.link, value: url, range: localRange)
+            }
+        }
+        return trimmedPrefix(AttributedString(mutable), count: dropPrefixCount)
+    }
+
+    private func trimmedPrefix(_ attr: AttributedString, count: Int) -> AttributedString {
+        guard count > 0, let idx = attr.characters.index(attr.startIndex, offsetBy: count, limitedBy: attr.endIndex) else {
+            return attr
+        }
+        return AttributedString(attr[idx...])
     }
 
     var body: some View {
@@ -410,39 +495,41 @@ private struct InlineEntryContent: View {
     private func styledText(for line: String, at index: Int) -> some View {
         let style = paragraphStyles.indices.contains(index) ? paragraphStyles[index] : legacyStyle(for: line)
         let displayLine = lineWithoutLegacyPrefix(line)
+        let dropCount = line.count - displayLine.count
+        let paragraphStart = paragraphStartOffset(at: index)
         if style == .title {
-            Text(displayLine)
-                .font(.system(size: 30, weight: .bold))
+            let font = designedFont(size: 30, weight: .bold, design: .default)
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .heading {
-            Text(displayLine)
-                .font(.system(size: 22, weight: .bold))
+            let font = designedFont(size: 22, weight: .bold, design: .default)
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .subheading {
-            Text(displayLine)
-                .font(.system(size: 17, weight: .semibold))
+            let font = designedFont(size: 17, weight: .semibold, design: .default)
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
         } else if style == .monospaced {
-            Text(displayLine)
-                .font(.system(size: 16, weight: .regular, design: .monospaced))
+            let font = designedFont(size: 16, weight: .regular, design: .monospaced)
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .blockQuote {
-            Text(displayLine)
-                .font(.system(.body, design: writingFontDesign(at: index)))
+            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
                 .lineSpacing(6)
                 .padding(.leading, 16)
         } else if style == .checklistUnchecked || style == .checklistChecked {
+            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
                     .font(.system(size: 24, weight: .regular))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24, alignment: .center)
-                Text(displayLine)
-                    .font(.system(size: 17, weight: .regular, design: writingFontDesign(at: index)))
+                Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
         } else {
-            Text(line)
-                .font(.system(.body, design: writingFontDesign(at: index)))
+            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(6)
         }

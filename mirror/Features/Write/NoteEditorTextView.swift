@@ -660,6 +660,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .highlight(let index):
                 applyHighlight(index, in: textView)
                 return
+            case .link(let url):
+                applyLink(urlString: url, in: textView)
+                return
             case .fontFamily(let choice):
                 applyFontFamily(choice, in: textView)
                 return
@@ -2029,6 +2032,48 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
         }
 
+        /// Unlike highlight, a link can't apply to an empty typing-attributes
+        /// cursor — it needs text to wrap. With no selection, falls back to the
+        /// existing link run under the cursor (if any) so editing/removing a
+        /// link doesn't require re-selecting its exact text; otherwise no-ops.
+        func applyLink(urlString: String?, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let targetRange: NSRange
+            if selRange.length > 0 {
+                targetRange = bounded(selRange, in: attributed.string)
+            } else if let existing = existingLinkRange(at: selRange.location, in: attributed) {
+                targetRange = existing
+            } else {
+                return
+            }
+
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+            let trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !trimmed.isEmpty, let url = URL(string: trimmed) {
+                mutable.addAttribute(.link, value: url, range: targetRange)
+            } else {
+                mutable.removeAttribute(.link, range: targetRange)
+            }
+
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            textView.selectedRange = bounded(targetRange, in: textView.text)
+            isApplyingStyledText = false
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        private func existingLinkRange(at location: Int, in attributed: NSAttributedString) -> NSRange? {
+            guard attributed.length > 0 else { return nil }
+            let loc = min(max(0, location), attributed.length - 1)
+            var range = NSRange(location: NSNotFound, length: 0)
+            guard attributed.attribute(.link, at: loc, effectiveRange: &range) != nil else { return nil }
+            return range
+        }
+
         // MARK: - Bulk checklist operations
 
         func bulkSetChecklist(_ targetStyle: NoteParagraphTextStyle, in textView: UITextView) {
@@ -2253,13 +2298,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let underline = attrs[.underlineStyle] != nil
                 let strikethrough = attrs[.strikethroughStyle] != nil
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
+                let linkURL = (attrs[.link] as? URL)?.absoluteString
 
                 // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
                 let style = self.textStyle(at: range.location, in: attributed)
                 let isParaBold = (style == .heading || style == .title)
                 let effectiveBold = bold && !isParaBold
 
-                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil else { return }
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil else { return }
 
                 let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
                 let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
@@ -2273,7 +2319,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     italic: italic,
                     underline: underline,
                     strikethrough: strikethrough,
-                    highlightIndex: highlightIndex
+                    highlightIndex: highlightIndex,
+                    linkURL: linkURL
                 ))
             }
 
@@ -2326,6 +2373,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let idx = styleRange.highlightIndex, idx < highlightColors.count {
                     attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
                     attributed.addAttribute(Self.highlightIndexAttribute, value: idx, range: displayRange)
+                }
+                if let urlString = styleRange.linkURL, let url = URL(string: urlString) {
+                    attributed.addAttribute(.link, value: url, range: displayRange)
                 }
             }
         }
@@ -2389,13 +2439,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                     && range.italic == last.italic
                     && range.underline == last.underline
                     && range.strikethrough == last.strikethrough
-                    && range.highlightIndex == last.highlightIndex {
+                    && range.highlightIndex == last.highlightIndex
+                    && range.linkURL == last.linkURL {
                     result[result.count - 1] = InlineStyleRange(
                         location: last.location,
                         length: max(lastEnd, range.location + range.length) - last.location,
                         bold: last.bold, italic: last.italic,
                         underline: last.underline, strikethrough: last.strikethrough,
-                        highlightIndex: last.highlightIndex
+                        highlightIndex: last.highlightIndex,
+                        linkURL: last.linkURL
                     )
                 } else {
                     result.append(range)
@@ -2410,6 +2462,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
                 parent.activeInlineStyles = InlineStyleSet()
                 parent.panelState.activeInlineStyles = InlineStyleSet()
+                parent.panelState.activeLinkURL = nil
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
@@ -2422,6 +2475,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let underlineActive: Bool
             let strikethroughActive: Bool
             let highlightIndex: Int?
+            let linkURL: String?
             if lastKnownCursorLocation >= attributed.length {
                 if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
                    let style = NoteParagraphTextStyle(rawValue: raw) {
@@ -2433,12 +2487,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 underlineActive = textView.typingAttributes[.underlineStyle] != nil
                 strikethroughActive = textView.typingAttributes[.strikethroughStyle] != nil
                 highlightIndex = textView.typingAttributes[Self.highlightIndexAttribute] as? Int
+                linkURL = (textView.typingAttributes[.link] as? URL)?.absoluteString
             } else {
                 paraStyle = textStyle(at: loc, in: attributed)
                 font = attributed.attribute(.font, at: loc, effectiveRange: nil) as? UIFont
                 underlineActive = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
                 strikethroughActive = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
                 highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+                linkURL = (attributed.attribute(.link, at: loc, effectiveRange: nil) as? URL)?.absoluteString
             }
             let isParaBold = (paraStyle == .heading || paraStyle == .title)
             styles.bold = (font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false) && !isParaBold
@@ -2449,6 +2505,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.panelState.activeInlineStyles = styles
             parent.panelState.activeParagraphStyle = paraStyle
             parent.panelState.activeHighlightIndex = highlightIndex
+            parent.panelState.activeLinkURL = linkURL
         }
 
         // MARK: - Formatting panel
@@ -2508,7 +2565,7 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 }
 
-private extension UIFont {
+extension UIFont {
     func bolded() -> UIFont {
         return withTrait(.traitBold, add: true)
     }
