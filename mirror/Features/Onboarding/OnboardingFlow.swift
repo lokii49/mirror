@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UserNotifications
 
 private enum NudgePreset: String, CaseIterable {
     case morning = "Morning"
@@ -861,21 +860,11 @@ struct OnboardingFlow: View {
         // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
         FeatureCardService.shared.markWhatsNewSeen()
 
-        // Request notification permission now — user just set their nudge time so
-        // they understand why the prompt appears. Schedule the write-reminder immediately
-        // after permission is granted so the first nudge fires at their chosen time.
-        Task {
-            let center = UNUserNotificationCenter.current()
-            let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-            if granted {
-                await NotificationService.rescheduleContextualNudge(
-                    hasWrittenToday: !firstEntryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    insightReady: false,
-                    hour: nudgeHour,
-                    minute: nudgeMinute
-                )
-            }
-        }
+        // Notification permission is NOT requested here. Nudge time is only a preference —
+        // saving it needs no OS permission. The actual prompt is deferred to
+        // requestNotificationPermissionIfNeeded() in mirrorApp, gated on nudge eligibility, so
+        // it appears when the first reflection is about to be worth something, not on Day 0
+        // before the user has any reason to trust what the notification will be for.
     }
 }
 
