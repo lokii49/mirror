@@ -395,4 +395,75 @@ struct InsightValidationTests {
             Issue.record("expected InsightError.emptyResponse for \(task), got \(error)")
         }
     }
+
+    // MARK: - repeatsPriorOpening: the reject-and-retry guard's detector, in isolation.
+    //
+    // generateNudge's prompt-side instruction ("your recent reflections already opened with...")
+    // is not itself reliable enough — observed in production: Gemma 3 1B reproduced a banned
+    // opener nearly verbatim even after being told the exact phrase to avoid. This is the
+    // backstop that decides whether a real retry is warranted; these tests cover its matching
+    // logic directly, without invoking the model.
+
+    @Test func repeatsPriorOpening_exactSevenWordMatch_detected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_caseInsensitive_detected() {
+        let openings = ["the rain outside feels like a gentle"]
+        let text = "The Rain Outside Feels Like A Gentle echo of something else entirely."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_differentOpening_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "You mentioned the drive home from your sister's again, and how much lighter you felt."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_noPriorOpenings_neverDetected() {
+        let text = "The rain outside feels like a gentle reminder of something."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: []))
+    }
+
+    @Test func repeatsPriorOpening_emptyText_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        #expect(!InsightService.repeatsPriorOpening("", openings: openings))
+    }
+
+    // Only the first 7 words are compared — a later coincidental echo of the same words
+    // mid-sentence shouldn't count as a repeated opening.
+    @Test func repeatsPriorOpening_matchOnlyCountsAtStart() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "You wrote about your morning walk, and later said the rain outside feels like a gentle memory of home."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // The actual failure mode this guard exists for: a one-word swap deep in the same template.
+    // An exact 7-word equality check (the first version of this guard) misses this outright —
+    // this is the regression test for that gap, caught by advisor before commit.
+    @Test func repeatsPriorOpening_oneWordSwappedInSameTemplate_stillDetected() {
+        let openings = ["The rain outside feels like a gentle echo"]
+        let text = "The rain outside feels like a soft reminder of the quiet spaces you've been carving out."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // Guards against the opposite failure: two openings sharing only common filler words
+    // ("the", "a") shouldn't count as a repeat just because short function words overlap.
+    @Test func repeatsPriorOpening_onlyFillerWordsShared_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "The quiet evening with your dad stayed with you a while."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // For an opening shorter than `minSharedWords`, the threshold scales down to the opening's
+    // own word count — so a short opening still needs to be (almost) fully repeated to flag.
+    @Test func repeatsPriorOpening_shortOpeningRequiresFullOverlap() {
+        let openings = ["Okay you got it"]
+        let fullRepeat = "Okay you got it, let's see what else you can offer this week."
+        let partialOverlap = "Okay so today felt different in a way you named directly."
+        #expect(InsightService.repeatsPriorOpening(fullRepeat, openings: openings))
+        #expect(!InsightService.repeatsPriorOpening(partialOverlap, openings: openings))
+    }
 }

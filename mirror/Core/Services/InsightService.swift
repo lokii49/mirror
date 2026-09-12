@@ -170,6 +170,45 @@ enum InsightService {
             .joined(separator: " ")
     }
 
+    /// True when `text`'s opening (first 7 words, same window `priorNudgeOpenings` keys on)
+    /// overlaps too heavily with one of the openings the prompt already told the model to avoid.
+    /// The prompt-side instruction alone isn't reliable — Gemma 3 1B has reproduced a banned
+    /// opener near-verbatim even when it was named explicitly in the prompt (observed: two
+    /// nudges 7 days apart both opened "The rain outside feels like a gentle ...", the second
+    /// generated *after* the first was listed as something to avoid). This is the enforcement
+    /// backstop.
+    ///
+    /// Deliberately NOT an exact-string match: a first pass compared the full 7-word window for
+    /// equality, which the observed pair happened to satisfy, but that's brittle by luck — swap
+    /// one word ("a gentle reminder" → "a soft reminder") and an exact match misses the same
+    /// template repeat it exists to catch, since a 1B model's restatement of a banned opener is
+    /// exactly the kind of near-miss this needs to hold. Instead this compares the two openings
+    /// as bags of words (order-insensitive, so a word inserted, dropped, or swapped doesn't
+    /// break the match) and flags a repeat once at least `minSharedWords` of the *shorter*
+    /// opening's words are also present in the new text's opening.
+    /// Lowercases and strips leading/trailing punctuation from each word so "it," and "it" (or
+    /// a sentence-ending word carrying a period) still count as the same shared word.
+    private static func normalizedWordSet(_ text: String) -> Set<String> {
+        Set(
+            text.lowercased()
+                .split(separator: " ")
+                .map { $0.trimmingCharacters(in: .alphanumerics.inverted) }
+                .filter { !$0.isEmpty }
+        )
+    }
+
+    static func repeatsPriorOpening(_ text: String, openings: [String], minSharedWords: Int = 5) -> Bool {
+        guard !openings.isEmpty else { return false }
+        let candidateWords = normalizedWordSet(firstWords(text, count: 7))
+        guard !candidateWords.isEmpty else { return false }
+        return openings.contains { opening in
+            let openingWords = normalizedWordSet(opening)
+            guard !openingWords.isEmpty else { return false }
+            let threshold = min(minSharedWords, openingWords.count)
+            return candidateWords.intersection(openingWords).count >= threshold
+        }
+    }
+
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
@@ -192,12 +231,39 @@ enum InsightService {
                 + "\nOpen today's reflection with a different first sentence built from a different concrete detail."
         }
 
-        return try await localGenerate(
+        let first = try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: userMessage,
             task: .dailyNudge,
             responseLanguageInstruction: languageInstruction
         )
+        guard repeatsPriorOpening(first.text, openings: openings) else { return first }
+
+        // Named the violation directly rather than just repeating the general instruction —
+        // a list buried in the prompt was already ignored once. One retry only, result accepted
+        // unconditionally: this is a quality backstop, not a guarantee. The retry gets a fresh
+        // random seed but the same temperature, so it's possible (not verified either way) that
+        // a model whose distribution is this peaked reproduces a third variant of the same
+        // template — the second attempt is not re-checked against `repeatsPriorOpening`.
+        // Looping until a truly distinct opening lands would remove that risk but costs an
+        // unbounded number of full generations on what's still a best-effort reflection.
+        let violatedOpening = firstWords(first.text, count: 7)
+        let retryMessage = userMessage + """
+
+
+            IMPORTANT: your reflection just opened with "\(violatedOpening)…" — exactly what you were told to avoid. Start over with a different first sentence, built from a different concrete detail in the entries above.
+            """
+        // `first` is a valid, already-validated nudge — just a stylistically repetitive one.
+        // If the retry throws (contextExhausted on a second full pass is realistic on the
+        // older/slower devices that are this guard's whole population), fall back to `first`
+        // rather than propagating: a repeated opening beats no nudge at all that day.
+        guard let second = try? await localGenerate(
+            systemPrompt: DAILY_NUDGE_SYSTEM,
+            userMessage: retryMessage,
+            task: .dailyNudge,
+            responseLanguageInstruction: languageInstruction
+        ) else { return first }
+        return second
     }
 
     /// Fewer than this many entries in the current week → not enough to find a
