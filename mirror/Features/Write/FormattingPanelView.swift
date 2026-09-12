@@ -50,7 +50,15 @@ enum HighlightPalette {
     /// The font family the *current paragraph/selection* is using — drives the
     /// font row's highlight, same role activeParagraphStyle plays for block style.
     var activeFontChoice: WritingFontChoice = .system
+    /// Non-nil when the cursor sits inside an existing link — drives the Link
+    /// button's active state and prefills the URL editor for editing it.
+    var activeLinkURL: String? = nil
     var onCommand: ((NoteTextCommand) -> Void)?
+    /// Tapping Link needs a URL from the user before a command can be dispatched
+    /// — the panel can't own that alert (it doesn't know the current selection),
+    /// so it hands off to whoever presents it (WriteView) instead of calling
+    /// onCommand directly.
+    var onRequestLinkEditor: (() -> Void)?
 }
 
 struct FormattingPanelView: View {
@@ -143,6 +151,7 @@ struct FormattingPanelView: View {
                     inlineButton("I",  style: .italic,        font: .system(size: 17 * typeScale).italic(),                accessibilityLabel: "Italic")
                     inlineButton("U",  style: .underline,     font: .system(size: 17 * typeScale), underline: true,        accessibilityLabel: "Underline")
                     inlineButton("S",  style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true,    accessibilityLabel: "Strikethrough")
+                    linkButton
                 }
                 .padding(.horizontal, 16)
             }
@@ -313,6 +322,28 @@ struct FormattingPanelView: View {
         // bare "B"/"I"/"U"/"S" read as just their letter otherwise (audit 3.1).
         .accessibilityIdentifier(label)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    // MARK: - Link button (fixed square icon)
+
+    private var linkButton: some View {
+        let isActive = state.activeLinkURL != nil
+        return Button {
+            DispatchQueue.main.async { state.onRequestLinkEditor?() }
+        } label: {
+            Image(systemName: "link")
+                .font(.system(size: 17 * typeScale, weight: .regular))
+                .foregroundStyle(isActive ? accent : Color.primary)
+                .frame(width: 50 * typeScale, height: 44 * typeScale)
+                .background(
+                    isActive ? accent.opacity(0.12) : idleFill,
+                    in: RoundedRectangle(cornerRadius: cornerRadius)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("link")
+        .accessibilityLabel(isActive ? "Edit link" : "Add link")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 

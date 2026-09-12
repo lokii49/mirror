@@ -109,6 +109,8 @@ enum MarkdownExportService {
         if style.italic { result = "*\(result)*" }
         if style.bold { result = "**\(result)**" }
         if style.highlightIndex != nil { result = "==\(result)==" }
+        // Outermost: other emphasis nests inside the link text, e.g. [**bold**](url).
+        if let urlString = style.linkURL, !urlString.isEmpty { result = "[\(result)](\(urlString))" }
         return result
     }
 

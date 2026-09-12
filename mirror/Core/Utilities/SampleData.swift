@@ -505,6 +505,44 @@ enum SampleData {
         ("Slow morning. Didn't do much. Didn't mind.", "Peaceful", 24 * 5),
     ]
 
+    // MARK: - Rich inline styles (manual verification of read-view rendering)
+
+    /// One entry exercising every InlineStyleRange dimension at once — bold,
+    /// italic, underline, strikethrough, highlight, and a link — so
+    /// EntryDetailView's inline-style rendering can be screenshot-checked
+    /// without hand-typing each style in the editor. Scratch-device only.
+    static func seedRichInlineStylesSample(into context: ModelContext) {
+        let text = "This line has bold, italic, underlined, and struck text, plus a highlighted phrase and a link to check."
+        let entry = Entry(text: text, mood: "Curious", source: .typed)
+        entry.tags = [sampleTag]
+
+        func range(of substring: String, bold: Bool = false, italic: Bool = false, underline: Bool = false, strikethrough: Bool = false, highlightIndex: Int? = nil, linkURL: String? = nil) -> InlineStyleRange {
+            let ns = text as NSString
+            let r = ns.range(of: substring)
+            return InlineStyleRange(location: r.location, length: r.length, bold: bold, italic: italic, underline: underline, strikethrough: strikethrough, highlightIndex: highlightIndex, linkURL: linkURL)
+        }
+
+        entry.inlineStyleData = try! JSONEncoder().encode(InlineStyleDocument(ranges: [
+            range(of: "bold", bold: true),
+            range(of: "italic", italic: true),
+            range(of: "underlined", underline: true),
+            range(of: "struck", strikethrough: true),
+            range(of: "highlighted phrase", highlightIndex: 0),
+            range(of: "link", linkURL: "https://example.com"),
+        ]))
+        context.insert(entry)
+        try? context.save()
+    }
+
+    static func clearRichInlineStylesSample(from context: ModelContext) {
+        let text = "This line has bold, italic, underlined, and struck text, plus a highlighted phrase and a link to check."
+        let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+        for entry in entries where entry.text == text {
+            context.delete(entry)
+        }
+        try? context.save()
+    }
+
     static func seedTodayReflection(into context: ModelContext) {
         let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         let today = DateHelpers.dayIdentifier(for: Date())

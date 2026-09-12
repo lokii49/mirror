@@ -70,6 +70,34 @@ struct MarkdownExportServiceTests {
         #expect(MarkdownExportService.markdownBody(for: entry) == "*Encrypted entry unavailable*")
     }
 
+    @Test func linkWrapsAsMarkdownLinkSyntax() throws {
+        let entry = Entry(text: "see this article here")
+        // "article" starts at index 9, length 7
+        entry.inlineStyleData = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(location: 9, length: 7, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: "https://example.com")
+        ]))
+        #expect(MarkdownExportService.markdownBody(for: entry) == "see this [article](https://example.com) here")
+    }
+
+    @Test func linkNestsOutsideBoldEmphasis() throws {
+        let entry = Entry(text: "a bold link here")
+        // "bold link" starts at index 2, length 9
+        entry.inlineStyleData = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(location: 2, length: 9, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: "https://example.com")
+        ]))
+        #expect(MarkdownExportService.markdownBody(for: entry) == "a [**bold link**](https://example.com) here")
+    }
+
+    @Test func inlineStyleRangeDecodesOldDataMissingLinkURLKey() throws {
+        // Simulates data encoded before linkURL existed — no key present at all.
+        let oldJSON = """
+        {"location":0,"length":4,"bold":true,"italic":false,"underline":false,"strikethrough":false,"highlightIndex":null}
+        """
+        let range = try JSONDecoder().decode(InlineStyleRange.self, from: Data(oldJSON.utf8))
+        #expect(range.bold)
+        #expect(range.linkURL == nil)
+    }
+
     @Test func exportJoinsMultipleEntriesWithDivider() {
         let a = Entry(text: "First entry")
         let b = Entry(text: "Second entry", mood: "Hopeful")

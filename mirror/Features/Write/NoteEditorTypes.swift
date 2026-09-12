@@ -19,6 +19,7 @@ enum NoteTextCommand: Equatable {
     case underline
     case strikethrough
     case highlight(index: Int?)   // nil = remove highlight; 0-4 = apply color
+    case link(url: String?)       // nil = remove link; non-nil = apply/update URL
     case checkAllItems
     case uncheckAllItems
     case deleteCheckedItems
@@ -97,6 +98,9 @@ struct InlineStyleRange: Codable, Equatable {
     var underline: Bool
     var strikethrough: Bool
     var highlightIndex: Int?
+    /// Absolute URL string. Optional with a decode default so existing stored
+    /// entries (encoded before this field existed) still decode fine.
+    var linkURL: String? = nil
 }
 
 struct InlineStyleDocument: Codable {
