@@ -2062,6 +2062,24 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already flagged this
   exact standing condition and nothing has materially changed since.
 
+- 2026-09-12 (run 77): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`CONNECT tunnel failed`) while github.com API calls return 400/403 for non-session repos — general
+  web egress still blocked. GitHub `pull_request_read` on janhq/awesome-local-ai#131 still rejected
+  ("Allowed repositories: lokii49/mirror") — priority-1 bump and direct third-party PRs remain
+  impossible (the github MCP server also disconnected mid-run and did not reconnect in time to retry
+  anything else). For priority 2, tried two fresh WebSearch angles (LLM-powered iOS app directories,
+  "privacy by design" app directories) — surfaced only already-logged lists, generic dev-facing
+  LLM-agent/RAG app collections (Shubhamsaboo/awesome-llm-apps and lookalikes — code samples, not
+  consumer-app directories), and one new academic/engineering resource list
+  (AbductiveReason/AwesomePrivacyEngineering — books/NIST/PETs libraries, no consumer-app section) —
+  all ruled out and recorded in Lessons. No new candidate cleared the fit bar this run. No PRs opened,
+  no comments posted, no emails sent — 77th consecutive run blocked purely on environment/session
+  config (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this
+  run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already
+  flagged this exact standing condition and nothing has materially changed since.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2335,6 +2353,17 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   llama.cpp apps showcase iOS, awesome digital-minimalism/slow-productivity apps directory, open-source
   Day One alternatives, awesome bullet-journal/gratitude-journal apps, awesome on-device-AI privacy apps
   directory 2026. Confirmed 2026-09-12; do not re-try these exact angles again.
+- AbductiveReason/AwesomePrivacyEngineering is not a fit: purely an academic/engineering resources list
+  (books, NIST/OWASP publications, PETs libraries, differential-privacy tooling) — no consumer-app
+  section exists. Confirmed 2026-09-12 via raw README fetch; do not re-add.
+- Shubhamsaboo/awesome-llm-apps and sibling forks/lookalikes (MendoLeo, BuildSchool, icefort-ai) are
+  developer-facing collections of LLM agent/RAG demo apps and code samples, not directories of shipped
+  consumer products — no fit for a consumer journaling app. Confirmed 2026-09-12 via WebSearch snippets;
+  do not re-add.
+- Search angles tried this run with no new candidate surfaced (only already-logged lists, dev-facing
+  RAG/agent-app collections, or academic privacy-engineering resource lists): "LLM-powered iOS apps
+  directory consumer showcase", "'private by design' OR 'privacy by design' apps directory". Confirmed
+  2026-09-12; do not re-try these exact angles again.
 
 ## Sent log
 
