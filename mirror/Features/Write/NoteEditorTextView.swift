@@ -118,6 +118,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         var parent: NoteEditorTextView
         private static let paragraphStyleAttribute = NSAttributedString.Key("mirror.paragraphStyle")
         private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
+        private static let textColorIndexAttribute = NSAttributedString.Key("mirror.textColorIndex")
         private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
         private static let fontChoiceAttribute = NSAttributedString.Key("mirror.fontChoice")
         private var isApplyingStyledText = false
@@ -659,6 +660,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             case .highlight(let index):
                 applyHighlight(index, in: textView)
+                return
+            case .textColor(let index):
+                applyTextColor(index, in: textView)
                 return
             case .link(let url):
                 applyLink(urlString: url, in: textView)
@@ -2052,6 +2056,71 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
         }
 
+        /// `.foregroundColor` is never absent on this text — every paragraph
+        /// style bakes in an explicit base color (`.label`/`.secondaryLabel`/
+        /// `.tertiaryLabel`, see `attributes(for:)`), unlike `.backgroundColor`
+        /// where "unset" is itself the valid default. Removing the attribute
+        /// outright (like `applyHighlight` does for `.backgroundColor`) would
+        /// leave the run with no explicit color at all, falling back to
+        /// whatever `textView.textColor`/UIKit default applies — wrong, and
+        /// potentially invisible in Sentinel/dark mode. Must restore the
+        /// style's own base color, not just delete the key.
+        private func baseForegroundColor(for style: NoteParagraphTextStyle) -> UIColor {
+            switch style {
+            case .subheading, .blockQuote: return .secondaryLabel
+            case .checklistChecked: return .tertiaryLabel
+            default: return .label
+            }
+        }
+
+        func applyTextColor(_ index: Int?, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: mutable.string)
+                mutable.removeAttribute(Self.textColorIndexAttribute, range: applyRange)
+                if let idx = index {
+                    let uiColor = UIColor(TextColorPalette.colors(for: parent.displayMode)[idx])
+                    mutable.addAttribute(.foregroundColor, value: uiColor, range: applyRange)
+                    mutable.addAttribute(Self.textColorIndexAttribute, value: idx, range: applyRange)
+                } else {
+                    // Restore each paragraph's own base color — a selection can
+                    // span paragraphs with different base colors (e.g. a
+                    // subheading into a body line), so one flat color is wrong.
+                    (mutable.string as NSString).enumerateSubstrings(in: applyRange, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                        let style = self.textStyle(at: enclosingRange.location, in: mutable)
+                        let base = self.baseForegroundColor(for: style)
+                        let intersected = NSIntersectionRange(enclosingRange, applyRange)
+                        if intersected.length > 0 {
+                            mutable.addAttribute(.foregroundColor, value: base, range: intersected)
+                        }
+                    }
+                }
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                var typing = textView.typingAttributes
+                typing.removeValue(forKey: Self.textColorIndexAttribute)
+                if let idx = index {
+                    typing[.foregroundColor] = UIColor(TextColorPalette.colors(for: parent.displayMode)[idx])
+                    typing[Self.textColorIndexAttribute] = idx
+                } else {
+                    let cursorLoc = min(textView.selectedRange.location, max(0, attributed.length - 1))
+                    let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
+                    typing[.foregroundColor] = baseForegroundColor(for: style)
+                }
+                textView.typingAttributes = typing
+            }
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
         /// Unlike highlight, a link can't apply to an empty typing-attributes
         /// cursor — it needs text to wrap. With no selection, falls back to the
         /// existing link run under the cursor (if any) so editing/removing a
@@ -2105,7 +2174,19 @@ struct NoteEditorTextView: UIViewRepresentable {
                 mutable.removeAttribute(.strikethroughStyle, range: applyRange)
                 mutable.removeAttribute(.backgroundColor, range: applyRange)
                 mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
+                mutable.removeAttribute(Self.textColorIndexAttribute, range: applyRange)
                 mutable.removeAttribute(.link, range: applyRange)
+                // .foregroundColor has no "unset" default (every paragraph style
+                // bakes one in) — restore each paragraph's own base color rather
+                // than deleting the key, same reasoning as applyTextColor(nil,...).
+                (mutable.string as NSString).enumerateSubstrings(in: applyRange, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                    let style = self.textStyle(at: enclosingRange.location, in: mutable)
+                    let base = self.baseForegroundColor(for: style)
+                    let intersected = NSIntersectionRange(enclosingRange, applyRange)
+                    if intersected.length > 0 {
+                        mutable.addAttribute(.foregroundColor, value: base, range: intersected)
+                    }
+                }
 
                 isApplyingStyledText = true
                 applyAttributedText(mutable, to: textView)
@@ -2120,7 +2201,11 @@ struct NoteEditorTextView: UIViewRepresentable {
                 typing.removeValue(forKey: .strikethroughStyle)
                 typing.removeValue(forKey: .backgroundColor)
                 typing.removeValue(forKey: Self.highlightIndexAttribute)
+                typing.removeValue(forKey: Self.textColorIndexAttribute)
                 typing.removeValue(forKey: .link)
+                let cursorLoc = min(textView.selectedRange.location, max(0, attributed.length - 1))
+                let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
+                typing[.foregroundColor] = baseForegroundColor(for: style)
                 textView.typingAttributes = typing
             }
 
@@ -2361,6 +2446,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let underline = attrs[.underlineStyle] != nil
                 let strikethrough = attrs[.strikethroughStyle] != nil
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
+                let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
 
                 // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
@@ -2368,7 +2454,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let isParaBold = (style == .heading || style == .title)
                 let effectiveBold = bold && !isParaBold
 
-                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil else { return }
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
 
                 let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
                 let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
@@ -2383,7 +2469,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     underline: underline,
                     strikethrough: strikethrough,
                     highlightIndex: highlightIndex,
-                    linkURL: linkURL
+                    linkURL: linkURL,
+                    textColorIndex: textColorIndex
                 ))
             }
 
@@ -2400,6 +2487,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let logicalOffsets = buildLogicalOffsetMap(from: attributed)
             let highlightColors = HighlightPalette.colors(for: parent.displayMode)
+            let textColors = TextColorPalette.colors(for: parent.displayMode)
 
             for styleRange in doc.ranges {
                 let displayStart = logicalToDisplay(logical: styleRange.location, map: logicalOffsets)
@@ -2436,6 +2524,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let idx = styleRange.highlightIndex, idx < highlightColors.count {
                     attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
                     attributed.addAttribute(Self.highlightIndexAttribute, value: idx, range: displayRange)
+                }
+                if let idx = styleRange.textColorIndex, idx < textColors.count {
+                    attributed.addAttribute(.foregroundColor, value: UIColor(textColors[idx]), range: displayRange)
+                    attributed.addAttribute(Self.textColorIndexAttribute, value: idx, range: displayRange)
                 }
                 if let url = validatedLinkURL(from: styleRange.linkURL) {
                     attributed.addAttribute(.link, value: url, range: displayRange)
@@ -2503,14 +2595,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                     && range.underline == last.underline
                     && range.strikethrough == last.strikethrough
                     && range.highlightIndex == last.highlightIndex
-                    && range.linkURL == last.linkURL {
+                    && range.linkURL == last.linkURL
+                    && range.textColorIndex == last.textColorIndex {
                     result[result.count - 1] = InlineStyleRange(
                         location: last.location,
                         length: max(lastEnd, range.location + range.length) - last.location,
                         bold: last.bold, italic: last.italic,
                         underline: last.underline, strikethrough: last.strikethrough,
                         highlightIndex: last.highlightIndex,
-                        linkURL: last.linkURL
+                        linkURL: last.linkURL,
+                        textColorIndex: last.textColorIndex
                     )
                 } else {
                     result.append(range)
@@ -2526,6 +2620,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 parent.activeInlineStyles = InlineStyleSet()
                 parent.panelState.activeInlineStyles = InlineStyleSet()
                 parent.panelState.activeLinkURL = nil
+                parent.panelState.activeTextColorIndex = nil
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
@@ -2538,6 +2633,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let underlineActive: Bool
             let strikethroughActive: Bool
             let highlightIndex: Int?
+            let textColorIndex: Int?
             let linkURL: String?
             if lastKnownCursorLocation >= attributed.length {
                 if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
@@ -2550,6 +2646,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 underlineActive = textView.typingAttributes[.underlineStyle] != nil
                 strikethroughActive = textView.typingAttributes[.strikethroughStyle] != nil
                 highlightIndex = textView.typingAttributes[Self.highlightIndexAttribute] as? Int
+                textColorIndex = textView.typingAttributes[Self.textColorIndexAttribute] as? Int
                 linkURL = (textView.typingAttributes[.link] as? URL)?.absoluteString
             } else {
                 paraStyle = textStyle(at: loc, in: attributed)
@@ -2557,6 +2654,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 underlineActive = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
                 strikethroughActive = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
                 highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+                textColorIndex = attributed.attribute(Self.textColorIndexAttribute, at: loc, effectiveRange: nil) as? Int
                 linkURL = (attributed.attribute(.link, at: loc, effectiveRange: nil) as? URL)?.absoluteString
             }
             let isParaBold = (paraStyle == .heading || paraStyle == .title)
@@ -2568,6 +2666,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.panelState.activeInlineStyles = styles
             parent.panelState.activeParagraphStyle = paraStyle
             parent.panelState.activeHighlightIndex = highlightIndex
+            parent.panelState.activeTextColorIndex = textColorIndex
             parent.panelState.activeLinkURL = linkURL
         }
 

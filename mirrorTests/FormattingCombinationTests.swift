@@ -247,6 +247,57 @@ struct ParagraphInlineCombinationTests {
         #expect(rendered.attribute(.backgroundColor, at: 0, effectiveRange: nil) != nil)
     }
 
+    @Test func textColorRendersForegroundColorAndSurvivesExtraction() throws {
+        let h = makeEditorHarness(
+            text: "word",
+            inlineStyleData: inline([.init(location: 0, length: 4, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: nil, textColorIndex: 1)])
+        )
+        let rendered = try #require(h.textView.attributedText)
+        #expect(rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) != nil)
+
+        // Round-trip: applying the command should extract back to the same index.
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(3, in: h.textView)
+        let extracted = try #require(h.coordinator.extractedInlineStyleData(from: h.textView))
+        let doc = try JSONDecoder().decode(InlineStyleDocument.self, from: extracted)
+        #expect(doc.ranges.contains { $0.textColorIndex == 3 })
+    }
+
+    // .foregroundColor has no "unset" default — every paragraph style bakes
+    // one in (attributes(for:) in NoteEditorTextView). Tapping the default "A"
+    // swatch (index nil) must restore that base color, not just delete the
+    // attribute and fall back to whatever UIKit default applies (which reads
+    // as invisible/wrong-contrast text in Sentinel or dark mode).
+    @Test func textColorRemovalRestoresBaseColorNotJustDeletesAttribute() throws {
+        let h = makeEditorHarness(text: "word")
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(1, in: h.textView)
+        let colored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(colored != UIColor.label)
+
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(nil, in: h.textView)
+        let restored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(restored == UIColor.label, "removing text color on a body paragraph should restore .label, not leave the attribute unset")
+
+        let extracted = h.coordinator.extractedInlineStyleData(from: h.textView)
+        if let extracted, let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: extracted) {
+            #expect(!doc.ranges.contains { $0.textColorIndex != nil })
+        }
+    }
+
+    @Test func clearFormattingRestoresBaseColorOnSubheading() throws {
+        let h = makeEditorHarness(
+            text: "word",
+            textStyleData: style(.init(paragraphStyles: [.subheading])),
+            inlineStyleData: inline([.init(location: 0, length: 4, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: nil, textColorIndex: 2)])
+        )
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyClearFormatting(in: h.textView)
+        let restored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(restored == UIColor.secondaryLabel, "clearing formatting on a subheading should restore .secondaryLabel, not .label or an unset attribute")
+    }
+
     @Test func inlineRangeSpanningTwoNonListParagraphsAppliesToBoth() throws {
         // Body/Heading/Subheading/Title/Mono add no marker chars, so a bold range
         // crossing a paragraph boundary between them should still land correctly on

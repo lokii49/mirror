@@ -469,6 +469,7 @@ private struct InlineEntryContent: View {
 
         let paragraphEnd = paragraphStart + ns.length
         let highlightColors = HighlightPalette.colors(for: displayMode)
+        let textColors = TextColorPalette.colors(for: displayMode)
 
         for range in inlineRanges {
             let start = max(range.location, paragraphStart)
@@ -491,6 +492,9 @@ private struct InlineEntryContent: View {
             }
             if let idx = range.highlightIndex, idx < highlightColors.count {
                 mutable.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: localRange)
+            }
+            if let idx = range.textColorIndex, idx < textColors.count {
+                mutable.addAttribute(.foregroundColor, value: UIColor(textColors[idx]), range: localRange)
             }
             if let url = validatedLinkURL(from: range.linkURL) {
                 mutable.addAttribute(.link, value: url, range: localRange)

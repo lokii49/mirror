@@ -141,6 +141,28 @@ struct MarkdownExportServiceTests {
         let range = try JSONDecoder().decode(InlineStyleRange.self, from: Data(oldJSON.utf8))
         #expect(range.bold)
         #expect(range.linkURL == nil)
+        #expect(range.textColorIndex == nil)
+    }
+
+    @Test func inlineStyleRangeDecodesOldDataMissingTextColorIndexKey() throws {
+        // Simulates data encoded before textColorIndex existed — key carries
+        // linkURL (the field added right before it) but predates this one.
+        let oldJSON = """
+        {"location":0,"length":4,"bold":false,"italic":false,"underline":false,"strikethrough":false,"highlightIndex":null,"linkURL":null}
+        """
+        let range = try JSONDecoder().decode(InlineStyleRange.self, from: Data(oldJSON.utf8))
+        #expect(range.textColorIndex == nil)
+    }
+
+    @Test func markdownExportDropsTextColorEntirely() throws {
+        // No CommonMark syntax for arbitrary foreground color, and the palette's
+        // hex depends on display mode, which this service doesn't have — so the
+        // text renders plain, unlike highlight's ==mark== stand-in.
+        let entry = Entry(text: "some red text here")
+        entry.inlineStyleData = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(location: 5, length: 3, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: nil, textColorIndex: 0)
+        ]))
+        #expect(MarkdownExportService.markdownBody(for: entry) == "some red text here")
     }
 
     @Test func exportJoinsMultipleEntriesWithDivider() {
