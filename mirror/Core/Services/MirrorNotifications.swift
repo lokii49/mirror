@@ -1,3 +1,4 @@
+import UIKit
 import UserNotifications
 
 // Shows mood alert banner even when app is in foreground; suppresses all others.
@@ -28,6 +29,16 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
                 MoodCheckInPresenter.shared.pending = true
             }
         }
+        if response.notification.request.identifier == NotificationService.moodAlertID,
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier
+            || response.actionIdentifier == NotificationService.moodAlertWriteActionID,
+           let url = URL(string: "mirror://write") {
+            Task { @MainActor in
+                UIApplication.shared.open(url)
+            }
+        }
+        // moodAlertDismissActionID ("Not now") needs no handling — the system already
+        // dismissed the notification before this fires.
         completionHandler()
     }
 }
@@ -36,20 +47,52 @@ enum NotificationService {
     private static let nudgeID = "mirror.dailyNudge"
     private static let firstNudgeID = "mirror.firstNudge"
     private static let digestID = "mirror.weeklyDigest"
-    private static let moodAlertID = "mirror.moodAlert"
+    // Not `private` — MirrorNotificationDelegate (same file, different type) reads these.
+    static let moodAlertID = "mirror.moodAlert"
+    static let moodAlertCategoryID = "mirror.moodAlert.category"
+    static let moodAlertWriteActionID = "mirror.moodAlert.writeNow"
+    private static let moodAlertDismissActionID = "mirror.moodAlert.notNow"
     private static let monthlyReportID = "mirror.monthlyReport"
     private static let writingReminderID = "mirror.writingReminder"
     private static let moodCheckInID = "mirror.moodCheckIn"
     private static let title = String(localized: "MirrorNotes", comment: "Push notification title")
 
+    /// Registers the mood alert's quick actions. Must run before any mood alert notification
+    /// is scheduled — called once from mirrorApp's init, alongside setting the delegate.
+    static func registerCategories() {
+        let writeAction = UNNotificationAction(
+            identifier: moodAlertWriteActionID,
+            title: String(localized: "Write now", comment: "Mood alert notification action — opens the write screen"),
+            options: [.foreground]
+        )
+        let dismissAction = UNNotificationAction(
+            identifier: moodAlertDismissActionID,
+            title: String(localized: "Not now", comment: "Mood alert notification action — dismisses without opening the app"),
+            options: []
+        )
+        let category = UNNotificationCategory(
+            identifier: moodAlertCategoryID,
+            actions: [writeAction, dismissAction],
+            intentIdentifiers: [],
+            options: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+    }
+
     /// Context-aware daily nudge — single repeating notification whose content is
     /// refreshed on every app-active and every nightly background task run.
     /// Three states: reflection ready / wrote but not ready yet / nothing written.
+    ///
+    /// `previewText`, when non-nil (user opted in via Settings, and the caller's `degraded`
+    /// check already passed), replaces the generic "ready" body with a snippet of the actual
+    /// nudge — the lock-screen surface is the whole product for anyone who doesn't open the
+    /// app. Ignored unless `insightReady` is also true.
     static func rescheduleContextualNudge(
         hasWrittenToday: Bool,
         insightReady: Bool,
         hour: Int,
-        minute: Int
+        minute: Int,
+        previewText: String? = nil
     ) async {
         guard await isAuthorized() else { return }
         let center = UNUserNotificationCenter.current()
@@ -58,11 +101,15 @@ enum NotificationService {
         let content = UNMutableNotificationContent()
         content.title = title
         content.sound = .default
-        content.body = hasWrittenToday
-            ? (insightReady
-                ? String(localized: "Your daily reflection is ready.", comment: "Push notification body when today's daily reflection is ready")
-                : String(localized: "Come check your daily reflection.", comment: "Push notification body when today's reflection should be checked"))
-            : String(localized: "What's on your mind? Take a moment to write.", comment: "Push notification body for a daily writing nudge")
+        if hasWrittenToday, insightReady, let preview = previewText, let snippet = notificationSnippet(preview) {
+            content.body = snippet
+        } else {
+            content.body = hasWrittenToday
+                ? (insightReady
+                    ? String(localized: "Your daily reflection is ready.", comment: "Push notification body when today's daily reflection is ready")
+                    : String(localized: "Come check your daily reflection.", comment: "Push notification body when today's reflection should be checked"))
+                : String(localized: "What's on your mind? Take a moment to write.", comment: "Push notification body for a daily writing nudge")
+        }
 
         var components = DateComponents()
         components.hour = hour
@@ -127,6 +174,12 @@ enum NotificationService {
         content.title = title
         content.body = String(localized: "You've been carrying a lot lately. Take a gentle moment for yourself.", comment: "Push notification body for a mood alert")
         content.sound = .default
+        content.categoryIdentifier = moodAlertCategoryID
+        // Separates this from the daily nudge's plain-banner treatment — it's the highest-stakes
+        // notification the app sends. Without the com.apple.developer.usernotifications.time-
+        // sensitive entitlement (not requested from Apple yet) this delivers as a normal active
+        // notification; setting it now costs nothing and is a no-op rather than an error either way.
+        content.interruptionLevel = .timeSensitive
 
         let request = UNNotificationRequest(identifier: moodAlertID, content: content, trigger: nil)
         try? await center.add(request)
@@ -202,6 +255,19 @@ enum NotificationService {
 
     static func nudgeMinute() -> Int {
         UserDefaults.standard.object(forKey: "nudgeMinute") as? Int ?? 0
+    }
+
+    /// Truncates at a word boundary near 60 chars rather than mid-word — nil for empty/whitespace
+    /// input so the caller falls back to the generic body instead of pushing an empty banner.
+    /// Not `private` so InsightValidationTests can exercise it directly.
+    static func notificationSnippet(_ text: String, limit: Int = 60) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard trimmed.count > limit else { return trimmed }
+        let cutoff = trimmed.index(trimmed.startIndex, offsetBy: limit)
+        let truncated = trimmed[..<cutoff]
+        let lastSpace = truncated.lastIndex(of: " ") ?? cutoff
+        return trimmed[..<lastSpace].trimmingCharacters(in: .whitespaces) + "…"
     }
 
     private static func isAuthorized() async -> Bool {

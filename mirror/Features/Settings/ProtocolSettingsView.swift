@@ -14,6 +14,10 @@ struct ProtocolSettingsView: View {
     @AppStorage("nudgeHour") private var nudgeHour: Int = 8
     @AppStorage("nudgeMinute") private var nudgeMinute: Int = 0
     @State private var showNudgeTimePicker = false
+    // Off by default — the lock screen is visible to anyone near the device, and a nudge
+    // snippet is AI content derived from journal text even though it isn't the journal text
+    // itself. Opt-in only.
+    @AppStorage("nudgePreviewEnabled") private var nudgePreviewEnabled: Bool = false
 
     // One unified daily reminder (replaces the old separate writing reminder).
     // On by default; tapping the notification opens the mood check-in sheet.
@@ -77,7 +81,9 @@ struct ProtocolSettingsView: View {
                                                 hasWrittenToday: hasWritten,
                                                 insightReady: insightReady,
                                                 hour: nudgeHour,
-                                                minute: nudgeMinute
+                                                minute: nudgeMinute,
+                                                previewText: (nudgePreviewEnabled && insightReady)
+                                                    ? mirrorApp.todaysDailyNudgeText(context: modelContext) : nil
                                             )
                                         }
                                     }
@@ -88,6 +94,31 @@ struct ProtocolSettingsView: View {
                             .labelsHidden()
                             .frame(maxWidth: .infinity)
                             .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+
+                        SettingsDivider()
+
+                        Toggle(isOn: $nudgePreviewEnabled) {
+                            SettingsRowLabel(
+                                title: "Show reflection preview in notification",
+                                systemImage: "eye.fill",
+                                iconColor: .orange
+                            )
+                        }
+                        .tint(MirrorTheme.primary)
+                        .onChange(of: nudgePreviewEnabled) { _, enabled in
+                            Task {
+                                let insightReady = mirrorApp.hasDailyNudgeForToday(context: modelContext)
+                                let hasWritten = mirrorApp.hasEntryToday(context: modelContext)
+                                await NotificationService.rescheduleContextualNudge(
+                                    hasWrittenToday: hasWritten,
+                                    insightReady: insightReady,
+                                    hour: nudgeHour,
+                                    minute: nudgeMinute,
+                                    previewText: (enabled && insightReady)
+                                        ? mirrorApp.todaysDailyNudgeText(context: modelContext) : nil
+                                )
+                            }
                         }
                     } else {
                         Button { showSubscription = true } label: {

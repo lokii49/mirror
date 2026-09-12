@@ -23,6 +23,7 @@ struct mirrorApp: App {
         #endif
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
+        NotificationService.registerCategories()
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
         #if DEBUG
@@ -400,11 +401,13 @@ struct mirrorApp: App {
                 // still saved and shown as a card (a flawed reflection beats none), but the push
                 // falls back to the generic "come check" body instead of promising a "ready"
                 // reflection the guard couldn't confirm is actually good.
+                let previewEnabled = UserDefaults.standard.bool(forKey: "nudgePreviewEnabled")
                 await NotificationService.rescheduleContextualNudge(
                     hasWrittenToday: true,
                     insightReady: !degraded,
                     hour: hour,
-                    minute: minute
+                    minute: minute,
+                    previewText: previewEnabled ? text : nil
                 )
             } else {
                 // First nudge for free users — one-time hook to drive paywall conversion.
@@ -425,6 +428,16 @@ struct mirrorApp: App {
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
         return todayInsights.contains { $0.type == .dailyNudge }
+    }
+
+    @MainActor
+    static func todaysDailyNudgeText(context: ModelContext) -> String? {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        let todayInsights = (try? context.fetch(descriptor)) ?? []
+        return todayInsights.first { $0.type == .dailyNudge }?.content
     }
 
     @MainActor
@@ -845,11 +858,13 @@ struct mirrorApp: App {
         // needs a subscription; the reminder itself doesn't.
         let insightReady = mirrorApp.hasDailyNudgeForToday(context: context) && SubscriptionService.shared.isSubscribed
         let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+        let previewEnabled = UserDefaults.standard.bool(forKey: "nudgePreviewEnabled")
         await NotificationService.rescheduleContextualNudge(
             hasWrittenToday: hasWrittenToday,
             insightReady: insightReady,
             hour: NotificationService.nudgeHour(),
-            minute: NotificationService.nudgeMinute()
+            minute: NotificationService.nudgeMinute(),
+            previewText: (previewEnabled && insightReady) ? mirrorApp.todaysDailyNudgeText(context: context) : nil
         )
     }
 
