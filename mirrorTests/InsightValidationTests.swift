@@ -466,4 +466,59 @@ struct InsightValidationTests {
         #expect(InsightService.repeatsPriorOpening(fullRepeat, openings: openings))
         #expect(!InsightService.repeatsPriorOpening(partialOverlap, openings: openings))
     }
+
+    // MARK: - isUngrounded: the second reject-and-retry guard, catching fabricated content
+    // that repeatsPriorOpening can't — a *differently*-worded invention is just as disconnected
+    // from the entries as a repeated one, and the opener guard alone would let it through.
+
+    // The actual production case that motivated this guard: Gemma 3 1B generated a nudge about
+    // rain and "quiet spaces" against entries about a Timer app launch and download counts —
+    // zero shared vocabulary. Confirmed via the app's own on-device X-ray (InsightSignalSource)
+    // reading the real entries behind that nudge.
+    @Test func isUngrounded_fabricatedContent_detected() {
+        let entries = [
+            Entry(text: "Surprised to see 10 downloads the week the Timer app got released."),
+            Entry(text: "1. Learn new things 2. Focus on building things 3. Explore new ideas 4. Keep managing well."),
+            Entry(text: "Going in a good phase!"),
+        ]
+        let nudge = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_sharesRealDetail_notDetected() {
+        let entries = [
+            Entry(text: "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after."),
+        ]
+        let nudge = "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_noSourceText_notDetected() {
+        // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
+        // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
+        // to check against either way.
+        let entries = [Entry(text: "")]
+        let nudge = "The rain outside feels like a gentle reminder."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_emptyNudgeText_notDetected() {
+        // Empty output is InsightService.validate()'s job to reject, not this guard's.
+        let entries = [Entry(text: "Went for a long walk by the river today.")]
+        #expect(!InsightService.isUngrounded("", sourceEntries: entries))
+    }
+
+    // Two texts sharing only common filler/short words ("the", "was", "like", "much") but no
+    // real content word are still ungrounded — the stopword list exists for exactly this.
+    // Deliberately does NOT reuse "quiet"/"gentle"/"reminder"/etc. from the fabrication fixture
+    // above on the entry side: those are ordinary content words (not filler), so an entry that
+    // genuinely mentions them SHOULD count as grounding — advisor caught an earlier version of
+    // this test that put "quiet" in the entry too, which made it fail once "quiet" was correctly
+    // removed from the stopword list (see groundingStopwords' comment) — that failure was the
+    // guard behaving correctly, not a bug; the test's fixture was wrong.
+    @Test func isUngrounded_onlyFillerWordsShared_stillDetected() {
+        let entries = [Entry(text: "The evening was long and I felt like resting well, though nothing much happened.")]
+        let nudge = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
 }

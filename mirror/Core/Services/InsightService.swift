@@ -170,6 +170,17 @@ enum InsightService {
             .joined(separator: " ")
     }
 
+    /// Lowercases and strips leading/trailing punctuation from each word so "it," and "it" (or
+    /// a sentence-ending word carrying a period) still count as the same shared word.
+    private static func normalizedWordSet(_ text: String) -> Set<String> {
+        Set(
+            text.lowercased()
+                .split(separator: " ")
+                .map { $0.trimmingCharacters(in: .alphanumerics.inverted) }
+                .filter { !$0.isEmpty }
+        )
+    }
+
     /// True when `text`'s opening (first 7 words, same window `priorNudgeOpenings` keys on)
     /// overlaps too heavily with one of the openings the prompt already told the model to avoid.
     /// The prompt-side instruction alone isn't reliable — Gemma 3 1B has reproduced a banned
@@ -186,17 +197,6 @@ enum InsightService {
     /// as bags of words (order-insensitive, so a word inserted, dropped, or swapped doesn't
     /// break the match) and flags a repeat once at least `minSharedWords` of the *shorter*
     /// opening's words are also present in the new text's opening.
-    /// Lowercases and strips leading/trailing punctuation from each word so "it," and "it" (or
-    /// a sentence-ending word carrying a period) still count as the same shared word.
-    private static func normalizedWordSet(_ text: String) -> Set<String> {
-        Set(
-            text.lowercased()
-                .split(separator: " ")
-                .map { $0.trimmingCharacters(in: .alphanumerics.inverted) }
-                .filter { !$0.isEmpty }
-        )
-    }
-
     static func repeatsPriorOpening(_ text: String, openings: [String], minSharedWords: Int = 5) -> Bool {
         guard !openings.isEmpty else { return false }
         let candidateWords = normalizedWordSet(firstWords(text, count: 7))
@@ -207,6 +207,69 @@ enum InsightService {
             let threshold = min(minSharedWords, openingWords.count)
             return candidateWords.intersection(openingWords).count >= threshold
         }
+    }
+
+    /// High-frequency English function/filler words excluded when checking whether a nudge
+    /// shares any real vocabulary with the entries it's supposed to be grounded in. Content
+    /// words (a place, a name, a concrete noun or verb an entry would actually contain) are
+    /// what should overlap; two unrelated pieces of text sharing "the"/"feels"/"like" by
+    /// coincidence shouldn't count as grounding. Deliberately does NOT include words from any
+    /// specific observed fabrication ("gentle", "quiet", "reminder", etc.) — those are ordinary
+    /// content words a real entry could legitimately contain ("finally carving out some quiet
+    /// in the mornings"), and blacklisting them would make a genuinely grounded nudge that names
+    /// them back unmatchable, defeating the guard on the exact entries it should pass. Overfitting
+    /// this list to one sample was caught by advisor before commit.
+    private static let groundingStopwords: Set<String> = [
+        "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "from", "with", "for", "by",
+        "is", "are", "was", "were", "be", "been", "being", "it", "its", "this", "that", "these", "those",
+        "i", "me", "my", "mine", "you", "your", "yours", "we", "our", "ours",
+        "he", "she", "they", "them", "his", "her", "their", "theirs",
+        "feels", "feel", "felt", "feeling", "like", "likes", "liked",
+        "still", "just", "really", "very", "so", "too", "also",
+        "more", "most", "much", "many", "some", "any", "all", "each", "every", "other", "another", "such",
+        "no", "not", "only", "own", "same", "than", "then", "once", "here", "there", "when", "where", "why",
+        "how", "what", "which", "who", "whom", "having", "do", "does", "did", "doing",
+        "would", "could", "should", "might", "must", "can", "will", "shall", "have", "has", "had",
+        "about", "again", "further", "out", "up", "down", "over", "under", "off", "into", "onto",
+        "if", "as", "because", "while", "during", "before", "after", "something", "someone", "things", "thing",
+    ]
+
+    /// Words of 4+ letters, lowercased, punctuation-stripped, filler excluded. Anything shorter
+    /// or on the stopword list is too common to mean the two texts are actually connected.
+    private static func contentWords(_ text: String) -> Set<String> {
+        Set(
+            text.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 4 && !groundingStopwords.contains($0) }
+        )
+    }
+
+    /// True when `text` shares no real vocabulary at all with `sourceEntries` — a strong signal
+    /// the model invented the reflection rather than reading what was actually written.
+    /// DAILY_NUDGE_SYSTEM explicitly requires this ("Reference actual words, moods, dates, or
+    /// concrete events, not generic advice" / "Open by naming something concrete from a
+    /// specific entry"), so a genuinely grounded nudge — even heavily paraphrased — should still
+    /// land on at least one shared non-filler word with its source. Observed failure this
+    /// backstops: Gemma 3 1B generated "The rain outside feels like a gentle reminder of the
+    /// quiet spaces you've been carving out lately" against entries about a Timer app launch and
+    /// download counts (mood read: JOYFUL, CONTENT) — zero shared vocabulary, and a tone
+    /// inverted from the entries' own. `repeatsPriorOpening` alone wouldn't have caught this: a
+    /// *differently*-worded fabrication would pass it while remaining just as disconnected from
+    /// the entries. Checked against `recent + background` (the full context sent to the model),
+    /// not just `recent`, since the prompt also permits drawing on long-term recurring themes.
+    ///
+    /// The one-shared-word threshold is deliberately loose (favors false negatives over false
+    /// positives — see `repeatsPriorOpening`'s `minSharedWords` for the same asymmetry), but a
+    /// terse entry ("Going in a good phase!") still gives a genuinely grounded nudge only two or
+    /// three real words to land on. Short-entry users are where a false positive here would
+    /// first show up, not a long, detail-rich entry — worth knowing if this guard starts firing
+    /// more than expected in practice.
+    static func isUngrounded(_ text: String, sourceEntries: [Entry]) -> Bool {
+        let nudgeWords = contentWords(text)
+        guard !nudgeWords.isEmpty else { return false }
+        let sourceWords = contentWords(sourceEntries.map(\.insightContext).joined(separator: " "))
+        guard !sourceWords.isEmpty else { return false }
+        return nudgeWords.isDisjoint(with: sourceWords)
     }
 
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
@@ -237,26 +300,35 @@ enum InsightService {
             task: .dailyNudge,
             responseLanguageInstruction: languageInstruction
         )
-        guard repeatsPriorOpening(first.text, openings: openings) else { return first }
+        let violatesRepeat = repeatsPriorOpening(first.text, openings: openings)
+        let violatesGrounding = isUngrounded(first.text, sourceEntries: recent + background)
+        guard violatesRepeat || violatesGrounding else { return first }
 
-        // Named the violation directly rather than just repeating the general instruction —
+        // Named the violation(s) directly rather than just repeating the general instruction —
         // a list buried in the prompt was already ignored once. One retry only, result accepted
         // unconditionally: this is a quality backstop, not a guarantee. The retry gets a fresh
         // random seed but the same temperature, so it's possible (not verified either way) that
         // a model whose distribution is this peaked reproduces a third variant of the same
-        // template — the second attempt is not re-checked against `repeatsPriorOpening`.
-        // Looping until a truly distinct opening lands would remove that risk but costs an
+        // problem — the second attempt is not re-checked against either guard. Looping until a
+        // truly distinct, grounded reflection lands would remove that risk but costs an
         // unbounded number of full generations on what's still a best-effort reflection.
-        let violatedOpening = firstWords(first.text, count: 7)
+        var violationNotes: [String] = []
+        if violatesRepeat {
+            let violatedOpening = firstWords(first.text, count: 7)
+            violationNotes.append("your reflection opened with \"\(violatedOpening)…\" — exactly what you were told to avoid.")
+        }
+        if violatesGrounding {
+            violationNotes.append("your reflection didn't reference anything actually written in the entries above — no shared word, event, or detail. It read as generic, invented content rather than a reflection of what's there.")
+        }
         let retryMessage = userMessage + """
 
 
-            IMPORTANT: your reflection just opened with "\(violatedOpening)…" — exactly what you were told to avoid. Start over with a different first sentence, built from a different concrete detail in the entries above.
+            IMPORTANT: \(violationNotes.joined(separator: " ")) Start over with a different first sentence, naming a specific word, event, or detail actually present in the entries above.
             """
-        // `first` is a valid, already-validated nudge — just a stylistically repetitive one.
-        // If the retry throws (contextExhausted on a second full pass is realistic on the
-        // older/slower devices that are this guard's whole population), fall back to `first`
-        // rather than propagating: a repeated opening beats no nudge at all that day.
+        // `first` is a valid, already-validated nudge — just repetitive and/or ungrounded, not
+        // broken. If the retry throws (contextExhausted on a second full pass is realistic on
+        // the older/slower devices that are this guard's whole population), fall back to `first`
+        // rather than propagating: a flawed nudge beats no nudge at all that day.
         guard let second = try? await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: retryMessage,
