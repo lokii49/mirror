@@ -146,3 +146,21 @@ nonisolated func textWithPhotoTokensReplaced(_ text: String, placeholder: String
     for (range, _) in allPhotoTokens(in: text).reversed() { result.replaceSubrange(range, with: placeholder) }
     return result
 }
+
+// MARK: - Link validation
+
+/// Restricted to http/https — a link is user-entered text in a journal handed
+/// straight to the system opener on tap (in EntryDetailView's read view, and
+/// per UIKit default even in the editor), so a scheme like `javascript:` or
+/// `file:` must never reach a stored InlineStyleRange. A bare domain (no
+/// "://") is treated as https, matching what most users mean when they type
+/// "example.com" without thinking about the scheme.
+nonisolated func validatedLinkURL(from urlString: String?) -> URL? {
+    var trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    guard !trimmed.isEmpty else { return nil }
+    if !trimmed.contains("://") { trimmed = "https://" + trimmed }
+    guard let url = URL(string: trimmed),
+          let scheme = url.scheme?.lowercased(),
+          scheme == "http" || scheme == "https" else { return nil }
+    return url
+}

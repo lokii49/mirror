@@ -88,6 +88,39 @@ struct MarkdownExportServiceTests {
         #expect(MarkdownExportService.markdownBody(for: entry) == "a [**bold link**](https://example.com) here")
     }
 
+    @Test func validatedLinkURLAcceptsHttpAndHttps() {
+        #expect(validatedLinkURL(from: "https://example.com")?.absoluteString == "https://example.com")
+        #expect(validatedLinkURL(from: "http://example.com")?.absoluteString == "http://example.com")
+    }
+
+    @Test func validatedLinkURLPrependsHttpsToBareDomain() {
+        #expect(validatedLinkURL(from: "example.com")?.absoluteString == "https://example.com")
+    }
+
+    @Test func validatedLinkURLRejectsNonHttpSchemes() {
+        #expect(validatedLinkURL(from: "javascript:alert(1)") == nil)
+        #expect(validatedLinkURL(from: "file:///etc/passwd") == nil)
+        #expect(validatedLinkURL(from: "mirror-photo://x") == nil)
+    }
+
+    @Test func validatedLinkURLRejectsEmptyOrNil() {
+        #expect(validatedLinkURL(from: nil) == nil)
+        #expect(validatedLinkURL(from: "   ") == nil)
+    }
+
+    @Test func markdownExportDoesNotFilterLinkScheme() throws {
+        // MarkdownExportService renders whatever linkURL string is stored — export is
+        // inert text, not a tap surface, so the scheme guard only needs to live at the
+        // interactive render boundaries (editor + read view), covered above. Documents
+        // that export deliberately doesn't duplicate that filtering.
+        let entry = Entry(text: "click here now")
+        // "here" starts at index 6, length 4
+        entry.inlineStyleData = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(location: 6, length: 4, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: "javascript:alert(1)")
+        ]))
+        #expect(MarkdownExportService.markdownBody(for: entry) == "click [here](javascript:alert(1)) now")
+    }
+
     @Test func inlineStyleRangeDecodesOldDataMissingLinkURLKey() throws {
         // Simulates data encoded before linkURL existed — no key present at all.
         let oldJSON = """
