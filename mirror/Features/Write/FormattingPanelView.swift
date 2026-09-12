@@ -152,6 +152,7 @@ struct FormattingPanelView: View {
                     inlineButton("U",  style: .underline,     font: .system(size: 17 * typeScale), underline: true,        accessibilityLabel: "Underline")
                     inlineButton("S",  style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true,    accessibilityLabel: "Strikethrough")
                     linkButton
+                    clearFormattingButton
                 }
                 .padding(.horizontal, 16)
             }
@@ -345,6 +346,21 @@ struct FormattingPanelView: View {
         .accessibilityIdentifier("link")
         .accessibilityLabel(isActive ? "Edit link" : "Add link")
         .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private var clearFormattingButton: some View {
+        Button {
+            DispatchQueue.main.async { state.onCommand?(.clearFormatting) }
+        } label: {
+            Image(systemName: "textformat.slash")
+                .font(.system(size: 17 * typeScale, weight: .regular))
+                .foregroundStyle(Color.primary)
+                .frame(width: 50 * typeScale, height: 44 * typeScale)
+                .background(idleFill, in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("clearFormatting")
+        .accessibilityLabel("Clear formatting")
     }
 
     // MARK: - List button (fixed square icon)

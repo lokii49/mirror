@@ -40,6 +40,18 @@ struct MarkdownExportServiceTests {
         #expect(MarkdownExportService.markdownBody(for: entry) == "1. One\nInterrupt\n1. One again")
     }
 
+    @Test func numberedListRestartsCounterOnNestedIndent() throws {
+        // Outer 1, 2 — then two nested items under item 2 should restart at 1,
+        // then the outer list resumes its own sequence at 3 (not 5).
+        let entry = Entry(text: "First\nSecond\nSub one\nSub two\nThird")
+        entry.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.numberedList, .numberedList, .numberedList, .numberedList, .numberedList],
+            indentLevels: [0, 0, 1, 1, 0]
+        ))
+        let expected = "1. First\n2. Second\n  1. Sub one\n  2. Sub two\n3. Third"
+        #expect(MarkdownExportService.markdownBody(for: entry) == expected)
+    }
+
     @Test func boldItalicAndHighlightNestConsistently() throws {
         let entry = Entry(text: "plain bold end")
         // "bold" starts at index 6, length 4
