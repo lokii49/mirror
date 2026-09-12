@@ -272,13 +272,46 @@ enum InsightService {
         return nudgeWords.isDisjoint(with: sourceWords)
     }
 
-    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
+    /// The recent/background split a daily nudge is generated from. Factored out so
+    /// `ungroundedDailyNudges` (a retroactive audit over already-generated nudges) reconstructs
+    /// a past nudge's context with the exact same rule `generateNudge` used live, rather than a
+    /// second hand-copied version of this logic silently drifting from it over time.
+    ///
+    /// `asOf` stands in for "now": pass `Date()` when generating live, or a past
+    /// `Insight.generatedAt` with `entries` pre-filtered to `createdAt <= asOf` when
+    /// reconstructing history — an entry written after a nudge was generated couldn't have been
+    /// read by it, so including it here would corrupt the reconstruction.
+    static func dailyNudgeContext(from entries: [Entry], asOf: Date) -> (recent: [Entry], background: [Entry]) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
         let withinWindow = sorted.filter { $0.createdAt >= cutoff }
         let recent = withinWindow.isEmpty ? Array(sorted.prefix(1)) : Array(withinWindow.prefix(3))
         let recentIDs = Set(recent.map(\.id))
         let background = Array(sorted.filter { !recentIDs.contains($0.id) }.prefix(20))
+        return (recent, background)
+    }
+
+    /// Retroactively flags past daily nudges whose text shares no real vocabulary with the
+    /// entries they were supposedly grounded in — the same `isUngrounded` check `generateNudge`
+    /// now runs live, applied after the fact to nudges generated before this guard existed.
+    /// Necessarily a reconstruction, not a stored record (`Insight` keeps no snapshot of its
+    /// inputs — see `InsightSignalSource`'s doc comment for the same caveat on the on-device
+    /// X-ray this mirrors): if an entry from that window has since been edited or deleted, the
+    /// answer for that nudge may no longer be accurate.
+    static func ungroundedDailyNudges(among insights: [Insight], allEntries: [Entry]) -> [Insight] {
+        insights
+            .filter { $0.type == .dailyNudge }
+            .filter { insight in
+                let asOf = insight.generatedAt
+                let priorEntries = allEntries.filter { $0.createdAt <= asOf }
+                let (recent, background) = dailyNudgeContext(from: priorEntries, asOf: asOf)
+                return isUngrounded(insight.content, sourceEntries: recent + background)
+            }
+            .sorted { $0.generatedAt < $1.generatedAt }
+    }
+
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
+        let (recent, background) = dailyNudgeContext(from: entries, asOf: Date())
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
 
         var userMessage = buildUserMessage(

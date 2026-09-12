@@ -6,9 +6,11 @@ import SwiftData
 /// never shown in release builds.
 struct DiagnosticsSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Query private var insights: [Insight]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @State private var encryptionReport: String?
+    @State private var groundingAuditReport: String?
 
     var body: some View {
         ScrollView {
@@ -30,6 +32,33 @@ struct DiagnosticsSettingsView: View {
                         Button("OK", role: .cancel) {}
                     } message: {
                         Text(encryptionReport ?? "")
+                    }
+
+                    SettingsDivider()
+
+                    Button {
+                        let dailyNudgeCount = insights.filter { $0.type == .dailyNudge }.count
+                        let flagged = InsightService.ungroundedDailyNudges(among: insights, allEntries: entries)
+                        if flagged.isEmpty {
+                            groundingAuditReport = "No ungrounded daily nudges found among \(dailyNudgeCount) checked."
+                        } else {
+                            let lines = flagged.map { insight in
+                                "\(insight.generatedAt.formatted(date: .abbreviated, time: .omitted)): \(insight.content.prefix(80))…"
+                            }
+                            groundingAuditReport = "\(flagged.count) of \(dailyNudgeCount) flagged:\n\n" + lines.joined(separator: "\n\n")
+                        }
+                    } label: {
+                        SettingsRowLabel(title: "Audit Past Nudges for Fabricated Content", systemImage: "text.magnifyingglass", iconColor: .orange)
+                    }
+                    .buttonStyle(.plain)
+                    .alert("Grounding Audit", isPresented: .init(
+                        get: { groundingAuditReport != nil },
+                        set: { if !$0 { groundingAuditReport = nil } }
+                    )) {
+                        Button("Copy") { UIPasteboard.general.string = groundingAuditReport }
+                        Button("OK", role: .cancel) {}
+                    } message: {
+                        Text(groundingAuditReport ?? "")
                     }
 
                     SettingsDivider()
