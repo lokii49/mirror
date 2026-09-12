@@ -66,6 +66,7 @@ struct EntriesTabView: View {
         let filteredEntries: [Entry]
         let usedMoods: [String]
         let usedTags: [String]
+        let pinnedEntries: [Entry]
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
     }
@@ -78,6 +79,7 @@ struct EntriesTabView: View {
         let entryCount: Int
         let moodHash: Int
         let tagsHash: Int
+        let pinnedHash: Int
         let sort: String
     }
 
@@ -90,6 +92,7 @@ struct EntriesTabView: View {
             entryCount: entries.count,
             moodHash: entries.map(\.encryptedMood).hashValue,
             tagsHash: entries.map(\.encryptedTagsStorage).hashValue,
+            pinnedHash: entries.map(\.isPinned).hashValue,
             sort: sortOrder.rawValue
         )
     }
@@ -113,16 +116,22 @@ struct EntriesTabView: View {
             result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
         }
 
-        let calendar = Calendar.current
-        let groups = Dictionary(grouping: result) { entry -> Date in
-            let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
-            return calendar.date(from: comps) ?? entry.createdAt
-        }
         switch sortOrder {
         case .newestFirst: break  // already sorted by @Query
         case .oldestFirst: result = result.sorted { $0.createdAt < $1.createdAt }
         case .mostWords:   result = result.sorted { $0.wordCount > $1.wordCount }
         case .byMood:      result = result.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
+        }
+
+        // Pinned entries surface in their own section above the month groups
+        // (see entryList(_:)) — excluded here so they don't also render twice.
+        // Deliberate: a month's "N entries" header counts only what's rendered
+        // in that section, not the pinned ones that moved up top.
+        let pinnedEntries = result.filter(\.isPinned)
+        let calendar = Calendar.current
+        let groups = Dictionary(grouping: result.filter { !$0.isPinned }) { entry -> Date in
+            let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
+            return calendar.date(from: comps) ?? entry.createdAt
         }
 
         let monthSortAscending = sortOrder == .oldestFirst
@@ -152,7 +161,7 @@ struct EntriesTabView: View {
             )
         }
 
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
     }
 
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
@@ -471,6 +480,36 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
+    @ViewBuilder
+    private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
+        EntryRow(entry: entry, rowPreview: preview)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                selectedEntry = entry
+                showEntryDetail = true
+            }
+            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) {
+                    modelContext.delete(entry)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button {
+                    entry.isPinned.toggle()
+                    try? modelContext.save()
+                } label: {
+                    Label(entry.isPinned ? "Unpin" : "Pin", systemImage: entry.isPinned ? "pin.slash" : "pin")
+                }
+                .tint(.orange)
+            }
+    }
+
     private func entryList(_ snapshot: EntryListSnapshot) -> some View {
         List {
             // Activity heatmap
@@ -500,6 +539,30 @@ struct EntriesTabView: View {
                 }
             }
 
+            if !snapshot.pinnedEntries.isEmpty {
+                Section {
+                    ForEach(snapshot.pinnedEntries) { entry in
+                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    }
+                } header: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pin.fill").font(.system(size: 11, weight: .bold))
+                        Group {
+                            if displayMode == .sentinel {
+                                Text("Pinned").font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                            } else {
+                                Text("Pinned").font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                            }
+                        }
+                    }
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
+                    .textCase(.uppercase)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 2)
+                }
+            }
+
             if snapshot.filteredEntries.isEmpty {
                 Group {
                     if displayMode == .sentinel {
@@ -522,24 +585,8 @@ struct EntriesTabView: View {
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
                 Section {
                     ForEach(group.entries) { entry in
-                        EntryRow(entry: entry, rowPreview: snapshot.rowPreviews[entry.id])
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedEntry = entry
-                                showEntryDetail = true
-                            }
-                            .buttonStyle(.plain)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    modelContext.delete(entry)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        }
+                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    }
                 } header: {
                     HStack {
                         Group {

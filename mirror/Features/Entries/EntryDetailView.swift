@@ -198,6 +198,13 @@ struct EntryDetailView: View {
                         .disabled(entry.textDecryptionFailed)
 
                     Menu {
+                        Button(
+                            entry.isPinned ? "Unpin Entry" : "Pin Entry",
+                            systemImage: entry.isPinned ? "pin.slash" : "pin"
+                        ) {
+                            entry.isPinned.toggle()
+                            try? modelContext.save()
+                        }
                         Button("Share as text") { shareText() }
                         Button("Export as PDF") { sharePDF() }
                         Button("Delete Entry", systemImage: "trash", role: .destructive) {
