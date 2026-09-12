@@ -134,3 +134,11 @@ nonisolated func strippedWordCount(_ s: String) -> Int {
     for (range, _) in allPhotoTokens(in: s).reversed() { cleaned.removeSubrange(range) }
     return cleaned.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
 }
+
+/// `entry.text` embeds `[[mirror-photo-N]]` markers inline — an internal
+/// storage detail that must never leak verbatim into a user-facing export.
+nonisolated func textWithPhotoTokensReplaced(_ text: String, placeholder: String = "📷") -> String {
+    var result = text
+    for (range, _) in allPhotoTokens(in: text).reversed() { result.replaceSubrange(range, with: placeholder) }
+    return result
+}

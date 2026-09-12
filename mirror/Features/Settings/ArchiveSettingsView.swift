@@ -39,6 +39,21 @@ struct ArchiveSettingsView: View {
 
                     SettingsDivider()
 
+                    ShareLink(
+                        item: exportedMarkdown,
+                        subject: Text("MirrorNotes Export (Markdown)"),
+                        message: Text("My journal entries from Mirror, with formatting")
+                    ) {
+                        HStack {
+                            SettingsRowLabel(title: "Export as Markdown", systemImage: "doc.richtext", iconColor: .purple)
+                            Spacer()
+                            SettingsChevron()
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsDivider()
+
                     Button { showImportPicker = true } label: {
                         HStack {
                             SettingsRowLabel(title: "Import entries", systemImage: "square.and.arrow.down", iconColor: .blue)
@@ -126,10 +141,15 @@ struct ArchiveSettingsView: View {
         return entries.map { entry in
             var block = "[\(formatter.string(from: entry.createdAt))]"
             if let mood = entry.mood { block += "\n[Mood: \(mood)]" }
-            block += "\n\(entry.text)"
+            let text = entry.textDecryptionFailed ? "[Encrypted entry unavailable]" : entry.text
+            block += "\n\(textWithPhotoTokensReplaced(text))"
             return block
         }
         .joined(separator: "\n\n---\n\n")
+    }
+
+    private var exportedMarkdown: String {
+        MarkdownExportService.export(entries: entries)
     }
 
     private func deleteAllData() {
