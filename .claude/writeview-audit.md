@@ -422,7 +422,25 @@ Effort: S. Sentinel parity: N/A. **Best latency win outside the editor internals
 > 16-157) took 8 hours instead of ~10 minutes and produced mostly-bogus failures — always
 > check `uptime` before trusting a run's failures as real.
 >
-> 3 new user-facing strings (Group 1) + a few more (2.2) still need a catalog extraction pass.
+> **String catalog extraction — done (2026-09-12).** 20 WriteView/voice-note-scoped keys had
+> been extracted into `Localizable.xcstrings` (key + auto-generated comment present) but never
+> translated beyond `en` — e.g. `"Cancel recording"`, `"Stop and add recording"`, `"Quote"`,
+> `"No highlight"`, `"Transcription failed."`, `"AI won't reflect on this note."`, the mic
+> permission notice, the 2.3 long-press popover copy, and the `VoiceTranscriptionError` case
+> descriptions. Translated all 20 into the app's existing 9 locales (de/es/fr/it/ja/ko/pt-BR/
+> ru/zh-Hans), reusing established vocabulary from neighboring entries (e.g. "voice note" →
+> `Sprachnotiz`/`nota de voz`/`ボイスノート`/`음성 메모`/etc., already consistent across the
+> catalog) rather than inventing new terms. Edited `Localizable.xcstrings` directly (JSON) since
+> there's no Xcode GUI in this environment; diffed against `git show HEAD` first to confirm the
+> change touched only the 20 targeted keys (two unrelated pre-existing empty entries got
+> reformatted from multi-line `{}` to single-line `{}` as a side effect of Python's JSON
+> serializer — cosmetic only, values unchanged). Verified by decoding the built app's
+> `de.lproj`/`ja.lproj` `Localizable.strings` after a real build — the translated values are
+> present in the compiled output, not just the source catalog.
+> `xcodebuild build` green (all 10 locales compile).
+>
+> Out of scope, left alone: ~15 other untranslated keys elsewhere in the catalog (Deep Scan /
+> X-ray / paywall strings — not WriteView, not this audit's concern).
 >
 > **2.3–2.4 not started.**
 
