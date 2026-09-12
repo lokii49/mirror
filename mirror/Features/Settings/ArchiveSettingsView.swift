@@ -18,14 +18,34 @@ struct ArchiveSettingsView: View {
     @State private var importResultMessage: String?
     @State private var showImportResult = false
 
+    // `exportedText` decrypts every entry's text on every body re-eval, but was
+    // read directly in `body` via `ShareLink(item:)` — so every unrelated @State
+    // change in this view (delete confirmation, import picker/result, iCloud
+    // status) re-decrypted the full history. Cached via `.task(id:)`, matching
+    // the CalendarHeatmap/MoodTimelineView precedent. Keyed on the raw
+    // `encryptedText`/`encryptedMood` fields (not the decrypted `text`/`mood`),
+    // so computing the key itself never triggers decryption.
+    @State private var cachedExportedText: String = ""
+
     private var iCloudStatusColor: Color { iCloudStatus.color }
+
+    private var exportCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(entries.count)
+        for entry in entries {
+            hasher.combine(entry.createdAt)
+            hasher.combine(entry.encryptedMood)
+            hasher.combine(entry.encryptedText)
+        }
+        return hasher.finalize()
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
                 SettingsGroup(title: "Your Data") {
                     ShareLink(
-                        item: exportedText,
+                        item: cachedExportedText,
                         subject: Text("MirrorNotes Export"),
                         message: Text("My journal entries from Mirror")
                     ) {
@@ -117,13 +137,14 @@ struct ArchiveSettingsView: View {
             Text(importResultMessage ?? "")
         }
         .task { await checkiCloudStatus() }
+        .task(id: exportCacheKey) { recomputeExportedText() }
     }
 
-    private var exportedText: String {
+    private func recomputeExportedText() {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
         formatter.timeStyle = .short
-        return entries.map { entry in
+        cachedExportedText = entries.map { entry in
             var block = "[\(formatter.string(from: entry.createdAt))]"
             if let mood = entry.mood { block += "\n[Mood: \(mood)]" }
             block += "\n\(entry.text)"

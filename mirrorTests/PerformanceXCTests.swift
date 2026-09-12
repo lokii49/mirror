@@ -490,4 +490,47 @@ final class PerformanceXCTests: XCTestCase {
 
         XCTAssert(oldMs > newMs * 5, "Per-tap recompute must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
     }
+
+    // MARK: - Test 10: ArchiveSettingsView exportedText per-toggle vs cached
+
+    func test_archiveSettingsExportedText_perToggleVsCached() {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .short
+        let toggles = 60 // delete-confirmation / import-picker / import-result / iCloud-status changes
+
+        func exportedText(from entries: [Entry]) -> String {
+            entries.map { entry in
+                var block = "[\(formatter.string(from: entry.createdAt))]"
+                if let mood = entry.mood { block += "\n[Mood: \(mood)]" }
+                block += "\n\(entry.text)"
+                return block
+            }
+            .joined(separator: "\n\n---\n\n")
+        }
+
+        // OLD: exportedText was a plain computed var read directly in `body` via
+        // `ShareLink(item: exportedText)`, decrypting every entry's text on every
+        // re-eval — i.e. every unrelated @State change in this view (delete
+        // confirmation dialog, import picker/result alert, iCloud status update).
+        let oldStart = CFAbsoluteTimeGetCurrent()
+        for _ in 0..<toggles {
+            let _ = exportedText(from: entries)
+        }
+        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
+
+        // NEW: computed once via .task(id: exportCacheKey) into cachedExportedText;
+        // remaining toggles read the cache.
+        let newStart = CFAbsoluteTimeGetCurrent()
+        let cached = exportedText(from: entries)
+        for _ in 0..<(toggles - 1) { let _ = cached }
+        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+
+        print("\n[ArchiveSettingsView exportedText] 365 entries × \(toggles) toggles")
+        print("  OLD (per-toggle decrypt+join): \(String(format: "%.1f", oldMs))ms")
+        print("  NEW (1 decrypt+join + cache):  \(String(format: "%.1f", newMs))ms")
+        print("  Speedup: \(String(format: "%.0f", oldMs / max(newMs, 0.001)))x\n")
+
+        XCTAssert(oldMs > newMs * 5, "Per-toggle export decrypt+join must be >5x slower than cached. OLD=\(String(format: "%.1f", oldMs))ms NEW=\(String(format: "%.1f", newMs))ms")
+    }
 }
