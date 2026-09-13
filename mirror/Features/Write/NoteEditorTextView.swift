@@ -717,10 +717,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastKnownCursorLocation = cursorLocation
 
             // Determine target style. List styles toggle off when already active.
-            let currentStyle = textStyle(
-                at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
-                in: textView.attributedText
-            )
+            //
+            // When the cursor sits at the very end of the text AND that end is a virtual
+            // empty paragraph (text ends with a line break), it has no style of its own yet
+            // — sampling `length - 1` would read the *preceding* paragraph's own attribute
+            // off its closing "\n" (paragraph runs include their own trailing newline), not
+            // this new paragraph's true .body state. That misread flips `targetStyle` below
+            // (e.g. .body→.numberedList reads as an active-list toggle-off) and routes into
+            // the "strip list marker" branch instead of the dedicated virtual-empty-paragraph
+            // branch further down — which then strips the *preceding* real paragraph's marker.
+            let currentStyle: NoteParagraphTextStyle
+            if cursorLocation >= nsText.length, nsText.length > 0, nsText.character(at: nsText.length - 1) == 10 {
+                currentStyle = .body
+            } else {
+                currentStyle = textStyle(
+                    at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
+                    in: textView.attributedText
+                )
+            }
             let targetStyle: NoteParagraphTextStyle
             if command == .checklist {
                 // Matches bulleted/dashed/numbered below: only clears to .body when
@@ -2402,7 +2416,18 @@ struct NoteEditorTextView: UIViewRepresentable {
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             isApplyingStyledText = false
             parent.textStyleData = encodedTextStyleData(from: textView)
-            syncRenderedCache(from: textView)
+            if style == .numberedList {
+                // Unlike bullet/dash, a numbered marker's digits depend on every
+                // sibling paragraph's level, not just this row's own level —
+                // syncRenderedCache would stamp the stale digits (still whatever
+                // they were pre-indent) as canonical, and they'd never renumber
+                // until an unrelated cache miss (e.g. a width change) happened to
+                // force one. Re-render for real so the whole block renumbers now.
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            } else {
+                syncRenderedCache(from: textView)
+            }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 

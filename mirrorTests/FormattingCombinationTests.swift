@@ -494,6 +494,69 @@ struct NumberedListTests {
         #expect(tenthPS.tabStops.first?.location == tenthPS.headIndent)
     }
 
+    // Regression: applyIndent used to patch the current paragraph's attributes
+    // then call syncRenderedCache, which stamps the *stale* digits already on
+    // screen as canonical — the row that got indented (and every sibling after
+    // it) never renumbered until an unrelated cache miss happened to force a
+    // real re-render. applyIndent must force one itself.
+    @Test func indentingNumberedItemRenumbersWholeBlock() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("1.\t"), "got: \(lines[0])")
+        #expect(lines[1].hasPrefix("1.\t"), "indented item should restart at 1, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("2.\t"), "outer list should resume at 2, got: \(lines[2])")
+    }
+
+    // Repro from screen recording: exit a numbered list (Return on the empty
+    // trailing item), then on that now-plain body line type "4. " again to
+    // re-trigger autoStartNumberedList. That paragraph is genuinely
+    // zero-length at the moment `apply(.numberedList, ...)` reads its current
+    // style, and the cursor sits exactly at the document's end — so
+    // `currentStyle` used to be sampled at `length - 1`, which lands on the
+    // *previous* paragraph's own closing "\n" (paragraph runs include their
+    // trailing newline) instead of this new, styleless paragraph. That misread
+    // (.numberedList instead of .body) flipped the toggle backwards (targeting
+    // .body instead of .numberedList) and took the "strip list marker" branch,
+    // which then stripped the *previous* real item's marker instead of
+    // touching the empty virtual paragraph at all — corrupting row 3 and
+    // silently dropping row 4.
+    @Test func autoStartNumberedListOnTrailingEmptyLineDoesNotCorruptPriorItem() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree\n4.",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList, .body]))
+        )
+        let initial = try #require(h.textView.attributedText).string
+        #expect(initial == "1.\tone\n2.\ttwo\n3.\tthree\n4.", "initial render, got: \(initial)")
+        let end = (h.textView.text as NSString).length
+        let convertedSpace = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: " "
+        )
+        #expect(!convertedSpace, "the space is consumed by autoStartNumberedList")
+        let afterConvert = try #require(h.textView.attributedText).string
+        #expect(afterConvert.contains("3.\tthree"), "item 3 must stay intact, got: \(afterConvert)")
+        #expect(afterConvert.contains("4.\t"), "auto-start should produce item 4, got: \(afterConvert)")
+
+        // Return on the now-properly-empty item 4 must exit cleanly: no
+        // leftover "4.", no spawned "5.", and item 3 still untouched.
+        let cursor = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor, length: 0), replacementText: "\n")
+        #expect(!shouldChange)
+        let afterReturn = try #require(h.textView.attributedText).string
+        #expect(afterReturn.contains("3.\tthree"), "item 3 must still be intact, got: \(afterReturn)")
+        #expect(!afterReturn.contains("5.\t"), "must not spawn item 5 — got: \(afterReturn)")
+        #expect(!afterReturn.contains("4.\t"), "it must exit the list instead — got: \(afterReturn)")
+    }
+
     @Test func typingDigitDotSpaceStartsNumberedList() throws {
         let h = makeEditorHarness(text: "1.", textStyleData: nil)
         h.textView.selectedRange = NSRange(location: 2, length: 0)
