@@ -22,18 +22,20 @@ extension WriteView {
                     }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
-                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
                     in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
                 )
                 .overlay {
                     if displayMode == .sentinel {
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
                             .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                    } else {
+                        Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                     }
                 }
             }
@@ -169,14 +171,14 @@ extension WriteView {
                 }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.horizontal, 11)
             .padding(.vertical, 7)
             .background(
                 displayMode == .sentinel
                     ? AnyShapeStyle(viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14))
-                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? Color(.secondarySystemFill) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
+                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? MirrorTheme.inkRaised : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
             )
             .overlay {
@@ -186,6 +188,8 @@ extension WriteView {
                             viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
                             lineWidth: 1
                         )
+                } else if viewModel.selectedMood == nil && !isDetectingMood {
+                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 }
             }
         }
@@ -404,7 +408,7 @@ extension WriteView {
                       ? "arrow.down.right.and.arrow.up.left"
                       : "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 14))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
@@ -419,9 +423,9 @@ extension WriteView {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color(.systemFill))
+                            .fill(MirrorTheme.inkBorder)
                         Rectangle()
-                            .fill(isComplete ? Color.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
+                            .fill(isComplete ? MirrorTheme.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
                             .frame(width: geo.size.width * progress)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: progress)
                     }
@@ -615,6 +619,6 @@ extension WriteView {
             .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
-        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))
+        .background(MirrorTheme.inkMid)
     }
 }

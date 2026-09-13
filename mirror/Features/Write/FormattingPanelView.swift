@@ -111,7 +111,7 @@ struct FormattingPanelView: View {
     /// the panel respects accessibility text sizes the way the editor itself does
     /// (`NoteEditorTextView` sets `adjustsFontForContentSizeCategory = true`).
     /// One shared `@ScaledMetric` base of 1.0 keeps every row's relative
-    /// proportions (Title 22pt vs. Mono 13pt, etc.) intact while scaling as a
+    /// proportions (Title 22pt vs. Code 13pt, etc.) intact while scaling as a
     /// group — the officially recommended pattern for a cluster of custom point
     /// sizes that should move together rather than each having its own metric.
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1.0
@@ -170,7 +170,7 @@ struct FormattingPanelView: View {
                     paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18 * typeScale, weight: .bold))
                     paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
                     paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
-                    paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
+                    paragraphStyleButton("Code",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
                     paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular))
                 }
                 .padding(.horizontal, 16)
@@ -421,7 +421,7 @@ struct FormattingPanelView: View {
         Button {
             DispatchQueue.main.async { state.onCommand?(.clearFormatting) }
         } label: {
-            Image(systemName: "textformat.slash")
+            Image(systemName: "eraser")
                 .font(.system(size: 17 * typeScale, weight: .regular))
                 .foregroundStyle(Color.primary)
                 .frame(width: 50 * typeScale, height: 44 * typeScale)
