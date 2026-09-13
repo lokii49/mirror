@@ -395,7 +395,7 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        for label in ["Title", "Heading", "Subheading", "Body", "Mono"] {
+        for label in ["Title", "Heading", "Subheading", "Body", "Code"] {
             XCTAssertTrue(
                 app.buttons[label].waitForExistence(timeout: 3),
                 "\(label) button must be present in formatting panel"
@@ -442,15 +442,15 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        for label in ["Title", "Heading", "Subheading", "Mono", "Body"] {
-            // "Mono" is the rightmost item in the paragraph-style row's horizontal
+        for label in ["Title", "Heading", "Subheading", "Code", "Body"] {
+            // "Code" is the rightmost item in the paragraph-style row's horizontal
             // ScrollView — a synthetic tap doesn't auto-scroll like VoiceOver does,
             // so it's off-screen with a degenerate frame. Even reading `.isHittable`
             // on it throws ("Activation point invalid"), so scroll unconditionally
-            // *before* touching the Mono element at all: drag from "Subheading"
-            // (the previous, still-hittable button in the same row) to bring Mono
+            // *before* touching the Code element at all: drag from "Subheading"
+            // (the previous, still-hittable button in the same row) to bring Code
             // into view.
-            if label == "Mono" {
+            if label == "Code" {
                 let anchor = app.buttons["Subheading"]
                 if anchor.exists {
                     let start = anchor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))

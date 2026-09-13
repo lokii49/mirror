@@ -251,10 +251,11 @@ struct WriteView: View {
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(MirrorTheme.green)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .background(.bar, in: Capsule())
+                    .background(MirrorTheme.inkMid, in: Capsule())
+                    .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
                     .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
                     .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -270,7 +271,8 @@ struct WriteView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 10)
-                .background(.bar, in: Capsule())
+                .background(MirrorTheme.inkMid, in: Capsule())
+                .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
                 .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
@@ -296,7 +298,11 @@ struct WriteView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(.bar, in: RoundedRectangle(cornerRadius: 14))
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 14))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                }
                 .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
