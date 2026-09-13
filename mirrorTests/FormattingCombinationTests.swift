@@ -904,6 +904,95 @@ struct NumberedListTests {
     }
 }
 
+// MARK: - Return in the middle of an item's content: bulleted/dashed/checklist
+
+@MainActor
+struct MidContentReturnOtherListTypesTests {
+
+    @Test func returnMidBulletedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.bulletedList])))
+        // Displayed: "•  abcdef" — marker is 3 chars. Split between "abc" and "def".
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2022}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{2022}  def"), "second row carries 'def', got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    @Test func returnMidDashedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.dashedList])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2013}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{2013}  def"), "second row carries 'def', got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    @Test func returnMidUncheckedChecklistItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.checklistUnchecked])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{25CB}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{25CB}  def"), "second row carries 'def' and stays unchecked, got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    // Splitting a CHECKED item mid-content is a deliberate behavior decision
+    // (insertListRow explicitly downgrades the new row to .checklistUnchecked)
+    // — matches Notes/Reminders-style splitting of a checked todo: the first
+    // half keeps its checked state, the new second half starts fresh/unchecked.
+    @Test func returnMidCheckedChecklistItemStartsNewRowUnchecked() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.checklistChecked])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2713}  abc"), "first row stays checked, got: \(rendered)")
+        #expect(rendered.contains("\u{25CB}  def"), "new row must start unchecked, got: \(rendered)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.checklistChecked, .checklistUnchecked], "got: \(doc.paragraphStyles)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+}
+
 // MARK: - Backspace-merging differently-styled paragraphs
 
 @MainActor
