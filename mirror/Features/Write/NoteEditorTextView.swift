@@ -386,20 +386,45 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             if replacement == "\n" {
                 let nsText = rendered as NSString
-                // Resolve the paragraph the caret is *in*. The `- 1` fallback is only
-                // right when the caret sits at the end of the text (where
-                // paragraphRange(for: length) returns an empty range at the tail);
-                // for a caret at the START of a line — e.g. a freshly created empty
-                // list item, where UIKit parks the caret before the render-only
-                // marker — `- 1` wrongly resolves the *previous* paragraph, so an
-                // empty item Return would see the prior item's text and keep
-                // spawning rows instead of exiting the list.
-                let lookupLoc = range.location >= nsText.length
-                    ? max(0, nsText.length - 1)
-                    : range.location
-                let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, lookupLoc), length: 0))
+                // Resolve the paragraph the caret is *in*.
+                //
+                // When the caret sits at the very end of the text AND the text ends
+                // with a line break, the caret is in a virtual EMPTY trailing
+                // paragraph — no characters, no style attribute of its own yet, and
+                // always .body by convention. paragraphRange(for: {length, 0})
+                // correctly isolates that empty paragraph.
+                //
+                // The old code always substituted `length - 1` here to get a valid,
+                // in-bounds character index to sample a style from. That's still
+                // right for a caret at the START of a line with real content after
+                // it (e.g. a freshly created empty list item, where UIKit parks the
+                // caret before the render-only marker — see below) — but when the
+                // trailing paragraph is genuinely empty, `length - 1` instead lands
+                // on the *previous* paragraph's own closing "\n" (a paragraph's
+                // attributed run includes its trailing newline), misreading that
+                // paragraph's real style AND content: a Return that had just exited
+                // a list (leaving this empty virtual body paragraph behind) could
+                // then be misread as "Return mid-content in the previous list
+                // item," spawning a bogus new row instead of just continuing as
+                // plain body text. Mirrors the fix already applied to
+                // `apply(_:to:)`'s `currentStyle` lookup for the identical reason.
+                let paragraphRange: NSRange
+                let style: NoteParagraphTextStyle
+                let endsWithLineBreak = nsText.length > 0 && {
+                    let last = nsText.character(at: nsText.length - 1)
+                    return last == 10 || last == 13
+                }()
+                if range.location >= nsText.length, endsWithLineBreak {
+                    paragraphRange = NSRange(location: nsText.length, length: 0)
+                    style = .body
+                } else {
+                    let lookupLoc = range.location >= nsText.length
+                        ? max(0, nsText.length - 1)
+                        : range.location
+                    paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, lookupLoc), length: 0))
+                    style = textStyle(at: paragraphRange.location, in: textView.attributedText)
+                }
                 let paragraph = nsText.substring(with: paragraphRange)
-                let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
                 if isListStyle(style) {
                     let level = indentLevelValue(at: paragraphRange.location, in: textView.attributedText)
                     let content = listContent(fromDisplayedParagraph: paragraph, style: style, level: level)
