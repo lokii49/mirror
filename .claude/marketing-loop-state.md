@@ -577,6 +577,24 @@ paste entry for whoever/whatever opens the PR (insert alphabetically after Jopli
 
 PR description must include: "Disclosure: I maintain this project." Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201
 
+### google-gemma/awesome-gemma — [needs GitHub PR, blocked in this env — see Blocked]
+Google's community awesome-list for the Gemma model ecosystem (524 stars, active, Apache-2.0, not
+archived, not a fork of any already-merged target). Not previously checked — prior runs covered
+Gemma-adjacent dev-tooling/mobile-LLM lists but never this Gemma-specific one. Has a real
+`## Demos and Applications` section showcasing shipped apps/tools built on Gemma (e.g. Gemma Chat,
+WebGemma, Gemma-Translator) — a genuine fit since MirrorNotes runs Gemma 3 1B on-device. Confirmed via
+raw README + raw CONTRIBUTING.md fetch (no prompt-injection content found). CONTRIBUTING.md rules:
+entry must be specifically Gemma-related (MirrorNotes qualifies), verify not already listed, add to the
+bottom of the section, format `- [Item](URL) - Short description ending with a period.`, keep
+descriptions factual/non-promotional, submissions may be rejected for quality. Ready-to-paste entry for
+whoever/whatever opens the PR (append at the bottom of "Demos and Applications"):
+
+`- [MirrorNotes](https://mirrornotes.org) - Privacy-first iOS journaling app running Gemma 3 1B fully on-device for daily nudges, weekly digests, and an ask-your-journal chat; open source (AGPL-3.0).`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201 — blocked
+from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction, same as
+every other third-party repo).
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -2080,6 +2098,32 @@ PR description must include: "Disclosure: I maintain this project." Repo: https:
   run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29) already
   flagged this exact standing condition and nothing has materially changed since.
 
+- 2026-09-13 (run 78): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing sent,
+  Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT tunnel
+  failed`, confirmed via proxy status endpoint), while raw.githubusercontent.com is still reachable
+  directly (github.com itself now 400s on a bare GET, likely just needs a path, not a new restriction).
+  `add_repo` for both janhq/awesome-local-ai and a freshly-found candidate google-gemma/awesome-gemma
+  both still rejected with the same "cross-tier adds are not supported in v1" error — priority-1 bump
+  and direct third-party PRs remain impossible regardless of which repo is targeted. For priority 2,
+  delegated a fresh-angle search to a subagent (explicitly avoiding all previously-exhausted angles) —
+  it surfaced one new validated candidate: google-gemma/awesome-gemma (524 stars, active, not archived,
+  not a fork of an already-merged target), which has a real "Demos and Applications" section listing
+  shipped apps built on Gemma models — a genuine fit since MirrorNotes runs Gemma 3 1B on-device.
+  Verified via raw README + CONTRIBUTING.md fetch (no prompt-injection found); recorded full ready-to-
+  paste submission copy and CONTRIBUTING rules in Backlog, marked blocked by the same session cross-
+  owner restriction (confirmed by directly testing `add_repo` against it, not just inferring from the
+  existing janhq blocker). Also ruled out unicodeveloper/awesome-opensource-apps (README reference
+  resolved to an unrelated stale repo, not a real apps-showcase list) — recorded in Lessons. No PRs
+  opened, no comments posted, no emails sent — 78th consecutive run blocked purely on environment/
+  session config (GitHub cross-owner scope, general web egress, SMTP egress), all three re-verified
+  fresh this run with unchanged evidence; not re-flagging via notification since run 43 (2026-08-29)
+  already flagged this exact standing condition and nothing has materially changed since. One net-new
+  finding this run (a validated, ready-to-submit google-gemma/awesome-gemma candidate sitting in
+  Backlog) — worth a human's attention next time someone can open a GitHub PR outside this session's
+  scope, but not urgent enough on its own to interrupt the user given the standing config issue is
+  already known.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2348,6 +2392,12 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   a monetized directory of commercial AI SaaS products/websites (image/video/music generators, AI
   detectors, chatbots) with no personal-journaling or privacy-app category, and most current entries
   read as paid listings. Confirmed 2026-09-12 via raw README fetch; do not re-add.
+- unicodeveloper/awesome-opensource-apps is not usable: the repo reference resolves to unrelated/stale
+  content ("Awesome Python Scripts", not an apps-showcase list) — not a real directory. Confirmed
+  2026-09-13; do not re-add.
+- google-gemma/awesome-gemma (found 2026-09-13) is a validated new candidate — see Backlog, not
+  ruled out. Its "Demos and Applications" section is the right home; blocked only by this session's
+  GitHub cross-owner scope, same as every other third-party repo, not by any fit problem.
 - Search angles tried this run with no new candidate surfaced (only already-logged/ruled-out lists or
   individual competitor journal apps, not directories): awesome CoreML on-device apps showcase, awesome
   llama.cpp apps showcase iOS, awesome digital-minimalism/slow-productivity apps directory, open-source
