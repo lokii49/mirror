@@ -722,6 +722,47 @@ struct NumberedListTests {
         #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
     }
 
+    // Device repro (real screen recording): after exitList collapses the
+    // trailing empty item down to a genuinely zero-length virtual paragraph,
+    // the caret sits exactly at the document's end. A THIRD Return from there
+    // used to resolve its paragraph via `length - 1`, which lands on the
+    // *previous* real item's own closing "\n" — misreading that item as
+    // non-empty content being split, and spawning a bogus new numbered row
+    // (while the already-exited empty paragraph survived as yet another,
+    // separately-numbered row). The fix must treat this as a plain body
+    // Return: no list markers reappear at all.
+    @Test func returnAgainAfterExitingListStaysPlainBody() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList]))
+        )
+        // Return at end of "two" → new empty item 3.
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let afterFirst = try #require(h.textView.attributedText).string
+        #expect(afterFirst.contains("3.\t"), "first Return makes item 3, got: \(afterFirst)")
+
+        // Return again on the empty item 3 → exits the list.
+        let cursor2 = h.textView.selectedRange.location
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor2, length: 0), replacementText: "\n")
+        let afterSecond = try #require(h.textView.attributedText).string
+        #expect(!afterSecond.contains("3.\t"), "second Return exits the list, got: \(afterSecond)")
+
+        // Return a THIRD time, from wherever the editor left the caret — must
+        // stay plain body: no numbered markers resurrected anywhere.
+        let cursor3 = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor3, length: 0), replacementText: "\n")
+        #expect(shouldChange, "plain body Return is handled by UIKit itself, not intercepted — this call returning true (instead of manually inserting a bogus row and returning false) is the fix")
+        // This synthetic harness call doesn't itself perform the actual UIKit
+        // insertion `true` defers to — so state here is exactly what the second
+        // Return left behind. The meaningful assertion is `shouldChange` above:
+        // pre-fix, this call took the isListStyle branch and returned false.
+        let afterThird = try #require(h.textView.attributedText).string
+        #expect(afterThird == "1.\tone\n2.\ttwo\n", "items 1/2 keep their own markers; item 3 must not reappear — got: \(afterThird)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(Array(doc.paragraphStyles.prefix(2)) == [.numberedList, .numberedList], "items 1 and 2 stay untouched and numbered, got: \(doc.paragraphStyles)")
+    }
+
     // Return in the MIDDLE of a numbered item: splits it, and the cursor must
     // land right after the new row's marker (before the moved text), not at the
     // end of the document. This is the position `insertListRow` computes from
