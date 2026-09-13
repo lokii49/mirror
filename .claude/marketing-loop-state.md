@@ -2124,6 +2124,30 @@ every other third-party repo).
   scope, but not urgent enough on its own to interrupt the user given the standing config issue is
   already known.
 
+- 2026-09-13 (run 79): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`CONNECT tunnel failed`), raw.githubusercontent.com still reachable directly (200), api.github.com
+  for non-session repos still 403. GitHub `pull_request_read` on janhq/awesome-local-ai#131 and
+  `add_repo` for janhq/awesome-local-ai both still rejected ("Allowed repositories: lokii49/mirror" /
+  "cross-tier adds are not supported in v1") — priority-1 bump and direct third-party PRs remain
+  impossible. For priority 2, delegated a fresh-angle search to a subagent (explicitly given the full
+  exhausted-angle and ruled-out-repo list to avoid repeats) — it found one topically strong candidate,
+  alice51849/awesome-ios-privacy-first, but ruled it out rather than adding to Backlog: it's one of 9
+  near-identical "Awesome iOS ___" repos from one account, mostly the maintainer's own apps backlinking
+  to their own SEO site — a self-promotion/SEO-network pattern (0 stars, 1 fork), same category of
+  concern as the already-ruled-out ProductivityDirectory/awesome-productivity-tools. No prompt-injection
+  found. Recorded in Lessons. Separately, found and fixed a real problem this run: this session's git
+  checkout of the repo was 55 commits ahead of `origin/main` on GitHub — `origin/main` had drifted
+  backward to the run-69 commit, silently dropping the logged history and backlog entries from runs
+  70-78 (this exact "main drifted, needs recovery" issue happened before at runs 68-69, and has now
+  recurred). Verified the local history was a clean fast-forward ancestor of origin's current tip
+  before pushing (no force needed) and pushed to restore origin/main to the full history through run 78
+  before adding this run's own commit on top. No PRs opened, no comments posted, no emails sent this
+  run. Flagging the recurring main-drift issue via notification since it means work has been silently
+  disappearing from the actual GitHub repo between sessions, which is a new/changed condition worth a
+  human's attention (unlike the standing env blockers, already flagged and unchanged since run 43).
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2398,6 +2422,15 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
 - google-gemma/awesome-gemma (found 2026-09-13) is a validated new candidate — see Backlog, not
   ruled out. Its "Demos and Applications" section is the right home; blocked only by this session's
   GitHub cross-owner scope, same as every other third-party repo, not by any fit problem.
+- alice51849/awesome-ios-privacy-first is topically a near-perfect fit (has a "Health & Lifestyle"
+  section with genuinely comparable privacy-first iOS apps) but not added to Backlog: it's one of 9
+  near-identical "Awesome iOS ___" repos from the same account, most of whose entries are the
+  maintainer's own apps with backlinks to their own SEO content site (open.cait518.cc) — a
+  self-promotion/SEO-network pattern, not an organic community list (0 stars, 1 fork). A few
+  independent apps (Signal, Proton Pass, Standard Notes) are mixed in for credibility. Same category
+  of low-authority/promotional-mirror concern as ProductivityDirectory/awesome-productivity-tools,
+  already ruled out for the same reason. Confirmed 2026-09-13 via subagent README fetch; do not add
+  unless the assessment changes.
 - Search angles tried this run with no new candidate surfaced (only already-logged/ruled-out lists or
   individual competitor journal apps, not directories): awesome CoreML on-device apps showcase, awesome
   llama.cpp apps showcase iOS, awesome digital-minimalism/slow-productivity apps directory, open-source
