@@ -2148,6 +2148,29 @@ every other third-party repo).
   disappearing from the actual GitHub repo between sessions, which is a new/changed condition worth a
   human's attention (unlike the standing env blockers, already flagged and unchanged since run 43).
 
+- 2026-09-13 (run 80): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s
+  (`CONNECT tunnel failed`), raw.githubusercontent.com still reachable directly (200). `add_repo`
+  (push access) for janhq/awesome-local-ai still rejected with the same "cross-tier adds are not
+  supported in v1" error (session already scoped to lokii49/mirror) — priority-1 bump and direct
+  third-party PRs remain impossible. Before this, verified this session's local checkout was NOT
+  drifted from origin/main (matched at run-79's commit 5600910) — the run-79 drift-recovery held,
+  no repeat of that issue this run. For priority 2, tried five fresh angles: checked
+  ggml-org/llama.cpp's own README directly (MirrorNotes' on-device stack is llama.cpp-based) for a
+  UI/third-party-apps showcase section — none exists in the current README (ruled out, recorded in
+  Lessons); WebSearched "on-device AI iOS apps directory 2026", "small language model apps showcase
+  iOS journaling", "private journaling app open source no ads no tracking", "open source mental
+  health apps directory PR contributions welcome", and "Gemma-powered apps community showcase" — all
+  surfaced only already-logged repos (google-gemma/awesome-gemma re-confirmed, still sitting in
+  Backlog from run 78, still blocked the same way) or individual competitor apps, not new directory
+  candidates. No new candidate cleared the fit bar this run. No PRs opened, no comments posted, no
+  emails sent — 80th consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since this is an unchanged standing condition
+  (last flagged for a genuinely new development at run 79's drift-recovery, which itself is now
+  resolved and non-recurring this run).
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2447,6 +2470,17 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   RAG/agent-app collections, or academic privacy-engineering resource lists): "LLM-powered iOS apps
   directory consumer showcase", "'private by design' OR 'privacy by design' apps directory". Confirmed
   2026-09-12; do not re-try these exact angles again.
+- ggml-org/llama.cpp's own README (checked directly via raw fetch) no longer contains a "UI"/
+  third-party-projects showcase section in its current version — just Quick start, backends,
+  tools, and contributing/acknowledgements. Not a submission channel for MirrorNotes even though it
+  runs a llama.cpp-based on-device stack. Confirmed 2026-09-13; do not re-check unless the README
+  structure changes.
+- Search angles tried this run with no new candidate surfaced (only already-logged/ruled-out
+  repos or individual apps, not directories): "on-device AI" iOS apps directory 2026, "small
+  language model" apps showcase iOS journaling, private journaling app open source no ads no
+  tracking, open source mental health apps directory PR contributions welcome, Gemma-powered apps
+  community showcase (re-surfaced google-gemma/awesome-gemma, already in Backlog from run 78).
+  Confirmed 2026-09-13; do not re-try these exact angles again.
 
 ## Sent log
 
