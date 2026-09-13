@@ -453,6 +453,41 @@ struct ReturnKeyContinuationTests {
         #expect(!shouldChange)
         #expect(!h.textView.text.contains("•"), "empty list item should exit the list on Return")
     }
+
+    // Device-repro-shaped: the fix for numbered lists (the "\n"-handler's
+    // paragraph resolution at the document's end after exitList collapses a
+    // trailing item to a genuinely empty virtual paragraph) lives in the
+    // shared code path used by every list style, not a numbered-list-specific
+    // branch. Verify bulleted/dashed/checklist get the same fix: exit a list,
+    // then press Return a third time — it must stay plain body, not resurrect
+    // a marker on the previous real item.
+    @Test func returnAgainAfterExitingStaticMarkerListStaysPlainBody() throws {
+        let cases: [(NoteParagraphTextStyle, Character)] = [
+            (.bulletedList, "\u{2022}"),      // •
+            (.dashedList, "\u{2013}"),        // –
+            (.checklistUnchecked, "\u{25CB}"), // ○
+        ]
+        for (paraStyle, marker) in cases {
+            let h = makeEditorHarness(
+                text: "one\ntwo",
+                textStyleData: style(.init(paragraphStyles: [paraStyle, paraStyle]))
+            )
+            let end1 = (h.textView.text as NSString).length
+            _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+            let afterFirst = h.textView.text ?? ""
+            #expect(afterFirst.contains(marker), "\(paraStyle): first Return should make a new empty row, got: \(afterFirst)")
+
+            let cursor2 = h.textView.selectedRange.location
+            _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor2, length: 0), replacementText: "\n")
+            let afterSecond = h.textView.text ?? ""
+
+            let cursor3 = h.textView.selectedRange.location
+            let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor3, length: 0), replacementText: "\n")
+            #expect(shouldChange, "\(paraStyle): third Return must be plain body — not intercepted into a bogus new row")
+            let afterThird = h.textView.text ?? ""
+            #expect(afterThird == afterSecond, "\(paraStyle): this synthetic call doesn't itself insert the newline (shouldChange=true defers to UIKit), so state must be unchanged from after the second Return — got: \(afterThird)")
+        }
+    }
 }
 
 // MARK: - Numbered list: marker spacing + "1. " auto-start
