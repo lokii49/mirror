@@ -550,6 +550,82 @@ struct NumberedListTests {
         #expect(lines[2].hasPrefix("2.\t"), "outer list should resume at 2, got: \(lines[2])")
     }
 
+    // Unlike numbered lists, a bullet/dash marker glyph depends only on its OWN
+    // row's level, never on siblings — so indenting one row should never need
+    // to touch any other row (no cascade to check for), only swap that row's
+    // own glyph. Verify both halves: the indented row's glyph actually changes,
+    // and siblings are left completely alone.
+    @Test func indentingBulletedItemOnlySwapsThatRowsGlyphSiblingsUntouched() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.bulletedList, .bulletedList, .bulletedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("\u{2022}"), "sibling before must stay level 0, got: \(lines[0])")
+        #expect(lines[1].hasPrefix("\u{25E6}"), "indented row should show the level-1 glyph, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("\u{2022}"), "sibling after must stay level 0, got: \(lines[2])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == [0, 1, 0], "got: \(String(describing: doc.indentLevels))")
+    }
+
+    @Test func indentingDashedItemOnlySwapsThatRowsGlyphSiblingsUntouched() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.dashedList, .dashedList, .dashedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("\u{2013}"), "sibling before must stay level 0, got: \(lines[0])")
+        #expect(lines[1].hasPrefix("\u{00B7}"), "indented row should show the level-1 glyph, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("\u{2013}"), "sibling after must stay level 0, got: \(lines[2])")
+    }
+
+    // Outdent is the same swap logic run in the other direction — verify it
+    // isn't a one-way (indent-only) fix.
+    @Test func outdentingBulletedItemSwapsGlyphBackToLevelZero() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(
+                paragraphStyles: [.bulletedList, .bulletedList, .bulletedList],
+                indentLevels: [0, 1, 0]
+            ))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: -1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines[1].hasPrefix("\u{2022}"), "outdented row should be back to the level-0 glyph, got: \(lines[1])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == nil || doc.indentLevels == [0, 0, 0], "got: \(String(describing: doc.indentLevels))")
+    }
+
+    // Checklist markers (○/✓) don't vary by indent level at all — indenting
+    // must not touch the glyph, only the stored level (used for layout).
+    @Test func indentingChecklistItemLeavesMarkerGlyphUnchanged() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.checklistUnchecked, .checklistUnchecked, .checklistUnchecked]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines[1].hasPrefix("\u{25CB}"), "checklist glyph must not change with level, got: \(lines[1])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == [0, 1, 0], "indent level must still be tracked, got: \(String(describing: doc.indentLevels))")
+    }
+
     // Repro from screen recording: exit a numbered list (Return on the empty
     // trailing item), then on that now-plain body line type "4. " again to
     // re-trigger autoStartNumberedList. That paragraph is genuinely
