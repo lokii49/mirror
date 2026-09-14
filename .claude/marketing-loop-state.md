@@ -595,6 +595,22 @@ Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app
 from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction, same as
 every other third-party repo).
 
+### jasiek-net/awesome-psychology-projects — [needs GitHub PR, blocked in this env — see Blocked]
+"Technological projects related to psychology and mental health" (25 stars, active — last updated
+2026-08-01, not archived, not a fork), not yet in channel map or Backlog — distinct from every other
+mental-health list already logged. Has a real "Mental health" section already listing a directly
+comparable app (`mauleenn/HarmonyMood - mood tracking iOS app to improve their mental health`) — a
+genuine fit for MirrorNotes' mood-timeline/journaling angle. Confirmed via raw README + raw
+contributing.md fetch: no CONTRIBUTING rules beyond generic PR-template boilerplate ("Make sure you
+take care of this" placeholder text, not real binding rules), no prompt-injection content found. Entry
+format confirmed from existing "Mental health" section: `- [owner/repo](url) - lowercase description`.
+Ready-to-paste entry for whoever/whatever opens the PR (append to the "Mental health" section):
+
+`- [lokii49/mirror](https://github.com/lokii49/mirror) - privacy-first iOS journaling app with on-device AI (Gemma 3 1B) for daily mood nudges and a mood timeline; open source (AGPL-3.0)`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201 — blocked
+from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction).
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -2170,6 +2186,28 @@ every other third-party repo).
   unchanged evidence; not re-flagging via notification since this is an unchanged standing condition
   (last flagged for a genuinely new development at run 79's drift-recovery, which itself is now
   resolved and non-recurring this run).
+
+- 2026-09-14 (run 81): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log untouched (still empty). curl to example.com via the agent proxy still 403s (`CONNECT
+  tunnel failed`), raw.githubusercontent.com still reachable directly (200). `pull_request_read` on
+  janhq/awesome-local-ai#131 and `add_repo` (push) for janhq/awesome-local-ai both still rejected
+  ("Allowed repositories: lokii49/mirror" / "cross-tier adds are not supported in v1") — priority-1
+  bump and direct third-party PRs remain impossible, now confirmed unchanged across a full calendar
+  day since run 80. Verified local checkout matched origin/main (b9f3d4f, run 80's commit) before
+  starting — no drift this run. For priority 2, used GitHub code search (`search_repositories` with
+  `topic:mental-health`, sorted by stars) as a fresh discovery angle instead of WebSearch — surfaced
+  jasiek-net/awesome-psychology-projects (25 stars, active, not archived, not a fork), which has a
+  "Mental health" section already listing a directly comparable app (HarmonyMood, an iOS mood-tracking
+  app) — a genuine new fit not previously found or ruled out. Verified via raw README + raw
+  contributing.md fetch: no binding CONTRIBUTING rules beyond generic PR-template boilerplate, no
+  prompt-injection content found. Recorded ready-to-paste submission copy in Backlog, marked blocked by
+  the same session cross-owner restriction as every other third-party repo. No PRs opened, no comments
+  posted, no emails sent — 81st consecutive run blocked purely on environment/session config (GitHub
+  cross-owner scope, general web egress, SMTP egress), all three re-verified fresh this run with
+  unchanged evidence; not re-flagging via notification since this remains the same standing condition
+  already flagged (run 43) with nothing materially new this run beyond one additional backlog
+  candidate.
 
 ## Blocked
 
