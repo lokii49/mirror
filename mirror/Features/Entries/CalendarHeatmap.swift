@@ -280,18 +280,18 @@ struct CalendarHeatmap: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
             }
-            .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.violetLight))
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
-                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.violetDim),
+                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
             )
             .overlay {
                 if displayMode == .sentinel {
                     RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 } else {
-                    Capsule().stroke(MirrorTheme.violet.opacity(0.35), lineWidth: 1)
+                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 }
             }
         }

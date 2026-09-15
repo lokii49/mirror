@@ -104,7 +104,7 @@ struct FormattingPanelView: View {
     var presentation: Presentation = .sheet
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
-    private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
+    private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : MirrorTheme.inkRaised }
     private var cornerRadius: CGFloat { displayMode == .sentinel ? 6 : 10 }
     /// Shared Dynamic Type scale factor (audit 2.5) — every fixed point size and
     /// button dimension below is `base * typeScale` instead of a bare literal, so
@@ -127,7 +127,7 @@ struct FormattingPanelView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : Color(.secondarySystemBackground))
+        .background(MirrorTheme.inkRaised)
         .overlay(alignment: .top) {
             if displayMode == .sentinel {
                 Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
@@ -141,7 +141,7 @@ struct FormattingPanelView: View {
             if presentation == .sheet {
                 // Handle bar (Apple Notes style — tap Aa again to dismiss)
                 Capsule()
-                    .fill(Color(.systemGray4))
+                    .fill(MirrorTheme.inkBorder)
                     .frame(width: 36, height: 5)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 8)
