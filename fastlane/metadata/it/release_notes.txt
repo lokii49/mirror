@@ -1,8 +1,6 @@
-Check-in giornaliero dell'umore, widget nella schermata Home e un editor più curato.
+Notifiche più ricche, widget più grandi.
 
-• Check-in giornaliero dell'umore: registra come ti senti con un tocco, senza bisogno di scrivere. Se salti il promemoria, MirrorNotes te lo chiede alla successiva apertura dell'app, e un pulsante "Registra umore" negli Approfondimenti ti permette di aggiornarlo quando vuoi. Ogni check-in alimenta la tua Cronologia dell'umore e il widget Mappa dell'umore.
-• Widget settimanale e mensile: il tuo ultimo Riepilogo settimanale e il Report mensile approfondito direttamente nella schermata Home.
-• Il riepilogo della settimana scorsa resta visibile finché non è pronto quello di questa settimana, e i riepiloghi passati ora hanno un archivio dedicato, proprio come le riflessioni.
-• Riflessioni più incisive: gli spunti giornalieri e le risposte di Chiedi vanno dritti al punto, senza frasi di riempimento.
-• Editor: digita "1. " per avviare un elenco numerato come nell'app Note, con una spaziatura più pulita. Invio prosegue l'elenco e ne esce in modo corretto.
+• Le notifiche del Promemoria giornaliero ora si espandono direttamente sulla schermata di blocco — guarda il tuo umore e un'anteprima della riflessione di oggi, con un pulsante Scrivi ora per iniziare subito.
+• I widget Riepilogo settimanale e Report mensile approfondito sono ora disponibili anche in formato grande.
+• Risolto il pulsante "Cancella formattazione" che appariva vuoto nella barra degli strumenti di scrittura.
 • Correzioni e rifiniture.

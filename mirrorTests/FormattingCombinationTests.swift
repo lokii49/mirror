@@ -37,7 +37,6 @@ private func makeEditorHarness(
     var canRedo = false
     var fontChoiceRawValue = fontChoiceRaw
     let panelState = FormattingPanelState()
-    panelState.fontChoiceRaw = fontChoiceRaw
 
     let editor = NoteEditorTextView(
         text: Binding(get: { text }, set: { text = $0 }),
@@ -77,11 +76,36 @@ struct ParagraphStyleRenderingTests {
     }
 
     @Test func titleHeadingSubheadingHaveNoMarker() throws {
-        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced] {
+        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced, .blockQuote] {
             let h = makeEditorHarness(text: "hello", textStyleData: style(.init(paragraphStyles: [s])))
             let rendered = try #require(h.textView.attributedText)
             #expect(rendered.string == "hello", "\(s) should not add a marker prefix")
         }
+    }
+
+    @Test func blockQuoteIsMutedAndIndentedButNotItalic() throws {
+        // Deliberately not italic — see NoteEditorTextView.attributes(for:) comment:
+        // baking italic into the paragraph style's own font would fight the Italic
+        // inline toggle, which manages .traitItalic on the rendered font directly.
+        let h = makeEditorHarness(text: "quoted", textStyleData: style(.init(paragraphStyles: [.blockQuote])))
+        let rendered = try #require(h.textView.attributedText)
+        let font = try #require(rendered.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(!font.fontDescriptor.symbolicTraits.contains(.traitItalic), "block quote must not force italic")
+        let color = rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+        #expect(color == UIColor.secondaryLabel)
+        let ps = try #require(rendered.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(ps.headIndent > 0)
+        #expect(ps.firstLineHeadIndent > 0)
+    }
+
+    @Test func blockQuoteRoundTripsThroughEncodedTextStyleData() throws {
+        // NoteParagraphTextStyle is String-backed Codable and persisted verbatim in
+        // encodedTextStyleData — a rawValue collision or typo would silently decode
+        // to the wrong style (or fail entirely) without ever touching the editor.
+        let doc = NoteTextStyleDocument(paragraphStyles: [.body, .blockQuote, .heading], indentLevels: nil, fontChoices: nil)
+        let data = try JSONEncoder().encode(doc)
+        let decoded = try JSONDecoder().decode(NoteTextStyleDocument.self, from: data)
+        #expect(decoded.paragraphStyles == [.body, .blockQuote, .heading])
     }
 
     @Test func bulletedDashedNumberedChecklistHaveMarkers() throws {
@@ -108,6 +132,28 @@ struct ParagraphStyleRenderingTests {
         #expect(rendered.string.hasPrefix("1."))
         #expect(rendered.string.contains("2."))
         #expect(rendered.string.contains("3."))
+    }
+
+    // Indenting a numbered item nests it under its parent — the nested run
+    // should restart at 1 rather than continuing the outer sequence, and the
+    // outer list should resume its own count (3, not 5) once it returns to
+    // the shallower level. Was previously a single flat counter ignoring
+    // indent level entirely.
+    @Test func numberedListRestartsOrdinalOnNestedIndent() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nsub one\nsub two\nthird",
+            textStyleData: style(.init(
+                paragraphStyles: [.numberedList, .numberedList, .numberedList, .numberedList, .numberedList],
+                indentLevels: [0, 0, 1, 1, 0]
+            ))
+        )
+        let lines = try #require(h.textView.attributedText).string.components(separatedBy: "\n")
+        #expect(lines.count == 5)
+        #expect(lines[0].hasPrefix("1."))
+        #expect(lines[1].hasPrefix("2."))
+        #expect(lines[2].hasPrefix("1."), "nested sub-list should restart at 1, got \(lines[2])")
+        #expect(lines[3].hasPrefix("2."))
+        #expect(lines[4].hasPrefix("3."), "outer list should resume at 3, got \(lines[4])")
     }
 
     @Test func monospacedUsesMonospacedFontRegardlessOfChosenFamily() throws {
@@ -199,6 +245,57 @@ struct ParagraphInlineCombinationTests {
         #expect(font.fontDescriptor.symbolicTraits.contains(.traitBold))
         #expect(rendered.attribute(.underlineStyle, at: 0, effectiveRange: nil) != nil)
         #expect(rendered.attribute(.backgroundColor, at: 0, effectiveRange: nil) != nil)
+    }
+
+    @Test func textColorRendersForegroundColorAndSurvivesExtraction() throws {
+        let h = makeEditorHarness(
+            text: "word",
+            inlineStyleData: inline([.init(location: 0, length: 4, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: nil, textColorIndex: 1)])
+        )
+        let rendered = try #require(h.textView.attributedText)
+        #expect(rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) != nil)
+
+        // Round-trip: applying the command should extract back to the same index.
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(3, in: h.textView)
+        let extracted = try #require(h.coordinator.extractedInlineStyleData(from: h.textView))
+        let doc = try JSONDecoder().decode(InlineStyleDocument.self, from: extracted)
+        #expect(doc.ranges.contains { $0.textColorIndex == 3 })
+    }
+
+    // .foregroundColor has no "unset" default — every paragraph style bakes
+    // one in (attributes(for:) in NoteEditorTextView). Tapping the default "A"
+    // swatch (index nil) must restore that base color, not just delete the
+    // attribute and fall back to whatever UIKit default applies (which reads
+    // as invisible/wrong-contrast text in Sentinel or dark mode).
+    @Test func textColorRemovalRestoresBaseColorNotJustDeletesAttribute() throws {
+        let h = makeEditorHarness(text: "word")
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(1, in: h.textView)
+        let colored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(colored != UIColor.label)
+
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyTextColor(nil, in: h.textView)
+        let restored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(restored == UIColor.label, "removing text color on a body paragraph should restore .label, not leave the attribute unset")
+
+        let extracted = h.coordinator.extractedInlineStyleData(from: h.textView)
+        if let extracted, let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: extracted) {
+            #expect(!doc.ranges.contains { $0.textColorIndex != nil })
+        }
+    }
+
+    @Test func clearFormattingRestoresBaseColorOnSubheading() throws {
+        let h = makeEditorHarness(
+            text: "word",
+            textStyleData: style(.init(paragraphStyles: [.subheading])),
+            inlineStyleData: inline([.init(location: 0, length: 4, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil, linkURL: nil, textColorIndex: 2)])
+        )
+        h.textView.selectedRange = NSRange(location: 0, length: 4)
+        h.coordinator.applyClearFormatting(in: h.textView)
+        let restored = try #require(h.textView.attributedText?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+        #expect(restored == UIColor.secondaryLabel, "clearing formatting on a subheading should restore .secondaryLabel, not .label or an unset attribute")
     }
 
     @Test func inlineRangeSpanningTwoNonListParagraphsAppliesToBoth() throws {
@@ -314,7 +411,7 @@ struct BulkChecklistTests {
 struct ReturnKeyContinuationTests {
 
     @Test func headingSubheadingTitleMonoResetTypingToBodyOnReturn() {
-        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced] {
+        for s: NoteParagraphTextStyle in [.title, .heading, .subheading, .monospaced, .blockQuote] {
             let h = makeEditorHarness(text: "Section", textStyleData: style(.init(paragraphStyles: [s])))
             let endLocation = (h.textView.text as NSString).length
             let shouldChange = h.coordinator.textView(
@@ -356,6 +453,41 @@ struct ReturnKeyContinuationTests {
         #expect(!shouldChange)
         #expect(!h.textView.text.contains("•"), "empty list item should exit the list on Return")
     }
+
+    // Device-repro-shaped: the fix for numbered lists (the "\n"-handler's
+    // paragraph resolution at the document's end after exitList collapses a
+    // trailing item to a genuinely empty virtual paragraph) lives in the
+    // shared code path used by every list style, not a numbered-list-specific
+    // branch. Verify bulleted/dashed/checklist get the same fix: exit a list,
+    // then press Return a third time — it must stay plain body, not resurrect
+    // a marker on the previous real item.
+    @Test func returnAgainAfterExitingStaticMarkerListStaysPlainBody() throws {
+        let cases: [(NoteParagraphTextStyle, Character)] = [
+            (.bulletedList, "\u{2022}"),      // •
+            (.dashedList, "\u{2013}"),        // –
+            (.checklistUnchecked, "\u{25CB}"), // ○
+        ]
+        for (paraStyle, marker) in cases {
+            let h = makeEditorHarness(
+                text: "one\ntwo",
+                textStyleData: style(.init(paragraphStyles: [paraStyle, paraStyle]))
+            )
+            let end1 = (h.textView.text as NSString).length
+            _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+            let afterFirst = h.textView.text ?? ""
+            #expect(afterFirst.contains(marker), "\(paraStyle): first Return should make a new empty row, got: \(afterFirst)")
+
+            let cursor2 = h.textView.selectedRange.location
+            _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor2, length: 0), replacementText: "\n")
+            let afterSecond = h.textView.text ?? ""
+
+            let cursor3 = h.textView.selectedRange.location
+            let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor3, length: 0), replacementText: "\n")
+            #expect(shouldChange, "\(paraStyle): third Return must be plain body — not intercepted into a bogus new row")
+            let afterThird = h.textView.text ?? ""
+            #expect(afterThird == afterSecond, "\(paraStyle): this synthetic call doesn't itself insert the newline (shouldChange=true defers to UIKit), so state must be unchanged from after the second Return — got: \(afterThird)")
+        }
+    }
 }
 
 // MARK: - Numbered list: marker spacing + "1. " auto-start
@@ -395,6 +527,145 @@ struct NumberedListTests {
         let tenthRow = (attributed.string as NSString).range(of: "10.\t").location
         let tenthPS = try #require(attributed.attribute(.paragraphStyle, at: tenthRow, effectiveRange: nil) as? NSParagraphStyle)
         #expect(tenthPS.tabStops.first?.location == tenthPS.headIndent)
+    }
+
+    // Regression: applyIndent used to patch the current paragraph's attributes
+    // then call syncRenderedCache, which stamps the *stale* digits already on
+    // screen as canonical — the row that got indented (and every sibling after
+    // it) never renumbered until an unrelated cache miss happened to force a
+    // real re-render. applyIndent must force one itself.
+    @Test func indentingNumberedItemRenumbersWholeBlock() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("1.\t"), "got: \(lines[0])")
+        #expect(lines[1].hasPrefix("1.\t"), "indented item should restart at 1, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("2.\t"), "outer list should resume at 2, got: \(lines[2])")
+    }
+
+    // Unlike numbered lists, a bullet/dash marker glyph depends only on its OWN
+    // row's level, never on siblings — so indenting one row should never need
+    // to touch any other row (no cascade to check for), only swap that row's
+    // own glyph. Verify both halves: the indented row's glyph actually changes,
+    // and siblings are left completely alone.
+    @Test func indentingBulletedItemOnlySwapsThatRowsGlyphSiblingsUntouched() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.bulletedList, .bulletedList, .bulletedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("\u{2022}"), "sibling before must stay level 0, got: \(lines[0])")
+        #expect(lines[1].hasPrefix("\u{25E6}"), "indented row should show the level-1 glyph, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("\u{2022}"), "sibling after must stay level 0, got: \(lines[2])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == [0, 1, 0], "got: \(String(describing: doc.indentLevels))")
+    }
+
+    @Test func indentingDashedItemOnlySwapsThatRowsGlyphSiblingsUntouched() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.dashedList, .dashedList, .dashedList]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("\u{2013}"), "sibling before must stay level 0, got: \(lines[0])")
+        #expect(lines[1].hasPrefix("\u{00B7}"), "indented row should show the level-1 glyph, got: \(lines[1])")
+        #expect(lines[2].hasPrefix("\u{2013}"), "sibling after must stay level 0, got: \(lines[2])")
+    }
+
+    // Outdent is the same swap logic run in the other direction — verify it
+    // isn't a one-way (indent-only) fix.
+    @Test func outdentingBulletedItemSwapsGlyphBackToLevelZero() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(
+                paragraphStyles: [.bulletedList, .bulletedList, .bulletedList],
+                indentLevels: [0, 1, 0]
+            ))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: -1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines[1].hasPrefix("\u{2022}"), "outdented row should be back to the level-0 glyph, got: \(lines[1])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == nil || doc.indentLevels == [0, 0, 0], "got: \(String(describing: doc.indentLevels))")
+    }
+
+    // Checklist markers (○/✓) don't vary by indent level at all — indenting
+    // must not touch the glyph, only the stored level (used for layout).
+    @Test func indentingChecklistItemLeavesMarkerGlyphUnchanged() throws {
+        let h = makeEditorHarness(
+            text: "first\nsecond\nthird",
+            textStyleData: style(.init(paragraphStyles: [.checklistUnchecked, .checklistUnchecked, .checklistUnchecked]))
+        )
+        let secondLoc = (h.textView.attributedText!.string as NSString).range(of: "second").location
+        h.textView.selectedRange = NSRange(location: secondLoc, length: 0)
+        h.coordinator.applyIndent(delta: 1, in: h.textView)
+
+        let lines = h.textView.attributedText!.string.components(separatedBy: "\n")
+        #expect(lines[1].hasPrefix("\u{25CB}"), "checklist glyph must not change with level, got: \(lines[1])")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.indentLevels == [0, 1, 0], "indent level must still be tracked, got: \(String(describing: doc.indentLevels))")
+    }
+
+    // Repro from screen recording: exit a numbered list (Return on the empty
+    // trailing item), then on that now-plain body line type "4. " again to
+    // re-trigger autoStartNumberedList. That paragraph is genuinely
+    // zero-length at the moment `apply(.numberedList, ...)` reads its current
+    // style, and the cursor sits exactly at the document's end — so
+    // `currentStyle` used to be sampled at `length - 1`, which lands on the
+    // *previous* paragraph's own closing "\n" (paragraph runs include their
+    // trailing newline) instead of this new, styleless paragraph. That misread
+    // (.numberedList instead of .body) flipped the toggle backwards (targeting
+    // .body instead of .numberedList) and took the "strip list marker" branch,
+    // which then stripped the *previous* real item's marker instead of
+    // touching the empty virtual paragraph at all — corrupting row 3 and
+    // silently dropping row 4.
+    @Test func autoStartNumberedListOnTrailingEmptyLineDoesNotCorruptPriorItem() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo\nthree\n4.",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList, .numberedList, .body]))
+        )
+        let initial = try #require(h.textView.attributedText).string
+        #expect(initial == "1.\tone\n2.\ttwo\n3.\tthree\n4.", "initial render, got: \(initial)")
+        let end = (h.textView.text as NSString).length
+        let convertedSpace = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: end, length: 0),
+            replacementText: " "
+        )
+        #expect(!convertedSpace, "the space is consumed by autoStartNumberedList")
+        let afterConvert = try #require(h.textView.attributedText).string
+        #expect(afterConvert.contains("3.\tthree"), "item 3 must stay intact, got: \(afterConvert)")
+        #expect(afterConvert.contains("4.\t"), "auto-start should produce item 4, got: \(afterConvert)")
+
+        // Return on the now-properly-empty item 4 must exit cleanly: no
+        // leftover "4.", no spawned "5.", and item 3 still untouched.
+        let cursor = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor, length: 0), replacementText: "\n")
+        #expect(!shouldChange)
+        let afterReturn = try #require(h.textView.attributedText).string
+        #expect(afterReturn.contains("3.\tthree"), "item 3 must still be intact, got: \(afterReturn)")
+        #expect(!afterReturn.contains("5.\t"), "must not spawn item 5 — got: \(afterReturn)")
+        #expect(!afterReturn.contains("4.\t"), "it must exit the list instead — got: \(afterReturn)")
     }
 
     @Test func typingDigitDotSpaceStartsNumberedList() throws {
@@ -562,6 +833,47 @@ struct NumberedListTests {
         #expect(doc.paragraphStyles == [.numberedList, .numberedList, .numberedList])
     }
 
+    // Device repro (real screen recording): after exitList collapses the
+    // trailing empty item down to a genuinely zero-length virtual paragraph,
+    // the caret sits exactly at the document's end. A THIRD Return from there
+    // used to resolve its paragraph via `length - 1`, which lands on the
+    // *previous* real item's own closing "\n" — misreading that item as
+    // non-empty content being split, and spawning a bogus new numbered row
+    // (while the already-exited empty paragraph survived as yet another,
+    // separately-numbered row). The fix must treat this as a plain body
+    // Return: no list markers reappear at all.
+    @Test func returnAgainAfterExitingListStaysPlainBody() throws {
+        let h = makeEditorHarness(
+            text: "one\ntwo",
+            textStyleData: style(.init(paragraphStyles: [.numberedList, .numberedList]))
+        )
+        // Return at end of "two" → new empty item 3.
+        let end1 = (h.textView.text as NSString).length
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end1, length: 0), replacementText: "\n")
+        let afterFirst = try #require(h.textView.attributedText).string
+        #expect(afterFirst.contains("3.\t"), "first Return makes item 3, got: \(afterFirst)")
+
+        // Return again on the empty item 3 → exits the list.
+        let cursor2 = h.textView.selectedRange.location
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor2, length: 0), replacementText: "\n")
+        let afterSecond = try #require(h.textView.attributedText).string
+        #expect(!afterSecond.contains("3.\t"), "second Return exits the list, got: \(afterSecond)")
+
+        // Return a THIRD time, from wherever the editor left the caret — must
+        // stay plain body: no numbered markers resurrected anywhere.
+        let cursor3 = h.textView.selectedRange.location
+        let shouldChange = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: cursor3, length: 0), replacementText: "\n")
+        #expect(shouldChange, "plain body Return is handled by UIKit itself, not intercepted — this call returning true (instead of manually inserting a bogus row and returning false) is the fix")
+        // This synthetic harness call doesn't itself perform the actual UIKit
+        // insertion `true` defers to — so state here is exactly what the second
+        // Return left behind. The meaningful assertion is `shouldChange` above:
+        // pre-fix, this call took the isListStyle branch and returned false.
+        let afterThird = try #require(h.textView.attributedText).string
+        #expect(afterThird == "1.\tone\n2.\ttwo\n", "items 1/2 keep their own markers; item 3 must not reappear — got: \(afterThird)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(Array(doc.paragraphStyles.prefix(2)) == [.numberedList, .numberedList], "items 1 and 2 stay untouched and numbered, got: \(doc.paragraphStyles)")
+    }
+
     // Return in the MIDDLE of a numbered item: splits it, and the cursor must
     // land right after the new row's marker (before the moved text), not at the
     // end of the document. This is the position `insertListRow` computes from
@@ -589,6 +901,95 @@ struct NumberedListTests {
         let defRange = display.range(of: "def")
         #expect(h.textView.selectedRange.location == defRange.location,
                 "cursor must be right after the new marker (before 'def' at \(defRange.location)), got \(h.textView.selectedRange.location)")
+    }
+}
+
+// MARK: - Return in the middle of an item's content: bulleted/dashed/checklist
+
+@MainActor
+struct MidContentReturnOtherListTypesTests {
+
+    @Test func returnMidBulletedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.bulletedList])))
+        // Displayed: "•  abcdef" — marker is 3 chars. Split between "abc" and "def".
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2022}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{2022}  def"), "second row carries 'def', got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    @Test func returnMidDashedItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.dashedList])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2013}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{2013}  def"), "second row carries 'def', got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    @Test func returnMidUncheckedChecklistItemPutsCursorAfterNewMarker() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.checklistUnchecked])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{25CB}  abc"), "first row keeps 'abc', got: \(rendered)")
+        #expect(rendered.contains("\u{25CB}  def"), "second row carries 'def' and stays unchecked, got: \(rendered)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
+    }
+
+    // Splitting a CHECKED item mid-content is a deliberate behavior decision
+    // (insertListRow explicitly downgrades the new row to .checklistUnchecked)
+    // — matches Notes/Reminders-style splitting of a checked todo: the first
+    // half keeps its checked state, the new second half starts fresh/unchecked.
+    @Test func returnMidCheckedChecklistItemStartsNewRowUnchecked() throws {
+        let h = makeEditorHarness(text: "abcdef", textStyleData: style(.init(paragraphStyles: [.checklistChecked])))
+        let markerLen = 3
+        let splitAt = markerLen + 3
+        let shouldChange = h.coordinator.textView(
+            h.textView,
+            shouldChangeTextIn: NSRange(location: splitAt, length: 0),
+            replacementText: "\n"
+        )
+        #expect(!shouldChange)
+        let rendered = try #require(h.textView.attributedText).string
+        #expect(rendered.hasPrefix("\u{2713}  abc"), "first row stays checked, got: \(rendered)")
+        #expect(rendered.contains("\u{25CB}  def"), "new row must start unchecked, got: \(rendered)")
+        let doc = try #require(try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData() ?? Data()))
+        #expect(doc.paragraphStyles == [.checklistChecked, .checklistUnchecked], "got: \(doc.paragraphStyles)")
+        let display = h.textView.text as NSString
+        let defRange = display.range(of: "def")
+        #expect(h.textView.selectedRange.location == defRange.location,
+                "cursor must be right after the new marker, got \(h.textView.selectedRange.location) vs \(defRange.location)")
     }
 }
 

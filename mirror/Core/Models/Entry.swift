@@ -35,6 +35,9 @@ enum EntrySource: String, Codable {
     /// default (serif), so existing entries render unchanged. Not encrypted: a
     /// font family name isn't journal content.
     var fontChoice: String? = nil
+    /// Keeps this entry pinned at the top of EntryListView, above the month
+    /// groups. Not encrypted: a pin/unpin flag isn't journal content.
+    var isPinned: Bool = false
 
     var text: String {
         get { decryptedText ?? "" }

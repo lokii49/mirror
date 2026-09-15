@@ -22,18 +22,20 @@ extension WriteView {
                     }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
-                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
                     in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
                 )
                 .overlay {
                     if displayMode == .sentinel {
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
                             .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                    } else {
+                        Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                     }
                 }
             }
@@ -169,14 +171,14 @@ extension WriteView {
                 }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.horizontal, 11)
             .padding(.vertical, 7)
             .background(
                 displayMode == .sentinel
                     ? AnyShapeStyle(viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14))
-                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? Color(.secondarySystemFill) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
+                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? MirrorTheme.inkRaised : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
             )
             .overlay {
@@ -186,6 +188,8 @@ extension WriteView {
                             viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
                             lineWidth: 1
                         )
+                } else if viewModel.selectedMood == nil && !isDetectingMood {
+                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 }
             }
         }
@@ -288,6 +292,40 @@ extension WriteView {
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
+    var iconForVoiceButton: String {
+        if isRecordingInline { return "stop.circle.fill" }
+        return draftVoiceNotes.isEmpty ? "mic" : "waveform.circle.fill"
+    }
+
+    var voiceButtonAccessibilityLabel: String {
+        if isRecordingInline { return String(localized: "Stop recording") }
+        if isTranscribingVoiceNotes { return String(localized: "Transcribing voice note") }
+        return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
+    }
+
+    /// Two mic affordances exist and do different things (audit 2.3): this
+    /// button attaches an audio memo, transcribed after the fact; the system
+    /// keyboard's own mic key does live, word-by-word dictation straight into
+    /// the text. Nothing else in the app ever says so — this is that
+    /// explanation, surfaced on long-press rather than always-visible copy
+    /// cluttering an otherwise icon-only toolbar row.
+    @ViewBuilder
+    private var voiceButtonHintContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Voice Note")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+            Text("Records audio and transcribes it afterward — good for a longer memo.")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
+                .foregroundStyle(.secondary)
+            Text("For live dictation as you type, use the mic key on your keyboard.")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(width: 240, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -313,7 +351,9 @@ extension WriteView {
                         .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                 }
                 .buttonStyle(.plain)
-                .disabled(isTranscribingVoiceNotes)
+                // Save anyway while a voice note is still transcribing (1.4) —
+                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
+                // off to write straight into the saved entry once it finishes.
                 .accessibilityLabel("Save entry")
             }
         } else {
@@ -348,7 +388,10 @@ extension WriteView {
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(!hasDraftContent || isTranscribingVoiceNotes)
+                // Save anyway while a voice note is still transcribing (1.4) —
+                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
+                // off to write straight into the saved entry once it finishes.
+                .disabled(!hasDraftContent)
                 .accessibilityLabel("Save entry")
             }
         }
@@ -365,7 +408,7 @@ extension WriteView {
                       ? "arrow.down.right.and.arrow.up.left"
                       : "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 14))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
@@ -380,9 +423,9 @@ extension WriteView {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color(.systemFill))
+                            .fill(MirrorTheme.inkBorder)
                         Rectangle()
-                            .fill(isComplete ? Color.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
+                            .fill(isComplete ? MirrorTheme.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
                             .frame(width: geo.size.width * progress)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: progress)
                     }
@@ -428,10 +471,20 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
-                // Formatting panel
+                // Formatting panel — popover off this button on iPad, overlay
+                // above the keyboard on iPhone (see WriteView.safeAreaInset).
                 FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showFormattingPanel.toggle()
+                }
+                .popover(isPresented: Binding(
+                    get: { showFormattingPanel && usesPopoverPanel },
+                    set: { if !$0 { showFormattingPanel = false } }
+                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
+                    FormattingPanelView(state: panelState, presentation: .popover)
+                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
+                        .presentationCompactAdaptation(.popover)
+                        .environment(\.appDisplayMode, displayMode)
                 }
 
                 Spacer(minLength: 0)
@@ -507,41 +560,65 @@ extension WriteView {
                 .menuStyle(.button)
                 .buttonStyle(.plain)
 
-                // Voice button
-                Button {
-                    presentVoiceNoteSheet()
-                } label: {
-                    Image(systemName: !draftVoiceNotes.isEmpty ? "waveform.circle.fill" : "mic")
-                        .font(.system(size: 20))
-                        .foregroundStyle(!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
-                        .frame(width: 44, height: 44)
-                        .overlay(alignment: .topTrailing) {
-                            if isTranscribingVoiceNotes {
-                                ProgressView()
-                                    .scaleEffect(0.55)
-                                    .frame(width: 16, height: 16)
-                                    .background(Color(.systemBackground).opacity(0.85), in: Circle())
-                                    .offset(x: 6, y: -6)
-                            } else if draftVoiceNotes.count > 1 {
-                                Text("\(draftVoiceNotes.count)")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                    )
-                                    .offset(x: 4, y: -2)
-                            }
+                // Voice button — records inline; keyboard and caret stay put.
+                // Plain view + explicit tap/long-press gestures, not a Button:
+                // a Button's own tap gesture recognizer still fires alongside a
+                // .simultaneousGesture long-press (they don't mutually exclude),
+                // which would start a recording behind the long-press hint
+                // popover below (audit 2.3) — the worst outcome for a
+                // discoverability affordance. .onTapGesture/.onLongPressGesture
+                // on a plain view are mutually exclusive by construction.
+                Image(systemName: iconForVoiceButton)
+                    .font(.system(size: 20))
+                    .foregroundStyle(
+                        isRecordingInline ? Color.red
+                            : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
+                    )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .overlay(alignment: .topTrailing) {
+                        if isTranscribingVoiceNotes {
+                            ProgressView()
+                                .scaleEffect(0.55)
+                                .frame(width: 16, height: 16)
+                                .background(Color(.systemBackground).opacity(0.85), in: Circle())
+                                .offset(x: 6, y: -6)
+                        } else if draftVoiceNotes.count > 1 {
+                            Text("\(draftVoiceNotes.count)")
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(
+                                    displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
+                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                                )
+                                .offset(x: 4, y: -2)
                         }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isTranscribingVoiceNotes ? "Transcribing voice note" : (!draftVoiceNotes.isEmpty ? "Voice notes" : "Add voice note"))
+                    }
+                    .onTapGesture {
+                        toggleInlineRecording()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.45) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showVoiceButtonHint = true
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(voiceButtonAccessibilityLabel)
+                    // VoiceOver has no long-press gesture — this is the only way
+                    // a VoiceOver user reaches the same explanation (audit 2.3).
+                    .accessibilityAction(named: Text("What this does")) {
+                        showVoiceButtonHint = true
+                    }
+                    .popover(isPresented: $showVoiceButtonHint) {
+                        voiceButtonHintContent
+                            .presentationCompactAdaptation(.popover)
+                    }
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
+            .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
-        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(.bar))
+        .background(MirrorTheme.inkMid)
     }
 }
