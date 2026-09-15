@@ -170,13 +170,148 @@ enum InsightService {
             .joined(separator: " ")
     }
 
-    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine) {
+    /// Lowercases and strips leading/trailing punctuation from each word so "it," and "it" (or
+    /// a sentence-ending word carrying a period) still count as the same shared word.
+    private static func normalizedWordSet(_ text: String) -> Set<String> {
+        Set(
+            text.lowercased()
+                .split(separator: " ")
+                .map { $0.trimmingCharacters(in: .alphanumerics.inverted) }
+                .filter { !$0.isEmpty }
+        )
+    }
+
+    /// True when `text`'s opening (first 7 words, same window `priorNudgeOpenings` keys on)
+    /// overlaps too heavily with one of the openings the prompt already told the model to avoid.
+    /// The prompt-side instruction alone isn't reliable — Gemma 3 1B has reproduced a banned
+    /// opener near-verbatim even when it was named explicitly in the prompt (observed: two
+    /// nudges 7 days apart both opened "The rain outside feels like a gentle ...", the second
+    /// generated *after* the first was listed as something to avoid). This is the enforcement
+    /// backstop.
+    ///
+    /// Deliberately NOT an exact-string match: a first pass compared the full 7-word window for
+    /// equality, which the observed pair happened to satisfy, but that's brittle by luck — swap
+    /// one word ("a gentle reminder" → "a soft reminder") and an exact match misses the same
+    /// template repeat it exists to catch, since a 1B model's restatement of a banned opener is
+    /// exactly the kind of near-miss this needs to hold. Instead this compares the two openings
+    /// as bags of words (order-insensitive, so a word inserted, dropped, or swapped doesn't
+    /// break the match) and flags a repeat once at least `minSharedWords` of the *shorter*
+    /// opening's words are also present in the new text's opening.
+    static func repeatsPriorOpening(_ text: String, openings: [String], minSharedWords: Int = 5) -> Bool {
+        guard !openings.isEmpty else { return false }
+        let candidateWords = normalizedWordSet(firstWords(text, count: 7))
+        guard !candidateWords.isEmpty else { return false }
+        return openings.contains { opening in
+            let openingWords = normalizedWordSet(opening)
+            guard !openingWords.isEmpty else { return false }
+            let threshold = min(minSharedWords, openingWords.count)
+            return candidateWords.intersection(openingWords).count >= threshold
+        }
+    }
+
+    /// High-frequency English function/filler words excluded when checking whether a nudge
+    /// shares any real vocabulary with the entries it's supposed to be grounded in. Content
+    /// words (a place, a name, a concrete noun or verb an entry would actually contain) are
+    /// what should overlap; two unrelated pieces of text sharing "the"/"feels"/"like" by
+    /// coincidence shouldn't count as grounding. Deliberately does NOT include words from any
+    /// specific observed fabrication ("gentle", "quiet", "reminder", etc.) — those are ordinary
+    /// content words a real entry could legitimately contain ("finally carving out some quiet
+    /// in the mornings"), and blacklisting them would make a genuinely grounded nudge that names
+    /// them back unmatchable, defeating the guard on the exact entries it should pass. Overfitting
+    /// this list to one sample was caught by advisor before commit.
+    private static let groundingStopwords: Set<String> = [
+        "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "from", "with", "for", "by",
+        "is", "are", "was", "were", "be", "been", "being", "it", "its", "this", "that", "these", "those",
+        "i", "me", "my", "mine", "you", "your", "yours", "we", "our", "ours",
+        "he", "she", "they", "them", "his", "her", "their", "theirs",
+        "feels", "feel", "felt", "feeling", "like", "likes", "liked",
+        "still", "just", "really", "very", "so", "too", "also",
+        "more", "most", "much", "many", "some", "any", "all", "each", "every", "other", "another", "such",
+        "no", "not", "only", "own", "same", "than", "then", "once", "here", "there", "when", "where", "why",
+        "how", "what", "which", "who", "whom", "having", "do", "does", "did", "doing",
+        "would", "could", "should", "might", "must", "can", "will", "shall", "have", "has", "had",
+        "about", "again", "further", "out", "up", "down", "over", "under", "off", "into", "onto",
+        "if", "as", "because", "while", "during", "before", "after", "something", "someone", "things", "thing",
+    ]
+
+    /// Words of 4+ letters, lowercased, punctuation-stripped, filler excluded. Anything shorter
+    /// or on the stopword list is too common to mean the two texts are actually connected.
+    private static func contentWords(_ text: String) -> Set<String> {
+        Set(
+            text.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 4 && !groundingStopwords.contains($0) }
+        )
+    }
+
+    /// True when `text` shares no real vocabulary at all with `sourceEntries` — a strong signal
+    /// the model invented the reflection rather than reading what was actually written.
+    /// DAILY_NUDGE_SYSTEM explicitly requires this ("Reference actual words, moods, dates, or
+    /// concrete events, not generic advice" / "Open by naming something concrete from a
+    /// specific entry"), so a genuinely grounded nudge — even heavily paraphrased — should still
+    /// land on at least one shared non-filler word with its source. Observed failure this
+    /// backstops: Gemma 3 1B generated "The rain outside feels like a gentle reminder of the
+    /// quiet spaces you've been carving out lately" against entries about a Timer app launch and
+    /// download counts (mood read: JOYFUL, CONTENT) — zero shared vocabulary, and a tone
+    /// inverted from the entries' own. `repeatsPriorOpening` alone wouldn't have caught this: a
+    /// *differently*-worded fabrication would pass it while remaining just as disconnected from
+    /// the entries. Checked against `recent + background` (the full context sent to the model),
+    /// not just `recent`, since the prompt also permits drawing on long-term recurring themes.
+    ///
+    /// The one-shared-word threshold is deliberately loose (favors false negatives over false
+    /// positives — see `repeatsPriorOpening`'s `minSharedWords` for the same asymmetry), but a
+    /// terse entry ("Going in a good phase!") still gives a genuinely grounded nudge only two or
+    /// three real words to land on. Short-entry users are where a false positive here would
+    /// first show up, not a long, detail-rich entry — worth knowing if this guard starts firing
+    /// more than expected in practice.
+    static func isUngrounded(_ text: String, sourceEntries: [Entry]) -> Bool {
+        let nudgeWords = contentWords(text)
+        guard !nudgeWords.isEmpty else { return false }
+        let sourceWords = contentWords(sourceEntries.map(\.insightContext).joined(separator: " "))
+        guard !sourceWords.isEmpty else { return false }
+        return nudgeWords.isDisjoint(with: sourceWords)
+    }
+
+    /// The recent/background split a daily nudge is generated from. Factored out so
+    /// `ungroundedDailyNudges` (a retroactive audit over already-generated nudges) reconstructs
+    /// a past nudge's context with the exact same rule `generateNudge` used live, rather than a
+    /// second hand-copied version of this logic silently drifting from it over time.
+    ///
+    /// `asOf` stands in for "now": pass `Date()` when generating live, or a past
+    /// `Insight.generatedAt` with `entries` pre-filtered to `createdAt <= asOf` when
+    /// reconstructing history — an entry written after a nudge was generated couldn't have been
+    /// read by it, so including it here would corrupt the reconstruction.
+    static func dailyNudgeContext(from entries: [Entry], asOf: Date) -> (recent: [Entry], background: [Entry]) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
         let withinWindow = sorted.filter { $0.createdAt >= cutoff }
         let recent = withinWindow.isEmpty ? Array(sorted.prefix(1)) : Array(withinWindow.prefix(3))
         let recentIDs = Set(recent.map(\.id))
         let background = Array(sorted.filter { !recentIDs.contains($0.id) }.prefix(20))
+        return (recent, background)
+    }
+
+    /// Retroactively flags past daily nudges whose text shares no real vocabulary with the
+    /// entries they were supposedly grounded in — the same `isUngrounded` check `generateNudge`
+    /// now runs live, applied after the fact to nudges generated before this guard existed.
+    /// Necessarily a reconstruction, not a stored record (`Insight` keeps no snapshot of its
+    /// inputs — see `InsightSignalSource`'s doc comment for the same caveat on the on-device
+    /// X-ray this mirrors): if an entry from that window has since been edited or deleted, the
+    /// answer for that nudge may no longer be accurate.
+    static func ungroundedDailyNudges(among insights: [Insight], allEntries: [Entry]) -> [Insight] {
+        insights
+            .filter { $0.type == .dailyNudge }
+            .filter { insight in
+                let asOf = insight.generatedAt
+                let priorEntries = allEntries.filter { $0.createdAt <= asOf }
+                let (recent, background) = dailyNudgeContext(from: priorEntries, asOf: asOf)
+                return isUngrounded(insight.content, sourceEntries: recent + background)
+            }
+            .sorted { $0.generatedAt < $1.generatedAt }
+    }
+
+    static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
+        let (recent, background) = dailyNudgeContext(from: entries, asOf: Date())
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
 
         var userMessage = buildUserMessage(
@@ -192,12 +327,52 @@ enum InsightService {
                 + "\nOpen today's reflection with a different first sentence built from a different concrete detail."
         }
 
-        return try await localGenerate(
+        let first = try await localGenerate(
             systemPrompt: DAILY_NUDGE_SYSTEM,
             userMessage: userMessage,
             task: .dailyNudge,
             responseLanguageInstruction: languageInstruction
         )
+        let violatesRepeat = repeatsPriorOpening(first.text, openings: openings)
+        let violatesGrounding = isUngrounded(first.text, sourceEntries: recent + background)
+        guard violatesRepeat || violatesGrounding else { return (first.text, first.engine, false) }
+
+        // Named the violation(s) directly rather than just repeating the general instruction —
+        // a list buried in the prompt was already ignored once. One retry only, result accepted
+        // unconditionally: this is a quality backstop, not a guarantee. The retry gets a fresh
+        // random seed but the same temperature, so it's possible (not verified either way) that
+        // a model whose distribution is this peaked reproduces a third variant of the same
+        // problem — the second attempt is not re-checked against either guard. Looping until a
+        // truly distinct, grounded reflection lands would remove that risk but costs an
+        // unbounded number of full generations on what's still a best-effort reflection.
+        var violationNotes: [String] = []
+        if violatesRepeat {
+            let violatedOpening = firstWords(first.text, count: 7)
+            violationNotes.append("your reflection opened with \"\(violatedOpening)…\" — exactly what you were told to avoid.")
+        }
+        if violatesGrounding {
+            violationNotes.append("your reflection didn't reference anything actually written in the entries above — no shared word, event, or detail. It read as generic, invented content rather than a reflection of what's there.")
+        }
+        let retryMessage = userMessage + """
+
+
+            IMPORTANT: \(violationNotes.joined(separator: " ")) Start over with a different first sentence, naming a specific word, event, or detail actually present in the entries above.
+            """
+        // `first` is a valid, already-validated nudge — just repetitive and/or ungrounded, not
+        // broken. If the retry throws (contextExhausted on a second full pass is realistic on
+        // the older/slower devices that are this guard's whole population), fall back to `first`
+        // rather than propagating: a flawed nudge beats no nudge at all that day.
+        //
+        // `degraded: true` either way — the retry result is never re-checked against either
+        // guard (see note above), so even a successful `second` is not verified clean. The
+        // caller uses this to soften today's push notification rather than skip generation.
+        guard let second = try? await localGenerate(
+            systemPrompt: DAILY_NUDGE_SYSTEM,
+            userMessage: retryMessage,
+            task: .dailyNudge,
+            responseLanguageInstruction: languageInstruction
+        ) else { return (first.text, first.engine, true) }
+        return (second.text, second.engine, true)
     }
 
     /// Fewer than this many entries in the current week → not enough to find a
@@ -231,17 +406,48 @@ enum InsightService {
             .sorted { $0.createdAt > $1.createdAt }
         let languageSource = thisWeek.isEmpty ? priorWeeks : thisWeek
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: languageSource), task: .weeklyDigest)
-        return try await localGenerate(
+        let recentEntries = Array(thisWeek.prefix(12))
+        let backgroundEntries = Array(priorWeeks.prefix(14))
+        let userMessage = buildUserMessage(
+            title: "Weekly digest context",
+            recentEntries: recentEntries,
+            backgroundEntries: backgroundEntries,
+            maxChars: weeklyDigestPromptBudget
+        )
+
+        let first = try await localGenerate(
             systemPrompt: WEEKLY_DIGEST_SYSTEM,
-            userMessage: buildUserMessage(
-                title: "Weekly digest context",
-                recentEntries: Array(thisWeek.prefix(12)),
-                backgroundEntries: Array(priorWeeks.prefix(14)),
-                maxChars: weeklyDigestPromptBudget
-            ),
+            userMessage: userMessage,
             task: .weeklyDigest,
             responseLanguageInstruction: languageInstruction
         )
+        // Same isUngrounded backstop as generateNudge, applied to the whole digest (all six
+        // sections) rather than per-section — WEEKLY_DIGEST_SYSTEM's "reference actual words,
+        // moods, dates, or phrases" rule applies to the digest as a whole, and a digest has far
+        // more words than a nudge to land a real one in, so the same one-shared-word threshold
+        // is if anything looser here, not stricter.
+        //
+        // No repeatsPriorOpening equivalent here — scoped to grounding only, per what was asked.
+        // Absence of an observed repeated-template failure for digests is NOT evidence it can't
+        // happen: the nudge repeat was only caught because a user happened to scroll its history
+        // list, and PastDigestCard (X-ray-wired the same way) could be sitting on an unnoticed
+        // duplicate right now. Left open, not ruled out.
+        guard isUngrounded(first.text, sourceEntries: recentEntries + backgroundEntries) else { return first }
+
+        let retryMessage = userMessage + """
+
+
+            IMPORTANT: your digest above didn't reference anything actually written in the entries above — no shared word, event, or detail in any section. It read as generic, invented content rather than a reflection of what's there. Start over, naming a specific word, event, or detail actually present in the entries above.
+            """
+        // Same fail-open shape as generateNudge's retry: `first` is a valid, already-validated
+        // digest, just ungrounded — falling back to it on a retry failure beats no digest at all.
+        guard let second = try? await localGenerate(
+            systemPrompt: WEEKLY_DIGEST_SYSTEM,
+            userMessage: retryMessage,
+            task: .weeklyDigest,
+            responseLanguageInstruction: languageInstruction
+        ) else { return first }
+        return second
     }
 
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {

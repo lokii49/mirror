@@ -395,4 +395,286 @@ struct InsightValidationTests {
             Issue.record("expected InsightError.emptyResponse for \(task), got \(error)")
         }
     }
+
+    // MARK: - repeatsPriorOpening: the reject-and-retry guard's detector, in isolation.
+    //
+    // generateNudge's prompt-side instruction ("your recent reflections already opened with...")
+    // is not itself reliable enough — observed in production: Gemma 3 1B reproduced a banned
+    // opener nearly verbatim even after being told the exact phrase to avoid. This is the
+    // backstop that decides whether a real retry is warranted; these tests cover its matching
+    // logic directly, without invoking the model.
+
+    @Test func repeatsPriorOpening_exactSevenWordMatch_detected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_caseInsensitive_detected() {
+        let openings = ["the rain outside feels like a gentle"]
+        let text = "The Rain Outside Feels Like A Gentle echo of something else entirely."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_differentOpening_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "You mentioned the drive home from your sister's again, and how much lighter you felt."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    @Test func repeatsPriorOpening_noPriorOpenings_neverDetected() {
+        let text = "The rain outside feels like a gentle reminder of something."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: []))
+    }
+
+    @Test func repeatsPriorOpening_emptyText_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        #expect(!InsightService.repeatsPriorOpening("", openings: openings))
+    }
+
+    // Only the first 7 words are compared — a later coincidental echo of the same words
+    // mid-sentence shouldn't count as a repeated opening.
+    @Test func repeatsPriorOpening_matchOnlyCountsAtStart() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "You wrote about your morning walk, and later said the rain outside feels like a gentle memory of home."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // The actual failure mode this guard exists for: a one-word swap deep in the same template.
+    // An exact 7-word equality check (the first version of this guard) misses this outright —
+    // this is the regression test for that gap, caught by advisor before commit.
+    @Test func repeatsPriorOpening_oneWordSwappedInSameTemplate_stillDetected() {
+        let openings = ["The rain outside feels like a gentle echo"]
+        let text = "The rain outside feels like a soft reminder of the quiet spaces you've been carving out."
+        #expect(InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // Guards against the opposite failure: two openings sharing only common filler words
+    // ("the", "a") shouldn't count as a repeat just because short function words overlap.
+    @Test func repeatsPriorOpening_onlyFillerWordsShared_notDetected() {
+        let openings = ["The rain outside feels like a gentle"]
+        let text = "The quiet evening with your dad stayed with you a while."
+        #expect(!InsightService.repeatsPriorOpening(text, openings: openings))
+    }
+
+    // For an opening shorter than `minSharedWords`, the threshold scales down to the opening's
+    // own word count — so a short opening still needs to be (almost) fully repeated to flag.
+    @Test func repeatsPriorOpening_shortOpeningRequiresFullOverlap() {
+        let openings = ["Okay you got it"]
+        let fullRepeat = "Okay you got it, let's see what else you can offer this week."
+        let partialOverlap = "Okay so today felt different in a way you named directly."
+        #expect(InsightService.repeatsPriorOpening(fullRepeat, openings: openings))
+        #expect(!InsightService.repeatsPriorOpening(partialOverlap, openings: openings))
+    }
+
+    // MARK: - isUngrounded: the second reject-and-retry guard, catching fabricated content
+    // that repeatsPriorOpening can't — a *differently*-worded invention is just as disconnected
+    // from the entries as a repeated one, and the opener guard alone would let it through.
+
+    // The actual production case that motivated this guard: Gemma 3 1B generated a nudge about
+    // rain and "quiet spaces" against entries about a Timer app launch and download counts —
+    // zero shared vocabulary. Confirmed via the app's own on-device X-ray (InsightSignalSource)
+    // reading the real entries behind that nudge.
+    @Test func isUngrounded_fabricatedContent_detected() {
+        let entries = [
+            Entry(text: "Surprised to see 10 downloads the week the Timer app got released."),
+            Entry(text: "1. Learn new things 2. Focus on building things 3. Explore new ideas 4. Keep managing well."),
+            Entry(text: "Going in a good phase!"),
+        ]
+        let nudge = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_sharesRealDetail_notDetected() {
+        let entries = [
+            Entry(text: "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after."),
+        ]
+        let nudge = "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_noSourceText_notDetected() {
+        // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
+        // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
+        // to check against either way.
+        let entries = [Entry(text: "")]
+        let nudge = "The rain outside feels like a gentle reminder."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_emptyNudgeText_notDetected() {
+        // Empty output is InsightService.validate()'s job to reject, not this guard's.
+        let entries = [Entry(text: "Went for a long walk by the river today.")]
+        #expect(!InsightService.isUngrounded("", sourceEntries: entries))
+    }
+
+    // Two texts sharing only common filler/short words ("the", "was", "like", "much") but no
+    // real content word are still ungrounded — the stopword list exists for exactly this.
+    // Deliberately does NOT reuse "quiet"/"gentle"/"reminder"/etc. from the fabrication fixture
+    // above on the entry side: those are ordinary content words (not filler), so an entry that
+    // genuinely mentions them SHOULD count as grounding — advisor caught an earlier version of
+    // this test that put "quiet" in the entry too, which made it fail once "quiet" was correctly
+    // removed from the stopword list (see groundingStopwords' comment) — that failure was the
+    // guard behaving correctly, not a bug; the test's fixture was wrong.
+    @Test func isUngrounded_onlyFillerWordsShared_stillDetected() {
+        let entries = [Entry(text: "The evening was long and I felt like resting well, though nothing much happened.")]
+        let nudge = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // MARK: - ungroundedDailyNudges: the retroactive audit over already-generated nudges.
+    // Reuses isUngrounded and dailyNudgeContext, so these tests are really checking the
+    // reconstruction (asOf-relative window, filtering out entries written after the nudge) is
+    // wired correctly — the detection logic itself is already covered above.
+
+    private func nudge(_ content: String, generatedAt: Date) -> Insight {
+        let insight = Insight(type: .dailyNudge, content: content, periodIdentifier: "test")
+        insight.generatedAt = generatedAt
+        return insight
+    }
+
+    private func entry(_ text: String, createdAt: Date) -> Entry {
+        let e = Entry(text: text)
+        e.createdAt = createdAt
+        return e
+    }
+
+    // The actual production pair this whole guard exists for: two real nudges (Sep 4, Sep 11),
+    // confirmed fabricated via the app's own on-device X-ray reading the real entries behind
+    // each one — this reproduces that finding as a regression test.
+    @Test func ungroundedDailyNudges_flagsTheProductionCase() {
+        let sep1 = entry("Have many dreams, many promises myself! I'm believing in myself.", createdAt: makeDate(2026, 9, 1))
+        let sep4Entry = entry("The continuous thoughts of how to make it happen! How the life I desire.", createdAt: makeDate(2026, 9, 4))
+        let sep7 = entry("1. Learn new things 2. Focus on building 3. Explore new ideas 4. Keep managing.", createdAt: makeDate(2026, 9, 7))
+        let sep9 = entry("Surprised to see 10 downloads the week the Timer app got released.", createdAt: makeDate(2026, 9, 9))
+        let sep10 = entry("Going in a good phase!", createdAt: makeDate(2026, 9, 10))
+
+        let sep4Nudge = nudge(
+            "The rain outside feels like a gentle echo of the quiet spaces you've been carving out lately, doesn't it?",
+            generatedAt: makeDate(2026, 9, 4, hour: 18, minute: 45)
+        )
+        let sep11Nudge = nudge(
+            "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately.",
+            generatedAt: makeDate(2026, 9, 11, hour: 18, minute: 27)
+        )
+
+        let allEntries = [sep1, sep4Entry, sep7, sep9, sep10]
+        let flagged = InsightService.ungroundedDailyNudges(among: [sep4Nudge, sep11Nudge], allEntries: allEntries)
+        #expect(flagged.count == 2)
+    }
+
+    @Test func ungroundedDailyNudges_grounded_notFlagged() {
+        let sisterEntry = entry(
+            "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after.",
+            createdAt: makeDate(2026, 9, 4)
+        )
+        let grounded = nudge(
+            "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it.",
+            generatedAt: makeDate(2026, 9, 5)
+        )
+        let flagged = InsightService.ungroundedDailyNudges(among: [grounded], allEntries: [sisterEntry])
+        #expect(flagged.isEmpty)
+    }
+
+    // An entry written AFTER the nudge was generated couldn't have been read by it — including
+    // it in the reconstruction would let a later, unrelated entry falsely "ground" an old
+    // fabrication. This is exactly the asOf-filtering `dailyNudgeContext`/`ungroundedDailyNudges`
+    // exist to get right.
+    @Test func ungroundedDailyNudges_ignoresEntriesWrittenAfterGeneration() {
+        let before = entry("Went for a long walk by the river today.", createdAt: makeDate(2026, 9, 1))
+        let after = entry("The rain outside feels like a gentle reminder of the quiet spaces I've carved out.", createdAt: makeDate(2026, 9, 10))
+        let oldNudge = nudge(
+            "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately.",
+            generatedAt: makeDate(2026, 9, 2)
+        )
+        let flagged = InsightService.ungroundedDailyNudges(among: [oldNudge], allEntries: [before, after])
+        #expect(flagged.count == 1)
+    }
+
+    @Test func ungroundedDailyNudges_ignoresNonDailyNudgeInsights() {
+        let riverEntry = entry("Went for a long walk by the river today.", createdAt: makeDate(2026, 9, 1))
+        let fabricatedDigest = Insight(type: .weeklyDigest, content: "The rain outside feels like a gentle reminder.", periodIdentifier: "2026-W36")
+        fabricatedDigest.generatedAt = makeDate(2026, 9, 2)
+        let flagged = InsightService.ungroundedDailyNudges(among: [fabricatedDigest], allEntries: [riverEntry])
+        #expect(flagged.isEmpty)
+    }
+
+    private func makeDate(_ year: Int, _ month: Int, _ day: Int, hour: Int = 12, minute: Int = 0) -> Date {
+        var components = DateComponents()
+        components.year = year; components.month = month; components.day = day
+        components.hour = hour; components.minute = minute
+        return Calendar.current.date(from: components)!
+    }
+
+    // MARK: - dailyNudgeContext: the recent/background split every nudge is generated from
+    // (live) and every retroactive audit result is reconstructed from (historical). Exercised
+    // above only indirectly through ungroundedDailyNudges — these test the split itself.
+
+    @Test func dailyNudgeContext_withinWindow_takesUpToThreeRecentRestGoesToBackground() {
+        let asOf = makeDate(2026, 9, 15)
+        let entries = (1...5).map { entry("Entry \($0) about a specific unrepeatable topic.", createdAt: makeDate(2026, 9, 10 + $0)) }
+        let (recent, background) = InsightService.dailyNudgeContext(from: entries, asOf: asOf)
+        #expect(recent.count == 3)
+        #expect(background.count == 2)
+        // Most recent three, not an arbitrary three.
+        #expect(Set(recent.map(\.createdAt)) == Set(entries.suffix(3).map(\.createdAt)))
+    }
+
+    @Test func dailyNudgeContext_emptyWithinWindow_fallsBackToSingleMostRecentEntry() {
+        let asOf = makeDate(2026, 9, 15)
+        // Both entries are older than the 14-day window but still exist — the "nothing written
+        // recently" case generateNudge still needs at least something to reflect on.
+        let old = entry("An entry from a month ago.", createdAt: makeDate(2026, 8, 1))
+        let older = entry("An entry from two months ago.", createdAt: makeDate(2026, 7, 1))
+        let (recent, background) = InsightService.dailyNudgeContext(from: [old, older], asOf: asOf)
+        #expect(recent.count == 1)
+        #expect(recent.first?.createdAt == old.createdAt)
+        #expect(background.count == 1)
+    }
+
+    @Test func dailyNudgeContext_backgroundCappedAtTwenty() {
+        let asOf = makeDate(2026, 9, 15)
+        let recentEntries = (1...3).map { entry("Recent \($0)", createdAt: makeDate(2026, 9, 12 + $0)) }
+        let oldEntries = (1...25).map { entry("Old \($0)", createdAt: makeDate(2026, 8, $0)) }
+        let (recent, background) = InsightService.dailyNudgeContext(from: recentEntries + oldEntries, asOf: asOf)
+        #expect(recent.count == 3)
+        #expect(background.count == 20)
+    }
+
+    // MARK: - isUngrounded applied to weekly digests. generateWeeklyDigest reuses the exact
+    // same detector as generateNudge, checked against the whole six-section digest text rather
+    // than per-section — these confirm it behaves correctly on that longer, structured shape,
+    // not just a 2-3 sentence nudge.
+
+    @Test func isUngrounded_weeklyDigestFabricated_detected() {
+        let entries = [
+            Entry(text: "Shipped the launch today after three weeks of late nights. Team was relieved."),
+            Entry(text: "Slept badly again, kept replaying the client call in my head."),
+        ]
+        let digest = weeklyDigestText([
+            "The rain outside feels like a gentle echo of the quiet spaces you've been carving out.",
+            "You seemed most alive on rainy afternoons, most drained during quiet evenings.",
+            "Something gentle is building in the quiet spaces of your days.",
+            "Watch out for letting the quiet moments slip away unnoticed.",
+            "Sit by a rainy window for ten minutes with nothing else to do.",
+            "Keep carving out those gentle, quiet spaces next week too.",
+        ])
+        #expect(InsightService.isUngrounded(digest, sourceEntries: entries))
+    }
+
+    @Test func isUngrounded_weeklyDigestGrounded_notDetected() {
+        let entries = [
+            Entry(text: "Shipped the launch today after three weeks of late nights. Team was relieved."),
+            Entry(text: "Slept badly again, kept replaying the client call in my head."),
+        ]
+        let digest = weeklyDigestText([
+            "This week was dominated by the launch finally shipping after three weeks of late nights.",
+            "You were most alive when the launch went out, most drained replaying the client call at night.",
+            "The relief from finally shipping is building into something steadier.",
+            "Watch out for the late nights becoming a habit even after the launch is behind you.",
+            "Send the team a thank-you for the three weeks of late nights.",
+            "Let the sleep catch up now that the launch and the client call are behind you.",
+        ])
+        #expect(!InsightService.isUngrounded(digest, sourceEntries: entries))
+    }
 }

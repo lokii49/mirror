@@ -23,6 +23,7 @@ struct mirrorApp: App {
         #endif
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
+        NotificationService.registerCategories()
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
         #if DEBUG
@@ -83,6 +84,12 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearAskSample") {
             SampleData.clearAskSample(from: sharedModelContainer.mainContext)
         }
+        if ProcessInfo.processInfo.arguments.contains("--seedRichInlineStylesSample") {
+            SampleData.seedRichInlineStylesSample(into: sharedModelContainer.mainContext)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--clearRichInlineStylesSample") {
+            SampleData.clearRichInlineStylesSample(from: sharedModelContainer.mainContext)
+        }
         // Recovery/verification tool: a UI test run that taps the Classic/Sentinel picker
         // mutates real UserProfile.displayMode, same as a real user tap -- there's no simctl
         // "undo" for that once the test exits, and screenshot passes need both modes on
@@ -111,6 +118,38 @@ struct mirrorApp: App {
             let value = String(arg.dropFirst("--forceAppearance=".count))
             if ["light", "dark", "system"].contains(value) {
                 UserDefaults.standard.set(value, forKey: "mirrorAppearanceMode")
+            }
+        }
+        // mirrorUITests relaunches the app per test method but the draft
+        // (UserDefaults + DraftAttachmentStore) and every saved Entry/Insight
+        // persist on-disk across launches — without this, WriteView tests
+        // accumulate every prior test's typed text into one ballooning draft.
+        // Opt-in via launch arg, DEBUG only, scratch-device only (wipes ALL
+        // entries — never pass this against a device with real journal data).
+        if ProcessInfo.processInfo.arguments.contains("--clearWriteTestState") {
+            WriteView.clearAllDraftStorage()
+            SampleData.clear(from: sharedModelContainer.mainContext)
+        }
+        // Design-review capture for MirrorNotificationContentExtension: fires the real
+        // "ready" nudge notification (matching category, App Group mood) a few seconds
+        // after launch so a UI test can background the app and screenshot the expanded
+        // Content Extension. Scratch-device only, DEBUG only — delete once screenshots
+        // are captured, this is not a regression test fixture.
+        if ProcessInfo.processInfo.arguments.contains("--scheduleTestNudge") {
+            let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            let today = DateHelpers.dayIdentifier(for: Date())
+            defaults?.set(today, forKey: "widget.nudge.date")
+            defaults?.set("Content", forKey: "widget.nudge.mood")
+            let center = UNUserNotificationCenter.current()
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+                let content = UNMutableNotificationContent()
+                content.title = "mirror"
+                content.body = "Your daily reflection is ready."
+                content.sound = .default
+                content.categoryIdentifier = "mirror.dailyNudge"
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+                let request = UNNotificationRequest(identifier: "mirror.testNudge", content: content, trigger: trigger)
+                center.add(request)
             }
         }
         #endif
@@ -373,27 +412,42 @@ struct mirrorApp: App {
             .map(\.content)
 
         do {
-            let (text, engine) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
+            let (text, engine, degraded) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
             wDefaults?.set(text, forKey: "widget.nudge.text")
             wDefaults?.set(today, forKey: "widget.nudge.date")
+            if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+                wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
+            } else {
+                wDefaults?.removeObject(forKey: "widget.nudge.mood")
+            }
             WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
             if SubscriptionService.shared.isSubscribed {
                 // Update the repeating nudge content to "ready" so it fires correctly at nudge time.
                 // No second one-time notification — that would double-fire at the same minute.
+                // `insightReady: !degraded` — a nudge that tripped the grounding/repeat guard is
+                // still saved and shown as a card (a flawed reflection beats none), but the push
+                // falls back to the generic "come check" body instead of promising a "ready"
+                // reflection the guard couldn't confirm is actually good.
+                let previewEnabled = UserDefaults.standard.bool(forKey: "nudgePreviewEnabled")
                 await NotificationService.rescheduleContextualNudge(
                     hasWrittenToday: true,
-                    insightReady: true,
+                    insightReady: !degraded,
                     hour: hour,
-                    minute: minute
+                    minute: minute,
+                    previewText: previewEnabled ? text : nil
                 )
             } else {
-                // First nudge for free users — one-time hook to drive paywall conversion
+                // First nudge for free users — one-time hook to drive paywall conversion.
+                // NOT gated on `degraded`: the Insight above is already saved, which makes
+                // `hasSeenFirst` true on every later call — there is no "next day" retry for a
+                // free user, this is the only time this ever fires for them. A flawed first
+                // nudge still beats never showing the paywall hook at all.
                 await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
             }
         } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
@@ -407,6 +461,16 @@ struct mirrorApp: App {
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
         return todayInsights.contains { $0.type == .dailyNudge }
+    }
+
+    @MainActor
+    static func todaysDailyNudgeText(context: ModelContext) -> String? {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let descriptor = FetchDescriptor<Insight>(
+            predicate: #Predicate { $0.periodIdentifier == today }
+        )
+        let todayInsights = (try? context.fetch(descriptor)) ?? []
+        return todayInsights.first { $0.type == .dailyNudge }?.content
     }
 
     @MainActor
@@ -762,6 +826,13 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(nudge.content, forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
+        let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
+        if let todaysMood = todaysEntries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+            defaults?.set(todaysMood, forKey: "widget.nudge.mood")
+        } else {
+            defaults?.removeObject(forKey: "widget.nudge.mood")
+        }
     }
 
     // MARK: - Notification permission (existing users who completed onboarding before prompt was added)
@@ -807,19 +878,34 @@ struct mirrorApp: App {
     private func requestNotificationPermissionIfNeeded() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         guard settings.authorizationStatus == .notDetermined else { return }
+        // Gated on entries.count >= 3 — the same threshold runDailyNudgeIfNeeded uses for nudge
+        // eligibility — rather than on an existing daily-nudge Insight: permission must resolve
+        // *before* the first nudge generates, or scheduleFirstNudgeHook's isAuthorized() check
+        // silently no-ops and, since the Insight it would have announced is already saved by
+        // then, never gets a second chance (hasSeenFirst locks out that path for non-subscribers
+        // for good). This backfill (originally added for users who onboarded before a permission
+        // prompt existed at all) is now the ONLY place permission is requested — OnboardingFlow
+        // no longer asks at Day 0.
+        let context = sharedModelContainer.mainContext
+        let entryCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
+        guard entryCount >= 3 else { return }
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-        if granted, SubscriptionService.shared.isSubscribed {
-            let context = sharedModelContainer.mainContext
-            let insightReady = mirrorApp.hasDailyNudgeForToday(context: context)
-            let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
-            await NotificationService.rescheduleContextualNudge(
-                hasWrittenToday: hasWrittenToday,
-                insightReady: insightReady,
-                hour: NotificationService.nudgeHour(),
-                minute: NotificationService.nudgeMinute()
-            )
-        }
+        guard granted else { return }
+        // Not gated on subscription — free users get the same repeating "come write" reminder
+        // (insightReady false → generic body) at their chosen hour that onboarding used to
+        // schedule unconditionally on Day 0. Only the Core/Deep "your reflection is ready" body
+        // needs a subscription; the reminder itself doesn't.
+        let insightReady = mirrorApp.hasDailyNudgeForToday(context: context) && SubscriptionService.shared.isSubscribed
+        let hasWrittenToday = mirrorApp.hasEntryToday(context: context)
+        let previewEnabled = UserDefaults.standard.bool(forKey: "nudgePreviewEnabled")
+        await NotificationService.rescheduleContextualNudge(
+            hasWrittenToday: hasWrittenToday,
+            insightReady: insightReady,
+            hour: NotificationService.nudgeHour(),
+            minute: NotificationService.nudgeMinute(),
+            previewText: (previewEnabled && insightReady) ? mirrorApp.todaysDailyNudgeText(context: context) : nil
+        )
     }
 
     // MARK: - Background time extension for mid-session generation

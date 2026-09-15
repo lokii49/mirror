@@ -1,46 +1,154 @@
 import SwiftUI
 import UIKit
 
-let highlightColors: [Color] = [
-    Color(red: 1.0, green: 0.75, blue: 0.80),   // pink
-    Color(red: 0.82, green: 0.75, blue: 1.0),   // purple
-    Color(red: 1.0, green: 0.84, blue: 0.60),   // orange/yellow
-    Color(red: 0.70, green: 0.95, blue: 0.85),  // mint
-    Color(red: 0.68, green: 0.85, blue: 1.0),   // blue
-]
+/// Highlight swatches for the formatting panel and the editor's rendered
+/// highlight attribute. Each entry is a light/dark-adaptive `Color`
+/// (`MirrorTheme.hex`) — the original set was fixed light-mode RGB literals
+/// with no dark counterpart, so highlighted text read washed-out / low
+/// contrast in dark mode, and there was no Sentinel variant at all (audit 3.2).
+enum HighlightPalette {
+    static func colors(for displayMode: DisplayMode) -> [Color] {
+        displayMode == .sentinel ? sentinel : classic
+    }
+
+    /// VoiceOver label for swatch `index` — the swatches carry no visible
+    /// text, so without this every one reads as just "button" (audit 3.1).
+    static func name(for index: Int, displayMode: DisplayMode) -> String {
+        let names = displayMode == .sentinel
+            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
+            : ["Pink", "Purple", "Orange", "Mint", "Blue"]
+        guard names.indices.contains(index) else { return "Highlight" }
+        return names[index]
+    }
+
+    /// Same 5 hues as the original light pastels, each paired with a
+    /// deepened dark-mode counterpart.
+    private static let classic: [Color] = [
+        MirrorTheme.hex(0x5C2430, 0xFFBFCC),   // pink / rose
+        MirrorTheme.hex(0x3B2A66, 0xD1BFFF),   // purple
+        MirrorTheme.hex(0x5C441A, 0xFFD699),   // orange / yellow
+        MirrorTheme.hex(0x1F4D3B, 0xB3F2D9),   // mint
+        MirrorTheme.hex(0x1F3D5C, 0xADD9FF),   // blue
+    ]
+
+    /// Previously fell back to the Classic pastels, clashing with the
+    /// mono/ember language everything else in the panel branches for.
+    /// Stays in-family (ember + warm neutrals).
+    private static let sentinel: [Color] = [
+        MirrorTheme.ember,
+        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
+        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
+        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
+        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
+    ]
+}
+
+/// Foreground text colors for the Aa panel's Text Color row and the editor's
+/// rendered `.foregroundColor` attribute. Same light/dark-adaptive shape as
+/// `HighlightPalette` but tuned as legible foreground ink rather than a
+/// background wash — a highlight's pastel would fail contrast as text color.
+enum TextColorPalette {
+    static func colors(for displayMode: DisplayMode) -> [Color] {
+        displayMode == .sentinel ? sentinel : classic
+    }
+
+    static func name(for index: Int, displayMode: DisplayMode) -> String {
+        let names = displayMode == .sentinel
+            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
+            : ["Red", "Orange", "Green", "Blue", "Purple"]
+        guard names.indices.contains(index) else { return "Text color" }
+        return names[index]
+    }
+
+    private static let classic: [Color] = [
+        MirrorTheme.hex(0xC0392B, 0xFF6B5B),   // red
+        MirrorTheme.hex(0xB8631A, 0xFFA94D),   // orange
+        MirrorTheme.hex(0x1F7A4D, 0x5FE0A0),   // green
+        MirrorTheme.hex(0x1F5FA8, 0x6FB8FF),   // blue
+        MirrorTheme.hex(0x6A3FA0, 0xC79BFF),   // purple
+    ]
+
+    private static let sentinel: [Color] = [
+        MirrorTheme.ember,
+        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
+        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
+        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
+        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
+    ]
+}
 
 @Observable final class FormattingPanelState {
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil
+    var activeTextColorIndex: Int? = nil
     /// The font family the *current paragraph/selection* is using — drives the
     /// font row's highlight, same role activeParagraphStyle plays for block style.
     var activeFontChoice: WritingFontChoice = .system
-    /// Entry-wide fallback only (empty document, or a paragraph with no explicit
-    /// override) — no longer mutated by tapping a font button; that now goes
-    /// through onCommand(.fontFamily) like every other paragraph-level command.
-    var fontChoiceRaw: String = WritingFontChoice.system.rawValue
+    /// Non-nil when the cursor sits inside an existing link — drives the Link
+    /// button's active state and prefills the URL editor for editing it.
+    var activeLinkURL: String? = nil
     var onCommand: ((NoteTextCommand) -> Void)?
-    var onDismiss: (() -> Void)?
+    /// Tapping Link needs a URL from the user before a command can be dispatched
+    /// — the panel can't own that alert (it doesn't know the current selection),
+    /// so it hands off to whoever presents it (WriteView) instead of calling
+    /// onCommand directly.
+    var onRequestLinkEditor: (() -> Void)?
 }
 
 struct FormattingPanelView: View {
     var state: FormattingPanelState
+    /// iPhone: shown as an overlay above the keyboard — keep the grabber and let
+    /// the rows scroll on short screens. iPad: shown in a `.popover`, which
+    /// supplies its own chrome and sizes to content.
+    var presentation: Presentation = .sheet
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
-    private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
+    private var idleFill: Color { displayMode == .sentinel ? MirrorTheme.inkMid : MirrorTheme.inkRaised }
     private var cornerRadius: CGFloat { displayMode == .sentinel ? 6 : 10 }
+    /// Shared Dynamic Type scale factor (audit 2.5) — every fixed point size and
+    /// button dimension below is `base * typeScale` instead of a bare literal, so
+    /// the panel respects accessibility text sizes the way the editor itself does
+    /// (`NoteEditorTextView` sets `adjustsFontForContentSizeCategory = true`).
+    /// One shared `@ScaledMetric` base of 1.0 keeps every row's relative
+    /// proportions (Title 22pt vs. Code 13pt, etc.) intact while scaling as a
+    /// group — the officially recommended pattern for a cluster of custom point
+    /// sizes that should move together rather than each having its own metric.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1.0
+
+    enum Presentation { case sheet, popover }
 
     var body: some View {
+        Group {
+            if presentation == .sheet {
+                ScrollView { panelRows }
+            } else {
+                panelRows
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : MirrorTheme.inkBase)
+        .overlay(alignment: .top) {
+            if displayMode == .sentinel {
+                Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
+            }
+        }
+    }
+
+    private var panelRows: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // Handle bar (Apple Notes style — tap Aa again to dismiss)
-            Capsule()
-                .fill(Color(.systemGray4))
-                .frame(width: 36, height: 5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+            if presentation == .sheet {
+                // Handle bar (Apple Notes style — tap Aa again to dismiss)
+                Capsule()
+                    .fill(MirrorTheme.inkBorder)
+                    .frame(width: 36, height: 5)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+            } else {
+                Spacer(minLength: 8)
+            }
 
             // Row 0: Font family — applies everywhere this entry's body text
             // appears (Write, entry list preview, entry detail view).
@@ -58,88 +166,141 @@ struct FormattingPanelView: View {
             // Row 1: Paragraph styles — horizontal scroll, each in its own font
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 22, weight: .black))
-                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18, weight: .bold))
-                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15, weight: .semibold))
-                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14, weight: .regular))
-                    paragraphStyleButton("Mono",       style: .monospaced, labelFont: .system(size: 13, design: .monospaced))
+                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 22 * typeScale, weight: .black))
+                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 18 * typeScale, weight: .bold))
+                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
+                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
+                    paragraphStyleButton("Code",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
+                    paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 2)
             }
 
-            // Row 2: Inline styles (fixed-size square buttons, left-aligned)
-            HStack(spacing: 8) {
-                inlineButton("B",  style: .bold,          font: .system(size: 17, weight: .bold))
-                inlineButton("I",  style: .italic,        font: .system(size: 17).italic())
-                inlineButton("U",  style: .underline,     font: .system(size: 17), underline: true)
-                inlineButton("S",  style: .strikethrough, font: .system(size: 17), strikethrough: true)
-                Spacer(minLength: 0)
+            // Row 2: Inline styles (fixed-size square buttons). Horizontally
+            // scrolling like rows 0/1 — at large Dynamic Type sizes four square
+            // buttons plus spacing no longer fit an iPhone SE's width (audit 2.5).
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    inlineButton("B",  style: .bold,          font: .system(size: 17 * typeScale, weight: .bold),          accessibilityLabel: "Bold")
+                    inlineButton("I",  style: .italic,        font: .system(size: 17 * typeScale).italic(),                accessibilityLabel: "Italic")
+                    inlineButton("U",  style: .underline,     font: .system(size: 17 * typeScale), underline: true,        accessibilityLabel: "Underline")
+                    inlineButton("S",  style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true,    accessibilityLabel: "Strikethrough")
+                    linkButton
+                    clearFormattingButton
+                }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
             .padding(.top, 10)
 
-            // Row 3: List types + indent controls
+            // Row 3: List types (scrolling, same reasoning as row 2) + indent
+            // controls, which stay pinned outside the scroll region rather than
+            // being pushed off with a trailing Spacer — a Spacer can't rescue an
+            // overflow, it just makes the indent buttons unreachable (audit 2.5).
+            // The indent pair keeps a fixed (unscaled) frame — if it scaled with
+            // typeScale too, two 50pt-wide buttons growing at once would eat most
+            // of a 375pt (iPhone SE) row's width and leave next to no scrollable
+            // viewport for the four list-type buttons at large Dynamic Type sizes.
+            // The glyph inside still scales, just within that fixed box.
             HStack(spacing: 8) {
-                listButton(icon: "list.bullet", command: .bulletedList)
-                listButton(icon: "list.dash",   command: .dashedList)
-                listButton(icon: "list.number", command: .numberedList)
-                listButton(icon: "checklist",   command: .checklist)
-                Spacer(minLength: 0)
-                listButton(icon: "decrease.indent", command: .indentLess)
-                listButton(icon: "increase.indent", command: .indentMore)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        listButton(icon: "list.bullet", command: .bulletedList, accessibilityLabel: "Bulleted list")
+                        listButton(icon: "list.dash",   command: .dashedList,   accessibilityLabel: "Dashed list")
+                        listButton(icon: "list.number", command: .numberedList, accessibilityLabel: "Numbered list")
+                        listButton(icon: "checklist",   command: .checklist,    accessibilityLabel: "Checklist")
+                    }
+                }
+                listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent", scaleFrame: false)
+                listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent", scaleFrame: false)
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
 
             // Row 3b: Checklist bulk ops — only when cursor is on a checklist line
             if state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked {
-                HStack(spacing: 8) {
-                    bulkChecklistButton("Check All",   command: .checkAllItems)
-                    bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
-                    bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
-                    bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        bulkChecklistButton("Check All",   command: .checkAllItems)
+                        bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
+                        bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
+                        bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
                 .padding(.top, 10)
             }
 
-            // Row 4: Highlight colors
-            HStack(spacing: 8) {
-                Button {
-                    DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(idleFill)
-                            .frame(width: 44, height: 36)
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
+            // Row 4: Highlight + text colors sharing one horizontally-scrolling
+            // row (not two stacked rows) — a second full row pushed the
+            // default-size panel past its fixed 360pt input-view budget
+            // (FormattingPanelSizingTests). Same fix rows 2/3 already use for
+            // cramped width: let the row scroll further right instead of
+            // growing taller.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(idleFill)
+                                .frame(width: 44 * typeScale, height: 36 * typeScale)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12 * typeScale, weight: .semibold))
+                                .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .stroke(state.activeHighlightIndex == nil ? accent : Color.clear, lineWidth: 2)
+                        )
                     }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(state.activeHighlightIndex == nil ? accent : Color.clear, lineWidth: 2)
-                    )
-                }
-                .buttonStyle(.plain)
+                    .buttonStyle(.plain)
+                    // Identifier keeps the old symbol-derived name ("xmark") so
+                    // existing lookups still find it; the label carries the
+                    // VoiceOver-facing name.
+                    .accessibilityIdentifier("xmark")
+                    .accessibilityLabel("No highlight")
+                    .accessibilityAddTraits(state.activeHighlightIndex == nil ? .isSelected : [])
 
-                ForEach(0..<highlightColors.count, id: \.self) { idx in
-                    highlightButton(index: idx)
+                    ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
+                        highlightButton(index: idx)
+                    }
+
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.12))
+                        .frame(width: 1, height: 28 * typeScale)
+                        .padding(.horizontal, 2)
+
+                    Button {
+                        DispatchQueue.main.async { state.onCommand?(.textColor(index: nil)) }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(idleFill)
+                                .frame(width: 44 * typeScale, height: 36 * typeScale)
+                            Text("A")
+                                .font(.system(size: 16 * typeScale, weight: .semibold))
+                                .foregroundStyle(state.activeTextColorIndex == nil ? accent : Color.primary)
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .stroke(state.activeTextColorIndex == nil ? accent : Color.clear, lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Default text color")
+                    .accessibilityAddTraits(state.activeTextColorIndex == nil ? .isSelected : [])
+
+                    ForEach(0..<TextColorPalette.colors(for: displayMode).count, id: \.self) { idx in
+                        textColorButton(index: idx)
+                    }
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
             .padding(.top, 10)
 
             Spacer(minLength: 12)
-        }
-        .frame(maxWidth: .infinity)
-        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : Color(.secondarySystemBackground))
-        .overlay(alignment: .top) {
-            if displayMode == .sentinel {
-                Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
-            }
         }
     }
 
@@ -153,11 +314,11 @@ struct FormattingPanelView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(choice.label)
-                .font(.system(size: 14, weight: .regular, design: choice.swiftUIDesign))
+                .font(.system(size: 14 * typeScale, weight: .regular, design: choice.swiftUIDesign))
                 .lineLimit(1)
                 .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
-                .frame(height: 44)
+                .frame(height: 44 * typeScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -168,6 +329,7 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Paragraph style button
@@ -184,7 +346,7 @@ struct FormattingPanelView: View {
                 .lineLimit(1)
                 .foregroundStyle(isActive ? accent : Color.primary)
                 .padding(.horizontal, 16)
-                .frame(height: 50)
+                .frame(height: 50 * typeScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
@@ -195,12 +357,13 @@ struct FormattingPanelView: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Inline style button (fixed square)
 
     @ViewBuilder
-    private func inlineButton(_ label: LocalizedStringKey, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false) -> some View {
+    private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false, accessibilityLabel: String) -> some View {
         let isActive = state.activeInlineStyles.contains(style)
         Button {
             let cmd = inlineCommand(for: style)
@@ -217,33 +380,90 @@ struct FormattingPanelView: View {
             }
             .font(font)
             .foregroundStyle(isActive ? accent : Color.primary)
-            .frame(width: 50, height: 44)
+            .frame(width: 50 * typeScale, height: 44 * typeScale)
             .background(
                 isActive ? accent.opacity(0.12) : idleFill,
                 in: RoundedRectangle(cornerRadius: cornerRadius)
             )
         }
         .buttonStyle(.plain)
+        // Identifier keeps the plain glyph ("B") so existing lookups (and
+        // test hooks) still find it; the label carries the VoiceOver name —
+        // bare "B"/"I"/"U"/"S" read as just their letter otherwise (audit 3.1).
+        .accessibilityIdentifier(label)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    // MARK: - List button (fixed square icon)
+    // MARK: - Link button (fixed square icon)
 
-    @ViewBuilder
-    private func listButton(icon: String, command: NoteTextCommand) -> some View {
-        let isActive = listIsActive(command: command)
-        Button {
-            DispatchQueue.main.async { state.onCommand?(command) }
+    private var linkButton: some View {
+        let isActive = state.activeLinkURL != nil
+        return Button {
+            DispatchQueue.main.async { state.onRequestLinkEditor?() }
         } label: {
-            Image(systemName: icon)
-                .font(.system(size: 18))
+            Image(systemName: "link")
+                .font(.system(size: 17 * typeScale, weight: .regular))
                 .foregroundStyle(isActive ? accent : Color.primary)
-                .frame(width: 50, height: 44)
+                .frame(width: 50 * typeScale, height: 44 * typeScale)
                 .background(
                     isActive ? accent.opacity(0.12) : idleFill,
                     in: RoundedRectangle(cornerRadius: cornerRadius)
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("link")
+        .accessibilityLabel(isActive ? "Edit link" : "Add link")
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private var clearFormattingButton: some View {
+        Button {
+            DispatchQueue.main.async { state.onCommand?(.clearFormatting) }
+        } label: {
+            Image(systemName: "eraser")
+                .font(.system(size: 17 * typeScale, weight: .regular))
+                .foregroundStyle(Color.primary)
+                .frame(width: 50 * typeScale, height: 44 * typeScale)
+                .background(idleFill, in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("clearFormatting")
+        .accessibilityLabel("Clear formatting")
+    }
+
+    // MARK: - List button (fixed square icon)
+
+    @ViewBuilder
+    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String, scaleFrame: Bool = true) -> some View {
+        let isActive = listIsActive(command: command)
+        let frameScale = scaleFrame ? typeScale : 1
+        // When the frame is pinned (scaleFrame == false, the indent pair — see
+        // the call site), the glyph still needs to scale "within" that fixed
+        // 44pt-tall box, not past it: an unbounded 18 * typeScale glyph would
+        // render larger than its own hit target at large accessibility sizes
+        // (SwiftUI doesn't clip an oversized Image to its frame, so it'd look
+        // big while tapping small). Capped at 24 — comfortably inside 44pt.
+        let iconSize = scaleFrame ? 18 * typeScale : min(18 * typeScale, 24)
+        Button {
+            DispatchQueue.main.async { state.onCommand?(command) }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: iconSize))
+                .foregroundStyle(isActive ? accent : Color.primary)
+                .frame(width: 50 * frameScale, height: 44 * frameScale)
+                .background(
+                    isActive ? accent.opacity(0.12) : idleFill,
+                    in: RoundedRectangle(cornerRadius: cornerRadius)
+                )
+        }
+        .buttonStyle(.plain)
+        // Identifier keeps the SF Symbol name so existing lookups still find
+        // it; the label carries the human name — icon-only buttons otherwise
+        // read to VoiceOver as the raw symbol name, e.g. "list.bullet" (3.1).
+        .accessibilityIdentifier(icon)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Bulk checklist button
@@ -255,16 +475,16 @@ struct FormattingPanelView: View {
         } label: {
             Group {
                 if displayMode == .sentinel {
-                    Text(label).font(MirrorTheme.mono(11, weight: .medium)).textCase(.uppercase)
+                    Text(label).font(MirrorTheme.mono(11 * typeScale, weight: .medium)).textCase(.uppercase)
                 } else {
-                    Text(label).font(.system(size: 12, weight: .medium))
+                    Text(label).font(.system(size: 12 * typeScale, weight: .medium))
                 }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .foregroundStyle(Color.primary)
             .padding(.horizontal, 10)
-            .frame(height: 36)
+            .frame(height: 36 * typeScale)
             .background(idleFill, in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 5 : 8))
         }
         .buttonStyle(.plain)
@@ -280,14 +500,43 @@ struct FormattingPanelView: View {
             DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(highlightColors[index])
-                .frame(width: 44, height: 36)
+                .fill(HighlightPalette.colors(for: displayMode)[index])
+                .frame(width: 44 * typeScale, height: 36 * typeScale)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(isActive ? accent : Color.clear, lineWidth: 2)
                 )
         }
         .buttonStyle(.plain)
+        // Swatches carry no visible text — without a label VoiceOver just
+        // reads "button" for all five (audit 3.1).
+        .accessibilityLabel(HighlightPalette.name(for: index, displayMode: displayMode))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private func textColorButton(index: Int) -> some View {
+        let isActive = state.activeTextColorIndex == index
+        let color = TextColorPalette.colors(for: displayMode)[index]
+        return Button {
+            let newIndex = isActive ? nil : index
+            DispatchQueue.main.async { state.onCommand?(.textColor(index: newIndex)) }
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(idleFill)
+                    .frame(width: 44 * typeScale, height: 36 * typeScale)
+                Text("A")
+                    .font(.system(size: 16 * typeScale, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(isActive ? accent : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(TextColorPalette.name(for: index, displayMode: displayMode))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Helpers
@@ -311,6 +560,7 @@ struct FormattingPanelView: View {
         case .subheading: return .subheading
         case .body:       return .body
         case .monospaced: return .monospaced
+        case .blockQuote: return .blockQuote
         default:          return .body
         }
     }

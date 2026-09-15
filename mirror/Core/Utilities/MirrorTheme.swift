@@ -5,7 +5,7 @@ enum MirrorTheme {
 
     // MARK: - Adaptive color helper
 
-    private static func hex(_ dark: UInt32, _ light: UInt32) -> Color {
+    static func hex(_ dark: UInt32, _ light: UInt32) -> Color {
         Color(UIColor { trait in
             let h = trait.userInterfaceStyle == .dark ? dark : light
             return UIColor(

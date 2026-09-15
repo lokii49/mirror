@@ -9,6 +9,7 @@ enum NoteTextCommand: Equatable {
     case subheading
     case body
     case monospaced
+    case blockQuote
     case bulletedList
     case dashedList
     case numberedList
@@ -18,6 +19,9 @@ enum NoteTextCommand: Equatable {
     case underline
     case strikethrough
     case highlight(index: Int?)   // nil = remove highlight; 0-4 = apply color
+    case textColor(index: Int?)   // nil = remove text color; 0-4 = apply from TextColorPalette
+    case link(url: String?)       // nil = remove link; non-nil = apply/update URL
+    case clearFormatting          // strips bold/italic/underline/strikethrough/highlight/link; leaves paragraph style alone
     case checkAllItems
     case uncheckAllItems
     case deleteCheckedItems
@@ -37,6 +41,7 @@ enum NoteParagraphTextStyle: String, Codable {
     case heading
     case subheading
     case monospaced
+    case blockQuote
     case checklistUnchecked
     case checklistChecked
     case bulletedList
@@ -95,6 +100,12 @@ struct InlineStyleRange: Codable, Equatable {
     var underline: Bool
     var strikethrough: Bool
     var highlightIndex: Int?
+    /// Absolute URL string. Optional with a decode default so existing stored
+    /// entries (encoded before this field existed) still decode fine.
+    var linkURL: String? = nil
+    /// Index into `TextColorPalette`. Optional with a decode default, same
+    /// reasoning as `linkURL` — existing stored entries predate this field.
+    var textColorIndex: Int? = nil
 }
 
 struct InlineStyleDocument: Codable {
@@ -131,4 +142,30 @@ nonisolated func strippedWordCount(_ s: String) -> Int {
     var cleaned = s
     for (range, _) in allPhotoTokens(in: s).reversed() { cleaned.removeSubrange(range) }
     return cleaned.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+}
+
+/// `entry.text` embeds `[[mirror-photo-N]]` markers inline — an internal
+/// storage detail that must never leak verbatim into a user-facing export.
+nonisolated func textWithPhotoTokensReplaced(_ text: String, placeholder: String = "📷") -> String {
+    var result = text
+    for (range, _) in allPhotoTokens(in: text).reversed() { result.replaceSubrange(range, with: placeholder) }
+    return result
+}
+
+// MARK: - Link validation
+
+/// Restricted to http/https — a link is user-entered text in a journal handed
+/// straight to the system opener on tap (in EntryDetailView's read view, and
+/// per UIKit default even in the editor), so a scheme like `javascript:` or
+/// `file:` must never reach a stored InlineStyleRange. A bare domain (no
+/// "://") is treated as https, matching what most users mean when they type
+/// "example.com" without thinking about the scheme.
+nonisolated func validatedLinkURL(from urlString: String?) -> URL? {
+    var trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    guard !trimmed.isEmpty else { return nil }
+    if !trimmed.contains("://") { trimmed = "https://" + trimmed }
+    guard let url = URL(string: trimmed),
+          let scheme = url.scheme?.lowercased(),
+          scheme == "http" || scheme == "https" else { return nil }
+    return url
 }

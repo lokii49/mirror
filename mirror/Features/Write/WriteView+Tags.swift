@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 extension WriteView {
     var tagsBar: some View {
@@ -141,10 +142,21 @@ extension WriteView {
         return available.filter { $0.localizedCaseInsensitiveContains(query) }
     }
 
+    /// Distinct tag set across every entry, for the autocomplete row. Used to
+    /// hold a live `@Query var allEntries: [Entry]` on `WriteView` just for
+    /// this — that faulted (and decrypted, on `.tags` access) every entry in
+    /// the journal and re-rendered the whole write screen on any entry
+    /// change anywhere in the app (a background mood-detect save, etc.).
+    /// Fetch on demand instead, scoped to the one stored property this
+    /// needs (`.tags` is computed/encrypted, so `propertiesToFetch` targets
+    /// its backing storage).
     func computeTagSuggestions() {
+        var descriptor = FetchDescriptor<Entry>()
+        descriptor.propertiesToFetch = [\.encryptedTagsStorage]
+        let entries = (try? modelContext.fetch(descriptor)) ?? []
         var seen = Set<String>()
         var result: [String] = []
-        for e in allEntries {
+        for e in entries {
             for tag in e.tags where seen.insert(tag).inserted {
                 result.append(tag)
             }

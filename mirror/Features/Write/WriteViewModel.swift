@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 @Observable
 class WriteViewModel {
@@ -25,29 +24,6 @@ class WriteViewModel {
         } else {
             updateWordCount()
         }
-    }
-
-    func save(context: ModelContext) {
-        let plain = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !plain.isEmpty else { return }
-        let entry = Entry(text: plain, mood: selectedMood, source: .typed)
-        entry.textStyleData = textStyleData
-        context.insert(entry)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        text = ""
-        textStyleData = nil
-        selectedMood = nil
-    }
-
-    func updateEntry(_ entry: Entry) {
-        guard !entry.textDecryptionFailed else { return }
-        let plain = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !plain.isEmpty else { return }
-        entry.text = plain
-        entry.textStyleData = textStyleData
-        entry.wordCount = strippedWordCount(plain)
-        entry.mood = selectedMood
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func updateWordCount() {

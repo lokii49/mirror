@@ -19,9 +19,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var canUndo: Bool
     @Binding var canRedo: Bool
     // Per-entry, not global — owned by WriteView, mirrored into panelState so the
-    // formatting panel (hosted as this text view's inputView, a separate SwiftUI
-    // tree) can read/mutate it. Declaring it as a @Binding here is what makes
-    // SwiftUI re-invoke updateUIView when it changes.
+    // formatting panel (presented by WriteView, a separate SwiftUI tree) can
+    // read/mutate it. Declaring it as a @Binding here is what makes SwiftUI
+    // re-invoke updateUIView when it changes.
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
@@ -33,8 +33,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isEditable = true
         textView.isSelectable = true
-        textView.alwaysBounceVertical = true
-        textView.keyboardDismissMode = .interactive
+        // The editor doesn't scroll itself — it lives in WriteView's ScrollView and
+        // grows to fit its content (see sizeThatFits). A non-scrolling text view
+        // can't keep the caret above the keyboard, so scrollCaretToVisible nudges
+        // the enclosing scroll view instead.
+        textView.isScrollEnabled = false
+        textView.alwaysBounceVertical = false
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 24, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         textView.adjustsFontForContentSizeCategory = true
@@ -93,6 +97,17 @@ struct NoteEditorTextView: UIViewRepresentable {
         context.coordinator.updateFormattingPanel(textView: textView, visible: showFormattingPanel)
     }
 
+    /// The editor grows to fit its text — it doesn't scroll (WriteView's
+    /// ScrollView does). Never reports shorter than this so an empty note still
+    /// has a comfortable tap target.
+    private static let minEditorHeight: CGFloat = 240
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0, width != .infinity else { return nil }
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(fitting.height.rounded(.up), Self.minEditorHeight))
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
@@ -103,6 +118,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         var parent: NoteEditorTextView
         private static let paragraphStyleAttribute = NSAttributedString.Key("mirror.paragraphStyle")
         private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
+        private static let textColorIndexAttribute = NSAttributedString.Key("mirror.textColorIndex")
         private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
         private static let fontChoiceAttribute = NSAttributedString.Key("mirror.fontChoice")
         private var isApplyingStyledText = false
@@ -117,8 +133,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         var lastAppliedCommandRevision = 0
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
-        // formatting panel hosted in UITextView.inputView
-        private var formattingPanelHost: UIHostingController<AnyView>?
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
@@ -301,6 +315,25 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
             parent.canUndo = textView.undoManager?.canUndo ?? false
             parent.canRedo = textView.undoManager?.canRedo ?? false
+            scrollCaretToVisible(in: textView)
+        }
+
+        /// The text view doesn't scroll (WriteView's ScrollView owns scrolling), so
+        /// keep the caret above the keyboard by nudging the enclosing scroll view.
+        /// A no-op when the caret rect is already fully visible.
+        private func scrollCaretToVisible(in textView: UITextView) {
+            guard let selection = textView.selectedTextRange else { return }
+            let caret = textView.caretRect(for: selection.end)
+            guard !caret.isNull, caret.origin.y.isFinite, caret.height.isFinite else { return }
+
+            var ancestor = textView.superview
+            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+            guard let scrollView = ancestor as? UIScrollView else { return }
+
+            let target = textView.convert(caret, to: scrollView).insetBy(dx: 0, dy: -48)
+            DispatchQueue.main.async {
+                scrollView.scrollRectToVisible(target, animated: true)
+            }
         }
 
         func textView(
@@ -353,20 +386,45 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             if replacement == "\n" {
                 let nsText = rendered as NSString
-                // Resolve the paragraph the caret is *in*. The `- 1` fallback is only
-                // right when the caret sits at the end of the text (where
-                // paragraphRange(for: length) returns an empty range at the tail);
-                // for a caret at the START of a line — e.g. a freshly created empty
-                // list item, where UIKit parks the caret before the render-only
-                // marker — `- 1` wrongly resolves the *previous* paragraph, so an
-                // empty item Return would see the prior item's text and keep
-                // spawning rows instead of exiting the list.
-                let lookupLoc = range.location >= nsText.length
-                    ? max(0, nsText.length - 1)
-                    : range.location
-                let paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, lookupLoc), length: 0))
+                // Resolve the paragraph the caret is *in*.
+                //
+                // When the caret sits at the very end of the text AND the text ends
+                // with a line break, the caret is in a virtual EMPTY trailing
+                // paragraph — no characters, no style attribute of its own yet, and
+                // always .body by convention. paragraphRange(for: {length, 0})
+                // correctly isolates that empty paragraph.
+                //
+                // The old code always substituted `length - 1` here to get a valid,
+                // in-bounds character index to sample a style from. That's still
+                // right for a caret at the START of a line with real content after
+                // it (e.g. a freshly created empty list item, where UIKit parks the
+                // caret before the render-only marker — see below) — but when the
+                // trailing paragraph is genuinely empty, `length - 1` instead lands
+                // on the *previous* paragraph's own closing "\n" (a paragraph's
+                // attributed run includes its trailing newline), misreading that
+                // paragraph's real style AND content: a Return that had just exited
+                // a list (leaving this empty virtual body paragraph behind) could
+                // then be misread as "Return mid-content in the previous list
+                // item," spawning a bogus new row instead of just continuing as
+                // plain body text. Mirrors the fix already applied to
+                // `apply(_:to:)`'s `currentStyle` lookup for the identical reason.
+                let paragraphRange: NSRange
+                let style: NoteParagraphTextStyle
+                let endsWithLineBreak = nsText.length > 0 && {
+                    let last = nsText.character(at: nsText.length - 1)
+                    return last == 10 || last == 13
+                }()
+                if range.location >= nsText.length, endsWithLineBreak {
+                    paragraphRange = NSRange(location: nsText.length, length: 0)
+                    style = .body
+                } else {
+                    let lookupLoc = range.location >= nsText.length
+                        ? max(0, nsText.length - 1)
+                        : range.location
+                    paragraphRange = nsText.paragraphRange(for: NSRange(location: max(0, lookupLoc), length: 0))
+                    style = textStyle(at: paragraphRange.location, in: textView.attributedText)
+                }
                 let paragraph = nsText.substring(with: paragraphRange)
-                let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
                 if isListStyle(style) {
                     let level = indentLevelValue(at: paragraphRange.location, in: textView.attributedText)
                     let content = listContent(fromDisplayedParagraph: paragraph, style: style, level: level)
@@ -377,8 +435,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     }
                     return false
                 }
-                if style == .title || style == .heading || style == .subheading || style == .monospaced {
-                    // Headings/titles/mono are one-line blocks by convention — continuing
+                if style == .title || style == .heading || style == .subheading || style == .monospaced || style == .blockQuote {
+                    // Headings/titles/mono/quote are one-line blocks by convention — continuing
                     // to type after Return should drop back to body text, not keep
                     // growing as another heading. Only affects what's typed *after* the
                     // break; text split off mid-paragraph keeps its own attributes.
@@ -575,6 +633,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
+            scrollCaretToVisible(in: textView)
         }
 
         // Moves cursor to after the list marker when it lands inside the glyph prefix.
@@ -627,6 +686,15 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .highlight(let index):
                 applyHighlight(index, in: textView)
                 return
+            case .textColor(let index):
+                applyTextColor(index, in: textView)
+                return
+            case .link(let url):
+                applyLink(urlString: url, in: textView)
+                return
+            case .clearFormatting:
+                applyClearFormatting(in: textView)
+                return
             case .fontFamily(let choice):
                 applyFontFamily(choice, in: textView)
                 return
@@ -674,13 +742,33 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastKnownCursorLocation = cursorLocation
 
             // Determine target style. List styles toggle off when already active.
-            let currentStyle = textStyle(
-                at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
-                in: textView.attributedText
-            )
+            //
+            // When the cursor sits at the very end of the text AND that end is a virtual
+            // empty paragraph (text ends with a line break), it has no style of its own yet
+            // — sampling `length - 1` would read the *preceding* paragraph's own attribute
+            // off its closing "\n" (paragraph runs include their own trailing newline), not
+            // this new paragraph's true .body state. That misread flips `targetStyle` below
+            // (e.g. .body→.numberedList reads as an active-list toggle-off) and routes into
+            // the "strip list marker" branch instead of the dedicated virtual-empty-paragraph
+            // branch further down — which then strips the *preceding* real paragraph's marker.
+            let currentStyle: NoteParagraphTextStyle
+            if cursorLocation >= nsText.length, nsText.length > 0, nsText.character(at: nsText.length - 1) == 10 {
+                currentStyle = .body
+            } else {
+                currentStyle = textStyle(
+                    at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
+                    in: textView.attributedText
+                )
+            }
             let targetStyle: NoteParagraphTextStyle
             if command == .checklist {
-                targetStyle = isListStyle(currentStyle) ? .body : .checklistUnchecked
+                // Matches bulleted/dashed/numbered below: only clears to .body when
+                // a checklist is already active — was clearing on ANY active list
+                // type (isListStyle), so tapping Checklist on a bulleted/dashed/
+                // numbered row deleted the list instead of converting it, unlike
+                // every other list-type button which converts in place.
+                let isChecklist = currentStyle == .checklistUnchecked || currentStyle == .checklistChecked
+                targetStyle = isChecklist ? .body : .checklistUnchecked
             } else if command == .bulletedList {
                 targetStyle = currentStyle == .bulletedList ? .body : .bulletedList
             } else if command == .dashedList {
@@ -1104,6 +1192,27 @@ struct NoteEditorTextView: UIViewRepresentable {
                     .foregroundColor: UIColor.label,
                     .paragraphStyle: paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
                 ]
+            case .blockQuote:
+                let ps = paragraphStyle(lineSpacing: 5, paragraphSpacing: 8)
+                // A single, non-wrapping indent — quotes here are a body-text
+                // treatment (muted, set in), not a list, so there's no
+                // marker/tab-stop machinery to keep first-line and wrapped-line
+                // indents in sync the way listAttributes/checklistAttributes do.
+                // Deliberately not italic: the Italic inline toggle manages
+                // .traitItalic on the rendered font directly (applyInlineStyles /
+                // isStyleApplied), so baking italic into the paragraph style's
+                // own base font would make the "I" button read as falsely
+                // selected on every quote, and toggling it off would silently
+                // strip the quote's font trait. Indent + secondaryLabel alone
+                // reads clearly as a quote without touching that toggle's
+                // territory (secondaryLabel also matches .subheading's choice).
+                ps.headIndent = 16
+                ps.firstLineHeadIndent = 16
+                return [
+                    .font: bodyFont(for: fontChoice),
+                    .foregroundColor: UIColor.secondaryLabel,
+                    .paragraphStyle: ps
+                ]
             case .checklistUnchecked:
                 return checklistAttributes(checked: false, level: level, fontChoice: fontChoice)
             case .checklistChecked:
@@ -1199,9 +1308,36 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             let updated = nsText.replacingCharacters(in: selectedRange, with: insertion)
             parent.text = updated
+            // applyStyledText's own updateTypingAttributes call (at its end)
+            // runs BEFORE the selectedRange move below, so it computes typing
+            // attributes against the pre-insert cursor location, not where the
+            // cursor is about to land — stale by construction, not a guard
+            // misfiring. photoAttachmentString's attachment run carries no
+            // .font / .foregroundColor of its own either, so with nothing
+            // correct ever computed for the new position, UIKit fell back to
+            // its own default (small, black) typing attributes — text typed
+            // right after an attached photo rendered wrong-colored and
+            // wrong-sized until the next edit forced a real recompute.
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(NSRange(location: selectedRange.location + insertion.count, length: 0), in: textView.text)
             updatePlaceholder(in: textView)
+            // Recompute against the actual post-move cursor position.
+            // Usually that's a real character (e.g. a photo inserted right
+            // before existing text takes on that text's own style) — but a
+            // photo appended at the end lands the cursor on a genuinely empty
+            // trailing paragraph with no character to read attributes from,
+            // the same case bodyAttributes covers at the top of
+            // updateTypingAttributes for a wholly empty document.
+            let newCursorLoc = textView.selectedRange.location
+            let currentLength = (textView.text as NSString?)?.length ?? 0
+            if newCursorLoc >= currentLength {
+                textView.typingAttributes = bodyAttributes
+            } else {
+                let style = textStyle(at: newCursorLoc, in: textView.attributedText)
+                let level = indentLevelValue(at: newCursorLoc, in: textView.attributedText)
+                let fontChoice = fontChoiceValue(at: newCursorLoc, in: textView.attributedText)
+                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            }
         }
 
         private func renderedAttributedText(for rawText: String, width: CGFloat) -> NSMutableAttributedString {
@@ -1258,7 +1394,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let storedIndents = decodedIndentLevels()
             let storedFontChoices = decodedFontChoices()
             var paragraphIndex = startingParagraph
-            var numberedListCounter = 0
+            // Keyed by indent level so a nested numbered sub-list restarts at 1
+            // instead of continuing the parent's sequence (StoryPad/flutter_quill
+            // doesn't nest numbered lists at all; Notes and Notion both restart
+            // per level, which is what this matches). A level's counter is
+            // dropped once a shallower-or-equal-level paragraph is seen, so
+            // returning to the outer list resumes its own count rather than the
+            // nested one.
+            var numberedListCounters: [Int: Int] = [:]
 
             for (offset, rawLine) in rawParagraphs.enumerated() {
                 let lineBreak = offset < rawParagraphs.count - 1 ? "\n" : ""
@@ -1278,11 +1421,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                     ? (WritingFontChoice(rawValue: storedFontChoices[paragraphIndex]) ?? entryDefaultFontChoice)
                     : entryDefaultFontChoice
 
-                // Track numbered list counter for sequential numbering
+                // Track numbered list counter per indent level for sequential
+                // numbering that restarts on nesting (see comment at declaration).
+                var numberedListCounter = 0
                 if storedStyle == .numberedList {
-                    numberedListCounter += 1
+                    numberedListCounters = numberedListCounters.filter { $0.key <= indentLevel }
+                    numberedListCounter = (numberedListCounters[indentLevel] ?? 0) + 1
+                    numberedListCounters[indentLevel] = numberedListCounter
                 } else {
-                    numberedListCounter = 0
+                    numberedListCounters.removeAll()
                 }
 
                 let rawDisplayParagraph: String
@@ -1345,8 +1492,19 @@ struct NoteEditorTextView: UIViewRepresentable {
             attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: targetSize)
 
             let result = NSMutableAttributedString(attachment: attachment)
+            // Font/color matter here even though nothing visible renders them on the
+            // attachment glyph itself: when a photo lands as the last character with
+            // nothing typed after it (e.g. attaching to a blank entry — see
+            // textWithInlinePhotoToken's no-trailing-newline case), there's no real
+            // text run left for UIKit's own typing-attributes-on-selection-change
+            // inheritance (or our updateTypingAttributes) to read from. Without them
+            // here, a cursor placed right after the photo inherits nothing and UIKit
+            // falls back to its own tiny default font/black text for whatever gets
+            // typed next.
             result.addAttributes([
-                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8)
+                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8),
+                .font: bodyFont(for: entryDefaultFontChoice),
+                .foregroundColor: UIColor.label
             ], range: NSRange(location: 0, length: result.length))
             return result
         }
@@ -1458,6 +1616,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .heading:      return .heading
             case .subheading:   return .subheading
             case .monospaced:   return .monospaced
+            case .blockQuote:   return .blockQuote
             default:            return .body
             }
         }
@@ -1912,7 +2071,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
                 mutable.removeAttribute(.backgroundColor, range: applyRange)
                 if let idx = index {
-                    let uiColor = UIColor(highlightColors[idx])
+                    let uiColor = UIColor(HighlightPalette.colors(for: parent.displayMode)[idx])
                     mutable.addAttribute(.backgroundColor, value: uiColor, range: applyRange)
                     mutable.addAttribute(Self.highlightIndexAttribute, value: idx, range: applyRange)
                 }
@@ -1925,7 +2084,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 typing.removeValue(forKey: Self.highlightIndexAttribute)
                 typing.removeValue(forKey: .backgroundColor)
                 if let idx = index {
-                    typing[.backgroundColor] = UIColor(highlightColors[idx])
+                    typing[.backgroundColor] = UIColor(HighlightPalette.colors(for: parent.displayMode)[idx])
                     typing[Self.highlightIndexAttribute] = idx
                 }
                 textView.typingAttributes = typing
@@ -1934,6 +2093,172 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
             syncRenderedCache(from: textView)
             refreshActiveInlineStyles(in: textView)
+        }
+
+        /// `.foregroundColor` is never absent on this text — every paragraph
+        /// style bakes in an explicit base color (`.label`/`.secondaryLabel`/
+        /// `.tertiaryLabel`, see `attributes(for:)`), unlike `.backgroundColor`
+        /// where "unset" is itself the valid default. Removing the attribute
+        /// outright (like `applyHighlight` does for `.backgroundColor`) would
+        /// leave the run with no explicit color at all, falling back to
+        /// whatever `textView.textColor`/UIKit default applies — wrong, and
+        /// potentially invisible in Sentinel/dark mode. Must restore the
+        /// style's own base color, not just delete the key.
+        private func baseForegroundColor(for style: NoteParagraphTextStyle) -> UIColor {
+            switch style {
+            case .subheading, .blockQuote: return .secondaryLabel
+            case .checklistChecked: return .tertiaryLabel
+            default: return .label
+            }
+        }
+
+        func applyTextColor(_ index: Int?, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: mutable.string)
+                mutable.removeAttribute(Self.textColorIndexAttribute, range: applyRange)
+                if let idx = index {
+                    let uiColor = UIColor(TextColorPalette.colors(for: parent.displayMode)[idx])
+                    mutable.addAttribute(.foregroundColor, value: uiColor, range: applyRange)
+                    mutable.addAttribute(Self.textColorIndexAttribute, value: idx, range: applyRange)
+                } else {
+                    // Restore each paragraph's own base color — a selection can
+                    // span paragraphs with different base colors (e.g. a
+                    // subheading into a body line), so one flat color is wrong.
+                    (mutable.string as NSString).enumerateSubstrings(in: applyRange, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                        let style = self.textStyle(at: enclosingRange.location, in: mutable)
+                        let base = self.baseForegroundColor(for: style)
+                        let intersected = NSIntersectionRange(enclosingRange, applyRange)
+                        if intersected.length > 0 {
+                            mutable.addAttribute(.foregroundColor, value: base, range: intersected)
+                        }
+                    }
+                }
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                var typing = textView.typingAttributes
+                typing.removeValue(forKey: Self.textColorIndexAttribute)
+                if let idx = index {
+                    typing[.foregroundColor] = UIColor(TextColorPalette.colors(for: parent.displayMode)[idx])
+                    typing[Self.textColorIndexAttribute] = idx
+                } else {
+                    let cursorLoc = min(textView.selectedRange.location, max(0, attributed.length - 1))
+                    let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
+                    typing[.foregroundColor] = baseForegroundColor(for: style)
+                }
+                textView.typingAttributes = typing
+            }
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        /// Unlike highlight, a link can't apply to an empty typing-attributes
+        /// cursor — it needs text to wrap. With no selection, falls back to the
+        /// existing link run under the cursor (if any) so editing/removing a
+        /// link doesn't require re-selecting its exact text; otherwise no-ops.
+        func applyLink(urlString: String?, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+            let targetRange: NSRange
+            if selRange.length > 0 {
+                targetRange = bounded(selRange, in: attributed.string)
+            } else if let existing = existingLinkRange(at: selRange.location, in: attributed) {
+                targetRange = existing
+            } else {
+                return
+            }
+
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+            if let url = validatedLinkURL(from: urlString) {
+                mutable.addAttribute(.link, value: url, range: targetRange)
+            } else {
+                mutable.removeAttribute(.link, range: targetRange)
+            }
+
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            textView.selectedRange = bounded(targetRange, in: textView.text)
+            isApplyingStyledText = false
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        /// Clears character-level formatting only (bold/italic/underline/
+        /// strikethrough/highlight/link) — mirrors the scope of Notes' equivalent.
+        /// Paragraph style (heading/list/etc) is untouched; that's a separate
+        /// concern with its own toolbar row.
+        func applyClearFormatting(in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let selRange = textView.selectedRange
+
+            if selRange.length > 0 {
+                let applyRange = bounded(selRange, in: attributed.string)
+                let mutable = NSMutableAttributedString(attributedString: attributed)
+                mutable.enumerateAttribute(.font, in: applyRange) { value, range, _ in
+                    let font = (value as? UIFont) ?? self.serifBodyFont
+                    let plain = font.withTrait(.traitBold, add: false).withTrait(.traitItalic, add: false)
+                    mutable.addAttribute(.font, value: plain, range: range)
+                }
+                mutable.removeAttribute(.underlineStyle, range: applyRange)
+                mutable.removeAttribute(.strikethroughStyle, range: applyRange)
+                mutable.removeAttribute(.backgroundColor, range: applyRange)
+                mutable.removeAttribute(Self.highlightIndexAttribute, range: applyRange)
+                mutable.removeAttribute(Self.textColorIndexAttribute, range: applyRange)
+                mutable.removeAttribute(.link, range: applyRange)
+                // .foregroundColor has no "unset" default (every paragraph style
+                // bakes one in) — restore each paragraph's own base color rather
+                // than deleting the key, same reasoning as applyTextColor(nil,...).
+                (mutable.string as NSString).enumerateSubstrings(in: applyRange, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                    let style = self.textStyle(at: enclosingRange.location, in: mutable)
+                    let base = self.baseForegroundColor(for: style)
+                    let intersected = NSIntersectionRange(enclosingRange, applyRange)
+                    if intersected.length > 0 {
+                        mutable.addAttribute(.foregroundColor, value: base, range: intersected)
+                    }
+                }
+
+                isApplyingStyledText = true
+                applyAttributedText(mutable, to: textView)
+                textView.selectedRange = bounded(selRange, in: textView.text)
+                isApplyingStyledText = false
+            } else {
+                var typing = textView.typingAttributes
+                if let font = typing[.font] as? UIFont {
+                    typing[.font] = font.withTrait(.traitBold, add: false).withTrait(.traitItalic, add: false)
+                }
+                typing.removeValue(forKey: .underlineStyle)
+                typing.removeValue(forKey: .strikethroughStyle)
+                typing.removeValue(forKey: .backgroundColor)
+                typing.removeValue(forKey: Self.highlightIndexAttribute)
+                typing.removeValue(forKey: Self.textColorIndexAttribute)
+                typing.removeValue(forKey: .link)
+                let cursorLoc = min(textView.selectedRange.location, max(0, attributed.length - 1))
+                let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
+                typing[.foregroundColor] = baseForegroundColor(for: style)
+                textView.typingAttributes = typing
+            }
+
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            syncRenderedCache(from: textView)
+            refreshActiveInlineStyles(in: textView)
+        }
+
+        private func existingLinkRange(at location: Int, in attributed: NSAttributedString) -> NSRange? {
+            guard attributed.length > 0 else { return nil }
+            let loc = min(max(0, location), attributed.length - 1)
+            var range = NSRange(location: NSNotFound, length: 0)
+            guard attributed.attribute(.link, at: loc, effectiveRange: &range) != nil else { return nil }
+            return range
         }
 
         // MARK: - Bulk checklist operations
@@ -2116,7 +2441,18 @@ struct NoteEditorTextView: UIViewRepresentable {
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             isApplyingStyledText = false
             parent.textStyleData = encodedTextStyleData(from: textView)
-            syncRenderedCache(from: textView)
+            if style == .numberedList {
+                // Unlike bullet/dash, a numbered marker's digits depend on every
+                // sibling paragraph's level, not just this row's own level —
+                // syncRenderedCache would stamp the stale digits (still whatever
+                // they were pre-indent) as canonical, and they'd never renumber
+                // until an unrelated cache miss (e.g. a width change) happened to
+                // force one. Re-render for real so the whole block renumbers now.
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            } else {
+                syncRenderedCache(from: textView)
+            }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
@@ -2160,13 +2496,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let underline = attrs[.underlineStyle] != nil
                 let strikethrough = attrs[.strikethroughStyle] != nil
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
+                let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
+                let linkURL = (attrs[.link] as? URL)?.absoluteString
 
                 // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
                 let style = self.textStyle(at: range.location, in: attributed)
                 let isParaBold = (style == .heading || style == .title)
                 let effectiveBold = bold && !isParaBold
 
-                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil else { return }
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
 
                 let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
                 let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
@@ -2180,7 +2518,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                     italic: italic,
                     underline: underline,
                     strikethrough: strikethrough,
-                    highlightIndex: highlightIndex
+                    highlightIndex: highlightIndex,
+                    linkURL: linkURL,
+                    textColorIndex: textColorIndex
                 ))
             }
 
@@ -2196,6 +2536,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                   !doc.ranges.isEmpty else { return }
 
             let logicalOffsets = buildLogicalOffsetMap(from: attributed)
+            let highlightColors = HighlightPalette.colors(for: parent.displayMode)
+            let textColors = TextColorPalette.colors(for: parent.displayMode)
 
             for styleRange in doc.ranges {
                 let displayStart = logicalToDisplay(logical: styleRange.location, map: logicalOffsets)
@@ -2232,6 +2574,13 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let idx = styleRange.highlightIndex, idx < highlightColors.count {
                     attributed.addAttribute(.backgroundColor, value: UIColor(highlightColors[idx]), range: displayRange)
                     attributed.addAttribute(Self.highlightIndexAttribute, value: idx, range: displayRange)
+                }
+                if let idx = styleRange.textColorIndex, idx < textColors.count {
+                    attributed.addAttribute(.foregroundColor, value: UIColor(textColors[idx]), range: displayRange)
+                    attributed.addAttribute(Self.textColorIndexAttribute, value: idx, range: displayRange)
+                }
+                if let url = validatedLinkURL(from: styleRange.linkURL) {
+                    attributed.addAttribute(.link, value: url, range: displayRange)
                 }
             }
         }
@@ -2295,13 +2644,17 @@ struct NoteEditorTextView: UIViewRepresentable {
                     && range.italic == last.italic
                     && range.underline == last.underline
                     && range.strikethrough == last.strikethrough
-                    && range.highlightIndex == last.highlightIndex {
+                    && range.highlightIndex == last.highlightIndex
+                    && range.linkURL == last.linkURL
+                    && range.textColorIndex == last.textColorIndex {
                     result[result.count - 1] = InlineStyleRange(
                         location: last.location,
                         length: max(lastEnd, range.location + range.length) - last.location,
                         bold: last.bold, italic: last.italic,
                         underline: last.underline, strikethrough: last.strikethrough,
-                        highlightIndex: last.highlightIndex
+                        highlightIndex: last.highlightIndex,
+                        linkURL: last.linkURL,
+                        textColorIndex: last.textColorIndex
                     )
                 } else {
                     result.append(range)
@@ -2316,6 +2669,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
                 parent.activeInlineStyles = InlineStyleSet()
                 parent.panelState.activeInlineStyles = InlineStyleSet()
+                parent.panelState.activeLinkURL = nil
+                parent.panelState.activeTextColorIndex = nil
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
@@ -2328,6 +2683,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             let underlineActive: Bool
             let strikethroughActive: Bool
             let highlightIndex: Int?
+            let textColorIndex: Int?
+            let linkURL: String?
             if lastKnownCursorLocation >= attributed.length {
                 if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
                    let style = NoteParagraphTextStyle(rawValue: raw) {
@@ -2339,12 +2696,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                 underlineActive = textView.typingAttributes[.underlineStyle] != nil
                 strikethroughActive = textView.typingAttributes[.strikethroughStyle] != nil
                 highlightIndex = textView.typingAttributes[Self.highlightIndexAttribute] as? Int
+                textColorIndex = textView.typingAttributes[Self.textColorIndexAttribute] as? Int
+                linkURL = (textView.typingAttributes[.link] as? URL)?.absoluteString
             } else {
                 paraStyle = textStyle(at: loc, in: attributed)
                 font = attributed.attribute(.font, at: loc, effectiveRange: nil) as? UIFont
                 underlineActive = attributed.attribute(.underlineStyle, at: loc, effectiveRange: nil) != nil
                 strikethroughActive = attributed.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
                 highlightIndex = attributed.attribute(Self.highlightIndexAttribute, at: loc, effectiveRange: nil) as? Int
+                textColorIndex = attributed.attribute(Self.textColorIndexAttribute, at: loc, effectiveRange: nil) as? Int
+                linkURL = (attributed.attribute(.link, at: loc, effectiveRange: nil) as? URL)?.absoluteString
             }
             let isParaBold = (paraStyle == .heading || paraStyle == .title)
             styles.bold = (font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false) && !isParaBold
@@ -2355,47 +2716,68 @@ struct NoteEditorTextView: UIViewRepresentable {
             parent.panelState.activeInlineStyles = styles
             parent.panelState.activeParagraphStyle = paraStyle
             parent.panelState.activeHighlightIndex = highlightIndex
+            parent.panelState.activeTextColorIndex = textColorIndex
+            parent.panelState.activeLinkURL = linkURL
         }
 
-        // MARK: - Formatting panel (keyboard replacement)
+        // MARK: - Formatting panel
 
+        private var formattingPanelHost: UIHostingController<AnyView>?
+
+        /// iPad presents the panel as a SwiftUI `.popover` off the Aa button, so
+        /// the keyboard is never touched. iPhone swaps the panel in as the text
+        /// view's `inputView`: the keyboard is visually replaced but the text
+        /// view keeps first responder, so the selection survives and typing
+        /// resumes the moment the panel closes — the Apple Notes model. (A panel
+        /// stacked above a live keyboard leaves no room for the editor on a phone.)
         func updateFormattingPanel(textView: UITextView, visible: Bool) {
-            if visible {
-                // Refresh panel state to current cursor position before the panel renders
-                refreshActiveInlineStyles(in: textView)
-                // Create host controller once only. FormattingPanelState is @Observable so the
-                // existing view auto-updates — replacing rootView on every updateUIView call
-                // tears down the SwiftUI tree and drops in-flight button taps.
-                if formattingPanelHost == nil {
-                    let rootView = AnyView(
-                        FormattingPanelView(state: parent.panelState)
-                            .environment(\.appDisplayMode, parent.displayMode)
-                    )
-                    let hc = UIHostingController(rootView: rootView)
-                    hc.view.backgroundColor = .secondarySystemBackground
-                    formattingPanelHost = hc
-                }
-                let panelUIView = formattingPanelHost?.view
-                // +56 vs. the original 290 to fit the font-family row added above the
-                // paragraph-style row.
-                let newFrame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 346)
-                if panelUIView?.frame != newFrame { panelUIView?.frame = newFrame }
-                if textView.inputView !== panelUIView {
-                    textView.inputView = panelUIView
-                    textView.reloadInputViews()
-                    if !textView.isFirstResponder { textView.becomeFirstResponder() }
-                }
-            } else {
+            let usesInputView = UIDevice.current.userInterfaceIdiom == .phone
+
+            guard usesInputView else {
                 if textView.inputView != nil {
                     textView.inputView = nil
                     textView.reloadInputViews()
                 }
+                if visible { refreshActiveInlineStyles(in: textView) }
+                return
+            }
+
+            if visible {
+                refreshActiveInlineStyles(in: textView)
+                if formattingPanelHost == nil {
+                    let hc = UIHostingController(rootView: AnyView(
+                        FormattingPanelView(state: parent.panelState, presentation: .sheet)
+                            .environment(\.appDisplayMode, parent.displayMode)
+                    ))
+                    hc.view.backgroundColor = .clear
+                    formattingPanelHost = hc
+                }
+                if let panel = formattingPanelHost?.view {
+                    // 360, not 346: at the system default text size, the panel's
+                    // tallest configuration (a checklist paragraph active, so the
+                    // bulk-ops row is showing) measures 347pt on an iPhone SE's
+                    // 375pt width — mirrorTests/FormattingPanelSizingTests.swift
+                    // pins this down. 346 clipped that row's bottom edge by 1pt
+                    // before this was ever measured; 360 gives real headroom
+                    // instead of a coincidence. Larger Dynamic Type sizes still
+                    // exceed this and rely on panelRows' own ScrollView (audit 2.5).
+                    let frame = CGRect(x: 0, y: 0, width: textView.frame.width, height: 360)
+                    if panel.frame != frame { panel.frame = frame }
+                    if textView.inputView !== panel {
+                        textView.inputView = panel
+                        textView.reloadInputViews()
+                        if !textView.isFirstResponder { textView.becomeFirstResponder() }
+                    }
+                }
+            } else if textView.inputView != nil {
+                textView.inputView = nil
+                textView.reloadInputViews()
             }
         }
     }
 }
 
-private extension UIFont {
+extension UIFont {
     func bolded() -> UIFont {
         return withTrait(.traitBold, add: true)
     }
