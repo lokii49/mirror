@@ -614,15 +614,25 @@ struct AskView: View {
             withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
             return
         }
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })?
+            .windows.first(where: { $0.isKeyWindow }) else {
+            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+            return
+        }
+        // keyboardFrameEndUserInfoKey is in screen coordinates, not window coordinates — in Split
+        // View / Stage Manager the app's window is smaller than (and offset within) the screen, so
+        // comparing it against the raw screen-space frame overstates the overlap. Convert into the
+        // window's own coordinate space and intersect before measuring height.
+        let kbInWindow = window.convert(frame, from: nil)
+        let overlap = window.bounds.intersection(kbInWindow).height
         // TabView forces .ignoresSafeArea(.keyboard) on all descendants.
         // Raw keyboard height includes the home indicator inset (~34pt), subtract it to avoid a gap.
-        let bottomInset = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first(where: { $0.isKeyWindow })?.safeAreaInsets.bottom ?? 0
-        let rawHeight = max(0, UIScreen.main.bounds.height - frame.minY)
+        let bottomInset = window.safeAreaInsets.bottom
         let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
         withAnimation(.easeOut(duration: duration)) {
-            keyboardHeight = rawHeight > 0 ? rawHeight - bottomInset : 0
+            keyboardHeight = overlap > 0 ? overlap - bottomInset : 0
         }
     }
 
