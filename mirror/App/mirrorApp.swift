@@ -130,6 +130,28 @@ struct mirrorApp: App {
             WriteView.clearAllDraftStorage()
             SampleData.clear(from: sharedModelContainer.mainContext)
         }
+        // Design-review capture for MirrorNotificationContentExtension: fires the real
+        // "ready" nudge notification (matching category, App Group mood) a few seconds
+        // after launch so a UI test can background the app and screenshot the expanded
+        // Content Extension. Scratch-device only, DEBUG only — delete once screenshots
+        // are captured, this is not a regression test fixture.
+        if ProcessInfo.processInfo.arguments.contains("--scheduleTestNudge") {
+            let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            let today = DateHelpers.dayIdentifier(for: Date())
+            defaults?.set(today, forKey: "widget.nudge.date")
+            defaults?.set("Content", forKey: "widget.nudge.mood")
+            let center = UNUserNotificationCenter.current()
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+                let content = UNMutableNotificationContent()
+                content.title = "mirror"
+                content.body = "Your daily reflection is ready."
+                content.sound = .default
+                content.categoryIdentifier = "mirror.dailyNudge"
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+                let request = UNNotificationRequest(identifier: "mirror.testNudge", content: content, trigger: trigger)
+                center.add(request)
+            }
+        }
         #endif
     }
 
@@ -397,6 +419,11 @@ struct mirrorApp: App {
             let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
             wDefaults?.set(text, forKey: "widget.nudge.text")
             wDefaults?.set(today, forKey: "widget.nudge.date")
+            if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+                wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
+            } else {
+                wDefaults?.removeObject(forKey: "widget.nudge.mood")
+            }
             WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
@@ -799,6 +826,13 @@ struct mirrorApp: App {
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(nudge.content, forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
+        let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
+        if let todaysMood = todaysEntries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+            defaults?.set(todaysMood, forKey: "widget.nudge.mood")
+        } else {
+            defaults?.removeObject(forKey: "widget.nudge.mood")
+        }
     }
 
     // MARK: - Notification permission (existing users who completed onboarding before prompt was added)

@@ -45,6 +45,9 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
 
 enum NotificationService {
     private static let nudgeID = "mirror.dailyNudge"
+    // Matches MirrorNotificationContentExtension's Info.plist UNNotificationExtensionCategory —
+    // that string match is what makes the system attach the expanded custom view.
+    private static let nudgeCategoryID = "mirror.dailyNudge"
     private static let firstNudgeID = "mirror.firstNudge"
     private static let digestID = "mirror.weeklyDigest"
     // Not `private` — MirrorNotificationDelegate (same file, different type) reads these.
@@ -101,6 +104,7 @@ enum NotificationService {
         let content = UNMutableNotificationContent()
         content.title = title
         content.sound = .default
+        content.categoryIdentifier = nudgeCategoryID
         if hasWrittenToday, insightReady, let preview = previewText, let snippet = notificationSnippet(preview) {
             content.body = snippet
         } else {
