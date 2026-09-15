@@ -386,7 +386,7 @@ struct AskView: View {
                 Text(displayMode == .sentinel ? "SUGGESTED QUERIES" : "Try asking")
                     .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .bold) : .system(size: 12, weight: .semibold))
                     .kerning(displayMode == .sentinel ? 0.3 : 0)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(MirrorTheme.textTertiary)
                     .padding(.horizontal, 2)
 
                 ForEach(suggestions.prefix(3), id: \.self) { prompt in
@@ -560,7 +560,7 @@ struct AskView: View {
             .frame(maxWidth: contentMaxWidth)
             .frame(maxWidth: .infinity)
         }
-        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkBase) : AnyShapeStyle(.bar))
+        .background(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkBase) : AnyShapeStyle(MirrorTheme.inkMid))
     }
 
     // Single global key: LocalLLMService holds one shared llama context, so two
