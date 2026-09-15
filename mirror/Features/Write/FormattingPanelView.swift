@@ -127,7 +127,7 @@ struct FormattingPanelView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(MirrorTheme.inkRaised)
+        .background(displayMode == .sentinel ? MirrorTheme.inkRaised : MirrorTheme.inkBase)
         .overlay(alignment: .top) {
             if displayMode == .sentinel {
                 Rectangle().fill(MirrorTheme.ember.opacity(0.22)).frame(height: 1)
