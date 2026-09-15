@@ -2233,6 +2233,23 @@ from opening the PR directly in this session (see Blocked: `add_repo` cross-tier
   Re-flagging now since a month of silence on an unresolved blocker is itself worth a fresh nudge,
   even though the underlying condition hasn't changed since run 43.
 
+- 2026-09-15 (run 83): Re-confirmed env blockers fresh this run (same day as run 82, but a genuinely
+  separate invocation — verified local checkout matched origin/main at 0e8c186, run 82's commit,
+  before starting): `/dev/tcp` to smtp.mail.me.com:587 still times out — priority-3 email still
+  impossible, nothing sent, Sent log still empty (0 emails across 83 runs). curl to example.com via
+  the agent proxy still 403s (`CONNECT tunnel failed`). GitHub scope reconfirmed via a new signal
+  this run: `get_file_contents` on argit2/awesome-self-care (a third-party repo) was rejected with
+  "not configured for this session" — same restriction as `add_repo`/`pull_request_read`, now shown
+  to cover read-only content fetches too, not just writes. Priority-1 bump and direct third-party PR
+  creation remain impossible. For priority 2, tried the competitor-app-name code-search technique
+  again with "Daylio", "Grid Diary", "Stoic" — no new directory candidate (see Lessons); also checked
+  argit2/awesome-self-care (topic-name hit) and ruled it out as a 6-year-abandoned personal tips list,
+  not a product directory. No PRs opened, no comments posted, no emails sent — 83rd consecutive run
+  blocked purely on environment/session config, unchanged since run 43. Not re-flagging via
+  notification this run: run 82 already surfaced the month-long-blocker status a few hours earlier
+  today and nothing material changed since (same three blockers, same evidence) — repeating the same
+  notification same-day would be noise, not signal.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2565,6 +2582,20 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   above and already-logged repos (humanetech-community/awesome-humane-tech, already ruled out
   archived; theimpossibleastronaut/awesome-mentalhealth, already Blocked). Confirmed 2026-09-15; do
   not re-try these exact angles again.
+- argit2/awesome-self-care (0 stars, last updated 2019-07-29, abandoned 6+ years) is not a fit: it's
+  a personal anecdotal well-being tips list (eye health, posture, sleep habits), not a directory of
+  third-party apps/products — no section a PR could add MirrorNotes to. Confirmed 2026-09-15 via raw
+  README fetch; do not re-add. Also confirmed this run: GitHub MCP `get_file_contents` (not just
+  `add_repo`) is scoped to lokii49/mirror only ("not configured for this session") even for read-only
+  fetches of public repos — `search_code`/`search_repositories` still work unscoped, but reading file
+  contents of a third-party repo now requires the raw.githubusercontent.com curl route or WebFetch,
+  same workaround as before, just now confirmed for get_file_contents specifically too.
+- Code-search technique (competitor-app-name mentions in README.md) re-tried with "Daylio", "Grid
+  Diary", "Stoic" this run: all hits were either individual tools/importers/wireframes for those
+  competitor apps (not curated directories) or unrelated false-positive matches on the word
+  "journal"/"stoic" in academic-paper or API lists — no new directory candidate surfaced. Confirmed
+  2026-09-15; try different competitor names ("Presently", "Reflection", "Journey", "Diarium") in a
+  future run rather than repeating these three.
 
 ## Sent log
 
