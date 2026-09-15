@@ -1,8 +1,6 @@
-Check-in diário de humor, widgets na tela de início e um editor mais caprichado.
+Notificações mais completas, widgets maiores.
 
-• Check-in diário de humor: registre como você está se sentindo com um toque, sem precisar escrever. Se você perder o lembrete, o MirrorNotes pergunta na próxima vez que abrir o app, e um botão "Registrar humor" nos Insights permite atualizar quando quiser. Cada check-in alimenta sua Linha do Tempo de Humor e o widget Mapa de Humor.
-• Widgets semanal e mensal: seu Resumo Semanal e Relatório Mensal Detalhado mais recentes direto na tela de início.
-• O resumo da semana passada continua visível até o desta semana ficar pronto, e os resumos anteriores agora têm um arquivo próprio, assim como as reflexões.
-• Reflexões mais diretas: os lembretes diários e as respostas do Perguntar vão direto ao ponto, sem enrolação.
-• Editor: digite "1. " para começar uma lista numerada como no app Notas, com espaçamento mais limpo. Return continua a lista e sai dela corretamente.
+• As notificações do Lembrete diário agora se expandem direto na tela de bloqueio — veja seu humor e uma prévia da reflexão de hoje, com um botão Escrever agora para começar na hora.
+• Os widgets de Resumo semanal e Relatório mensal detalhado agora estão disponíveis em tamanho grande.
+• Corrigido o botão "Limpar formatação" que aparecia em branco na barra de ferramentas de escrita.
 • Correções e ajustes.
