@@ -47,11 +47,18 @@ struct DigestWidgetProvider: TimelineProvider {
     }
 }
 
-// MARK: - Unlocked (small)
+// MARK: - Unlocked (small + large)
 
-private struct DigestSmallView: View {
+private struct DigestUnlockedView: View {
     let entry: DigestWidgetEntry
+    @Environment(\.widgetFamily) private var family
     private let sentinel = widgetIsSentinel()
+
+    private var isLarge: Bool { family == .systemLarge }
+    private var quoteSize: CGFloat { isLarge ? 168 : 96 }
+    private var bodySize: CGFloat { isLarge ? 17 : (sentinel ? 12 : 13) }
+    private var bodyLineLimit: Int { isLarge ? 14 : 6 }
+    private var padding: CGFloat { isLarge ? 22 : 14 }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -59,9 +66,9 @@ private struct DigestSmallView: View {
             // so the two insight widgets read as one family.
             if !sentinel {
                 Text("\u{201C}")
-                    .font(.system(size: 96, weight: .black, design: .serif))
+                    .font(.system(size: quoteSize, weight: .black, design: .serif))
                     .foregroundStyle(wViLight.opacity(0.15))
-                    .offset(x: -6, y: -18)
+                    .offset(x: isLarge ? -8 : -6, y: isLarge ? -28 : -18)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -69,25 +76,25 @@ private struct DigestSmallView: View {
 
                 if let text = entry.themeText, entry.isCurrentWeek {
                     Text(text)
-                        .font(sentinel ? .system(size: 12, weight: .medium, design: .monospaced) : .system(size: 13, weight: .regular, design: .serif))
+                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
-                        .lineLimit(6)
-                        .lineSpacing(3)
+                        .lineLimit(bodyLineLimit)
+                        .lineSpacing(isLarge ? 5 : 3)
                         .fixedSize(horizontal: false, vertical: false)
                 } else {
                     Text(sentinel ? "DIGEST COMPILING…" : "This week's digest\narrives Sunday…")
-                        .font(sentinel ? .system(size: 12, weight: .medium, design: .monospaced) : .system(size: 13, weight: .regular, design: .serif))
+                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.50))
                         .italic(!sentinel)
                 }
 
-                Spacer(minLength: 10)
+                Spacer(minLength: isLarge ? 16 : 10)
 
                 HStack(spacing: 4) {
                     Image(systemName: sentinel ? "square.stack.3d.up" : "calendar")
-                        .font(.system(size: 8, weight: .semibold))
+                        .font(.system(size: isLarge ? 10 : 8, weight: .semibold))
                     Text(sentinel ? "WEEKLY BRIEFING" : "WEEKLY DIGEST")
-                        .font(.system(size: 8, weight: .bold, design: sentinel ? .monospaced : .default))
+                        .font(.system(size: isLarge ? 10 : 8, weight: .bold, design: sentinel ? .monospaced : .default))
                         .tracking(1.8)
                 }
                 .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
@@ -101,7 +108,7 @@ private struct DigestSmallView: View {
                         .padding(.top, 5)
                 }
             }
-            .padding(14)
+            .padding(padding)
         }
         .containerBackground(for: .widget) {
             if sentinel {
@@ -150,7 +157,7 @@ struct DigestWidgetView: View {
 
     var body: some View {
         if WidgetShared.isSubscribed() {
-            DigestSmallView(entry: entry)
+            DigestUnlockedView(entry: entry)
         } else {
             DigestLockedView()
         }
@@ -168,7 +175,7 @@ struct MirrorWeeklyDigestWidget: Widget {
         }
         .configurationDisplayName("Weekly Digest")
         .description("This week's theme from your journal, at a glance.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemLarge])
     }
 }
 
@@ -197,6 +204,21 @@ private func seedWidgetPreview(sentinel: Bool, tier: String) {
 }
 
 #Preview("Sentinel", as: .systemSmall) {
+    seedWidgetPreview(sentinel: true, tier: "core")
+    return MirrorWeeklyDigestWidget()
+} timeline: {
+    DigestWidgetEntry(date: .now, themeText: "Recovery and pressure kept trading places all week.", isCurrentWeek: true)
+}
+
+#Preview("Classic Large", as: .systemLarge) {
+    seedWidgetPreview(sentinel: false, tier: "core")
+    return MirrorWeeklyDigestWidget()
+} timeline: {
+    DigestWidgetEntry(date: .now, themeText: "A week of holding steady while the ground kept shifting under you.", isCurrentWeek: true)
+    DigestWidgetEntry(date: .now, themeText: nil, isCurrentWeek: false)
+}
+
+#Preview("Sentinel Large", as: .systemLarge) {
     seedWidgetPreview(sentinel: true, tier: "core")
     return MirrorWeeklyDigestWidget()
 } timeline: {

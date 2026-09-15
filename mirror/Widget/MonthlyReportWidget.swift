@@ -53,29 +53,35 @@ struct MonthlyReportWidgetProvider: TimelineProvider {
     }
 }
 
-// MARK: - Unlocked (medium)
+// MARK: - Unlocked (medium + large)
 
-private struct MonthlyReportMediumView: View {
+private struct MonthlyReportUnlockedView: View {
     let entry: MonthlyReportWidgetEntry
+    @Environment(\.widgetFamily) private var family
     private let sentinel = widgetIsSentinel()
 
     private var monthName: String { monthLabelFormatter.string(from: entry.date).uppercased() }
+    private var isLarge: Bool { family == .systemLarge }
+    private var glyphSize: CGFloat { isLarge ? 168 : 96 }
+    private var bodySize: CGFloat { isLarge ? 18 : (sentinel ? 13 : 15) }
+    private var bodyLineLimit: Int { isLarge ? 10 : 4 }
+    private var padding: CGFloat { isLarge ? 22 : 16 }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             if !sentinel {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 96, weight: .black))
+                    .font(.system(size: glyphSize, weight: .black))
                     .foregroundStyle(wViLight.opacity(0.10))
-                    .offset(x: 6, y: -14)
+                    .offset(x: isLarge ? 8 : 6, y: isLarge ? -22 : -14)
             }
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Image(systemName: sentinel ? "chart.bar.doc.horizontal" : "moon.stars.fill")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: isLarge ? 11 : 9, weight: .semibold))
                     Text(sentinel ? "\(monthName) · DEEP REPORT" : "\(monthName) IN ONE IMAGE")
-                        .font(.system(size: 9, weight: .bold, design: sentinel ? .monospaced : .default))
+                        .font(.system(size: isLarge ? 11 : 9, weight: .bold, design: sentinel ? .monospaced : .default))
                         .tracking(1.6)
                 }
                 .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
@@ -87,32 +93,32 @@ private struct MonthlyReportMediumView: View {
                         .padding(.top, 5)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: isLarge ? 14 : 8)
 
                 if let text = entry.imageText, entry.isCurrentMonth {
                     Text(text)
-                        .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 15, weight: .regular, design: .serif))
+                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
-                        .lineLimit(4)
-                        .lineSpacing(3)
+                        .lineLimit(bodyLineLimit)
+                        .lineSpacing(isLarge ? 5 : 3)
                         .fixedSize(horizontal: false, vertical: false)
                 } else {
                     Text(sentinel ? "REPORT COMPILES AT MONTH END." : "Your monthly image forms\nas the month fills in…")
-                        .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 15, weight: .regular, design: .serif))
+                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.50))
                         .italic(!sentinel)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: isLarge ? 14 : 8)
 
                 HStack {
                     Spacer()
                     Text(sentinel ? "OPEN TRANSMISSION →" : "Read the full report →")
-                        .font(.system(size: 11, weight: sentinel ? .bold : .semibold, design: sentinel ? .monospaced : .rounded))
+                        .font(.system(size: isLarge ? 13 : 11, weight: sentinel ? .bold : .semibold, design: sentinel ? .monospaced : .rounded))
                         .foregroundStyle(sentinel ? wEmber.opacity(0.7) : wViLight.opacity(0.55))
                 }
             }
-            .padding(16)
+            .padding(padding)
         }
         .containerBackground(for: .widget) {
             if sentinel {
@@ -163,7 +169,7 @@ struct MonthlyReportWidgetView: View {
         // Deep only — NOT `WidgetShared.isSubscribed()`. This widget is priced at
         // Deep ($4.99/mo); a Core subscriber sees the locked state.
         if WidgetShared.isDeep() {
-            MonthlyReportMediumView(entry: entry)
+            MonthlyReportUnlockedView(entry: entry)
         } else {
             MonthlyReportLockedView()
         }
@@ -181,7 +187,7 @@ struct MirrorMonthlyReportWidget: Widget {
         }
         .configurationDisplayName("Monthly Deep Report")
         .description("The single image that captures your month.")
-        .supportedFamilies([.systemMedium])
+        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
@@ -204,6 +210,21 @@ private func seedMonthlyPreview(sentinel: Bool, tier: String) {
 }
 
 #Preview("Sentinel", as: .systemMedium) {
+    seedMonthlyPreview(sentinel: true, tier: "deep")
+    return MirrorMonthlyReportWidget()
+} timeline: {
+    MonthlyReportWidgetEntry(date: .now, imageText: "A control room where every light finally reads green, and no one has left their post.", isCurrentMonth: true)
+}
+
+#Preview("Classic Large", as: .systemLarge) {
+    seedMonthlyPreview(sentinel: false, tier: "deep")
+    return MirrorMonthlyReportWidget()
+} timeline: {
+    MonthlyReportWidgetEntry(date: .now, imageText: "A harbor at first light — still, but with every boat already pointed out to sea.", isCurrentMonth: true)
+    MonthlyReportWidgetEntry(date: .now, imageText: nil, isCurrentMonth: false)
+}
+
+#Preview("Sentinel Large", as: .systemLarge) {
     seedMonthlyPreview(sentinel: true, tier: "deep")
     return MirrorMonthlyReportWidget()
 } timeline: {
