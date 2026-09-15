@@ -2209,6 +2209,30 @@ from opening the PR directly in this session (see Blocked: `add_repo` cross-tier
   already flagged (run 43) with nothing materially new this run beyond one additional backlog
   candidate.
 
+- 2026-09-15 (run 82): Re-confirmed all three env blockers fresh this run with live tests: `/dev/tcp`
+  to smtp.mail.me.com:587 still times out (exit 124) — priority-3 email still impossible, nothing
+  sent, Sent log still empty (0 emails sent across 82 runs since 2026-08-15). curl to example.com via
+  the agent proxy still 403s (`CONNECT tunnel failed`), raw.githubusercontent.com still reachable
+  directly (200). `add_repo` (push) for janhq/awesome-local-ai still rejected ("cross-tier adds are
+  not supported in v1") — priority-1 bump and direct third-party PRs remain impossible, unchanged
+  since run 43. Verified local checkout matched origin/main (ed897d5, run 81's commit) before
+  starting — no drift this run. For priority 2, tried a new discovery technique: code-searching
+  GitHub for competitor-app-name mentions inside README.md files (started with "Reflectly") instead
+  of searching list names/topics — surfaced fluttergems/awesome-open-source-flutter-apps (has a real
+  journaling-apps precedent) but ruled it out as Flutter-only scope, wrong tech stack for MirrorNotes
+  (Swift/SwiftUI). Also checked Dieterbe/awesome-health-fitness-oss and Kailash-Way/awesome-meditation
+  (topic:mindfulness/topic:self-improvement hits) — both ruled out, no journaling/diary section in
+  either. topic:diary and topic:journaling searches returned zero results. No new candidate cleared
+  the fit bar this run; all findings recorded in Lessons so future runs don't re-check them. No PRs
+  opened, no comments posted, no emails sent — 82nd consecutive run blocked purely on
+  environment/session config. Flagging via notification this run: it has now been a full calendar
+  month (since 2026-08-15) and 82 runs with these same three blockers unresolved, zero emails ever
+  sent, and zero third-party PRs ever opened by this loop directly (the three MERGED entries and one
+  OPEN-when-last-checked set predate or were arranged outside this specific session/environment
+  restriction) — the Backlog has grown to ~30 fully-drafted, ready-to-paste submissions sitting idle.
+  Re-flagging now since a month of silence on an unresolved blocker is itself worth a fresh nudge,
+  even though the underlying condition hasn't changed since run 43.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -2519,6 +2543,28 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   tracking, open source mental health apps directory PR contributions welcome, Gemma-powered apps
   community showcase (re-surfaced google-gemma/awesome-gemma, already in Backlog from run 78).
   Confirmed 2026-09-13; do not re-try these exact angles again.
+- Dieterbe/awesome-health-fitness-oss (43 stars, active) is not a fit: exclusively workout/nutrition
+  tracking apps in a table format (lifting, running, calorie tracking) — no journaling, mood, or
+  mental-health section exists. Confirmed 2026-09-15 via raw README fetch; do not re-add unless it
+  gains a relevant section.
+- Kailash-Way/awesome-meditation (0 stars, created 2026-09-11) is not a fit: its "Apps" section is
+  exclusively guided-meditation/meditation-timer apps (Calm, Headspace, Insight Timer, split
+  Free/Paid) — no journaling or diary apps listed, no adjacent section to place one in. Confirmed
+  2026-09-15 via raw README fetch; do not re-add unless it gains a relevant section.
+- fluttergems/awesome-open-source-flutter-apps has a genuine "journaling apps" precedent in its
+  table (Reflectly, One Second Diary) — found via code-searching for "Reflectly" mentions, a new
+  discovery technique (search for competitor-app names inside README.md files instead of searching
+  list names/topics). Not a fit for MirrorNotes though: the repo is explicitly scoped to
+  Flutter-built open-source apps only ("awesome-open-source-flutter-apps"), and MirrorNotes is
+  native Swift/SwiftUI, not Flutter — wrong tech-stack scope, not a topical mismatch. Confirmed
+  2026-09-15 via raw README fetch; do not re-add unless MirrorNotes' stack changes. The
+  competitor-name code-search technique itself is worth reusing on other angles in future runs
+  (e.g. search for "Daylio", "Stoic", "Grid Diary", "Presently" mentions in README.md).
+- legrk/awesome-meditation (34 stars) and topic:diary, topic:journaling (0 results), topic:
+  self-improvement, topic:mindfulness searches tried this run with no new candidate beyond the two
+  above and already-logged repos (humanetech-community/awesome-humane-tech, already ruled out
+  archived; theimpossibleastronaut/awesome-mentalhealth, already Blocked). Confirmed 2026-09-15; do
+  not re-try these exact angles again.
 
 ## Sent log
 
