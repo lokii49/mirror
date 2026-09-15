@@ -711,7 +711,7 @@ struct OnboardingFlow: View {
                     if preset != .custom {
                         Text(preset.timeLabel)
                             .font(.system(size: 13))
-                            .foregroundStyle(isSelected ? AnyShapeStyle(MirrorTheme.primary.opacity(0.7)) : AnyShapeStyle(.tertiary))
+                            .foregroundStyle(isSelected ? AnyShapeStyle(MirrorTheme.primary.opacity(0.7)) : AnyShapeStyle(MirrorTheme.textTertiary))
                     }
                     if isRecommended && isSelected {
                         Text(preset == .morning

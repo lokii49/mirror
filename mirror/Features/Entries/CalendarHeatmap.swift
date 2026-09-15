@@ -118,8 +118,8 @@ struct CalendarHeatmap: View {
     // MARK: - Cell color
 
     private func color(for date: Date?) -> Color {
-        guard let date else { return Color(.systemFill).opacity(0.4) }
-        guard let cached = dayCache[date] else { return Color(.systemFill) }
+        guard let date else { return MirrorTheme.inkMid }
+        guard let cached = dayCache[date] else { return MirrorTheme.inkMid }
         let count = cached.count
         if let mood = cached.mood {
             let base = MirrorTheme.moodColor(for: mood)
@@ -280,16 +280,18 @@ struct CalendarHeatmap: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.violetLight))
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
-                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.violetDim),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
             )
             .overlay {
                 if displayMode == .sentinel {
                     RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                } else {
+                    Capsule().stroke(MirrorTheme.violet.opacity(0.35), lineWidth: 1)
                 }
             }
         }
@@ -326,7 +328,7 @@ struct CalendarHeatmap: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(canGoBack ? .secondary : Color(.systemFill))
+                    .foregroundStyle(canGoBack ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
             .buttonStyle(.plain)
             .disabled(!canGoBack)
@@ -349,7 +351,7 @@ struct CalendarHeatmap: View {
             Button(action: onForward) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(canGoForward ? .secondary : Color(.systemFill))
+                    .foregroundStyle(canGoForward ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
             .buttonStyle(.plain)
             .disabled(!canGoForward)
@@ -433,11 +435,14 @@ struct CalendarHeatmap: View {
                 .opacity(isWeekend ? 0.55 : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 8, style: .continuous)
-                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay)))
+                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
                 .overlay {
                     if displayMode == .sentinel, !isFuture, count > 0 {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
+                    } else if displayMode != .sentinel {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(height: 46)
@@ -570,7 +575,8 @@ struct CalendarHeatmap: View {
                 .foregroundStyle(count > 0 ? .secondary : .tertiary)
                 .frame(minWidth: 14, minHeight: 12)
                 .padding(.horizontal, 3)
-                .background(Color(.tertiarySystemFill).opacity(count > 0 ? 1 : 0.55), in: Capsule())
+                .background(MirrorTheme.inkRaised.opacity(count > 0 ? 1 : 0.55), in: Capsule())
+                .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
 
             Rectangle()
                 .fill(Color(.separator).opacity(0.35))
@@ -594,11 +600,14 @@ struct CalendarHeatmap: View {
                 .opacity(isWeekend ? 0.55 : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 7, style: .continuous)
-                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? Color(.systemFill).opacity(0.25) : color(for: startOfDay)))
+                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
                 .overlay {
                     if displayMode == .sentinel, !isFuture, count > 0 {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
+                    } else if displayMode != .sentinel {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(width: 36, height: 44)
