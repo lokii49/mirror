@@ -2596,6 +2596,37 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   "journal"/"stoic" in academic-paper or API lists — no new directory candidate surfaced. Confirmed
   2026-09-15; try different competitor names ("Presently", "Reflection", "Journey", "Diarium") in a
   future run rather than repeating these three.
+- Continued the competitor-name code-search this run (run 84) with "Presently", "Diarium", "Journey",
+  "Pixels", "Journalize", "DabbleMe": found two candidates with real Journaling-adjacent sections, both
+  ruled out on tech/scope grounds rather than being weak lists — jaywcjlove/awesome-mac (huge, active)
+  has a genuine "### Journaling" section, but every entry links an App Store URL with `platform=mac`
+  (Day One, Journey, Life Note all ship real Mac apps) — MirrorNotes is iOS-only with no Mac/Catalyst
+  build, so it doesn't qualify for this specifically macOS-scoped list. everestpipkin/tools-list
+  mentions journaling tools (Diary Email, journal-cli) but only inside a "Productivity" subsection of a
+  list explicitly scoped to tools for *building* games/websites/interactive projects, not consumer
+  apps; it also no longer takes GitHub PRs at all — submissions now route through a Google Form at
+  tinytools.directory. Confirmed 2026-09-15 via raw README fetch on both; do not re-add either unless
+  MirrorNotes ships a Mac version (for awesome-mac) or the scope changes. No new candidate cleared the
+  fit bar this run.
+
+- 2026-09-15 (run 84): Re-confirmed all three env blockers fresh this run with live tests: GitHub
+  `get_file_contents` on janhq/awesome-local-ai rejected ("not configured for this session, allowed:
+  lokii49/mirror"), `add_repo` for janhq/awesome-local-ai (push) rejected ("cross-tier adds are not
+  supported in v1") — priority-1 bump and priority-2 direct third-party PRs remain impossible, unchanged
+  since run 43 (note: `list_repos` shows several `lokii49/*` forks of target repos already attached
+  with push access, but that's a separate tool-scope from the GitHub MCP tools actually used for
+  PRs/comments, which stayed locked to lokii49/mirror only). `/dev/tcp` to smtp.mail.me.com:587 timed
+  out (exit 124) — priority-3 email still impossible, nothing sent, Sent log still empty (0 emails
+  across 84 runs). curl to example.com via the agent proxy still 403s. For priority 2, tried the
+  competitor-app-name code-search technique with "Presently", "Diarium", "Journey", "Pixels",
+  "Journalize", "DabbleMe" — found and ruled out two candidates (jaywcjlove/awesome-mac: Journaling
+  section requires a Mac app, MirrorNotes is iOS-only; everestpipkin/tools-list: wrong scope, dev-tool
+  list, and no longer accepts GitHub PRs) — see Lessons. No new candidate cleared the fit bar. No PRs
+  opened, no comments posted, no emails sent — 84th consecutive run blocked purely on
+  environment/session config, all three re-verified fresh with unchanged evidence. Not re-flagging via
+  notification: run 82 already surfaced the month-long-blocker status earlier today and nothing
+  material has changed since (same three blockers, same evidence, one more Backlog candidate ruled
+  out) — a same-day repeat notification would be noise, not signal.
 
 ## Sent log
 
