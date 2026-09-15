@@ -1,5 +1,6 @@
 import UIKit
 import UserNotifications
+import Intents
 
 // Shows mood alert banner even when app is in foreground; suppresses all others.
 final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
@@ -120,8 +121,44 @@ enum NotificationService {
         components.minute = minute
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: nudgeID, content: content, trigger: trigger)
+        let finalContent = await communicationContent(from: content)
+        let request = UNNotificationRequest(identifier: nudgeID, content: finalContent, trigger: trigger)
         try? await center.add(request)
+    }
+
+    /// Sender identity donated for the nudge's Communication Notification treatment — same
+    /// person across every nudge (one stable conversation, not per-day), so this is a constant
+    /// rather than something built fresh per call.
+    private static let nudgeSender = INPerson(
+        personHandle: INPersonHandle(value: "mirror.dailyNudge.sender", type: .unknown),
+        nameComponents: nil,
+        displayName: title,
+        image: nil,
+        contactIdentifier: nil,
+        customIdentifier: "mirror.dailyNudge.sender"
+    )
+
+    /// Donates an incoming-message interaction and folds it into `content` so the system
+    /// renders the nudge as a Communication Notification (sender avatar/name, eligible to
+    /// bypass Focus modes as a "conversation") instead of a generic app banner. Donation is
+    /// what makes Focus's "allow people you've talked to" recognize this as a person, not
+    /// just cosmetic — `content.updating(from:)` alone wouldn't get that behavior.
+    /// Falls back to the plain content untouched if either step fails.
+    private static func communicationContent(from content: UNMutableNotificationContent) async -> UNNotificationContent {
+        let intent = INSendMessageIntent(
+            recipients: nil,
+            outgoingMessageType: .outgoingMessageText,
+            content: content.body,
+            speakableGroupName: nil,
+            conversationIdentifier: nudgeCategoryID,
+            serviceName: nil,
+            sender: nudgeSender,
+            attachments: nil
+        )
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = .incoming
+        try? await interaction.donate()
+        return (try? content.updating(from: intent)) ?? content
     }
 
     /// Free users — one-time notification after their first nudge is generated.
