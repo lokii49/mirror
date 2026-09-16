@@ -537,6 +537,16 @@ extension WriteView {
                     } label: {
                         Label("Photo Library", systemImage: "photo.on.rectangle")
                     }
+                    if DocumentScannerController.isSupported {
+                        Button {
+                            editorFocused = false
+                            isKeyboardVisible = false
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showDocumentScanner = true }
+                        } label: {
+                            Label("Scan Text", systemImage: "text.viewfinder")
+                        }
+                    }
                 } label: {
                     Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
                         .font(.system(size: 20))
@@ -620,5 +630,63 @@ extension WriteView {
             .padding(.horizontal, 8)
         }
         .background(MirrorTheme.inkMid)
+    }
+}
+
+/// "Keep writing" follow-up chip (writing-roadmap.md 1.2) — a single on-device-generated
+/// question, dismissible, never persisted. Mirrors MicPermissionNotice's shape (simple
+/// bottom banner) rather than WritingPromptCard's — this is a transient nudge, not a
+/// content card.
+struct FollowUpChip: View {
+    let question: String
+    let onUse: () -> Void
+    let onDismiss: () -> Void
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "arrow.turn.down.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                .padding(.top, 2)
+
+            Text(question)
+                .font(.system(size: 13.5, weight: .regular, design: .serif))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 8)
+
+            VStack(spacing: 10) {
+                Button(action: onUse) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add this question to your entry")
+
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke((isSentinel ? MirrorTheme.ember : MirrorTheme.violet).opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 3)
     }
 }

@@ -315,6 +315,50 @@ extension WriteView {
         }
     }
 
+    /// "Keep writing" follow-up (writing-roadmap.md 1.2). Debounced like the draft save but
+    /// on a longer idle window since this triggers an on-device generation, not a cheap local
+    /// write. Entirely ephemeral: nothing here touches SwiftData, the draft store, or the
+    /// eventual saved Entry — only `@State` on WriteView, gone the moment the view disappears.
+    func scheduleFollowUpCheck() {
+        followUpTask?.cancel()
+        guard followUpQuestion == nil else { return }
+        let sub = SubscriptionService.shared
+        guard sub.tier == .core || sub.tier == .deep else { return }
+        guard LocalLLMService.isModelAvailable else { return }
+        let currentWordCount = viewModel.wordCount
+        guard currentWordCount >= 20 else { return }
+        guard currentWordCount - followUpWordCountAtLastCheckpoint >= 20 else { return }
+        let snapshot = viewModel.text
+        followUpTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled, snapshot == viewModel.text else { return }
+            guard let result = try? await InsightService.generateFollowUp(currentText: snapshot) else {
+                followUpTask = nil
+                return
+            }
+            guard !Task.isCancelled, snapshot == viewModel.text else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                followUpQuestion = result.text
+            }
+            followUpWordCountAtLastCheckpoint = viewModel.wordCount
+            followUpTask = nil
+        }
+    }
+
+    func useFollowUpQuestion() {
+        guard let followUpQuestion else { return }
+        let separator = viewModel.text.isEmpty || viewModel.text.hasSuffix("\n") ? "" : "\n\n"
+        viewModel.text += separator + followUpQuestion + "\n"
+        dismissFollowUp()
+    }
+
+    func dismissFollowUp() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            followUpQuestion = nil
+        }
+        followUpWordCountAtLastCheckpoint = viewModel.wordCount
+    }
+
     func flushDraftSave() {
         guard entry == nil else { return }
         draftSaveTask?.cancel()
