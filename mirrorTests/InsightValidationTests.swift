@@ -382,9 +382,34 @@ struct InsightValidationTests {
         expectRejected("I feel great today", .emotion)
     }
 
+    // MARK: - FollowUp (one short question, ephemeral, never persisted — see 1.2 in writing-roadmap.md)
+
+    @Test func followUp_shortQuestion_passes() {
+        expectValid("What's underneath that tiredness?", .followUp)
+    }
+
+    @Test func followUp_missingQuestionMark_rejected() {
+        expectRejected("What's underneath that tiredness", .followUp)
+    }
+
+    @Test func followUp_twoQuestions_rejected() {
+        expectRejected("What's underneath that? And what will you do about it?", .followUp)
+    }
+
+    @Test func followUp_journalWriterFirstPerson_rejected() {
+        // containsJournalWriterFirstPerson matches specific verbs after "I" (feel/need/etc.),
+        // not every first-person construction — use one of those verbs, not a generic one.
+        expectRejected("I feel like I need to say more?", .followUp)
+    }
+
+    @Test func followUp_tooLong_rejected() {
+        let longQuestion = String(repeating: "word ", count: 40) + "?"
+        expectRejected(longQuestion, .followUp)
+    }
+
     // MARK: - Shared: empty input always rejected as .emptyResponse, before any task-specific check
 
-    @Test(arguments: [LocalLLMTask.dailyNudge, .ask, .weeklyDigest, .monthlyReport, .emotion])
+    @Test(arguments: [LocalLLMTask.dailyNudge, .ask, .weeklyDigest, .monthlyReport, .emotion, .followUp])
     func emptyInput_alwaysThrowsEmptyResponse(_ task: LocalLLMTask) {
         do {
             _ = try InsightService.validate("", for: task)

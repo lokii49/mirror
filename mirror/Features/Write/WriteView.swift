@@ -50,6 +50,11 @@ struct WriteView: View {
     @State var deleteCountdown: Int = 10
     @State var undoSnapshot = DraftUndoSnapshot()
     @State var draftSaveTask: Task<Void, Never>? = nil
+    // "Keep writing" follow-up (writing-roadmap.md 1.2) — entirely ephemeral, never
+    // persisted, never part of the draft/entry text unless the user explicitly taps it in.
+    @State var followUpTask: Task<Void, Never>? = nil
+    @State var followUpQuestion: String? = nil
+    @State var followUpWordCountAtLastCheckpoint: Int = 0
     /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
     /// the write (and CloudKit modification) when the entry was only opened to read.
     @State var loadedContentHash: Int = 0
@@ -59,6 +64,9 @@ struct WriteView: View {
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
+    @State var showDocumentScanner = false
+    @State var isScanningText = false
+    @State var textScanError: String? = nil
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
@@ -277,6 +285,22 @@ struct WriteView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
+            if isScanningText {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(.secondary)
+                    Text("Recognizing text…")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(MirrorTheme.inkMid, in: Capsule())
+                .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+
             if pendingDelete {
                 HStack(spacing: 12) {
                     Image(systemName: "trash")
@@ -303,6 +327,18 @@ struct WriteView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 }
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if let followUpQuestion, !focusMode, !pendingDelete, !showSaved, !isAttachingPhoto, !isScanningText, !showFormattingPanel {
+                FollowUpChip(
+                    question: followUpQuestion,
+                    onUse: { useFollowUpQuestion() },
+                    onDismiss: { dismissFollowUp() }
+                )
                 .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
@@ -412,6 +448,12 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        .sheet(isPresented: $showDocumentScanner) {
+            DocumentScannerController { result in
+                handleScannedPages(result)
+            }
+            .ignoresSafeArea()
+        }
         .fullScreenCover(item: Binding(
             get: { fullscreenPhotoIndex.map { IdentifiableIndex(value: $0) } },
             set: { fullscreenPhotoIndex = $0?.value }
@@ -428,6 +470,14 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(photoAttachError ?? "")
+        }
+        .alert("Scan not added", isPresented: Binding(
+            get: { textScanError != nil },
+            set: { if !$0 { textScanError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(textScanError ?? "")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
             TextField("https://example.com", text: $linkEditorURLText)
@@ -482,6 +532,7 @@ struct WriteView: View {
         }
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { scheduleDraftSave() }
+            scheduleFollowUpCheck()
         }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
@@ -502,6 +553,8 @@ struct WriteView: View {
         }
         .onDisappear {
             cancelDraftSave()
+            followUpTask?.cancel()
+            followUpTask = nil
             if isRecordingInline { voiceRecorder.discardRecording() }
         }
     }

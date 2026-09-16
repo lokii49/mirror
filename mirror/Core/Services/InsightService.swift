@@ -113,6 +113,18 @@ Joyful, Grateful, Peaceful, Content, Energized, Hopeful, Anxious, Overwhelmed, F
 No explanation. No punctuation. One word only.
 """
 
+private let FOLLOW_UP_SYSTEM = """
+You are MirrorNotes, reading a journal entry the person is currently writing, mid-draft. Ask exactly one short follow-up question that invites them to go deeper into what they just wrote — the way a thoughtful friend would ask "what do you mean by that?" or "what's underneath that?"
+Rules:
+- Exactly one question, ending in a question mark
+- Under 18 words
+- Reference something specific and concrete from what they wrote — a word, feeling, or detail. Do not ask a generic question that could apply to any entry
+- Address them as "you/your" only
+- Do not answer for them, do not summarize what they wrote, do not give advice
+- No preamble, no quotation marks around the question, nothing before or after it
+- Do not mention that you are an AI or model
+"""
+
 enum InsightService {
     private static let dailyNudgePromptBudget = 4_600
     private static let weeklyDigestPromptBudget = 4_800
@@ -495,6 +507,22 @@ enum InsightService {
         return normalizeEmotion(response.text)
     }
 
+    // Never persisted as an Insight — ephemeral, in-editor-only, discarded once the chip is
+    // dismissed or the entry is saved. Keeps this feature schema-free: WriteView holds the
+    // question in @State only, matching the security rule that draft-adjacent text stays
+    // entirely on-device and un-cached.
+    static func generateFollowUp(currentText: String) async throws -> (text: String, engine: LLMEngine) {
+        let trimmed = String(currentText.suffix(3000))
+        let target = responseLanguageTarget(from: [], extraText: trimmed) ?? responseLanguageTargetFromCurrentLocale()
+        let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
+        return try await localGenerate(
+            systemPrompt: FOLLOW_UP_SYSTEM,
+            userMessage: trimmed,
+            task: .followUp,
+            responseLanguageInstruction: languageInstruction
+        )
+    }
+
     // Gemma's system prompts are English, so without an explicit directive it tends
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
@@ -511,7 +539,7 @@ enum InsightService {
 
             Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.
             """
-        case .dailyNudge, .ask:
+        case .dailyNudge, .ask, .followUp:
             return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
         case .emotion:
             return nil
@@ -525,7 +553,7 @@ enum InsightService {
             labels = weeklyDigestSectionLabels
         case .monthlyReport:
             labels = monthlyReportSectionLabels
-        case .dailyNudge, .ask, .emotion:
+        case .dailyNudge, .ask, .emotion, .followUp:
             return []
         }
         return labels.map { section in
@@ -674,7 +702,7 @@ enum InsightService {
             cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
             cleaned = raw.text.cleanedMonthlyReportOutput()
-        case .dailyNudge, .ask, .emotion:
+        case .dailyNudge, .ask, .emotion, .followUp:
             cleaned = raw.text.cleanedInsightOutput()
         }
         return (cleaned, raw.engine)
@@ -704,6 +732,8 @@ enum InsightService {
             return "Return only 3-5 complete sentences. Do not invent facts not in the entries."
         case .emotion:
             return "Return exactly one allowed mood word and nothing else."
+        case .followUp:
+            return "Return exactly one short question, ending with a question mark, under 18 words. Nothing before or after it."
         }
     }
 
@@ -752,7 +782,19 @@ enum InsightService {
                 throw InsightError.incompleteResponse
             }
             return trimmed
+        case .followUp:
+            return try validateFollowUp(trimmed)
         }
+    }
+
+    private static func validateFollowUp(_ text: String) throws -> String {
+        guard text.hasSuffix("?") else { throw InsightError.incompleteResponse }
+        guard text.count >= 8, text.count <= 160 else { throw InsightError.incompleteResponse }
+        // Reject if a second question mark shows up mid-string — a sign the model produced
+        // more than the "exactly one question" the prompt asks for, not a single clean ask.
+        guard text.filter({ $0 == "?" }).count == 1 else { throw InsightError.incompleteResponse }
+        guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
+        return text
     }
 
     // .strictExceptMirrorNoticed exists only for dailyNudge's sanctioned "I noticed" — see the
