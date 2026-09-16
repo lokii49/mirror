@@ -69,13 +69,26 @@ enum TextScanError: LocalizedError {
 /// `.accurate` (vs. `.fast`) trades a little latency for materially better recognition on
 /// handwriting and low-contrast photos — acceptable here since this already runs off the main
 /// thread (see WriteView+TextScan.swift's `Task.detached`), not on a live camera feed.
-nonisolated func recognizedText(from images: [UIImage]) throws -> String {
+///
+/// `preferredLanguage`: an SFSpeechRecognizer-style BCP-47 tag (e.g. "de-DE") — reuses the
+/// user's existing `transcriptionLanguage` Settings choice (`ProtocolSettingsView`) rather than
+/// inventing a second language preference. Vision's own `recognitionLanguages` uses the same
+/// tag format. Empty string (the setting's "Automatic" value) falls back to the system's
+/// preferred languages, filtered to what this request actually supports — passing an
+/// unsupported tag straight through would make `VNImageRequestHandler.perform` throw.
+nonisolated func recognizedText(from images: [UIImage], preferredLanguage: String = "") throws -> String {
     var pageTexts: [String] = []
     for image in images {
         guard let cgImage = image.cgImage else { continue }
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
+        if !preferredLanguage.isEmpty {
+            request.recognitionLanguages = [preferredLanguage]
+        } else if let supported = try? request.supportedRecognitionLanguages() {
+            let matched = Locale.preferredLanguages.filter { supported.contains($0) }
+            if !matched.isEmpty { request.recognitionLanguages = matched }
+        }
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         try handler.perform([request])
         let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }

@@ -5,10 +5,13 @@ extension WriteView {
         switch result {
         case .success(let images):
             isScanningText = true
+            // Reuses the same language preference the user already set for voice
+            // transcription (ProtocolSettingsView) rather than a second, separate setting.
+            let preferredLanguage = UserDefaults.standard.string(forKey: "transcriptionLanguage") ?? ""
             Task {
                 do {
                     let text = try await Task.detached(priority: .userInitiated) {
-                        try recognizedText(from: images)
+                        try recognizedText(from: images, preferredLanguage: preferredLanguage)
                     }.value
                     isScanningText = false
                     appendScannedText(text)
