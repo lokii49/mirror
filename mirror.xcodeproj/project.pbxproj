@@ -118,6 +118,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Core/Utilities/DateHelpers.swift,
+				Features/Write/WritingPrompts.swift,
 				Widget/DailyNudgeWidget.swift,
 				Widget/EntriesMapWidget.swift,
 				Widget/MonthlyReportWidget.swift,

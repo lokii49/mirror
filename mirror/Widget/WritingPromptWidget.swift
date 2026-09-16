@@ -12,47 +12,17 @@ private let wSentinelBg = WidgetTheme.sentinelBg
 
 private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
-private let writingPrompts: [LocalizedStringKey] = [
-    "What made you smile today?",
-    "What's one thing you're grateful for right now?",
-    "What did you learn today, big or small?",
-    "Who made your day better?",
-    "What's weighing on your mind?",
-    "What are you looking forward to?",
-    "Describe your energy level today.",
-    "What was the best moment of your day?",
-    "What are you proud of this week?",
-    "What would you tell your past self today?",
-    "What do you want to let go of?",
-    "What feels unfinished?",
-    "What made you feel most alive recently?",
-    "What do you want more of in your life?",
-    "What's one thing you did just for yourself today?",
-    "What challenged you, and how did you respond?",
-    "What's something you've been avoiding?",
-    "Who are you becoming?",
-    "What does rest look like for you right now?",
-    "What would make tomorrow better than today?",
-    "What surprised you today?",
-    "What moment do you want to remember?",
-    "What do you need right now that you're not getting?",
-    "What's a small win worth celebrating?",
-    "What story are you telling yourself today?",
-    "What do you wish more people understood about you?",
-    "What emotion kept coming up today?",
-    "Where did you spend your energy, and was it worth it?",
-]
-
 // MARK: - Timeline
 
 struct PromptWidgetEntry: TimelineEntry {
     let date: Date
-    let prompt: LocalizedStringKey
+    let promptIndex: Int
+    var prompt: String { WritingPrompts.all[promptIndex] }
 }
 
 struct PromptWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> PromptWidgetEntry {
-        PromptWidgetEntry(date: .now, prompt: writingPrompts[0])
+        PromptWidgetEntry(date: .now, promptIndex: 0)
     }
     func getSnapshot(in context: Context, completion: @escaping (PromptWidgetEntry) -> Void) {
         completion(makeEntry())
@@ -64,8 +34,7 @@ struct PromptWidgetProvider: TimelineProvider {
         completion(Timeline(entries: [makeEntry()], policy: .after(nextMidnight)))
     }
     private func makeEntry() -> PromptWidgetEntry {
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
-        return PromptWidgetEntry(date: .now, prompt: writingPrompts[dayOfYear % writingPrompts.count])
+        PromptWidgetEntry(date: .now, promptIndex: WritingPrompts.indexForToday())
     }
 }
 
@@ -121,7 +90,7 @@ private struct PromptUnlockedView: View {
                 LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }
-        .widgetURL(URL(string: "mirror://write"))
+        .widgetURL(URL(string: "mirror://write?promptIndex=\(entry.promptIndex)"))
     }
 }
 

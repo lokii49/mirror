@@ -14,6 +14,7 @@ struct InsightView: View {
     @State private var chartVisible = false
     @State private var promptIndex: Int = WritingPrompts.indexForToday()
     @State private var showWriteFromPrompt = false
+    @State private var pendingTemplateText: String? = nil
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
@@ -140,7 +141,7 @@ struct InsightView: View {
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showWriteFromPrompt) {
                 NavigationStack {
-                    WriteView(autoFocus: true, initialText: WritingPrompts.all[promptIndex])
+                    WriteView(autoFocus: true, initialText: pendingTemplateText ?? WritingPrompts.all[promptIndex])
                 }
                 .environment(\.appDisplayMode, displayMode)
             }
@@ -477,7 +478,14 @@ struct InsightView: View {
                             promptIndex = next
                         }
                     },
-                    onUse: { showWriteFromPrompt = true }
+                    onUse: {
+                        pendingTemplateText = nil
+                        showWriteFromPrompt = true
+                    },
+                    onUseTemplate: { template in
+                        pendingTemplateText = template.seedText
+                        showWriteFromPrompt = true
+                    }
                 )
             }
         case .subscriptionRequired:
