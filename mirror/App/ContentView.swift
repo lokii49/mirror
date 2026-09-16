@@ -15,12 +15,13 @@ extension EnvironmentValues {
 }
 
 private enum AppSidebarItem: String, CaseIterable, Hashable {
-    case entries, write, insights, settings
+    case entries, write, talk, insights, settings
 
     var title: LocalizedStringKey {
         switch self {
         case .entries:  return "Entries"
         case .write:    return "Write"
+        case .talk:     return "Talk"
         case .insights: return "Insights"
         case .settings: return "Settings"
         }
@@ -30,6 +31,7 @@ private enum AppSidebarItem: String, CaseIterable, Hashable {
         switch self {
         case .entries:  return "book.closed"
         case .write:    return "square.and.pencil"
+        case .talk:     return "bubble.left.and.text.bubble.right"
         case .insights: return "sparkles"
         case .settings: return "gearshape"
         }
@@ -246,12 +248,14 @@ struct ContentView: View {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
                 case 2: selectedSidebarItem = .insights
+                case 3: selectedSidebarItem = .talk
                 default: selectedSidebarItem = .write
                 }
             } else {
                 switch selectedSidebarItem {
                 case .entries:  selectedTab = 0
                 case .insights: selectedTab = 2
+                case .talk:     selectedTab = 3
                 case .settings: selectedTab = 1
                 default:        selectedTab = 1
                 }
@@ -300,6 +304,9 @@ struct ContentView: View {
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
+            case "talk":
+                selectedTab = 3
+                selectedSidebarItem = .talk
             case "upgrade":
                 showPaywall = true
             case "entry":
@@ -333,6 +340,10 @@ struct ContentView: View {
             InsightView(viewModel: insightViewModel)
                 .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(2)
+
+            TalkTabView()
+                .tabItem { Label(displayMode == .sentinel ? "Comms" : "Talk", systemImage: displayMode == .sentinel ? "dot.radiowaves.left.and.right" : "bubble.left.and.text.bubble.right") }
+                .tag(3)
         }
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
@@ -363,6 +374,8 @@ struct ContentView: View {
                 selectedSidebarItem = .entries
                 entriesNavResetID = UUID()
             })
+        case .talk:
+            TalkTabView()
         case .insights:
             InsightView(viewModel: insightViewModel)
         case .settings:
@@ -381,5 +394,103 @@ private struct WriteTabView: View {
                 onSave?()
             }
         }
+    }
+}
+
+// "Talk" tab (writing-roadmap.md Tier 2, "Talk it out") — hosts TalkItOutView as a persistent
+// screen rather than a one-shot sheet. `conversationID` forces a fresh TalkItOutView (and its
+// @State) whenever the conversation should restart — after finishing, after "Start Over", or
+// after subscription/model availability changes underneath it — since a tab doesn't get torn
+// down and rebuilt the way a sheet presentation does.
+private struct TalkTabView: View {
+    @Environment(\.appDisplayMode) private var displayMode
+    @State private var subscriptionService = SubscriptionService.shared
+    @State private var conversationID = UUID()
+    @State private var showComposedEntry = false
+    @State private var composedText = ""
+    @State private var showPaywall = false
+
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var isUnlocked: Bool { subscriptionService.tier == .core || subscriptionService.tier == .deep }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isUnlocked {
+                    if LocalLLMService.isModelAvailable {
+                        TalkItOutView(
+                            onFinish: { composed in
+                                composedText = composed
+                                showComposedEntry = true
+                            },
+                            onCancel: { conversationID = UUID() }
+                        )
+                        .id(conversationID)
+                    } else {
+                        notReadyState
+                    }
+                } else {
+                    lockedState
+                }
+            }
+            .navigationTitle(isSentinel ? "COMMS" : "Talk it out")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if isUnlocked && LocalLLMService.isModelAvailable {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            conversationID = UUID()
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise")
+                        }
+                        .accessibilityLabel("Start over")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showComposedEntry) {
+            NavigationStack {
+                WriteView(autoFocus: true, initialText: composedText) {
+                    showComposedEntry = false
+                    conversationID = UUID()
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(initialTier: .core)
+                .environment(\.appDisplayMode, displayMode)
+        }
+    }
+
+    private var lockedState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "bubble.left.and.text.bubble.right")
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            Text("Talk it out is a Core feature")
+                .font(.system(size: 16, weight: .semibold))
+            Text("A short guided conversation to help you start writing, fully on-device.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Upgrade") { showPaywall = true }
+                .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+
+    private var notReadyState: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+            Text("Mirror's on-device AI isn't ready yet — try again in a moment.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

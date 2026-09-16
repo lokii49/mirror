@@ -125,6 +125,18 @@ Rules:
 - Do not mention that you are an AI or model
 """
 
+private let GUIDED_ENTRY_SYSTEM = """
+You are MirrorNotes, helping someone start a journal entry through a short guided conversation. Ask exactly one open, inviting question to help them begin reflecting. The first question should be broad and welcoming — about their day, how they're feeling, or what's on their mind. Each later question should build naturally on what they just answered, going one layer deeper.
+Rules:
+- Exactly one question, ending in a question mark
+- Under 18 words
+- Address them as "you/your" only
+- Do not answer for them, do not summarize what they said, do not give advice
+- Do not repeat a question already asked earlier in this conversation
+- No preamble, no quotation marks around the question, nothing before or after it
+- Do not mention that you are an AI or model
+"""
+
 enum InsightService {
     private static let dailyNudgePromptBudget = 4_600
     private static let weeklyDigestPromptBudget = 4_800
@@ -518,6 +530,34 @@ enum InsightService {
         return try await localGenerate(
             systemPrompt: FOLLOW_UP_SYSTEM,
             userMessage: trimmed,
+            task: .followUp,
+            responseLanguageInstruction: languageInstruction
+        )
+    }
+
+    // Tier 2 ("Talk it out", writing-roadmap.md) — a guided, multi-turn entry starter.
+    // Deliberately reuses the .followUp task rather than adding a new LocalLLMTask case: the
+    // output shape (one short question, ending in "?") is identical, only the system prompt and
+    // conversation framing differ, so the existing validator/cleaning/retry machinery for
+    // .followUp applies unchanged. Every turn is caller-held @State (see TalkItOutView) — never
+    // persisted, never written anywhere until the user explicitly inserts the composed result
+    // into a real draft.
+    static func generateGuidedQuestion(conversationSoFar: [(question: String, answer: String)]) async throws -> (text: String, engine: LLMEngine) {
+        let userMessage: String
+        if conversationSoFar.isEmpty {
+            userMessage = "This is the start of a new guided journal entry. Ask your first question."
+        } else {
+            let transcript = conversationSoFar
+                .map { "Q: \($0.question)\nA: \($0.answer)" }
+                .joined(separator: "\n\n")
+            userMessage = "Conversation so far:\n\(transcript)\n\nAsk the next question."
+        }
+        let allAnswers = conversationSoFar.map(\.answer).joined(separator: " ")
+        let target = responseLanguageTarget(from: [], extraText: allAnswers) ?? responseLanguageTargetFromCurrentLocale()
+        let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
+        return try await localGenerate(
+            systemPrompt: GUIDED_ENTRY_SYSTEM,
+            userMessage: userMessage,
             task: .followUp,
             responseLanguageInstruction: languageInstruction
         )
