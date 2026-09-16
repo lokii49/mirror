@@ -2641,6 +2641,29 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   emails sent, no new Backlog entry added — 85th consecutive run blocked purely on environment/session
   config, all three re-verified fresh with unchanged evidence. Not notifying: identical standing
   blocker already surfaced in prior runs' notifications, nothing material changed.
+- BrethofAI/awesome-private-ai and BrethofAI/awesome-local-ai (companion lists, active, well-maintained,
+  real inclusion criteria) are not fits: both are strictly dev/infra tool catalogs (inference runtimes,
+  self-hostable stacks, desktop chat apps, privacy-auditing utilities, open-weights models) — no section
+  for consumer-facing mobile/journaling apps in either. Confirmed 2026-09-16 via raw README fetch on
+  both; do not re-add unless either gains a consumer-apps section.
+- topic:journal-app and "awesome mental-wellness" searches this run surfaced only individual competitor
+  journal apps (memex, June, storypad, ReJournal, memlore, etc. — not directories) or a single unrelated
+  toy repo — no new curated-directory candidate. Confirmed 2026-09-16; do not re-try these exact angles
+  again.
+
+- 2026-09-16 (run 86): Re-confirmed the standing blockers with fresh/cheap checks this run rather than
+  the full 3-way re-verification (per Lessons guidance not to burn a diagnostic every single run):
+  session GitHub repo scope confirmed still `lokii49/mirror`-only directly from this session's own
+  environment banner (no tool call needed — unchanged since run 84/85), and `/dev/tcp` to
+  smtp.mail.me.com:587 timed out fresh this run (SMTP_BLOCKED, exit 124) — priorities 1 and 3 remain
+  impossible, nothing sent, Sent log still empty. For priority 2, tried `search_code` for competitor
+  names "How We Feel" and "Bearable" (no relevant directory hits, only false-positive word matches),
+  `search_repositories` for "awesome private-ai"-style queries (surfaced BrethofAI's two companion
+  lists — real, active, but dev/infra-only, ruled out — see Lessons), and topic:journal-app /
+  "awesome mental-wellness" (only individual competitor apps, no directories). No new candidate cleared
+  the fit bar. No PRs opened, no comments posted, no emails sent — 86th consecutive run blocked purely
+  on environment/session config, both re-verified fresh with unchanged evidence. Not notifying:
+  identical standing blocker already surfaced in prior runs' notifications, nothing material changed.
 
 ## Sent log
 
