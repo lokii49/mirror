@@ -247,15 +247,15 @@ struct ContentView: View {
             if newClass == .regular {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
-                case 2: selectedSidebarItem = .insights
-                case 3: selectedSidebarItem = .talk
+                case 2: selectedSidebarItem = .talk
+                case 3: selectedSidebarItem = .insights
                 default: selectedSidebarItem = .write
                 }
             } else {
                 switch selectedSidebarItem {
                 case .entries:  selectedTab = 0
-                case .insights: selectedTab = 2
-                case .talk:     selectedTab = 3
+                case .talk:     selectedTab = 2
+                case .insights: selectedTab = 3
                 case .settings: selectedTab = 1
                 default:        selectedTab = 1
                 }
@@ -302,10 +302,10 @@ struct ContentView: View {
                 selectedTab = 0
                 selectedSidebarItem = .entries
             case "insights", "nudge":
-                selectedTab = 2
+                selectedTab = 3
                 selectedSidebarItem = .insights
             case "talk":
-                selectedTab = 3
+                selectedTab = 2
                 selectedSidebarItem = .talk
             case "upgrade":
                 showPaywall = true
@@ -337,12 +337,12 @@ struct ContentView: View {
             .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: displayMode == .sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil") }
             .tag(1)
 
-            InsightView(viewModel: insightViewModel)
-                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
-                .tag(2)
-
             TalkTabView()
                 .tabItem { Label(displayMode == .sentinel ? "Comms" : "Talk", systemImage: displayMode == .sentinel ? "dot.radiowaves.left.and.right" : "bubble.left.and.text.bubble.right") }
+                .tag(2)
+
+            InsightView(viewModel: insightViewModel)
+                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(3)
         }
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
