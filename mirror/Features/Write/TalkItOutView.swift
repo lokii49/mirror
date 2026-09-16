@@ -83,30 +83,21 @@ struct TalkItOutView: View {
             .animation(.spring(response: 0.35, dampingFraction: 0.82), value: currentQuestion)
         }
         .background(MirrorTheme.inkBase)
-        // On-device bug, two rounds (both found via real-device screenshots, not the
-        // simulator): (1) with no way to dismiss the keyboard, the tab bar sat hidden
-        // underneath it forever — "no back option." (2) The first fix added a separate
-        // keyboard-toolbar "Done" button, which then sat stacked directly above the bottom
-        // bar's own "Next" capsule — two near-identical buttons, correctly reported as
-        // confusing. Advisor-reviewed final shape: one button, one location. The advance
-        // action now lives *in* the keyboard toolbar — submitting an answer clears
-        // `currentQuestion`, which drops focus and dismisses the keyboard as a side effect of
-        // the same tap, rather than needing a second gesture or a second button to get back to
-        // the tab bar. The bottom bar keeps only the passive "1 of 3" progress label and
-        // "Finish" — no CTA competing with the toolbar.
+        // On-device bug, three rounds, all found via real-device screenshots — the simulator
+        // never caught any of them: (1) with no way to dismiss the keyboard, the tab bar sat
+        // hidden underneath it forever — "no back option." (2) A keyboard-toolbar "Done" button
+        // fixed that but sat stacked directly above the bottom bar's own "Next" capsule — two
+        // near-identical buttons. (3) Moving the advance action *into* the keyboard toolbar
+        // (advisor-reviewed: "one button, one location") removed the duplicate, but
+        // `.toolbar(placement: .keyboard)` on a view with no local `NavigationStack` (this one
+        // is hosted inside `TalkTabView`'s) simply didn't render on-device at all — not
+        // disabled, not hidden by state, just absent, leaving no way to advance whatsoever.
+        // Reverted to a single, always-visible bottom-bar button instead of continuing to fight
+        // an unreliable API — empirical on-device failure overrides the earlier reasoning.
+        // `.scrollDismissesKeyboard(.interactively)` (matches WriteView's own editor) is the
+        // sole keyboard-dismiss path now — a real, if imperfect, improvement over the original
+        // zero-affordance bug, not a guaranteed one.
         .scrollDismissesKeyboard(.interactively)
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button {
-                    submitAnswer()
-                } label: {
-                    Text(nextButtonLabel)
-                        .font(bodyFont(15, weight: .semibold))
-                }
-                .disabled(currentQuestion == nil || answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
         .safeAreaInset(edge: .bottom) { bottomBar }
         .alert("Something went wrong", isPresented: Binding(
             get: { errorMessage != nil },
@@ -199,23 +190,35 @@ struct TalkItOutView: View {
     // MARK: - Bottom bar
 
     private var bottomBar: some View {
-        VStack(spacing: 10) {
+        HStack(spacing: 12) {
             if !turns.isEmpty || currentQuestion != nil {
                 Text(progressLabel)
                     .font(bodyFont(11, weight: .semibold))
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .tracking(isSentinel ? 0.6 : 0)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            Spacer()
             if !turns.isEmpty {
                 Button(isSentinel ? "FINISH" : "Finish") { finish() }
                     .font(bodyFont(14, weight: .semibold))
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
+            Button {
+                submitAnswer()
+            } label: {
+                Text(nextButtonLabel)
+                    .font(bodyFont(15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 7)
+                    .background(accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(currentQuestion == nil || answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(currentQuestion == nil || answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 12)
+        .padding(.vertical, 8)
         .background(MirrorTheme.inkMid)
         .overlay(alignment: .top) {
             Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
