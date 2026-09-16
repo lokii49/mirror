@@ -402,8 +402,18 @@ struct WriteView: View {
             entryTags = entry?.tags ?? []
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
             if entry == nil {
-                restoreDraftFromStorage()
-                if !initialText.isEmpty && viewModel.text.isEmpty {
+                // Real bug, found on-device (0.1's widget prompt, 0.2's templates, and Tier 2's
+                // "Talk it out" all hit this): restoring an unrelated leftover autosaved draft
+                // used to run unconditionally, before this check — so any stale draft sitting
+                // in UserDefaults from an earlier, unrelated Write session silently won over an
+                // explicit initialText request, sometimes producing a blank/wrong editor for no
+                // visible reason ("sometimes seeing blank screen after talk it out questions").
+                // When a caller explicitly asks for specific starting text, that intent wins
+                // outright — the stale draft is left untouched in storage (not cleared, no data
+                // loss), just not loaded into this particular prefilled session.
+                if initialText.isEmpty {
+                    restoreDraftFromStorage()
+                } else if viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
                 // A restored draft only persists audio, not transcripts — decode
