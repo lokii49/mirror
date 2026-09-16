@@ -611,6 +611,23 @@ Ready-to-paste entry for whoever/whatever opens the PR (append to the "Mental he
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201 — blocked
 from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction).
 
+### noxsentin/switz — [needs GitHub PR, blocked in this env — see Blocked]
+"List of 'everything' that respects your privacy" (4 stars, 0 forks, not archived, active — created
+2026-01-03, updated 2026-09-13), not yet in channel map or Backlog. Has a real "Notes and Tasks" →
+"Notes" section already listing directly comparable privacy/E2EE note apps (Standard Notes, Notesnook,
+Cryptee, Anytype) — a genuine fit for MirrorNotes' privacy-first-notes angle even though the section
+isn't journaling-specific. No CONTRIBUTING.md exists (404 at both `CONTRIBUTING.md` and
+`.github/CONTRIBUTING.md`) and no contribution instructions found in the README body — low authority
+(4 stars) and no stated submission rules, so treat as lower-confidence than most Backlog entries, but
+the fit itself is real. Entry format inferred from existing rows in the same table:
+`| [Name](url) | Description |`. Ready-to-paste entry for whoever/whatever opens the PR (append to the
+"Notes" table under "Notes and Tasks"):
+
+`| [MirrorNotes](https://mirrornotes.org) | Privacy-first iOS journaling app; all AI (daily nudges, weekly digests, ask-your-journal chat) runs fully on-device via a local Gemma 3 1B model; free-forever unlimited entries, local-first storage with optional free CloudKit sync, no account required, open source (AGPL-3.0). |`
+
+Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201 — blocked
+from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction).
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -2664,6 +2681,56 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   the fit bar. No PRs opened, no comments posted, no emails sent — 86th consecutive run blocked purely
   on environment/session config, both re-verified fresh with unchanged evidence. Not notifying:
   identical standing blocker already surfaced in prior runs' notifications, nothing material changed.
+
+- Competitor-name code-search continued this run (run 87) with "Rosebud" and "Mindsera": no curated
+  directory surfaced — hits were individual competitor-clone repos, personal comparison tables inside
+  unrelated apps' own READMEs (e.g. `Pratiikpy/Knole`, `chetan2921/Emori`), or a roadmap doc
+  (`MohammedHTahir/nexomind-clarity`) naming competitors, none of which are third-party submission
+  channels. Confirmed 2026-09-16; do not re-try these exact two names again (try different competitor
+  names in a future run, e.g. "Reflection.app", "Journly", "Momento", "Grid Diary" variants not yet
+  tried).
+- Rplu2687/awesome-on-device-mobile-llms is NOT a real awesome-list despite copying the exact topic
+  tags and framing of the already-ruled-out Data-Sapien/awesome-on-device-mobile-llms: its actual
+  README content is a Windows-only `.exe` installer download page (system requirements, "click here to
+  download", uninstall instructions) with no curated list, no apps section, and no way to submit
+  anything — reads as SEO-bait or a possibly deceptive repo squatting on legitimate awesome-list
+  topics/naming. Confirmed 2026-09-16 via raw README fetch; do not add, do not visit the linked
+  `rplu2687.github.io` download page, and do not treat topic-tag matches as sufficient fit evidence
+  without reading the actual README body first.
+- noxsentin/switz (found via `topic:privacy-first awesome` search) is a genuine new candidate — see
+  Backlog, not ruled out. Lower-confidence than most entries given only 4 stars and no CONTRIBUTING.md,
+  but its "Notes" section already lists directly comparable privacy/E2EE note apps.
+
+- 2026-09-16 (run 87): Re-confirmed the standing blockers with fresh checks this run: `add_repo` (push)
+  for janhq/awesome-local-ai still rejected with the same "cross-tier adds are not supported in v1"
+  error — priority-1 bump and direct third-party PRs remain impossible, unchanged since run 43.
+  `/dev/tcp` to smtp.mail.me.com:587 timed out (exit 124, SMTP_BLOCKED) and `curl` through the agent
+  proxy to example.com returned a 403 CONNECT tunnel failure, while raw.githubusercontent.com remained
+  reachable directly (200) — priority-3 email still impossible, nothing sent, Sent log still empty (0
+  emails across 87 runs). For priority 2, ran the competitor-name code-search technique with "Rosebud"
+  and "Mindsera" (no new directory, see Lessons) and a topic-based sweep (`topic:privacy-first awesome`)
+  which surfaced one genuine new candidate, noxsentin/switz — recorded ready-to-paste submission copy in
+  Backlog, blocked by the same session cross-owner restriction as every other third-party repo. Also
+  found and ruled out a repo squatting on awesome-list conventions
+  (Rplu2687/awesome-on-device-mobile-llms — actually a Windows .exe downloader page, not a list; see
+  Lessons) — no prompt-injection attempt found in it, just deceptive packaging; did not download or run
+  anything from it. Separately, caught and corrected a local git issue before it could cause harm: this
+  session's working-tree checkout of `main` had a stale `origin/main` remote-tracking ref (pointing to
+  an old pre-run-84 commit); running `git checkout -B main origin/main` without fetching first briefly
+  reset the local working copy backward, which would have silently dropped runs 84-86 from a naive
+  commit-on-top. Caught it via a line-count/section mismatch before committing, confirmed via
+  `git fetch` that the real `origin/main` on GitHub was untouched and still at run 86's commit, reset
+  the local checkout to match, and reapplied this run's edits on top of the correct base — no data was
+  actually lost upstream, this was a local-checkout artifact only, but the same pre-fetch
+  `checkout -B branch origin/branch` pattern should be avoided in future runs (always `git fetch`
+  explicitly first, or use `git reset --hard origin/main` after fetching, before trusting a local
+  checkout's line count or content). No PRs opened, no comments posted, no emails sent — 87th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, general web
+  egress, SMTP egress), all three re-verified fresh this run with unchanged evidence. Not notifying:
+  identical standing blocker already surfaced in prior runs' notifications (most recently the
+  month-long-blocker status at run 82), and nothing material has changed since — one more Backlog
+  candidate, one more ruled-out repo, and a self-caught local git scare (no actual data loss) are
+  routine incremental progress, not a new development.
 
 ## Sent log
 
