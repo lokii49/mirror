@@ -210,6 +210,18 @@ struct ProtocolSettingsView: View {
                 }
 
                 SettingsGroup(title: "Input") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SettingsRowLabel(title: "Quick capture via Siri", systemImage: "waveform.badge.mic", iconColor: MirrorTheme.violet)
+                        Text("Say \u{201C}Add a journal entry in mirror\u{201D} to Siri \u{2014} it saves straight to your journal, no need to open the app.")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 2)
+
+                    SettingsDivider()
+
                     Button { showLanguagePicker = true } label: {
                         HStack {
                             SettingsRowLabel(title: "Voice transcription language", systemImage: "mic.fill", iconColor: MirrorTheme.violet)
