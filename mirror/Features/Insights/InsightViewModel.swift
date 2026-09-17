@@ -25,7 +25,7 @@ enum DigestState {
     /// Not yet Sunday — on-demand generation is gated to match the background pre-gen task's
     /// own Sunday-only rule (see loadWeeklyDigest), so this now covers the real "wait for the
     /// week to finish" case, not just an in-flight background task as the name might suggest.
-    /// Its existing card copy ("Available each Sunday morning... generates overnight") was
+    /// Its existing card copy ("Available Sunday mornings... generates overnight") was
     /// already exactly this message — this case was declared but never actually set before.
     case pendingNightlyGeneration
     case modelNotInstalled
