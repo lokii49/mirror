@@ -1,4 +1,5 @@
 import Testing
+import SwiftData
 import Foundation
 @testable import mirror
 
@@ -85,5 +86,39 @@ struct MemoryBriefBudgetTests {
         let brief = InsightService.buildMemoryBrief(from: longBackgroundPool(count: 2), maxChars: dailyNudgeBackgroundBudget)
         let excerptLines = brief.components(separatedBy: "\n").filter { $0.hasPrefix("- ") }
         #expect(excerptLines.count == 2)
+    }
+
+    // Regression check for the live bug reported 2026-09-17: the "Load Year Long Entries
+    // (Mixed)" debug fixture (SampleData.seedYearLongMixed) used to close nearly every typed
+    // entry with the exact same literal sentence, "The thread running through it was
+    // \(anchor)." Repeated verbatim across ~270 entries, its incidental words ("thread",
+    // "running") swamped `recurringKeywords`' plain frequency count and got surfaced to the
+    // model as a "recurring theme" ahead of any real anchor word — which a 1B model then read
+    // literally, producing a daily reflection about jogging against entries that never
+    // mention exercise. Fixed by rotating through several connector phrases instead of one
+    // fixed sentence (see `connectorTemplates` in SampleData.swift). This test seeds the real
+    // fixture through the real function — not a hand-picked stand-in — and reads the exact
+    // "Recurring words/themes" line `buildMemoryBrief` puts in front of the model, the same
+    // one `generateNudge`'s background context is built from.
+    @MainActor
+    @Test func yearLongFixture_recurringThemes_notDominatedByConnectorPhrase() throws {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: Entry.self, configurations: config)
+        let context = ModelContext(container)
+
+        SampleData.seedYearLongMixed(into: context)
+        try context.save()
+
+        let entries = try context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\Entry.createdAt, order: .reverse)]))
+        #expect(entries.count > 300)
+
+        let (_, background) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+        let brief = InsightService.buildMemoryBrief(from: background, maxChars: 4_000)
+        let recurringLine = brief
+            .components(separatedBy: "\n")
+            .first { $0.hasPrefix("Recurring words/themes:") } ?? ""
+
+        #expect(!recurringLine.lowercased().contains("thread"))
+        #expect(!recurringLine.lowercased().contains("running"))
     }
 }
