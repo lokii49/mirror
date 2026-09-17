@@ -130,6 +130,34 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "settings_protocol_input_siriCaptureRow")
     }
 
+    /// Same row, Sentinel theme — this row's fix went through two rounds without this test:
+    /// the first (bottom-aligning the icon) looked fine in Classic but knocked the icon out of
+    /// vertical alignment with its title, reported back as looking worse. Sentinel mode renders
+    /// this exact same SettingsRowLabel/ProtocolSettingsView code (see CLAUDE.md's Sentinel
+    /// mode note: every themed branch is a place the two themes can silently diverge), so a
+    /// Classic-only screenshot never would have caught it either way — both need checking.
+    @MainActor
+    func testSettings_protocolInputSection_siriCaptureRow_sentinel_screenshot() throws {
+        let app = launchApp()
+        app.tabBars.buttons["Insights"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        app.navigationBars.buttons["person.circle"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        let sentinelCard = app.buttons["Sentinel"].exists ? app.buttons["Sentinel"] : app.staticTexts["Sentinel"]
+        if sentinelCard.waitForExistence(timeout: 5) {
+            sentinelCard.tap()
+            Thread.sleep(forTimeInterval: 1)
+        }
+
+        app.staticTexts["Protocol"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        XCTAssertTrue(app.staticTexts["Quick capture via Siri"].waitForExistence(timeout: 5))
+        snapshot(app, name: "settings_protocol_input_siriCaptureRow_sentinel")
+    }
+
     // MARK: - Talk It Out model gate (writing-roadmap.md Tier 2 / FM-availability fix)
 
     /// Live confirmation for the FM-capable side of the mirrorApp.modelAvailable() fix — the
