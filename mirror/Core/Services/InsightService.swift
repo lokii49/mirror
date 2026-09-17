@@ -323,18 +323,23 @@ enum InsightService {
     /// coincidentally land 2 words in without the rest of the reflection being any more specific
     /// — the same weak-signal problem the flat "1" had, reappearing at "2" for anyone who writes
     /// at length. Roughly 1 additional required word per 15 source content words, so a
-    /// ~150-word entry (a substantial paragraph) needs 3 shared words instead of 2, and a
-    /// digest's full week of entries needs correspondingly more. Capped at `nudgeWordCount`: a
-    /// nudge is bounded to ~700 output characters (`LocalLLMTask.dailyNudge.maxOutputChars`), so
-    /// it can only ever contain so many content words in the first place — the cap keeps a
-    /// short, honestly-grounded nudge against a very long entry from being held to a standard
-    /// its own length can't reach. Like the "4" cutoff above, "15" is a reasoned guess, not
-    /// validated against real nudge/digest output — worth revisiting if this guard's live
-    /// rejection rate turns out to move a lot once it's actually observable.
+    /// ~150-word entry (a substantial paragraph) needs 3 shared words instead of 2.
+    ///
+    /// Capped at a flat 4, not at `nudgeWordCount` — `sourceWordCount` isn't one entry's
+    /// vocabulary, it's `recent + background` (up to ~23 entries for a nudge, the whole month
+    /// for a monthly report), so it reaches into the hundreds or thousands on any real account.
+    /// The old `min(scaled, nudgeWordCount)` cap looked like a safety net but wasn't one at that
+    /// scale: `scaled` (e.g. 68 for 1000 source words) blows straight past a nudge's own ~25-40
+    /// content words, so the cap became the binding constraint — silently demanding every single
+    /// content word in the nudge appear in the source, which ordinary prose (and MirrorNotes'
+    /// own voice: "noticed", "seems", "maybe") can't satisfy. That's what turned this into an
+    /// ~80% fallback rate live, caught from a real device screenshot the same day the scaling
+    /// landed. A flat ceiling keeps the short/long-single-entry behavior this scaling was written
+    /// for (see the tests below) without the requirement running away on a large corpus.
     private static func minimumSharedWords(sourceWordCount: Int, nudgeWordCount: Int) -> Int {
         guard sourceWordCount >= 4 else { return 1 }
         let scaled = 2 + sourceWordCount / 15
-        return min(scaled, max(nudgeWordCount, 2))
+        return min(scaled, 4, max(nudgeWordCount, 2))
     }
 
     /// The recent/background split a daily nudge is generated from. Factored out so
