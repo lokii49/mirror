@@ -482,6 +482,36 @@ hands.
 > question left for the user, not decided here: whether the Talk tab should sit at index 2
 > (next to Write) instead of appended at index 3 after Insights — it was appended only to avoid
 > renumbering the existing tabs' `onOpenURL`/`sizeClass`-sync switches, not for a UX reason.
+>
+> **Fourth round: reordered to index 2, then removed entirely — final placement is inside
+> WriteView, not a tab.** The index-2 reorder shipped first (every switch re-threaded again).
+> Then, after the keyboard/duplicate-button bugs above, the user asked a third time for a
+> different placement: "have Talk it out within WriteView." Advisor consulted again — verdict
+> reversed from the earlier "don't pivot" position specifically because this was now a third
+> explicit ask, not a design disagreement to push back on. Design: a quiet chip
+> (`TalkItOutChip`, `WriteView+Subviews.swift`) shown only when `entry == nil && !hasDraftContent
+> && !focusMode` — a genuinely blank new entry — directly above the editor, in the same
+> `ScrollView` content stack as the voice-note/recording rows. It disappears the instant there's
+> any content, since at that point the user is already writing.
+>
+> Asked the user explicitly whether to keep the tab as a second entry point or remove it —
+> answer was WriteView-only. **Fully reverted**: `AppSidebarItem.talk`, the `TalkTabView`
+> struct, every `selectedTab`/`selectedSidebarItem` switch case, the `mirror://talk` deep link
+> (confirmed unreferenced elsewhere before deleting), and the tab-index renumbering all removed
+> — tabs are back to Entries=0/Write=1/Insights=2, matching the pre-Tier-2 state.
+>
+> Mechanically this paid off the "no `NavigationStack` inside `TalkItOutView`" refactor from the
+> tab work: hosting it as `.sheet { NavigationStack { TalkItOutView(...) } }` from `WriteView`
+> needed zero changes to the view itself, only a new `WriteView+TalkItOut.swift` (recreating
+> `presentTalkItOut()`'s Core/Deep + `isModelAvailable` gating, deleted once already when the
+> tab replaced it) and `appendTalkItOutText` (mirrors `appendScannedText`, 1.1). Advisor flagged
+> one thing this shape sidesteps for free: `ce4e63c`'s draft-precedence fix isn't load-bearing
+> here, because the chip appends into the *already-open* `viewModel.text` rather than going
+> through `initialText` at all.
+>
+> Not yet hands-verified: this exact shape (chip placement, appearance/disappearance timing,
+> both themes) — device-testing this session was already spent on the tab version before the
+> pivot.
 
 ---
 
