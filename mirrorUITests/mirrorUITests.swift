@@ -108,6 +108,39 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
     }
 
+    // MARK: - Talk It Out model gate (writing-roadmap.md Tier 2 / FM-availability fix)
+
+    /// Live confirmation for the FM-capable side of the mirrorApp.modelAvailable() fix — the
+    /// user reporting the original bug has no Apple Intelligence-eligible device, and this
+    /// session's Xcode 27 beta simulator happens to report Foundation Models as available (see
+    /// writing-roadmap.md Tier 2's "surprising finding"), so it stands in for one. Before the
+    /// fix, LocalLLMService.isModelAvailable being true via FM wasn't enough — the chip's own
+    /// gate went through the same code path as nudge/digest/report, so this also stands in for
+    /// those. Tapping "Talk it out" must reach the real TalkItOutView directly, never the
+    /// "AI model needed" download card, since FM alone should be sufficient.
+    @MainActor
+    func testTalkItOut_foundationModelsAvailable_skipsModelDownloadGate() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+
+        let starterChipLabel = "Need a starting point? Talk it out, or use a template"
+        let starterChip = app.buttons[starterChipLabel].exists ? app.buttons[starterChipLabel] : app.otherElements[starterChipLabel]
+        XCTAssertTrue(starterChip.waitForExistence(timeout: 5), "Starter chip must exist on a blank new entry")
+        starterChip.tap()
+        Thread.sleep(forTimeInterval: 0.5)
+
+        let talkItOutMenuItem = app.buttons["Talk it out"].exists ? app.buttons["Talk it out"] : app.buttons["TALK IT OUT"]
+        XCTAssertTrue(talkItOutMenuItem.waitForExistence(timeout: 3), "Talk it out menu item must exist")
+        talkItOutMenuItem.tap()
+        Thread.sleep(forTimeInterval: 1.5)
+
+        XCTAssertFalse(
+            app.staticTexts["AI MODEL NEEDED"].exists || app.staticTexts["AI model needed"].exists,
+            "Foundation Models is available in this environment — Talk It Out must not show the Gemma-download gate"
+        )
+        snapshot(app, name: "talkItOut_foundationModels_skipsDownloadGate")
+    }
+
     // MARK: - Top Bar Toolbar: New Draft (entry == nil)
 
     /// Empty draft → both "Discard draft" and "Save entry" are disabled.
