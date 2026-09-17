@@ -307,7 +307,7 @@ struct mirrorApp: App {
         }
 
         // Weekly digest only on Sunday
-        if Calendar.current.component(.weekday, from: Date()) == 1 {
+        if DateHelpers.isSunday() {
             await runWeeklyDigestIfNeeded(context: context)
         }
         // Monthly report: generate once 20+ entries exist (Deep only)
@@ -348,7 +348,7 @@ struct mirrorApp: App {
         }
 
         // Weekly digest: generate on Sundays proactively (fallback if nightly BGProcessingTask missed)
-        if Calendar.current.component(.weekday, from: Date()) == 1 {
+        if DateHelpers.isSunday() {
             await mirrorApp.runWeeklyDigestIfNeeded(context: context)
         }
         // Monthly report: generate as soon as 20+ entries exist, not only on the 1st.
