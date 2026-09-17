@@ -169,19 +169,11 @@ final class InsightViewModel {
             // fall through to regenerate
         }
 
-        // On-demand generation is gated to Sunday, matching the background pre-gen task's own
-        // rule (mirrorApp.swift's Sunday-only calls into runWeeklyDigestIfNeeded) — without this,
-        // opening Insights on, say, a Tuesday with 3+ entries already written generates a
-        // "weekly" digest that only reflects 1-2 days of the week. Same premature-generation
-        // issue the monthly report had before isInLastWeekOfMonth. forceRegenerate (the user's
-        // own "Try Again" tap on an existing grounding-fallback digest) bypasses this: a digest
-        // already exists for this week by definition in that case, so the week-completeness
-        // concern this gate exists for doesn't apply to re-rolling it.
-        guard forceRegenerate || DateHelpers.isSunday() else {
-            digestState = .pendingNightlyGeneration
-            return
-        }
-
+        // Entry count checked BEFORE the Sunday gate below — same priority daily nudge's
+        // needsMoreEntries and monthly's endOfMonthTooFewEntries both give the count. A
+        // first-time user with 1 entry on a Tuesday should see "2 more entries to go" (something
+        // to act on right now), not "available Sunday mornings" — the day-gate only matters once
+        // there's actually enough material to generate from.
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
             let remaining = InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count
             // Fall back to the most recent earlier week's digest until this week
@@ -193,6 +185,20 @@ final class InsightViewModel {
             } else {
                 digestState = .notEnoughEntries(remaining)
             }
+            return
+        }
+
+        // On-demand generation is gated to Sunday, matching the background pre-gen task's own
+        // rule (mirrorApp.swift's Sunday-only calls into runWeeklyDigestIfNeeded) — without this,
+        // opening Insights on, say, a Tuesday with 3+ entries already written generates a
+        // "weekly" digest that only reflects 1-2 days of the week. Same premature-generation
+        // issue the monthly report had before isInLastWeekOfMonth. Checked only once there's
+        // enough material to generate from (see the entry-count gate above) — forceRegenerate
+        // (the user's own "Try Again" tap on an existing grounding-fallback digest) bypasses
+        // this too: a digest already exists for this week by definition in that case, so the
+        // week-completeness concern this gate exists for doesn't apply to re-rolling it.
+        guard forceRegenerate || DateHelpers.isSunday() else {
+            digestState = .pendingNightlyGeneration
             return
         }
 
