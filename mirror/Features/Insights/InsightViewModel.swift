@@ -294,10 +294,27 @@ final class InsightViewModel {
             return
         }
 
-        if !forceRegenerate, let cached = insights.first(where: {
-            $0.type == .monthlyReport && $0.periodIdentifier == thisMonth
-                && Date().timeIntervalSince($0.generatedAt) < 86400
-        }) {
+        // Newest wins — same non-destructive approach as loadWeeklyDigest's cachedThisWeek.
+        // Computed unconditionally (not folded into the 24h freshness check below) so a >24h-old
+        // report is still reachable as a stale-but-readable fallback, not just invisible once its
+        // freshness window closes.
+        let cachedThisMonth = insights
+            .filter { $0.type == .monthlyReport && $0.periodIdentifier == thisMonth }
+            .max { $0.generatedAt < $1.generatedAt }
+
+        // Advisor-audit finding (same shape as loadWeeklyDigest's servingCachedOr, added same
+        // day): the old version of this cache lookup folded the 24h freshness check directly
+        // into `insights.first(where:)`'s predicate, so a report older than 24h was invisible to
+        // it — not "found but stale," just gone. If the model then turned out to be unavailable
+        // below, a real, readable 2-day-old report was replaced by "AI model needed" instead of
+        // being served. "Stale beats none" here too.
+        func servingCachedOr(_ blocked: @autoclosure () -> MonthlyReportState) -> MonthlyReportState {
+            guard let cached = cachedThisMonth else { return blocked() }
+            return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
+        }
+
+        if !forceRegenerate, let cached = cachedThisMonth,
+           Date().timeIntervalSince(cached.generatedAt) < 86400 {
             // Same reasoning as loadWeeklyDigest's cache-serve branch: a cached fallback's "Try
             // Again" needs the model, so don't show it as actionable when the model isn't ready.
             if InsightService.isUngroundedFallback(cached.content) {
@@ -314,7 +331,7 @@ final class InsightViewModel {
         }
 
         guard mirrorApp.modelAvailable() else {
-            monthlyReportState = .modelNotInstalled
+            monthlyReportState = servingCachedOr(.modelNotInstalled)
             return
         }
 
