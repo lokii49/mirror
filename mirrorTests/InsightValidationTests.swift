@@ -564,6 +564,42 @@ struct InsightValidationTests {
         #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 
+    // The actual regression from a live device (screenshot, 2026-09-17): a real account's
+    // `recent + background` for a daily nudge is up to ~23 entries, not the single-entry
+    // fixtures above — hundreds of unique content words. Under the pre-fix scaling
+    // (`min(scaled, nudgeWordCount)`, no ceiling on `scaled` itself), `scaled` for a corpus
+    // this size (2 + 300/15 = 22) blew straight past a ~25-30-word nudge's own content-word
+    // count, so the cap became the practical requirement — near-total word-for-word overlap,
+    // which no paraphrased reflection (and none of MirrorNotes' own voice words) can produce.
+    // That's what surfaced live as the "couldn't find today's reflection" fallback ~8/10 times.
+    // A genuinely grounded nudge naming one specific entry's details must still pass here.
+    @Test func isUngrounded_realisticMultiEntryCorpus_genuinelyGroundedNudge_notDetected() {
+        let entries = [
+            Entry(text: "Surprised to see 10 downloads the week the Timer app got released."),
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing."),
+            Entry(text: "Reviewed analytics dashboards, sketched three new wireframes for the settings screen."),
+            Entry(text: "Walked the dog before joining a late client call about the roadmap timeline."),
+            Entry(text: "Debugging the payment flow at work before the client demo took most of the afternoon."),
+            Entry(text: "Finally fixed the payment bug an hour before the call, felt like a huge relief."),
+            Entry(text: "Quiet Sunday, mostly reading and catching up on emails from the week."),
+            Entry(text: "Team standup ran long, mostly discussing the upcoming launch checklist."),
+            Entry(text: "Cooked dinner for friends, first time hosting since moving into the new apartment."),
+            Entry(text: "Long commute today, listened to a podcast about productivity habits."),
+            Entry(text: "Gym session felt good, finally back to a regular routine after weeks off."),
+            Entry(text: "Called my sister to catch up, she's doing well with the new job."),
+            Entry(text: "Wrote a draft of the quarterly report, still needs more data from marketing."),
+            Entry(text: "Rainy afternoon, stayed in and organized the garage for a few hours."),
+            Entry(text: "Tried a new recipe for dinner, turned out better than expected."),
+            Entry(text: "Reviewed pull requests most of the morning, one had a tricky merge conflict."),
+            Entry(text: "Took the afternoon off to relax after a stressful week at work."),
+            Entry(text: "Planned next month's budget, need to cut back on eating out."),
+            Entry(text: "Read a few chapters of a new book before bed, really enjoying it."),
+            Entry(text: "Short entry today, just tired and ready for the weekend."),
+        ]
+        let nudge = "That payment bug you finally fixed before the client demo sounds like it took a real weight off — hope the relief carried into the rest of your week."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
     @Test func isUngrounded_noSourceText_notDetected() {
         // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
         // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
