@@ -210,8 +210,8 @@ struct ProtocolSettingsView: View {
                 }
 
                 SettingsGroup(title: "Input") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        SettingsRowLabel(title: "Quick capture via Siri", systemImage: "waveform.badge.mic", iconColor: MirrorTheme.violet)
+                    VStack(alignment: .leading, spacing: 4) {
+                        SettingsRowLabel(title: "Quick capture via Siri", systemImage: "waveform.badge.mic", iconColor: MirrorTheme.violet, alignment: .bottom)
                         // Must match what the registered AppShortcut phrase actually resolves to
                         // at runtime — MirrorAppShortcuts' phrases use \(.applicationName), which
                         // Apple's App Shortcuts fills with CFBundleDisplayName ("MirrorNotes",

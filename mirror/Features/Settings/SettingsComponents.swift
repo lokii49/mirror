@@ -29,10 +29,17 @@ struct SettingsRowLabel: View {
     let title: LocalizedStringKey
     let systemImage: String
     let iconColor: Color
+    // Default .center matches every existing call site (icon and single-line title
+    // read as vertically balanced). A row with a caption below it wants .bottom instead:
+    // the 32pt icon is taller than the single-line title, so centering leaves slack
+    // split evenly above AND below the text — the half below it sits right where a
+    // caption's own spacing stacks on top, reading as one large gap. Bottom-aligning
+    // pushes all of that slack above the title instead, where nothing sits below it.
+    var alignment: VerticalAlignment = .center
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: alignment, spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 8, style: .continuous)
                     .fill(iconColor.opacity(0.12))
