@@ -162,6 +162,17 @@ struct MonthlyReportView: View {
                 nightlyPendingCard
             case .modelNotInstalled:
                 ModelNotInstalledCard()
+            case .groundingFallback(let insight):
+                groundingFallbackCard(message: insight.content) {
+                    Task {
+                        await viewModel.loadMonthlyReport(
+                            entries: entries,
+                            insights: insights,
+                            context: modelContext,
+                            forceRegenerate: true
+                        )
+                    }
+                }
             case .error(let message):
                 errorCard(message: message) {
                     Task {
@@ -409,6 +420,44 @@ struct MonthlyReportView: View {
             icon: "doc.text.magnifyingglass",
             iconColor: MirrorTheme.violet
         )
+    }
+
+    // Deliberately distinct from errorCard below: this isn't a failure (generation succeeded,
+    // the model just didn't produce anything grounded in the entries after 3 attempts), so no
+    // orange warning triangle and no "will retry tonight" — that claim is false here (the
+    // nightly pass needs a newer entry than this insight's own generatedAt to attempt again,
+    // same gate InsightService.weeklyDigestUngroundedFallback's comment names). "Try Again"
+    // re-runs the same bounded grounding loop fresh — real chance of a different result since
+    // generation is stochastic, not just a way to write more first.
+    private func groundingFallbackCard(message: String, onRetry: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Group {
+                if displayMode == .sentinel {
+                    Label("DEBRIEF NOT CLEARLY GROUNDED", systemImage: "text.magnifyingglass")
+                        .font(MirrorTheme.mono(13, weight: .semibold))
+                } else {
+                    Label("Couldn't confirm this report", systemImage: "text.magnifyingglass")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(MirrorTheme.textSecondary)
+            Button(action: onRetry) {
+                Group {
+                    if displayMode == .sentinel {
+                        Label("TRY AGAIN", systemImage: "arrow.clockwise").font(MirrorTheme.mono(12, weight: .semibold))
+                    } else {
+                        Label("Try Again", systemImage: "arrow.clockwise").font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .themedCard(cornerRadius: 22)
     }
 
     private func errorCard(message: String, onRetry: @escaping () -> Void) -> some View {

@@ -663,6 +663,10 @@ struct InsightView: View {
             nightlyPendingDigestCard
         case .modelNotInstalled:
             ModelNotInstalledCard()
+        case .groundingFallback(let insight):
+            GroundingFallbackCard(message: insight.content) {
+                Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext, forceRegenerate: true) }
+            }
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
@@ -1182,6 +1186,33 @@ private struct UpgradePromptCard: View {
         }
         .padding(20)
         .inkSurface(cornerRadius: 24)
+    }
+}
+
+// Deliberately distinct from ErrorCard below: this isn't a failure (generation succeeded, the
+// model just didn't produce anything grounded in the entries after 3 attempts), so no orange
+// warning triangle and no claim that it'll retry on its own — it won't, without either a manual
+// retry here or a newer entry (see InsightService.weeklyDigestUngroundedFallback's comment).
+// "Try Again" re-runs the same bounded grounding loop fresh — a real chance of a different
+// result since generation is stochastic, not just a way to write more first.
+private struct GroundingFallbackCard: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Couldn't confirm this digest", systemImage: "text.magnifyingglass")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(MirrorTheme.violetLight)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(MirrorTheme.textSecondary)
+            Button("Try Again", action: onRetry)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(MirrorTheme.primary)
+        }
+        .padding(20)
+        .inkSurface(cornerRadius: 22)
     }
 }
 

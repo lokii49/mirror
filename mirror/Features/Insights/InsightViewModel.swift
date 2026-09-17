@@ -24,6 +24,11 @@ enum DigestState {
     case subscriptionRequired
     case pendingNightlyGeneration
     case modelNotInstalled
+    /// `insight.content == InsightService.weeklyDigestUngroundedFallback` — detected by content
+    /// equality (no schema change) rather than `.loaded`, so the view can show an honest message
+    /// and a real retry action instead of rendering fabricated-content-shaped-honest-text as if
+    /// it were a normal digest with nothing to do about it.
+    case groundingFallback(Insight)
     case error(String)
 }
 
@@ -40,6 +45,8 @@ enum MonthlyReportState {
     case subscriptionRequired
     case pendingNightlyGeneration
     case modelNotInstalled
+    /// Same shape as DigestState.groundingFallback — see its doc comment.
+    case groundingFallback(Insight)
     case error(String)
 }
 
@@ -114,7 +121,7 @@ final class InsightViewModel {
     // MARK: - Weekly Digest
     // On-demand if no cache. Background Sunday task pre-generates so it's ready on wake.
 
-    func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext) async {
+    func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
         let coordinatorKey = "digest_\(thisWeek)"
 
@@ -135,13 +142,13 @@ final class InsightViewModel {
         // Serve the existing digest for this week unless it's gone stale (24h
         // cooldown elapsed AND newer entries since) — serving before the count
         // gate means deleting an entry after it generated doesn't blank it.
-        if let cached = cachedThisWeek {
+        if !forceRegenerate, let cached = cachedThisWeek {
             let stale = InsightService.weeklyDigestIsStale(
                 generatedAt: cached.generatedAt,
                 newestWeekEntry: weekEntries.map(\.createdAt).max()
             )
             guard stale else {
-                digestState = .loaded(cached)
+                digestState = InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
                 return
             }
             // fall through to regenerate
@@ -184,7 +191,7 @@ final class InsightViewModel {
             context.insert(insight)
             try context.save()
             WidgetBridge.syncWeeklyDigest(from: context)
-            digestState = .loaded(insight)
+            digestState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
             digestState = .error(friendlyLLMError(error))
@@ -225,7 +232,7 @@ final class InsightViewModel {
             $0.type == .monthlyReport && $0.periodIdentifier == thisMonth
                 && Date().timeIntervalSince($0.generatedAt) < 86400
         }) {
-            monthlyReportState = .loaded(cached)
+            monthlyReportState = InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
             return
         }
 
@@ -254,7 +261,7 @@ final class InsightViewModel {
             context.insert(insight)
             try context.save()
             WidgetBridge.syncMonthlyReport(from: context)
-            monthlyReportState = .loaded(insight)
+            monthlyReportState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {
             monthlyReportState = .error(friendlyLLMError(error))
@@ -303,9 +310,9 @@ final class InsightViewModel {
 func friendlyLLMError(_ error: Error) -> String {
     switch error {
     case InsightError.incompleteResponse:
-        return String(localized: "Mirror couldn't finish the reflection. Tap retry — it usually works on the next try.")
+        return String(localized: "MirrorNotes couldn't finish the reflection. Tap retry — it usually works on the next try.")
     case InsightError.emptyResponse:
-        return String(localized: "Mirror didn't get a response. Tap retry in a moment.")
+        return String(localized: "MirrorNotes didn't get a response. Tap retry in a moment.")
     case InsightError.serviceUnavailable:
         return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
     default:

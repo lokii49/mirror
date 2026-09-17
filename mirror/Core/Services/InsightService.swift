@@ -12,8 +12,8 @@ enum InsightError: LocalizedError {
         switch self {
         case .subscriptionRequired: return String(localized: "Core subscription required.")
         case .serverError: return String(localized: "Something went wrong. Try again in a moment.")
-        case .emptyResponse: return String(localized: "Mirror didn't get a response. Try again in a moment.")
-        case .incompleteResponse: return String(localized: "Mirror couldn't finish that reflection. Try again.")
+        case .emptyResponse: return String(localized: "MirrorNotes didn't get a response. Try again in a moment.")
+        case .incompleteResponse: return String(localized: "MirrorNotes couldn't finish that reflection. Try again.")
         case .serviceUnavailable: return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
         }
     }
@@ -483,9 +483,24 @@ enum InsightService {
         return (dailyNudgeUngroundedFallback, result.engine, true)
     }
 
+    // "Check back tomorrow" used to be the framing here, but it overpromises: the background
+    // pre-gen pass that would produce tomorrow's nudge only runs when there's an entry newer
+    // than this one (mirrorApp.preGenerateInsightsIfNeeded's own gate) — with no new writing,
+    // nothing retries on its own, tomorrow or otherwise. Leads with the one thing that's
+    // actually true and actionable instead.
     static let dailyNudgeUngroundedFallback = String(
-        localized: "Mirror couldn't find a reflection clearly grounded in today's entries. Check back tomorrow, or add a bit more to what you've written today."
+        localized: "MirrorNotes couldn't find today's reflection clearly grounded in what you wrote. Add a bit more to today's entry and it'll try again."
     )
+
+    /// Advisor-suggested detection: a fallback insight needs no schema change (no new field on
+    /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
+    /// one) — plain content equality against these three constants is the whole mechanism, and
+    /// it works retroactively on insights already saved before this existed.
+    static func isUngroundedFallback(_ content: String) -> Bool {
+        content == dailyNudgeUngroundedFallback
+            || content == weeklyDigestUngroundedFallback
+            || content == monthlyReportUngroundedFallback
+    }
 
     /// Fewer than this many entries in the current week → not enough to find a
     /// week's theme; the call sites show the "write more this week" state instead
@@ -589,8 +604,14 @@ enum InsightService {
         return (weeklyDigestUngroundedFallback, lastResult.engine)
     }
 
+    // Same overpromise problem as the nudge's old copy, worse here: weeklyDigestIsStale needs
+    // BOTH a 24h cooldown AND a week-entry newer than this insight's own generatedAt — since
+    // this fallback's generatedAt is "now," a same-day "check back tomorrow" with no new
+    // writing would find nothing stale to regenerate. UI-side retry (bypassing the cache
+    // entirely) is the real unblock — see InsightService.isUngroundedFallback and the
+    // groundingFallback state it drives.
     static let weeklyDigestUngroundedFallback = String(
-        localized: "Mirror couldn't find a digest clearly grounded in this week's entries. Check back tomorrow, or write a bit more this week."
+        localized: "MirrorNotes couldn't find this week's digest clearly grounded in your entries. Try again, or write a bit more this week."
     )
 
     // Previously had no grounding backstop at all, unlike generateNudge/generateWeeklyDigest —
@@ -637,8 +658,11 @@ enum InsightService {
         return (monthlyReportUngroundedFallback, lastResult.engine)
     }
 
+    // Same reasoning as weeklyDigestUngroundedFallback — "check back tomorrow" could mean
+    // "check back next month" once isInLastWeekOfMonth's window closes, and even inside that
+    // window nothing regenerates without a newer entry. UI-side retry is the real unblock.
     static let monthlyReportUngroundedFallback = String(
-        localized: "Mirror couldn't find a report clearly grounded in this month's entries. Check back tomorrow, or write a bit more this month."
+        localized: "MirrorNotes couldn't find this month's report clearly grounded in your entries. Try again, or write a bit more this month."
     )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
