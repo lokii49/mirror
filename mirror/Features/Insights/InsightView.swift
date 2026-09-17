@@ -12,8 +12,6 @@ struct InsightView: View {
     @State private var showPaywallAfterFirstNudge = false
     @State private var showSettings = false
     @State private var chartVisible = false
-    @State private var promptIndex: Int = WritingPrompts.indexForToday()
-    @State private var showWriteFromPrompt = false
     @State private var nudgeExpanded = false
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
@@ -138,14 +136,8 @@ struct InsightView: View {
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
-            .sheet(isPresented: $showWriteFromPrompt) {
-                NavigationStack {
-                    WriteView(autoFocus: true, initialText: WritingPrompts.all[promptIndex])
-                }
-                .environment(\.appDisplayMode, displayMode)
-            }
         }
-        .onChange(of: showPaywall || showPaywallAfterFirstNudge || showSettings || showWriteFromPrompt) { _, up in
+        .onChange(of: showPaywall || showPaywallAfterFirstNudge || showSettings) { _, up in
             // These sheets live on this view, so ContentView (which owns the
             // mood check-in sheet) can't see them. Report up so a queued
             // check-in waits its turn instead of racing into a dropped sheet.
@@ -446,7 +438,7 @@ struct InsightView: View {
         case .idle:
             EmptyView()
         case .loading:
-            LoadingInsightCard(label: "Preparing your reflection", sublabel: "Reading recent entries…", icon: "sparkles")
+            LoadingInsightCard(label: "Preparing your reflection", sublabel: "Reading recent entries — this can take up to a minute", icon: "sparkles")
         case .loaded(let insight):
             InsightTextView(
                 insight: insight,
@@ -464,22 +456,7 @@ struct InsightView: View {
             )
                 .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
-            VStack(spacing: 12) {
-                NeedsMoreEntriesCard(remaining: remaining)
-                WritingPromptCard(
-                    prompt: WritingPrompts.all[promptIndex],
-                    onShuffle: {
-                        var next = Int.random(in: 0..<WritingPrompts.all.count)
-                        if WritingPrompts.all.count > 1 {
-                            while next == promptIndex { next = Int.random(in: 0..<WritingPrompts.all.count) }
-                        }
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            promptIndex = next
-                        }
-                    },
-                    onUse: { showWriteFromPrompt = true }
-                )
-            }
+            NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
             UpgradePromptCard(
                 title: "MirrorNotes Core",
@@ -490,6 +467,10 @@ struct InsightView: View {
             nightlyPendingNudgeCard
         case .modelNotInstalled:
             ModelNotInstalledCard()
+        case .groundingFallback(let insight):
+            GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
+                Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
+            }
         case .error(let message):
             ErrorCard(message: message) {
                 Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
@@ -1067,27 +1048,63 @@ private struct LoadingInsightCard: View {
     let icon: String
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(MirrorTheme.primary.opacity(0.10))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
-                    .symbolEffect(.variableColor.iterative, isActive: true)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(MirrorTheme.primary.opacity(0.10))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.primary)
+                        .symbolEffect(.variableColor.iterative, isActive: true)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(label)
+                        .font(.system(size: 15, weight: .medium))
+                    Text(sublabel)
+                        .font(.system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                }
+                Spacer()
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(label)
-                    .font(.system(size: 15, weight: .medium))
-                Text(sublabel)
-                    .font(.system(size: 13))
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            }
-            Spacer()
+            // On-device generation (cold model load + inference, plus up to 3 internal retries
+            // if grounding fails again) can run well past what the icon animation alone reads
+            // as "working" — a real report: tapping Try Again with only that small icon moving
+            // looked dead enough that the user kept re-tapping. `ProgressView().progressViewStyle(
+            // .linear)` with no `value` was tried first and looked identical to this — on iOS,
+            // unlike macOS, that style doesn't animate an indeterminate track at all, it just
+            // renders a static empty bar. A custom sliding highlight, driven by explicit
+            // `@State`, is guaranteed to actually move.
+            IndeterminateProgressBar()
         }
         .padding(20)
         .inkSurface(cornerRadius: 22)
+    }
+}
+
+private struct IndeterminateProgressBar: View {
+    @State private var slideRight = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let highlightWidth = geo.size.width * 0.32
+            Capsule()
+                .fill(MirrorTheme.primary.opacity(0.15))
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(MirrorTheme.primary)
+                        .frame(width: highlightWidth)
+                        .offset(x: slideRight ? geo.size.width - highlightWidth : 0)
+                }
+        }
+        .frame(height: 4)
+        .clipShape(Capsule())
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                slideRight = true
+            }
+        }
     }
 }
 
@@ -1196,12 +1213,18 @@ private struct UpgradePromptCard: View {
 // "Try Again" re-runs the same bounded grounding loop fresh — a real chance of a different
 // result since generation is stochastic, not just a way to write more first.
 private struct GroundingFallbackCard: View {
+    // LocalizedStringKey, not String — a plain String param silently drops this out of
+    // SwiftUI's auto-localization (Label(_:systemImage:) only picks the LocalizedStringKey
+    // overload for a compile-time literal), which is exactly what happened here: the catalog
+    // extraction tool removed "Couldn't confirm this digest" outright once this was typed as
+    // String, and no key ever appeared for the new "Couldn't confirm this reflection" title.
+    var title: LocalizedStringKey = "Couldn't confirm this digest"
     let message: String
     let onRetry: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Couldn't confirm this digest", systemImage: "text.magnifyingglass")
+            Label(title, systemImage: "text.magnifyingglass")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(MirrorTheme.violetLight)
             Text(message)
