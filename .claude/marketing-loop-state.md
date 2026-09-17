@@ -2295,6 +2295,19 @@ as above, ports/hosts beyond the allowlist are blocked. This makes priority-3 ou
 impossible from this session/environment as currently configured. Confirmed 2026-08-15. Did NOT
 attempt to fabricate a send — no email was sent, nothing added to Sent log.
 
+**Root cause confirmed 2026-09-17 (run 89), and this is now a PERMANENT/architectural limit, not a
+retryable timeout**: `/root/.ccr/README.md` (the agent proxy's own documentation) explicitly lists
+"non-443 HTTPS ports, raw-TCP databases" under "Not supported through the proxy (report, do not
+work around)". SMTP submission on port 587 falls squarely in that category — this proxy will never
+carry it, in this run or any future one, regardless of org policy changes. Re-testing
+`/dev/tcp ... 587` every run is no longer informative and should stop (see Lessons). The only way
+to get automated outreach email working from this environment is to stop using raw SMTP entirely
+and switch to an HTTP-based transactional email API (e.g. a provider with a REST endpoint on port
+443, such as Postmark/Resend/SendGrid) — which would still require a human to (a) set up an account
+and API key for hello@mirrornotes.org, and (b) confirm that provider's API domain is on this
+session's egress allowlist (currently only github.com/api.github.com plus a short package-registry
+noProxy list pass through). Neither is something this loop can do autonomously.
+
 ## Lessons
 - Before assuming a target action is achievable, sanity-check network reachability early
   (`curl -sS -o /dev/null -w "%{http_code}" <domain>`, `/dev/tcp` for SMTP) — this environment's
@@ -2708,6 +2721,29 @@ attempt to fabricate a send — no email was sent, nothing added to Sent log.
   channel. Surfaced via `search_repositories` sorted by `updated` (these get touched constantly,
   crowding out real results). Confirmed 2026-09-17; do not add any `enhansome/*` repo, and don't
   trust "sort:updated" searches to surface genuine candidates without checking for this pattern.
+- Stop re-running the raw `/dev/tcp ... smtp.mail.me.com:587` diagnostic every run: as of run 89 the
+  agent proxy's own README confirms non-443 ports are categorically unsupported (see Blocked →
+  SMTP egress), so this will never pass in this session type — it's an architectural fact, not a
+  flaky/transient condition worth re-checking "every few runs" the way the GitHub cross-owner scope
+  is. Treat priority-3 as permanently blocked pending a human switching the send mechanism to an
+  HTTP email API (see Blocked section for detail) rather than re-testing SMTP reachability again.
+
+- 2026-09-17 (run 89): Re-confirmed priority-1/2 GitHub cross-owner block fresh (`add_repo` push
+  for janhq/awesome-local-ai still rejected, identical "cross-tier adds are not supported in v1"
+  error, unchanged since run 43). For priority-3, did NOT re-test raw SMTP reachability again —
+  instead read `/root/.ccr/README.md` (the agent proxy's own docs) directly, which confirms
+  non-443 ports are categorically, permanently unsupported through this proxy (not a flaky
+  timeout) — see updated Blocked and Lessons entries. This is the first run with a documented root
+  cause rather than an empirical "still times out" result, and it means priority-3 cannot be fixed
+  by retrying; only a human switching to an HTTP-based email API (and allowlisting its domain) can
+  unblock it. For priority 2, tried competitor-name code-search on "Grid Diary" (0 hits), "Journly"
+  (7 hits, all individual apps/UI-mockups/unrelated backend repos, no directory), and
+  "Momento"+journal (1476 hits, all noise/false-positive language matches) — no new candidate
+  cleared the fit bar. No PRs opened, no comments posted, no emails sent, no new Backlog entry —
+  89th consecutive run blocked purely on environment/session config. Notifying this run despite the
+  standing-blocker pattern: the SMTP root-cause finding is new and changes the recommended fix
+  (stop retrying SMTP; switch send mechanism), which the user should know given ~90 runs and 0
+  outreach emails / 0 new PRs sent to date.
 
 - 2026-09-17 (run 88): Re-confirmed all three standing env blockers with fresh live tests this run:
   session GitHub repo scope still shows only `lokii49/mirror` (per environment repo-scope banner,
