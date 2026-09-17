@@ -639,11 +639,26 @@ extension WriteView {
 /// content card.
 struct FollowUpChip: View {
     let question: String
+    /// Which engine produced `question` — Gemma 3 1B or Apple Foundation Models. Surfaced only
+    /// in Sentinel mode as a small tag, matching `InsightSignalSource`'s existing X-ray
+    /// convention (engine attribution for persisted insights) rather than inventing a new
+    /// logging mechanism for an ephemeral, unpersisted feature. Closes the "no way to tell which
+    /// engine produced a bad follow-up" gap flagged in writing-roadmap.md without adding
+    /// persistence this feature was deliberately scoped to avoid.
+    var engine: LLMEngine? = nil
     let onUse: () -> Void
     let onDismiss: () -> Void
 
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
+
+    private var engineTag: String? {
+        guard isSentinel, let engine else { return nil }
+        switch engine {
+        case .gemma: return "GEMMA"
+        case .foundationModels: return "FM"
+        }
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -652,10 +667,19 @@ struct FollowUpChip: View {
                 .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
                 .padding(.top, 2)
 
-            Text(question)
-                .font(.system(size: 13.5, weight: .regular, design: .serif))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(question)
+                    .font(.system(size: 13.5, weight: .regular, design: .serif))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let engineTag {
+                    Text(engineTag)
+                        .font(MirrorTheme.mono(8.5, weight: .bold))
+                        .tracking(0.6)
+                        .foregroundStyle(MirrorTheme.textTertiary)
+                }
+            }
 
             Spacer(minLength: 8)
 

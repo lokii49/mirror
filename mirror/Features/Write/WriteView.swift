@@ -54,6 +54,7 @@ struct WriteView: View {
     // persisted, never part of the draft/entry text unless the user explicitly taps it in.
     @State var followUpTask: Task<Void, Never>? = nil
     @State var followUpQuestion: String? = nil
+    @State var followUpEngine: LLMEngine? = nil
     @State var followUpWordCountAtLastCheckpoint: Int = 0
     /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
     /// the write (and CloudKit modification) when the entry was only opened to read.
@@ -349,6 +350,7 @@ struct WriteView: View {
             if let followUpQuestion, !focusMode, !pendingDelete, !showSaved, !isAttachingPhoto, !isScanningText, !showFormattingPanel {
                 FollowUpChip(
                     question: followUpQuestion,
+                    engine: followUpEngine,
                     onUse: { useFollowUpQuestion() },
                     onDismiss: { dismissFollowUp() }
                 )

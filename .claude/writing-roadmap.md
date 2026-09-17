@@ -172,9 +172,10 @@ the ceiling of what's verifiable here; the capture UX itself is hands-only.
 >
 > Verified: `xcodebuild build` green, `build-for-testing` green, `mirrorTests` 278/284 — 6
 > pre-existing flakes (same `PerformanceXCTests`/`ThemeExtractionServiceTests` as 0.1), nothing
-> new failing; the 3 new `DocumentScannerTests` individually confirmed passing. **Not verified**:
-> the scanner UI itself (camera capture, multi-page flow, the "Recognizing text…" loading state)
-> — device-only, same limitation the item called out in advance.
+> new failing; the 3 new `DocumentScannerTests` individually confirmed passing. **Scanner UI
+> confirmed on-device 2026-09-17** (camera capture, multi-page flow, loading state) — the "not
+> verified" note this item originally called out is retracted for English-text scans; the
+> non-English `recognitionLanguages` path below remains untested on a real multilingual scan.
 >
 > **Gap caught by advisor audit, fixed same day**: `recognizedText(from:)` originally set no
 > `recognitionLanguages` at all — `VoiceTranscriptionService` already does real locale work (28
@@ -239,11 +240,9 @@ good while typing" part needs hands, not a simulator.
 > keyboard is dismissed — the follow-up chip is meant to show *while actively typing*, a
 > different layout state. Added `!isScanningText, !showFormattingPanel` to the guard as a
 > defensive fix (the formatting panel occupies the same input-view slot as the keyboard on
-> iPhone; showing a bottom-anchored chip underneath it would be visually wrong). **Whether the
-> chip actually renders correctly above `toolRow` while the keyboard is up has not been
-> hands-verified** — this sim environment can't drive that interaction, and reasoning from the
-> `pendingDelete` precedent alone was shown to be an imperfect analogy once examined closer. On
-> a device: type 20+ words, wait ~6s, confirm the chip appears above the toolbar, not behind it.
+> iPhone; showing a bottom-anchored chip underneath it would be visually wrong). **Confirmed
+> on-device 2026-09-17**: the chip renders correctly above `toolRow` while the keyboard is up —
+> the "not hands-verified" note above is retracted.
 >
 > One test bug caught and fixed during verification: the first `followUp_journalWriterFirstPerson_rejected`
 > test used "I wonder what I meant by that?" — `containsJournalWriterFirstPerson` only matches
@@ -255,18 +254,22 @@ good while typing" part needs hands, not a simulator.
 > `InsightValidationTests` alone, including the 5 new `followUp_*` cases). **Not verified**: the
 > chip's on-screen layout/timing while typing (see gap above) — reasoned correct, not observed.
 >
-> **Perf/scheduling gap, flagged by advisor audit, not fixed — needs device measurement, not
-> more code.** This is the first LLM consumer triggered directly by typing (every other caller
+> **Perf/scheduling gap, flagged by advisor audit — partially closed 2026-09-17, not fully
+> resolved.** This is the first LLM consumer triggered directly by typing (every other caller
 > fires at save time or on a background schedule). `generateFollowUp` runs through the same
 > `LLMGenerationQueue`/`LocalLLMService.generate` path as everything else — `generate()` does
 > `await resetContext()` and spins up GPU inference while the user may still be actively editing,
 > a materially larger perf event than the keystroke-latency work `writeview-audit.md` 1.8/3.6
-> went to the trouble of measuring and bounding. It can also queue ahead of
-> `autoDetectMoodIfNeeded` at save time or a background digest pass — the queue serializes
-> correctly (no race), but ordering/latency interference between features isn't something any
-> test in this repo catches. Cancelling the debounce `Task` sets `isCancelled` but does not abort
-> work already inside the queue closure. Left open as a named device-measurement item, not an
-> assumption that it's free.
+> went to the trouble of measuring and bounding. It could also queue *behind* `autoDetectMoodIfNeeded`
+> at save time or a background digest pass, stacking a several-second wait onto something the
+> user actually asked for. Fixed the second half: `LLMGenerationQueue` gained an `isBusy` check,
+> and `scheduleFollowUpCheck` now skips starting a new attempt entirely when the queue is already
+> occupied, rather than joining the FIFO line — the ambient suggestion never competes for the
+> queue in the first place, no retry needed since the next idle pause gets another chance. Not
+> fixed: the actual on-device GPU-inference cost `writeview-audit.md` measured for other paths
+> was never measured for this one — `isBusy` prevents *stacking*, it doesn't tell you what a
+> single follow-up generation costs while the user keeps typing through it. That still needs a
+> real device.
 
 ---
 
@@ -381,16 +384,18 @@ hands.
 > `generateGuidedQuestion` now, not all `maxQuestions`. And **`maxQuestions` dropped 4 → 3**,
 > capping how far into the degrading-with-length zone a conversation goes.
 >
-> **Not fixed**: `LocalLLMService.generate`'s Foundation-Models-first-then-Gemma split means
-> this feature's actual quality differs across the install base (FM on iOS 26 + eligible
-> hardware + Apple Intelligence on; Gemma 3 1B everywhere else), and `generateFollowUp`/
-> `generateGuidedQuestion` both discard `result.engine` (copying `detectEmotion`'s pattern) —
-> unlike `Insight.generatedByEngine` elsewhere in the app, there's no way to attribute a bad
-> guided question to which engine produced it. Not fixed because Talk It Out is deliberately
-> unpersisted (see the ephemeral-by-design note above), so there's nowhere to attach that
-> attribution without adding the persistence this feature was scoped to avoid — a real tension,
-> not an oversight, and worth a decision before this ships further rather than a silent choice
-> either way.
+> **Engine-attribution gap — closed 2026-09-17, without adding persistence.** `LocalLLMService.generate`'s
+> Foundation-Models-first-then-Gemma split means this feature's actual quality differs across the
+> install base (FM on iOS 26 + eligible hardware + Apple Intelligence on; Gemma 3 1B everywhere
+> else), and `generateFollowUp`/`generateGuidedQuestion` both discarded `result.engine` — unlike
+> `Insight.generatedByEngine` elsewhere in the app, there was no way to tell which engine produced
+> a bad question. Resolved the tension the earlier version of this note raised (attribution vs.
+> the deliberate no-persistence design) by not persisting anything: both `FollowUpChip` (1.2) and
+> `TalkItOutView`'s active question now carry the engine through as ephemeral `@State` and show a
+> small Sentinel-only tag ("GEMMA" / "FM") — the same X-ray convention `InsightSignalSource`
+> already uses for persisted insights, just not written anywhere. Question 1 in Talk It Out shows
+> no tag (seeded from `WritingPrompts.all`, no model involved, by design). Gone the moment the
+> chip dismisses or the view resets — genuinely ephemeral, not a quiet persistence backdoor.
 >
 > **The discriminating test, not yet run**: on a device with Apple Intelligence off (forcing the
 > Gemma path), run the guided flow to 3 turns and count validator rejections and near-duplicate
@@ -509,9 +514,13 @@ hands.
 > here, because the chip appends into the *already-open* `viewModel.text` rather than going
 > through `initialText` at all.
 >
-> Not yet hands-verified: this exact shape (chip placement, appearance/disappearance timing,
-> both themes) — device-testing this session was already spent on the tab version before the
-> pivot.
+> **Confirmed on-device 2026-09-17**: chip placement, appearance/disappearance timing, and the
+> full conversation flow all verified working — the "not yet hands-verified" note above is
+> retracted.
+>
+> **Engine attribution added same day** — see the note in this section's "engine-attribution
+> gap" update below; `LLMGenerationQueue` also gained an `isBusy` check shared with 1.2's
+> follow-up chip, see 1.2's STATUS.
 
 ---
 

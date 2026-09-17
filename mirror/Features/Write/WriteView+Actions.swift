@@ -332,6 +332,15 @@ extension WriteView {
         followUpTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(6))
             guard !Task.isCancelled, snapshot == viewModel.text else { return }
+            // Skip this attempt entirely rather than queue behind whatever's already running —
+            // this is an ambient, opportunistic suggestion nobody explicitly asked for right
+            // now, and it shouldn't add latency to a save-time mood detect, an explicit Ask, or
+            // a background digest that's mid-flight. No retry: the next idle pause after more
+            // typing gets another chance, same as any other missed checkpoint.
+            guard await !LLMGenerationQueue.shared.isBusy else {
+                followUpTask = nil
+                return
+            }
             guard let result = try? await InsightService.generateFollowUp(currentText: snapshot) else {
                 followUpTask = nil
                 return
@@ -339,6 +348,7 @@ extension WriteView {
             guard !Task.isCancelled, snapshot == viewModel.text else { return }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 followUpQuestion = result.text
+                followUpEngine = result.engine
             }
             followUpWordCountAtLastCheckpoint = viewModel.wordCount
             followUpTask = nil
@@ -355,6 +365,7 @@ extension WriteView {
     func dismissFollowUp() {
         withAnimation(.easeOut(duration: 0.2)) {
             followUpQuestion = nil
+            followUpEngine = nil
         }
         followUpWordCountAtLastCheckpoint = viewModel.wordCount
     }
