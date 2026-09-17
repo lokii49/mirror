@@ -30,5 +30,9 @@ extension WriteView {
     private func appendScannedText(_ text: String) {
         let trimmed = viewModel.text.trimmingCharacters(in: .newlines)
         viewModel.text = trimmed.isEmpty ? text : "\(trimmed)\n\n\(text)"
+        // Same clamped-stale-selection bug as templates/Talk it out (see
+        // WritingTemplate.cursorOffset) — without this the caret stays wherever it was before
+        // the scan, not at the end of the newly-inserted text.
+        applyTextCommand(.moveCursor(location: .max))
     }
 }

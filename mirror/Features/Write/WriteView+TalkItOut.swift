@@ -26,5 +26,11 @@ extension WriteView {
     func appendTalkItOutText(_ text: String) {
         let trimmed = viewModel.text.trimmingCharacters(in: .newlines)
         viewModel.text = trimmed.isEmpty ? text : "\(trimmed)\n\n\(text)"
+        // Same clamped-stale-selection bug templates hit (see WritingTemplate.cursorOffset) —
+        // without this, the caret lands wherever it was before the append, not at the end where
+        // the user would actually continue writing. Int.max relies on NoteEditorTextView's
+        // `bounded(_:in:)` clamping to the text's true UTF-16 length, so this is exact even if
+        // the appended text contains emoji or other multi-code-unit characters.
+        applyTextCommand(.moveCursor(location: .max))
     }
 }

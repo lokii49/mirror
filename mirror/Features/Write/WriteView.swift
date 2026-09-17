@@ -231,14 +231,20 @@ struct WriteView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    // "Talk it out" starter (writing-roadmap.md Tier 2) — only on a genuinely
+                    // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
                     // blank new entry. Disappears the instant there's any content, since at
                     // that point the user is already writing and doesn't need a starter.
                     if entry == nil && !hasDraftContent && !focusMode {
-                        TalkItOutChip { presentTalkItOut() }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 8)
-                            .transition(.opacity)
+                        WritingStarterChip(
+                            onTalkItOut: { presentTalkItOut() },
+                            onUseTemplate: { template in
+                                viewModel.text = template.seedText
+                                applyTextCommand(.moveCursor(location: template.cursorOffset))
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .transition(.opacity)
                     }
 
                     NoteEditorTextView(
