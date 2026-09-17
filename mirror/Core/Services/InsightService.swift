@@ -287,17 +287,18 @@ enum InsightService {
     /// coincidental content word (e.g. both mention "work") and pass this guard while everything
     /// else in it is generic filler unconnected to what was actually written — the guard was
     /// checking for *zero* overlap (outright fabrication) but not for *thin* overlap (technically
-    /// grounded, still not specific). Now requires 2 shared words when the source has enough
-    /// vocabulary to fairly ask for that — falls back to the original 1-word threshold when it
-    /// doesn't, preserving the short-entry protection the loose threshold existed for in the
-    /// first place (see `minimumSharedWords` below).
+    /// grounded, still not specific). Requires more shared words as the source has more
+    /// vocabulary to draw from — a flat "2" would leave the exact same loophole open on a long
+    /// entry or a week's worth of entries, just at a higher word count instead of one (see
+    /// `minimumSharedWords` below) — and falls back to the original 1-word threshold for short
+    /// entries, preserving the false-positive protection that threshold existed for.
     static func isUngrounded(_ text: String, sourceEntries: [Entry]) -> Bool {
         let nudgeWords = contentWords(text)
         guard !nudgeWords.isEmpty else { return false }
         let sourceWords = contentWords(sourceEntries.map(\.insightContext).joined(separator: " "))
         guard !sourceWords.isEmpty else { return false }
         let shared = nudgeWords.intersection(sourceWords)
-        return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count)
+        return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count, nudgeWordCount: nudgeWords.count)
     }
 
     /// A terse entry ("Going in a good phase!") gives a genuinely grounded nudge only two or
@@ -307,8 +308,24 @@ enum InsightService {
     /// comfortably above what a single short entry supplies (2-3 words) while still being below
     /// what any entry with a couple of real sentences reaches — the boundary matters less than
     /// having one at all; no user data pins down where short-entry users actually cluster yet.
-    private static func minimumSharedWords(sourceWordCount: Int) -> Int {
-        sourceWordCount >= 4 ? 2 : 1
+    ///
+    /// Above that floor, the requirement scales with `sourceWordCount`: a long entry, or a
+    /// week's worth of entries feeding a digest, hands the model far more vocabulary to
+    /// coincidentally land 2 words in without the rest of the reflection being any more specific
+    /// — the same weak-signal problem the flat "1" had, reappearing at "2" for anyone who writes
+    /// at length. Roughly 1 additional required word per 15 source content words, so a
+    /// ~150-word entry (a substantial paragraph) needs 3 shared words instead of 2, and a
+    /// digest's full week of entries needs correspondingly more. Capped at `nudgeWordCount`: a
+    /// nudge is bounded to ~700 output characters (`LocalLLMTask.dailyNudge.maxOutputChars`), so
+    /// it can only ever contain so many content words in the first place — the cap keeps a
+    /// short, honestly-grounded nudge against a very long entry from being held to a standard
+    /// its own length can't reach. Like the "4" cutoff above, "15" is a reasoned guess, not
+    /// validated against real nudge/digest output — worth revisiting if this guard's live
+    /// rejection rate turns out to move a lot once it's actually observable.
+    private static func minimumSharedWords(sourceWordCount: Int, nudgeWordCount: Int) -> Int {
+        guard sourceWordCount >= 4 else { return 1 }
+        let scaled = 2 + sourceWordCount / 15
+        return min(scaled, max(nudgeWordCount, 2))
     }
 
     /// The recent/background split a daily nudge is generated from. Factored out so
