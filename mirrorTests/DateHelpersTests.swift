@@ -54,3 +54,27 @@ struct DateHelpersTests {
         #expect(!DateHelpers.isInLastWeekOfMonth(date(year: 2026, month: 6, day: 1)))
     }
 }
+
+// Weekly digest generation gates on this — mirrorApp's own Sunday-only background pre-gen rule,
+// shared with InsightViewModel.loadWeeklyDigest's on-demand path via this one predicate instead
+// of two independently-drifting inline weekday checks.
+@Suite("DateHelpers.isSunday")
+struct DateHelpersIsSundayTests {
+
+    private func date(year: Int, month: Int, day: Int) -> Date {
+        Calendar.current.date(from: DateComponents(year: year, month: month, day: day))!
+    }
+
+    @Test func sunday_isTrue() {
+        // September 13, 2026 is a Sunday.
+        #expect(DateHelpers.isSunday(date(year: 2026, month: 9, day: 13)))
+    }
+
+    @Test func monday_isFalse() {
+        #expect(!DateHelpers.isSunday(date(year: 2026, month: 9, day: 14)))
+    }
+
+    @Test func saturday_isFalse() {
+        #expect(!DateHelpers.isSunday(date(year: 2026, month: 9, day: 12)))
+    }
+}

@@ -22,6 +22,11 @@ enum DigestState {
     case previousWeek(Insight, remaining: Int)
     case notEnoughEntries(Int)
     case subscriptionRequired
+    /// Not yet Sunday — on-demand generation is gated to match the background pre-gen task's
+    /// own Sunday-only rule (see loadWeeklyDigest), so this now covers the real "wait for the
+    /// week to finish" case, not just an in-flight background task as the name might suggest.
+    /// Its existing card copy ("Available each Sunday morning... generates overnight") was
+    /// already exactly this message — this case was declared but never actually set before.
     case pendingNightlyGeneration
     case modelNotInstalled
     /// `insight.content == InsightService.weeklyDigestUngroundedFallback` — detected by content
@@ -162,6 +167,19 @@ final class InsightViewModel {
                 return
             }
             // fall through to regenerate
+        }
+
+        // On-demand generation is gated to Sunday, matching the background pre-gen task's own
+        // rule (mirrorApp.swift's Sunday-only calls into runWeeklyDigestIfNeeded) — without this,
+        // opening Insights on, say, a Tuesday with 3+ entries already written generates a
+        // "weekly" digest that only reflects 1-2 days of the week. Same premature-generation
+        // issue the monthly report had before isInLastWeekOfMonth. forceRegenerate (the user's
+        // own "Try Again" tap on an existing grounding-fallback digest) bypasses this: a digest
+        // already exists for this week by definition in that case, so the week-completeness
+        // concern this gate exists for doesn't apply to re-rolling it.
+        guard forceRegenerate || DateHelpers.isSunday() else {
+            digestState = .pendingNightlyGeneration
+            return
         }
 
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {

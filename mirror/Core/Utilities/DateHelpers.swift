@@ -35,4 +35,15 @@ enum DateHelpers {
               let day = cal.dateComponents([.day], from: date).day else { return false }
         return day >= range.count - 6
     }
+
+    /// The weekly digest's generation window — matches mirrorApp's own background pre-gen rule
+    /// (`Calendar.current.component(.weekday, from: Date()) == 1`), factored out as a testable
+    /// predicate so `InsightViewModel.loadWeeklyDigest`'s on-demand path can share the exact
+    /// same rule instead of a second inline copy of "1" silently drifting from it over time.
+    /// `.weekday == 1` is Sunday regardless of `Calendar.current.firstWeekday` (weekday numbering
+    /// is fixed Gregorian, 1...7 = Sun...Sat; only which day a week is considered to *start* on
+    /// changes with firstWeekday, not this number).
+    static func isSunday(_ date: Date = Date()) -> Bool {
+        Calendar.current.component(.weekday, from: date) == 1
+    }
 }
