@@ -518,6 +518,27 @@ struct InsightValidationTests {
         #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 
+    // The real user report that motivated the 2-word threshold: "lots of generic assumptions
+    // when I gave specific information." A nudge that shares exactly one coincidental content
+    // word with a detail-rich entry — and is otherwise generic filler — used to pass this guard
+    // outright. The source here has well over 4 content words, so the 2-word minimum applies.
+    @Test func isUngrounded_oneCoincidentalWordAgainstDetailedEntry_nowDetected() {
+        let entries = [
+            Entry(text: "Spent the whole afternoon debugging the payment flow at work before the client demo. Finally fixed it an hour before the call."),
+        ]
+        let nudge = "Work has a way of testing us. Trust the process and give yourself grace today."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // The short-entry fallback the 2-word threshold is guarded against breaking: a terse entry
+    // genuinely can't supply 2 real content words, so the original 1-word threshold still
+    // applies and a real, if thin, connection still passes.
+    @Test func isUngrounded_shortEntrySingleSharedWord_stillNotDetected() {
+        let entries = [Entry(text: "Going in a good phase!")]
+        let nudge = "This phase you're in sounds like it's finally clicking into place."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
     @Test func isUngrounded_noSourceText_notDetected() {
         // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
         // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
