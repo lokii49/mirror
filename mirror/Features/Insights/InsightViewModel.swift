@@ -144,6 +144,17 @@ final class InsightViewModel {
             .filter { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek }
             .max { $0.generatedAt < $1.generatedAt }
 
+        // Advisor-audit finding: every gate below this point used to end the function outright
+        // when it blocked — but a stale cached digest is still a real, readable digest. Losing
+        // it the moment ANY gate (entries/model/day) fails discards content the user was already
+        // reading, just because the cache also happens to be due for a refresh. "Stale beats
+        // none" the same way generateNudge's own fail-open logic already treats a flawed nudge —
+        // this closure is the shared fallback every gate below reaches for before giving up.
+        func servingCachedOr(_ blocked: @autoclosure () -> DigestState) -> DigestState {
+            guard let cached = cachedThisWeek else { return blocked() }
+            return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
+        }
+
         // Serve the existing digest for this week unless it's gone stale (24h
         // cooldown elapsed AND newer entries since) — serving before the count
         // gate means deleting an entry after it generated doesn't blank it.
@@ -173,18 +184,33 @@ final class InsightViewModel {
         // needsMoreEntries and monthly's endOfMonthTooFewEntries both give the count. A
         // first-time user with 1 entry on a Tuesday should see "2 more entries to go" (something
         // to act on right now), not "available Sunday mornings" — the day-gate only matters once
-        // there's actually enough material to generate from.
-        guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
+        // there's actually enough material to generate from. forceRegenerate bypasses this too:
+        // it's only ever triggered from an existing groundingFallback card's Try Again, so a
+        // digest already exists for this week — an explicit user retry shouldn't be blocked by
+        // an entry count dropping (e.g. a deleted entry) after that digest was generated.
+        guard forceRegenerate || weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries else {
             let remaining = InsightService.weeklyDigestMinimumWeekEntries - weekEntries.count
             // Fall back to the most recent earlier week's digest until this week
             // has enough entries — better than a bare "1/3" progress bar.
+            let notEnoughState: DigestState
             if let prior = insights
                 .filter({ $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek })
                 .max(by: { $0.generatedAt < $1.generatedAt }) {
-                digestState = .previousWeek(prior, remaining: remaining)
+                notEnoughState = .previousWeek(prior, remaining: remaining)
             } else {
-                digestState = .notEnoughEntries(remaining)
+                notEnoughState = .notEnoughEntries(remaining)
             }
+            digestState = servingCachedOr(notEnoughState)
+            return
+        }
+
+        // Checked before the Sunday gate below: if the model isn't available at all, "Available
+        // Sunday mornings" is just as misleading as the day-gate promise was for a stale
+        // groundingFallback insight (see that check above) — waiting for Sunday wouldn't help
+        // either, since there's still no model to generate with once it arrives. The real
+        // blocker is named directly instead.
+        guard mirrorApp.modelAvailable() else {
+            digestState = servingCachedOr(.modelNotInstalled)
             return
         }
 
@@ -198,17 +224,12 @@ final class InsightViewModel {
         // this too: a digest already exists for this week by definition in that case, so the
         // week-completeness concern this gate exists for doesn't apply to re-rolling it.
         guard forceRegenerate || DateHelpers.isSunday() else {
-            digestState = .pendingNightlyGeneration
+            digestState = servingCachedOr(.pendingNightlyGeneration)
             return
         }
 
         if InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) {
             digestState = .loading
-            return
-        }
-
-        guard mirrorApp.modelAvailable() else {
-            digestState = .modelNotInstalled
             return
         }
 
@@ -247,6 +268,17 @@ final class InsightViewModel {
         // Generation is gated on being in the last week of the month FIRST — a report about
         // "this month" generated from only the first two weeks isn't actually a monthly report,
         // no matter how many entries went into it. Entry count is only checked once that's true.
+        //
+        // Deliberately the OPPOSITE order from loadWeeklyDigest, which checks entry count before
+        // its Sunday gate — flagged by advisor audit as an undocumented asymmetry worth calling
+        // out explicitly rather than leaving the next reader to assume they match. The date-first
+        // order here was the original, explicitly-requested design for monthly and is left as-is;
+        // weekly's count-first order was a later, separate explicit request (a first-time user
+        // with too few entries should see "N more to go", not "wait for Sunday", regardless of
+        // day). Both are intentional, not a bug — they just optimize for different things: monthly
+        // treats the date as the primary blocker since the wait can be weeks long either way,
+        // while weekly treats entry count as primary since its wait is at most a few days and
+        // showing something actionable matters more there.
         guard DateHelpers.isInLastWeekOfMonth(now) else {
             monthlyReportState = .waitingForMonthEnd(entryCount: thisMonthEntries.count)
             return
