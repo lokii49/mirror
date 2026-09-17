@@ -359,6 +359,10 @@ extension WriteView {
         guard let followUpQuestion else { return }
         let separator = viewModel.text.isEmpty || viewModel.text.hasSuffix("\n") ? "" : "\n\n"
         viewModel.text += separator + followUpQuestion + "\n"
+        // Same clamped-stale-selection bug as templates/Talk it out/scanned text (see
+        // WritingTemplate.cursorOffset) — without this the caret stays wherever it was before
+        // the question was appended, not at the end where the user would continue writing.
+        applyTextCommand(.moveCursor(location: .max))
         dismissFollowUp()
     }
 

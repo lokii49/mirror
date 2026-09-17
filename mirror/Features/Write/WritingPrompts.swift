@@ -72,14 +72,42 @@ enum WritingTemplate: CaseIterable, Identifiable {
         }
     }
 
-    var seedText: String {
+    var icon: String {
         switch self {
-        case .gratitude:
-            return String(localized: "Today I'm grateful for…\n\n", comment: "Gratitude entry template seed text")
-        case .threeWins:
-            return String(localized: "1. \n2. \n3. ", comment: "3 Wins entry template seed text")
-        case .moodLog:
-            return String(localized: "Right now I feel…\n\nBecause…", comment: "Mood log entry template seed text")
+        case .gratitude: return "heart.circle"
+        case .threeWins: return "checklist"
+        case .moodLog:   return "face.smiling"
         }
     }
+
+    /// Text before the cursor's target resting position — see `cursorOffset`.
+    private var seedPrefix: String {
+        switch self {
+        case .gratitude:
+            return String(localized: "Today I'm grateful for…", comment: "Gratitude entry template seed text, before the cursor")
+        case .threeWins:
+            return String(localized: "1. ", comment: "3 Wins entry template seed text, before the cursor")
+        case .moodLog:
+            return String(localized: "Right now I feel…", comment: "Mood log entry template seed text, before the cursor")
+        }
+    }
+
+    /// Text after the cursor's target resting position.
+    private var seedSuffix: String {
+        switch self {
+        case .gratitude: return "\n\n"
+        case .threeWins: return String(localized: "\n2. \n3. ", comment: "3 Wins entry template seed text, after the cursor")
+        case .moodLog:   return String(localized: "\n\nBecause…", comment: "Mood log entry template seed text, after the cursor")
+        }
+    }
+
+    var seedText: String { seedPrefix + seedSuffix }
+
+    /// Where the caret should land once this template is inserted — right where the user is
+    /// meant to start typing (end of "Today I'm grateful for…", inside "1. ", end of "Right now
+    /// I feel…"). Real on-device bug this fixes: `NoteEditorTextView.updateUIView` only clamps
+    /// the *old* selectedRange into the new text's bounds when `text` is set externally, it
+    /// doesn't reposition it meaningfully — without an explicit `.moveCursor` command, the caret
+    /// landed wherever that clamp happened to fall for each template's specific text shape.
+    var cursorOffset: Int { seedPrefix.count }
 }

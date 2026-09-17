@@ -733,6 +733,23 @@ struct NoteEditorTextView: UIViewRepresentable {
                     self.parent.canRedo = textView.undoManager?.canRedo ?? false
                 }
                 return
+            case .moveCursor(let location):
+                // Runs in the same updateUIView pass as the text-diff branch above (lines
+                // 75-81), which has already applied the new text to textView by the time any
+                // command reaches here — so this clamps against the *new* text, not stale state.
+                let newRange = bounded(NSRange(location: location, length: 0), in: textView.text)
+                textView.selectedRange = newRange
+                // Every other selectedRange-setting call site in this file also refreshes
+                // typingAttributes to match the paragraph at the new location — skipping it here
+                // left the caret rendering with whatever typingAttributes were last active
+                // (from the editor's *previous* content/font, before the template/append), which
+                // showed up on-device as an oversized caret glyph, not just a wrong-looking one.
+                let sampleLocation = max(0, newRange.location - 1)
+                let style = textStyle(at: sampleLocation, in: textView.attributedText)
+                let level = indentLevelValue(at: sampleLocation, in: textView.attributedText)
+                let fontChoice = fontChoiceValue(at: sampleLocation, in: textView.attributedText)
+                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+                return
             default: break
             }
 

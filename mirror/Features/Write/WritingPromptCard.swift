@@ -4,7 +4,6 @@ struct WritingPromptCard: View {
     let prompt: String
     let onShuffle: () -> Void
     let onUse: () -> Void
-    var onUseTemplate: ((WritingTemplate) -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
@@ -61,31 +60,6 @@ struct WritingPromptCard: View {
                     }
             }
             .buttonStyle(.plain)
-
-            if let onUseTemplate {
-                HStack(spacing: 8) {
-                    Text(isSentinel ? "OR START FROM" : "Or start from")
-                        .font(isSentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 10, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                    ForEach(WritingTemplate.allCases) { template in
-                        Button {
-                            onUseTemplate(template)
-                        } label: {
-                            Text(template.title)
-                                .font(isSentinel ? MirrorTheme.mono(10.5, weight: .semibold) : .system(size: 11.5, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Color.secondary.opacity(0.10),
-                                    in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer(minLength: 0)
-                }
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)

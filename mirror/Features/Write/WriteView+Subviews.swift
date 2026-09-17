@@ -719,20 +719,37 @@ struct FollowUpChip: View {
 /// placement pivots this session (menu item, then a persistent tab, both reverted). Shown only
 /// on a genuinely blank new entry (`WriteView`'s own gate); a quiet row, not a card, since it's
 /// an offer that should get out of the way the instant the user starts writing on their own.
-struct TalkItOutChip: View {
-    let onTap: () -> Void
+/// Blank-new-entry starter chip (writing-roadmap.md 0.2 + Tier 2) — one entry point instead of
+/// two. Was Talk-it-out-only; widened into a menu offering Talk it out plus the 3 quick-start
+/// templates, since 0.2's templates were otherwise reachable only during the cold-start
+/// `.needsMoreEntries` window in InsightView and invisible to most users past onboarding.
+/// Reuses this chip's already-verified-on-device placement/timing rather than adding a second
+/// chip alongside it.
+struct WritingStarterChip: View {
+    let onTalkItOut: () -> Void
+    let onUseTemplate: (WritingTemplate) -> Void
 
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
     var body: some View {
-        Button(action: onTap) {
+        Menu {
+            Button(action: onTalkItOut) {
+                Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+            }
+            Divider()
+            ForEach(WritingTemplate.allCases) { template in
+                Button { onUseTemplate(template) } label: {
+                    Label(template.title, systemImage: template.icon)
+                }
+            }
+        } label: {
             HStack(spacing: 10) {
                 Image(systemName: "bubble.left.and.text.bubble.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(accent)
-                Text(isSentinel ? "TALK IT OUT — ANSWER A FEW QUESTIONS INSTEAD" : "Talk it out — answer a few questions instead")
+                Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
                     .font(isSentinel ? MirrorTheme.mono(11.5, weight: .semibold) : .system(size: 13, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(1)
@@ -752,8 +769,9 @@ struct TalkItOutChip: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Talk it out — answer a few questions instead of writing freely")
+        .accessibilityLabel("Need a starting point? Talk it out, or use a template")
     }
 }
