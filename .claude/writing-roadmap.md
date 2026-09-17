@@ -471,10 +471,19 @@ hands.
 > **Confirmed on-device 2026-09-17, non-FM path**: user's real device (no Foundation Models) now
 > shows the `ModelNotInstalledCard` sheet correctly on tapping the chip — Sentinel styling (COMMS
 > title, ember "AI MODEL NEEDED" card) rendering right too, closing that "unverified" note — and
-> Download Model → real download → install confirmed working end-to-end. The FM-capable-device
-> side of the fix (nudge/digest/report/Ask no longer gating on a Gemma download when FM alone
-> would do) is still inferred from the code path + build/test suite, not a device repro, since
-> the reporting device doesn't have Apple Intelligence.
+> Download Model → real download → install confirmed working end-to-end.
+>
+> **FM-capable-device side confirmed too, 2026-09-17 — no physical Apple Intelligence device
+> needed.** The user reporting this doesn't have one, but this session's Xcode 27 beta simulator
+> reports Foundation Models as available on its own (the same environment fact Tier 2's
+> discriminating test surfaced), so it substitutes for one. New UI test
+> `mirrorUITests.testTalkItOut_foundationModelsAvailable_skipsModelDownloadGate` drives the real
+> app — launch, Write tab, tap the starter chip, tap "Talk it out" — and asserts the "AI model
+> needed" gate never appears. Screenshot confirms the real `TalkItOutView` opens directly
+> (question 1 seeded from `WritingPrompts`, "1 of 3" progress), not the download card. This is
+> the exact path `mirrorApp.modelAvailable()`'s bug broke — proof it works now, not just a
+> read of the diff. By the same code path, nudge/digest/report/Ask inherit this — the shared fix
+> (`LocalLLMService.isModelAvailable`) is what this test exercises, not something Talk-It-Out-specific.
 >
 > New tests: `mirrorTests/TalkItOutTests.swift` — 3 cases on `composedText(from:)`, the one pure
 > seam in this view (single turn, multi-turn join-with-blank-line, empty input); unaffected by
