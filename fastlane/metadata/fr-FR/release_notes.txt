@@ -1,6 +1,10 @@
-Notifications enrichies, widgets plus grands.
+Une nouvelle façon de commencer, et des réflexions en qui vous pouvez avoir confiance.
 
-• Les notifications de Rappel quotidien se déploient désormais directement sur l'écran verrouillé — découvrez votre humeur et un aperçu de la réflexion du jour, avec un bouton Écrire maintenant pour vous lancer aussitôt.
-• Les widgets Résumé hebdomadaire et Rapport mensuel approfondi sont désormais disponibles en grand format.
-• Correction du bouton « Effacer la mise en forme » qui s'affichait vide dans la barre d'outils d'écriture.
+• Talk it out : une courte conversation guidée (jusqu'à 3 questions) qui se transforme en une nouvelle entrée de journal — entièrement sur l'appareil, rien n'est enregistré tant que vous n'écrivez pas.
+• Numérisez du texte manuscrit ou imprimé directement dans une entrée grâce à l'appareil photo.
+• Nouveaux points de départ en un geste — Gratitude, 3 réussites, Suivi d'humeur — aux côtés de la suggestion du jour.
+• Les réflexions quotidiennes, les résumés hebdomadaires et les rapports mensuels s'appuient désormais bien plus fidèlement sur ce que vous avez réellement écrit — correction du problème qui faisait souvent apparaître « Non confirmée » au lieu d'une véritable réflexion.
+• Lorsqu'une réflexion ne peut pas être confirmée, appuyez sur Réessayer pour en obtenir une nouvelle au lieu d'attendre.
+• La capture rapide via Siri est désormais plus facile à trouver, avec des instructions de configuration dans Réglages.
+• Ajout de la prise en charge de Réduire les animations et amélioration du contraste du sélecteur d'humeur.
 • Corrections et améliorations diverses.
