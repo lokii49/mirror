@@ -554,8 +554,11 @@ struct mirrorApp: App {
         let now = Date()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
-        let minEntries = DateHelpers.isInLastThreeDaysOfMonth(now) ? 10 : 20
-        guard monthEntries.count >= minEntries, SubscriptionService.shared.isDeep else { return }
+        // Same last-week-of-month gate as InsightViewModel.loadMonthlyReport (see its comment) —
+        // this background pass must not generate early just because entries happen to be there.
+        guard DateHelpers.isInLastWeekOfMonth(now),
+              monthEntries.count >= InsightService.monthlyReportMinimumEntries,
+              SubscriptionService.shared.isDeep else { return }
         guard modelAvailable() else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }

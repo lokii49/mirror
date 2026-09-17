@@ -451,6 +451,16 @@ hands.
 > experience** — the FM-tier quality claim now has real evidence behind it; the Gemma-tier one
 > still doesn't.
 >
+> **Re-run 2026-09-17, same test, FM-tier quality claim needs a caveat too.** A second real run
+> failed: turn 3 asked "What part of work feels heaviest right now, and how does it affect your
+> energy?" against turn 2's "What part of work feels heaviest right now?" — word-overlap 1.0
+> (turn 2's question is fully contained in turn 3's). This is the exact near-duplicate risk this
+> section already named as unvalidated, now observed for real rather than theorized, and it
+> happened on Foundation Models, not Gemma — so "FM is the safer tier" is directionally still
+> true (0/2 clean in the first run) but not yet a guarantee either. Real inference is
+> non-deterministic run to run; the test isn't flaky, the model's output is. Not fixed this
+> pass — flagging rather than loosening the test's 0.8 overlap threshold to make it pass, which
+> would defeat the point of having it.
 > Separately, in the same pass: the "Not ready yet" alert this chip shows when
 > `LocalLLMService.isModelAvailable` is false was an OK-only dialog with no path forward — fixed
 > to present `ModelNotInstalledCard` (the same reusable download-progress UI `AskView` and

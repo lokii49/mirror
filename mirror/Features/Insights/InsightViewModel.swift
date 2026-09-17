@@ -31,7 +31,11 @@ enum MonthlyReportState {
     case idle
     case loading
     case loaded(Insight)
-    case notEnoughEntries(remaining: Int, total: Int)
+    /// Not yet in DateHelpers.isInLastWeekOfMonth's window — entry count doesn't matter here,
+    /// generation simply hasn't opened for the month yet. Replaces the old
+    /// `notEnoughEntries(remaining:total:)`, which could misleadingly tell a user with plenty of
+    /// entries to "write N more" when the real blocker was purely the date, not the count.
+    case waitingForMonthEnd(entryCount: Int)
     case endOfMonthTooFewEntries(count: Int)
     case subscriptionRequired
     case pendingNightlyGeneration
@@ -199,16 +203,16 @@ final class InsightViewModel {
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
-        let isMonthEnd = DateHelpers.isInLastThreeDaysOfMonth(now)
-        let minimumEntries = isMonthEnd ? 10 : 20
-
-        if isMonthEnd && thisMonthEntries.count < 10 {
-            monthlyReportState = .endOfMonthTooFewEntries(count: thisMonthEntries.count)
+        // Generation is gated on being in the last week of the month FIRST — a report about
+        // "this month" generated from only the first two weeks isn't actually a monthly report,
+        // no matter how many entries went into it. Entry count is only checked once that's true.
+        guard DateHelpers.isInLastWeekOfMonth(now) else {
+            monthlyReportState = .waitingForMonthEnd(entryCount: thisMonthEntries.count)
             return
         }
 
-        guard thisMonthEntries.count >= minimumEntries else {
-            monthlyReportState = .notEnoughEntries(remaining: minimumEntries - thisMonthEntries.count, total: minimumEntries)
+        guard thisMonthEntries.count >= InsightService.monthlyReportMinimumEntries else {
+            monthlyReportState = .endOfMonthTooFewEntries(count: thisMonthEntries.count)
             return
         }
 
