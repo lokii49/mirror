@@ -9,6 +9,11 @@ enum NudgeState {
     case subscriptionRequired
     case pendingNightlyGeneration
     case modelNotInstalled
+    /// Same shape as DigestState.groundingFallback / MonthlyReportState.groundingFallback —
+    /// `insight.content == InsightService.dailyNudgeUngroundedFallback`, detected by content
+    /// equality so the view shows an honest message and a real retry instead of rendering it
+    /// as an ordinary reflection.
+    case groundingFallback(Insight)
     case error(String)
 }
 
@@ -91,6 +96,22 @@ final class InsightViewModel {
         if nudgeState != newState { nudgeState = newState }
     }
 
+    /// The one exception to "views never trigger LLM directly": a user's explicit "Try Again"
+    /// tap on a groundingFallback card is deliberate intent, same as the nightly background
+    /// task's own bypassTimeGate — so this re-enters the exact same generation entry point
+    /// (mirrorApp.runDailyNudgeIfNeeded) rather than duplicating its gates here. That function's
+    /// own guards already treat a fallback insight as retriable without requiring new entries
+    /// (see its comments), so no separate "force" parameter is needed. The result lands as a
+    /// new Insight row; onChange(of: insights.count) picks it up and calls loadNudge again.
+    func retryNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
+        // Instant feedback — generation is a cold model load plus inference (can run 10s of
+        // seconds on-device), and runDailyNudgeIfNeeded gives no progress callback of its own.
+        // Without this the button looks dead for that whole window.
+        nudgeState = .loading
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+        await loadNudge(entries: entries, insights: insights, context: context)
+    }
+
     private func resolvedNudgeState(entries: [Entry], insights: [Insight]) -> NudgeState {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
@@ -99,15 +120,20 @@ final class InsightViewModel {
             return .needsMoreEntries(3 - entries.count)
         }
 
-        let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge }
+        // A fallback doesn't count as "seen" — a free user whose only nudge attempt so far
+        // failed the grounding check shouldn't be paywalled for a nudge they never got.
+        let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
         if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
             return .subscriptionRequired
         }
 
-        if let cached = insights.first(where: {
-            $0.type == .dailyNudge && $0.periodIdentifier == today
-        }) {
-            return .loaded(cached)
+        // Newest wins, not first: a retried fallback inserts a new row for today rather than
+        // deleting the old one (same non-destructive pattern digest/monthly already use), so
+        // today can briefly hold two rows while the retry's result lands.
+        if let cached = insights
+            .filter({ $0.type == .dailyNudge && $0.periodIdentifier == today })
+            .max(by: { $0.generatedAt < $1.generatedAt }) {
+            return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
         }
 
         // Pre-gen (mirrorApp.preGenerateInsightsIfNeeded) is actively running — show spinner.

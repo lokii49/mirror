@@ -370,7 +370,18 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == today }
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
-        guard !todayInsights.contains(where: { $0.type == .dailyNudge }) else { return }
+        // A fallback insight isn't a nudge that succeeded — it's the absence of one. Counting ANY
+        // real nudge as "done for today" used to make the 3AM BGProcessingTask (charging, idle,
+        // precisely the low-pressure window a retry has the best shot in) — and a user's own
+        // "Try Again" tap — skip today entirely even when the NEWEST row for today is the
+        // fallback (e.g. a real nudge generated this morning, then a later re-gen off newer
+        // entries produced the fallback). Must match resolvedNudgeState's own "newest wins"
+        // read: only skip when the newest row for today is real.
+        if let newestToday = todayInsights
+            .filter({ $0.type == .dailyNudge })
+            .max(by: { $0.generatedAt < $1.generatedAt }) {
+            guard InsightService.isUngroundedFallback(newestToday.content) else { return }
+        }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -378,16 +389,20 @@ struct mirrorApp: App {
         let entries = (try? context.fetch(entryDescriptor)) ?? []
         guard entries.count >= 3 else { return }
 
-        // First nudge is free; subsequent require subscription
+        // First nudge is free; subsequent require subscription. A fallback doesn't count as
+        // "seen" — otherwise a free user whose very first attempt happened to fail the grounding
+        // check would be locked behind the paywall for a nudge they never actually received.
         let allInsightsDescriptor = FetchDescriptor<Insight>()
         let allInsights = (try? context.fetch(allInsightsDescriptor)) ?? []
-        let hasSeenFirst = allInsights.contains { $0.type == .dailyNudge }
+        let hasSeenFirst = allInsights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
         if hasSeenFirst && !SubscriptionService.shared.isSubscribed { return }
 
-        // Only generate if there are entries written after the last nudge.
-        // No new writing → no new reflection.
+        // Only generate if there are entries written after the last REAL nudge. No new writing →
+        // no new reflection. A fallback is excluded from "last nudge" here too — retrying it
+        // against the same entries that produced it is exactly the point, not blocked by "nothing
+        // new since then."
         if let lastNudge = allInsights
-            .filter({ $0.type == .dailyNudge })
+            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
             .max(by: { $0.generatedAt < $1.generatedAt }) {
             guard entries.contains(where: { $0.createdAt > lastNudge.generatedAt }) else { return }
         }
@@ -445,14 +460,25 @@ struct mirrorApp: App {
             } else {
                 // First nudge for free users — one-time hook to drive paywall conversion.
                 // NOT gated on `degraded`: the Insight above is already saved, which makes
-                // `hasSeenFirst` true on every later call — there is no "next day" retry for a
-                // free user, this is the only time this ever fires for them. A flawed first
-                // nudge still beats never showing the paywall hook at all.
+                // `hasSeenFirst` true on every later call once it's a REAL nudge — a flawed
+                // first nudge still beats never showing the paywall hook at all. Can fire more
+                // than once now: `hasSeenFirst` excludes fallback content (see its own comment
+                // above), so a fallback first attempt followed by a successful Try Again lands
+                // here twice. Harmless — scheduleFirstNudgeHook replaces its one pending request
+                // by a fixed identifier rather than adding a second, so this only ever re-arms
+                // the same one-time notification, never duplicates it.
                 await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
             }
         } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
     }
 
+    // Both of these feed "insightReady" into push-notification copy that promises a real
+    // reflection — a fallback insight must not count, or the push claims a reflection is ready
+    // when all that's actually there is the "couldn't confirm" message. Also why this reads the
+    // NEWEST matching insight rather than the first: a retried fallback inserts a second row for
+    // today rather than deleting the first (same non-destructive pattern weekly digest/monthly
+    // report already use, since a CloudKit-synced deletion can hand a second device a tombstoned
+    // object), so today can briefly hold two dailyNudge rows.
     @MainActor
     static func hasDailyNudgeForToday(context: ModelContext) -> Bool {
         let today = DateHelpers.dayIdentifier(for: Date())
@@ -460,7 +486,7 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == today }
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
-        return todayInsights.contains { $0.type == .dailyNudge }
+        return todayInsights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
     }
 
     @MainActor
@@ -470,7 +496,9 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == today }
         )
         let todayInsights = (try? context.fetch(descriptor)) ?? []
-        return todayInsights.first { $0.type == .dailyNudge }?.content
+        return todayInsights
+            .filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+            .max { $0.generatedAt < $1.generatedAt }?.content
     }
 
     @MainActor
