@@ -32,6 +32,13 @@ struct TalkItOutView: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
+    private var engineTag: String? {
+        switch currentQuestionEngine {
+        case .gemma: return "GEMMA"
+        case .foundationModels: return "FM"
+        case nil: return nil
+        }
+    }
 
     // Sizes below are all `base * typeScale` — one shared metric, the same pattern
     // FormattingPanelView's Dynamic Type fix (writeview-audit.md 2.5) established, rather than
@@ -47,6 +54,11 @@ struct TalkItOutView: View {
 
     @State private var turns: [(question: String, answer: String)] = []
     @State private var currentQuestion: String? = nil
+    /// nil for question 1 (seeded from WritingPrompts.all, no model involved). Surfaced only in
+    /// Sentinel mode — same X-ray attribution pattern as FollowUpChip (1.2) and
+    /// InsightSignalSource, closing the "can't tell which engine produced a bad question" gap
+    /// without adding persistence this feature deliberately avoids.
+    @State private var currentQuestionEngine: LLMEngine? = nil
     @State private var answerDraft: String = ""
     @State private var isLoadingQuestion = false
     @State private var errorMessage: String? = nil
@@ -175,6 +187,13 @@ struct TalkItOutView: View {
                 }
             }
 
+            if isSentinel, let engineTag {
+                Text(engineTag)
+                    .font(MirrorTheme.mono(8.5, weight: .bold))
+                    .tracking(0.6)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            }
+
             ZStack(alignment: .topLeading) {
                 if answerDraft.isEmpty {
                     Text("Write your answer…")
@@ -292,6 +311,7 @@ struct TalkItOutView: View {
         // been run against a real model — see the Tier 2 STATUS block in writing-roadmap.md.
         guard !turns.isEmpty else {
             currentQuestion = WritingPrompts.all.randomElement()
+            currentQuestionEngine = nil
             answerFocused = true
             return
         }
@@ -300,6 +320,7 @@ struct TalkItOutView: View {
             let result = try await InsightService.generateGuidedQuestion(conversationSoFar: turns)
             isLoadingQuestion = false
             currentQuestion = result.text
+            currentQuestionEngine = result.engine
             answerFocused = true
         } catch {
             isLoadingQuestion = false
