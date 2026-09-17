@@ -690,3 +690,46 @@ struct FollowUpChip: View {
         .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 3)
     }
 }
+
+/// "Talk it out" starter chip (writing-roadmap.md Tier 2) — the sole entry point after two
+/// placement pivots this session (menu item, then a persistent tab, both reverted). Shown only
+/// on a genuinely blank new entry (`WriteView`'s own gate); a quiet row, not a card, since it's
+/// an offer that should get out of the way the instant the user starts writing on their own.
+struct TalkItOutChip: View {
+    let onTap: () -> Void
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "bubble.left.and.text.bubble.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(isSentinel ? "TALK IT OUT — ANSWER A FEW QUESTIONS INSTEAD" : "Talk it out — answer a few questions instead")
+                    .font(isSentinel ? MirrorTheme.mono(11.5, weight: .semibold) : .system(size: 13, weight: .medium))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Talk it out — answer a few questions instead of writing freely")
+    }
+}
