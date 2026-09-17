@@ -9,6 +9,7 @@ struct EntriesTabView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -21,6 +22,10 @@ struct EntriesTabView: View {
     @State private var showOnThisDay = false
     @State private var snapshotCache: EntryListSnapshot? = nil
     @State private var sortOrder: EntrySortOrder = .newestFirst
+    // Set right before a pin/unpin toggle so the snapshot recompute (which lands
+    // in .task, a separate transaction from the toggle site) animates only that
+    // interaction — not every search keystroke, sort change, or tag edit.
+    @State private var animatePinChange = false
 
     private enum EntrySortOrder: String, CaseIterable {
         case newestFirst = "Newest First"
@@ -253,7 +258,15 @@ struct EntriesTabView: View {
                 }
             }
             .task(id: snapshotDeps) {
-                snapshotCache = listSnapshot
+                let newSnapshot = listSnapshot
+                if animatePinChange && !reduceMotion {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
+                        snapshotCache = newSnapshot
+                    }
+                } else {
+                    snapshotCache = newSnapshot
+                }
+                animatePinChange = false
             }
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
@@ -501,6 +514,8 @@ struct EntriesTabView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    animatePinChange = true
                     entry.isPinned.toggle()
                     try? modelContext.save()
                 } label: {
@@ -807,11 +822,14 @@ private struct EntryRow: View {
             in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous)
         )
         .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
+            // Vertical inset must clear the card's own corner radius below —
+            // the bar isn't clipped to the card shape, so anything less lets
+            // its square corners poke past the card's rounded silhouette
+            // instead of sitting inside the flat wall of the curve.
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(moodColor.opacity(moodLabel == nil ? 0.20 : 0.65))
                 .frame(width: 4)
-                .padding(.vertical, 10)
-                .padding(.leading, 0)
+                .padding(.vertical, displayMode == .sentinel ? 10 : 20)
         }
         .overlay {
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous)

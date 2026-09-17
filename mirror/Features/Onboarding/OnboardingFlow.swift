@@ -99,6 +99,9 @@ struct OnboardingFlow: View {
     @State private var selectedDisplayMode: DisplayMode = .classic
     @State private var welcomeAppeared = false
     @State private var writeBreathe = false
+    @Namespace private var reasonAccentNS
+    @Namespace private var presetAccentNS
+    @Namespace private var modeAccentNS
 
     // Derive suggested preset from selected reason
     private var suggestedPreset: NudgePreset {
@@ -167,6 +170,30 @@ struct OnboardingFlow: View {
             .shadow(color: i == step ? threadActiveColor.opacity(0.35) : .clear, radius: 5)
     }
 
+    // Shared selection-bar renderer for the three choice-row groups below.
+    // Matches EntryRow's leading mood-bar (EntryListView.swift): a small
+    // radius sized to the bar's own width, inset from the card's top/bottom
+    // so it reads as a floating accent rather than colliding with the
+    // card's much larger 16pt corner curve. The old topLeading/bottomLeading
+    // radius of 16 on a 3pt-wide bar way overshot the shape's own width,
+    // so the corner arcs ate almost the whole bar — it looked like a short
+    // stub with gaps top and bottom instead of a clean line.
+    // Under Reduce Motion, the sliding matchedGeometryEffect is dropped
+    // entirely (not just re-eased) so the bar only cross-fades in place.
+    @ViewBuilder
+    private func accentBar(color: Color, id: String, in ns: Namespace.ID) -> some View {
+        let bar = RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(color)
+            .frame(width: 4)
+            .padding(.vertical, 12)
+
+        if reduceMotion {
+            bar
+        } else {
+            bar.matchedGeometryEffect(id: id, in: ns)
+        }
+    }
+
     private func threadSegment(_ i: Int) -> some View {
         let fill: Color = i < step ? threadDoneColor.opacity(0.55) : MirrorTheme.inkBorder
         return Rectangle()
@@ -189,71 +216,84 @@ struct OnboardingFlow: View {
 
     // MARK: - Steps
 
+    // Was a plain ScrollView — inside a ScrollView, Spacer(minLength:) collapses
+    // to its minLength instead of expanding (the scroll axis proposes unbounded
+    // height), so short content pinned to the top and left a dead gap above the
+    // CTA instead of centering. Pinning the inner VStack's minHeight to the
+    // container's actual height gives Spacer real room to expand — content
+    // centers when it's shorter than the screen, and still scrolls normally
+    // at larger Dynamic Type sizes where it's taller.
     private var welcomeStep: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Spacer(minLength: 20)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Fixed, not flexible — the icon should stay put near the
+                    // progress dots. Only the bottom Spacer below absorbs the
+                    // leftover space, so slack doesn't split into two gaps.
+                    Spacer().frame(height: 16)
 
-                // App icon
-                Image("AppIconDisplay")
-                    .resizable()
-                    .frame(width: 110, height: 110)
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
-                    .opacity(welcomeAppeared ? 1 : 0)
-                    .scaleEffect(welcomeAppeared ? 1 : 0.85)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.7), value: welcomeAppeared)
-
-                // Title — New York serif, tight tracking, strong weight
-                Text("MirrorNotes")
-                    .font(.system(size: 44, weight: .bold, design: .serif))
-                    .foregroundStyle(MirrorTheme.textPrimary)
-                    .tracking(-0.5)
-                    .padding(.top, 32)
-                    .opacity(welcomeAppeared ? 1 : 0)
-                    .offset(y: welcomeAppeared ? 0 : 10)
-                    .animation(.easeOut(duration: 0.5).delay(0.15), value: welcomeAppeared)
-
-                // Tagline — same serif family, lighter, italic
-                Text("Understand yourself\nthrough writing.")
-                    .font(.system(size: 18, weight: .regular, design: .serif))
-                    .italic()
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(5)
-                    .padding(.top, 10)
-                    .opacity(welcomeAppeared ? 1 : 0)
-                    .offset(y: welcomeAppeared ? 0 : 10)
-                    .animation(.easeOut(duration: 0.5).delay(0.28), value: welcomeAppeared)
-
-                // Divider — visual rhythm break
-                Divider()
-                    .overlay(MirrorTheme.inkBorder)
-                    .padding(.top, 40)
-                    .padding(.bottom, 36)
-                    .padding(.horizontal, 4)
-                    .opacity(welcomeAppeared ? 1 : 0)
-                    .animation(.easeOut(duration: 0.5).delay(0.4), value: welcomeAppeared)
-
-                // Feature list
-                VStack(alignment: .leading, spacing: 22) {
-                    welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                    // App icon
+                    Image("AppIconDisplay")
+                        .resizable()
+                        .frame(width: 110, height: 110)
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
                         .opacity(welcomeAppeared ? 1 : 0)
-                        .offset(y: welcomeAppeared ? 0 : 8)
-                        .animation(.easeOut(duration: 0.45).delay(0.5), value: welcomeAppeared)
-                    welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
+                        .scaleEffect(welcomeAppeared ? 1 : 0.85)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: welcomeAppeared)
+
+                    // Title — New York serif, tight tracking, strong weight
+                    Text("MirrorNotes")
+                        .font(.system(size: 44, weight: .bold, design: .serif))
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .tracking(-0.5)
+                        .padding(.top, 32)
                         .opacity(welcomeAppeared ? 1 : 0)
-                        .offset(y: welcomeAppeared ? 0 : 8)
-                        .animation(.easeOut(duration: 0.45).delay(0.58), value: welcomeAppeared)
-                    welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
+                        .offset(y: welcomeAppeared ? 0 : 10)
+                        .animation(.easeOut(duration: 0.5).delay(0.15), value: welcomeAppeared)
+
+                    // Tagline — same serif family, lighter, italic
+                    Text("Understand yourself\nthrough writing.")
+                        .font(.system(size: 18, weight: .regular, design: .serif))
+                        .italic()
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(5)
+                        .padding(.top, 10)
                         .opacity(welcomeAppeared ? 1 : 0)
-                        .offset(y: welcomeAppeared ? 0 : 8)
-                        .animation(.easeOut(duration: 0.45).delay(0.66), value: welcomeAppeared)
+                        .offset(y: welcomeAppeared ? 0 : 10)
+                        .animation(.easeOut(duration: 0.5).delay(0.28), value: welcomeAppeared)
+
+                    // Divider — visual rhythm break
+                    Divider()
+                        .overlay(MirrorTheme.inkBorder)
+                        .padding(.top, 40)
+                        .padding(.bottom, 36)
+                        .padding(.horizontal, 4)
+                        .opacity(welcomeAppeared ? 1 : 0)
+                        .animation(.easeOut(duration: 0.5).delay(0.4), value: welcomeAppeared)
+
+                    // Feature list
+                    VStack(alignment: .leading, spacing: 20) {
+                        welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
+                            .opacity(welcomeAppeared ? 1 : 0)
+                            .offset(y: welcomeAppeared ? 0 : 8)
+                            .animation(.easeOut(duration: 0.45).delay(0.5), value: welcomeAppeared)
+                        welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
+                            .opacity(welcomeAppeared ? 1 : 0)
+                            .offset(y: welcomeAppeared ? 0 : 8)
+                            .animation(.easeOut(duration: 0.45).delay(0.58), value: welcomeAppeared)
+                        welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
+                            .opacity(welcomeAppeared ? 1 : 0)
+                            .offset(y: welcomeAppeared ? 0 : 8)
+                            .animation(.easeOut(duration: 0.45).delay(0.66), value: welcomeAppeared)
+                    }
+
+                    Spacer(minLength: 16)
                 }
-
-                Spacer(minLength: 20)
+                .frame(minHeight: proxy.size.height)
+                .padding(.horizontal, 36)
             }
-            .padding(.horizontal, 36)
         }
         .onAppear {
             welcomeAppeared = true
@@ -262,10 +302,14 @@ struct OnboardingFlow: View {
 
     private func welcomeFeatureItem(icon: String, text: LocalizedStringKey, color: Color) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: 24)
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.14))
+                    .frame(width: 34, height: 34)
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(color)
+            }
             Text(text)
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(MirrorTheme.textPrimary)
@@ -497,7 +541,7 @@ struct OnboardingFlow: View {
     private func modeCard(mode: DisplayMode, title: LocalizedStringKey, subtitle: LocalizedStringKey, accent: Color) -> some View {
         let isSelected = selectedDisplayMode == mode
         return Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75)) {
                 selectedDisplayMode = mode
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -534,16 +578,13 @@ struct OnboardingFlow: View {
                     .stroke(isSelected ? accent.opacity(0.4) : MirrorTheme.inkBorder, lineWidth: 1)
             }
             .overlay(alignment: .leading) {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 16, bottomLeadingRadius: 16,
-                    style: .continuous
-                )
-                .fill(isSelected ? accent : .clear)
-                .frame(width: 3)
+                if isSelected {
+                    accentBar(color: accent, id: "modeAccent", in: modeAccentNS)
+                }
             }
         }
         .buttonStyle(.plain)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedDisplayMode)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75), value: selectedDisplayMode)
     }
 
     /// The signature moment: a miniature render of each mode's real chrome —
@@ -631,7 +672,7 @@ struct OnboardingFlow: View {
         let isSelected = selectedReason == reason
         let color = reason.color
         return Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75)) {
                 selectedReason = reason
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -664,16 +705,13 @@ struct OnboardingFlow: View {
                     .stroke(isSelected ? color.opacity(0.35) : MirrorTheme.inkBorder, lineWidth: 1)
             }
             .overlay(alignment: .leading) {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 16, bottomLeadingRadius: 16,
-                    style: .continuous
-                )
-                .fill(isSelected ? color : .clear)
-                .frame(width: 3)
+                if isSelected {
+                    accentBar(color: color, id: "reasonAccent", in: reasonAccentNS)
+                }
             }
         }
         .buttonStyle(.plain)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selectedReason)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75), value: selectedReason)
     }
 
     @ViewBuilder
@@ -682,7 +720,7 @@ struct OnboardingFlow: View {
         let isRecommended = preset == suggestedPreset
 
         Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75)) {
                 nudgePreset = preset
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -742,16 +780,13 @@ struct OnboardingFlow: View {
                     .stroke(isSelected ? MirrorTheme.violet.opacity(0.35) : MirrorTheme.inkBorder, lineWidth: 1)
             }
             .overlay(alignment: .leading) {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 16, bottomLeadingRadius: 16,
-                    style: .continuous
-                )
-                .fill(isSelected ? MirrorTheme.violet : .clear)
-                .frame(width: 3)
+                if isSelected {
+                    accentBar(color: MirrorTheme.violet, id: "presetAccent", in: presetAccentNS)
+                }
             }
         }
         .buttonStyle(.plain)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75), value: nudgePreset)
     }
 
     // MARK: - CTA
