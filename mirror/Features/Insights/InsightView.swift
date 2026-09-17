@@ -391,7 +391,7 @@ struct InsightView: View {
 
     private var nightlyPendingDigestCard: some View {
         NightlyPendingCard(
-            label: "Available each Sunday morning",
+            label: "Available Sunday mornings",
             sublabel: "Generates overnight while your phone charges.",
             icon: "calendar.badge.clock",
             iconColor: .indigo
