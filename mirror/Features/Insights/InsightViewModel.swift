@@ -148,7 +148,17 @@ final class InsightViewModel {
                 newestWeekEntry: weekEntries.map(\.createdAt).max()
             )
             guard stale else {
-                digestState = InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
+                // A cached fallback insight's whole point is "try again" — but retrying needs
+                // the model, so if it isn't available right now (e.g. still downloading),
+                // showing an actionable "Try Again" button is misleading: tapping it would just
+                // land on .modelNotInstalled anyway. Show that directly instead. A normal
+                // (non-fallback) cached insight has nothing to redo, so model availability is
+                // irrelevant there — this check only applies to the fallback branch.
+                if InsightService.isUngroundedFallback(cached.content) {
+                    digestState = mirrorApp.modelAvailable() ? .groundingFallback(cached) : .modelNotInstalled
+                } else {
+                    digestState = .loaded(cached)
+                }
                 return
             }
             // fall through to regenerate
@@ -232,7 +242,13 @@ final class InsightViewModel {
             $0.type == .monthlyReport && $0.periodIdentifier == thisMonth
                 && Date().timeIntervalSince($0.generatedAt) < 86400
         }) {
-            monthlyReportState = InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
+            // Same reasoning as loadWeeklyDigest's cache-serve branch: a cached fallback's "Try
+            // Again" needs the model, so don't show it as actionable when the model isn't ready.
+            if InsightService.isUngroundedFallback(cached.content) {
+                monthlyReportState = mirrorApp.modelAvailable() ? .groundingFallback(cached) : .modelNotInstalled
+            } else {
+                monthlyReportState = .loaded(cached)
+            }
             return
         }
 
