@@ -193,6 +193,8 @@ extension WriteView {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.selectedMood)
+        .animation(.easeInOut(duration: 0.2), value: isDetectingMood)
     }
 
     /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
