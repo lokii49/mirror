@@ -539,6 +539,31 @@ struct InsightValidationTests {
         #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 
+    // "How about long entries?" — a flat 2-word minimum has the exact same weak-signal problem
+    // the original flat 1-word minimum had, just at a higher source-vocabulary size: a long
+    // entry hands the model far more words to coincidentally land 2 of without the rest of the
+    // reflection being any more specific. This entry has ~23 content words (>15), so the
+    // requirement scales to 3; the nudge below shares only 2 ("client", "pricing") and is
+    // otherwise generic — used to slip through the flat-2 version of this guard.
+    @Test func isUngrounded_longEntryTwoCoincidentalWords_nowDetected() {
+        let entries = [
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing. Reviewed analytics dashboards, sketched three new wireframes, then walked the dog before joining a late client call about the roadmap timeline."),
+        ]
+        let nudge = "Client relationships and pricing decisions can feel like a lot to hold. Give yourself grace this week."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // Same long entry, but a nudge that's genuinely grounded — 5 real shared words, comfortably
+    // over the scaled minimum of 3 — still passes. The scaling shouldn't punish an honestly
+    // specific reflection just because the source entry happens to be long.
+    @Test func isUngrounded_longEntryGenuinelyGrounded_notDetected() {
+        let entries = [
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing. Reviewed analytics dashboards, sketched three new wireframes, then walked the dog before joining a late client call about the roadmap timeline."),
+        ]
+        let nudge = "Sounds like today's onboarding rewrite and the client call about the roadmap took a lot out of you — hope walking the dog after helped you reset."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
     @Test func isUngrounded_noSourceText_notDetected() {
         // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
         // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
