@@ -496,11 +496,29 @@ enum InsightService {
     /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
     /// one) — plain content equality against these three constants is the whole mechanism, and
     /// it works retroactively on insights already saved before this existed.
+    ///
+    /// Real gap this closes, caught by advisor audit: the three constants below were reworded
+    /// once already the same day this detection shipped (Mirror -> MirrorNotes, plus a full
+    /// rewrite dropping "check back tomorrow"). Exact-equality-only would have silently stopped
+    /// recognizing any fallback Insight already persisted with the old text — it would render as
+    /// a normal `.loaded` card showing "Mirror couldn't find a digest..." verbatim, with no Try
+    /// Again button, on data already sitting in the store. `legacyUngroundedFallbacks` keeps
+    /// every prior wording matchable. This still isn't forward-proof — the next rewording has to
+    /// remember to add today's current strings here too — but it's the deliberate tradeoff for
+    /// staying schema-free; a `resolvedDigestState`-style pure function (flagged separately) is
+    /// the more durable fix if this set grows unwieldy.
     static func isUngroundedFallback(_ content: String) -> Bool {
         content == dailyNudgeUngroundedFallback
             || content == weeklyDigestUngroundedFallback
             || content == monthlyReportUngroundedFallback
+            || legacyUngroundedFallbacks.contains(content)
     }
+
+    private static let legacyUngroundedFallbacks: Set<String> = [
+        "Mirror couldn't find a reflection clearly grounded in today's entries. Check back tomorrow, or add a bit more to what you've written today.",
+        "Mirror couldn't find a digest clearly grounded in this week's entries. Check back tomorrow, or write a bit more this week.",
+        "Mirror couldn't find a report clearly grounded in this month's entries. Check back tomorrow, or write a bit more this month.",
+    ]
 
     /// Fewer than this many entries in the current week → not enough to find a
     /// week's theme; the call sites show the "write more this week" state instead
