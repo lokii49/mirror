@@ -466,8 +466,15 @@ hands.
 > (`backfillMissingMoodsIfNeeded` used it from the start); `mirrorApp.modelAvailable()` now
 > delegates to it, and `isAskModelReady()` adds the same FM short-circuit ahead of its existing
 > byte-verified Gemma check (kept, not flattened — a truncated/corrupt Gemma file still must not
-> unlock Ask). Not verified on an FM-capable device directly — inferred correct from the code path
-> and confirmed by build + the full test suite, not from a repro screenshot after the fix.
+> unlock Ask).
+>
+> **Confirmed on-device 2026-09-17, non-FM path**: user's real device (no Foundation Models) now
+> shows the `ModelNotInstalledCard` sheet correctly on tapping the chip — Sentinel styling (COMMS
+> title, ember "AI MODEL NEEDED" card) rendering right too, closing that "unverified" note — and
+> Download Model → real download → install confirmed working end-to-end. The FM-capable-device
+> side of the fix (nudge/digest/report/Ask no longer gating on a Gemma download when FM alone
+> would do) is still inferred from the code path + build/test suite, not a device repro, since
+> the reporting device doesn't have Apple Intelligence.
 >
 > New tests: `mirrorTests/TalkItOutTests.swift` — 3 cases on `composedText(from:)`, the one pure
 > seam in this view (single turn, multi-turn join-with-blank-line, empty input); unaffected by
