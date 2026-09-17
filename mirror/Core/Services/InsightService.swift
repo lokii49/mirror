@@ -282,18 +282,33 @@ enum InsightService {
     /// the entries. Checked against `recent + background` (the full context sent to the model),
     /// not just `recent`, since the prompt also permits drawing on long-term recurring themes.
     ///
-    /// The one-shared-word threshold is deliberately loose (favors false negatives over false
-    /// positives — see `repeatsPriorOpening`'s `minSharedWords` for the same asymmetry), but a
-    /// terse entry ("Going in a good phase!") still gives a genuinely grounded nudge only two or
-    /// three real words to land on. Short-entry users are where a false positive here would
-    /// first show up, not a long, detail-rich entry — worth knowing if this guard starts firing
-    /// more than expected in practice.
+    /// Real user feedback ("lots of generic assumptions when I gave specific information")
+    /// pointed at the gap the original one-shared-word threshold left open: a nudge can land one
+    /// coincidental content word (e.g. both mention "work") and pass this guard while everything
+    /// else in it is generic filler unconnected to what was actually written — the guard was
+    /// checking for *zero* overlap (outright fabrication) but not for *thin* overlap (technically
+    /// grounded, still not specific). Now requires 2 shared words when the source has enough
+    /// vocabulary to fairly ask for that — falls back to the original 1-word threshold when it
+    /// doesn't, preserving the short-entry protection the loose threshold existed for in the
+    /// first place (see `minimumSharedWords` below).
     static func isUngrounded(_ text: String, sourceEntries: [Entry]) -> Bool {
         let nudgeWords = contentWords(text)
         guard !nudgeWords.isEmpty else { return false }
         let sourceWords = contentWords(sourceEntries.map(\.insightContext).joined(separator: " "))
         guard !sourceWords.isEmpty else { return false }
-        return nudgeWords.isDisjoint(with: sourceWords)
+        let shared = nudgeWords.intersection(sourceWords)
+        return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count)
+    }
+
+    /// A terse entry ("Going in a good phase!") gives a genuinely grounded nudge only two or
+    /// three real content words to land on at all — demanding 2 shared words there would make
+    /// short-entry users fail this guard even when honestly grounded, the exact false-positive
+    /// risk the original threshold was written to avoid. 4 was picked as the cutoff because it's
+    /// comfortably above what a single short entry supplies (2-3 words) while still being below
+    /// what any entry with a couple of real sentences reaches — the boundary matters less than
+    /// having one at all; no user data pins down where short-entry users actually cluster yet.
+    private static func minimumSharedWords(sourceWordCount: Int) -> Int {
+        sourceWordCount >= 4 ? 2 : 1
     }
 
     /// The recent/background split a daily nudge is generated from. Factored out so
