@@ -148,11 +148,32 @@ struct TalkItOutView: View {
 
     private func activeQuestion(_ question: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(question)
-                .font(bodyFont(17, serif: true))
-                .foregroundStyle(MirrorTheme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(3)
+            HStack(alignment: .top, spacing: 8) {
+                Text(question)
+                    .font(bodyFont(17, serif: true))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Shuffle only makes sense for question 1 — it's a random pick from
+                // WritingPrompts.all, a fixed pool, so re-picking is instant and free.
+                // Questions 2+ are generated from the conversation so far
+                // (InsightService.generateGuidedQuestion); "shuffling" one would mean another
+                // on-device generation call, re-surfacing the unmeasured model-quality risk
+                // this doc already flags, for a feature nobody asked for on those turns.
+                if turns.isEmpty {
+                    Button(action: shuffleFirstQuestion) {
+                        Image(systemName: "shuffle")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Shuffle question")
+                }
+            }
 
             ZStack(alignment: .topLeading) {
                 if answerDraft.isEmpty {
@@ -248,6 +269,18 @@ struct TalkItOutView: View {
     }
 
     // MARK: - Logic
+
+    private func shuffleFirstQuestion() {
+        guard turns.isEmpty, WritingPrompts.all.count > 1 else { return }
+        var next = WritingPrompts.all.randomElement()
+        while next == currentQuestion {
+            next = WritingPrompts.all.randomElement()
+        }
+        // Body's own `.animation(value: currentQuestion)` picks this up automatically —
+        // matches loadNextQuestion, which doesn't wrap its assignment either.
+        currentQuestion = next
+        answerDraft = ""
+    }
 
     private func loadNextQuestion() async {
         // Question 1 is seeded from the existing prompt library instead of generated — it's
