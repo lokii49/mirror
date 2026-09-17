@@ -83,9 +83,17 @@ nonisolated func recognizedText(from images: [UIImage], preferredLanguage: Strin
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        if !preferredLanguage.isEmpty {
+        let supported = (try? request.supportedRecognitionLanguages()) ?? []
+        if !preferredLanguage.isEmpty, supported.contains(preferredLanguage) {
+            // Only Vision's own supported-languages list is authoritative here.
+            // `preferredLanguage` comes from ProtocolSettingsView's `transcriptionLanguage`,
+            // which is populated from SFSpeechRecognizer.supportedLocales() — a different,
+            // wider list than Vision OCR supports. A tag valid for speech but not OCR passed
+            // straight to recognitionLanguages would make VNImageRequestHandler.perform throw,
+            // so an unmatched explicit choice falls through to the same preferred-languages
+            // fallback as "Automatic" rather than being trusted blindly.
             request.recognitionLanguages = [preferredLanguage]
-        } else if let supported = try? request.supportedRecognitionLanguages() {
+        } else if !supported.isEmpty {
             let matched = Locale.preferredLanguages.filter { supported.contains($0) }
             if !matched.isEmpty { request.recognitionLanguages = matched }
         }

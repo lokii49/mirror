@@ -281,10 +281,14 @@ final class InsightViewModel {
         return .ready
     }
 
-    // Bundled-resource check + ModelDownloadManager's byte-verified install check —
-    // stronger than the bare mirrorApp.modelAvailable() fileExists used elsewhere in
-    // this file, since a truncated/corrupt model file must not unlock Ask's chat UI.
+    // Foundation Models needs no download at all, so it's checked first — without this an
+    // FM-capable device (iOS 26+, Apple Intelligence on, eligible hardware) would gate Ask on
+    // downloading Gemma even though FM alone can generate immediately. Below that: bundled-
+    // resource check + ModelDownloadManager's byte-verified install check — stronger than the
+    // bare mirrorApp.modelAvailable() fileExists used elsewhere in this file, since a
+    // truncated/corrupt model file must not unlock Ask's chat UI.
     private func isAskModelReady() -> Bool {
+        if FoundationModelEngine.isAvailable { return true }
         if Bundle.main.url(forResource: LocalLLMService.modelFileName, withExtension: LocalLLMService.modelExtension) != nil {
             return true
         }

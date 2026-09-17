@@ -70,7 +70,7 @@ struct WriteView: View {
     @State var textScanError: String? = nil
     @State var showTalkItOut = false
     @State var showTalkItOutPaywall = false
-    @State var talkItOutUnavailableMessage: String? = nil
+    @State var showTalkItOutModelNeeded = false
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
@@ -508,13 +508,27 @@ struct WriteView: View {
             PaywallView(initialTier: .core)
                 .environment(\.appDisplayMode, displayMode)
         }
-        .alert("Not ready yet", isPresented: Binding(
-            get: { talkItOutUnavailableMessage != nil },
-            set: { if !$0 { talkItOutUnavailableMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(talkItOutUnavailableMessage ?? "")
+        // Replaces the old OK-only "try again in a moment" alert, which gave no way to act on
+        // the actual cause. ModelNotInstalledCard is the same reusable download-state UI
+        // AskView/MonthlyReportView already show for this exact condition (not installed,
+        // downloading with live progress, paused, verifying, or failed) — reusing it here means
+        // tapping "Download Model" actually starts ModelDownloadManager instead of just closing
+        // a dialog and leaving the user to guess where to go.
+        .sheet(isPresented: $showTalkItOutModelNeeded) {
+            NavigationStack {
+                ScrollView {
+                    ModelNotInstalledCard()
+                        .padding(20)
+                }
+                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { showTalkItOutModelNeeded = false }
+                    }
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
         }
         .fullScreenCover(item: Binding(
             get: { fullscreenPhotoIndex.map { IdentifiableIndex(value: $0) } },

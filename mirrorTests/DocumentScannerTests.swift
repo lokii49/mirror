@@ -1,5 +1,6 @@
 import Testing
 import UIKit
+import Vision
 @testable import mirror
 
 // recognizedText(from:) is the one seam in writing-roadmap.md 1.1 (photo-text capture) that
@@ -53,6 +54,41 @@ struct DocumentScannerTests {
             // expected
         } catch {
             Issue.record("expected TextScanError.noTextFound, got \(error)")
+        }
+    }
+
+    // writing-roadmap.md 1.1's remaining gap: the non-English recognitionLanguages path was
+    // fixed but never exercised against a real scan. Vision OCR runs entirely on-device and
+    // needs no camera, so — same as the English-text tests above — this is runnable in-sim.
+    @Test func germanPreferredLanguage_recognizesGermanText() throws {
+        let image = renderedTextImage("STRASSE")
+        let text = try recognizedText(from: [image], preferredLanguage: "de-DE")
+        #expect(text.localizedCaseInsensitiveContains("STRASSE"))
+    }
+
+    // The real bug this test catches: an unsupported explicit tag used to go straight to
+    // `request.recognitionLanguages = [preferredLanguage]` unchecked, which VNImageRequestHandler
+    // throws on. `transcriptionLanguage` (the setting this param is sourced from) is populated
+    // from SFSpeechRecognizer.supportedLocales() — a wider list than Vision's OCR-supported
+    // languages — so a speech-valid, OCR-invalid tag was reachable in practice, not hypothetical.
+    @Test func unsupportedPreferredLanguage_fallsBackInsteadOfThrowing() throws {
+        let image = renderedTextImage("HELLO WORLD")
+        let text = try recognizedText(from: [image], preferredLanguage: "xx-XX")
+        #expect(text.localizedCaseInsensitiveContains("HELLO"))
+    }
+
+    @Test func japanesePreferredLanguage_recognizesOrSkipsIfUnsupportedOnThisOS() throws {
+        let request = VNRecognizeTextRequest()
+        let supported = (try? request.supportedRecognitionLanguages()) ?? []
+        guard supported.contains("ja-JP") else { return } // not available on this OS/sim — nothing to test
+        let image = renderedTextImage("こんにちは", size: CGSize(width: 600, height: 200))
+        do {
+            let text = try recognizedText(from: [image], preferredLanguage: "ja-JP")
+            #expect(!text.isEmpty)
+        } catch TextScanError.noTextFound {
+            // A missing-glyph render (system font can't draw CJK on this OS/sim image) is
+            // indistinguishable from a blank scan and isn't a recognizedText defect — skip
+            // rather than fail on a rendering limitation this function doesn't own.
         }
     }
 }

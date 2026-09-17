@@ -144,15 +144,11 @@
 		};
 		471288082F9CF11300812160 /* mirrorTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = mirrorTests;
 			sourceTree = "<group>";
 		};
 		471288122F9CF11300812160 /* mirrorUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = mirrorUITests;
 			sourceTree = "<group>";
 		};
@@ -273,7 +269,6 @@
 				FE9D0E3B54081E7DC818B20E /* NotificationViewController.swift */,
 				B3E8AF6C8029FE2C096B5691 /* NudgeContentView.swift */,
 			);
-			name = MirrorNotificationContentExtension;
 			path = MirrorNotificationContentExtension;
 			sourceTree = "<group>";
 		};
