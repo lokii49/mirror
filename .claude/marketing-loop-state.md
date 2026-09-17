@@ -2267,6 +2267,24 @@ from opening the PR directly in this session (see Blocked: `add_repo` cross-tier
   today and nothing material changed since (same three blockers, same evidence) — repeating the same
   notification same-day would be noise, not signal.
 
+- 2026-09-17 (run 90): Re-confirmed the GitHub cross-owner block via this session's own environment
+  repo-scope banner (still `lokii49/mirror` only, unchanged since run 43 — no tool call burned to
+  re-prove it, per Lessons guidance). Did NOT re-test raw SMTP reachability (per run 89's finding
+  that this is an architectural, permanent proxy limitation, not worth re-testing). For priority 2,
+  tried four new discovery angles: competitor-name code-search on "Moodnotes" and "Exist.io" (only
+  hits were the already-MERGED woop/awesome-quantified-self, mirrored/cloned copies of the same list,
+  or unrelated noise — no new directory), `search_repositories` for `topic:ai-journal` (27 results,
+  all individual competitor apps/toy projects, not curated directories — confirms
+  reflectionapp/ai-journal-import-tools is a migration-tool repo, not a submission channel, matching
+  the existing "not a fit" pattern for tool repos), and `"awesome" "on-device" ios in:readme`
+  sorted by most-recently-updated (2774 results, dominated by noise/star-list repos and the
+  `enhansome/*` bot network already flagged in Lessons — no genuine new candidate surfaced). No PRs
+  opened, no comments posted, no emails sent, no new Backlog entry — 90th consecutive run blocked
+  purely on environment/session config (GitHub cross-owner scope, SMTP egress), both re-verified or
+  intentionally not re-tested per standing Lessons guidance. Not notifying: identical standing
+  blocker already surfaced in prior runs' notifications (most recently run 89's SMTP root-cause
+  finding), and nothing material changed this run beyond four more ruled-out search angles.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
