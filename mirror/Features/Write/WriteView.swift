@@ -67,6 +67,9 @@ struct WriteView: View {
     @State var showDocumentScanner = false
     @State var isScanningText = false
     @State var textScanError: String? = nil
+    @State var showTalkItOut = false
+    @State var showTalkItOutPaywall = false
+    @State var talkItOutUnavailableMessage: String? = nil
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
@@ -225,6 +228,16 @@ struct WriteView: View {
                             .padding(.horizontal, 20)
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    // "Talk it out" starter (writing-roadmap.md Tier 2) — only on a genuinely
+                    // blank new entry. Disappears the instant there's any content, since at
+                    // that point the user is already writing and doesn't need a starter.
+                    if entry == nil && !hasDraftContent && !focusMode {
+                        TalkItOutChip { presentTalkItOut() }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                            .transition(.opacity)
                     }
 
                     NoteEditorTextView(
@@ -463,6 +476,37 @@ struct WriteView: View {
                 handleScannedPages(result)
             }
             .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showTalkItOut) {
+            NavigationStack {
+                TalkItOutView(
+                    onFinish: { composed in
+                        appendTalkItOutText(composed)
+                        showTalkItOut = false
+                    },
+                    onCancel: { showTalkItOut = false }
+                )
+                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showTalkItOut = false }
+                    }
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showTalkItOutPaywall) {
+            PaywallView(initialTier: .core)
+                .environment(\.appDisplayMode, displayMode)
+        }
+        .alert("Not ready yet", isPresented: Binding(
+            get: { talkItOutUnavailableMessage != nil },
+            set: { if !$0 { talkItOutUnavailableMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(talkItOutUnavailableMessage ?? "")
         }
         .fullScreenCover(item: Binding(
             get: { fullscreenPhotoIndex.map { IdentifiableIndex(value: $0) } },
