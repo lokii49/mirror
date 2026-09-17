@@ -572,12 +572,15 @@ struct mirrorApp: App {
 
     // MARK: - Model availability
 
+    // Was its own Gemma-only check (bundled-resource or downloaded-file existence) — never
+    // consulted FoundationModelEngine.isAvailable, so on an FM-capable device (iOS 26+, Apple
+    // Intelligence on, eligible hardware) daily nudge/weekly digest/monthly report generation
+    // would gate on downloading Gemma even though FM alone is enough to generate immediately,
+    // no download needed. LocalLLMService.isModelAvailable already ORs in FM correctly (see
+    // backfillMissingMoodsIfNeeded above, which used it right from the start) — delegate to
+    // that single source of truth instead of a second, incomplete copy of the same check.
     static func modelAvailable() -> Bool {
-        if Bundle.main.url(forResource: LocalLLMService.modelFileName, withExtension: LocalLLMService.modelExtension) != nil {
-            return true
-        }
-        guard let url = try? LocalLLMService.preferredModelURL() else { return false }
-        return FileManager.default.fileExists(atPath: url.path)
+        LocalLLMService.isModelAvailable
     }
 
     // MARK: - Mood Alert (Deep only — 3+ recent negative-mood days)

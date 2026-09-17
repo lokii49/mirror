@@ -191,6 +191,24 @@ the ceiling of what's verifiable here; the capture UX itself is hands-only.
 > parameter value keeps the existing 3 `DocumentScannerTests` compiling unchanged.
 > `xcodebuild build` green after the fix; not re-run against a non-English scanned page (device
 > + real multilingual text needed, same verification ceiling as the rest of 1.1).
+>
+> **Non-English `recognitionLanguages` path — closed 2026-09-17, and it found a real bug, not
+> just a gap in coverage.** `recognizedText`'s explicit-language branch passed
+> `preferredLanguage` straight to `request.recognitionLanguages` with no check against Vision's
+> own `supportedRecognitionLanguages()` — only the "Automatic" (empty-string) fallback path had
+> that guard. `preferredLanguage` is sourced from `transcriptionLanguage`, itself populated from
+> `SFSpeechRecognizer.supportedLocales()` (`VoiceTranscriptionService`) — a materially wider list
+> than Vision OCR supports, so a tag valid for speech but not for OCR was reachable in practice
+> (a user picking a supported dictation language that Vision can't recognize), not a hypothetical
+> edge case. Fixed: the supported-languages check now runs unconditionally, and an unmatched
+> explicit choice falls through to the same preferred-languages fallback as Automatic instead of
+> reaching `VNImageRequestHandler.perform` unguarded. New tests in `DocumentScannerTests.swift`
+> (all real in-sim Vision OCR, no mocks — same pattern as the existing 3): German text with
+> `preferredLanguage: "de-DE"` recognized correctly (4.2s), a bogus `"xx-XX"` tag falls back
+> instead of throwing (5.0s — this is the one that would have caught the bug above), and a
+> CJK case that self-skips if `ja-JP` isn't in this OS's supported list rather than treating a
+> missing-glyph render as a false OCR failure. All passed on-device-equivalent (real Vision
+> pipeline, iPhone 18 Pro simulator).
 
 ### 1.2 In-editor "keep writing" follow-up (Day One's "go deeper", on-device)
 A single AI-generated follow-up question offered after the user pauses mid-entry, powered by
@@ -270,6 +288,16 @@ good while typing" part needs hands, not a simulator.
 > was never measured for this one — `isBusy` prevents *stacking*, it doesn't tell you what a
 > single follow-up generation costs while the user keeps typing through it. That still needs a
 > real device.
+>
+> **Sim-only wall-clock floor measured 2026-09-17 — not a substitute for the device number
+> above.** `PerformanceLLMXCTests.test_generateFollowUp_wallClockFloor_simulatorOnly()` timed one
+> real `generateFollowUp` call end-to-end: **248.7 seconds**. That's llama.cpp/Metal on the host
+> Mac inside the simulator (this session's environment turned out to route through Foundation
+> Models more often than Gemma even in-sim — see Tier 2's note below — so this specific run's
+> engine isn't confirmed either way), not an iPhone's Neural Engine under real thermal/power
+> limits, and not necessarily even the same engine a real device would pick. Treat it as "a
+> number exists now, sim-only, unrepresentative" rather than evidence either way about the
+> keystroke-latency question — the on-device measurement remains the real open item.
 
 ---
 
@@ -397,13 +425,49 @@ hands.
 > no tag (seeded from `WritingPrompts.all`, no model involved, by design). Gone the moment the
 > chip dismisses or the view resets — genuinely ephemeral, not a quiet persistence backdoor.
 >
-> **The discriminating test, not yet run**: on a device with Apple Intelligence off (forcing the
-> Gemma path), run the guided flow to 3 turns and count validator rejections and near-duplicate
-> questions per turn. Needs a real inference pass this environment couldn't do (sim load 40–233
-> throughout this session). **Until that check happens, "guided journaling, fully private, at a
-> third of Rosebud's price" (this doc's own positioning line, above) should not be used in
-> marketing or a `/post-ideas` pass — the quality claim underneath it is unverified, not just
-> the UI.**
+> **The discriminating test — run 2026-09-17, real inference, partial result.**
+> `mirrorTests/GuidedQuestionGemmaTests.swift` builds a synthetic conversation where prior turns
+> are already `?`-terminated (the exact shape this doc predicted would stress
+> `validateFollowUp`'s "exactly one `?`" rule), runs 2 real turns through
+> `InsightService.generateGuidedQuestion`, and checks question format, near-duplicate overlap
+> against every prior question, and validator-rejection count.
+>
+> **Surprising finding that changes what "sim = Gemma path" meant**: this doc originally assumed
+> the simulator guarantees Gemma, since Foundation Models "requires iOS 26+ on an
+> Apple-Intelligence-eligible device, neither of which the simulator has." On this session's
+> Xcode 27 beta / iOS 27 SDK simulator that assumption was false —
+> `SystemLanguageModel.default.availability` reported `.available`, and every real run of this
+> test used Foundation Models, not Gemma. There's no injection point in `LocalLLMService.generate`
+> to force the Gemma branch for testing, so the test was rewritten to validate conversation
+> quality engine-agnostically (format/near-dup/rejection checks that apply either way) rather than
+> assert a specific engine. Result on Foundation Models: **0/2 rejections, no near-duplicates,
+> both real generations passed** (117.9s combined for one 2-turn run). That's a real, encouraging
+> signal for the FM path specifically — it is **not** the Gemma-quality answer this section
+> originally asked for, since Gemma is what most users without Apple Intelligence-eligible
+> hardware actually run. **Until the Gemma-specific version of this check runs (needs a real
+> device or an environment where Foundation Models genuinely reports unavailable), "guided
+> journaling, fully private, at a third of Rosebud's price" (this doc's own positioning line,
+> above) should not be used in marketing or a `/post-ideas` pass for the Gemma-tier
+> experience** — the FM-tier quality claim now has real evidence behind it; the Gemma-tier one
+> still doesn't.
+>
+> Separately, in the same pass: the "Not ready yet" alert this chip shows when
+> `LocalLLMService.isModelAvailable` is false was an OK-only dialog with no path forward — fixed
+> to present `ModelNotInstalledCard` (the same reusable download-progress UI `AskView` and
+> `MonthlyReportView` already use) in a sheet instead, so tapping "Download Model" actually starts
+> `ModelDownloadManager` rather than just closing a dialog. More load-bearing: a user reported
+> seeing this alert at all on what should have been an FM-capable device, which surfaced a real,
+> pre-existing bug one level down — `mirrorApp.modelAvailable()` (the gate behind daily nudge,
+> weekly digest, monthly report, and all three background pre-generation tasks) and
+> `InsightViewModel.isAskModelReady()` (Ask's own separate copy of the same check) both only ever
+> checked Gemma bundled/downloaded state, never `FoundationModelEngine.isAvailable` — so an
+> FM-capable device would incorrectly gate every one of those surfaces on downloading an 800MB
+> Gemma model it never needed. `LocalLLMService.isModelAvailable` already did this correctly
+> (`backfillMissingMoodsIfNeeded` used it from the start); `mirrorApp.modelAvailable()` now
+> delegates to it, and `isAskModelReady()` adds the same FM short-circuit ahead of its existing
+> byte-verified Gemma check (kept, not flattened — a truncated/corrupt Gemma file still must not
+> unlock Ask). Not verified on an FM-capable device directly — inferred correct from the code path
+> and confirmed by build + the full test suite, not from a repro screenshot after the fix.
 >
 > New tests: `mirrorTests/TalkItOutTests.swift` — 3 cases on `composedText(from:)`, the one pure
 > seam in this view (single turn, multi-turn join-with-blank-line, empty input); unaffected by

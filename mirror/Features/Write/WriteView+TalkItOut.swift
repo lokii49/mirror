@@ -14,7 +14,7 @@ extension WriteView {
             return
         }
         guard LocalLLMService.isModelAvailable else {
-            talkItOutUnavailableMessage = String(localized: "Mirror's on-device AI isn't ready yet — try again in a moment.")
+            showTalkItOutModelNeeded = true
             return
         }
         showTalkItOut = true
