@@ -6,31 +6,75 @@ import NaturalLanguage
 
 // MARK: - ThemeExtractionService
 
-/// Diagnosed via a real failing run, not assumed: `ThemeExtractionServiceTests`' noun-dependent
-/// cases were failing with `keys → []` — zero nouns extracted from unambiguous sentences
-/// ("meeting", "fireplace", "television"), not a differently-classified word. Probing
-/// `NLTagger`'s `.lexicalClass` scheme directly against the most unambiguous possible sentence
-/// ("The dog sat by the house") confirms this is a total absence of noun tags in this sandboxed
-/// simulator, not a `ThemeExtractionService` bug or a genuine OS-version classification
-/// difference — the on-device NL tagging model this scheme needs appears unavailable here.
-/// Computed once, not per-test: cheap, and consistent across a single run.
-private let nounTaggingAvailableInThisEnvironment: Bool = {
-    let probe = "The dog sat by the house near the window."
-    let tagger = NLTagger(tagSchemes: [.lexicalClass])
-    tagger.string = probe
-    let range = probe.startIndex..<probe.endIndex
-    tagger.setLanguage(.english, range: range)
-    var foundNoun = false
-    tagger.enumerateTags(in: range, unit: .word, scheme: .lexicalClass, options: [.omitPunctuation, .omitWhitespace, .omitOther]) { tag, _ in
-        if tag == .noun {
-            foundNoun = true
-            return false
-        }
-        return true
+/// Real fix, not a skip-and-move-on: `ThemeExtractionServiceTests`' noun-dependent cases were
+/// failing with `keys → []` — zero nouns extracted from unambiguous sentences ("meeting",
+/// "fireplace", "television"), not a differently-classified word. Diagnosed by probing
+/// `NLTagger`'s `.lexicalClass` scheme directly: zero tags, confirming a total absence, not a
+/// version-specific classification quirk. Root cause, confirmed empirically (not assumed): the
+/// on-device linguistic model this scheme needs simply wasn't downloaded/prepared in this
+/// sandboxed simulator — calling `NLTagger.requestAssets` and re-probing flips it from zero tags
+/// to correct tags (a genuine ~50s network-bound download the first time, not an instant local
+/// check). `ThemeExtractionService.extract` uses both `.lexicalClass` (nouns) and `.nameType`
+/// (people/places), so both are requested here.
+///
+/// `Task<Void, Never>` memoizes this across the whole test run: every dependent test awaits the
+/// same `Task`, so the download happens once regardless of how many tests need it, not once per
+/// test. This mirrors a real production question worth its own look — see the note left in
+/// `writing-roadmap.md`/flagged separately — a fresh install's first Brain View open could hit
+/// this identical "zero nouns" gap before the asset finishes downloading.
+///
+/// First attempt at this fix (`requestAssets` alone, no verification) still failed all 4 tests
+/// when run together — every one saw `keys → []` even after `requestAssets`' completion handler
+/// fired, despite an isolated single-test run of the identical request succeeding cleanly.
+/// `requestAssets` completing evidently doesn't guarantee the model is immediately usable by a
+/// concurrent caller. Rather than assume why, this now *verifies* readiness with a real tag
+/// lookup, retrying briefly if the first attempt still comes back empty, so `ready` only
+/// resolves once tagging is confirmed working — not just requested.
+private enum NLAssetPreparation {
+    static let ready: Task<Void, Never> = Task {
+        async let lexicalClass: Void = request(.lexicalClass)
+        async let nameType: Void = request(.nameType)
+        _ = await (lexicalClass, nameType)
+        await waitUntilTaggingActuallyWorks()
     }
-    return foundNoun
-}()
 
+    private static func request(_ scheme: NLTagScheme) async {
+        await withCheckedContinuation { continuation in
+            NLTagger.requestAssets(for: .english, tagScheme: scheme) { _, _ in
+                continuation.resume()
+            }
+        }
+    }
+
+    private static func waitUntilTaggingActuallyWorks(maxAttempts: Int = 30) async {
+        for attempt in 1...maxAttempts {
+            if probeFindsNoun() { return }
+            if attempt < maxAttempts {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+    }
+
+    private static func probeFindsNoun() -> Bool {
+        let probe = "The dog sat by the house near the window."
+        let tagger = NLTagger(tagSchemes: [.lexicalClass])
+        tagger.string = probe
+        let range = probe.startIndex..<probe.endIndex
+        tagger.setLanguage(.english, range: range)
+        var found = false
+        tagger.enumerateTags(in: range, unit: .word, scheme: .lexicalClass, options: [.omitPunctuation, .omitWhitespace, .omitOther]) { tag, _ in
+            if tag == .noun { found = true; return false }
+            return true
+        }
+        return found
+    }
+}
+
+// .serialized: rules out a second possible cause of the concurrent-run failure above — if
+// NLTagger/on-device model loading isn't safe under truly concurrent first-use across threads,
+// serializing removes that variable regardless of whether the verified-warm-up above was the
+// whole story or not.
+@Suite(.serialized)
 struct ThemeExtractionServiceTests {
 
     @Test func shortTextYieldsNothing() {
@@ -38,8 +82,8 @@ struct ThemeExtractionServiceTests {
         #expect(ThemeExtractionService.extract(from: "   ").isEmpty)
     }
 
-    @Test(.enabled(if: nounTaggingAvailableInThisEnvironment))
-    func caseAndDiacriticsMergeWithinEntry() {
+    @Test func caseAndDiacriticsMergeWithinEntry() async {
+        await NLAssetPreparation.ready.value
         let terms = ThemeExtractionService.extract(
             from: "Coffee first thing. Later more coffee, and then café coffee again before bed."
         )
@@ -57,8 +101,8 @@ struct ThemeExtractionServiceTests {
         }
     }
 
-    @Test(.enabled(if: nounTaggingAvailableInThisEnvironment))
-    func numbersAndShortTokensRejected() {
+    @Test func numbersAndShortTokensRejected() async {
+        await NLAssetPreparation.ready.value
         let terms = ThemeExtractionService.extract(
             from: "In 2025 my cat and my dog sat near the fireplace watching television quietly."
         )
@@ -69,8 +113,8 @@ struct ThemeExtractionServiceTests {
         #expect(keys.contains("fireplace") || keys.contains("television"))
     }
 
-    @Test(.enabled(if: nounTaggingAvailableInThisEnvironment))
-    func nounsBecomeKeywords() {
+    @Test func nounsBecomeKeywords() async {
+        await NLAssetPreparation.ready.value
         let terms = ThemeExtractionService.extract(
             from: "The meeting about the project ran long and the deadline pressure kept building all afternoon at the office."
         )
@@ -85,8 +129,8 @@ struct ThemeExtractionServiceTests {
     // the resulting empty term set there would pin it wrong for the rest of
     // the process even once decryption starts working. terms(for:) must not
     // cache below its own extraction floor.
-    @Test(.enabled(if: nounTaggingAvailableInThisEnvironment))
-    func unreadableTextIsNotCachedAsEmpty() async {
+    @Test func unreadableTextIsNotCachedAsEmpty() async {
+        await NLAssetPreparation.ready.value
         let service = ThemeExtractionService()
         let id = UUID()
         let fingerprint = 42
