@@ -1,6 +1,10 @@
-Richer notifications, bigger widgets.
+A new way in, and reflections you can trust.
 
-• Daily Nudge notifications now expand right on the lock screen — see your mood and a preview of today's reflection, with a Write now button to jump straight in.
-• Weekly Digest and Monthly Deep Report widgets are now available in a larger size.
-• Fixed the blank "Clear formatting" button in the writing toolbar.
+• Talk it out: a short guided conversation (up to 3 questions) that turns into a fresh journal entry — fully on-device, nothing saved until you write.
+• Scan handwritten or printed text straight into an entry with your camera.
+• New one-tap entry starters — Gratitude, 3 Wins, Mood Log — alongside the daily prompt.
+• Daily reflections, weekly digests, and monthly reports are now far more reliably grounded in what you actually wrote — fixed the issue causing many to fall back to "couldn't confirm" instead of a real reflection.
+• When a reflection can't be confirmed, tap Try Again for a fresh one instead of waiting.
+• Quick capture via Siri is now easier to find, with setup instructions in Settings.
+• Added Reduce Motion support and improved contrast on the mood picker.
 • Fixes and polish.

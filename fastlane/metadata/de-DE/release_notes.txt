@@ -1,6 +1,10 @@
-Umfangreichere Benachrichtigungen, größere Widgets.
+Ein neuer Einstieg – und Reflexionen, denen du vertrauen kannst.
 
-• Benachrichtigungen zur Täglichen Erinnerung lassen sich jetzt direkt auf dem Sperrbildschirm aufklappen — sieh deine Stimmung und eine Vorschau der heutigen Reflexion, mit einem „Jetzt schreiben"-Button für den direkten Einstieg.
-• Die Widgets Wöchentliche Zusammenfassung und Monatlicher Tiefenbericht sind jetzt auch in großer Größe verfügbar.
-• Der leere „Formatierung löschen"-Button in der Schreibleiste wurde behoben.
+• Talk it out: ein kurzes geführtes Gespräch (bis zu 3 Fragen), das sich in einen neuen Tagebucheintrag verwandelt — vollständig auf deinem Gerät, nichts wird gespeichert, bis du schreibst.
+• Scanne handschriftlichen oder gedruckten Text mit der Kamera direkt in einen Eintrag.
+• Neue Ein-Tipp-Starter für Einträge — Dankbarkeit, 3 Erfolge, Stimmungsprotokoll — neben dem täglichen Schreibimpuls.
+• Tägliche Reflexionen, Wöchentliche Zusammenfassungen und Monatliche Tiefenberichte greifen jetzt deutlich zuverlässiger auf das zurück, was du tatsächlich geschrieben hast — der Fehler, durch den viele stattdessen nur „Konnte nicht bestätigt werden" zeigten, wurde behoben.
+• Wenn eine Reflexion nicht bestätigt werden kann, tippe einfach auf „Erneut versuchen" für eine neue, statt zu warten.
+• Die Schnellerfassung per Siri ist jetzt leichter zu finden, mit Einrichtungshinweisen in den Einstellungen.
+• Unterstützung für „Bewegung reduzieren" hinzugefügt und der Kontrast der Stimmungsauswahl verbessert.
 • Fehlerbehebungen und Feinschliff.
