@@ -108,6 +108,28 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
     }
 
+    // MARK: - Settings: Quick capture via Siri copy (user-reported UI check)
+
+    /// Purely a screenshot capture for visual review — the actual defect (settings copy tells
+    /// the user to say "in mirror" when the registered AppShortcut phrase resolves the app name
+    /// to "MirrorNotes", CFBundleDisplayName, not the lowercase target name) is confirmed by
+    /// reading Info.plist/project.pbxproj, not by anything this test can assert on its own.
+    @MainActor
+    func testSettings_protocolInputSection_siriCaptureRow_screenshot() throws {
+        let app = launchApp()
+        app.tabBars.buttons["Insights"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        app.navigationBars.buttons["person.circle"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        app.staticTexts["Journal"].tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        XCTAssertTrue(app.staticTexts["Quick capture via Siri"].waitForExistence(timeout: 5))
+        snapshot(app, name: "settings_protocol_input_siriCaptureRow")
+    }
+
     // MARK: - Talk It Out model gate (writing-roadmap.md Tier 2 / FM-availability fix)
 
     /// Live confirmation for the FM-capable side of the mirrorApp.modelAvailable() fix — the

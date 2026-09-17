@@ -212,7 +212,13 @@ struct ProtocolSettingsView: View {
                 SettingsGroup(title: "Input") {
                     VStack(alignment: .leading, spacing: 6) {
                         SettingsRowLabel(title: "Quick capture via Siri", systemImage: "waveform.badge.mic", iconColor: MirrorTheme.violet)
-                        Text("Say \u{201C}Add a journal entry in mirror\u{201D} to Siri \u{2014} it saves straight to your journal, no need to open the app.")
+                        // Must match what the registered AppShortcut phrase actually resolves to
+                        // at runtime — MirrorAppShortcuts' phrases use \(.applicationName), which
+                        // Apple's App Shortcuts fills with CFBundleDisplayName ("MirrorNotes",
+                        // Info.plist), not PRODUCT_NAME/the Xcode target name ("mirror"). The
+                        // lowercase "mirror" this said before doesn't match the phrase Siri
+                        // actually listens for.
+                        Text("Say \u{201C}Add a journal entry in MirrorNotes\u{201D} to Siri \u{2014} it saves straight to your journal, no need to open the app.")
                             .font(.system(size: 12.5))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
