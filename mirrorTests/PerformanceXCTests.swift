@@ -11,9 +11,39 @@ final class PerformanceXCTests: XCTestCase {
     private var container: ModelContainer!
     private var entries: [Entry] = []
 
+    /// Correction, left visible rather than silently rewritten: this was first added on a
+    /// scheduler-preemption-noise theory for why askViewChatHistory/insightViewBodyRecompute
+    /// kept failing — plausible-sounding, but wrong, and not checked against what the pre-fix
+    /// failures actually said before building on it. Re-diagnosing properly (see setUp()'s
+    /// container comment) found both had always been crashing before ever reaching the ratio
+    /// assertion, on a second ModelContainer these two tests each created — a shared container
+    /// fixes the actual fault. `minMs` itself isn't wrong to have (min-of-N is still a
+    /// reasonable guard against real timing noise once a test reaches its assertion at all), so
+    /// it stays applied to these two — just not the fix that mattered here.
+    private func minMs(trials: Int = 7, _ block: () -> Void) -> Double {
+        var best = Double.greatestFiniteMagnitude
+        for _ in 0..<trials {
+            let start = CFAbsoluteTimeGetCurrent()
+            block()
+            best = min(best, (CFAbsoluteTimeGetCurrent() - start) * 1000)
+        }
+        return best
+    }
+
     override func setUp() async throws {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        container = try ModelContainer(for: Entry.self, configurations: config)
+        // Registers Insight.self here too, not just Entry.self: the real root cause of the two
+        // "flaky" failures below (test_askViewChatHistory_perKeystrokeVsCached,
+        // test_insightViewBodyRecompute_perToggleVsCached) turned out to be a second, separate
+        // in-memory ModelContainer(for: Insight.self, ...) each of them created mid-test —
+        // confirmed via 3 consecutive real runs, all crashing identically at that container's
+        // first `save()` with "No eligible connection available (NSInternalInconsistencyException)",
+        // never reaching the timing assertion at all. This was never a timing/ratio flake — an
+        // earlier pass in this same session misdiagnosed it as scheduler noise before checking
+        // whether the pre-fix failures were actually ratio assertions in the first place (they
+        // weren't). One shared multi-type container removes the second-container operation
+        // entirely instead of working around it.
+        container = try ModelContainer(for: Entry.self, Insight.self, configurations: config)
         let context = ModelContext(container)
 
         let moods = ["Joyful", "Grateful", "Peaceful", "Content", "Energized", "Hopeful",
@@ -288,9 +318,10 @@ final class PerformanceXCTests: XCTestCase {
     // MARK: - Test 7: AskView chatHistory filter+sort per-keystroke vs cached
 
     func test_askViewChatHistory_perKeystrokeVsCached() {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let insightContainer = try! ModelContainer(for: Insight.self, configurations: config)
-        let context = ModelContext(insightContainer)
+        // Reuses setUp()'s shared container (now registered for both Entry.self and
+        // Insight.self) rather than creating a second, separate in-memory ModelContainer here —
+        // see the comment on setUp()'s container line for why.
+        let context = ModelContext(container)
 
         let types: [InsightType] = [.dailyNudge, .weeklyDigest, .monthlyReport, .askResponse]
         let base = Calendar.current.date(byAdding: .day, value: -364, to: Date())!
@@ -319,18 +350,18 @@ final class PerformanceXCTests: XCTestCase {
         // (part of body) via ForEach(chatHistory), and the view holds @State (question,
         // keyboardHeight, isInputFocused) that churns on every keystroke/keyboard event while
         // the Ask chat is open, re-triggering body and this filter+sort each time.
-        let oldStart = CFAbsoluteTimeGetCurrent()
-        for _ in 0..<keystrokes {
-            let _ = chatHistory(from: allInsights)
+        let oldMs = minMs {
+            for _ in 0..<keystrokes {
+                let _ = chatHistory(from: allInsights)
+            }
         }
-        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
 
         // NEW: filtered+sorted once via .task(id: allInsights.count) into cachedChatHistory;
         // each keystroke just reads the cache.
-        let newStart = CFAbsoluteTimeGetCurrent()
         let cachedChatHistory = chatHistory(from: allInsights)
-        for _ in 0..<keystrokes { let _ = cachedChatHistory }
-        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+        let newMs = minMs {
+            for _ in 0..<keystrokes { let _ = cachedChatHistory }
+        }
 
         print("\n[askViewChatHistory] 365 insights × \(keystrokes) keystrokes")
         print("  OLD (per-keystroke filter+sort): \(String(format: "%.1f", oldMs))ms")
@@ -345,9 +376,9 @@ final class PerformanceXCTests: XCTestCase {
     func test_insightViewBodyRecompute_perToggleVsCached() {
         let cal = Calendar.current
         // 365 dailyNudge insights (one per day), matching the year-long entries dataset.
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let insightContainer = try! ModelContainer(for: Insight.self, configurations: config)
-        let insightContext = ModelContext(insightContainer)
+        // Reuses setUp()'s shared container rather than a second, separate one — see the
+        // comment on setUp()'s container line.
+        let insightContext = ModelContext(container)
         let base = cal.date(byAdding: .day, value: -364, to: Date())!
         for i in 0..<365 {
             let insight = Insight(type: .dailyNudge, content: "Nudge \(i)", periodIdentifier: "day-\(i)")
@@ -401,18 +432,18 @@ final class PerformanceXCTests: XCTestCase {
         // OLD: moodEntries/thisMonthEntries/currentStreak/pastNudges were plain computed vars,
         // re-run from scratch every body re-eval — i.e. every unrelated toggle in this view
         // (nudgeExpanded, digestExpanded, pastNudgesExpanded, sheet presentation).
-        let oldStart = CFAbsoluteTimeGetCurrent()
-        for _ in 0..<toggles {
-            let _ = recompute(entries: entries, insights: insights)
+        let oldMs = minMs {
+            for _ in 0..<toggles {
+                let _ = recompute(entries: entries, insights: insights)
+            }
         }
-        let oldMs = (CFAbsoluteTimeGetCurrent() - oldStart) * 1000
 
         // NEW: computed once in .task(id: entries.count) / .task(id: insights.count) into
         // @State caches; remaining toggles read the cache.
-        let newStart = CFAbsoluteTimeGetCurrent()
         let cached = recompute(entries: entries, insights: insights)
-        for _ in 0..<(toggles - 1) { let _ = cached }
-        let newMs = (CFAbsoluteTimeGetCurrent() - newStart) * 1000
+        let newMs = minMs {
+            for _ in 0..<(toggles - 1) { let _ = cached }
+        }
 
         print("\n[InsightView body] 365 entries + 365 insights × \(toggles) toggles")
         print("  OLD (per-toggle recompute): \(String(format: "%.1f", oldMs))ms")
