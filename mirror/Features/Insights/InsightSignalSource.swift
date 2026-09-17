@@ -140,7 +140,15 @@ struct InsightSignalSource: View {
             let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
             let background = prior.filter { !Set(recent.map(\.id)).contains($0.id) }.prefix(20).count
             rows.append(("READ CLOSELY", Self.span(recent)))
-            if background > 0 { rows.append(("CONTEXT", "\(background) earlier \(background == 1 ? "entry" : "entries")")) }
+            if background > 0 {
+                // Honest about what actually reaches the model: `background` entries
+                // are never sent in full — only a handful of short excerpts plus
+                // aggregate stats (see InsightService.buildMemoryBrief). Reporting just
+                // "N earlier entries" read as "N entries fully read," which is what
+                // prompted the question this label now answers directly.
+                let quoted = min(background, InsightService.memoryBriefExcerptLimit)
+                rows.append(("CONTEXT", "\(background) earlier \(background == 1 ? "entry" : "entries") summarized · \(quoted) quoted"))
+            }
             rows.append(("MOOD READ", Self.moods(recent)))
             return Resolved(rows: rows, reading: Self.readingList(recent), note: nil)
         }

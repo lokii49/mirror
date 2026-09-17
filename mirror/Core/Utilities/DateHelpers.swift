@@ -25,10 +25,14 @@ enum DateHelpers {
         return String(format: "%04d-%02d", components.year ?? 0, components.month ?? 0)
     }
 
-    static func isInLastThreeDaysOfMonth(_ date: Date = Date()) -> Bool {
+    /// The monthly report's generation window — a report about "this month" written from only
+    /// the first two or three weeks isn't actually a look back at the month, so this gates
+    /// generation entirely (not just which entry-count threshold applies, which is all the old
+    /// isInLastThreeDaysOfMonth version of this controlled).
+    static func isInLastWeekOfMonth(_ date: Date = Date()) -> Bool {
         let cal = Calendar.current
         guard let range = cal.range(of: .day, in: .month, for: date),
               let day = cal.dateComponents([.day], from: date).day else { return false }
-        return day >= range.count - 2
+        return day >= range.count - 6
     }
 }
