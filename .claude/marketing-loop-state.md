@@ -2446,6 +2446,19 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   do not re-add.
 - eudk/awesome-ai-tools is not a fit: no journaling, diary, privacy, or on-device-AI section — it's a
   large list of mostly web/SaaS AI tools (productivity tools, Chrome extensions, AI hardware).
+- IAmCoder/awesome-lucid-dreams is not a fit despite a real "Apps"/"Open-Source Projects" section
+  listing several dream-journal apps (Lucid-Dash, DreamWell, Awoken, etc.): its scope is specifically
+  lucid-dreaming/dream-journaling, not general daily journaling — MirrorNotes doesn't fit the list's
+  actual theme even though the word "journal" appears throughout. Confirmed 2026-09-17 via raw README
+  fetch; do not re-add unless MirrorNotes gains dream-specific features.
+- santiagoxlopez/awesome-note-taking (12 stars, distinct from tehtbl/awesome-note-taking already OPEN)
+  is not usable: its `readme.md` (lowercase filename — `README.md` 404s) is effectively a stub, just
+  the title "# Awesome Note-taking" with no sections or entries yet. Confirmed 2026-09-17 via raw
+  fetch; re-check in a future run only if the repo gains real content.
+- meichthys/foss_note_apps (62 stars, "journaling" topic tag) could not be fetched this run — both
+  `README.md` and `master`/`main` branch raw paths 404'd; the repo may use a different default branch
+  or filename. Worth a retry with the correct path/branch in a future run rather than re-adding to
+  Backlog blind.
   Confirmed 2026-09-02 via WebFetch on the raw README; do not re-add unless it gains a relevant
   section.
 - Data-Sapien/awesome-on-device-mobile-llms is not a fit despite promising topics (privacy-first,
@@ -2810,6 +2823,26 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   month-long-blocker status at run 82), and nothing material has changed since — one more Backlog
   candidate, one more ruled-out repo, and a self-caught local git scare (no actual data loss) are
   routine incremental progress, not a new development.
+
+- 2026-09-17/18 (run 91): Re-confirmed the GitHub cross-owner block via this session's own environment
+  repo-scope banner (still `lokii49/mirror` only, unchanged since run 43 — no tool call burned to
+  re-prove it, per Lessons guidance). Did NOT re-test raw SMTP reachability (per run 89's finding that
+  this is an architectural, permanent proxy limitation, not worth re-testing every run). For priority 2,
+  tried several new discovery angles: competitor-name code-search on "Reflection.app" and "Stoic" (no
+  directory hits, only false-positive word matches — see Lessons for the one useful non-hit,
+  `IAmCoder/awesome-lucid-dreams`, found via a follow-up search and ruled out as scope-mismatched),
+  `topic:mood-tracker awesome` and `topic:self-reflection awesome` (zero/irrelevant results),
+  `awesome journal in:name` and `awesome note-taking in:name` name-searches (surfaced
+  `santiagoxlopez/awesome-note-taking`, ruled out as an empty stub README — see Lessons; also
+  re-surfaced `meichthys/foss_note_apps`, a promising FOSS-note-apps list with a "journaling" topic tag,
+  but its README could not be fetched this run — both `README.md` and common branch names 404'd via raw
+  fetch, worth a follow-up with the correct path in a future run rather than guessing). No new candidate
+  cleared the fit bar this run; two new repos ruled out and recorded in Lessons so future runs skip
+  them. No PRs opened, no comments posted, no emails sent, no new Backlog entry — 91st consecutive run
+  blocked purely on environment/session config (GitHub cross-owner scope, SMTP egress), both
+  unchanged. Not notifying: identical standing blocker already surfaced in prior runs' notifications
+  (most recently run 89's SMTP root-cause finding), and nothing material changed this run beyond a
+  couple more ruled-out search angles.
 
 ## Sent log
 
