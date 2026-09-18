@@ -2824,6 +2824,20 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   candidate, one more ruled-out repo, and a self-caught local git scare (no actual data loss) are
   routine incremental progress, not a new development.
 
+- meichthys/foss_note_apps uses a lowercase `readme.md` (not `README.md`), which is why raw fetch
+  404'd on runs 91 and earlier — use `search_code` with `repo:` qualifier to find the real filename
+  before concluding a repo is unreachable. Read in full this run: it's a desktop/self-hosted FOSS
+  note-app feature-comparison matrix (Joplin, TriliumNext, QOwnNotes, etc.) that explicitly warns new
+  entries need significant hands-on testing time — not a fit for a single mobile-only app, and not
+  worth the effort/accuracy risk. Confirmed 2026-09-18; do not re-add.
+- zetic-ai/awesome-on-device-ai-apps is not a listing directory: every "entry" is a full runnable app
+  folder committed into its own monorepo (clone-and-run demos), not a link-to-your-app format — no
+  submission path exists for an external app like MirrorNotes. Confirmed 2026-09-18; do not re-add.
+- pedramnj/awesome-local-ai (distinct from the already-OPEN janhq/awesome-local-ai) is not a fit: its
+  "Mobile & On-Device" section lists only generic chat-frontend/SDK tooling (PocketPal, LLMFarm, Maid,
+  Layla, picoLLM), not consumer apps. Confirmed 2026-09-18 via raw README fetch; do not re-add unless
+  it gains a consumer-apps section.
+
 - 2026-09-17/18 (run 91): Re-confirmed the GitHub cross-owner block via this session's own environment
   repo-scope banner (still `lokii49/mirror` only, unchanged since run 43 — no tool call burned to
   re-prove it, per Lessons guidance). Did NOT re-test raw SMTP reachability (per run 89's finding that
@@ -2843,6 +2857,30 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   unchanged. Not notifying: identical standing blocker already surfaced in prior runs' notifications
   (most recently run 89's SMTP root-cause finding), and nothing material changed this run beyond a
   couple more ruled-out search angles.
+
+- 2026-09-18 (run 92): Re-confirmed the GitHub cross-owner block with a fresh live call this run
+  (`add_repo` push for janhq/awesome-local-ai still rejected, identical "cross-tier adds are not
+  supported in v1" error, unchanged since run 43). Did not re-test SMTP (architectural, per run 89).
+  For priority 2: solved the run-91 mystery on `meichthys/foss_note_apps` — its comparison file is
+  lowercase `readme.md`, not `README.md`, which is why raw-fetch 404'd twice; found via `search_code`
+  instead of guessing paths. Read it in full: it's a large multi-column FOSS-note-app *feature
+  comparison matrix* (Joplin, TriliumNext, QOwnNotes, SilverBullet, Nextcloud Notes, etc.), explicitly
+  scoped to desktop/self-hosted apps with plugin ecosystems, and the README itself warns that adding a
+  new column "will likely need... significant [testing] time" — a poor fit for a single mobile-only
+  iOS app with no plugin system, and disproportionate effort for what this loop can respons‑ibly claim
+  without hands-on testing. Ruled out, not added to Backlog (see Lessons). Also checked two repos
+  surfaced by a `topic:on-device-ai awesome` sweep: `zetic-ai/awesome-on-device-ai-apps` is not a
+  listing directory at all — every "entry" is a full runnable app folder inside its own monorepo
+  (clone-and-run, not a link-to-your-app format), so there's no submission path that fits; and
+  `pedramnj/awesome-local-ai`'s "Mobile & On-Device" section (distinct from the already-OPEN
+  janhq/awesome-local-ai) lists only generic chat-frontend/SDK tooling (PocketPal, LLMFarm, Maid,
+  Layla, picoLLM), not consumer apps — same category mismatch as other dev-tooling lists already ruled
+  out. No new candidate cleared the fit bar this run; three repos investigated and ruled out, recorded
+  in Lessons. No PRs opened, no comments posted, no emails sent, no new Backlog entry — 92nd
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, SMTP
+  egress), both re-verified/unchanged. Not notifying: identical standing blocker already surfaced in
+  prior runs' notifications (most recently run 89's SMTP root-cause finding), and nothing material
+  changed this run beyond resolving one loose end and ruling out three more candidates.
 
 ## Sent log
 
