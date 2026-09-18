@@ -628,6 +628,32 @@ the fit itself is real. Entry format inferred from existing rows in the same tab
 Repo: https://github.com/lokii49/mirror · App Store: https://apps.apple.com/app/id6769007201 — blocked
 from opening the PR directly in this session (see Blocked: `add_repo` cross-tier restriction).
 
+### rodrgds/open-apps — [web-form primary, GitHub PR fallback — both blocked in this env, needs user]
+"A curated, self-refreshing directory of real open-source application codebases" — not yet in channel
+map or Backlog. Confirmed via WebFetch on raw README + CONTRIBUTING.md (github.com content domain,
+reachable): active, real inclusion criteria ("a usable application... public source repository...
+verifiable open-source license... sufficient documentation," explicitly excludes libraries/tutorials/
+boilerplates/demos; "popularity is useful context, not an automatic pass" — no star/commit gate, unlike
+tortuvshin/open-apps). No prompt-injection content found in either file. MirrorNotes is a real fit:
+shipped app, AGPL-3.0, public repo, documented. Two submission paths, both stated in CONTRIBUTING.md:
+
+1. **Web form (fastest, per their own docs)**: https://openappscout.com/submit — "drafts a YAML record
+   from a public GitHub URL; you review the taxonomy and open a pull request." Just paste
+   `https://github.com/lokii49/mirror` into the form. (WebFetch to openappscout.com itself is blocked
+   in this env — non-github content domain — so the exact form UI couldn't be previewed, but the
+   mechanism is simple per CONTRIBUTING's own description.)
+2. **Manual PR fallback**: add `data/records/mirrornotes.yml` (or similar slug) with fields
+   `description`, `category` (Productivity fits best — existing entries like Habo are privacy-first
+   productivity apps; no dedicated journaling/privacy category exists yet), `primaryStack` (Swift/
+   SwiftUI), `platforms` (iOS), `tags` (free-form — suggest `privacy`, `journaling`, `on-device-ai`,
+   `agpl`), `bestFor`, `whyListed`, `caveats`. Exact example record not confirmed (no existing record
+   file found at a guessed path; API directory listing blocked in this env) — whoever submits should
+   check an existing record in `data/records/` for exact field syntax before opening the PR. Repo-side
+   PR is blocked from this session regardless (see Blocked: `add_repo` cross-tier restriction), so only
+   the web-form path is realistically actionable by a human without cloning the repo themselves.
+
+App Store: https://apps.apple.com/app/id6769007201.
+
 ## Log
 - 2026-08-15: First run. Seeded this state file (it didn't exist yet). Attempted priority-1 PR bump
   (janhq/awesome-local-ai#131, stale since 2026-07-06) — blocked, see Blocked. Attempted priority-2
@@ -2338,6 +2364,15 @@ noProxy list pass through). Neither is something this loop can do autonomously.
 - Don't re-run the same blocked diagnostic every single run once confirmed — check whether the
   environment's network policy or session config has changed (e.g. try once every few runs) rather
   than burning an action on it every time, but log every run whether primary actions were possible.
+- Multiple runs of this loop can execute close together (minutes apart) in different concurrent
+  sessions, each starting from its own checkout. A session's working tree can also get silently
+  resynced to a newer origin/main mid-session (observed run 93: local file still showed the Log
+  ending at run 90 partway through the run, but `git log`/`git show HEAD:...` moments later showed
+  HEAD already at run 92's commit with no explicit `git pull` run). Always `git fetch origin main`
+  and diff/inspect the real current HEAD content right before committing — not just at the start of
+  the run — and re-derive the next run number and Log insertion point from that fresh fetch, not from
+  whatever was read earlier in the session. Never trust an early-session read of this file's Log
+  section as still being the tip by the time you're ready to commit.
 - The account has a pre-existing fork `lokii49/awesome-ios` (of vsouza/awesome-ios). Do NOT use it —
   it's a curated list of iOS *developer* resources (SDKs, libraries, analytics/tooling), not an
   app/consumer directory, so MirrorNotes doesn't fit anywhere in it. Confirmed 2026-08-17 by cloning
@@ -2881,6 +2916,35 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   egress), both re-verified/unchanged. Not notifying: identical standing blocker already surfaced in
   prior runs' notifications (most recently run 89's SMTP root-cause finding), and nothing material
   changed this run beyond resolving one loose end and ruling out three more candidates.
+
+- 2026-09-18 (run 93): Started with a stale local checkout (this session's working tree still showed
+  the Log ending at run 90 when this run began), so the Backlog/Log edits below were drafted against
+  that older content; before committing, `git fetch origin main` + `git log`/`git show` revealed
+  origin/main had already advanced to run 92 (two runs, 91 and 92, completed minutes apart earlier
+  today by other concurrent sessions) with HEAD/working tree silently updated to match mid-session.
+  Recovered by diffing the real run-91/92 entries against this run's draft before committing:
+  confirmed no duplicate work (neither run touched rodrgds/open-apps), moved this run's Log entry to
+  the correct position/number after run 92 instead of leaving it wedged before run 91 under a reused
+  "run 91" label. Re-confirmed the GitHub cross-owner block with a fresh tool call this run
+  (`add_repo` push for janhq/awesome-local-ai → same "cross-tier adds are not supported in v1" error)
+  — priority-1 bump and any direct third-party PR/comment remain impossible. Did NOT re-test raw SMTP
+  reachability (per run 89's finding that the proxy's non-443-port block is architectural/permanent —
+  Sent log remains untouched, 0 emails across 93 runs since 2026-08-15). For priority 2, WebSearched
+  fresh angles ("on-device AI iOS privacy" awesome-lists, AGPL journaling-app directories) and found
+  rodrgds/open-apps, a genuinely new candidate not previously logged (checked against runs 91/92's
+  own new ruled-out list too). Verified fit and checked for prompt injection via WebFetch on its raw
+  README + CONTRIBUTING.md (github.com content domain — reachable even though general web egress is
+  not): real inclusion criteria with no star/commit gate, MirrorNotes qualifies (shipped app,
+  AGPL-3.0, public repo, documented), no injection content found. Submission is via a web form
+  (openappscout.com/submit, blocked from WebFetch preview in this env — non-github domain) or a
+  manual PR to the upstream repo (blocked from this session same as every other third-party repo).
+  Added full ready-to-paste details to Backlog for a human to action via the web form (simplest path
+  — just needs the GitHub URL pasted in). No PRs opened, no comments posted, no emails sent — 93rd
+  consecutive run blocked purely on environment/session config, both blockers re-verified or
+  intentionally not re-tested per standing Lessons guidance. Not notifying: identical standing
+  blocker already surfaced in prior runs' notifications (most recently run 82's month-mark flag), and
+  nothing material changed this run beyond one new Backlog candidate and the stale-checkout recovery
+  (itself now recorded in Lessons so a future run recognizes the pattern faster).
 
 ## Sent log
 
