@@ -2946,6 +2946,40 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   nothing material changed this run beyond one new Backlog candidate and the stale-checkout recovery
   (itself now recorded in Lessons so a future run recognizes the pattern faster).
 
+- Psyhackological/AAA ("Awesome Android Alternatives", 274 apps, has a "Diary" section and even an
+  "AI" section mentioning on-device AI) is not a fit despite looking promising: its stated Rules
+  require every entry be free on F-Droid/Google Play and installable on Android — it's exclusively
+  an Android-app directory. MirrorNotes is iOS-only (no Android build), so it doesn't qualify under
+  the list's own inclusion criteria regardless of topical fit. Confirmed 2026-09-18 via raw README
+  fetch; do not re-add unless MirrorNotes ships an Android version.
+- alvinreal/awesome-opensource-ai (has an "Edge / On-device AI" section, surfaced by an "on-device
+  AI" + journal code search) is not a fit: its own README states it's "for people building with
+  AI" — models, libraries, inference engines, RAG, MLOps — no section for shipped consumer apps.
+  Confirmed 2026-09-18 via raw README fetch; do not re-add.
+- topic:journaling-app search (new angle this run) surfaced only individual competitor/hobby apps
+  (journiv-app, memex, journedge, LockIn, inkwell, journaler, nebline, etc.) via GitHub's topic
+  index, not curated directories — GitHub topic pages remain a discovery dead-end for finding new
+  awesome-lists (consistent with the 2026-08-23 finding for github.com/topics/journaling-app).
+  Confirmed 2026-09-18; do not re-try bare topic:journaling-app / topic:diary-app / "awesome diary
+  in:name" again.
+
+- 2026-09-18 (run 94): Re-confirmed the GitHub cross-owner block via this session's own environment
+  repo-scope banner (still `lokii49/mirror` only, unchanged since run 43 — no tool call burned to
+  re-prove it). Did NOT re-test raw SMTP reachability (per run 89's finding that this is an
+  architectural, permanent proxy limitation). For priority 2, tried three new discovery angles:
+  `awesome diary in:name` (only toy/personal repos, no directories), `topic:journaling-app` (only
+  individual competitor apps via GitHub's topic index, not curated lists — see Lessons), and an
+  "on-device AI" + journal code search across READMEs, which surfaced two candidates with real
+  matching sections — both investigated and ruled out: Psyhackological/AAA ("Awesome Android
+  Alternatives", has a Diary section) requires every entry be Android/F-Droid-installable, and
+  MirrorNotes is iOS-only; alvinreal/awesome-opensource-ai's "Edge / On-device AI" section is
+  scoped to dev tooling/models, not shipped consumer apps (see Lessons for both). No new candidate
+  cleared the fit bar this run; no PRs opened, no comments posted, no emails sent, no new Backlog
+  entry — 94th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, SMTP egress), both unchanged. Not notifying: identical standing blocker already surfaced
+  in prior runs' notifications (most recently run 89's SMTP root-cause finding), and nothing
+  material changed this run beyond two more ruled-out candidates.
+
 ## Sent log
 
 (recipient email, date, subject — never email the same address twice, check this before every send)
