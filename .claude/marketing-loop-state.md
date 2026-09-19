@@ -1174,6 +1174,25 @@ to keep this file readable in one pass — read it too if you need older history
   blocker already surfaced and explained in prior runs' notifications, and nothing material changed
   this run beyond a live re-confirmation and one ruled-out repo family.
 
+- 2026-09-19 (run 97): Re-confirmed the GitHub cross-owner block via a live `add_repo` probe against
+  a new target (pluja/awesome-privacy, access: push) rather than just reading the scope banner —
+  still rejected with "cross-tier adds are not supported in v1" (session locked to lokii49-owned
+  repos). Checked the agent proxy's own status endpoint directly for the first time
+  (`$HTTPS_PROXY/__agentproxy/status`) instead of re-testing `/dev/tcp`: confirms the noProxy
+  allowlist is unchanged (github.com/api.github.com, package registries, anthropic.com only — no
+  smtp.mail.me.com or any mail host), consistent with run 89's finding that SMTP on port 587 is an
+  architectural proxy limitation, not a retryable outage — did not attempt a raw SMTP connect test
+  again. For priority 2, tried three new discovery angles: GitHub code search for "Rosebud"/
+  "RoseBudThorn" journal-app mentions in READMEs (only individual apps/toy projects, no curated
+  directory), "Mindsera" mentions (same), and `"privacy-first" journal awesome filename:README.md`
+  (surfaced only already-logged/ruled-out lists — jaywcjlove/awesome-mac, jyguyomarch/
+  awesome-productivity — plus dev-tooling lists with no consumer-app fit, e.g. ripienaar/free-for-dev,
+  hemanth/awesome-pwa). No new candidate cleared the fit bar; no PRs opened, no comments posted, no
+  emails sent — 97th consecutive run blocked purely on environment/session config (GitHub cross-owner
+  scope, SMTP egress), both freshly reconfirmed via live checks this run rather than assumed. Not
+  notifying: identical standing blocker already surfaced and explained in prior runs' notifications,
+  nothing material changed.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
