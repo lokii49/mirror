@@ -50,6 +50,12 @@ struct WriteView: View {
     @State var deleteCountdown: Int = 10
     @State var undoSnapshot = DraftUndoSnapshot()
     @State var draftSaveTask: Task<Void, Never>? = nil
+    // "Keep writing" follow-up (writing-roadmap.md 1.2) — entirely ephemeral, never
+    // persisted, never part of the draft/entry text unless the user explicitly taps it in.
+    @State var followUpTask: Task<Void, Never>? = nil
+    @State var followUpQuestion: String? = nil
+    @State var followUpEngine: LLMEngine? = nil
+    @State var followUpWordCountAtLastCheckpoint: Int = 0
     /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
     /// the write (and CloudKit modification) when the entry was only opened to read.
     @State var loadedContentHash: Int = 0
@@ -59,6 +65,12 @@ struct WriteView: View {
     @State var showPhotoPicker = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
+    @State var showDocumentScanner = false
+    @State var isScanningText = false
+    @State var textScanError: String? = nil
+    @State var showTalkItOut = false
+    @State var showTalkItOutPaywall = false
+    @State var showTalkItOutModelNeeded = false
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
@@ -219,6 +231,22 @@ struct WriteView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
+                    // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
+                    // blank new entry. Disappears the instant there's any content, since at
+                    // that point the user is already writing and doesn't need a starter.
+                    if entry == nil && !hasDraftContent && !focusMode {
+                        WritingStarterChip(
+                            onTalkItOut: { presentTalkItOut() },
+                            onUseTemplate: { template in
+                                viewModel.text = template.seedText
+                                applyTextCommand(.moveCursor(location: template.cursorOffset))
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                    }
+
                     NoteEditorTextView(
                         text: $viewModel.text,
                         textStyleData: $viewModel.textStyleData,
@@ -277,6 +305,22 @@ struct WriteView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
+            if isScanningText {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(.secondary)
+                    Text("Recognizing text…")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(MirrorTheme.inkMid, in: Capsule())
+                .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+
             if pendingDelete {
                 HStack(spacing: 12) {
                     Image(systemName: "trash")
@@ -303,6 +347,19 @@ struct WriteView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(MirrorTheme.inkBorder, lineWidth: 1)
                 }
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if let followUpQuestion, !focusMode, !pendingDelete, !showSaved, !isAttachingPhoto, !isScanningText, !showFormattingPanel {
+                FollowUpChip(
+                    question: followUpQuestion,
+                    engine: followUpEngine,
+                    onUse: { useFollowUpQuestion() },
+                    onDismiss: { dismissFollowUp() }
+                )
                 .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
@@ -366,8 +423,18 @@ struct WriteView: View {
             entryTags = entry?.tags ?? []
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
             if entry == nil {
-                restoreDraftFromStorage()
-                if !initialText.isEmpty && viewModel.text.isEmpty {
+                // Real bug, found on-device (0.1's widget prompt, 0.2's templates, and Tier 2's
+                // "Talk it out" all hit this): restoring an unrelated leftover autosaved draft
+                // used to run unconditionally, before this check — so any stale draft sitting
+                // in UserDefaults from an earlier, unrelated Write session silently won over an
+                // explicit initialText request, sometimes producing a blank/wrong editor for no
+                // visible reason ("sometimes seeing blank screen after talk it out questions").
+                // When a caller explicitly asks for specific starting text, that intent wins
+                // outright — the stale draft is left untouched in storage (not cleared, no data
+                // loss), just not loaded into this particular prefilled session.
+                if initialText.isEmpty {
+                    restoreDraftFromStorage()
+                } else if viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
                 // A restored draft only persists audio, not transcripts — decode
@@ -412,6 +479,57 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        .sheet(isPresented: $showDocumentScanner) {
+            DocumentScannerController { result in
+                handleScannedPages(result)
+            }
+            .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showTalkItOut) {
+            NavigationStack {
+                TalkItOutView(
+                    onFinish: { composed in
+                        appendTalkItOutText(composed)
+                        showTalkItOut = false
+                    },
+                    onCancel: { showTalkItOut = false }
+                )
+                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showTalkItOut = false }
+                    }
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showTalkItOutPaywall) {
+            PaywallView(initialTier: .core)
+                .environment(\.appDisplayMode, displayMode)
+        }
+        // Replaces the old OK-only "try again in a moment" alert, which gave no way to act on
+        // the actual cause. ModelNotInstalledCard is the same reusable download-state UI
+        // AskView/MonthlyReportView already show for this exact condition (not installed,
+        // downloading with live progress, paused, verifying, or failed) — reusing it here means
+        // tapping "Download Model" actually starts ModelDownloadManager instead of just closing
+        // a dialog and leaving the user to guess where to go.
+        .sheet(isPresented: $showTalkItOutModelNeeded) {
+            NavigationStack {
+                ScrollView {
+                    ModelNotInstalledCard()
+                        .padding(20)
+                }
+                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { showTalkItOutModelNeeded = false }
+                    }
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
         .fullScreenCover(item: Binding(
             get: { fullscreenPhotoIndex.map { IdentifiableIndex(value: $0) } },
             set: { fullscreenPhotoIndex = $0?.value }
@@ -428,6 +546,14 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(photoAttachError ?? "")
+        }
+        .alert("Scan not added", isPresented: Binding(
+            get: { textScanError != nil },
+            set: { if !$0 { textScanError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(textScanError ?? "")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
             TextField("https://example.com", text: $linkEditorURLText)
@@ -482,6 +608,7 @@ struct WriteView: View {
         }
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { scheduleDraftSave() }
+            scheduleFollowUpCheck()
         }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
@@ -502,6 +629,8 @@ struct WriteView: View {
         }
         .onDisappear {
             cancelDraftSave()
+            followUpTask?.cancel()
+            followUpTask = nil
             if isRecordingInline { voiceRecorder.discardRecording() }
         }
     }

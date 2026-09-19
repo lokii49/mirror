@@ -12,8 +12,8 @@ enum InsightError: LocalizedError {
         switch self {
         case .subscriptionRequired: return String(localized: "Core subscription required.")
         case .serverError: return String(localized: "Something went wrong. Try again in a moment.")
-        case .emptyResponse: return String(localized: "Mirror didn't get a response. Try again in a moment.")
-        case .incompleteResponse: return String(localized: "Mirror couldn't finish that reflection. Try again.")
+        case .emptyResponse: return String(localized: "MirrorNotes didn't get a response. Try again in a moment.")
+        case .incompleteResponse: return String(localized: "MirrorNotes couldn't finish that reflection. Try again.")
         case .serviceUnavailable: return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
         }
     }
@@ -37,6 +37,7 @@ Rules:
 - Never write as the journal writer. Do not echo first-person phrases from entries like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless inside a short direct quote
 - Sound human, calm, and familiar, like someone gently checking in after reading their week
 - Avoid clinical phrases like "this suggests", "emotional weariness", "significant", "patterns indicate", or "the source mentions"
+- Read every word in the full sentence it appears in before referencing it. If an entry uses a word or phrase figuratively or as a turn of phrase (e.g. "a thread running through the week" is about a recurring theme, not the act of running; "building something" can mean a project, not construction), reflect that same figurative meaning back — never reinterpret it literally
 - Be specific. Be warm. Be honest. Do not over-explain.
 """
 
@@ -65,6 +66,7 @@ Rules:
 - Never write as the journal writer. Do not use first-person phrases like "I feel", "I've been", "I'm trying", "my work", "my sister", or "my mind" unless they are inside a short quote from an entry
 - Sound human, calm, and familiar, like someone gently reflecting their week back to them
 - Avoid clinical, report-like, or detached phrases like "from their words", "this suggests", "the source mentions", "positive pattern", "emotional weariness", "significant", or "mental health"
+- Read every word in the full sentence it appears in before referencing it. If an entry uses a word or phrase figuratively or as a turn of phrase (e.g. "a thread running through the week" is about a recurring theme, not the act of running; "building something" can mean a project, not construction), reflect that same figurative meaning back — never reinterpret it literally
 - Be specific. Be honest. Be warm. Do not over-explain.
 """
 
@@ -76,6 +78,7 @@ Rules:
 - Look for related themes, emotions, and events — not just exact keyword matches. If someone asks about stress and entries mention feeling exhausted, overwhelmed, or under pressure, that is relevant
 - No internet advice, no generic tips. Base your answer only on the entries
 - Quote or closely paraphrase their own words when relevant
+- Read every word in the full sentence it appears in before referencing it. If an entry uses a word or phrase figuratively or as a turn of phrase (e.g. "a thread running through the week" is about a recurring theme, not the act of running), answer with that same figurative meaning — never reinterpret it literally
 - 3-5 sentences maximum
 - Sound human, warm, and direct
 - Do not mention that you are an AI or model
@@ -99,6 +102,7 @@ Rules:
 - Write entirely in second person — use "you" and "your" throughout. Never write as the journal writer
 - Each section is one complete sentence, under 45 words
 - Reference actual words, moods, dates, or phrases from their entries where possible
+- Read every word in the full sentence it appears in before referencing it. If an entry uses a word or phrase figuratively or as a turn of phrase (e.g. "a thread running through the month" is about a recurring theme, not the act of running), reflect that same figurative meaning back — never reinterpret it literally
 - Use the MONTH STATS block to ground observations in specifics
 - No therapy language, no generic affirmations, no Markdown, no bullets
 - Do not add any text outside these six sections
@@ -113,7 +117,40 @@ Joyful, Grateful, Peaceful, Content, Energized, Hopeful, Anxious, Overwhelmed, F
 No explanation. No punctuation. One word only.
 """
 
+private let FOLLOW_UP_SYSTEM = """
+You are MirrorNotes, reading a journal entry the person is currently writing, mid-draft. Ask exactly one short follow-up question that invites them to go deeper into what they just wrote — the way a thoughtful friend would ask "what do you mean by that?" or "what's underneath that?"
+Rules:
+- Exactly one question, ending in a question mark
+- Under 18 words
+- Reference something specific and concrete from what they wrote — a word, feeling, or detail. Do not ask a generic question that could apply to any entry
+- Address them as "you/your" only
+- Do not answer for them, do not summarize what they wrote, do not give advice
+- No preamble, no quotation marks around the question, nothing before or after it
+- Do not mention that you are an AI or model
+"""
+
+private let GUIDED_ENTRY_SYSTEM = """
+You are MirrorNotes, helping someone start a journal entry through a short guided conversation. Ask exactly one open, inviting question to help them begin reflecting. The first question should be broad and welcoming — about their day, how they're feeling, or what's on their mind. Each later question should build naturally on what they just answered, going one layer deeper.
+Rules:
+- Exactly one question, ending in a question mark
+- Under 18 words
+- Address them as "you/your" only
+- Do not answer for them, do not summarize what they said, do not give advice
+- Do not repeat a question already asked earlier in this conversation
+- No preamble, no quotation marks around the question, nothing before or after it
+- Do not mention that you are an AI or model
+"""
+
 enum InsightService {
+    // How many older-entry excerpts `buildMemoryBrief` quotes verbatim, shared
+    // by the daily nudge and weekly digest (both via `buildUserMessage`) and by
+    // Ask. 5 regularly overflowed the smallest of those budgets (daily nudge's
+    // ~1,288 chars), silently truncating the last excerpt mid-sentence; 4 fits
+    // all three with margin. (Monthly report's 600-char background budget is
+    // too tight for excerpts at all regardless of this limit — untouched here.)
+    // Also read by InsightSignalSource's disclosure label, so what it reports
+    // as "quoted" can't drift from what was actually sent.
+    static let memoryBriefExcerptLimit = 4
     private static let dailyNudgePromptBudget = 4_600
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
@@ -258,18 +295,55 @@ enum InsightService {
     /// the entries. Checked against `recent + background` (the full context sent to the model),
     /// not just `recent`, since the prompt also permits drawing on long-term recurring themes.
     ///
-    /// The one-shared-word threshold is deliberately loose (favors false negatives over false
-    /// positives — see `repeatsPriorOpening`'s `minSharedWords` for the same asymmetry), but a
-    /// terse entry ("Going in a good phase!") still gives a genuinely grounded nudge only two or
-    /// three real words to land on. Short-entry users are where a false positive here would
-    /// first show up, not a long, detail-rich entry — worth knowing if this guard starts firing
-    /// more than expected in practice.
+    /// Real user feedback ("lots of generic assumptions when I gave specific information")
+    /// pointed at the gap the original one-shared-word threshold left open: a nudge can land one
+    /// coincidental content word (e.g. both mention "work") and pass this guard while everything
+    /// else in it is generic filler unconnected to what was actually written — the guard was
+    /// checking for *zero* overlap (outright fabrication) but not for *thin* overlap (technically
+    /// grounded, still not specific). Requires more shared words as the source has more
+    /// vocabulary to draw from — a flat "2" would leave the exact same loophole open on a long
+    /// entry or a week's worth of entries, just at a higher word count instead of one (see
+    /// `minimumSharedWords` below) — and falls back to the original 1-word threshold for short
+    /// entries, preserving the false-positive protection that threshold existed for.
     static func isUngrounded(_ text: String, sourceEntries: [Entry]) -> Bool {
         let nudgeWords = contentWords(text)
         guard !nudgeWords.isEmpty else { return false }
         let sourceWords = contentWords(sourceEntries.map(\.insightContext).joined(separator: " "))
         guard !sourceWords.isEmpty else { return false }
-        return nudgeWords.isDisjoint(with: sourceWords)
+        let shared = nudgeWords.intersection(sourceWords)
+        return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count, nudgeWordCount: nudgeWords.count)
+    }
+
+    /// A terse entry ("Going in a good phase!") gives a genuinely grounded nudge only two or
+    /// three real content words to land on at all — demanding 2 shared words there would make
+    /// short-entry users fail this guard even when honestly grounded, the exact false-positive
+    /// risk the original threshold was written to avoid. 4 was picked as the cutoff because it's
+    /// comfortably above what a single short entry supplies (2-3 words) while still being below
+    /// what any entry with a couple of real sentences reaches — the boundary matters less than
+    /// having one at all; no user data pins down where short-entry users actually cluster yet.
+    ///
+    /// Above that floor, the requirement scales with `sourceWordCount`: a long entry, or a
+    /// week's worth of entries feeding a digest, hands the model far more vocabulary to
+    /// coincidentally land 2 words in without the rest of the reflection being any more specific
+    /// — the same weak-signal problem the flat "1" had, reappearing at "2" for anyone who writes
+    /// at length. Roughly 1 additional required word per 15 source content words, so a
+    /// ~150-word entry (a substantial paragraph) needs 3 shared words instead of 2.
+    ///
+    /// Capped at a flat 4, not at `nudgeWordCount` — `sourceWordCount` isn't one entry's
+    /// vocabulary, it's `recent + background` (up to ~23 entries for a nudge, the whole month
+    /// for a monthly report), so it reaches into the hundreds or thousands on any real account.
+    /// The old `min(scaled, nudgeWordCount)` cap looked like a safety net but wasn't one at that
+    /// scale: `scaled` (e.g. 68 for 1000 source words) blows straight past a nudge's own ~25-40
+    /// content words, so the cap became the binding constraint — silently demanding every single
+    /// content word in the nudge appear in the source, which ordinary prose (and MirrorNotes'
+    /// own voice: "noticed", "seems", "maybe") can't satisfy. That's what turned this into an
+    /// ~80% fallback rate live, caught from a real device screenshot the same day the scaling
+    /// landed. A flat ceiling keeps the short/long-single-entry behavior this scaling was written
+    /// for (see the tests below) without the requirement running away on a large corpus.
+    private static func minimumSharedWords(sourceWordCount: Int, nudgeWordCount: Int) -> Int {
+        guard sourceWordCount >= 4 else { return 1 }
+        let scaled = 2 + sourceWordCount / 15
+        return min(scaled, 4, max(nudgeWordCount, 2))
     }
 
     /// The recent/background split a daily nudge is generated from. Factored out so
@@ -327,58 +401,146 @@ enum InsightService {
                 + "\nOpen today's reflection with a different first sentence built from a different concrete detail."
         }
 
-        let first = try await localGenerate(
-            systemPrompt: DAILY_NUDGE_SYSTEM,
-            userMessage: userMessage,
-            task: .dailyNudge,
-            responseLanguageInstruction: languageInstruction
-        )
-        let violatesRepeat = repeatsPriorOpening(first.text, openings: openings)
-        let violatesGrounding = isUngrounded(first.text, sourceEntries: recent + background)
-        guard violatesRepeat || violatesGrounding else { return (first.text, first.engine, false) }
+        // Bounded retry loop, not a single one-shot retry: a 1B model's output distribution can
+        // be peaked enough to reproduce the same ungrounded/repetitive pattern even after being
+        // told exactly what it did wrong — observed live (see isUngrounded's doc comment): a
+        // "rain outside..." fabrication survived a retry that named the violation explicitly,
+        // because the old code accepted the retry unconditionally with no re-check. Looping
+        // (capped at maxAttempts) keeps trying for a genuinely clean result instead, at the cost
+        // of more generations per nudge on what's still a best-effort reflection — not
+        // unbounded, so a model that never produces a clean result doesn't loop forever.
+        let maxAttempts = 3
+        var lastResult: (text: String, engine: LLMEngine)?
+        var lastViolatesGrounding = false
+        var currentUserMessage = userMessage
 
-        // Named the violation(s) directly rather than just repeating the general instruction —
-        // a list buried in the prompt was already ignored once. One retry only, result accepted
-        // unconditionally: this is a quality backstop, not a guarantee. The retry gets a fresh
-        // random seed but the same temperature, so it's possible (not verified either way) that
-        // a model whose distribution is this peaked reproduces a third variant of the same
-        // problem — the second attempt is not re-checked against either guard. Looping until a
-        // truly distinct, grounded reflection lands would remove that risk but costs an
-        // unbounded number of full generations on what's still a best-effort reflection.
-        var violationNotes: [String] = []
-        if violatesRepeat {
-            let violatedOpening = firstWords(first.text, count: 7)
-            violationNotes.append("your reflection opened with \"\(violatedOpening)…\" — exactly what you were told to avoid.")
+        for attempt in 1...maxAttempts {
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await localGenerate(
+                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    userMessage: currentUserMessage,
+                    task: .dailyNudge,
+                    responseLanguageInstruction: languageInstruction
+                )
+            } catch {
+                // A later attempt throwing (contextExhausted on a repeat full pass is realistic
+                // on the older/slower devices this guard's whole population runs) doesn't
+                // invalidate an earlier valid-but-flawed result — a flawed-but-truthful nudge
+                // beats no nudge at all that day. Only propagate if there's nothing to fall back
+                // on yet. A fabricated one still isn't shown as-is — see the shared fallback
+                // logic after the loop, which this jumps into instead of returning directly.
+                guard let lastResult else { throw error }
+                return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
+            }
+
+            let violatesRepeat = repeatsPriorOpening(result.text, openings: openings)
+            let violatesGrounding = isUngrounded(result.text, sourceEntries: recent + background)
+            guard violatesRepeat || violatesGrounding else {
+                return (result.text, result.engine, false)
+            }
+
+            lastResult = result
+            lastViolatesGrounding = violatesGrounding
+            guard attempt < maxAttempts else { break }
+
+            // Named the violation(s) directly rather than just repeating the general
+            // instruction — a list buried in the prompt was already ignored once. Built fresh
+            // from THIS attempt's violations each time (not accumulated across attempts), and
+            // appended to the original userMessage rather than the previous retry message, so
+            // the prompt doesn't balloon across attempts.
+            var violationNotes: [String] = []
+            if violatesRepeat {
+                let violatedOpening = firstWords(result.text, count: 7)
+                violationNotes.append("your reflection opened with \"\(violatedOpening)…\" — exactly what you were told to avoid.")
+            }
+            if violatesGrounding {
+                violationNotes.append("your reflection didn't reference anything actually written in the entries above — no shared word, event, or detail. It read as generic, invented content rather than a reflection of what's there.")
+            }
+            currentUserMessage = userMessage + """
+
+
+                IMPORTANT: \(violationNotes.joined(separator: " ")) Start over with a different first sentence, naming a specific word, event, or detail actually present in the entries above.
+                """
         }
-        if violatesGrounding {
-            violationNotes.append("your reflection didn't reference anything actually written in the entries above — no shared word, event, or detail. It read as generic, invented content rather than a reflection of what's there.")
+
+        // Exhausted maxAttempts without a clean result. lastResult is always set by this point:
+        // the only path that could reach here with it unset (the first iteration throwing)
+        // already returns/throws from inside the catch above instead of falling through.
+        guard let lastResult else {
+            throw InsightError.serviceUnavailable("nudge generation produced no result")
         }
-        let retryMessage = userMessage + """
-
-
-            IMPORTANT: \(violationNotes.joined(separator: " ")) Start over with a different first sentence, naming a specific word, event, or detail actually present in the entries above.
-            """
-        // `first` is a valid, already-validated nudge — just repetitive and/or ungrounded, not
-        // broken. If the retry throws (contextExhausted on a second full pass is realistic on
-        // the older/slower devices that are this guard's whole population), fall back to `first`
-        // rather than propagating: a flawed nudge beats no nudge at all that day.
-        //
-        // `degraded: true` either way — the retry result is never re-checked against either
-        // guard (see note above), so even a successful `second` is not verified clean. The
-        // caller uses this to soften today's push notification rather than skip generation.
-        guard let second = try? await localGenerate(
-            systemPrompt: DAILY_NUDGE_SYSTEM,
-            userMessage: retryMessage,
-            task: .dailyNudge,
-            responseLanguageInstruction: languageInstruction
-        ) else { return (first.text, first.engine, true) }
-        return (second.text, second.engine, true)
+        return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
     }
+
+    // "Flawed beats none" only covers flaws that are still truthful (repetitive phrasing,
+    // stylistic drift) — it never meant "fabricated beats none." A repeat-only violation still
+    // reflects something real in the entries, just phrased like a prior nudge, so it's shown
+    // with `degraded: true` softening the push notification exactly as before. A grounding
+    // violation means the text has no real connection to what was written — after maxAttempts
+    // couldn't produce anything better, showing it anyway would put fabricated content in front
+    // of the user with nothing distinguishing it from a real reflection (degraded only affects
+    // push-notification wording, never persisted on the Insight itself). Substituting the
+    // honest `dailyNudgeUngroundedFallback` message keeps `hasDailyNudgeForToday` satisfied
+    // (no repeated generation attempts today) without ever showing invented content as if it
+    // were real.
+    private static func finalNudgeResult(
+        _ result: (text: String, engine: LLMEngine),
+        violatesGrounding: Bool
+    ) -> (text: String, engine: LLMEngine, degraded: Bool) {
+        guard violatesGrounding else { return (result.text, result.engine, true) }
+        return (dailyNudgeUngroundedFallback, result.engine, true)
+    }
+
+    // "Check back tomorrow" used to be the framing here, but it overpromises: the background
+    // pre-gen pass that would produce tomorrow's nudge only runs when there's an entry newer
+    // than this one (mirrorApp.preGenerateInsightsIfNeeded's own gate) — with no new writing,
+    // nothing retries on its own, tomorrow or otherwise. Leads with the one thing that's
+    // actually true and actionable instead.
+    static let dailyNudgeUngroundedFallback = String(
+        localized: "MirrorNotes couldn't find today's reflection clearly grounded in what you wrote. Add a bit more to today's entry and it'll try again."
+    )
+
+    /// Advisor-suggested detection: a fallback insight needs no schema change (no new field on
+    /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
+    /// one) — plain content equality against these three constants is the whole mechanism, and
+    /// it works retroactively on insights already saved before this existed.
+    ///
+    /// Real gap this closes, caught by advisor audit: the three constants below were reworded
+    /// once already the same day this detection shipped (Mirror -> MirrorNotes, plus a full
+    /// rewrite dropping "check back tomorrow"). Exact-equality-only would have silently stopped
+    /// recognizing any fallback Insight already persisted with the old text — it would render as
+    /// a normal `.loaded` card showing "Mirror couldn't find a digest..." verbatim, with no Try
+    /// Again button, on data already sitting in the store. `legacyUngroundedFallbacks` keeps
+    /// every prior wording matchable. This still isn't forward-proof — the next rewording has to
+    /// remember to add today's current strings here too — but it's the deliberate tradeoff for
+    /// staying schema-free; a `resolvedDigestState`-style pure function (flagged separately) is
+    /// the more durable fix if this set grows unwieldy.
+    static func isUngroundedFallback(_ content: String) -> Bool {
+        content == dailyNudgeUngroundedFallback
+            || content == weeklyDigestUngroundedFallback
+            || content == monthlyReportUngroundedFallback
+            || legacyUngroundedFallbacks.contains(content)
+    }
+
+    private static let legacyUngroundedFallbacks: Set<String> = [
+        "Mirror couldn't find a reflection clearly grounded in today's entries. Check back tomorrow, or add a bit more to what you've written today.",
+        "Mirror couldn't find a digest clearly grounded in this week's entries. Check back tomorrow, or write a bit more this week.",
+        "Mirror couldn't find a report clearly grounded in this month's entries. Check back tomorrow, or write a bit more this month.",
+    ]
 
     /// Fewer than this many entries in the current week → not enough to find a
     /// week's theme; the call sites show the "write more this week" state instead
     /// of generating a thin digest.
     static let weeklyDigestMinimumWeekEntries = 3
+
+    /// Fewer than this many entries this month (checked only once
+    /// `DateHelpers.isInLastWeekOfMonth` is also true — see the call sites) → not enough to
+    /// reflect the month meaningfully. Previously two separate thresholds (10 near month-end, 20
+    /// otherwise) let a report generate mid-month purely on entry count, before the month was
+    /// actually over — one threshold now that generation itself is gated on being in the last
+    /// week, not on this number alone.
+    static let monthlyReportMinimumEntries = 10
 
     /// Whether a cached weekly digest is due for regeneration. True only when
     /// BOTH hold: the 24h cooldown since it was generated has elapsed (bounds LLM
@@ -415,50 +577,120 @@ enum InsightService {
             maxChars: weeklyDigestPromptBudget
         )
 
-        let first = try await localGenerate(
-            systemPrompt: WEEKLY_DIGEST_SYSTEM,
-            userMessage: userMessage,
-            task: .weeklyDigest,
-            responseLanguageInstruction: languageInstruction
-        )
-        // Same isUngrounded backstop as generateNudge, applied to the whole digest (all six
-        // sections) rather than per-section — WEEKLY_DIGEST_SYSTEM's "reference actual words,
-        // moods, dates, or phrases" rule applies to the digest as a whole, and a digest has far
-        // more words than a nudge to land a real one in, so the same one-shared-word threshold
-        // is if anything looser here, not stricter.
+        // Same isUngrounded backstop and bounded-retry-loop shape as generateNudge (see its doc
+        // comment for the motivating "rain outside..." incident) — applied to the whole digest
+        // (all six sections) rather than per-section, since WEEKLY_DIGEST_SYSTEM's "reference
+        // actual words, moods, dates, or phrases" rule applies to the digest as a whole, and a
+        // digest has far more words than a nudge to land a real one in, so the same
+        // one-shared-word threshold is if anything looser here, not stricter.
         //
         // No repeatsPriorOpening equivalent here — scoped to grounding only, per what was asked.
         // Absence of an observed repeated-template failure for digests is NOT evidence it can't
         // happen: the nudge repeat was only caught because a user happened to scroll its history
         // list, and PastDigestCard (X-ray-wired the same way) could be sitting on an unnoticed
         // duplicate right now. Left open, not ruled out.
-        guard isUngrounded(first.text, sourceEntries: recentEntries + backgroundEntries) else { return first }
+        let sourceEntries = recentEntries + backgroundEntries
+        let maxAttempts = 3
+        var lastResult: (text: String, engine: LLMEngine)?
+        var currentUserMessage = userMessage
 
-        let retryMessage = userMessage + """
+        for attempt in 1...maxAttempts {
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await localGenerate(
+                    systemPrompt: WEEKLY_DIGEST_SYSTEM,
+                    userMessage: currentUserMessage,
+                    task: .weeklyDigest,
+                    responseLanguageInstruction: languageInstruction
+                )
+            } catch {
+                // Every path that reaches lastResult here already failed the grounding check
+                // (the only early-return above is the clean-result case) — so falling back to
+                // it, unlike generateNudge's fail-open where a repeat-only violation is still
+                // truthful, would mean showing fabricated content. Use the honest fallback
+                // instead, same as the exhaustion path below.
+                guard let previous = lastResult else { throw error }
+                return (weeklyDigestUngroundedFallback, previous.engine)
+            }
+
+            guard isUngrounded(result.text, sourceEntries: sourceEntries) else { return result }
+
+            lastResult = result
+            guard attempt < maxAttempts else { break }
+
+            currentUserMessage = userMessage + """
 
 
-            IMPORTANT: your digest above didn't reference anything actually written in the entries above — no shared word, event, or detail in any section. It read as generic, invented content rather than a reflection of what's there. Start over, naming a specific word, event, or detail actually present in the entries above.
-            """
-        // Same fail-open shape as generateNudge's retry: `first` is a valid, already-validated
-        // digest, just ungrounded — falling back to it on a retry failure beats no digest at all.
-        guard let second = try? await localGenerate(
-            systemPrompt: WEEKLY_DIGEST_SYSTEM,
-            userMessage: retryMessage,
-            task: .weeklyDigest,
-            responseLanguageInstruction: languageInstruction
-        ) else { return first }
-        return second
+                IMPORTANT: your digest above didn't reference anything actually written in the entries above — no shared word, event, or detail in any section. It read as generic, invented content rather than a reflection of what's there. Start over, naming a specific word, event, or detail actually present in the entries above.
+                """
+        }
+
+        guard let lastResult else {
+            throw InsightError.serviceUnavailable("weekly digest generation produced no result")
+        }
+        return (weeklyDigestUngroundedFallback, lastResult.engine)
     }
 
+    // Same overpromise problem as the nudge's old copy, worse here: weeklyDigestIsStale needs
+    // BOTH a 24h cooldown AND a week-entry newer than this insight's own generatedAt — since
+    // this fallback's generatedAt is "now," a same-day "check back tomorrow" with no new
+    // writing would find nothing stale to regenerate. UI-side retry (bypassing the cache
+    // entirely) is the real unblock — see InsightService.isUngroundedFallback and the
+    // groundingFallback state it drives.
+    static let weeklyDigestUngroundedFallback = String(
+        localized: "MirrorNotes couldn't find this week's digest clearly grounded in your entries. Try again, or write a bit more this week."
+    )
+
+    // Previously had no grounding backstop at all, unlike generateNudge/generateWeeklyDigest —
+    // a single unconditional localGenerate call. Same isUngrounded check and bounded-retry-loop
+    // shape added here, checked against `allEntries` (which already includes monthEntries, so
+    // that alone covers everything the prompt draws vocabulary from — see
+    // buildMonthlyReportMessage's recentBlock/backgroundBlock, both sourced from these two sets).
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
-        return try await localGenerate(
-            systemPrompt: MONTHLY_REPORT_SYSTEM,
-            userMessage: buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries),
-            task: .monthlyReport,
-            responseLanguageInstruction: languageInstruction
-        )
+        let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
+        let maxAttempts = 3
+        var lastResult: (text: String, engine: LLMEngine)?
+        var currentUserMessage = userMessage
+
+        for attempt in 1...maxAttempts {
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await localGenerate(
+                    systemPrompt: MONTHLY_REPORT_SYSTEM,
+                    userMessage: currentUserMessage,
+                    task: .monthlyReport,
+                    responseLanguageInstruction: languageInstruction
+                )
+            } catch {
+                guard let previous = lastResult else { throw error }
+                return (monthlyReportUngroundedFallback, previous.engine)
+            }
+
+            guard isUngrounded(result.text, sourceEntries: allEntries) else { return result }
+
+            lastResult = result
+            guard attempt < maxAttempts else { break }
+
+            currentUserMessage = userMessage + """
+
+
+                IMPORTANT: your report above didn't reference anything actually written in the entries above — no shared word, event, or detail in any section. It read as generic, invented content rather than a reflection of what's there. Start over, naming a specific word, event, or detail actually present in the entries above.
+                """
+        }
+
+        guard let lastResult else {
+            throw InsightError.serviceUnavailable("monthly report generation produced no result")
+        }
+        return (monthlyReportUngroundedFallback, lastResult.engine)
     }
+
+    // Same reasoning as weeklyDigestUngroundedFallback — "check back tomorrow" could mean
+    // "check back next month" once isInLastWeekOfMonth's window closes, and even inside that
+    // window nothing regenerates without a newer entry. UI-side retry is the real unblock.
+    static let monthlyReportUngroundedFallback = String(
+        localized: "MirrorNotes couldn't find this month's report clearly grounded in your entries. Try again, or write a bit more this month."
+    )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
@@ -495,6 +727,50 @@ enum InsightService {
         return normalizeEmotion(response.text)
     }
 
+    // Never persisted as an Insight — ephemeral, in-editor-only, discarded once the chip is
+    // dismissed or the entry is saved. Keeps this feature schema-free: WriteView holds the
+    // question in @State only, matching the security rule that draft-adjacent text stays
+    // entirely on-device and un-cached.
+    static func generateFollowUp(currentText: String) async throws -> (text: String, engine: LLMEngine) {
+        let trimmed = String(currentText.suffix(3000))
+        let target = responseLanguageTarget(from: [], extraText: trimmed) ?? responseLanguageTargetFromCurrentLocale()
+        let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
+        return try await localGenerate(
+            systemPrompt: FOLLOW_UP_SYSTEM,
+            userMessage: trimmed,
+            task: .followUp,
+            responseLanguageInstruction: languageInstruction
+        )
+    }
+
+    // Tier 2 ("Talk it out", writing-roadmap.md) — a guided, multi-turn entry starter.
+    // Deliberately reuses the .followUp task rather than adding a new LocalLLMTask case: the
+    // output shape (one short question, ending in "?") is identical, only the system prompt and
+    // conversation framing differ, so the existing validator/cleaning/retry machinery for
+    // .followUp applies unchanged. Every turn is caller-held @State (see TalkItOutView) — never
+    // persisted, never written anywhere until the user explicitly inserts the composed result
+    // into a real draft.
+    static func generateGuidedQuestion(conversationSoFar: [(question: String, answer: String)]) async throws -> (text: String, engine: LLMEngine) {
+        let userMessage: String
+        if conversationSoFar.isEmpty {
+            userMessage = "This is the start of a new guided journal entry. Ask your first question."
+        } else {
+            let transcript = conversationSoFar
+                .map { "Q: \($0.question)\nA: \($0.answer)" }
+                .joined(separator: "\n\n")
+            userMessage = "Conversation so far:\n\(transcript)\n\nAsk the next question."
+        }
+        let allAnswers = conversationSoFar.map(\.answer).joined(separator: " ")
+        let target = responseLanguageTarget(from: [], extraText: allAnswers) ?? responseLanguageTargetFromCurrentLocale()
+        let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
+        return try await localGenerate(
+            systemPrompt: GUIDED_ENTRY_SYSTEM,
+            userMessage: userMessage,
+            task: .followUp,
+            responseLanguageInstruction: languageInstruction
+        )
+    }
+
     // Gemma's system prompts are English, so without an explicit directive it tends
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
@@ -511,7 +787,7 @@ enum InsightService {
 
             Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.
             """
-        case .dailyNudge, .ask:
+        case .dailyNudge, .ask, .followUp:
             return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
         case .emotion:
             return nil
@@ -525,7 +801,7 @@ enum InsightService {
             labels = weeklyDigestSectionLabels
         case .monthlyReport:
             labels = monthlyReportSectionLabels
-        case .dailyNudge, .ask, .emotion:
+        case .dailyNudge, .ask, .emotion, .followUp:
             return []
         }
         return labels.map { section in
@@ -674,7 +950,7 @@ enum InsightService {
             cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
             cleaned = raw.text.cleanedMonthlyReportOutput()
-        case .dailyNudge, .ask, .emotion:
+        case .dailyNudge, .ask, .emotion, .followUp:
             cleaned = raw.text.cleanedInsightOutput()
         }
         return (cleaned, raw.engine)
@@ -704,6 +980,8 @@ enum InsightService {
             return "Return only 3-5 complete sentences. Do not invent facts not in the entries."
         case .emotion:
             return "Return exactly one allowed mood word and nothing else."
+        case .followUp:
+            return "Return exactly one short question, ending with a question mark, under 18 words. Nothing before or after it."
         }
     }
 
@@ -752,7 +1030,19 @@ enum InsightService {
                 throw InsightError.incompleteResponse
             }
             return trimmed
+        case .followUp:
+            return try validateFollowUp(trimmed)
         }
+    }
+
+    private static func validateFollowUp(_ text: String) throws -> String {
+        guard text.hasSuffix("?") else { throw InsightError.incompleteResponse }
+        guard text.count >= 8, text.count <= 160 else { throw InsightError.incompleteResponse }
+        // Reject if a second question mark shows up mid-string — a sign the model produced
+        // more than the "exactly one question" the prompt asks for, not a single clean ask.
+        guard text.filter({ $0 == "?" }).count == 1 else { throw InsightError.incompleteResponse }
+        guard !containsJournalWriterFirstPerson(text) else { throw InsightError.incompleteResponse }
+        return text
     }
 
     // .strictExceptMirrorNoticed exists only for dailyNudge's sanctioned "I noticed" — see the
@@ -1201,7 +1491,9 @@ enum InsightService {
         return blocks.joined(separator: "\n---\n")
     }
 
-    private static func buildMemoryBrief(from entries: [Entry], maxChars: Int) -> String {
+    // internal, not private — same pattern as `selectRepresentativeExcerpts` and `validate`,
+    // bumped for MemoryBriefBudgetTests to exercise the real truncation path directly.
+    static func buildMemoryBrief(from entries: [Entry], maxChars: Int) -> String {
         guard !entries.isEmpty else { return "No older context available yet." }
 
         let total = entries.count
@@ -1228,7 +1520,11 @@ enum InsightService {
         // above (moodCounts/recurringTerms/dateRange) still read the full `entries` window
         // upstream callers already bounded by recency (20/14 entries) — only which 5 of those
         // get quoted as excerpts changes here.
-        let excerpts = selectRepresentativeExcerpts(from: entries, limit: 5)
+        // 5 excerpts at 220 chars each plus the stats header above (~280 chars)
+        // regularly exceeded this function's ~1,288-char budget in the daily
+        // nudge, so the final `clipped(brief, maxChars:)` below was silently
+        // hard-truncating the last excerpt mid-sentence. 4 fits with margin.
+        let excerpts = selectRepresentativeExcerpts(from: entries, limit: memoryBriefExcerptLimit)
             .map { entry in
                 let date = entry.createdAt.formatted(date: .abbreviated, time: .omitted)
                 return "- \(date): \(clipped(entry.insightContext, maxChars: 220))"

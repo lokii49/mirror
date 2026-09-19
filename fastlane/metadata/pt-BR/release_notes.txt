@@ -1,6 +1,10 @@
-Notificações mais completas, widgets maiores.
+Uma nova forma de começar, e reflexões em que você pode confiar.
 
-• As notificações do Lembrete diário agora se expandem direto na tela de bloqueio — veja seu humor e uma prévia da reflexão de hoje, com um botão Escrever agora para começar na hora.
-• Os widgets de Resumo semanal e Relatório mensal detalhado agora estão disponíveis em tamanho grande.
-• Corrigido o botão "Limpar formatação" que aparecia em branco na barra de ferramentas de escrita.
+• Talk it out: uma breve conversa guiada (até 3 perguntas) que se transforma em uma nova entrada no diário — totalmente no dispositivo, nada é salvo até você escrever.
+• Digitalize texto manuscrito ou impresso direto para uma entrada com a câmera.
+• Novos pontos de partida com um toque — Gratidão, 3 Conquistas, Registro de Humor — ao lado da sugestão do dia.
+• As reflexões diárias, os resumos semanais e os relatórios mensais agora se baseiam de forma muito mais confiável no que você realmente escreveu — corrigido o problema que fazia muitas aparecerem como "Não foi possível confirmar" em vez de uma reflexão real.
+• Quando uma reflexão não puder ser confirmada, toque em Tentar novamente para gerar uma nova em vez de esperar.
+• A captura rápida por Siri agora é mais fácil de encontrar, com instruções de configuração em Ajustes.
+• Adicionado suporte a Reduzir Movimento e melhorado o contraste do seletor de humor.
 • Correções e ajustes.

@@ -210,6 +210,34 @@ struct ProtocolSettingsView: View {
                 }
 
                 SettingsGroup(title: "Input") {
+                    // SettingsRowLabel centers its 32pt icon against the title (correct, and
+                    // consistent with every other row in this file) — but that centering leaves
+                    // ~8pt of dead space below a single-line title that a caption directly
+                    // beneath then stacks its own spacing on top of. A prior attempt "fixed" this
+                    // by bottom-aligning the row's icon+title instead, which closed the gap but
+                    // knocked the icon and title out of vertical alignment with each other and
+                    // every other row (reported, twice, as looking worse than the gap did).
+                    // Pulling the caption up with negative top padding closes the same gap
+                    // without touching the row's own layout at all.
+                    VStack(alignment: .leading, spacing: 0) {
+                        SettingsRowLabel(title: "Quick capture via Siri", systemImage: "waveform.badge.mic", iconColor: MirrorTheme.violet)
+                        // Must match what the registered AppShortcut phrase actually resolves to
+                        // at runtime — MirrorAppShortcuts' phrases use \(.applicationName), which
+                        // Apple's App Shortcuts fills with CFBundleDisplayName ("MirrorNotes",
+                        // Info.plist), not PRODUCT_NAME/the Xcode target name ("mirror"). The
+                        // lowercase "mirror" this said before doesn't match the phrase Siri
+                        // actually listens for.
+                        Text("Say \u{201C}Add a journal entry in MirrorNotes\u{201D} to Siri \u{2014} it saves straight to your journal, no need to open the app.")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .padding(.top, -4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 2)
+
+                    SettingsDivider()
+
                     Button { showLanguagePicker = true } label: {
                         HStack {
                             SettingsRowLabel(title: "Voice transcription language", systemImage: "mic.fill", iconColor: MirrorTheme.violet)

@@ -243,7 +243,11 @@ enum FeatureCardRegistry {
         .init(
             id: "siri-quick-add-205",
             title: "Add entries with Siri",
-            body: "Say \"Hey Siri, add a journal entry in mirror\" and dictate — it saves straight to your journal, no need to open the app. Works from Shortcuts too.",
+            // Must match what MirrorAppShortcuts' registered phrase actually resolves to at
+            // runtime — \(.applicationName) fills in CFBundleDisplayName ("MirrorNotes"), not
+            // PRODUCT_NAME/the Xcode target name ("mirror") — same fix as ProtocolSettingsView's
+            // Quick Capture row.
+            body: "Say \"Hey Siri, add a journal entry in MirrorNotes\" and dictate — it saves straight to your journal, no need to open the app. Works from Shortcuts too.",
             symbolName: "mic.fill",
             accentColor: .teal,
             tier: .free,
