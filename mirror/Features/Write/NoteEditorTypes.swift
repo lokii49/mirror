@@ -31,6 +31,13 @@ enum NoteTextCommand: Equatable {
     case photo(index: Int)
     case undo
     case redo
+    /// Explicitly places the caret at a character offset — needed whenever `text` is set
+    /// externally (templates, Talk it out, scanned/follow-up appends), because
+    /// `NoteEditorTextView.updateUIView` only clamps the *old* selectedRange into the new text's
+    /// bounds when it detects an external change; it doesn't reposition it meaningfully. Without
+    /// this, the caret lands wherever the pre-insertion selection happened to clamp to, not
+    /// where typing should actually start — a real on-device bug, not a hypothetical.
+    case moveCursor(location: Int)
 }
 
 // MARK: - Paragraph styles

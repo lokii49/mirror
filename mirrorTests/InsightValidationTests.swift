@@ -382,9 +382,34 @@ struct InsightValidationTests {
         expectRejected("I feel great today", .emotion)
     }
 
+    // MARK: - FollowUp (one short question, ephemeral, never persisted — see 1.2 in writing-roadmap.md)
+
+    @Test func followUp_shortQuestion_passes() {
+        expectValid("What's underneath that tiredness?", .followUp)
+    }
+
+    @Test func followUp_missingQuestionMark_rejected() {
+        expectRejected("What's underneath that tiredness", .followUp)
+    }
+
+    @Test func followUp_twoQuestions_rejected() {
+        expectRejected("What's underneath that? And what will you do about it?", .followUp)
+    }
+
+    @Test func followUp_journalWriterFirstPerson_rejected() {
+        // containsJournalWriterFirstPerson matches specific verbs after "I" (feel/need/etc.),
+        // not every first-person construction — use one of those verbs, not a generic one.
+        expectRejected("I feel like I need to say more?", .followUp)
+    }
+
+    @Test func followUp_tooLong_rejected() {
+        let longQuestion = String(repeating: "word ", count: 40) + "?"
+        expectRejected(longQuestion, .followUp)
+    }
+
     // MARK: - Shared: empty input always rejected as .emptyResponse, before any task-specific check
 
-    @Test(arguments: [LocalLLMTask.dailyNudge, .ask, .weeklyDigest, .monthlyReport, .emotion])
+    @Test(arguments: [LocalLLMTask.dailyNudge, .ask, .weeklyDigest, .monthlyReport, .emotion, .followUp])
     func emptyInput_alwaysThrowsEmptyResponse(_ task: LocalLLMTask) {
         do {
             _ = try InsightService.validate("", for: task)
@@ -490,6 +515,88 @@ struct InsightValidationTests {
             Entry(text: "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after."),
         ]
         let nudge = "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // The real user report that motivated the 2-word threshold: "lots of generic assumptions
+    // when I gave specific information." A nudge that shares exactly one coincidental content
+    // word with a detail-rich entry — and is otherwise generic filler — used to pass this guard
+    // outright. The source here has well over 4 content words, so the 2-word minimum applies.
+    @Test func isUngrounded_oneCoincidentalWordAgainstDetailedEntry_nowDetected() {
+        let entries = [
+            Entry(text: "Spent the whole afternoon debugging the payment flow at work before the client demo. Finally fixed it an hour before the call."),
+        ]
+        let nudge = "Work has a way of testing us. Trust the process and give yourself grace today."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // The short-entry fallback the 2-word threshold is guarded against breaking: a terse entry
+    // genuinely can't supply 2 real content words, so the original 1-word threshold still
+    // applies and a real, if thin, connection still passes.
+    @Test func isUngrounded_shortEntrySingleSharedWord_stillNotDetected() {
+        let entries = [Entry(text: "Going in a good phase!")]
+        let nudge = "This phase you're in sounds like it's finally clicking into place."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // "How about long entries?" — a flat 2-word minimum has the exact same weak-signal problem
+    // the original flat 1-word minimum had, just at a higher source-vocabulary size: a long
+    // entry hands the model far more words to coincidentally land 2 of without the rest of the
+    // reflection being any more specific. This entry has ~23 content words (>15), so the
+    // requirement scales to 3; the nudge below shares only 2 ("client", "pricing") and is
+    // otherwise generic — used to slip through the flat-2 version of this guard.
+    @Test func isUngrounded_longEntryTwoCoincidentalWords_nowDetected() {
+        let entries = [
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing. Reviewed analytics dashboards, sketched three new wireframes, then walked the dog before joining a late client call about the roadmap timeline."),
+        ]
+        let nudge = "Client relationships and pricing decisions can feel like a lot to hold. Give yourself grace this week."
+        #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // Same long entry, but a nudge that's genuinely grounded — 5 real shared words, comfortably
+    // over the scaled minimum of 3 — still passes. The scaling shouldn't punish an honestly
+    // specific reflection just because the source entry happens to be long.
+    @Test func isUngrounded_longEntryGenuinelyGrounded_notDetected() {
+        let entries = [
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing. Reviewed analytics dashboards, sketched three new wireframes, then walked the dog before joining a late client call about the roadmap timeline."),
+        ]
+        let nudge = "Sounds like today's onboarding rewrite and the client call about the roadmap took a lot out of you — hope walking the dog after helped you reset."
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // The actual regression from a live device (screenshot, 2026-09-17): a real account's
+    // `recent + background` for a daily nudge is up to ~23 entries, not the single-entry
+    // fixtures above — hundreds of unique content words. Under the pre-fix scaling
+    // (`min(scaled, nudgeWordCount)`, no ceiling on `scaled` itself), `scaled` for a corpus
+    // this size (2 + 300/15 = 22) blew straight past a ~25-30-word nudge's own content-word
+    // count, so the cap became the practical requirement — near-total word-for-word overlap,
+    // which no paraphrased reflection (and none of MirrorNotes' own voice words) can produce.
+    // That's what surfaced live as the "couldn't find today's reflection" fallback ~8/10 times.
+    // A genuinely grounded nudge naming one specific entry's details must still pass here.
+    @Test func isUngrounded_realisticMultiEntryCorpus_genuinelyGroundedNudge_notDetected() {
+        let entries = [
+            Entry(text: "Surprised to see 10 downloads the week the Timer app got released."),
+            Entry(text: "Spent hours today rewriting the onboarding flow after user complaints about confusing pricing."),
+            Entry(text: "Reviewed analytics dashboards, sketched three new wireframes for the settings screen."),
+            Entry(text: "Walked the dog before joining a late client call about the roadmap timeline."),
+            Entry(text: "Debugging the payment flow at work before the client demo took most of the afternoon."),
+            Entry(text: "Finally fixed the payment bug an hour before the call, felt like a huge relief."),
+            Entry(text: "Quiet Sunday, mostly reading and catching up on emails from the week."),
+            Entry(text: "Team standup ran long, mostly discussing the upcoming launch checklist."),
+            Entry(text: "Cooked dinner for friends, first time hosting since moving into the new apartment."),
+            Entry(text: "Long commute today, listened to a podcast about productivity habits."),
+            Entry(text: "Gym session felt good, finally back to a regular routine after weeks off."),
+            Entry(text: "Called my sister to catch up, she's doing well with the new job."),
+            Entry(text: "Wrote a draft of the quarterly report, still needs more data from marketing."),
+            Entry(text: "Rainy afternoon, stayed in and organized the garage for a few hours."),
+            Entry(text: "Tried a new recipe for dinner, turned out better than expected."),
+            Entry(text: "Reviewed pull requests most of the morning, one had a tricky merge conflict."),
+            Entry(text: "Took the afternoon off to relax after a stressful week at work."),
+            Entry(text: "Planned next month's budget, need to cut back on eating out."),
+            Entry(text: "Read a few chapters of a new book before bed, really enjoying it."),
+            Entry(text: "Short entry today, just tired and ready for the weekend."),
+        ]
+        let nudge = "That payment bug you finally fixed before the client demo sounds like it took a real weight off — hope the relief carried into the rest of your week."
         #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 

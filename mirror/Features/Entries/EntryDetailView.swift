@@ -202,6 +202,7 @@ struct EntryDetailView: View {
                             entry.isPinned ? "Unpin Entry" : "Pin Entry",
                             systemImage: entry.isPinned ? "pin.slash" : "pin"
                         ) {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             entry.isPinned.toggle()
                             try? modelContext.save()
                         }

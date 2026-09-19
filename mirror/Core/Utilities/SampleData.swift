@@ -265,6 +265,23 @@ enum SampleData {
             "work", "family", "health", "friendship", "money", "home", "creative energy",
             "rest", "exercise", "focus", "travel plans", "therapy", "cooking", "reading"
         ]
+        // Varied connector phrasing, not one fixed sentence — a single literal clause repeated
+        // on every typed entry in a year (previously "The thread running through it was X.")
+        // dominates recurringKeywords' plain word-frequency count, so its incidental words (e.g.
+        // "thread", "running") outrank every real anchor word as a "recurring theme" fed into
+        // the insight prompt, and a small on-device model reading "running" as a recurring theme
+        // takes it literally (see the "you spent time thinking about running" nudge this fixture
+        // produced against entries that never mention exercise). Real journal entries don't repeat
+        // one exact sentence for a year; this fixture shouldn't manufacture a false signal no real
+        // usage pattern would create.
+        let connectorTemplates: [(String) -> String] = [
+            { anchor in "\(anchor) kept coming up today, in one form or another." },
+            { anchor in "Most of today circled back to \(anchor) somehow." },
+            { anchor in "If I am honest, \(anchor) was underneath most of today." },
+            { anchor in "The part of today worth naming was \(anchor)." },
+            { anchor in "\(anchor) was the quiet backdrop to today." },
+            { anchor in "Today kept pointing back to \(anchor)." },
+        ]
         let closingNotes = [
             "I want to remember that this was a real day, not just a bridge to the next one.",
             "The pattern is easier to see when I write it down instead of carrying it around.",
@@ -280,6 +297,7 @@ enum SampleData {
             let theme = themes[dayIndex % themes.count]
             let anchor = anchors[(dayIndex / 3 + offset) % anchors.count]
             let closing = closingNotes[(dayIndex / 5 + offset) % closingNotes.count]
+            let connector = connectorTemplates[(dayIndex / 2 + offset) % connectorTemplates.count]
             let isVoice = dayIndex % 4 == 1 || dayIndex % 11 == 0
             let hour = 7 + (dayIndex * 5) % 15
             let minute = (dayIndex * 13) % 60
@@ -291,7 +309,7 @@ enum SampleData {
             ) ?? baseDate
 
             if isVoice {
-                let transcript = "\(theme.voice) today mostly circled around \(anchor). \(closing)"
+                let transcript = "\(theme.voice) \(connector(anchor)) \(closing)"
                 let entry = Entry(text: "", mood: theme.mood, source: .voice)
                 entry.createdAt = createdAt
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: createdAt)
@@ -303,10 +321,11 @@ enum SampleData {
                 entry.voiceNoteTranscript = transcript
                 context.insert(entry)
             } else {
+                let connectorSentence = connector(anchor)
                 let text = """
                     \(theme.typed)
 
-                    The thread running through it was \(anchor). \(closing)
+                    \(connectorSentence.prefix(1).uppercased() + connectorSentence.dropFirst()) \(closing)
                     """
                 let entry = Entry(text: text.trimmingCharacters(in: .whitespacesAndNewlines), mood: theme.mood, source: .typed)
                 entry.createdAt = createdAt

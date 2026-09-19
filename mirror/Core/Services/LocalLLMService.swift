@@ -25,12 +25,14 @@ enum LocalLLMTask {
     case monthlyReport
     case ask
     case emotion
+    case followUp
 
     nonisolated var temperature: CFloat {
         switch self {
         case .emotion: return 0.1
         case .dailyNudge: return 0.45
         case .ask: return 0.45
+        case .followUp: return 0.5
         case .weeklyDigest: return 0.55
         case .monthlyReport: return 0.55
         }
@@ -41,6 +43,7 @@ enum LocalLLMTask {
     nonisolated var maxOutputChars: Int {
         switch self {
         case .emotion: return 30
+        case .followUp: return 140
         case .dailyNudge: return 700
         case .ask: return 1000
         case .weeklyDigest: return 2800

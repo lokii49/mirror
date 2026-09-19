@@ -152,8 +152,8 @@ struct MonthlyReportView: View {
             case .loaded(let insight):
                 MonthlyStatsStrip(entries: selectedMonthEntries)
                 reportCard(insight)
-            case .notEnoughEntries(let remaining, let total):
-                notEnoughEntriesCard(remaining: remaining, total: total)
+            case .waitingForMonthEnd(let entryCount):
+                waitingForMonthEndCard(entryCount: entryCount)
             case .endOfMonthTooFewEntries(let count):
                 endOfMonthTooFewEntriesCard(count: count)
             case .subscriptionRequired:
@@ -162,6 +162,17 @@ struct MonthlyReportView: View {
                 nightlyPendingCard
             case .modelNotInstalled:
                 ModelNotInstalledCard()
+            case .groundingFallback(let insight):
+                groundingFallbackCard(message: insight.content) {
+                    Task {
+                        await viewModel.loadMonthlyReport(
+                            entries: entries,
+                            insights: insights,
+                            context: modelContext,
+                            forceRegenerate: true
+                        )
+                    }
+                }
             case .error(let message):
                 errorCard(message: message) {
                     Task {
@@ -252,47 +263,51 @@ struct MonthlyReportView: View {
         .themedCard(cornerRadius: 22)
     }
 
-    private func notEnoughEntriesCard(remaining: Int, total: Int) -> some View {
+    // Replaces the old notEnoughEntriesCard(remaining:total:) — that copy ("N more entries to
+    // go") assumed entry count was the only blocker, which stopped being true once generation
+    // was gated on DateHelpers.isInLastWeekOfMonth as well. No progress bar here: there's no
+    // fixed count this state is progressing toward, so one would misrepresent what's actually
+    // blocking (the date, not the entry count).
+    private func waitingForMonthEndCard(entryCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                         .frame(width: 40, height: 40)
-                    Image(systemName: "doc.text.magnifyingglass")
+                    Image(systemName: "calendar")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Group {
                         if displayMode == .sentinel {
-                            Text(remaining == 1 ? "1 SIGNAL TO CALIBRATION" : "\(remaining) SIGNALS TO CALIBRATION")
-                                .font(MirrorTheme.mono(15, weight: .semibold))
+                            Text("DEBRIEF OPENS IN FINAL WEEK").font(MirrorTheme.mono(15, weight: .semibold))
                         } else {
-                            Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
-                                .font(.system(size: 16, weight: .semibold))
+                            Text("Ready in the last week").font(.system(size: 16, weight: .semibold))
                         }
                     }
                     Group {
                         if displayMode == .sentinel {
-                            Text(total == 1 ? "DEBRIEF UNLOCKS AT 1 SIGNAL" : "DEBRIEF UNLOCKS AT \(total) SIGNALS")
+                            Text(entryCount == 1 ? "1 SIGNAL LOGGED SO FAR" : "\(entryCount) SIGNALS LOGGED SO FAR")
                                 .font(MirrorTheme.mono(11, weight: .medium))
                         } else {
-                            Text(total == 1 ? "Your deep monthly report unlocks at 1 entry." : "Your deep monthly report unlocks at \(total) entries.")
+                            Text(entryCount == 1 ? "1 entry logged so far." : "\(entryCount) entries logged so far.")
                                 .font(.system(size: 13))
                         }
                     }
                     .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
-            ProgressView(value: Double(max(0, total - remaining)), total: Double(total))
-                .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
-                .scaleEffect(x: 1, y: 1.4)
+            Text("Your monthly report reflects the whole month, so it generates in the final week rather than partway through.")
+                .font(.system(size: 13))
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
             Group {
                 if displayMode == .sentinel {
-                    Text("KEEP LOGGING — AUTO-GENERATES WHEN READY").font(MirrorTheme.mono(10, weight: .medium))
+                    Text("KEEP LOGGING — DEBRIEF AUTO-GENERATES").font(MirrorTheme.mono(10, weight: .medium))
                 } else {
-                    Text("Keep writing — generates automatically when ready.").font(.system(size: 12, weight: .medium))
+                    Text("Keep writing — it generates automatically when the window opens.").font(.system(size: 12, weight: .medium))
                 }
             }
             .foregroundStyle(MirrorTheme.textTertiary)
@@ -330,7 +345,7 @@ struct MonthlyReportView: View {
                     .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
-            Text("The monthly report needs at least 10 entries to reflect your month meaningfully. With just a few days left, there isn't enough to generate one for this month.")
+            Text("The monthly report needs at least 10 entries to reflect your month meaningfully. With less than a week left, there isn't enough to generate one for this month.")
                 .font(.system(size: 13))
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -405,6 +420,44 @@ struct MonthlyReportView: View {
             icon: "doc.text.magnifyingglass",
             iconColor: MirrorTheme.violet
         )
+    }
+
+    // Deliberately distinct from errorCard below: this isn't a failure (generation succeeded,
+    // the model just didn't produce anything grounded in the entries after 3 attempts), so no
+    // orange warning triangle and no "will retry tonight" — that claim is false here (the
+    // nightly pass needs a newer entry than this insight's own generatedAt to attempt again,
+    // same gate InsightService.weeklyDigestUngroundedFallback's comment names). "Try Again"
+    // re-runs the same bounded grounding loop fresh — real chance of a different result since
+    // generation is stochastic, not just a way to write more first.
+    private func groundingFallbackCard(message: String, onRetry: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Group {
+                if displayMode == .sentinel {
+                    Label("DEBRIEF NOT CLEARLY GROUNDED", systemImage: "text.magnifyingglass")
+                        .font(MirrorTheme.mono(13, weight: .semibold))
+                } else {
+                    Label("Couldn't confirm this report", systemImage: "text.magnifyingglass")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(MirrorTheme.textSecondary)
+            Button(action: onRetry) {
+                Group {
+                    if displayMode == .sentinel {
+                        Label("TRY AGAIN", systemImage: "arrow.clockwise").font(MirrorTheme.mono(12, weight: .semibold))
+                    } else {
+                        Label("Try Again", systemImage: "arrow.clockwise").font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .themedCard(cornerRadius: 22)
     }
 
     private func errorCard(message: String, onRetry: @escaping () -> Void) -> some View {

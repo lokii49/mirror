@@ -34,6 +34,7 @@ struct MoodCheckInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var selected: String?
     @State private var logged: String?
@@ -46,7 +47,7 @@ struct MoodCheckInView: View {
         mirrorApp.updateWidgetHeatmaps(context: modelContext)
         WidgetCenter.shared.reloadAllTimelines()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { logged = mood }
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.85)) { logged = mood }
     }
 
     private var isSentinel: Bool { displayMode == .sentinel }
@@ -128,8 +129,9 @@ struct MoodCheckInView: View {
     private func moodChip(_ mood: String) -> some View {
         let isSelected = selected == mood
         let color = MirrorTheme.moodColor(for: mood)
+        let onColor = MirrorTheme.moodOnColorText(for: mood)
         return Button {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.28, dampingFraction: 0.8)) {
                 selected = isSelected ? nil : mood
             }
             UISelectionFeedbackGenerator().selectionChanged()
@@ -139,12 +141,12 @@ struct MoodCheckInView: View {
                 // high-contrast text colour so pale moods (Numb, Joyful) are
                 // still readable on the near-white sheet.
                 Circle()
-                    .fill(isSelected ? Color.white : color)
+                    .fill(isSelected ? onColor : color)
                     .frame(width: 9, height: 9)
                     .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
                 Text(MirrorTheme.localizedMoodName(for: mood))
                     .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -152,11 +154,11 @@ struct MoodCheckInView: View {
             .padding(.vertical, 13)
             .background(
                 isSelected ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.16)),
-                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(color.opacity(isSelected ? 0.9 : 0.6), lineWidth: isSelected ? 2 : 1.5)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(color.opacity(isSelected ? 0.9 : 0.6), lineWidth: 1.5)
             }
         }
         .buttonStyle(.plain)

@@ -52,6 +52,8 @@ struct ContentView: View {
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var deepLinkEntryID: UUID? = nil
+    @State private var showWriteFromWidgetPrompt = false
+    @State private var widgetPromptText: String = ""
     private let featureCardService = FeatureCardService.shared
     @AppStorage("mirrorAppearanceMode") private var appearanceMode: String = "system"
 
@@ -211,6 +213,14 @@ struct ContentView: View {
             MoodCheckInView()
                 .environment(\.appDisplayMode, displayMode)
         }
+        .sheet(isPresented: $showWriteFromWidgetPrompt) {
+            NavigationStack {
+                WriteView(autoFocus: true, initialText: widgetPromptText) {
+                    showWriteFromWidgetPrompt = false
+                }
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
         .onChange(of: canPresentRatePrompt) { _, canPresent in
             guard canPresent else { return }
             reviewPromptCoordinator.isPending = false
@@ -275,8 +285,15 @@ struct ContentView: View {
             guard url.scheme == "mirror" else { return }
             switch url.host {
             case "write":
-                selectedTab = 1
-                selectedSidebarItem = .write
+                if let indexString = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "promptIndex" })?.value,
+                   let index = Int(indexString), WritingPrompts.all.indices.contains(index) {
+                    widgetPromptText = WritingPrompts.all[index]
+                    showWriteFromWidgetPrompt = true
+                } else {
+                    selectedTab = 1
+                    selectedSidebarItem = .write
+                }
             case "entries":
                 selectedTab = 0
                 selectedSidebarItem = .entries
@@ -366,3 +383,4 @@ private struct WriteTabView: View {
         }
     }
 }
+

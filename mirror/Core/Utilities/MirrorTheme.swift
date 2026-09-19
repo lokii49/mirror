@@ -122,6 +122,22 @@ enum MirrorTheme {
         }
     }
 
+    /// Readable label/dot color for content drawn directly on top of
+    /// `moodColor(for:)` at full opacity (a selected mood chip). Several mood
+    /// colors — Joyful's yellow, Numb's pale grey, Peaceful's sky blue,
+    /// Anxious's amber — are too light for white to read against; those get
+    /// dark text instead. Fixed black, not `textPrimary` — this is contrast
+    /// against a hardcoded bright mood color, not the app's light/dark theme,
+    /// so it shouldn't flip to near-white again in dark mode.
+    static func moodOnColorText(for mood: String) -> Color {
+        switch mood {
+        case "Joyful", "Numb", "Peaceful", "Anxious":
+            return Color.black.opacity(0.78)
+        default:
+            return .white
+        }
+    }
+
     /// Continuous color for an average mood score (1…5), anchored to the
     /// discrete mood colors so aggregate visuals stay on-palette.
     static func moodScoreColor(_ score: Double) -> Color {
