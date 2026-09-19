@@ -1153,6 +1153,27 @@ to keep this file readable in one pass — read it too if you need older history
   notifying: identical standing blocker already surfaced in prior runs' notifications; the
   file-structure fix is maintenance, not a change in the underlying blocker.
 
+- 2026-09-19 (run 96): Re-confirmed the GitHub cross-owner block, this time with a live probe
+  rather than just reading the scope banner: add_repo(XargsUK/awesome-adhd, access: push) still
+  rejected with "cross-tier adds are not supported in v1" (session locked to lokii49-owned repos).
+  That repo turned out to be a known duplicate already in Backlog (line 230), so no PR would have
+  been possible anyway — but the block itself is now freshly confirmed rather than assumed. Did NOT
+  re-test raw SMTP reachability (per run 89's permanent-architectural-limit finding, still
+  unchanged). For priority 2, tried three new discovery angles: code search for "Daylio"/"Moodnotes"
+  mentions in README.md (only turned up mirrors/clones of the already-MERGED
+  woop/awesome-quantified-self), code search for "Journalytic"/"Clarity Journal"/"Diaro" (zero
+  hits), and a repo search for privacy-first iOS app directories which surfaced the enhansome/*
+  GitHub org — investigated and ruled out as a class: it's 2,300+ near-identical
+  enhansome-<topic> repos (e.g. enhansome-macos-apps, enhansome-privacy, enhansome-ncnn,
+  enhansome-pascal), all created within the same few hours on 2026-08-12, 0-3 stars each, covering
+  every conceivable topic — pattern strongly indicates an automated content-farm generator, not
+  human-curated awesome-lists with real maintainers/CONTRIBUTING processes, so not a legitimate
+  outreach target (see Lessons). No new candidate cleared the fit bar this run; no PRs opened, no
+  comments posted, no emails sent — 96th consecutive run blocked purely on environment/session
+  config (GitHub cross-owner scope, SMTP egress), both unchanged. Not notifying: identical standing
+  blocker already surfaced and explained in prior runs' notifications, and nothing material changed
+  this run beyond a live re-confirmation and one ruled-out repo family.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1546,6 +1567,12 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   tinytools.directory. Confirmed 2026-09-15 via raw README fetch on both; do not re-add either unless
   MirrorNotes ships a Mac version (for awesome-mac) or the scope changes. No new candidate cleared the
   fit bar this run.
+- enhansome/* (GitHub org) is not a source of legitimate outreach targets: it's 2,300+ near-identical
+  enhansome-<topic> repos (checked via org:enhansome repo search), all created within a few hours
+  on 2026-08-12 with 0-3 stars each and a topic list covering essentially every possible subject —
+  consistent with an automated generator/content farm rather than human-curated awesome-lists with
+  real maintainers. Skip this whole org in future discovery passes rather than checking individual
+  enhansome-* repos one at a time. Confirmed 2026-09-19 (run 96).
 
 ## Sent log
 
