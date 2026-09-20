@@ -1193,6 +1193,26 @@ to keep this file readable in one pass — read it too if you need older history
   notifying: identical standing blocker already surfaced and explained in prior runs' notifications,
   nothing material changed.
 
+- 2026-09-19 (run 98): Re-confirmed both standing blockers with fresh live probes rather than
+  assuming: `add_repo(janhq/awesome-local-ai, access: push)` still rejected with "cross-tier adds
+  are not supported in v1"; `pull_request_read` (method get) on tehtbl/awesome-note-taking#89
+  (one of our own OPEN PRs) also rejected with "repository ... is not configured for this session"
+  — confirms even read-only PR-status checks on third-party repos are out of reach, not just writes,
+  so bump/stale-check on priority 1 remains impossible from this session. Checked
+  `$HTTPS_PROXY/__agentproxy/status` again: noProxy allowlist unchanged, still no mail host — SMTP
+  outreach (priority 3) remains architecturally blocked, consistent with run 89/97. For priority 2,
+  tried GitHub code search for "Presently"/"Reflectary" journal mentions (zero hits) and `"on-device"
+  "journal" awesome filename:README.md` (105 hits, all noise/already-ruled-out lists or Flutter/Mac-
+  scoped lists already excluded — jaywcjlove/awesome-mac, Solido/awesome-flutter). One incidental
+  observation while reading tehtbl/awesome-note-taking's current README via search snippet: a
+  competing app "DailyVox" is now listed there with a very MirrorNotes-like pitch ("on-device
+  transcription, mood tracking, Digital Twin... 100% offline, optional iCloud sync") — not
+  actionable (can't compare further without repo access), just logged for awareness. No new
+  candidate cleared the fit bar; no PRs opened, no comments posted, no emails sent — 98th
+  consecutive run blocked purely on environment/session config (GitHub cross-owner scope, SMTP
+  egress), both freshly reconfirmed via live checks this run. Not notifying: identical standing
+  blocker already surfaced and explained in prior runs' notifications, nothing material changed.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
