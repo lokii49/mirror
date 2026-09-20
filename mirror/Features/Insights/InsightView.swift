@@ -473,7 +473,10 @@ struct InsightView: View {
             }
         case .error(let message):
             ErrorCard(message: message) {
-                Task { await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext) }
+                // loadNudge only re-derives state from existing insights — it never
+                // generates. retryNudge is the actual regen entry point (and gives
+                // instant .loading feedback so the tap isn't visually dead).
+                Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
             }
         }
     }
@@ -646,11 +649,18 @@ struct InsightView: View {
             ModelNotInstalledCard()
         case .groundingFallback(let insight):
             GroundingFallbackCard(message: insight.content) {
+                // Instant feedback — loadWeeklyDigest's own generation call is
+                // synchronous from here on out and gives no progress callback, so
+                // without this the tap looks dead for however long inference takes.
+                viewModel.digestState = .loading
                 Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext, forceRegenerate: true) }
             }
         case .error(let message):
             ErrorCard(message: message) {
-                Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext) }
+                viewModel.digestState = .loading
+                // forceRegenerate: a manual retry shouldn't be blocked by the
+                // Sunday-only pacing gate meant for background auto-generation.
+                Task { await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext, forceRegenerate: true) }
             }
         }
     }
