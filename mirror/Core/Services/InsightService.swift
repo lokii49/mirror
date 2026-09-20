@@ -25,7 +25,7 @@ Read the user's local journal context and offer ONE specific, personal reflectio
 Rules:
 - Output only the reflection itself. No preamble, no "Here's a reflection", no announce line ending in a colon — start on the first observation
 - Never address the writer as "friend", "my friend", or any nickname — only "you" and "your"
-- Use the Long-term context to understand recurring themes, but ground the answer in Recent entries
+- Recent entries below is what you must ground the reflection in and open from — read it first. Long-term context is background only, for understanding recurring themes; never quote or lift phrasing directly from it
 - Reference actual words, moods, dates, or concrete events, not generic advice
 - Open by naming something concrete from a specific entry — an event, an image, a decision, a place, a person, a phrase they used. Start inside the observation itself, not with a wind-up. The first sentence should be different every day and could not have been written about someone else's journal.
 - When using "I" it is always Mirror's voice (e.g. "I noticed"), never the journal writer's voice
@@ -314,6 +314,60 @@ enum InsightService {
         return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count, nudgeWordCount: nudgeWords.count)
     }
 
+    /// A deliberately weaker backstop than `isUngrounded` — flags text only when it shares
+    /// ZERO real words with `recentEntries`, never scaled by corpus size. This exists alongside
+    /// `isUngrounded(recent+background)`, not as a replacement for it: the combined-pool check
+    /// stays exactly as tuned (see `minimumSharedWords`'s doc comment on why that tuning is
+    /// fragile and shouldn't be touched blind).
+    ///
+    /// First shipped as `isUngrounded(text, sourceEntries: recent)` — reusing the SAME scaled
+    /// threshold for `recent` alone. That regressed live within a day: real device testing
+    /// (2026-09-20) showed the groundingFallback card on every attempt, for entries that were
+    /// the user's genuine recent three. Reproduced in isUngrounded_genuinelyGroundedAgainstReal-
+    /// RecentThree_notDetected — plausible MirrorNotes-voice reflections that echo one or two
+    /// real specifics and paraphrase the rest (exactly how a 1B model actually writes) landed
+    /// `minimumSharedWords` of 2-4 against a 3-entry recent set, and got flagged. The combined-
+    /// pool check's scaling was tuned for corpora up to ~26 entries; applying it a second time to
+    /// a corpus of 2-3 is a different regime it was never validated against — same class of
+    /// mistake as the original flat-2/scaled-cap history this whole guard has already been
+    /// through twice (see `minimumSharedWords`'s doc comment).
+    ///
+    /// A flat "shares nothing at all" bar is what actually matches the failure this exists to
+    /// catch: the original rain incident had ZERO shared words with recent — any threshold, even
+    /// 1, would have caught it — so there's no need to demand more than that and risk rejecting a
+    /// genuinely paraphrased reflection along with it.
+    static func sharesNoWordWithRecent(_ text: String, recentEntries: [Entry]) -> Bool {
+        let nudgeWords = contentWords(text)
+        guard !nudgeWords.isEmpty else { return false }
+        let recentWords = contentWords(recentEntries.map(\.insightContext).joined(separator: " "))
+        // `dailyNudgeContext` falls back to a single old entry (`Array(sorted.prefix(1))`) when
+        // nothing is inside the 14-day window — a returning user writing again after a long gap.
+        // A 2-3 word entry ("Going in a good phase!") gives an honestly-grounded reflection almost
+        // no vocabulary to land on at all; demanding even one shared word from that thin a corpus
+        // risks the exact false-positive this function exists to avoid. Same "too small to judge
+        // fairly" floor `minimumSharedWords` already uses (`sourceWordCount >= 4`) — below it,
+        // defer entirely to the combined-pool check rather than adding a second opinion here.
+        guard recentWords.count >= 4 else { return false }
+        return nudgeWords.isDisjoint(with: recentWords)
+    }
+
+    /// DEBUG-only diagnostic: prints only counts and thresholds, never words or text — a repeat
+    /// of a live "every attempt fails grounding" report where the underlying issue could be
+    /// either check (combined-pool scaled, or recent-only flat) and there's no way to tell which
+    /// without seeing the actual numbers each one computed, which finalNudgeResult's fallback
+    /// substitution otherwise throws away entirely.
+    static func debugLogGroundingCheck(_ text: String, recent: [Entry], background: [Entry], label: String) {
+        #if DEBUG
+        let nudgeWords = contentWords(text)
+        let combinedWords = contentWords((recent + background).map(\.insightContext).joined(separator: " "))
+        let recentWords = contentWords(recent.map(\.insightContext).joined(separator: " "))
+        let sharedCombined = nudgeWords.intersection(combinedWords).count
+        let sharedRecent = nudgeWords.intersection(recentWords).count
+        let threshold = minimumSharedWords(sourceWordCount: combinedWords.count, nudgeWordCount: nudgeWords.count)
+        print("[nudge][\(label)] nudgeWords=\(nudgeWords.count) combinedWords=\(combinedWords.count) recentWords=\(recentWords.count) sharedCombined=\(sharedCombined)/\(threshold) sharedRecent=\(sharedRecent)")
+        #endif
+    }
+
     /// A terse entry ("Going in a good phase!") gives a genuinely grounded nudge only two or
     /// three real content words to land on at all — demanding 2 shared words there would make
     /// short-entry users fail this guard even when honestly grounded, the exact false-positive
@@ -379,7 +433,11 @@ enum InsightService {
                 let asOf = insight.generatedAt
                 let priorEntries = allEntries.filter { $0.createdAt <= asOf }
                 let (recent, background) = dailyNudgeContext(from: priorEntries, asOf: asOf)
+                // Same dual check as generateNudge's live guard — this audit exists specifically
+                // to retroactively find insights the pre-fix combined-only check let through, so
+                // it has to use the fixed check, not the one being audited against.
                 return isUngrounded(insight.content, sourceEntries: recent + background)
+                    || sharesNoWordWithRecent(insight.content, recentEntries: recent)
             }
             .sorted { $0.generatedAt < $1.generatedAt }
     }
@@ -392,7 +450,8 @@ enum InsightService {
             title: "Daily reflection context",
             recentEntries: recent,
             backgroundEntries: background,
-            maxChars: dailyNudgePromptBudget
+            maxChars: dailyNudgePromptBudget,
+            includeRecurringTerms: false
         )
         let openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
         if !openings.isEmpty {
@@ -435,7 +494,22 @@ enum InsightService {
             }
 
             let violatesRepeat = repeatsPriorOpening(result.text, openings: openings)
+            // Checked against `recent` alone too (via the flat sharesNoWordWithRecent backstop,
+            // not a second scaled isUngrounded pass — see its doc comment for why reusing the
+            // scaled threshold on a small corpus regressed live on 2026-09-20). DAILY_NUDGE_
+            // SYSTEM's own rule is "ground the answer in Recent entries" — background is only for
+            // reading recurring themes, not for supplying the actual grounding — but the
+            // combined-pool check alone lets a fabrication clear the bar on coincidental overlap
+            // with background filler once the corpus is large (up to ~20 background entries,
+            // hundreds of words). Real device case (2026-09-19): a rain/"quiet moments"
+            // fabrication shared zero vocabulary with the 3 recent entries (self-control, a Timer
+            // app launch, MirrorNotes feedback) yet still rendered as a real reflection.
             let violatesGrounding = isUngrounded(result.text, sourceEntries: recent + background)
+                || sharesNoWordWithRecent(result.text, recentEntries: recent)
+            #if DEBUG
+            print("[nudge][attempt \(attempt)] rawChars=\(result.text.count) rawWords=\(result.text.split(separator: " ").count)")
+            #endif
+            debugLogGroundingCheck(result.text, recent: recent, background: background, label: "attempt \(attempt)")
             guard violatesRepeat || violatesGrounding else {
                 return (result.text, result.engine, false)
             }
@@ -613,7 +687,14 @@ enum InsightService {
                 return (weeklyDigestUngroundedFallback, previous.engine)
             }
 
-            guard isUngrounded(result.text, sourceEntries: sourceEntries) else { return result }
+            // Same dilution fix as generateNudge: `sourceEntries` (recent + background, up to
+            // 26 entries) can be large enough that a fabrication clears the combined-pool
+            // minimum on coincidental overlap with background filler. `recentEntries` alone
+            // (this week only) via the flat sharesNoWordWithRecent backstop — not a second
+            // scaled isUngrounded pass, which regressed live against a small corpus (see that
+            // function's doc comment).
+            guard isUngrounded(result.text, sourceEntries: sourceEntries)
+                || sharesNoWordWithRecent(result.text, recentEntries: recentEntries) else { return result }
 
             lastResult = result
             guard attempt < maxAttempts else { break }
@@ -667,7 +748,13 @@ enum InsightService {
                 return (monthlyReportUngroundedFallback, previous.engine)
             }
 
-            guard isUngrounded(result.text, sourceEntries: allEntries) else { return result }
+            // Same dilution fix as generateNudge/generateWeeklyDigest: `allEntries` can span a
+            // user's whole history, easily large enough for a fabrication to clear the combined
+            // threshold on coincidental overlap. `monthEntries` alone (this month only) via the
+            // flat sharesNoWordWithRecent backstop, not a second scaled isUngrounded pass (see
+            // that function's doc comment for why the scaled version regressed on a small corpus).
+            guard isUngrounded(result.text, sourceEntries: allEntries)
+                || sharesNoWordWithRecent(result.text, recentEntries: monthEntries) else { return result }
 
             lastResult = result
             guard attempt < maxAttempts else { break }
@@ -1431,22 +1518,36 @@ enum InsightService {
         title: String,
         recentEntries: [Entry],
         backgroundEntries: [Entry],
-        maxChars: Int
+        maxChars: Int,
+        includeRecurringTerms: Bool = true
     ) -> String {
         let recentBlock = formatEntries(recentEntries, maxChars: Int(Double(maxChars) * 0.72))
-        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28))
+        let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: Int(Double(maxChars) * 0.28), includeRecurringTerms: includeRecurringTerms)
+        #if DEBUG
+        // Lengths and entry counts only — never the block contents.
+        print("[nudge][prompt:\(title)] recentEntries=\(recentEntries.count) recentBlockChars=\(recentBlock.count) isRecentEmpty=\(recentBlock == "No entries available.") backgroundEntries=\(backgroundEntries.count) backgroundBlockChars=\(backgroundBlock.count)")
+        #endif
 
         let today = Date().formatted(date: .abbreviated, time: .omitted)
+        // Recent entries first, Long-term context second. Originally tried as a fix for a 1B
+        // model sharing ZERO words with `recent` on real device logs (2026-09-20), on the
+        // hypothesis that background-first gave its more "quotable" brief undue priority. That
+        // hypothesis measured as a no-op: output length and shared-word counts were identical
+        // before and after this reorder (the actual cause turned out to be the recurring-terms
+        // keyword list in Long-term context — see `includeRecurringTerms`). Kept anyway because
+        // it matches the system prompt's own stated priority ("ground the answer in Recent
+        // entries") and cost nothing to keep — not because it's confirmed to change model
+        // behavior.
         return """
         \(title)
 
         Today: \(today)
 
-        Long-term context:
-        \(backgroundBlock)
-
         Recent entries:
         \(recentBlock)
+
+        Long-term context:
+        \(backgroundBlock)
         """
     }
 
@@ -1493,7 +1594,7 @@ enum InsightService {
 
     // internal, not private — same pattern as `selectRepresentativeExcerpts` and `validate`,
     // bumped for MemoryBriefBudgetTests to exercise the real truncation path directly.
-    static func buildMemoryBrief(from entries: [Entry], maxChars: Int) -> String {
+    static func buildMemoryBrief(from entries: [Entry], maxChars: Int, includeRecurringTerms: Bool = true) -> String {
         guard !entries.isEmpty else { return "No older context available yet." }
 
         let total = entries.count
@@ -1531,10 +1632,22 @@ enum InsightService {
             }
             .joined(separator: "\n")
 
+        // The recurring-terms line is a bare comma-separated word list — real device logging
+        // (2026-09-20) showed a 1B model on the daily nudge path lifting 2-3 words straight from
+        // it verbatim (matching background, never recent) instead of engaging with the prose in
+        // Recent entries: a labeled list next to "open by naming something concrete" reads as a
+        // ready-made answer, easier than parsing paragraphs. `includeRecurringTerms: false` (used
+        // by generateNudge only, where the prompt explicitly requires grounding in Recent entries
+        // specifically) drops the line entirely rather than trying to word-guard a shortcut that
+        // survived a prompt reorder already. Weekly digest / monthly report / Ask keep it — they
+        // don't have this reported failure, and reformatting them blind risks the same kind of
+        // unverified regression `minimumSharedWords`' tuning history already caused twice.
+        let recurringLine = includeRecurringTerms
+            ? "\nRecurring words/themes: \(recurringTerms.isEmpty ? "not enough repeated terms" : recurringTerms.joined(separator: ", "))."
+            : ""
         let brief = """
         Older entries reviewed: \(total) (\(dateRange)).
-        Common moods: \(moodCounts.isEmpty ? "not enough mood labels" : moodCounts).
-        Recurring words/themes: \(recurringTerms.isEmpty ? "not enough repeated terms" : recurringTerms.joined(separator: ", ")).
+        Common moods: \(moodCounts.isEmpty ? "not enough mood labels" : moodCounts).\(recurringLine)
         Voice-note entries: \(voiceCount).
         Representative older excerpts:
         \(excerpts)

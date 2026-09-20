@@ -164,6 +164,10 @@ struct MonthlyReportView: View {
                 ModelNotInstalledCard()
             case .groundingFallback(let insight):
                 groundingFallbackCard(message: insight.content) {
+                    // Instant feedback — generation gives no progress callback of its
+                    // own, so without this the tap looks dead for however long
+                    // inference takes.
+                    viewModel.monthlyReportState = .loading
                     Task {
                         await viewModel.loadMonthlyReport(
                             entries: entries,
@@ -175,6 +179,7 @@ struct MonthlyReportView: View {
                 }
             case .error(let message):
                 errorCard(message: message) {
+                    viewModel.monthlyReportState = .loading
                     Task {
                         await viewModel.loadMonthlyReport(
                             entries: entries,

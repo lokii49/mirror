@@ -1,10 +1,7 @@
-Ein neuer Einstieg – und Reflexionen, denen du vertrauen kannst.
+Zuverlässigere tägliche Reflexionen.
 
-• Talk it out: ein kurzes geführtes Gespräch (bis zu 3 Fragen), das sich in einen neuen Tagebucheintrag verwandelt — vollständig auf deinem Gerät, nichts wird gespeichert, bis du schreibst.
-• Scanne handschriftlichen oder gedruckten Text mit der Kamera direkt in einen Eintrag.
-• Neue Ein-Tipp-Starter für Einträge — Dankbarkeit, 3 Erfolge, Stimmungsprotokoll — neben dem täglichen Schreibimpuls.
-• Tägliche Reflexionen, Wöchentliche Zusammenfassungen und Monatliche Tiefenberichte greifen jetzt deutlich zuverlässiger auf das zurück, was du tatsächlich geschrieben hast — der Fehler, durch den viele stattdessen nur „Konnte nicht bestätigt werden" zeigten, wurde behoben.
-• Wenn eine Reflexion nicht bestätigt werden kann, tippe einfach auf „Erneut versuchen" für eine neue, statt zu warten.
-• Die Schnellerfassung per Siri ist jetzt leichter zu finden, mit Einrichtungshinweisen in den Einstellungen.
-• Unterstützung für „Bewegung reduzieren" hinzugefügt und der Kontrast der Stimmungsauswahl verbessert.
-• Fehlerbehebungen und Feinschliff.
+• Tägliche Reflexionen werden jetzt direkt nach dem Schreiben erstellt, auch wenn es schon nach deiner gewohnten Zeit ist — du musst die App dafür nicht mehr verlassen und neu öffnen.
+• Ein Fehler behoben, durch den eine Reflexion gelegentlich Inhalte zeigen konnte, die nicht auf dem beruhten, was du tatsächlich geschrieben hast.
+• „Erneut versuchen" funktioniert jetzt zuverlässig — tippe darauf und erhalte eine neue, echte Reflexion, statt dass nichts passiert.
+• Das Home-Bildschirm-Widget behoben, das manchmal „Konnte nicht bestätigt werden" anstelle deiner echten Reflexion anzeigte.
+• Kleinere Fehlerbehebungen und Feinschliff.

@@ -196,6 +196,12 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     CachedInsightRepair.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
+                // One-time: retroactively flag already-cached nudges/digests/reports that
+                // fabricated content slipped past the pre-fix grounding check (see
+                // UngroundedInsightCleanup's doc comment).
+                Task { @MainActor in
+                    UngroundedInsightCleanup.runIfNeeded(context: sharedModelContainer.mainContext)
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
@@ -211,6 +217,11 @@ struct mirrorApp: App {
                 scheduleDailyNudgeFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
+                // A true backgrounding, unlike an .active->.inactive->.active flicker from a
+                // system permission dialog mid-launch (see UngroundedInsightCleanup's deferral,
+                // which needs a real "this is a later session" signal, not just another .active
+                // call within the same cold launch).
+                UngroundedInsightCleanup.recordBackgrounding()
                 // Give any remaining in-flight generation (BGProcessingTask path) ~30s grace.
                 extendBackgroundForPendingGeneration()
             default:
@@ -361,7 +372,7 @@ struct mirrorApp: App {
     // MARK: - Shared generation helpers (also called from BGAppRefreshTask fallback)
 
     @MainActor
-    static func runDailyNudgeIfNeeded(context: ModelContext, bypassTimeGate: Bool = false) async {
+    static func runDailyNudgeIfNeeded(context: ModelContext, bypassTimeGate: Bool = false, userInitiatedRetry: Bool = false) async {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
 
@@ -380,14 +391,24 @@ struct mirrorApp: App {
         if let newestToday = todayInsights
             .filter({ $0.type == .dailyNudge })
             .max(by: { $0.generatedAt < $1.generatedAt }) {
-            guard InsightService.isUngroundedFallback(newestToday.content) else { return }
+            guard InsightService.isUngroundedFallback(newestToday.content) else {
+                #if DEBUG
+                print("[nudge] blocked: newestToday-is-real")
+                #endif
+                return
+            }
         }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let entries = (try? context.fetch(entryDescriptor)) ?? []
-        guard entries.count >= 3 else { return }
+        guard entries.count >= 3 else {
+            #if DEBUG
+            print("[nudge] blocked: entries<3")
+            #endif
+            return
+        }
 
         // First nudge is free; subsequent require subscription. A fallback doesn't count as
         // "seen" — otherwise a free user whose very first attempt happened to fail the grounding
@@ -395,16 +416,31 @@ struct mirrorApp: App {
         let allInsightsDescriptor = FetchDescriptor<Insight>()
         let allInsights = (try? context.fetch(allInsightsDescriptor)) ?? []
         let hasSeenFirst = allInsights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
-        if hasSeenFirst && !SubscriptionService.shared.isSubscribed { return }
+        if hasSeenFirst && !SubscriptionService.shared.isSubscribed {
+            #if DEBUG
+            print("[nudge] blocked: paywall")
+            #endif
+            return
+        }
 
         // Only generate if there are entries written after the last REAL nudge. No new writing →
         // no new reflection. A fallback is excluded from "last nudge" here too — retrying it
         // against the same entries that produced it is exactly the point, not blocked by "nothing
-        // new since then."
-        if let lastNudge = allInsights
+        // new since then." `userInitiatedRetry` bypasses this gate entirely — it exists to stop
+        // *automatic* regeneration churn (nightly task, app-open pre-gen) when nothing new was
+        // written, not to block a deliberate Try Again tap. Without this, a user whose single
+        // real nudge happened to generate after their most recent entry (e.g. an overnight
+        // background pass) could tap Try Again forever and silently get nothing — same pattern
+        // digest/monthly's `forceRegenerate` already uses for their own explicit-retry paths.
+        if !userInitiatedRetry, let lastNudge = allInsights
             .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
             .max(by: { $0.generatedAt < $1.generatedAt }) {
-            guard entries.contains(where: { $0.createdAt > lastNudge.generatedAt }) else { return }
+            guard entries.contains(where: { $0.createdAt > lastNudge.generatedAt }) else {
+                #if DEBUG
+                print("[nudge] blocked: no-new-entry-since-last-real-nudge")
+                #endif
+                return
+            }
         }
 
         // Respect the user's preferred nudge time so a full day of writing informs the reflection.
@@ -413,11 +449,29 @@ struct mirrorApp: App {
         if !bypassTimeGate {
             let preferredHour = NotificationService.nudgeHour()
             let currentHour = Calendar.current.component(.hour, from: Date())
-            guard currentHour >= preferredHour else { return }
+            guard currentHour >= preferredHour else {
+                #if DEBUG
+                print("[nudge] blocked: before-nudge-hour")
+                #endif
+                return
+            }
         }
 
-        guard modelAvailable() else { return }
-        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
+        guard modelAvailable() else {
+            #if DEBUG
+            print("[nudge] blocked: model-unavailable")
+            #endif
+            return
+        }
+        guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
+            #if DEBUG
+            print("[nudge] blocked: coordinator-claimed")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("[nudge] proceeding to generate")
+        #endif
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         let recentNudges = allInsights
@@ -428,18 +482,30 @@ struct mirrorApp: App {
 
         do {
             let (text, engine, degraded) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
+            #if DEBUG
+            print("[nudge] generateNudge returned: degraded=\(degraded) isFallbackText=\(InsightService.isUngroundedFallback(text)) engine=\(engine)")
+            #endif
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
-            let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
-            wDefaults?.set(text, forKey: "widget.nudge.text")
-            wDefaults?.set(today, forKey: "widget.nudge.date")
-            if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
-                wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
-            } else {
-                wDefaults?.removeObject(forKey: "widget.nudge.mood")
+            // Real device case (2026-09-20): the widget has no groundingFallback UI like the
+            // in-app card does — it just renders whatever string it's handed. Writing `text`
+            // unconditionally put the canned "couldn't confirm this reflection" sentence on the
+            // home screen looking like a real nudge, with no retry affordance there at all. Only
+            // sync the widget on a real result; a fallback leaves the widget showing whatever
+            // real nudge it last had (or nothing), same as the in-app UI never overwrites a real
+            // card with a fallback in place.
+            if !InsightService.isUngroundedFallback(text) {
+                let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+                wDefaults?.set(text, forKey: "widget.nudge.text")
+                wDefaults?.set(today, forKey: "widget.nudge.date")
+                if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+                    wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
+                } else {
+                    wDefaults?.removeObject(forKey: "widget.nudge.mood")
+                }
+                WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             }
-            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
             let hour = NotificationService.nudgeHour()
             let minute = NotificationService.nudgeMinute()
             if SubscriptionService.shared.isSubscribed {
@@ -469,7 +535,12 @@ struct mirrorApp: App {
                 // the same one-time notification, never duplicates it.
                 await NotificationService.scheduleFirstNudgeHook(hour: hour, minute: minute)
             }
-        } catch { /* Non-fatal — InsightView.task will retry when user navigates there */ }
+        } catch {
+            #if DEBUG
+            print("[nudge] generateNudge threw: \(type(of: error))")
+            #endif
+            /* Non-fatal — InsightView.task will retry when user navigates there */
+        }
     }
 
     // Both of these feed "insightReady" into push-notification copy that promises a real
@@ -855,8 +926,17 @@ struct mirrorApp: App {
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == today }
         )
+        // Newest wins (matches resolvedNudgeState's own read) and a fallback is skipped
+        // entirely, same reasoning as the inline write in runDailyNudgeIfNeeded's do-block: the
+        // widget has no groundingFallback UI, so writing the canned "couldn't confirm" sentence
+        // renders it as if it were a real nudge with no retry affordance. Catch-all callers of
+        // this function (CachedInsightRepair, UngroundedInsightCleanup, preGenerateInsightsIfNeeded)
+        // could otherwise push that text to the widget even when the in-app card correctly shows
+        // the retry state instead.
         guard let insights = try? context.fetch(descriptor),
-              let nudge = insights.first(where: { $0.type == .dailyNudge }) else { return }
+              let nudge = insights
+                  .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
+                  .max(by: { $0.generatedAt < $1.generatedAt }) else { return }
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
         defaults?.set(nudge.content, forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")

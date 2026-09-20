@@ -90,6 +90,7 @@ extension WriteView {
             let ctx = modelContext
             Task { @MainActor in
                 try? ctx.save()
+                await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
                 await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
             }
         } else {
@@ -126,6 +127,13 @@ extension WriteView {
                 ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
                 let ctx = modelContext
                 Task { @MainActor in
+                    // Foreground writes past the nudge hour used to sit dead until the
+                    // app backgrounded/reopened — nothing else in-session re-triggers
+                    // generation. Firing it here (same non-bypass gate as
+                    // preGenerateInsightsIfNeeded, so the nudge-hour preference still
+                    // applies) closes that gap without a second time-gate rule to keep
+                    // in sync.
+                    await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
                     await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
                 }
                 clearDraftStorage()
@@ -178,6 +186,10 @@ extension WriteView {
         }
         ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let ctx = modelContext
+        Task { @MainActor in
+            await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
+        }
         clearDraft()
         clearDraftStorage()
         withAnimation { showSaved = true }
