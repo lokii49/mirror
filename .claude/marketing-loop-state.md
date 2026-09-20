@@ -1213,6 +1213,28 @@ to keep this file readable in one pass — read it too if you need older history
   egress), both freshly reconfirmed via live checks this run. Not notifying: identical standing
   blocker already surfaced and explained in prior runs' notifications, nothing material changed.
 
+- 2026-09-20 (run 99): Re-confirmed the GitHub cross-owner block with a fresh live probe:
+  `pull_request_read` (method get) on tehtbl/awesome-note-taking#89 rejected with "repository ...
+  is not configured for this session. Allowed repositories: lokii49/mirror" — priority-1 bump
+  remains impossible. Did NOT re-test raw SMTP reachability (per run 89's permanent-architectural-
+  limit finding, still unchanged; this environment's own proxy allowlist description in this
+  session matches prior runs exactly). For priority 2, tried three discovery angles: GitHub code
+  search for `"Day One" alternative journal awesome filename:README.md` (90 hits, all either
+  already-logged/ruled-out lists — jaywcjlove/awesome-mac — or unrelated noise matching "day one"/
+  "journal" as incidental words, e.g. Lisp/agent-framework READMEs); a WebSearch for "awesome"
+  github journaling/privacy/on-device-AI lists (surfaced only individual competitor apps and
+  GitHub topic pages, both already-established discovery dead ends, no curated directory); and a
+  `search_repositories` query combining journal/diary/privacy-first keywords with a recent
+  `created:>2026-08-01` filter sorted by `updated` (returned pure noise — unrelated game-download
+  repos, portfolio sites, and `enhansome/*` bot-network entries already flagged in Lessons — the
+  `sort:updated` + broad keyword-OR combination surfaces recently-touched junk repos, not curated
+  lists; do not repeat this exact query shape). No new candidate cleared the fit bar this run. No
+  PRs opened, no comments posted, no emails sent — 99th consecutive run blocked purely on
+  environment/session config (GitHub cross-owner scope, SMTP egress), both reconfirmed unchanged.
+  Not notifying: identical standing blocker already surfaced and explained in prior runs'
+  notifications (most recently run 89's SMTP root-cause finding and run 82's month-mark flag),
+  and nothing material changed this run beyond one more ruled-out search-query shape.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
