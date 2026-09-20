@@ -99,17 +99,33 @@ final class InsightViewModel {
     /// The one exception to "views never trigger LLM directly": a user's explicit "Try Again"
     /// tap on a groundingFallback card is deliberate intent, same as the nightly background
     /// task's own bypassTimeGate — so this re-enters the exact same generation entry point
-    /// (mirrorApp.runDailyNudgeIfNeeded) rather than duplicating its gates here. That function's
-    /// own guards already treat a fallback insight as retriable without requiring new entries
-    /// (see its comments), so no separate "force" parameter is needed. The result lands as a
-    /// new Insight row; onChange(of: insights.count) picks it up and calls loadNudge again.
+    /// (mirrorApp.runDailyNudgeIfNeeded) rather than duplicating its gates here.
+    ///
+    /// `userInitiatedRetry: true` matters, not just `bypassTimeGate`: a real device case
+    /// (2026-09-20) showed Try Again doing nothing, repeatably — the account's one real nudge
+    /// had a `generatedAt` that happened not to be older than the user's newest entry at the
+    /// moment they tapped, so the "no new writing since the last real nudge" gate silently
+    /// returned before generation ever ran. That gate is meant to stop automatic regeneration
+    /// churn (nightly task, app-open pre-gen), not a deliberate tap — same reasoning digest/
+    /// monthly's `forceRegenerate` already uses.
+    ///
+    /// After generation, re-fetches `Insight` directly from `context` rather than reusing the
+    /// `insights` parameter — that array is a plain snapshot captured when the caller's button
+    /// closure fired, not a live query, so it still doesn't contain the row `runDailyNudgeIfNeeded`
+    /// just inserted a moment earlier in this same function. Another real device case (2026-09-20):
+    /// generation succeeded (a real, grounded reflection saved) but the card kept showing the old
+    /// fallback until the user manually left and reopened Insights — SwiftData's own `@Query`
+    /// eventually notices the new row and fires `onChange(of: insights.count)` too, but not
+    /// promptly enough to trust as the only path. Fetching fresh here makes the result visible
+    /// immediately regardless of that timing.
     func retryNudge(entries: [Entry], insights: [Insight], context: ModelContext) async {
         // Instant feedback — generation is a cold model load plus inference (can run 10s of
         // seconds on-device), and runDailyNudgeIfNeeded gives no progress callback of its own.
         // Without this the button looks dead for that whole window.
         nudgeState = .loading
-        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
-        await loadNudge(entries: entries, insights: insights, context: context)
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true, userInitiatedRetry: true)
+        let freshInsights = (try? context.fetch(FetchDescriptor<Insight>())) ?? insights
+        await loadNudge(entries: entries, insights: freshInsights, context: context)
     }
 
     private func resolvedNudgeState(entries: [Entry], insights: [Insight]) -> NudgeState {

@@ -600,6 +600,85 @@ struct InsightValidationTests {
         #expect(!InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 
+    // The real device case that motivated checking `recent` alone, not just `recent +
+    // background` (isUngrounded_fabricatedContent_detected already proves the combined check
+    // fires against a small corpus — this proves the loophole that opens once background grows
+    // to ~20 entries). `recentEntries` below are the verbatim real entries behind the 2026-09-19
+    // report (self-control/anger, a Timer app work session, MirrorNotes feedback) — user
+    // confirmed no entry anywhere mentions "rain". `backgroundEntries` is a representative
+    // 20-entry filler corpus standing in for the unseen real one; it isn't the user's actual
+    // data, just plausible generic journaling that happens to land a few coincidental words
+    // ("quiet", "moments", "space", "present") the fabricated nudge also uses.
+    @Test func isUngrounded_fabricationClearsCombinedPool_recentAloneStillCatchesIt() {
+        let recentEntries = [
+            Entry(text: "Few things I shouldn't repeat again, because those make my confidence low. Self control is the so much important, I should stick to few things. As I woke up late, came back from Saikiran room to PG, After Freshup then started working on Timer app, really hoping people will love it. Along with this, watched a good movie, had good conversation with Arthy. More importantly other than self control, I should also control my anger. Let sarcasm come first, let cool talk come first before any argument. Anger will the last thing."),
+            Entry(text: "Got a feedback about MirrorNotes, even though it's a complaint I felt happy because people are using the app & a user reported an issue. I got confidence on the product I'm building. I would myself dedicate certain time for MirrorNotes & improve this. MirrorNotes will definitely be successful."),
+            Entry(text: "Came home, Having a good feeling that everything is going to be alright! Hoping for the best!"),
+        ]
+        let backgroundEntries = [
+            Entry(text: "Quiet start to the morning, took a few moments before getting out of bed."),
+            Entry(text: "Found some space in the day to just sit with my thoughts for once."),
+            Entry(text: "Trying to stay present instead of rushing through every task today."),
+            Entry(text: "Long call with a friend, mostly just catching up on small things."),
+            Entry(text: "Cleaned the room a bit, felt good to clear some space out."),
+            Entry(text: "Skipped the gym today, just wasn't feeling it."),
+            Entry(text: "Read a bit before bed, nothing major happened today."),
+            Entry(text: "Worked through a backlog of small tasks, nothing exciting."),
+            Entry(text: "Caught up on messages I'd been putting off for a while."),
+            Entry(text: "Tried to plan out next week a little, still figuring it out."),
+            Entry(text: "Watched some videos, didn't do much else."),
+            Entry(text: "Ate out with a friend, decent conversation."),
+            Entry(text: "Slow day overall, mostly just resting."),
+            Entry(text: "Did some laundry and other small chores."),
+            Entry(text: "Checked in on a few old projects, nothing new."),
+            Entry(text: "Short walk in the evening, nice weather."),
+            Entry(text: "Spent time organizing notes from the week."),
+            Entry(text: "Nothing major today, fairly ordinary."),
+            Entry(text: "Talked with family for a bit in the evening."),
+            Entry(text: "Wrapped up a few small errands around the house."),
+        ]
+        let nudge = "The scent of rain outside feels like a gentle reminder of the quiet moments you've been craving – a small, steady rhythm against the backdrop of your thoughts. It's a comforting feeling, and it pulls at a part of you that wants to simply be in the present, without needing to chase after anything else. Perhaps taking a few deep breaths, focusing on the sensation of the rain, could help you reconnect with that quiet space within yourself."
+
+        // The bug: checking the combined pool alone lets this slip through once "quiet",
+        // "moments", "space", and "present" each land once across 20 background entries —
+        // exactly the coincidental-overlap failure mode isUngrounded_oneCoincidentalWordAgainst-
+        // DetailedEntry already backstops for a single entry, reopened here at corpus scale.
+        #expect(!InsightService.isUngrounded(nudge, sourceEntries: recentEntries + backgroundEntries))
+        // The fix: the flat sharesNoWordWithRecent backstop against `recent` alone (small,
+        // on-topic, can't be diluted) still catches it — zero real overlap with the entries the
+        // prompt actually requires this nudge to be grounded in. Not isUngrounded(recent) — that
+        // was the first version of this fix and it regressed live (see sharesNoWordWithRecent's
+        // doc comment and isUngrounded_genuinelyGroundedAgainstRealRecentThree_notDetected below).
+        #expect(InsightService.sharesNoWordWithRecent(nudge, recentEntries: recentEntries))
+    }
+
+    // The live regression this locks in: the FIRST version of the recent-only fix reused
+    // isUngrounded's scaled threshold against `recent` alone, and real device testing
+    // (2026-09-20) showed the groundingFallback card on every attempt, for entries that ARE the
+    // user's real recent three (self-control/Timer app, MirrorNotes feedback, "came home
+    // hopeful"). These four nudges are plausible MirrorNotes-voice reflections a human would
+    // call genuinely grounded — each echoes real specifics but paraphrases the rest, the way an
+    // on-device 1B model actually writes — and the scaled threshold flagged them anyway (this
+    // test failed against the old `isUngrounded(text, sourceEntries: recentEntries)` call before
+    // the fix). `sharesNoWordWithRecent` is the fix: flat, not scaled, so it can't reject a
+    // reflection over sharing "only" one or two real words.
+    @Test func isUngrounded_genuinelyGroundedAgainstRealRecentThree_notDetected() {
+        let recentEntries = [
+            Entry(text: "Few things I shouldn't repeat again, because those make my confidence low. Self control is the so much important, I should stick to few things. As I woke up late, came back from Saikiran room to PG, After Freshup then started working on Timer app, really hoping people will love it. Along with this, watched a good movie, had good conversation with Arthy. More importantly other than self control, I should also control my anger. Let sarcasm come first, let cool talk come first before any argument. Anger will the last thing."),
+            Entry(text: "Got a feedback about MirrorNotes, even though it's a complaint I felt happy because people are using the app & a user reported an issue. I got confidence on the product I'm building. I would myself dedicate certain time for MirrorNotes & improve this. MirrorNotes will definitely be successful."),
+            Entry(text: "Came home, Having a good feeling that everything is going to be alright! Hoping for the best!"),
+        ]
+        let plausibleNudges = [
+            "The Timer app work and that MirrorNotes feedback landing the same week seem to have given you something real to hold onto.",
+            "You noticed your own pattern with anger today, choosing cool talk over sarcasm before it turns into an argument.",
+            "That complaint about MirrorNotes stung less because it meant someone out there is actually using what you built.",
+            "Coming home hopeful tonight, after a day split between self control and the Timer app, sounds like real progress.",
+        ]
+        for text in plausibleNudges {
+            #expect(!InsightService.sharesNoWordWithRecent(text, recentEntries: recentEntries), "wrongly flagged as ungrounded: \(text)")
+        }
+    }
+
     @Test func isUngrounded_noSourceText_notDetected() {
         // Nothing to compare against (e.g. entries whose decryption failed, all resolving to
         // empty text) shouldn't be treated as proof of fabrication — there's no ground truth
@@ -695,6 +774,27 @@ struct InsightValidationTests {
             generatedAt: makeDate(2026, 9, 2)
         )
         let flagged = InsightService.ungroundedDailyNudges(among: [oldNudge], allEntries: [before, after])
+        #expect(flagged.count == 1)
+    }
+
+    // Exercises the dual check through the actual call path generation and the cleanup pass both
+    // use — isUngrounded_fabricationClearsCombinedPool_recentAloneStillCatchesIt only asserts the
+    // two isUngrounded() calls in isolation, so it would keep passing even if generateNudge (or
+    // this audit) stopped combining them with ||. This locks in that they're actually combined.
+    @Test func ungroundedDailyNudges_fabricationDilutedByLargeBackground_stillFlagged() {
+        let recentEntries = [
+            entry("Few things I shouldn't repeat again, because those make my confidence low. Self control is the so much important, I should stick to few things. As I woke up late, came back from Saikiran room to PG, After Freshup then started working on Timer app, really hoping people will love it.", createdAt: makeDate(2026, 9, 19)),
+            entry("Got a feedback about MirrorNotes, even though it's a complaint I felt happy because people are using the app & a user reported an issue. I got confidence on the product I'm building.", createdAt: makeDate(2026, 9, 17)),
+            entry("Came home, Having a good feeling that everything is going to be alright! Hoping for the best!", createdAt: makeDate(2026, 9, 11)),
+        ]
+        let backgroundEntries = (1...20).map { i in
+            entry("Quiet moment number \(i), spent some time in the present with small ordinary space to think.", createdAt: makeDate(2026, 8, min(i, 28)))
+        }
+        let fabricated = nudge(
+            "The scent of rain outside feels like a gentle reminder of the quiet moments you've been craving – a small, steady rhythm against the backdrop of your thoughts. Perhaps taking a few deep breaths could help you reconnect with that quiet space within yourself.",
+            generatedAt: makeDate(2026, 9, 19, hour: 21, minute: 57)
+        )
+        let flagged = InsightService.ungroundedDailyNudges(among: [fabricated], allEntries: recentEntries + backgroundEntries)
         #expect(flagged.count == 1)
     }
 

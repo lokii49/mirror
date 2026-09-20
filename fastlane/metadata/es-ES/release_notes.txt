@@ -1,10 +1,7 @@
-Una nueva forma de empezar, y reflexiones en las que puedes confiar.
+Reflexiones diarias más fiables.
 
-• Talk it out: una breve conversación guiada (hasta 3 preguntas) que se convierte en una nueva entrada del diario — totalmente en el dispositivo, no se guarda nada hasta que escribes.
-• Escanea texto manuscrito o impreso directamente en una entrada con la cámara.
-• Nuevos inicios rápidos de una sola pulsación — Gratitud, 3 logros, Registro de ánimo — junto a la sugerencia diaria.
-• Las reflexiones diarias, los resúmenes semanales y los informes mensuales ahora se basan de forma mucho más fiable en lo que realmente escribiste — se corrigió el problema que hacía que muchas mostraran "No se pudo confirmar" en lugar de una reflexión real.
-• Cuando una reflexión no se puede confirmar, toca Intentar de nuevo para obtener una nueva en vez de esperar.
-• La captura rápida con Siri ahora es más fácil de encontrar, con instrucciones de configuración en Ajustes.
-• Se añadió compatibilidad con Reducir movimiento y se mejoró el contraste del selector de ánimo.
-• Correcciones y mejoras varias.
+• Las reflexiones diarias ahora se generan justo después de escribir, incluso si ya pasó tu hora habitual — ya no hace falta salir y volver a abrir la app.
+• Se corrigió un problema por el que una reflexión podía mostrar a veces contenido que no se basaba en lo que realmente escribiste.
+• Ahora "Intentar de nuevo" funciona de forma fiable — tócalo y obtén una reflexión nueva y real, en lugar de que no pase nada.
+• Se corrigió el widget de la pantalla de inicio, que a veces mostraba "No se pudo confirmar" en lugar de tu reflexión real.
+• Pequeñas correcciones y mejoras.
