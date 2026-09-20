@@ -1235,6 +1235,22 @@ to keep this file readable in one pass — read it too if you need older history
   notifications (most recently run 89's SMTP root-cause finding and run 82's month-mark flag),
   and nothing material changed this run beyond one more ruled-out search-query shape.
 
+- 2026-09-20 (run 100): Did not re-probe the GitHub cross-owner block or raw SMTP reachability this
+  run — both were freshly live-confirmed just hours earlier in run 99 on the same day, and per
+  Lessons re-testing an already-confirmed architectural block every single run adds no information.
+  For priority 2, ran the competitor-name code-search technique with three names not yet tried
+  ("One Second Diary", "Exist.io", "Journly"/"Momento"): all hits were either the already-ruled-out
+  tortuvshin/open-apps (50-star gate) and fluttergems/awesome-open-source-flutter-apps (Flutter-only
+  scope), or a newly-seen repo, trackawesomelist/trackawesomelist, which turned out to be an
+  automated daily mirror of other awesome-lists' content rather than a human-curated list with its
+  own submission process — ruled out and logged so it isn't re-checked. "Exist.io"/"Journly"/
+  "Momento" returned zero hits. No new candidate cleared the fit bar. No PRs opened, no comments
+  posted, no emails sent — 100th consecutive run blocked purely on environment/session config
+  (GitHub cross-owner scope for PR bump/creation, SMTP egress for outreach email), both unchanged
+  since run 99's live reconfirmation. Not notifying: identical standing blocker already surfaced and
+  explained in prior runs' notifications, and nothing material changed this run beyond one more
+  ruled-out repo.
+
 ## Blocked
 
 ### [env] GitHub write access restricted to lokii49-owned repos only (this session)
@@ -1634,6 +1650,14 @@ noProxy list pass through). Neither is something this loop can do autonomously.
   consistent with an automated generator/content farm rather than human-curated awesome-lists with
   real maintainers. Skip this whole org in future discovery passes rather than checking individual
   enhansome-* repos one at a time. Confirmed 2026-09-19 (run 96).
+- trackawesomelist/trackawesomelist is not a submission channel: it's an automated daily mirror/
+  aggregator that re-publishes snapshots of *other* awesome-lists' READMEs (content is machine-
+  generated from upstream sources, organized by date under content/YYYY/...), not a human-curated
+  list with its own PR-acceptance process. Surfaced via the "One Second Diary" competitor-name code
+  search this run — every hit was either this aggregator's mirrored snapshots or already-ruled-out
+  tortuvshin/open-apps (50-star gate) and fluttergems/awesome-open-source-flutter-apps (Flutter-only
+  scope). "Exist.io"/"Journly"/"Momento" code search returned zero hits. Confirmed 2026-09-20 (run
+  100); do not add trackawesomelist or re-try these three competitor names.
 
 ## Sent log
 
