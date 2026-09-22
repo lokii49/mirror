@@ -6,6 +6,7 @@ struct ManualSettingsView: View {
     @Environment(\.appDisplayMode) private var displayMode
     @State private var showHowItWorks = false
     @State private var showFeatureGuide = false
+    @State private var showAcknowledgments = false
 
     var body: some View {
         ScrollView {
@@ -92,6 +93,17 @@ struct ManualSettingsView: View {
 
                     SettingsDivider()
 
+                    Button { showAcknowledgments = true } label: {
+                        HStack {
+                            SettingsRowLabel(title: "Acknowledgments", systemImage: "doc.text.fill", iconColor: .purple)
+                            Spacer()
+                            SettingsChevron()
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsDivider()
+
                     SettingsRowLabel(title: "Version \(appVersion)", systemImage: "info.circle", iconColor: .secondary)
                 }
             }
@@ -102,6 +114,7 @@ struct ManualSettingsView: View {
         .navigationTitle(displayMode == .sentinel ? "Manual" : "About")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
+        .sheet(isPresented: $showAcknowledgments) { acknowledgmentsSheet }
     }
 
     private var howMirrorWorksSheet: some View {
@@ -147,6 +160,17 @@ struct ManualSettingsView: View {
                     Button("Done") { showHowItWorks = false }
                 }
             }
+        }
+    }
+
+    private var acknowledgmentsSheet: some View {
+        NavigationStack {
+            AcknowledgmentsView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showAcknowledgments = false }
+                    }
+                }
         }
     }
 
