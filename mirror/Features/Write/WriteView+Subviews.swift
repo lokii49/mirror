@@ -58,7 +58,17 @@ extension WriteView {
                     }
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.wordCount)
+                // No .animation(value: wordCount) here — dateHeader is a fixed sibling of the
+                // scrollable editor below it now, not scroll content itself. That spring used
+                // to fire harmlessly on every word boundary; now it wraps the SAME render pass
+                // as the ScrollView's own simultaneous content-size change (the keystroke that
+                // completes a word), and the ScrollView's resize gets swept into the spring's
+                // curve instead of snapping instantly. On-device that showed up as the scroll
+                // position visibly interpolating through an earlier part of the entry — a
+                // "teleport to the top, then ease back" — landing right on word-count changes.
+                // The `.transition` above still animates the badge's one-time 0→1 word
+                // appearance via the `if wordCount > 0` insertion; only the per-keystroke spring
+                // is gone.
             }
 
             if displayMode == .sentinel {
