@@ -314,6 +314,59 @@ enum InsightService {
         return shared.count < minimumSharedWords(sourceWordCount: sourceWords.count, nudgeWordCount: nudgeWords.count)
     }
 
+    /// Catches a narrower, worse failure than `isUngrounded`'s whole-response aggregate: a
+    /// fabricated OPENING claim riding through on genuine words mentioned later in the same
+    /// response. `isUngrounded` counts shared vocabulary anywhere in the text, so a response that
+    /// invents its lead sentence entirely but echoes 2-3 real nouns afterward can clear the
+    /// combined-pool threshold untouched — the aggregate count says "grounded" while the one
+    /// sentence a reader actually takes as the reflection is invented. DAILY_NUDGE_SYSTEM
+    /// requires the opening specifically name something concrete from an entry ("Open by naming
+    /// something concrete from a specific entry"); this checks that requirement directly instead
+    /// of trusting the aggregate count to imply it.
+    ///
+    /// Real device case (2026-09-22): "The rain outside feels like a gentle echo of the quiet
+    /// space you've been trying to create. You're planning a walk... and a book..." — rain/echo/
+    /// space are invented (no entry mentions weather), but "walk"/"book"/"circling" from other
+    /// entries elsewhere in the source pool let the whole response pass `isUngrounded` clean.
+    ///
+    /// Checked against `recent` ONLY, never `recent + background` — tried the combined pool
+    /// first and it didn't catch the reference case above: with a ~20-entry background pool
+    /// (hundreds of words), a fabricated opening has decent odds of coincidentally sharing one
+    /// common-ish word ("outside", "quiet") with *something* in that much text, which is exactly
+    /// the false-negative this check exists to close. `isUngrounded` already covers "is this
+    /// grounded in background themes"; this checks a narrower, stricter thing DAILY_NUDGE_SYSTEM
+    /// actually requires — "open by naming something concrete from a specific [recent] entry" —
+    /// so it must be checked against exactly the entries that requirement names, same scope
+    /// `sharesNoWordWithRecent` already uses for its own flat/unscaled bar. Unlike
+    /// `sharesNoWordWithRecent`, this only inspects the opening sentence: a nudge whose opening is
+    /// 100% invented but whose LATER sentences happen to reference something from `recent` would
+    /// still slip past a whole-text-vs-recent check while failing the system prompt's actual
+    /// requirement, which is specifically about the opening.
+    ///
+    /// Flat 1-word bar, never scaled, for the same reason `sharesNoWordWithRecent` uses one: a
+    /// single sentence doesn't supply enough vocabulary to demand more than "shares anything real
+    /// at all" without risking false positives on short, honestly-grounded openings.
+    static func openingIsUngrounded(_ text: String, recentEntries: [Entry]) -> Bool {
+        let openingWords = contentWords(firstSentence(text))
+        guard !openingWords.isEmpty else { return false }
+        let recentWords = contentWords(recentEntries.map(\.insightContext).joined(separator: " "))
+        guard !recentWords.isEmpty else { return false }
+        return openingWords.intersection(recentWords).isEmpty
+    }
+
+    /// Sentence, not a fixed word count — `repeatsPriorOpening`'s 7-word window is deliberately
+    /// short (it's comparing against prior *openings*, keyed the same way), but a grounding check
+    /// needs the whole claim: "The rain outside feels like a gentle echo of the quiet space
+    /// you've been trying to create" is 13 words, and a 7-word cutoff would drop "quiet" — itself
+    /// a genuine shared word in some source pools — before the sentence-ending clause completes.
+    private static func firstSentence(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let range = trimmed.rangeOfCharacter(from: CharacterSet(charactersIn: ".!?\n")) {
+            return String(trimmed[..<range.lowerBound])
+        }
+        return trimmed
+    }
+
     /// A deliberately weaker backstop than `isUngrounded` — flags text only when it shares
     /// ZERO real words with `recentEntries`, never scaled by corpus size. This exists alongside
     /// `isUngrounded(recent+background)`, not as a replacement for it: the combined-pool check
@@ -429,6 +482,13 @@ enum InsightService {
     static func ungroundedDailyNudges(among insights: [Insight], allEntries: [Entry]) -> [Insight] {
         insights
             .filter { $0.type == .dailyNudge }
+            // A fallback row's own boilerplate ("MirrorNotes couldn't find today's reflection...")
+            // shares no vocabulary with any entry by construction — it's the guard's own safe
+            // placeholder, not a generated reflection that needs auditing. Without this, the
+            // audit flags every fallback as "ungrounded" alongside genuine fabrications, burying
+            // the one signal this tool exists to surface (a live 2026-09-22 run flagged 30 of 32
+            // rows this way, 29 of which were fallback text).
+            .filter { !isUngroundedFallback($0.content) }
             .filter { insight in
                 let asOf = insight.generatedAt
                 let priorEntries = allEntries.filter { $0.createdAt <= asOf }
@@ -506,6 +566,7 @@ enum InsightService {
             // app launch, MirrorNotes feedback) yet still rendered as a real reflection.
             let violatesGrounding = isUngrounded(result.text, sourceEntries: recent + background)
                 || sharesNoWordWithRecent(result.text, recentEntries: recent)
+                || openingIsUngrounded(result.text, recentEntries: recent)
             #if DEBUG
             print("[nudge][attempt \(attempt)] rawChars=\(result.text.count) rawWords=\(result.text.split(separator: " ").count)")
             #endif
