@@ -1,7 +1,7 @@
-More dependable daily reflections.
+More reliable reflections, and a smoother editor.
 
-• Daily reflections now generate right after you write, even past your usual time — no need to leave and reopen the app.
-• Fixed an issue where a reflection could occasionally show content that wasn't grounded in what you actually wrote.
-• Try Again now reliably works — tap it and get a fresh, real reflection instead of nothing happening.
-• Fixed the home screen widget sometimes showing a "couldn't confirm" message instead of your real reflection.
+• Fixed a case where a daily reflection could still include a detail that wasn't actually grounded in what you wrote.
+• Fixed the entry editor occasionally jumping to the top of the page while typing quickly.
+• Strengthened on-device privacy: removed a debug log that could print entry text to the local console during processing.
+• Added acknowledgments for the on-device AI models we use, under Settings > About.
 • Small fixes and polish.

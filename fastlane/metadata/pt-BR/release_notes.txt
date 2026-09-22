@@ -1,7 +1,7 @@
-Reflexões diárias mais confiáveis.
+Reflexões mais confiáveis e um editor mais fluido.
 
-• As reflexões diárias agora são geradas assim que você escreve, mesmo depois do seu horário habitual — não é mais preciso sair e abrir o app de novo.
-• Corrigido um problema em que a reflexão podia, às vezes, mostrar conteúdo que não era baseado no que você realmente escreveu.
-• "Tentar novamente" agora funciona de forma confiável — toque e receba uma reflexão nova e real, em vez de nada acontecer.
-• Corrigido o widget da tela inicial, que às vezes mostrava "Não foi possível confirmar" em vez da sua reflexão real.
-• Pequenas correções e ajustes.
+• Corrigido um caso em que uma reflexão diária ainda podia incluir um detalhe que não vinha realmente do que você escreveu.
+• Corrigido um problema em que o editor às vezes pulava para o topo da página durante a digitação rápida.
+• Privacidade no dispositivo reforçada: removido um log de depuração que podia imprimir o texto do registro no console local durante o processamento.
+• Adicionados agradecimentos pelos modelos de IA no dispositivo que usamos, em Ajustes > Sobre.
+• Pequenas correções e melhorias.
