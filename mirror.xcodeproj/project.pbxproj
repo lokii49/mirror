@@ -1030,10 +1030,10 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pgorzelany/swift-llama-cpp";
+			repositoryURL = "https://github.com/lokii49/swift-llama-cpp";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.0;
+				minimumVersion = 1.2.1;
 			};
 		};
 		47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */ = {

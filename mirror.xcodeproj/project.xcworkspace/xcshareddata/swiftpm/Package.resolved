@@ -1,5 +1,5 @@
 {
-  "originHash" : "8936810addf5c72581fde45573932312d590d83f88e19382700d40e6c863dcec",
+  "originHash" : "f290252bfceef4db1b26a233f2c47d8087e630e84e223e67a1fa090d8cfdca96",
   "pins" : [
     {
       "identity" : "purchases-ios",
@@ -13,10 +13,10 @@
     {
       "identity" : "swift-llama-cpp",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pgorzelany/swift-llama-cpp",
+      "location" : "https://github.com/lokii49/swift-llama-cpp",
       "state" : {
-        "revision" : "5496bc7c9820f04bba7268dc8a271235deae436d",
-        "version" : "1.2.0"
+        "revision" : "a79abb875d67e4394f0fae7ccd90950eade53d80",
+        "version" : "1.2.1"
       }
     }
   ],
