@@ -178,103 +178,105 @@ struct WriteView: View {
                 MirrorTheme.inkMid.ignoresSafeArea()
             }
 
-            // The whole write surface scrolls as one — header, tags, voice notes
-            // and the editor. Scrolling up past the voice notes brings the editor
-            // with it; the editor itself doesn't scroll (it grows to fit its text,
-            // see NoteEditorTextView.sizeThatFits).
-            ScrollView {
-                VStack(spacing: 0) {
-                    if !focusMode { dateHeader }
+            // Date/word-count/mood and tags are a fixed header, not scroll content —
+            // only the area between them and the keyboard (voice notes, starter chip,
+            // the editor) scrolls. A VStack, not .safeAreaInset(edge: .top): safeAreaInset
+            // floats the header over the scroll content and lets it bleed through
+            // underneath, which is exactly the ghosting this replaced.
+            VStack(spacing: 0) {
+                if !focusMode {
+                    dateHeader
+                    tagsBar
+                }
 
-                    if !focusMode {
-                        tagsBar
-                    }
-
-                    if !draftVoiceNotes.isEmpty {
-                        VStack(spacing: 8) {
-                            ForEach(draftVoiceNotes.indices, id: \.self) { index in
-                                let note = draftVoiceNotes[index]
-                                VoiceNoteAttachmentView(
-                                    data: note.data,
-                                    duration: note.duration,
-                                    title: String(localized: "Voice note \(index + 1)"),
-                                    transcript: note.transcript,
-                                    languageName: note.languageName,
-                                    isTranscribing: transcribingVoiceNoteIndexes.contains(index),
-                                    transcriptionFailed: failedTranscriptionIndexes.contains(index),
-                                    transcriptionFailureMessage: transcriptionFailureMessages[index],
-                                    onDelete: { removeVoiceNote(at: index) },
-                                    onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
-                                )
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if !draftVoiceNotes.isEmpty {
+                            VStack(spacing: 8) {
+                                ForEach(draftVoiceNotes.indices, id: \.self) { index in
+                                    let note = draftVoiceNotes[index]
+                                    VoiceNoteAttachmentView(
+                                        data: note.data,
+                                        duration: note.duration,
+                                        title: String(localized: "Voice note \(index + 1)"),
+                                        transcript: note.transcript,
+                                        languageName: note.languageName,
+                                        isTranscribing: transcribingVoiceNoteIndexes.contains(index),
+                                        transcriptionFailed: failedTranscriptionIndexes.contains(index),
+                                        transcriptionFailureMessage: transcriptionFailureMessages[index],
+                                        onDelete: { removeVoiceNote(at: index) },
+                                        onRetryTranscription: { transcribeVoiceNote(data: note.data, index: index) }
+                                    )
+                                }
                             }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
 
-                    if isRecordingInline {
-                        InlineRecordingRow(
-                            elapsed: voiceRecorder.elapsed,
-                            onStop: { finishInlineRecording() },
-                            onCancel: { cancelInlineRecording() }
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-
-                    if recordingPermissionDenied {
-                        MicPermissionNotice { recordingPermissionDenied = false }
+                        if isRecordingInline {
+                            InlineRecordingRow(
+                                elapsed: voiceRecorder.elapsed,
+                                onStop: { finishInlineRecording() },
+                                onCancel: { cancelInlineRecording() }
+                            )
                             .padding(.horizontal, 20)
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+                        }
 
-                    // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
-                    // blank new entry. Disappears the instant there's any content, since at
-                    // that point the user is already writing and doesn't need a starter.
-                    if entry == nil && !hasDraftContent && !focusMode {
-                        WritingStarterChip(
-                            onTalkItOut: { presentTalkItOut() },
-                            onUseTemplate: { template in
-                                viewModel.text = template.seedText
-                                applyTextCommand(.moveCursor(location: template.cursorOffset))
-                            }
+                        if recordingPermissionDenied {
+                            MicPermissionNotice { recordingPermissionDenied = false }
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+
+                        // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
+                        // blank new entry. Disappears the instant there's any content, since at
+                        // that point the user is already writing and doesn't need a starter.
+                        if entry == nil && !hasDraftContent && !focusMode {
+                            WritingStarterChip(
+                                onTalkItOut: { presentTalkItOut() },
+                                onUseTemplate: { template in
+                                    viewModel.text = template.seedText
+                                    applyTextCommand(.moveCursor(location: template.cursorOffset))
+                                }
+                            )
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                            .transition(.opacity)
+                        }
+
+                        NoteEditorTextView(
+                            text: $viewModel.text,
+                            textStyleData: $viewModel.textStyleData,
+                            inlineStyleData: $inlineStyleData,
+                            photoDataArray: $photoDataArray,
+                            command: $pendingTextCommand,
+                            commandRevision: $textCommandRevision,
+                            isFocused: Binding(
+                                get: { editorFocused },
+                                set: { editorFocused = $0 }
+                            ),
+                            activeParagraphStyle: $activeParagraphStyle,
+                            activeInlineStyles: $activeInlineStyles,
+                            showFormattingPanel: $showFormattingPanel,
+                            canUndo: $canUndo,
+                            canRedo: $canRedo,
+                            fontChoiceRaw: $entryFontChoiceRaw,
+                            panelState: panelState,
+                            displayMode: displayMode,
+                            onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                         )
                         .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                        .transition(.opacity)
+                        .padding(.top, 4)
+                        .frame(maxWidth: .infinity)
                     }
-
-                    NoteEditorTextView(
-                        text: $viewModel.text,
-                        textStyleData: $viewModel.textStyleData,
-                        inlineStyleData: $inlineStyleData,
-                        photoDataArray: $photoDataArray,
-                        command: $pendingTextCommand,
-                        commandRevision: $textCommandRevision,
-                        isFocused: Binding(
-                            get: { editorFocused },
-                            set: { editorFocused = $0 }
-                        ),
-                        activeParagraphStyle: $activeParagraphStyle,
-                        activeInlineStyles: $activeInlineStyles,
-                        showFormattingPanel: $showFormattingPanel,
-                        canUndo: $canUndo,
-                        canRedo: $canRedo,
-                        fontChoiceRaw: $entryFontChoiceRaw,
-                        panelState: panelState,
-                        displayMode: displayMode,
-                        onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .frame(maxWidth: .infinity)
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .scrollBounceBehavior(.basedOnSize)
 
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")
