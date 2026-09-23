@@ -1,7 +1,7 @@
-Reflexiones más fiables y un editor más fluido.
+Reflexiones pasadas más fiables y menos aperturas repetidas.
 
-• Corregido un caso en el que una reflexión diaria podía incluir todavía un detalle que no estaba realmente basado en lo que escribiste.
-• Corregido un fallo por el que el editor saltaba ocasionalmente a la parte superior al escribir rápido.
-• Privacidad en el dispositivo reforzada: eliminado un registro de depuración que podía imprimir texto de tus entradas en la consola local durante el procesamiento.
-• Añadidos agradecimientos por los modelos de IA en el dispositivo que usamos, en Ajustes > Acerca de.
+• Corregido un fallo por el que aparecían tarjetas duplicadas en Reflexiones pasadas cuando una reflexión necesitaba más de un intento.
+• Los días en los que no se pudo encontrar ninguna reflexión ya no saturan tu historial.
+• Reducidos los casos en los que una reflexión repetía la misma apertura que una reciente.
+• Corregido un fallo por el que el Informe mensual mostraba ocasionalmente el informe incorrecto para un mes pasado.
 • Pequeñas correcciones y mejoras.

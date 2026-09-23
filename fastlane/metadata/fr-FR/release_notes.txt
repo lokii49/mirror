@@ -1,7 +1,7 @@
-Des réflexions plus fiables et un éditeur plus fluide.
+Des réflexions passées plus fiables et moins d'ouvertures répétées.
 
-• Correction d'un cas où une réflexion quotidienne pouvait encore inclure un détail qui ne provenait pas réellement de ce que vous aviez écrit.
-• Correction d'un bug où l'éditeur remontait parfois en haut de la page pendant une saisie rapide.
-• Confidentialité sur l'appareil renforcée : suppression d'un journal de débogage susceptible d'afficher le texte d'une entrée dans la console locale pendant le traitement.
-• Ajout des remerciements pour les modèles d'IA embarqués que nous utilisons, dans Réglages > À propos.
+• Correction d'un bug où des cartes en double apparaissaient dans Réflexions passées lorsqu'une réflexion nécessitait plusieurs tentatives.
+• Les jours où aucune réflexion n'a pu être trouvée n'encombrent plus votre historique.
+• Réduction des cas où une réflexion reprenait la même ouverture qu'une réflexion récente.
+• Correction d'un bug où le Rapport mensuel affichait parfois le mauvais rapport pour un mois passé.
 • Petites corrections et améliorations.

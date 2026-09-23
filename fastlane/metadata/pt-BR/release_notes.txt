@@ -1,7 +1,7 @@
-Reflexões mais confiáveis e um editor mais fluido.
+Reflexões passadas mais confiáveis e menos aberturas repetidas.
 
-• Corrigido um caso em que uma reflexão diária ainda podia incluir um detalhe que não vinha realmente do que você escreveu.
-• Corrigido um problema em que o editor às vezes pulava para o topo da página durante a digitação rápida.
-• Privacidade no dispositivo reforçada: removido um log de depuração que podia imprimir o texto do registro no console local durante o processamento.
-• Adicionados agradecimentos pelos modelos de IA no dispositivo que usamos, em Ajustes > Sobre.
+• Corrigido um problema em que cartões duplicados apareciam em Reflexões passadas quando uma reflexão precisava de mais de uma tentativa.
+• Dias em que nenhuma reflexão pôde ser encontrada não sobrecarregam mais seu histórico.
+• Reduzidos os casos em que uma reflexão repetia a mesma abertura de uma reflexão recente.
+• Corrigido um problema em que o Relatório mensal mostrava ocasionalmente o relatório errado para um mês passado.
 • Pequenas correções e melhorias.
