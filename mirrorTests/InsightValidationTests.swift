@@ -708,6 +708,98 @@ struct InsightValidationTests {
         #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
     }
 
+    // MARK: - openingIsUngrounded: catches a fabricated OPENING riding through on genuine
+    // words later in the response (see its doc comment in InsightService.swift). Zero test
+    // coverage existed for this function before this section — it's called exactly once, in
+    // generateNudge's retry-loop guard, and had never been exercised directly.
+
+    // The documented production case (InsightService.swift:327-330) this check was written to
+    // catch: an invented weather opening, with the only shared words ("walk", "book") arriving
+    // later in the response, from entries the opening itself never touches.
+    @Test func openingIsUngrounded_fabricatedWeatherOpening_detected() {
+        let entries = [
+            // Deliberately none of the opening's own content words (rain, outside, gentle,
+            // echo, quiet, space, trying, create) appear here — an earlier version of this
+            // fixture had "outside" in this entry too, which coincidentally matched the
+            // fabricated opening's "outside" and made the guard correctly report grounded.
+            Entry(text: "Went for a walk this afternoon, first time in weeks. Felt good to move again."),
+            Entry(text: "Finally finished the book I've been reading on and off for a month."),
+        ]
+        let nudge = "The rain outside feels like a gentle echo of the quiet space you've been trying to create. You're planning a walk later, and finishing that book sounds like exactly what you need."
+        #expect(InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    // KNOWN MISS, not yet fixed — pinned here so the gap is tracked mechanically instead of only
+    // in prose. Reproduces a live 2026-09-23 case from "Load Sample Entries (Mixed)": the source
+    // entry genuinely contains "The conversation with Priya I still think about" (a later line
+    // in a multi-line entry — see SampleData.swift's richEntries), so "conversation" and "priya"
+    // are real shared words, not coincidental filler. But "scent", "rain", "pavement", "window",
+    // "familiar", "ache", and "shoulders" — the sensory narrative the opening actually leads
+    // with — appear nowhere in this entry or any other in the seed set. The model anchored a
+    // fully invented sentence on two real nouns.
+    //
+    // openingIsUngrounded's flat "shares >= 1 real word" bar can't catch this: 2 shared words
+    // clears it same as 20 would. A stricter bar (a minimum count or share of the opening's own
+    // content words) was considered and rejected without a code change — hand-checking it
+    // against isUngrounded_longEntryGenuinelyGrounded_notDetected's fixture below showed a
+    // density-based version would flag THAT genuinely-grounded nudge too, because this repo's
+    // word-matching is exact-string (no stemming: "rewriting" in an entry doesn't match "rewrite"
+    // in a nudge), so honest paraphrase already erodes the shared-word count on its own — the
+    // same failure mode `minimumSharedWords`'s doc comment already warns is fragile to tune
+    // blind, now confirmed for the opening check too. Bag-of-words overlap cannot structurally
+    // distinguish "real anchor + honest paraphrase" from "real anchor + invented elaboration" —
+    // both look like "a couple of shared words plus other words that don't match." Closing this
+    // needs either real Gemma generation samples to calibrate a threshold against (none available
+    // here) or a check that isn't word-overlap-based. Not attempted this pass — this is the fifth
+    // pass on this guard in six days, and each of the previous four fixed one observed case by
+    // introducing a new false-positive failure mode elsewhere.
+    @Test func openingIsUngrounded_realAnchorPlusFabricatedElaboration_knownMiss() {
+        let entries = [
+            Entry(text: """
+                Things I keep circling back to
+                Whether I'm actually resting or just not working
+                The conversation with Priya I still think about
+                "You can't pour from an empty cup." — heard this twice this week, universe is not subtle.
+                """),
+        ]
+        let nudge = "The scent of rain on the pavement outside your window, a familiar ache in your shoulders, brought you back to that conversation with Priya."
+        #expect(!InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    @Test func openingIsUngrounded_emptyOpening_notDetected() {
+        let entries = [Entry(text: "Went for a long walk by the river today.")]
+        #expect(!InsightService.openingIsUngrounded("", recentEntries: entries))
+    }
+
+    // KNOWN GAP, opposite direction from the Priya case above — pinned, not fixed.
+    // `sharesNoWordWithRecent` has a `recentWords.count >= 4` floor (InsightService.swift:403)
+    // because a 2-3-word entry can't supply enough vocabulary for a whole reflection to land on
+    // — added after an observed live regression (see that function's doc comment). This
+    // function has no equivalent floor: a thin recent corpus (a returning user's single terse
+    // entry, here "Okay day.") can flag an honest, unremarkable opening just because there's
+    // almost no vocabulary to share against.
+    //
+    // Not adding the floor here on the strength of the sibling's symmetry alone: that floor's
+    // threshold was derived from a live regression against the WHOLE-TEXT check
+    // (`sharesNoWordWithRecent`), not the single-sentence one — a different amount of vocabulary
+    // is at stake in each, and copying a number tuned for one onto the other without a live
+    // thin-corpus opening case to calibrate against is exactly the "tune blind" mistake this
+    // guard has already made four times. Needs a real thin-corpus generation sample before
+    // deciding whether/where a floor belongs.
+    @Test func openingIsUngrounded_thinRecentCorpus_flaggedNoFloorUnlikeSibling() {
+        let entries = [Entry(text: "Okay day.")]
+        let nudge = "Sounds like today had its moments, one way or another."
+        #expect(InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    @Test func openingIsUngrounded_genuinelyGroundedOpening_notDetected() {
+        let entries = [
+            Entry(text: "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after."),
+        ]
+        let nudge = "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it."
+        #expect(!InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
     // MARK: - ungroundedDailyNudges: the retroactive audit over already-generated nudges.
     // Reuses isUngrounded and dailyNudgeContext, so these tests are really checking the
     // reconstruction (asOf-relative window, filtering out entries written after the nudge) is
