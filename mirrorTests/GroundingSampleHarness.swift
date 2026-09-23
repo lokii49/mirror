@@ -23,6 +23,43 @@ import SwiftData
 //
 // Not asserting anything here — this is data collection, not a pass/fail gate. Read the printed
 // output; that's the deliverable.
+//
+// RESULTS FROM A REAL RUN (2026-09-23, this device, 39-entry corpus via SampleData.seed — same
+// corpus "Load Sample Entries (Mixed)" produces, the exact scale behind the live incident this
+// harness was built to investigate):
+//
+// FINDING 1 — 8 of 15 (53%) full guard bypasses at realistic corpus scale. isUngrounded
+// (combined), sharesNoWordWithRecent, AND openingIsUngrounded ALL missed on 8 of 15 raw
+// generations. Every one of the 15 was fabricated by inspection (see Finding 3). This affects
+// 3.0.2, which is live, not just an unreleased branch — and the bypass rate should be expected
+// to rise with a user's history size, since it's driven by combinedWords growing while
+// minimumSharedWords' scaled requirement is capped at a flat 4 (see that function's doc
+// comment): sharedCombined values measured were 1,2,2,3,3,3,5,5,6,6,7,7,8,8,8 against that
+// flat-4 threshold — the cap lands in the middle of the distribution, splitting it roughly in
+// half.
+//
+// FINDING 2 — the cap cannot be retuned to fix this; measured, not assumed. A parallel
+// honest-control run (test_honestControlAgainstSameFullCorpus, hand-written openings that
+// genuinely reference the seeded recent-three entries, no generation, ground truth by
+// construction) against the SAME 39-entry corpus measured sharedCombined = {4, 6, 6, 9}. That
+// overlaps the fabricated distribution above almost completely — honest's floor (4) sits below
+// 9 of the 15 fabricated values. No cap value separates them: 4 keeps honest text clean but
+// lets 9/15 fabrications through; 5 or 6 starts flagging honest case 3. Same shape as
+// InsightValidationTests' openingNounAbsence_..._falsifiesNounSignal — a second, independently
+// measured closed door on "fix this with a better word-overlap threshold." Closing gap 1 for
+// real needs a structurally different signal (e.g. the model checking its own output
+// semantically) or won't close via this check's design at all.
+//
+// FINDING 3 — separate defect, not gap 1: 12 of the 15 raw generations opened with a near-
+// identical fabricated template ("You're feeling a gentle warmth, like the sun on your skin
+// after a long winter...") regardless of which entries were actually recent. This isn't a
+// grounding-threshold problem — it's `repeatsPriorOpening` not firing, because it compares
+// against *prior saved* nudges (`recentNudges` from already-persisted Insights), not against
+// attempts made within the SAME retry loop. generateNudge's own bounded-retry-loop comment
+// already names this exact risk ("a 1B model's output distribution can be peaked enough to
+// reproduce the same ungrounded/repetitive pattern") but the loop only re-checks grounding
+// per attempt, never opening-repetition against its own earlier attempts in the same call.
+// Not investigated further this session — flagging so it isn't lost.
 final class GroundingSampleHarness: XCTestCase {
 
     private struct Case {
@@ -146,7 +183,14 @@ final class GroundingSampleHarness: XCTestCase {
         let entries = try context.fetch(FetchDescriptor<Entry>())
         print("\n[fullSeedCorpus] seeded \(entries.count) entries")
 
-        for attempt in 1...3 {
+        // 15 attempts, not 3 — advisor's correction after the first 3-attempt run: the
+        // combined-pool check missed 2 of 3 there (returned "grounded" for outright
+        // fabrication), which is the actual finding, not a shrug-able coincidence. This gets a
+        // real distribution of sharedCombined-vs-threshold instead of 3 anecdotes, via
+        // debugLogGroundingCheck's own numbers (never touches minimumSharedWords directly —
+        // its doc comment says that constant is fragile to tune blind and was set to fix a
+        // real prior 80%-fallback incident; this only reads what it currently computes).
+        for attempt in 1...15 {
             let (recent, background) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
             let userMessage = InsightService.buildUserMessage(
                 title: "Daily reflection context",
@@ -176,16 +220,58 @@ final class GroundingSampleHarness: XCTestCase {
 
             print("\n=== [fullSeedCorpus attempt \(attempt)] RAW ===")
             print("engine=\(result.engine.rawValue)")
-            print("recent entries (\(recent.count)):")
-            for e in recent { print("  - \(e.text.prefix(160))") }
-            print("background entry count: \(background.count)")
             print("RAW GENERATED TEXT (pre-guard):")
             print("  \(result.text)")
+            InsightService.debugLogGroundingCheck(result.text, recent: recent, background: background, label: "fullSeedCorpus attempt \(attempt)")
             print("guards: isUngrounded(combined)=\(isUngroundedCombined) sharesNoWordWithRecent=\(sharesNoWordRecent) openingIsUngrounded=\(openingUngrounded) => overall violatesGrounding=\(anyGuardCaughtIt)")
             if !anyGuardCaughtIt {
                 print("*** ALL THREE GUARDS MISSED THIS ONE — full bypass reproduced ***")
             }
             print("=== end [fullSeedCorpus attempt \(attempt)] RAW ===\n")
+        }
+    }
+
+    // The 15-attempt run above (see conversation/commit log for the raw numbers — not
+    // reproduced verbatim here since it's non-deterministic) found 8/15 (53%) full bypasses:
+    // isUngrounded(combined), sharesNoWordWithRecent, AND openingIsUngrounded all missed. Every
+    // one of the 15 raw texts was fabricated by inspection — nearly all opened with some
+    // variant of an invented "gentle warmth, like the sun on your skin after a long winter"
+    // template with zero basis in any entry, then wove in 1-8 incidentally real words
+    // afterward. sharedCombined ranged 1-8 against a threshold capped at 4 (minimumSharedWords'
+    // flat cap — see its doc comment) — roughly an even split, on text that was ALWAYS
+    // fabricated. That means the cap isn't discriminating grounded from fabricated at this
+    // corpus scale; it's noise.
+    //
+    // What's still unmeasured: whether GENUINELY grounded text would also land in the 1-8 range
+    // here, which would mean no cap value fixes this (the earlier noun-signal falsification was
+    // exactly this shape). This runs the same measurement on hand-written openings that
+    // genuinely reference the seeded recent-three entries (the Priya conversation, the weekend
+    // grocery/mom/book plan, the code-review backlog) — no generation, so no fabrication risk;
+    // this is ground truth by construction — against the identical 39-entry corpus, to get the
+    // honest-side distribution to compare against.
+    func test_honestControlAgainstSameFullCorpus() throws {
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+        SampleData.seed(into: context)
+        let entries = try context.fetch(FetchDescriptor<Entry>())
+        let (recent, background) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+
+        let honestOpenings = [
+            "The conversation with Priya still on your mind, and that line about not being able to pour from an empty cup — sounds like it's been sitting with you all week.",
+            "Clearing the backlog on code review felt like a real win, even with the font feature and edge-case tests still ahead.",
+            "Between the grocery run, calling your mom, and finishing that book, the weekend's shaping up to be a full one.",
+            "Sounds like you're still circling the same question — whether you're actually resting or just not working right now.",
+        ]
+
+        for (i, opening) in honestOpenings.enumerated() {
+            InsightService.debugLogGroundingCheck(opening, recent: recent, background: background, label: "honestControl \(i + 1)")
+            let isUngroundedCombined = InsightService.isUngrounded(opening, sourceEntries: recent + background)
+            let sharesNoWordRecent = InsightService.sharesNoWordWithRecent(opening, recentEntries: recent)
+            let openingUngrounded = InsightService.openingIsUngrounded(opening, recentEntries: recent)
+            print("[honestControl \(i + 1)] text: \(opening)")
+            print("[honestControl \(i + 1)] guards: isUngrounded(combined)=\(isUngroundedCombined) sharesNoWordWithRecent=\(sharesNoWordRecent) openingIsUngrounded=\(openingUngrounded)\n")
         }
     }
 }
