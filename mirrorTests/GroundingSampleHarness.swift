@@ -59,7 +59,14 @@ import SwiftData
 // already names this exact risk ("a 1B model's output distribution can be peaked enough to
 // reproduce the same ungrounded/repetitive pattern") but the loop only re-checks grounding
 // per attempt, never opening-repetition against its own earlier attempts in the same call.
-// Not investigated further this session — flagging so it isn't lost.
+// FIXED same day: generateNudge's `openings` list is now `var`, grown with each failed
+// attempt's own opening before the next retry (InsightService.swift, generateNudge). Verified
+// with test_generateNudgeRepeatRateAfterFix (RUN_GROUNDING_HARNESS=1) against this same
+// corpus: 8 real generateNudge calls, 5 fell back honestly, 3 produced real (non-fallback)
+// results — all 3 distinct, none repeating each other or the pre-fix "gentle warmth" template.
+// Not a controlled A/B (this is a different call shape than the raw single-shot bypass Finding
+// 3 measured, and n=3 non-fallback results is thin) but a real, positive signal on real
+// hardware, not reasoning about it.
 //
 // FINDING 4 — semantic self-check (verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM,
 // InsightService.swift) tried and falsified, measured, same day. Gate before wiring it into
@@ -456,6 +463,53 @@ final class GroundingSampleHarness: XCTestCase {
             other/unparseable: \(other)
             (19/19 either way => constant-output, task not being performed; mixed => prompt-fixable)
             === end polarity-flip ===
+            """)
+    }
+
+    // Verifies the Finding-3 fix (generateNudge's `openings` now grows with each retry
+    // attempt's own opening, InsightService.swift) against the exact corpus that produced it:
+    // Finding 3 was 12 of 15 raw single-shot generations against this 39-entry corpus opening
+    // with a near-identical fabricated template. Those were captured via the raw single-shot
+    // bypass (localGenerate directly), which has no retry loop and so couldn't have caught a
+    // same-session repeat even after the fix — this test instead calls the real
+    // InsightService.generateNudge entry point, which DOES run the retry loop the fix lives in.
+    //
+    // Not a strict pass/fail: a 1B model's output distribution could still produce the same
+    // opening on attempt 1 of two SEPARATE calls (different calls don't share an `openings`
+    // list — recentNudges is empty here, matching a first-ever nudge), which is expected and
+    // NOT what this fix addresses. What the fix addresses is a repeat WITHIN one call's retry
+    // attempts, which isn't independently observable from outside generateNudge (the loop is
+    // atomic). This test's real signal is INDIRECT: if the fix works, a template that would
+    // have been returned as a repeated "final" result 12/15 times before should now more often
+    // either come back genuinely different across separate calls or fall back honestly —
+    // compare this run's cross-call repeat rate against Finding 3's single-shot 12/15 by eye,
+    // not by assertion.
+    func test_generateNudgeRepeatRateAfterFix() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let entries = try makeFullSeedCorpusRecentEntries()
+        var openingsSeen: [String] = []
+
+        for attempt in 1...8 {
+            let result = try await InsightService.generateNudge(entries: entries)
+            let opening = String(result.text.prefix(80))
+            openingsSeen.append(opening)
+            print("[repeatCheck][attempt \(attempt)] degraded=\(result.degraded) isFallback=\(InsightService.isUngroundedFallback(result.text)) opening=\"\(opening)\"")
+        }
+
+        let distinctOpenings = Set(openingsSeen).count
+        print("""
+
+            === REPEAT-RATE CHECK (post-fix) ===
+            calls made: \(openingsSeen.count)
+            distinct opening prefixes: \(distinctOpenings)
+            (Finding 3, pre-fix, single-shot no-retry: 12/15 identical. Compare by eye — this
+            test calls the full retry loop per attempt, a different shape, not a like-for-like
+            statistic.)
+            === end repeat-rate check ===
             """)
     }
 }

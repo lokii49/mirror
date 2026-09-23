@@ -551,7 +551,17 @@ enum InsightService {
             maxChars: dailyNudgePromptBudget,
             includeRecurringTerms: false
         )
-        let openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
+        // var, not let: grown with each failed attempt's own opening below. Real-device
+        // measurement (GroundingSampleHarness.swift, Finding 3) found this was a live bug, not
+        // theoretical — 12 of 15 real generations against one fixed corpus opened with a
+        // near-identical fabricated template, because repeatsPriorOpening only ever checked
+        // against PRIOR SAVED nudges (recentNudges, from already-persisted Insights), never
+        // against this call's own earlier attempts. A 1B model's output distribution can be
+        // peaked enough to hand back the same opening on attempt 2 that it gave on attempt 1
+        // (this loop's own comment already names that risk for grounding, but the repeat-check
+        // never got the same treatment) — so a user could retry three times and see the
+        // identical bad opening substituted as the "final" result all three times.
+        var openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
         if !openings.isEmpty {
             userMessage += "\n\nYour recent reflections already opened with:\n"
                 + openings.map { "- \"\($0)…\"" }.joined(separator: "\n")
@@ -616,6 +626,16 @@ enum InsightService {
             lastResult = result
             lastViolatesGrounding = violatesGrounding
             guard attempt < maxAttempts else { break }
+
+            // This attempt's own opening joins the avoid-list for the NEXT attempt's repeat
+            // check — see the `var openings` comment above for why this has to happen here and
+            // not just once before the loop. Deduped the same way priorNudgeOpenings already
+            // dedupes prior-day openings, so a template repeated across attempts 1 and 2 doesn't
+            // get added to the list twice.
+            let thisAttemptOpening = firstWords(result.text, count: 7)
+            if !thisAttemptOpening.isEmpty, !openings.contains(where: { $0.caseInsensitiveCompare(thisAttemptOpening) == .orderedSame }) {
+                openings.append(thisAttemptOpening)
+            }
 
             // Named the violation(s) directly rather than just repeating the general
             // instruction — a list buried in the prompt was already ignored once. Built fresh
