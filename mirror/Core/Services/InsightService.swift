@@ -119,6 +119,30 @@ Joyful, Grateful, Peaceful, Content, Energized, Hopeful, Anxious, Overwhelmed, F
 No explanation. No punctuation. One word only.
 """
 
+// Semantic grounding self-check — the model verifying its OWN prior output, as a candidate for
+// what the word-overlap guards (isUngrounded/sharesNoWordWithRecent/openingIsUngrounded) can't
+// do: tell honest interpretation/paraphrase apart from invented detail. Real-device measurement
+// (GroundingSampleHarness.swift) showed those guards miss 53% of fabrications at realistic
+// corpus scale, and that the miss can't be fixed by retuning their thresholds — honest and
+// fabricated text land in overlapping shared-word ranges. This is a genuinely different signal:
+// it doesn't count matching words, it asks whether the REFLECTION's specific claims are
+// actually supported.
+//
+// Deliberately checked against RECENT entries only, never background — same scope
+// `openingIsUngrounded` already uses, for the same reason: DAILY_NUDGE_SYSTEM itself requires
+// the reflection to ground in Recent entries and never lift phrasing from Long-term context, so
+// verifying against background too would let the judge rationalize "supported" off the same
+// large, coincidence-prone pool that lets the word-overlap checks miss at scale (see
+// `openingIsUngrounded`'s own doc comment on why combined-pool scale is exactly the risk).
+private let GROUNDING_VERIFY_SYSTEM = """
+You are a strict fact-checker reviewing a reflection written about someone's recent journal entries.
+Read the RECENT ENTRIES, then read the REFLECTION.
+A reflection may interpret, paraphrase, or draw an emotional conclusion from what's written — that is fine.
+A reflection is FABRICATED if it states a specific detail, image, event, sensation, or object that does not appear anywhere in the RECENT ENTRIES, even if the reflection also mentions something real.
+Reply with EXACTLY one word: GROUNDED or FABRICATED.
+No explanation. No punctuation. One word only.
+"""
+
 private let FOLLOW_UP_SYSTEM = """
 You are MirrorNotes, reading a journal entry the person is currently writing, mid-draft. Ask exactly one short follow-up question that invites them to go deeper into what they just wrote — the way a thoughtful friend would ask "what do you mean by that?" or "what's underneath that?"
 Rules:
@@ -886,6 +910,33 @@ enum InsightService {
         return normalizeEmotion(response.text)
     }
 
+    // Research/validation stage only — not yet called from generateNudge or any production
+    // path. See GROUNDING_VERIFY_SYSTEM's doc comment for why this exists and its scope choice.
+    // Returns (isFabricated, raw) rather than throwing on an unparseable response: fails CLOSED
+    // (isFabricated=true) rather than open, matching this whole guard system's existing
+    // philosophy ("flawed beats none, but never fabricated beats none" — finalNudgeResult's
+    // comment) — an unparseable verdict is not evidence of grounding.
+    static func verifyGroundingSemantic(nudgeText: String, recentEntries: [Entry]) async throws -> (isFabricated: Bool, raw: String) {
+        let entriesBlock = formatEntries(recentEntries, maxChars: 3_000)
+        let userMessage = """
+            RECENT ENTRIES:
+            \(entriesBlock)
+
+            REFLECTION:
+            \(nudgeText)
+            """
+        let response = try await localGenerate(
+            systemPrompt: GROUNDING_VERIFY_SYSTEM,
+            userMessage: userMessage,
+            task: .groundingVerification,
+            responseLanguageInstruction: nil
+        )
+        guard let verdict = recognizedGroundingVerdict(response.text) else {
+            return (true, response.text)
+        }
+        return (verdict == .fabricated, response.text)
+    }
+
     // Never persisted as an Insight — ephemeral, in-editor-only, discarded once the chip is
     // dismissed or the entry is saved. Keeps this feature schema-free: WriteView holds the
     // question in @State only, matching the security rule that draft-adjacent text stays
@@ -934,7 +985,9 @@ enum InsightService {
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
     private static func responseLanguageInstruction(for target: ResponseLanguageTarget?, task: LocalLLMTask) -> String? {
-        guard task != .emotion else { return nil }
+        // groundingVerification skipped for the same reason emotion is: it must return exactly
+        // one of two fixed English tokens (GROUNDED/FABRICATED), not localized prose.
+        guard task != .emotion, task != .groundingVerification else { return nil }
         guard let target = target ?? responseLanguageTargetFromCurrentLocale() else { return nil }
 
         switch task {
@@ -948,7 +1001,7 @@ enum InsightService {
             """
         case .dailyNudge, .ask, .followUp:
             return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
-        case .emotion:
+        case .emotion, .groundingVerification:
             return nil
         }
     }
@@ -960,7 +1013,7 @@ enum InsightService {
             labels = weeklyDigestSectionLabels
         case .monthlyReport:
             labels = monthlyReportSectionLabels
-        case .dailyNudge, .ask, .emotion, .followUp:
+        case .dailyNudge, .ask, .emotion, .followUp, .groundingVerification:
             return []
         }
         return labels.map { section in
@@ -1114,7 +1167,7 @@ enum InsightService {
             cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
             cleaned = raw.text.cleanedMonthlyReportOutput()
-        case .dailyNudge, .ask, .emotion, .followUp:
+        case .dailyNudge, .ask, .emotion, .followUp, .groundingVerification:
             cleaned = raw.text.cleanedInsightOutput()
         }
         return (cleaned, raw.engine)
@@ -1146,6 +1199,8 @@ enum InsightService {
             return "Return exactly one allowed mood word and nothing else."
         case .followUp:
             return "Return exactly one short question, ending with a question mark, under 18 words. Nothing before or after it."
+        case .groundingVerification:
+            return "Return exactly one word: GROUNDED or FABRICATED. Nothing else."
         }
     }
 
@@ -1196,6 +1251,11 @@ enum InsightService {
             return trimmed
         case .followUp:
             return try validateFollowUp(trimmed)
+        case .groundingVerification:
+            guard recognizedGroundingVerdict(trimmed) != nil else {
+                throw InsightError.incompleteResponse
+            }
+            return trimmed
         }
     }
 
@@ -1822,6 +1882,24 @@ enum InsightService {
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .first { !$0.isEmpty } ?? response
         return MirrorTheme.moodOptions.first { $0.caseInsensitiveCompare(cleaned) == .orderedSame }
+    }
+
+    enum GroundingVerdict {
+        case grounded
+        case fabricated
+    }
+
+    // Same shape as recognizedEmotion: takes the first alphanumeric token, matches
+    // case-insensitively. Anything else (empty, neither word, both words, extra prose the model
+    // ignored the "one word only" instruction for) returns nil, which verifyGroundingSemantic
+    // treats as fabricated — see its comment on failing closed.
+    static func recognizedGroundingVerdict(_ response: String) -> GroundingVerdict? {
+        let cleaned = response
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .first { !$0.isEmpty } ?? response
+        if cleaned.caseInsensitiveCompare("GROUNDED") == .orderedSame { return .grounded }
+        if cleaned.caseInsensitiveCompare("FABRICATED") == .orderedSame { return .fabricated }
+        return nil
     }
 
 }

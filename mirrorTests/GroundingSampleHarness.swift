@@ -60,6 +60,28 @@ import SwiftData
 // reproduce the same ungrounded/repetitive pattern") but the loop only re-checks grounding
 // per attempt, never opening-repetition against its own earlier attempts in the same call.
 // Not investigated further this session — flagging so it isn't lost.
+//
+// FINDING 4 — semantic self-check (verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM,
+// InsightService.swift) tried and falsified, measured, same day. Gate before wiring it into
+// generateNudge: run it as the judge over the 15 labeled-fabricated raws above plus the 4
+// labeled-honest controls (test_semanticVerifierConfusionMatrix). Result: 19/19 "Grounded" —
+// 0/15 recall on the actual fabrications, trivial 4/4 on honest text only because the verdict
+// never varied. Disambiguated with test_semanticVerifierPolarityFlipDisambiguation: a second
+// prompt asking for INVENTED/FAITHFUL instead of FABRICATED/GROUNDED (different words, swapped
+// order, same 19 texts) got "GROUNDED" back on 18 of 19 attempts anyway — a word that wasn't
+// even in the second prompt's instructed vocabulary. The model isn't weighing prompt wording or
+// token order; it's returning a fixed association regardless of instruction or content. That
+// rules out "the prompt needs work" and confirms the task is beyond what this 1B model can do
+// as its own judge, at least with a single-pass classification prompt.
+//
+// Three independently falsified approaches now, same day, each measured rather than assumed:
+// threshold retuning (isUngrounded/openingIsUngrounded), noun-absence signal
+// (InsightValidationTests), and 1B semantic self-check. Remaining real options: FoundationModel-
+// Engine (a more capable model, only on Apple-Intelligence-eligible devices — untested here) or
+// treating this as a product decision about the fallback's conservativeness rather than a
+// guard-design problem. verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM are NOT wired into
+// generateNudge or any production path — left in InsightService.swift as validated
+// infrastructure in case FoundationModelEngine or a future prompt iteration revisits this.
 final class GroundingSampleHarness: XCTestCase {
 
     private struct Case {
@@ -249,23 +271,50 @@ final class GroundingSampleHarness: XCTestCase {
     // grocery/mom/book plan, the code-review backlog) — no generation, so no fabrication risk;
     // this is ground truth by construction — against the identical 39-entry corpus, to get the
     // honest-side distribution to compare against.
-    func test_honestControlAgainstSameFullCorpus() throws {
+    private static let honestOpenings = [
+        "The conversation with Priya still on your mind, and that line about not being able to pour from an empty cup — sounds like it's been sitting with you all week.",
+        "Clearing the backlog on code review felt like a real win, even with the font feature and edge-case tests still ahead.",
+        "Between the grocery run, calling your mom, and finishing that book, the weekend's shaping up to be a full one.",
+        "Sounds like you're still circling the same question — whether you're actually resting or just not working right now.",
+    ]
+
+    // The 15 raw fabricated texts from the run documented in this file's header comment,
+    // captured verbatim so the confusion-matrix test below has fixed, reproducible ground truth
+    // (fabricated by inspection — see header) rather than needing a fresh non-deterministic
+    // generation run every time this suite executes.
+    private static let labeledFabricatedRaws = [
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It feels good to have a small space for yourself, to prioritize what truly nourishes you – that walk and cooking – even if it’s just a little bit.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It seems like you’ve been carrying a lot of quiet weight lately, a sense of needing to gently release some of it.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It feels good to have a small space for yourself, to carve out time for something you truly enjoy – that walk, the cooking, even just quiet reflection.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It feels good to have that space for yourself, to just be, and to focus on something small – the grocery run and the call to mom – that brings a little light into the day.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It feels good to have that space for yourself, even if it’s just a quiet moment of reflection.",
+        "You’re feeling a gentle warmth, like the scent of freshly baked bread – it’s a comforting aroma that settles in your chest. You’ve been carrying a weight of quiet observation, noticing how you tend to retreat into routines and projects, almost as if needing to fill space with activity.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. You’ve been carrying a weight of quietness lately, a space inside that feels both full and slightly empty.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It feels good to have a plan for the weekend – grocery run, calling mom, finishing that book – and even a small step towards creating something new in the kitchen.",
+        "You’re feeling a gentle warmth, like sunlight on your skin after a long winter. It seems like you’ve been carrying a lot of weight lately – the quiet hum of unease, the need to slow down, and the conversation with Priya.",
+        "You’re carrying a weight of quiet, steady energy today. It feels like you’ve been building momentum with the code review notes – that clearing the backlog is a good sign, a small victory in shutting down something that’s been simmering.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. You’ve been carrying a weight of quiet expectation – a desire to simply be – and it feels like that expectation is slowly shifting into something more defined.",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It seems like you’ve been carrying a lot lately – a quiet weight of things needing to be addressed, and a deep desire to simply be.",
+        "You’re feeling a gentle warmth as you consider the groceries and the call to your mom – that feeling of wanting to connect, even if it feels small. Perhaps taking a long walk would be a good start, something to ground you in the present moment.",
+        "The feeling of needing to slow down, like a river finding its own course, is present. Perhaps a gentle stretching exercise – a short walk in the garden, focusing on the feel of the earth beneath your feet – would be beneficial?",
+        "You’re feeling a gentle warmth, like the sun on your skin after a long winter. It seems like you’ve been carrying a lot of quiet weight lately, a sense of needing to gently release some of it.",
+    ]
+
+    private func makeFullSeedCorpusRecentEntries() throws -> [Entry] {
         let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [config])
         let context = ModelContext(container)
         SampleData.seed(into: context)
         let entries = try context.fetch(FetchDescriptor<Entry>())
+        return entries
+    }
+
+    func test_honestControlAgainstSameFullCorpus() throws {
+        let entries = try makeFullSeedCorpusRecentEntries()
         let (recent, background) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
 
-        let honestOpenings = [
-            "The conversation with Priya still on your mind, and that line about not being able to pour from an empty cup — sounds like it's been sitting with you all week.",
-            "Clearing the backlog on code review felt like a real win, even with the font feature and edge-case tests still ahead.",
-            "Between the grocery run, calling your mom, and finishing that book, the weekend's shaping up to be a full one.",
-            "Sounds like you're still circling the same question — whether you're actually resting or just not working right now.",
-        ]
-
-        for (i, opening) in honestOpenings.enumerated() {
+        for (i, opening) in Self.honestOpenings.enumerated() {
             InsightService.debugLogGroundingCheck(opening, recent: recent, background: background, label: "honestControl \(i + 1)")
             let isUngroundedCombined = InsightService.isUngrounded(opening, sourceEntries: recent + background)
             let sharesNoWordRecent = InsightService.sharesNoWordWithRecent(opening, recentEntries: recent)
@@ -273,5 +322,112 @@ final class GroundingSampleHarness: XCTestCase {
             print("[honestControl \(i + 1)] text: \(opening)")
             print("[honestControl \(i + 1)] guards: isUngrounded(combined)=\(isUngroundedCombined) sharesNoWordWithRecent=\(sharesNoWordRecent) openingIsUngrounded=\(openingUngrounded)\n")
         }
+    }
+
+    // Advisor's gate before wiring verifyGroundingSemantic into generateNudge: measure whether
+    // the 1B model, as its own judge, can actually separate the 15 labeled-fabricated raws from
+    // the 4 labeled-honest controls — a real confusion matrix, not an assumption that a
+    // "semantic" check is automatically better than word-overlap. Verified against RECENT only
+    // (3 entries), matching GROUNDING_VERIFY_SYSTEM's documented scope choice.
+    func test_semanticVerifierConfusionMatrix() async throws {
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let entries = try makeFullSeedCorpusRecentEntries()
+        let (recent, _) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+
+        var truePositive = 0   // fabricated, correctly flagged fabricated
+        var falseNegative = 0  // fabricated, wrongly passed as grounded
+        var trueNegative = 0   // honest, correctly passed as grounded
+        var falsePositive = 0  // honest, wrongly flagged fabricated
+
+        for (i, text) in Self.labeledFabricatedRaws.enumerated() {
+            let (isFabricated, raw) = try await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
+            if isFabricated { truePositive += 1 } else { falseNegative += 1 }
+            print("[verifier][fabricated \(i + 1)] verdict=\(isFabricated ? "FABRICATED (correct)" : "GROUNDED (WRONG)") raw=\"\(raw)\"")
+        }
+
+        for (i, text) in Self.honestOpenings.enumerated() {
+            let (isFabricated, raw) = try await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
+            if isFabricated { falsePositive += 1 } else { trueNegative += 1 }
+            print("[verifier][honest \(i + 1)] verdict=\(isFabricated ? "FABRICATED (WRONG)" : "GROUNDED (correct)") raw=\"\(raw)\"")
+        }
+
+        let total = truePositive + falseNegative + trueNegative + falsePositive
+        let correct = truePositive + trueNegative
+        print("""
+
+            === SEMANTIC VERIFIER CONFUSION MATRIX ===
+            fabricated set (n=\(Self.labeledFabricatedRaws.count)): caught \(truePositive), missed \(falseNegative)
+            honest set (n=\(Self.honestOpenings.count)): correctly passed \(trueNegative), wrongly flagged \(falsePositive)
+            overall accuracy: \(correct)/\(total)
+            === end confusion matrix ===
+            """)
+    }
+
+    // Disambiguation for the confusion matrix above: 19/19 "Grounded" could mean either (a) the
+    // model isn't performing the task at all (constant output regardless of content), or (b)
+    // GROUNDING_VERIFY_SYSTEM's specific wording/token-order biases it toward the first-listed
+    // or more-agreeable-sounding token. Only (a) closes the door on semantic self-check
+    // entirely; (b) means the approach is still live and the prompt needs work. Flips both the
+    // token wording (FAITHFUL/INVENTED, neither reading as more "agreeable" than the other) and
+    // the listed order (INVENTED first) versus GROUNDING_VERIFY_SYSTEM, same 19 texts, same
+    // corpus, same temperature. Test-local prompt — not added to production code.
+    func test_semanticVerifierPolarityFlipDisambiguation() async throws {
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let flippedSystemPrompt = """
+            You are a strict fact-checker reviewing a reflection written about someone's recent journal entries.
+            Read the RECENT ENTRIES, then read the REFLECTION.
+            A reflection may interpret, paraphrase, or draw an emotional conclusion from what's written — that is fine.
+            A reflection is INVENTED if it states a specific detail, image, event, sensation, or object that does not appear anywhere in the RECENT ENTRIES, even if the reflection also mentions something real.
+            Reply with EXACTLY one word: INVENTED or FAITHFUL.
+            No explanation. No punctuation. One word only.
+            """
+
+        let entries = try makeFullSeedCorpusRecentEntries()
+        let (recent, _) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+        let entriesBlock = recent.map { "- \($0.text)" }.joined(separator: "\n")
+
+        func verdict(for text: String) async throws -> String {
+            let userMessage = "RECENT ENTRIES:\n\(entriesBlock)\n\nREFLECTION:\n\(text)"
+            let result = try await InsightService.localGenerate(
+                systemPrompt: flippedSystemPrompt,
+                userMessage: userMessage,
+                task: .groundingVerification,
+                responseLanguageInstruction: nil
+            )
+            return result.text
+        }
+
+        var invented = 0
+        var faithful = 0
+        var other = 0
+
+        for (i, text) in Self.labeledFabricatedRaws.enumerated() {
+            let raw = try await verdict(for: text)
+            let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            if normalized.contains("INVENTED") { invented += 1 } else if normalized.contains("FAITHFUL") { faithful += 1 } else { other += 1 }
+            print("[flip][fabricated \(i + 1)] raw=\"\(raw)\"")
+        }
+        for (i, text) in Self.honestOpenings.enumerated() {
+            let raw = try await verdict(for: text)
+            let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            if normalized.contains("INVENTED") { invented += 1 } else if normalized.contains("FAITHFUL") { faithful += 1 } else { other += 1 }
+            print("[flip][honest \(i + 1)] raw=\"\(raw)\"")
+        }
+
+        print("""
+
+            === POLARITY-FLIP DISAMBIGUATION ===
+            INVENTED count: \(invented)
+            FAITHFUL count: \(faithful)
+            other/unparseable: \(other)
+            (19/19 either way => constant-output, task not being performed; mixed => prompt-fixable)
+            === end polarity-flip ===
+            """)
     }
 }
