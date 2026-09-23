@@ -561,6 +561,12 @@ enum InsightService {
         // (this loop's own comment already names that risk for grounding, but the repeat-check
         // never got the same treatment) — so a user could retry three times and see the
         // identical bad opening substituted as the "final" result all three times.
+        //
+        // Not a total fix, by construction: detection necessarily lands one attempt behind
+        // (attempt 2's check is the first one that can see attempt 1's opening, since it's
+        // appended only after attempt 1 finishes). Attempts 1 and 2 can still repeat each other
+        // once before the loop reacts — this reduces the repeat window from "all 3 attempts"
+        // to "at most attempts 1-2," not to zero.
         var openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
         if !openings.isEmpty {
             userMessage += "\n\nYour recent reflections already opened with:\n"
