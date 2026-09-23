@@ -649,8 +649,19 @@ struct mirrorApp: App {
             predicate: #Predicate { $0.periodIdentifier == thisMonth }
         )
         let existing = (try? context.fetch(descriptor)) ?? []
-        // Respect 24h cache — only auto-generate once per month
-        guard !existing.contains(where: { $0.type == .monthlyReport }) else { return }
+        // Newest wins, same non-destructive pattern as runWeeklyDigestIfNeeded's cachedDigest —
+        // was `guard !existing.contains(where: { $0.type == .monthlyReport })`, existence-only
+        // with no staleness re-check, unlike its weekly sibling. A month whose first background
+        // attempt landed a grounding-fallback (same non-destructive insert-new-row-per-retry
+        // pattern as daily nudge/weekly digest) could never get a second automatic attempt from
+        // this nightly pass for the rest of the month, even after the 24h cooldown elapsed and
+        // new entries were written — the exact case weeklyDigestIsStale exists to handle for
+        // digests, just never applied here. weeklyDigestIsStale's own logic (24h cooldown +
+        // newer entry since) has nothing digest-specific in it, so reused directly rather than
+        // duplicating it into a monthly-named copy.
+        let cachedReport = existing
+            .filter { $0.type == .monthlyReport }
+            .max { $0.generatedAt < $1.generatedAt }
 
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -660,6 +671,14 @@ struct mirrorApp: App {
         let now = Date()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
+
+        if let cachedReport {
+            guard InsightService.weeklyDigestIsStale(
+                generatedAt: cachedReport.generatedAt,
+                newestWeekEntry: monthEntries.first?.createdAt  // entries are sorted newest-first
+            ) else { return }
+        }
+
         // Same last-week-of-month gate as InsightViewModel.loadMonthlyReport (see its comment) —
         // this background pass must not generate early just because entries happen to be there.
         guard DateHelpers.isInLastWeekOfMonth(now),
