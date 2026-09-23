@@ -137,7 +137,14 @@ No explanation. No punctuation. One word only.
 // verifying against background too would let the judge rationalize "supported" off the same
 // large, coincidence-prone pool that lets the word-overlap checks miss at scale (see
 // `openingIsUngrounded`'s own doc comment on why combined-pool scale is exactly the risk).
-private let GROUNDING_VERIFY_SYSTEM = """
+//
+// Bumped from private to internal as a test seam for GroundingSampleHarness's uncontaminated
+// confusion-matrix test, which bypasses InsightService.localGenerate entirely (that path's
+// single internal retry injects a GROUNDED/FABRICATED vocabulary constraint on any validation
+// failure, which contaminated the earlier — now corrected — confusion-matrix measurement) and
+// so needs this exact prompt string directly, the same reasoning as DAILY_NUDGE_SYSTEM's own
+// bump above.
+let GROUNDING_VERIFY_SYSTEM = """
 You are a strict fact-checker reviewing a reflection written about someone's recent journal entries.
 Read the RECENT ENTRIES, then read the REFLECTION.
 A reflection may interpret, paraphrase, or draw an emotional conclusion from what's written — that is fine.
