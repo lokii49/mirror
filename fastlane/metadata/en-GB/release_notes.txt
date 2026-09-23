@@ -1,7 +1,7 @@
-More reliable reflections, and a smoother editor.
+More reliable Past Reflections, and fewer repeated openings.
 
-• Fixed a case where a daily reflection could still include a detail that wasn't actually grounded in what you wrote.
-• Fixed the entry editor occasionally jumping to the top of the page while typing quickly.
-• Strengthened on-device privacy: removed a debug log that could print entry text to the local console during processing.
-• Added acknowledgments for the on-device AI models we use, under Settings > About.
+• Fixed duplicate cards appearing in Past Reflections after a reflection needed more than one attempt.
+• Days where no reflection could be found no longer clutter your history.
+• Reduced cases where a reflection repeated the same opening as a recent one.
+• Fixed Monthly Report occasionally showing the wrong report for a past month.
 • Small fixes and polish.

@@ -31,9 +31,21 @@ struct MonthlyReportView: View {
         return entries.filter { $0.createdAt >= start && $0.createdAt < end }
     }
 
+    // Was `insights.first { ... }` on this file's unsorted `@Query` — not newest, and no
+    // fallback exclusion. A month retried after an initial grounding-fallback (same
+    // non-destructive insert-new-row-per-retry pattern as daily nudge/weekly digest) could have
+    // multiple monthlyReport rows for one periodIdentifier; `.first` on undefined fetch order
+    // could show a stale fallback row even once a real report exists for that month.
+    // Newest-wins, matching InsightViewModel.loadMonthlyReport's own current-month lookup
+    // (cachedThisMonth) — and a fallback-only result is treated as no report at all here,
+    // same "fallback doesn't count as a real one" reasoning used throughout this area, so
+    // reportContent falls through to pastMonthNoReportCard instead of rendering boilerplate
+    // fallback text inside a report card.
     private var cachedReportForSelectedMonth: Insight? {
         let period = DateHelpers.monthIdentifier(for: selectedMonth)
-        return insights.first { $0.type == .monthlyReport && $0.periodIdentifier == period }
+        let matching = insights.filter { $0.type == .monthlyReport && $0.periodIdentifier == period }
+        guard let newest = matching.max(by: { $0.generatedAt < $1.generatedAt }) else { return nil }
+        return InsightService.isUngroundedFallback(newest.content) ? nil : newest
     }
 
     private var earliestAllowedMonth: Date {

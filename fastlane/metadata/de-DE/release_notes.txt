@@ -1,7 +1,7 @@
-Zuverlässigere Reflexionen und ein flüssigerer Editor.
+Zuverlässigere vergangene Reflexionen und weniger wiederholte Eröffnungssätze.
 
-• Ein Fehler behoben, durch den eine tägliche Reflexion gelegentlich noch ein Detail enthalten konnte, das nicht auf dem beruhte, was du tatsächlich geschrieben hast.
-• Ein Fehler behoben, durch den der Editor beim schnellen Tippen gelegentlich nach oben sprang.
-• On-Device-Datenschutz verstärkt: ein Debug-Log entfernt, das Eintragstext während der Verarbeitung in die lokale Konsole schreiben konnte.
-• Danksagungen für die verwendeten On-Device-KI-Modelle hinzugefügt, unter Einstellungen > Info.
+• Ein Fehler behoben, durch den doppelte Karten in „Vergangene Reflexionen" erschienen, wenn für eine Reflexion mehr als ein Versuch nötig war.
+• Tage, an denen keine Reflexion gefunden werden konnte, überladen deinen Verlauf nicht mehr.
+• Fälle reduziert, in denen eine Reflexion mit demselben Satz begann wie eine kürzliche.
+• Ein Fehler behoben, durch den der Monatsbericht gelegentlich den falschen Bericht für einen vergangenen Monat zeigte.
 • Kleinere Fehlerbehebungen und Feinschliff.

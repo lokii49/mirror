@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import NaturalLanguage
 @testable import mirror
 
 // A1 of the 2.1.0 design plan (.claude/2.1.0-design-plan.md, Track A1): a fixture-based
@@ -706,6 +707,187 @@ struct InsightValidationTests {
         let entries = [Entry(text: "The evening was long and I felt like resting well, though nothing much happened.")]
         let nudge = "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out."
         #expect(InsightService.isUngrounded(nudge, sourceEntries: entries))
+    }
+
+    // MARK: - openingIsUngrounded: catches a fabricated OPENING riding through on genuine
+    // words later in the response (see its doc comment in InsightService.swift). Zero test
+    // coverage existed for this function before this section — it's called exactly once, in
+    // generateNudge's retry-loop guard, and had never been exercised directly.
+
+    // The documented production case (InsightService.swift:327-330) this check was written to
+    // catch: an invented weather opening, with the only shared words ("walk", "book") arriving
+    // later in the response, from entries the opening itself never touches.
+    @Test func openingIsUngrounded_fabricatedWeatherOpening_detected() {
+        let entries = [
+            // Deliberately none of the opening's own content words (rain, outside, gentle,
+            // echo, quiet, space, trying, create) appear here — an earlier version of this
+            // fixture had "outside" in this entry too, which coincidentally matched the
+            // fabricated opening's "outside" and made the guard correctly report grounded.
+            Entry(text: "Went for a walk this afternoon, first time in weeks. Felt good to move again."),
+            Entry(text: "Finally finished the book I've been reading on and off for a month."),
+        ]
+        let nudge = "The rain outside feels like a gentle echo of the quiet space you've been trying to create. You're planning a walk later, and finishing that book sounds like exactly what you need."
+        #expect(InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    // KNOWN MISS, not yet fixed — pinned here so the gap is tracked mechanically instead of only
+    // in prose. Reproduces a live 2026-09-23 case from "Load Sample Entries (Mixed)": the source
+    // entry genuinely contains "The conversation with Priya I still think about" (a later line
+    // in a multi-line entry — see SampleData.swift's richEntries), so "conversation" and "priya"
+    // are real shared words, not coincidental filler. But "scent", "rain", "pavement", "window",
+    // "familiar", "ache", and "shoulders" — the sensory narrative the opening actually leads
+    // with — appear nowhere in this entry or any other in the seed set. The model anchored a
+    // fully invented sentence on two real nouns.
+    //
+    // openingIsUngrounded's flat "shares >= 1 real word" bar can't catch this: 2 shared words
+    // clears it same as 20 would. Two fixes were tried and both were empirically falsified
+    // against real fixtures, not just reasoned about — see the two tests directly below this
+    // one for the actual numbers:
+    //
+    // 1. A stricter bar on raw shared-word count/density: rejected because this repo's word-
+    //    matching is exact-string (no stemming: "rewriting" doesn't match "rewrite"), so honest
+    //    paraphrase erodes the shared-word count on its own — same failure mode
+    //    `minimumSharedWords`'s doc comment already warns is fragile to tune blind.
+    //
+    // 2. Restricting the absence-count to NOUNS only (via NLTagger, excluding verbs/adjectives
+    //    so irregular verb forms like drive/drove can't cause false positives): looked promising
+    //    on this fixture and one other, then falsified by a THIRD fixture — an honest reflection
+    //    using interpretive/figurative nouns absent from the source ("weight off", "rest of your
+    //    week") scored a higher unmatched-noun count than an actual fabrication. See
+    //    `openingNounAbsence_honestFigurativeLanguageOutscoresActualFabrication_falsifiesNounSignal`.
+    //
+    // Bag-of-words overlap — noun-restricted or not — cannot structurally distinguish "real
+    // anchor + honest paraphrase/interpretation" from "real anchor + invented elaboration."
+    //
+    // UPDATE, same day, from real device data (mirrorTests/GroundingSampleHarness.swift, whose
+    // header comment has the full numbers): this single-entry fixture UNDERSTATES the real
+    // defect. At the actual corpus scale "Load Sample Entries (Mixed)" produces (39 entries),
+    // real Gemma generations full-guard-bypassed 8 of 15 times (53%) — not a rare edge case.
+    // And a parallel honest-control measurement (real recent-entry-grounded text through the
+    // same corpus, no generation, ground truth by construction) found the honest and fabricated
+    // sharedCombined distributions overlap almost completely — proving, not just suggesting,
+    // that no value of `minimumSharedWords`' cap can fix this. That door is closed by
+    // measurement now, the same way the noun-signal idea above was. This affects 3.0.2, live,
+    // and gets worse as a user's history grows. Closing it for real needs a structurally
+    // different signal — semantic verification (the model checking its own output), not another
+    // word-set heuristic. Not attempted this pass — this is the fifth pass on this guard in six
+    // days, and each of the previous four fixed one observed case by introducing a new
+    // false-positive failure mode elsewhere; this pass adds two independently-measured closed
+    // doors instead of a sixth blind attempt.
+    @Test func openingIsUngrounded_realAnchorPlusFabricatedElaboration_knownMiss() {
+        let entries = [
+            Entry(text: """
+                Things I keep circling back to
+                Whether I'm actually resting or just not working
+                The conversation with Priya I still think about
+                "You can't pour from an empty cup." — heard this twice this week, universe is not subtle.
+                """),
+        ]
+        let nudge = "The scent of rain on the pavement outside your window, a familiar ache in your shoulders, brought you back to that conversation with Priya."
+        #expect(!InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    // Records why the noun-restricted absence-count idea (see comment above) was rejected,
+    // as an executable fact rather than a claim in prose — so it fails loudly if someone later
+    // changes `contentWords`'/the stopword list in a way that would flip the conclusion, instead
+    // of silently going stale. Self-contained (its own noun-extraction + stopword filter, not
+    // production code) since the idea was never wired into InsightService.
+    //
+    // Real NLTagger output (not hand-guessed) on five fixtures, filtered to nouns of 4+ letters
+    // excluding this file's own stopword list, counting opening nouns absent from the entry's
+    // noun set:
+    //   fabricated (Priya case, above):              6 unmatched
+    //   fabricated (original rain/quiet-spaces case): 3 unmatched
+    //   honest (drive/sister paraphrase):             2 unmatched
+    //   honest (onboarding/rewrite paraphrase):       2 unmatched
+    //   honest (payment-bug realistic corpus):        4 unmatched  <- higher than a fabrication
+    // The payment-bug case's "sounds", "rest", "week", "weight" are legitimate reflective/
+    // figurative language ("took a weight off", "the rest of your week") that a genuine
+    // grounded reflection can use without any of those exact nouns appearing in the source —
+    // indistinguishable, by absence-from-corpus alone, from "pavement"/"scent"/"shoulders" being
+    // genuinely invented. (NLTagger also mistagged "sounds" as a noun here, adding tagger noise
+    // on top of the structural problem.) No threshold separates 4 (honest) from 3 (fabricated).
+    @Test func openingNounAbsence_honestFigurativeLanguageOutscoresActualFabrication_falsifiesNounSignal() {
+        func unmatchedNounCount(opening: String, corpus: String) -> Int {
+            func nouns(in text: String) -> Set<String> {
+                let tagger = NLTagger(tagSchemes: [.lexicalClass])
+                tagger.string = text
+                var result: Set<String> = []
+                tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass) { tag, range in
+                    if tag == .noun {
+                        let w = String(text[range]).lowercased()
+                        if w.count >= 4 && !Self.openingNounAbsenceStopwords.contains(w) {
+                            result.insert(w)
+                        }
+                    }
+                    return true
+                }
+                return result
+            }
+            return nouns(in: opening).subtracting(nouns(in: corpus)).count
+        }
+
+        let fabricatedUnmatched = unmatchedNounCount(
+            opening: "The rain outside feels like a gentle reminder of the quiet spaces you've been carving out lately.",
+            corpus: """
+                Surprised to see 10 downloads the week the Timer app got released.
+                1. Learn new things 2. Focus on building things 3. Explore new ideas 4. Keep managing well.
+                Going in a good phase!
+                """
+        )
+        let honestUnmatched = unmatchedNounCount(
+            opening: "That payment bug you finally fixed before the client demo sounds like it took a real weight off — hope the relief carried into the rest of your week.",
+            corpus: """
+                Debugging the payment flow at work before the client demo took most of the afternoon.
+                Finally fixed the payment bug an hour before the call, felt like a huge relief.
+                """
+        )
+
+        // The falsification: an HONEST reflection scores >= an ACTUAL fabrication's unmatched
+        // count. If this ever fails, the noun signal may have become viable — but check what
+        // changed (contentWords, stopwords, or NLTagger behavior) before trusting a threshold.
+        #expect(honestUnmatched >= fabricatedUnmatched)
+    }
+
+    private static let openingNounAbsenceStopwords: Set<String> = [
+        "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "from", "with", "for", "by",
+        "is", "are", "was", "were", "be", "been", "being", "it", "its", "this", "that", "these", "those",
+        "i", "me", "my", "mine", "you", "your", "yours", "we", "our", "ours",
+        "he", "she", "they", "them", "his", "her", "their", "theirs",
+        "feels", "feel", "felt", "feeling", "like", "likes", "liked",
+        "still", "just", "really", "very", "so", "too", "also",
+        "more", "most", "much", "many", "some", "any", "all", "each", "every", "other", "another", "such",
+        "no", "not", "only", "own", "same", "than", "then", "once", "here", "there", "when", "where", "why",
+        "how", "what", "which", "who", "whom", "having", "do", "does", "did", "doing",
+        "would", "could", "should", "might", "must", "can", "will", "shall", "have", "has", "had",
+        "about", "again", "further", "out", "up", "down", "over", "under", "off", "into", "onto",
+        "if", "as", "because", "while", "during", "before", "after", "something", "someone", "things", "thing",
+    ]
+
+    @Test func openingIsUngrounded_emptyOpening_notDetected() {
+        let entries = [Entry(text: "Went for a long walk by the river today.")]
+        #expect(!InsightService.openingIsUngrounded("", recentEntries: entries))
+    }
+
+    // FIXED — was the opposite-direction known gap from the Priya case above. Now mirrors
+    // sharesNoWordWithRecent's `recentWords.count >= 4` floor (InsightService.swift:403): below
+    // it, this check defers entirely to isUngrounded's combined-pool check rather than judging
+    // an honest opening against a recent corpus too thin to fairly supply grounding words. Safe
+    // to add without a live thin-corpus opening sample (unlike a raised threshold): a floor only
+    // makes the check MORE lenient, so the worst case is a fabrication slipping through on a
+    // corpus with almost no vocabulary to fabricate against either — not a new false positive.
+    @Test func openingIsUngrounded_thinRecentCorpus_deferToCombinedPoolInstead() {
+        let entries = [Entry(text: "Okay day.")]
+        let nudge = "Sounds like today had its moments, one way or another."
+        #expect(!InsightService.openingIsUngrounded(nudge, recentEntries: entries))
+    }
+
+    @Test func openingIsUngrounded_genuinelyGroundedOpening_notDetected() {
+        let entries = [
+            Entry(text: "Drove home from my sister's place tonight and finally told her about the promotion. Felt lighter after."),
+        ]
+        let nudge = "You mentioned the drive home from your sister's, and how much lighter you felt once you finally said it."
+        #expect(!InsightService.openingIsUngrounded(nudge, recentEntries: entries))
     }
 
     // MARK: - ungroundedDailyNudges: the retroactive audit over already-generated nudges.
