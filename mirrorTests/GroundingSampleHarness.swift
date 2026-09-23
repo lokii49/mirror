@@ -84,6 +84,20 @@ import SwiftData
 // infrastructure in case FoundationModelEngine or a future prompt iteration revisits this.
 final class GroundingSampleHarness: XCTestCase {
 
+    // Opt-in only. Each real-generation test here does 5-19 actual on-device Gemma inference
+    // calls — minutes, not milliseconds — and GemmaModelTestSupport.ensureModelInstalled()'s
+    // own skip guard only fires when the model is ABSENT, so on any machine/CI runner that has
+    // it (e.g. any simulator run, where ensureModelInstalled copies the repo's checked-in
+    // .gguf), these would otherwise execute in full on every plain test-suite run. Requires
+    // RUN_GROUNDING_HARNESS=1 in the environment (an Xcode scheme's Arguments > Environment
+    // Variables, or `-testEnvironmentVariables` / just `env RUN_GROUNDING_HARNESS=1` before
+    // xcodebuild) in addition to the model being present.
+    private func requireHarnessOptIn() throws {
+        guard ProcessInfo.processInfo.environment["RUN_GROUNDING_HARNESS"] == "1" else {
+            throw XCTSkip("Set RUN_GROUNDING_HARNESS=1 to run this — real on-device generation, minutes not milliseconds. See this file's header comment.")
+        }
+    }
+
     private struct Case {
         let label: String
         let entries: [Entry]
@@ -139,6 +153,7 @@ final class GroundingSampleHarness: XCTestCase {
     // meaning the guards were working but there was nothing left to actually LOOK at. This
     // version sees what Gemma produced before any guard had a chance to reject it.
     func test_captureRawGenerations() async throws {
+        try requireHarnessOptIn()
         guard GemmaModelTestSupport.ensureModelInstalled() else {
             throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
         }
@@ -193,6 +208,7 @@ final class GroundingSampleHarness: XCTestCase {
     // caught every fabrication in the smaller cases above — still catches it here, or whether
     // this is the scale where it stops helping.
     func test_captureRawGenerations_fullSeedCorpusAtLiveIncidentScale() async throws {
+        try requireHarnessOptIn()
         guard GemmaModelTestSupport.ensureModelInstalled() else {
             throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
         }
@@ -330,6 +346,7 @@ final class GroundingSampleHarness: XCTestCase {
     // "semantic" check is automatically better than word-overlap. Verified against RECENT only
     // (3 entries), matching GROUNDING_VERIFY_SYSTEM's documented scope choice.
     func test_semanticVerifierConfusionMatrix() async throws {
+        try requireHarnessOptIn()
         guard GemmaModelTestSupport.ensureModelInstalled() else {
             throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
         }
@@ -343,13 +360,13 @@ final class GroundingSampleHarness: XCTestCase {
         var falsePositive = 0  // honest, wrongly flagged fabricated
 
         for (i, text) in Self.labeledFabricatedRaws.enumerated() {
-            let (isFabricated, raw) = try await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
+            let (isFabricated, raw) = await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
             if isFabricated { truePositive += 1 } else { falseNegative += 1 }
             print("[verifier][fabricated \(i + 1)] verdict=\(isFabricated ? "FABRICATED (correct)" : "GROUNDED (WRONG)") raw=\"\(raw)\"")
         }
 
         for (i, text) in Self.honestOpenings.enumerated() {
-            let (isFabricated, raw) = try await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
+            let (isFabricated, raw) = await InsightService.verifyGroundingSemantic(nudgeText: text, recentEntries: recent)
             if isFabricated { falsePositive += 1 } else { trueNegative += 1 }
             print("[verifier][honest \(i + 1)] verdict=\(isFabricated ? "FABRICATED (WRONG)" : "GROUNDED (correct)") raw=\"\(raw)\"")
         }
@@ -375,6 +392,7 @@ final class GroundingSampleHarness: XCTestCase {
     // the listed order (INVENTED first) versus GROUNDING_VERIFY_SYSTEM, same 19 texts, same
     // corpus, same temperature. Test-local prompt — not added to production code.
     func test_semanticVerifierPolarityFlipDisambiguation() async throws {
+        try requireHarnessOptIn()
         guard GemmaModelTestSupport.ensureModelInstalled() else {
             throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
         }
@@ -392,15 +410,25 @@ final class GroundingSampleHarness: XCTestCase {
         let (recent, _) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
         let entriesBlock = recent.map { "- \($0.text)" }.joined(separator: "\n")
 
-        func verdict(for text: String) async throws -> String {
+        // Doesn't throw — a single unparseable response (localGenerate's internal
+        // validate-retry can exhaust and throw InsightError.incompleteResponse) shouldn't crash
+        // the whole disambiguation run and lose every other data point. This is exactly what
+        // happened live: attempt 19 threw here uncaught, and the whole test failed instead of
+        // just recording "other" for that one case — the same class of bug fixed in
+        // verifyGroundingSemantic itself (InsightService.swift).
+        func verdict(for text: String) async -> String {
             let userMessage = "RECENT ENTRIES:\n\(entriesBlock)\n\nREFLECTION:\n\(text)"
-            let result = try await InsightService.localGenerate(
-                systemPrompt: flippedSystemPrompt,
-                userMessage: userMessage,
-                task: .groundingVerification,
-                responseLanguageInstruction: nil
-            )
-            return result.text
+            do {
+                let result = try await InsightService.localGenerate(
+                    systemPrompt: flippedSystemPrompt,
+                    userMessage: userMessage,
+                    task: .groundingVerification,
+                    responseLanguageInstruction: nil
+                )
+                return result.text
+            } catch {
+                return "<generation failed: \(error)>"
+            }
         }
 
         var invented = 0
@@ -408,13 +436,13 @@ final class GroundingSampleHarness: XCTestCase {
         var other = 0
 
         for (i, text) in Self.labeledFabricatedRaws.enumerated() {
-            let raw = try await verdict(for: text)
+            let raw = await verdict(for: text)
             let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             if normalized.contains("INVENTED") { invented += 1 } else if normalized.contains("FAITHFUL") { faithful += 1 } else { other += 1 }
             print("[flip][fabricated \(i + 1)] raw=\"\(raw)\"")
         }
         for (i, text) in Self.honestOpenings.enumerated() {
-            let raw = try await verdict(for: text)
+            let raw = await verdict(for: text)
             let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             if normalized.contains("INVENTED") { invented += 1 } else if normalized.contains("FAITHFUL") { faithful += 1 } else { other += 1 }
             print("[flip][honest \(i + 1)] raw=\"\(raw)\"")
