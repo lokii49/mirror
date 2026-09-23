@@ -190,8 +190,16 @@ struct InsightView: View {
 
     private var thisMonthEntries: [Entry] { cachedThisMonthEntries }
 
+    // Gates the "show paywall after first nudge" trigger below — counting raw rows (including
+    // fallback boilerplate and per-retry duplicates, same rows newestRealPerPeriod now hides
+    // from the list) meant a user whose only nudge attempts had failed grounding could rack up
+    // several fallback rows and read as "already seen multiple," silently skipping the paywall
+    // on what would actually be their first REAL nudge. Same "fallback doesn't count as a real
+    // one" filter InsightViewModel.hasSeenFirstNudge already uses.
     private var hasSeenMoreThanOneNudge: Bool {
-        insights.filter { $0.type == .dailyNudge }.count > 1
+        insights
+            .filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+            .count > 1
     }
 
     private var pastNudges: [Insight] {
