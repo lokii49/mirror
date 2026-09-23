@@ -20,7 +20,10 @@ enum InsightError: LocalizedError {
 }
 
 // Bumped from private (file-private) to internal as a test seam for GroundingSampleHarness,
-// same reasoning as localGenerate's comment.
+// which replicates generateNudge's single-shot call directly (bypassing its retry loop) and so
+// needs this exact prompt string, not just the localGenerate function it's passed to.
+// GROUNDING_VERIFY_SYSTEM below stays private on purpose — GroundingSampleHarness only ever
+// reaches it indirectly through verifyGroundingSemantic, never needs the string itself.
 let DAILY_NUDGE_SYSTEM = """
 You are MirrorNotes, a private on-device journaling companion.
 Read the user's local journal context and offer ONE specific, personal reflection — warm and familiar, the way a close friend who knows them well would talk.
