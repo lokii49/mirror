@@ -774,6 +774,17 @@ struct InsightValidationTests {
     // days, and each of the previous four fixed one observed case by introducing a new
     // false-positive failure mode elsewhere; this pass adds two independently-measured closed
     // doors instead of a sixth blind attempt.
+    //
+    // FURTHER UPDATE, same day: semantic verification WAS subsequently attempted
+    // (verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM, InsightService.swift) and cleanly
+    // falsified too — see GroundingSampleHarness.swift's Finding 4 for the full account,
+    // including a methodological correction (the first two measurement attempts were
+    // contaminated by an instrumentation bug, not a model finding; the clean re-measurement
+    // reached the same conclusion). Three independently falsified approaches now: threshold
+    // retuning, noun-absence signal, and 1B semantic self-check. Not fixable with the tools
+    // available on this session's hardware — remaining options are FoundationModelEngine
+    // (untested, no Apple-Intelligence-eligible device available) or a product decision on the
+    // interim fallback's conservativeness.
     @Test func openingIsUngrounded_realAnchorPlusFabricatedElaboration_knownMiss() {
         let entries = [
             Entry(text: """

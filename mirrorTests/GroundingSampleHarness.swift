@@ -69,26 +69,42 @@ import SwiftData
 // hardware, not reasoning about it.
 //
 // FINDING 4 — semantic self-check (verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM,
-// InsightService.swift) tried and falsified, measured, same day. Gate before wiring it into
-// generateNudge: run it as the judge over the 15 labeled-fabricated raws above plus the 4
-// labeled-honest controls (test_semanticVerifierConfusionMatrix). Result: 19/19 "Grounded" —
+// InsightService.swift) tried and falsified, measured cleanly, same day.
+//
+// The first two measurement attempts (test_semanticVerifierConfusionMatrix,
+// test_semanticVerifierPolarityFlipDisambiguation) both went through
+// InsightService.localGenerate, which runs ONE internal retry whenever validate() rejects the
+// response — and validate()'s .groundingVerification case only recognizes the exact tokens
+// GROUNDED/FABRICATED, so any first attempt that answered differently (including the flip
+// test's deliberately different INVENTED/FAITHFUL vocabulary) was mechanically guaranteed to
+// retry with retryConstraint's literal "Return exactly one word: GROUNDED or FABRICATED"
+// injected into the prompt — and both tests only captured and printed the FINAL text, not
+// which attempt produced it. That's an instrumentation bug in this research code, not a model
+// finding, discovered while investigating an unrelated capability probe
+// (test_dualDocumentCapabilityProbe) that hit the same contamination and briefly looked like
+// evidence of a spooky content-independent prior before the mechanism was traced.
+//
+// test_semanticVerifierConfusionMatrix_uncontaminated supersedes both: bypasses
+// InsightService.localGenerate entirely (calls LocalLLMService.shared.generate directly +
+// .cleanedInsightOutput() inline — no validate(), no retry, no vocabulary injection possible),
+// run as the judge over the same 15 labeled-fabricated raws plus 4 labeled-honest controls.
+// Result, genuine first-pass, zero contamination possible: 19/19 answered exactly "Grounded" —
 // 0/15 recall on the actual fabrications, trivial 4/4 on honest text only because the verdict
-// never varied. Disambiguated with test_semanticVerifierPolarityFlipDisambiguation: a second
-// prompt asking for INVENTED/FAITHFUL instead of FABRICATED/GROUNDED (different words, swapped
-// order, same 19 texts) got "GROUNDED" back on 18 of 19 attempts anyway — a word that wasn't
-// even in the second prompt's instructed vocabulary. The model isn't weighing prompt wording or
-// token order; it's returning a fixed association regardless of instruction or content. That
-// rules out "the prompt needs work" and confirms the task is beyond what this 1B model can do
-// as its own judge, at least with a single-pass classification prompt.
+// never varied. The earlier contaminated runs happened to land on the same conclusion, but this
+// is the measurement that actually supports it. The model is beyond what this 1B model can do
+// as its own single-pass judge — not a prompt-wording problem, a capability ceiling, now
+// cleanly confirmed rather than inferred through a flawed instrument.
 //
 // Three independently falsified approaches now, same day, each measured rather than assumed:
 // threshold retuning (isUngrounded/openingIsUngrounded), noun-absence signal
 // (InsightValidationTests), and 1B semantic self-check. Remaining real options: FoundationModel-
-// Engine (a more capable model, only on Apple-Intelligence-eligible devices — untested here) or
-// treating this as a product decision about the fallback's conservativeness rather than a
-// guard-design problem. verifyGroundingSemantic/GROUNDING_VERIFY_SYSTEM are NOT wired into
-// generateNudge or any production path — left in InsightService.swift as validated
-// infrastructure in case FoundationModelEngine or a future prompt iteration revisits this.
+// Engine (a more capable model, only on Apple-Intelligence-eligible devices — both devices
+// available this session, iPhone 14 Pro and iPhone 13, are pre-A17-Pro and ineligible; genuinely
+// untested, not just unexplored) or treating this as a product decision about the fallback's
+// conservativeness rather than a guard-design problem. verifyGroundingSemantic/
+// GROUNDING_VERIFY_SYSTEM are NOT wired into generateNudge or any production path — left in
+// InsightService.swift as validated infrastructure in case FoundationModelEngine or a future
+// prompt iteration revisits this.
 final class GroundingSampleHarness: XCTestCase {
 
     // Opt-in only. Each real-generation test here does 5-19 actual on-device Gemma inference
@@ -511,5 +527,117 @@ final class GroundingSampleHarness: XCTestCase {
             statistic.)
             === end repeat-rate check ===
             """)
+    }
+
+    // Advisor's capability probe, before trying a few-shot rewrite of GROUNDING_VERIFY_SYSTEM:
+    // Finding 4 showed the verifier returns a constant "Grounded" regardless of prompt wording
+    // or content, but that's consistent with two very different explanations — (a) the model
+    // literally cannot compare two documents and answer differentially, a capability ceiling no
+    // prompt fixes, or (b) it can compare documents fine, and GROUNDING_VERIFY_SYSTEM's specific
+    // framing (open-ended "is this claim supported") is just a bad prompt for a 1B model. This
+    // asks the SAME dual-document shape a trivially checkable yes/no question instead of an
+    // open-ended judgment: does a word that's DEFINITELY present in the entries appear there,
+    // and does a word that's DEFINITELY absent appear there. If it answers both correctly and
+    // differently, the model can read and compare; the grounding prompt is a prompt problem.
+    // If it gives the same answer to both, no prompt fixes this.
+    func test_dualDocumentCapabilityProbe() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let entries = [
+            Entry(text: """
+                Things I keep circling back to
+                Whether I'm actually resting or just not working
+                The conversation with Priya I still think about
+                "You can't pour from an empty cup." — heard this twice this week, universe is not subtle.
+                """),
+        ]
+        let entriesBlock = entries.map { "- \($0.text)" }.joined(separator: "\n")
+
+        let probeSystemPrompt = """
+            You will be shown RECENT ENTRIES and a WORD. Determine whether that exact word appears
+            anywhere in the RECENT ENTRIES text.
+            Reply with EXACTLY one word: YES or NO.
+            No explanation. No punctuation. One word only.
+            """
+
+        func probe(word: String) async throws -> String {
+            let userMessage = "RECENT ENTRIES:\n\(entriesBlock)\n\nWORD:\n\(word)"
+            let result = try await InsightService.localGenerate(
+                systemPrompt: probeSystemPrompt,
+                userMessage: userMessage,
+                task: .groundingVerification,
+                responseLanguageInstruction: nil
+            )
+            return result.text
+        }
+
+        let presentWordAnswer = try await probe(word: "Priya")   // definitely present
+        let absentWordAnswer = try await probe(word: "pavement")  // definitely absent
+
+        print("""
+
+            === DUAL-DOCUMENT CAPABILITY PROBE ===
+            "Priya" (present, expect YES):    \(presentWordAnswer)
+            "pavement" (absent, expect NO):   \(absentWordAnswer)
+            (same answer to both => capability ceiling, no prompt fixes it.
+             correct + differential => prompt problem, few-shot worth trying.)
+            === end capability probe ===
+            """)
+    }
+
+    // Supersedes test_semanticVerifierConfusionMatrix and
+    // test_semanticVerifierPolarityFlipDisambiguation's conclusions — both went through
+    // InsightService.localGenerate, which runs ONE internal retry on validate() failure, and
+    // that retry's retryConstraint(for: .groundingVerification) literally injects "Return
+    // exactly one word: GROUNDED or FABRICATED" into the prompt. validate()'s
+    // .groundingVerification case only recognizes those two exact tokens — so any first attempt
+    // that answered with anything else (including a correct answer in DIFFERENT wording, as the
+    // polarity-flip test deliberately requested) was mechanically guaranteed to retry into that
+    // exact vocabulary, and both prior tests only captured and printed the FINAL (possibly
+    // retry-coerced) text, not which attempt produced it. That's an instrumentation bug in this
+    // research code, not a model finding — neither 19/19 nor 18/19 can be trusted as the
+    // model's natural first-pass behavior.
+    //
+    // This bypasses InsightService.localGenerate entirely — calls LocalLLMService.shared.generate
+    // directly and applies .cleanedInsightOutput() inline, the same two steps
+    // localGenerate/queuedGenerate perform, minus validate() and its retry. No vocabulary
+    // injection possible. This is the measurement Finding 4 should have been.
+    func test_semanticVerifierConfusionMatrix_uncontaminated() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let entries = try makeFullSeedCorpusRecentEntries()
+        let (recent, _) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+        let entriesBlock = recent.map { "- \($0.text)" }.joined(separator: "\n")
+
+        func rawVerdict(for text: String) async throws -> String {
+            let userMessage = "RECENT ENTRIES:\n\(entriesBlock)\n\nREFLECTION:\n\(text)"
+            let raw = try await LocalLLMService.shared.generate(
+                systemPrompt: GROUNDING_VERIFY_SYSTEM,
+                userMessage: userMessage,
+                task: .groundingVerification
+            )
+            return raw.text.cleanedInsightOutput()
+        }
+
+        var neitherTokenCount = 0
+        for (i, text) in Self.labeledFabricatedRaws.enumerated() {
+            let raw = try await rawVerdict(for: text)
+            let verdict = InsightService.recognizedGroundingVerdict(raw)
+            if verdict == nil { neitherTokenCount += 1 }
+            print("[uncontaminated][fabricated \(i + 1)] verdict=\(verdict.map { "\($0)" } ?? "NEITHER") raw=\"\(raw)\"")
+        }
+        for (i, text) in Self.honestOpenings.enumerated() {
+            let raw = try await rawVerdict(for: text)
+            let verdict = InsightService.recognizedGroundingVerdict(raw)
+            if verdict == nil { neitherTokenCount += 1 }
+            print("[uncontaminated][honest \(i + 1)] verdict=\(verdict.map { "\($0)" } ?? "NEITHER") raw=\"\(raw)\"")
+        }
+        print("\n=== UNCONTAMINATED FIRST-PASS RESULTS: \(neitherTokenCount)/19 answered neither GROUNDED nor FABRICATED exactly ===\n")
     }
 }
