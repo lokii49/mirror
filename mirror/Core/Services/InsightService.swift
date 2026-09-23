@@ -19,7 +19,9 @@ enum InsightError: LocalizedError {
     }
 }
 
-private let DAILY_NUDGE_SYSTEM = """
+// Bumped from private (file-private) to internal as a test seam for GroundingSampleHarness,
+// same reasoning as localGenerate's comment.
+let DAILY_NUDGE_SYSTEM = """
 You are MirrorNotes, a private on-device journaling companion.
 Read the user's local journal context and offer ONE specific, personal reflection — warm and familiar, the way a close friend who knows them well would talk.
 Rules:
@@ -151,7 +153,8 @@ enum InsightService {
     // Also read by InsightSignalSource's disclosure label, so what it reports
     // as "quoted" can't drift from what was actually sent.
     static let memoryBriefExcerptLimit = 4
-    private static let dailyNudgePromptBudget = 4_600
+    // Bumped from private to internal as a test seam for GroundingSampleHarness.
+    static let dailyNudgePromptBudget = 4_600
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
@@ -1048,7 +1051,12 @@ enum InsightService {
         return fallback
     }
 
-    private static func localGenerate(
+    // Bumped from private to internal (same-file scope otherwise) as a test seam for
+    // GroundingSampleHarness, which needs to call the raw single-shot generation directly (no
+    // retry loop, no grounding-fallback substitution) to see what Gemma actually produced before
+    // any guard intervened — same reasoning as this file's header comment on `validate`/
+    // `cleaned*Output()`.
+    static func localGenerate(
         systemPrompt basePrompt: String,
         userMessage: String,
         task: LocalLLMTask,
@@ -1583,7 +1591,9 @@ enum InsightService {
         return clipped(message, maxChars: monthlyReportPromptBudget)
     }
 
-    private static func buildUserMessage(
+    // Bumped from private to internal as a test seam for GroundingSampleHarness — see
+    // localGenerate's comment above.
+    static func buildUserMessage(
         title: String,
         recentEntries: [Entry],
         backgroundEntries: [Entry],
