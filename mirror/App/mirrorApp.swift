@@ -474,8 +474,15 @@ struct mirrorApp: App {
         #endif
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
+        // Excludes fallback rows — same "fallback doesn't count as a real one" reasoning
+        // InsightViewModel.hasSeenFirstNudge and InsightView.hasSeenMoreThanOneNudge already
+        // use. Without this, a user whose recent dailyNudge rows are mostly fallback boilerplate
+        // (the exact population the retry-loop/dedup work this session was about) gets
+        // priorNudgeOpenings fed "MirrorNotes couldn't find today's reflection..." instead of
+        // real prior openings, wasting the .prefix(4) window on content there's no reason to
+        // avoid repeating and weakening the actual cross-day anti-repetition check.
         let recentNudges = allInsights
-            .filter { $0.type == .dailyNudge }
+            .filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
             .sorted { $0.generatedAt > $1.generatedAt }
             .prefix(4)
             .map(\.content)
