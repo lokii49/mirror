@@ -1,7 +1,7 @@
-Des réflexions quotidiennes plus fiables.
+Des réflexions plus fiables et un éditeur plus fluide.
 
-• Les réflexions quotidiennes sont désormais générées juste après l'écriture, même après votre heure habituelle — plus besoin de quitter puis de rouvrir l'application.
-• Correction d'un problème où une réflexion pouvait parfois afficher un contenu qui n'était pas fondé sur ce que vous aviez réellement écrit.
-• Réessayer fonctionne désormais de manière fiable — appuyez dessus pour obtenir une réflexion réelle et nouvelle, au lieu qu'il ne se passe rien.
-• Correction du widget d'écran d'accueil qui affichait parfois « Non confirmée » au lieu de votre véritable réflexion.
+• Correction d'un cas où une réflexion quotidienne pouvait encore inclure un détail qui ne provenait pas réellement de ce que vous aviez écrit.
+• Correction d'un bug où l'éditeur remontait parfois en haut de la page pendant une saisie rapide.
+• Confidentialité sur l'appareil renforcée : suppression d'un journal de débogage susceptible d'afficher le texte d'une entrée dans la console locale pendant le traitement.
+• Ajout des remerciements pour les modèles d'IA embarqués que nous utilisons, dans Réglages > À propos.
 • Petites corrections et améliorations.
