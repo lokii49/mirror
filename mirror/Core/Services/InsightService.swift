@@ -350,7 +350,15 @@ enum InsightService {
         let openingWords = contentWords(firstSentence(text))
         guard !openingWords.isEmpty else { return false }
         let recentWords = contentWords(recentEntries.map(\.insightContext).joined(separator: " "))
-        guard !recentWords.isEmpty else { return false }
+        // Same floor as sharesNoWordWithRecent (InsightService.swift:403), same reasoning: a
+        // returning user's single terse recent entry can't supply enough vocabulary for even an
+        // honest opening to land on. Below the floor, defer entirely to isUngrounded's
+        // combined-pool check rather than risking a false positive here — unlike a raised
+        // threshold, a floor can only make this check MORE lenient, never flag something it
+        // wouldn't already flag, so it carries none of the "tuned blind" regression risk a
+        // stricter bar would (see openingIsUngrounded_thinRecentCorpus_flaggedNoFloorUnlikeSibling
+        // in InsightValidationTests, which this closes).
+        guard recentWords.count >= 4 else { return false }
         return openingWords.intersection(recentWords).isEmpty
     }
 
