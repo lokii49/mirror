@@ -72,7 +72,8 @@ struct NoteEditorTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.parent = self
 
-        if context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text) {
+        let logicalMismatch = context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
+        if logicalMismatch {
             let selectedRange = textView.selectedRange
             context.coordinator.applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = context.coordinator.bounded(selectedRange, in: textView.text)
@@ -103,9 +104,38 @@ struct NoteEditorTextView: UIViewRepresentable {
     private static let minEditorHeight: CGFloat = 240
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
-        guard let width = proposal.width, width > 0, width != .infinity else { return nil }
-        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: max(fitting.height.rounded(.up), Self.minEditorHeight))
+        guard let rawWidth = proposal.width, rawWidth > 0, rawWidth != .infinity else { return nil }
+        // Rounded, not the raw proposal: dateHeader/tagsBar now sit as siblings of this
+        // ScrollView instead of scrolling away above it, so their own relayout (the animated
+        // word-count badge springing in at a word boundary, most visibly right on Return)
+        // can hand this view a proposal a fraction of a point off from the last pass. An
+        // exact != comparison treated that as a real width change and zeroed the floor right
+        // when a transient short sizeThatFits reading was most likely — reopening the same
+        // collapse-to-top this floor exists to prevent, just retriggered by header jitter
+        // instead of a line un-wrap.
+        let width = rawWidth.rounded()
+        // A height floor only makes sense at the width it was measured at (rotation, Split
+        // View resize) — carry it over across widths and the editor could get pinned taller
+        // than it needs to be at the new width.
+        if context.coordinator.sessionMaxEditorHeightWidth != width {
+            context.coordinator.sessionMaxEditorHeight = 0
+            context.coordinator.sessionMaxEditorHeightWidth = width
+        }
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height.rounded(.up)
+        // SwiftUI can query this mid-edit, sometimes catching the layout manager between a
+        // text change landing and its glyphs being laid out — most visibly right when an
+        // edit un-wraps a line, where it can transiently answer with a much shorter height
+        // for that one pass. The enclosing SwiftUI ScrollView reads that as the content
+        // genuinely shrinking and snaps its contentOffset toward zero — on-device that showed
+        // up as one backspace teleporting an 850-word entry to the top instead of nudging the
+        // scroll to follow the caret. Floor against the tallest height seen this editing
+        // session so a transient short read can't shrink the scroll content out from under
+        // the user. Reset when the coordinator is torn down (a new entry gets a fresh
+        // NoteEditorTextView/Coordinator) — an intentional select-all-delete mid-entry won't
+        // reclaim the freed scroll space until then, which is the right side to err on for a
+        // journaling editor: never yank the view out from under someone who's still typing.
+        context.coordinator.sessionMaxEditorHeight = max(context.coordinator.sessionMaxEditorHeight, fitting)
+        return CGSize(width: width, height: max(context.coordinator.sessionMaxEditorHeight, Self.minEditorHeight))
     }
 
     func makeCoordinator() -> Coordinator {
@@ -130,6 +160,23 @@ struct NoteEditorTextView: UIViewRepresentable {
         private var lastRenderedFontChoice: WritingFontChoice?
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
         private var lastKnownCursorLocation: Int = 0
+        // textViewDidChange and textViewDidChangeSelection both fire per keystroke, each
+        // scheduling an async scrollCaretToVisible. Under fast typing/auto-repeat backspace,
+        // several of these land before the previous animated scroll finishes; each restarts
+        // an animation toward its own target, and UIScrollView's animation can overshoot when
+        // repeatedly interrupted this way — observed on-device as the whole document rubber-
+        // banding to the top instead of following the caret. Only the most recent request
+        // matters, so cancel any in-flight one before scheduling the next.
+        private var pendingCaretScroll: DispatchWorkItem?
+        // See sizeThatFits — floors the editor's reported height against the tallest it has
+        // measured this session, so a transient short measurement can't shrink the scroll
+        // content and reset the ScrollView's offset out from under the caret.
+        var sessionMaxEditorHeight: CGFloat = 0
+        var sessionMaxEditorHeightWidth: CGFloat = 0
+        // See scrollCaretToVisible — the last contentOffset captured while the caret rect
+        // looked trustworthy, restored when iOS's predictive-text engine faults and resets
+        // the scroll view's offset out from under us.
+        var lastGoodContentOffset: CGPoint?
         var lastAppliedCommandRevision = 0
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
@@ -322,18 +369,75 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// keep the caret above the keyboard by nudging the enclosing scroll view.
         /// A no-op when the caret rect is already fully visible.
         private func scrollCaretToVisible(in textView: UITextView) {
-            guard let selection = textView.selectedTextRange else { return }
-            let caret = textView.caretRect(for: selection.end)
-            guard !caret.isNull, caret.origin.y.isFinite, caret.height.isFinite else { return }
+            // Reading caretRect/convert here, synchronously on every keystroke, was the bug:
+            // this fires mid-edit, sometimes before UIKit's layoutManager has regenerated
+            // glyphs for a text change that just landed (e.g. right when a wrapped line
+            // un-wraps and the editor's height shrinks), and caretRect(for:) can answer with
+            // a stale/degenerate rect from before that relayout — observed on-device as a
+            // single keystroke snapping the whole scroll view to the very top of a long
+            // entry instead of nudging it to follow the caret. Deferring the read itself
+            // into the dispatched block, not just the scroll call, means it runs after
+            // layout has settled on the final state.
+            guard let ancestor = { () -> UIScrollView? in
+                var view = textView.superview
+                while let v = view, !(v is UIScrollView) { view = v.superview }
+                return view as? UIScrollView
+            }() else { return }
 
-            var ancestor = textView.superview
-            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
-            guard let scrollView = ancestor as? UIScrollView else { return }
-
-            let target = textView.convert(caret, to: scrollView).insetBy(dx: 0, dy: -48)
-            DispatchQueue.main.async {
-                scrollView.scrollRectToVisible(target, animated: true)
+            pendingCaretScroll?.cancel()
+            let work = DispatchWorkItem { [weak self, weak textView, weak ancestor] in
+                guard let textView, let scrollView = ancestor,
+                      let selection = textView.selectedTextRange else { return }
+                // Force the layout manager to finish flowing glyphs for the text container's
+                // CURRENT size before asking it where the caret is. Without this, caretRect(for:)
+                // can answer from stale layout right when the container's height just changed.
+                textView.layoutManager.ensureLayout(for: textView.textContainer)
+                let caret = textView.caretRect(for: selection.end)
+                // iOS's own predictive-text engine intermittently faults — on-device logs show
+                // it throwing internal TextInputUI/CandidateGeneration errors ("variant
+                // selector cell index number could not be found", "Attempted to update
+                // accumulator... after completion has already been called") — and as a side
+                // effect of that fault it resets this UIScrollView's contentOffset to near-zero
+                // itself, entirely outside this code, then hands the next caretRect(for:) call a
+                // bogus answer too (observed: y = -1, impossible mid-document). isFinite alone
+                // doesn't catch that — -1 is finite — so check plausibility against the laid-out
+                // content instead. Confirmed on-device: caretRect stays poisoned until the next
+                // real keystroke, not just for a moment, so retrying the read shortly after gets
+                // nothing — restore the offset we already know was correct instead.
+                let maxPlausibleY = textView.layoutManager.usedRect(for: textView.textContainer).maxY + textView.textContainerInset.top + textView.textContainerInset.bottom
+                guard !caret.isNull, caret.origin.y.isFinite, caret.height.isFinite,
+                      caret.origin.y >= 0, caret.origin.y <= maxPlausibleY + 1 else {
+                    // Rare (only the OS fault above triggers it) and geometry-only — left in
+                    // as a signal that the mitigation actually fired, not left over from
+                    // debugging.
+                    print("[scrollDiag] rejected bad caret rect y=\(caret.origin.y) maxPlausibleY=\(maxPlausibleY)")
+                    if let lastGood = self?.lastGoodContentOffset {
+                        scrollView.setContentOffset(lastGood, animated: false)
+                    }
+                    return
+                }
+                let target = textView.convert(caret, to: scrollView).insetBy(dx: 0, dy: -48)
+                // scrollRectToVisible(animated: true) doesn't offer a completion handler, and
+                // reading scrollView.contentOffset back right after calling it (even one
+                // runloop hop later) can catch it mid-animation, not settled — confirmed
+                // against on-device logs where that read landed on an in-flight value nowhere
+                // near the actual target. Driving the same move through an explicit UIView
+                // animation gets a completion callback that fires once it's actually done, so
+                // what gets saved as "last known good" is the real resting position.
+                UIView.animate(withDuration: 0.3, delay: 0, options: [.allowUserInteraction], animations: {
+                    scrollView.scrollRectToVisible(target, animated: false)
+                }, completion: { finished in
+                    // At typing speed a keystroke's animation is routinely superseded by the
+                    // next one within ~100ms — completion still fires, but with finished=false
+                    // and contentOffset at whatever the interrupted animation reached, not a
+                    // resting position. Saving that would reintroduce the exact "read a
+                    // mid-flight value" problem this completion-handler approach exists to avoid.
+                    guard finished else { return }
+                    self?.lastGoodContentOffset = scrollView.contentOffset
+                })
             }
+            pendingCaretScroll = work
+            DispatchQueue.main.async(execute: work)
         }
 
         func textView(

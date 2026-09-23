@@ -165,10 +165,23 @@ enum SampleData {
             ),
         ] + richEntries
 
-        for e in entries {
+        // Staggered by `index` seconds, not a bare `daysAgo(e.days)`: several entries above
+        // share the same `days` value (the three richEntries and two French entries all use
+        // days: 0), which used to give them the exact same Date() instance. dailyNudgeContext's
+        // "recent" pick depends on createdAt ordering, and ties at that layer go through
+        // SwiftData/SQLite's fetch, which — unlike Swift's Array.sorted — makes no ordering
+        // guarantee for equal keys. That let which entries counted as "recent" vary between a
+        // plain in-memory replica of this logic and a real on-device run, and was the root cause
+        // a live 2026-09-22 "Load Sample Entries (Mixed)" nudge (fabricated "rain outside..."
+        // opening) reproduced inconsistently — its grounding-guard verdict depended on which of
+        // the 5 same-instant entries won an unspecified tie. Real journal entries are never
+        // written in the same instant, so this was purely a fixture artifact; the 1-second
+        // stagger (later array index = later/more-recent) makes ordering deterministic and
+        // matches how real data actually looks, without changing any entry's "days ago" meaning.
+        for (index, e) in entries.enumerated() {
             let trimmed = e.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let entry = Entry(text: trimmed, mood: e.mood, source: e.source)
-            entry.createdAt = daysAgo(e.days)
+            entry.createdAt = daysAgo(e.days).addingTimeInterval(TimeInterval(index))
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
             entry.tags = e.extraTags + [sampleTag]
             entry.textStyleData = e.textStyleData

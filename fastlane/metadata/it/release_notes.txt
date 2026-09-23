@@ -1,7 +1,7 @@
-Riflessioni giornaliere più affidabili.
+Riflessioni più affidabili e un editor più fluido.
 
-• Le riflessioni giornaliere vengono ora generate subito dopo aver scritto, anche oltre il tuo solito orario — non serve più uscire e riaprire l'app.
-• Risolto un problema per cui una riflessione poteva a volte mostrare contenuti non basati su ciò che avevi davvero scritto.
-• "Riprova" ora funziona in modo affidabile — toccalo per ottenere subito una riflessione nuova e reale, invece che non succeda nulla.
-• Risolto il widget della schermata Home che a volte mostrava "Non confermata" invece della tua vera riflessione.
-• Piccole correzioni e rifiniture.
+• Risolto un caso in cui una riflessione quotidiana poteva ancora includere un dettaglio non realmente basato su ciò che avevi scritto.
+• Risolto un problema per cui l'editor a volte tornava in cima alla pagina durante la digitazione veloce.
+• Rafforzata la privacy on-device: rimosso un log di debug che poteva stampare il testo delle voci nella console locale durante l'elaborazione.
+• Aggiunti i ringraziamenti per i modelli IA on-device che utilizziamo, in Impostazioni > Informazioni.
+• Piccole correzioni e miglioramenti.

@@ -1,7 +1,7 @@
-Zuverlässigere tägliche Reflexionen.
+Zuverlässigere Reflexionen und ein flüssigerer Editor.
 
-• Tägliche Reflexionen werden jetzt direkt nach dem Schreiben erstellt, auch wenn es schon nach deiner gewohnten Zeit ist — du musst die App dafür nicht mehr verlassen und neu öffnen.
-• Ein Fehler behoben, durch den eine Reflexion gelegentlich Inhalte zeigen konnte, die nicht auf dem beruhten, was du tatsächlich geschrieben hast.
-• „Erneut versuchen" funktioniert jetzt zuverlässig — tippe darauf und erhalte eine neue, echte Reflexion, statt dass nichts passiert.
-• Das Home-Bildschirm-Widget behoben, das manchmal „Konnte nicht bestätigt werden" anstelle deiner echten Reflexion anzeigte.
+• Ein Fehler behoben, durch den eine tägliche Reflexion gelegentlich noch ein Detail enthalten konnte, das nicht auf dem beruhte, was du tatsächlich geschrieben hast.
+• Ein Fehler behoben, durch den der Editor beim schnellen Tippen gelegentlich nach oben sprang.
+• On-Device-Datenschutz verstärkt: ein Debug-Log entfernt, das Eintragstext während der Verarbeitung in die lokale Konsole schreiben konnte.
+• Danksagungen für die verwendeten On-Device-KI-Modelle hinzugefügt, unter Einstellungen > Info.
 • Kleinere Fehlerbehebungen und Feinschliff.
