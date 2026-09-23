@@ -1,0 +1,191 @@
+import XCTest
+import SwiftData
+@testable import mirror
+
+// Gap-1 research harness (InsightValidationTests.swift's
+// openingIsUngrounded_realAnchorPlusFabricatedElaboration_knownMiss and
+// openingNounAbsence_..._falsifiesNounSignal): every fix attempted for the "real anchor +
+// fabricated elaboration" gap so far was checked against HAND-WRITTEN fixtures standing in for
+// what Gemma might say, not what it actually says. This calls the real generation pipeline
+// (InsightService.generateNudge -> LocalLLMService, real Gemma 3 1B, same GemmaModelTestSupport
+// setup PerformanceLLMXCTests already uses) across several varied entry corpora and prints the
+// actual output, so a fix can be designed from real samples instead of reasoning about
+// hypothetical ones.
+//
+// DEVICE-ONLY in practice: on a fresh simulator, GemmaModelTestSupport.ensureModelInstalled()
+// falls back to copying the repo's checked-in .gguf via a source-relative path, which only
+// resolves because the Simulator shares the host Mac's filesystem (see that file's doc
+// comment) — a real device's sandbox can't do that. On a real device, this instead relies on
+// LocalLLMService.isGemmaModelAvailable already being true because the model was downloaded by
+// a real run of the app in this same container (unit tests run injected into the app-under-
+// test's own process, unlike UI tests' separate runner app, so they share its Application
+// Support directory). If neither is true, this skips rather than false-failing.
+//
+// Not asserting anything here — this is data collection, not a pass/fail gate. Read the printed
+// output; that's the deliverable.
+final class GroundingSampleHarness: XCTestCase {
+
+    private struct Case {
+        let label: String
+        let entries: [Entry]
+    }
+
+    private static let cases: [Case] = [
+        // Reproduces the exact corpus behind the live 2026-09-23 Priya fabrication (see
+        // InsightValidationTests' knownMiss test) — does the real model do it again, or was
+        // that one run idiosyncratic?
+        Case(label: "priya-anchor", entries: [
+            Entry(text: """
+                Things I keep circling back to
+                Whether I'm actually resting or just not working
+                The conversation with Priya I still think about
+                "You can't pour from an empty cup." — heard this twice this week, universe is not subtle.
+                """),
+        ]),
+        // A corpus with zero emotionally "atmospheric" material (task list, logistics) — if the
+        // model invents weather/sensory framing here anyway, that's the same failure shape
+        // without needing a name to anchor on at all.
+        Case(label: "logistics-only", entries: [
+            Entry(text: "Grocery run, called the plumber about the leak, finally scheduled the dentist appointment I'd been putting off."),
+            Entry(text: "Spent the afternoon on the quarterly budget spreadsheet. Numbers mostly checked out."),
+        ]),
+        // Realistic multi-entry background (mirrors isUngrounded_realisticMultiEntryCorpus's
+        // fixture) — the shape most daily nudges are actually generated against.
+        Case(label: "multi-entry-realistic", entries: [
+            Entry(text: "Debugging the payment flow at work before the client demo took most of the afternoon."),
+            Entry(text: "Finally fixed the payment bug an hour before the call, felt like a huge relief."),
+            Entry(text: "Quiet Sunday, mostly reading and catching up on emails from the week."),
+            Entry(text: "Team standup ran long, mostly discussing the upcoming launch checklist."),
+            Entry(text: "Long commute today, listened to a podcast about productivity habits."),
+        ]),
+        // A single terse entry — the thin-corpus shape gap 2's floor exists for. Does the model
+        // stay honest with almost nothing to go on, or reach for invented specificity?
+        Case(label: "single-terse-entry", entries: [
+            Entry(text: "Okay day."),
+        ]),
+        // A single rich entry with concrete sensory detail already present — checks whether the
+        // model can echo real sensory detail rather than substituting invented sensory detail,
+        // when the source actually offers some.
+        Case(label: "single-rich-sensory-entry", entries: [
+            Entry(text: "Walked to the office in the cold this morning, hands numb by the time I got there. Coffee helped. Meetings back to back until 3, then finally some quiet to actually think."),
+        ]),
+    ]
+
+    // Calls the RAW single-shot generation directly — localGenerate + buildUserMessage,
+    // bumped from private to internal for exactly this (see their comments in
+    // InsightService.swift) — instead of generateNudge's public entry point. generateNudge's
+    // retry loop + finalNudgeResult substitute the safe fallback text whenever every attempt
+    // fails grounding, which is what actually happened for all 5 cases the first time this
+    // harness ran through generateNudge: every case came back as the fallback boilerplate,
+    // meaning the guards were working but there was nothing left to actually LOOK at. This
+    // version sees what Gemma produced before any guard had a chance to reject it.
+    func test_captureRawGenerations() async throws {
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        for c in Self.cases {
+            let (recent, background) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
+            let userMessage = InsightService.buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: recent,
+                backgroundEntries: background,
+                maxChars: InsightService.dailyNudgePromptBudget,
+                includeRecurringTerms: false
+            )
+
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await InsightService.localGenerate(
+                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    userMessage: userMessage,
+                    task: .dailyNudge,
+                    responseLanguageInstruction: nil
+                )
+            } catch {
+                print("\n=== [\(c.label)] RAW GENERATION THREW: \(error) ===\n")
+                continue
+            }
+
+            let isUngroundedCombined = InsightService.isUngrounded(result.text, sourceEntries: recent + background)
+            let sharesNoWordRecent = InsightService.sharesNoWordWithRecent(result.text, recentEntries: recent)
+            let openingUngrounded = InsightService.openingIsUngrounded(result.text, recentEntries: recent)
+
+            print("\n=== [\(c.label)] RAW ===")
+            print("engine=\(result.engine.rawValue)")
+            print("recent entries (\(recent.count)):")
+            for e in recent { print("  - \(e.text.prefix(160))") }
+            print("RAW GENERATED TEXT (pre-guard):")
+            print("  \(result.text)")
+            print("guards: isUngrounded(combined)=\(isUngroundedCombined) sharesNoWordWithRecent=\(sharesNoWordRecent) openingIsUngrounded=\(openingUngrounded)")
+            print("=== end [\(c.label)] RAW ===\n")
+        }
+    }
+
+    // The 5 hand-picked corpora above are small (0-2 background entries) — nothing like the
+    // scale behind the actual live incident. openingIsUngrounded_realAnchorPlusFabricated-
+    // Elaboration_knownMiss (InsightValidationTests) reproduces the anchor-word pattern against
+    // a single entry, but the live bug happened against "Load Sample Entries (Mixed)"'s full
+    // corpus — up to 20 background entries, hundreds of words — and openingIsUngrounded's own
+    // doc comment says exactly that scale is what makes a fabricated opening likely to
+    // coincidentally clear even the *combined*-pool check, not just the recent-only ones. This
+    // reproduces the real corpus at real scale (via SampleData.seed, the exact function "Load
+    // Sample Entries (Mixed)" calls) to see whether isUngrounded(combined) — the check that
+    // caught every fabrication in the smaller cases above — still catches it here, or whether
+    // this is the scale where it stops helping.
+    func test_captureRawGenerations_fullSeedCorpusAtLiveIncidentScale() async throws {
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+        SampleData.seed(into: context)
+        let entries = try context.fetch(FetchDescriptor<Entry>())
+        print("\n[fullSeedCorpus] seeded \(entries.count) entries")
+
+        for attempt in 1...3 {
+            let (recent, background) = InsightService.dailyNudgeContext(from: entries, asOf: Date())
+            let userMessage = InsightService.buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: recent,
+                backgroundEntries: background,
+                maxChars: InsightService.dailyNudgePromptBudget,
+                includeRecurringTerms: false
+            )
+
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await InsightService.localGenerate(
+                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    userMessage: userMessage,
+                    task: .dailyNudge,
+                    responseLanguageInstruction: nil
+                )
+            } catch {
+                print("\n=== [fullSeedCorpus attempt \(attempt)] RAW GENERATION THREW: \(error) ===\n")
+                continue
+            }
+
+            let isUngroundedCombined = InsightService.isUngrounded(result.text, sourceEntries: recent + background)
+            let sharesNoWordRecent = InsightService.sharesNoWordWithRecent(result.text, recentEntries: recent)
+            let openingUngrounded = InsightService.openingIsUngrounded(result.text, recentEntries: recent)
+            let anyGuardCaughtIt = isUngroundedCombined || sharesNoWordRecent || openingUngrounded
+
+            print("\n=== [fullSeedCorpus attempt \(attempt)] RAW ===")
+            print("engine=\(result.engine.rawValue)")
+            print("recent entries (\(recent.count)):")
+            for e in recent { print("  - \(e.text.prefix(160))") }
+            print("background entry count: \(background.count)")
+            print("RAW GENERATED TEXT (pre-guard):")
+            print("  \(result.text)")
+            print("guards: isUngrounded(combined)=\(isUngroundedCombined) sharesNoWordWithRecent=\(sharesNoWordRecent) openingIsUngrounded=\(openingUngrounded) => overall violatesGrounding=\(anyGuardCaughtIt)")
+            if !anyGuardCaughtIt {
+                print("*** ALL THREE GUARDS MISSED THIS ONE — full bypass reproduced ***")
+            }
+            print("=== end [fullSeedCorpus attempt \(attempt)] RAW ===\n")
+        }
+    }
+}
