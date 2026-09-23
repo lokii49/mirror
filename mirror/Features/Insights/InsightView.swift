@@ -190,8 +190,16 @@ struct InsightView: View {
 
     private var thisMonthEntries: [Entry] { cachedThisMonthEntries }
 
+    // Gates the "show paywall after first nudge" trigger below — counting raw rows (including
+    // fallback boilerplate and per-retry duplicates, same rows newestRealPerPeriod now hides
+    // from the list) meant a user whose only nudge attempts had failed grounding could rack up
+    // several fallback rows and read as "already seen multiple," silently skipping the paywall
+    // on what would actually be their first REAL nudge. Same "fallback doesn't count as a real
+    // one" filter InsightViewModel.hasSeenFirstNudge already uses.
     private var hasSeenMoreThanOneNudge: Bool {
-        insights.filter { $0.type == .dailyNudge }.count > 1
+        insights
+            .filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+            .count > 1
     }
 
     private var pastNudges: [Insight] {
@@ -201,11 +209,14 @@ struct InsightView: View {
 
     /// Earlier weeks' digests, newest first. When the current digest state is the
     /// `.previousWeek` fallback, its hero already shows the newest one — drop it
-    /// here so the archive list doesn't repeat it.
+    /// here so the archive list doesn't repeat it. Keyed off the hero's own
+    /// `periodIdentifier`, not position 0: `loadWeeklyDigest`'s `.previousWeek` pick can be a
+    /// fallback row, which `cachedPastDigests` (via `newestPerPeriod`) already excludes — so
+    /// `dropFirst()` would remove the wrong (next-newest, real) row instead of a no-op.
     private var pastDigests: [Insight] {
         guard SubscriptionService.shared.isSubscribed else { return [] }
-        if case .previousWeek = viewModel.digestState {
-            return Array(cachedPastDigests.dropFirst())
+        if case .previousWeek(let hero, _) = viewModel.digestState {
+            return cachedPastDigests.filter { $0.periodIdentifier != hero.periodIdentifier }
         }
         return cachedPastDigests
     }
@@ -255,15 +266,30 @@ struct InsightView: View {
         cachedCurrentStreak = streak
     }
 
+    // A retried fallback inserts a new row per attempt rather than overwriting the old one
+    // (see InsightViewModel.resolvedNudgeState) — today's card hides that with a `max(by:)`
+    // lookup, but these past-list caches used to list every row unfiltered, so a day retried
+    // 4 times showed 4 identical "couldn't find today's reflection" cards. Newest-per-period
+    // wins here too, matching how today's own card already resolves the same duplication. A
+    // period whose newest (and only surviving) row is still a fallback never produced a real
+    // reflection at all, so it's dropped rather than shown as one boilerplate card — same
+    // "fallback doesn't count as a real one" reasoning InsightViewModel.hasSeenFirstNudge uses.
+    private func newestRealPerPeriod(_ items: [Insight]) -> [Insight] {
+        Dictionary(grouping: items, by: \.periodIdentifier)
+            .compactMap { _, rows in rows.max { $0.generatedAt < $1.generatedAt } }
+            .filter { !InsightService.isUngroundedFallback($0.content) }
+            .sorted { $0.generatedAt > $1.generatedAt }
+    }
+
     private func recomputeInsightCaches() {
         let today = DateHelpers.dayIdentifier(for: Date())
         let thisWeek = DateHelpers.weekIdentifier(for: Date())
-        cachedPastNudges = insights
-            .filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
-            .sorted { $0.generatedAt > $1.generatedAt }
-        cachedPastDigests = insights
-            .filter { $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek }
-            .sorted { $0.generatedAt > $1.generatedAt }
+        cachedPastNudges = newestRealPerPeriod(
+            insights.filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
+        )
+        cachedPastDigests = newestRealPerPeriod(
+            insights.filter { $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek }
+        )
     }
 
     private var pastNudgesSection: some View {

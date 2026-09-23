@@ -19,7 +19,12 @@ enum InsightError: LocalizedError {
     }
 }
 
-private let DAILY_NUDGE_SYSTEM = """
+// Bumped from private (file-private) to internal as a test seam for GroundingSampleHarness,
+// which replicates generateNudge's single-shot call directly (bypassing its retry loop) and so
+// needs this exact prompt string, not just the localGenerate function it's passed to.
+// GROUNDING_VERIFY_SYSTEM below stays private on purpose — GroundingSampleHarness only ever
+// reaches it indirectly through verifyGroundingSemantic, never needs the string itself.
+let DAILY_NUDGE_SYSTEM = """
 You are MirrorNotes, a private on-device journaling companion.
 Read the user's local journal context and offer ONE specific, personal reflection — warm and familiar, the way a close friend who knows them well would talk.
 Rules:
@@ -117,6 +122,30 @@ Joyful, Grateful, Peaceful, Content, Energized, Hopeful, Anxious, Overwhelmed, F
 No explanation. No punctuation. One word only.
 """
 
+// Semantic grounding self-check — the model verifying its OWN prior output, as a candidate for
+// what the word-overlap guards (isUngrounded/sharesNoWordWithRecent/openingIsUngrounded) can't
+// do: tell honest interpretation/paraphrase apart from invented detail. Real-device measurement
+// (GroundingSampleHarness.swift) showed those guards miss 53% of fabrications at realistic
+// corpus scale, and that the miss can't be fixed by retuning their thresholds — honest and
+// fabricated text land in overlapping shared-word ranges. This is a genuinely different signal:
+// it doesn't count matching words, it asks whether the REFLECTION's specific claims are
+// actually supported.
+//
+// Deliberately checked against RECENT entries only, never background — same scope
+// `openingIsUngrounded` already uses, for the same reason: DAILY_NUDGE_SYSTEM itself requires
+// the reflection to ground in Recent entries and never lift phrasing from Long-term context, so
+// verifying against background too would let the judge rationalize "supported" off the same
+// large, coincidence-prone pool that lets the word-overlap checks miss at scale (see
+// `openingIsUngrounded`'s own doc comment on why combined-pool scale is exactly the risk).
+private let GROUNDING_VERIFY_SYSTEM = """
+You are a strict fact-checker reviewing a reflection written about someone's recent journal entries.
+Read the RECENT ENTRIES, then read the REFLECTION.
+A reflection may interpret, paraphrase, or draw an emotional conclusion from what's written — that is fine.
+A reflection is FABRICATED if it states a specific detail, image, event, sensation, or object that does not appear anywhere in the RECENT ENTRIES, even if the reflection also mentions something real.
+Reply with EXACTLY one word: GROUNDED or FABRICATED.
+No explanation. No punctuation. One word only.
+"""
+
 private let FOLLOW_UP_SYSTEM = """
 You are MirrorNotes, reading a journal entry the person is currently writing, mid-draft. Ask exactly one short follow-up question that invites them to go deeper into what they just wrote — the way a thoughtful friend would ask "what do you mean by that?" or "what's underneath that?"
 Rules:
@@ -151,7 +180,8 @@ enum InsightService {
     // Also read by InsightSignalSource's disclosure label, so what it reports
     // as "quoted" can't drift from what was actually sent.
     static let memoryBriefExcerptLimit = 4
-    private static let dailyNudgePromptBudget = 4_600
+    // Bumped from private to internal as a test seam for GroundingSampleHarness.
+    static let dailyNudgePromptBudget = 4_600
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
@@ -350,7 +380,15 @@ enum InsightService {
         let openingWords = contentWords(firstSentence(text))
         guard !openingWords.isEmpty else { return false }
         let recentWords = contentWords(recentEntries.map(\.insightContext).joined(separator: " "))
-        guard !recentWords.isEmpty else { return false }
+        // Same floor as sharesNoWordWithRecent (InsightService.swift:403), same reasoning: a
+        // returning user's single terse recent entry can't supply enough vocabulary for even an
+        // honest opening to land on. Below the floor, defer entirely to isUngrounded's
+        // combined-pool check rather than risking a false positive here — unlike a raised
+        // threshold, a floor can only make this check MORE lenient, never flag something it
+        // wouldn't already flag, so it carries none of the "tuned blind" regression risk a
+        // stricter bar would (see openingIsUngrounded_thinRecentCorpus_flaggedNoFloorUnlikeSibling
+        // in InsightValidationTests, which this closes).
+        guard recentWords.count >= 4 else { return false }
         return openingWords.intersection(recentWords).isEmpty
     }
 
@@ -513,7 +551,23 @@ enum InsightService {
             maxChars: dailyNudgePromptBudget,
             includeRecurringTerms: false
         )
-        let openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
+        // var, not let: grown with each failed attempt's own opening below. Real-device
+        // measurement (GroundingSampleHarness.swift, Finding 3) found this was a live bug, not
+        // theoretical — 12 of 15 real generations against one fixed corpus opened with a
+        // near-identical fabricated template, because repeatsPriorOpening only ever checked
+        // against PRIOR SAVED nudges (recentNudges, from already-persisted Insights), never
+        // against this call's own earlier attempts. A 1B model's output distribution can be
+        // peaked enough to hand back the same opening on attempt 2 that it gave on attempt 1
+        // (this loop's own comment already names that risk for grounding, but the repeat-check
+        // never got the same treatment) — so a user could retry three times and see the
+        // identical bad opening substituted as the "final" result all three times.
+        //
+        // Not a total fix, by construction: detection necessarily lands one attempt behind
+        // (attempt 2's check is the first one that can see attempt 1's opening, since it's
+        // appended only after attempt 1 finishes). Attempts 1 and 2 can still repeat each other
+        // once before the loop reacts — this reduces the repeat window from "all 3 attempts"
+        // to "at most attempts 1-2," not to zero.
+        var openings = priorNudgeOpenings(from: Array(recentNudges.prefix(4)))
         if !openings.isEmpty {
             userMessage += "\n\nYour recent reflections already opened with:\n"
                 + openings.map { "- \"\($0)…\"" }.joined(separator: "\n")
@@ -578,6 +632,16 @@ enum InsightService {
             lastResult = result
             lastViolatesGrounding = violatesGrounding
             guard attempt < maxAttempts else { break }
+
+            // This attempt's own opening joins the avoid-list for the NEXT attempt's repeat
+            // check — see the `var openings` comment above for why this has to happen here and
+            // not just once before the loop. Deduped the same way priorNudgeOpenings already
+            // dedupes prior-day openings, so a template repeated across attempts 1 and 2 doesn't
+            // get added to the list twice.
+            let thisAttemptOpening = firstWords(result.text, count: 7)
+            if !thisAttemptOpening.isEmpty, !openings.contains(where: { $0.caseInsensitiveCompare(thisAttemptOpening) == .orderedSame }) {
+                openings.append(thisAttemptOpening)
+            }
 
             // Named the violation(s) directly rather than just repeating the general
             // instruction — a list buried in the prompt was already ignored once. Built fresh
@@ -875,6 +939,42 @@ enum InsightService {
         return normalizeEmotion(response.text)
     }
 
+    // Research/validation stage only — not yet called from generateNudge or any production
+    // path. See GROUNDING_VERIFY_SYSTEM's doc comment for why this exists and its scope choice.
+    // Never throws — fails CLOSED (isFabricated=true) on anything, not just an unparseable
+    // response: matching this whole guard system's existing philosophy ("flawed beats none, but
+    // never fabricated beats none" — finalNudgeResult's comment), an inconclusive verdict is not
+    // evidence of grounding. This includes localGenerate itself throwing — its internal
+    // validate-retry exhausting on an unparseable response surfaces as
+    // InsightError.incompleteResponse, which an earlier version of this function let propagate
+    // uncaught, making the "fails closed" promise in this comment false whenever that happened
+    // (caught live by GroundingSampleHarness's polarity-flip test, which hit exactly this path).
+    static func verifyGroundingSemantic(nudgeText: String, recentEntries: [Entry]) async -> (isFabricated: Bool, raw: String) {
+        let entriesBlock = formatEntries(recentEntries, maxChars: 3_000)
+        let userMessage = """
+            RECENT ENTRIES:
+            \(entriesBlock)
+
+            REFLECTION:
+            \(nudgeText)
+            """
+        let response: (text: String, engine: LLMEngine)
+        do {
+            response = try await localGenerate(
+                systemPrompt: GROUNDING_VERIFY_SYSTEM,
+                userMessage: userMessage,
+                task: .groundingVerification,
+                responseLanguageInstruction: nil
+            )
+        } catch {
+            return (true, "<verification generation failed: \(error)>")
+        }
+        guard let verdict = recognizedGroundingVerdict(response.text) else {
+            return (true, response.text)
+        }
+        return (verdict == .fabricated, response.text)
+    }
+
     // Never persisted as an Insight — ephemeral, in-editor-only, discarded once the chip is
     // dismissed or the entry is saved. Keeps this feature schema-free: WriteView holds the
     // question in @State only, matching the security rule that draft-adjacent text stays
@@ -923,7 +1023,9 @@ enum InsightService {
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
     private static func responseLanguageInstruction(for target: ResponseLanguageTarget?, task: LocalLLMTask) -> String? {
-        guard task != .emotion else { return nil }
+        // groundingVerification skipped for the same reason emotion is: it must return exactly
+        // one of two fixed English tokens (GROUNDED/FABRICATED), not localized prose.
+        guard task != .emotion, task != .groundingVerification else { return nil }
         guard let target = target ?? responseLanguageTargetFromCurrentLocale() else { return nil }
 
         switch task {
@@ -937,7 +1039,7 @@ enum InsightService {
             """
         case .dailyNudge, .ask, .followUp:
             return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
-        case .emotion:
+        case .emotion, .groundingVerification:
             return nil
         }
     }
@@ -949,7 +1051,7 @@ enum InsightService {
             labels = weeklyDigestSectionLabels
         case .monthlyReport:
             labels = monthlyReportSectionLabels
-        case .dailyNudge, .ask, .emotion, .followUp:
+        case .dailyNudge, .ask, .emotion, .followUp, .groundingVerification:
             return []
         }
         return labels.map { section in
@@ -1040,7 +1142,12 @@ enum InsightService {
         return fallback
     }
 
-    private static func localGenerate(
+    // Bumped from private to internal (same-file scope otherwise) as a test seam for
+    // GroundingSampleHarness, which needs to call the raw single-shot generation directly (no
+    // retry loop, no grounding-fallback substitution) to see what Gemma actually produced before
+    // any guard intervened — same reasoning as this file's header comment on `validate`/
+    // `cleaned*Output()`.
+    static func localGenerate(
         systemPrompt basePrompt: String,
         userMessage: String,
         task: LocalLLMTask,
@@ -1098,7 +1205,7 @@ enum InsightService {
             cleaned = raw.text.cleanedDigestOutput()
         case .monthlyReport:
             cleaned = raw.text.cleanedMonthlyReportOutput()
-        case .dailyNudge, .ask, .emotion, .followUp:
+        case .dailyNudge, .ask, .emotion, .followUp, .groundingVerification:
             cleaned = raw.text.cleanedInsightOutput()
         }
         return (cleaned, raw.engine)
@@ -1130,6 +1237,8 @@ enum InsightService {
             return "Return exactly one allowed mood word and nothing else."
         case .followUp:
             return "Return exactly one short question, ending with a question mark, under 18 words. Nothing before or after it."
+        case .groundingVerification:
+            return "Return exactly one word: GROUNDED or FABRICATED. Nothing else."
         }
     }
 
@@ -1180,6 +1289,11 @@ enum InsightService {
             return trimmed
         case .followUp:
             return try validateFollowUp(trimmed)
+        case .groundingVerification:
+            guard recognizedGroundingVerdict(trimmed) != nil else {
+                throw InsightError.incompleteResponse
+            }
+            return trimmed
         }
     }
 
@@ -1575,7 +1689,9 @@ enum InsightService {
         return clipped(message, maxChars: monthlyReportPromptBudget)
     }
 
-    private static func buildUserMessage(
+    // Bumped from private to internal as a test seam for GroundingSampleHarness — see
+    // localGenerate's comment above.
+    static func buildUserMessage(
         title: String,
         recentEntries: [Entry],
         backgroundEntries: [Entry],
@@ -1804,6 +1920,24 @@ enum InsightService {
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .first { !$0.isEmpty } ?? response
         return MirrorTheme.moodOptions.first { $0.caseInsensitiveCompare(cleaned) == .orderedSame }
+    }
+
+    enum GroundingVerdict {
+        case grounded
+        case fabricated
+    }
+
+    // Same shape as recognizedEmotion: takes the first alphanumeric token, matches
+    // case-insensitively. Anything else (empty, neither word, both words, extra prose the model
+    // ignored the "one word only" instruction for) returns nil, which verifyGroundingSemantic
+    // treats as fabricated — see its comment on failing closed.
+    static func recognizedGroundingVerdict(_ response: String) -> GroundingVerdict? {
+        let cleaned = response
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .first { !$0.isEmpty } ?? response
+        if cleaned.caseInsensitiveCompare("GROUNDED") == .orderedSame { return .grounded }
+        if cleaned.caseInsensitiveCompare("FABRICATED") == .orderedSame { return .fabricated }
+        return nil
     }
 
 }

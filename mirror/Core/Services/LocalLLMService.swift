@@ -26,10 +26,19 @@ enum LocalLLMTask {
     case ask
     case emotion
     case followUp
+    // Semantic grounding self-check (research: GroundingSampleHarness) — the model verifying
+    // its OWN prior output against the source entries, as a candidate replacement/supplement
+    // for the word-overlap guards (isUngrounded/sharesNoWordWithRecent/openingIsUngrounded),
+    // which real-device measurement showed miss 53% of fabrications at realistic corpus scale
+    // and can't be fixed by retuning (see GroundingSampleHarness.swift). Same shape as
+    // `.emotion` — strict single-token classification output, not free-form generation — so it
+    // gets the same low temperature and small output cap, for the same reason.
+    case groundingVerification
 
     nonisolated var temperature: CFloat {
         switch self {
         case .emotion: return 0.1
+        case .groundingVerification: return 0.1
         case .dailyNudge: return 0.45
         case .ask: return 0.45
         case .followUp: return 0.5
@@ -43,6 +52,7 @@ enum LocalLLMTask {
     nonisolated var maxOutputChars: Int {
         switch self {
         case .emotion: return 30
+        case .groundingVerification: return 30
         case .followUp: return 140
         case .dailyNudge: return 700
         case .ask: return 1000

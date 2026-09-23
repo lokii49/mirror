@@ -1,7 +1,7 @@
-Riflessioni più affidabili e un editor più fluido.
+Riflessioni passate più affidabili e meno inizi ripetuti.
 
-• Risolto un caso in cui una riflessione quotidiana poteva ancora includere un dettaglio non realmente basato su ciò che avevi scritto.
-• Risolto un problema per cui l'editor a volte tornava in cima alla pagina durante la digitazione veloce.
-• Rafforzata la privacy on-device: rimosso un log di debug che poteva stampare il testo delle voci nella console locale durante l'elaborazione.
-• Aggiunti i ringraziamenti per i modelli IA on-device che utilizziamo, in Impostazioni > Informazioni.
+• Risolto un problema per cui apparivano schede duplicate in Riflessioni passate quando una riflessione richiedeva più di un tentativo.
+• I giorni in cui non è stato possibile trovare una riflessione non affollano più la cronologia.
+• Ridotti i casi in cui una riflessione iniziava allo stesso modo di una recente.
+• Risolto un problema per cui il Rapporto mensile mostrava occasionalmente il rapporto sbagliato per un mese passato.
 • Piccole correzioni e miglioramenti.
