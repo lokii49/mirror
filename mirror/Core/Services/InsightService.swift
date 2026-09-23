@@ -912,11 +912,15 @@ enum InsightService {
 
     // Research/validation stage only — not yet called from generateNudge or any production
     // path. See GROUNDING_VERIFY_SYSTEM's doc comment for why this exists and its scope choice.
-    // Returns (isFabricated, raw) rather than throwing on an unparseable response: fails CLOSED
-    // (isFabricated=true) rather than open, matching this whole guard system's existing
-    // philosophy ("flawed beats none, but never fabricated beats none" — finalNudgeResult's
-    // comment) — an unparseable verdict is not evidence of grounding.
-    static func verifyGroundingSemantic(nudgeText: String, recentEntries: [Entry]) async throws -> (isFabricated: Bool, raw: String) {
+    // Never throws — fails CLOSED (isFabricated=true) on anything, not just an unparseable
+    // response: matching this whole guard system's existing philosophy ("flawed beats none, but
+    // never fabricated beats none" — finalNudgeResult's comment), an inconclusive verdict is not
+    // evidence of grounding. This includes localGenerate itself throwing — its internal
+    // validate-retry exhausting on an unparseable response surfaces as
+    // InsightError.incompleteResponse, which an earlier version of this function let propagate
+    // uncaught, making the "fails closed" promise in this comment false whenever that happened
+    // (caught live by GroundingSampleHarness's polarity-flip test, which hit exactly this path).
+    static func verifyGroundingSemantic(nudgeText: String, recentEntries: [Entry]) async -> (isFabricated: Bool, raw: String) {
         let entriesBlock = formatEntries(recentEntries, maxChars: 3_000)
         let userMessage = """
             RECENT ENTRIES:
@@ -925,12 +929,17 @@ enum InsightService {
             REFLECTION:
             \(nudgeText)
             """
-        let response = try await localGenerate(
-            systemPrompt: GROUNDING_VERIFY_SYSTEM,
-            userMessage: userMessage,
-            task: .groundingVerification,
-            responseLanguageInstruction: nil
-        )
+        let response: (text: String, engine: LLMEngine)
+        do {
+            response = try await localGenerate(
+                systemPrompt: GROUNDING_VERIFY_SYSTEM,
+                userMessage: userMessage,
+                task: .groundingVerification,
+                responseLanguageInstruction: nil
+            )
+        } catch {
+            return (true, "<verification generation failed: \(error)>")
+        }
         guard let verdict = recognizedGroundingVerdict(response.text) else {
             return (true, response.text)
         }
