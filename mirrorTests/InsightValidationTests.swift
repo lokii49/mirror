@@ -758,12 +758,22 @@ struct InsightValidationTests {
     //
     // Bag-of-words overlap — noun-restricted or not — cannot structurally distinguish "real
     // anchor + honest paraphrase/interpretation" from "real anchor + invented elaboration."
-    // Closing this needs either real Gemma generation samples to calibrate a genuinely different
-    // signal against, or semantic verification (the model checking its own output), not another
+    //
+    // UPDATE, same day, from real device data (mirrorTests/GroundingSampleHarness.swift, whose
+    // header comment has the full numbers): this single-entry fixture UNDERSTATES the real
+    // defect. At the actual corpus scale "Load Sample Entries (Mixed)" produces (39 entries),
+    // real Gemma generations full-guard-bypassed 8 of 15 times (53%) — not a rare edge case.
+    // And a parallel honest-control measurement (real recent-entry-grounded text through the
+    // same corpus, no generation, ground truth by construction) found the honest and fabricated
+    // sharedCombined distributions overlap almost completely — proving, not just suggesting,
+    // that no value of `minimumSharedWords`' cap can fix this. That door is closed by
+    // measurement now, the same way the noun-signal idea above was. This affects 3.0.2, live,
+    // and gets worse as a user's history grows. Closing it for real needs a structurally
+    // different signal — semantic verification (the model checking its own output), not another
     // word-set heuristic. Not attempted this pass — this is the fifth pass on this guard in six
     // days, and each of the previous four fixed one observed case by introducing a new
-    // false-positive failure mode elsewhere; this pass adds a second falsified idea to that list
-    // instead of a sixth blind attempt.
+    // false-positive failure mode elsewhere; this pass adds two independently-measured closed
+    // doors instead of a sixth blind attempt.
     @Test func openingIsUngrounded_realAnchorPlusFabricatedElaboration_knownMiss() {
         let entries = [
             Entry(text: """
