@@ -187,6 +187,11 @@ struct WriteView: View {
                 if !focusMode {
                     dateHeader
                     tagsBar
+                } else {
+                    // Keeps the ScrollView's top edge off the nav bar safe area — flush
+                    // against it, SwiftUI extends scroll content under the glass bar,
+                    // same bleed-through dateHeader/tagsBar exist to prevent above.
+                    Color.clear.frame(height: 8)
                 }
 
                 ScrollView {
@@ -235,7 +240,7 @@ struct WriteView: View {
                         // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
                         // blank new entry. Disappears the instant there's any content, since at
                         // that point the user is already writing and doesn't need a starter.
-                        if entry == nil && !hasDraftContent && !focusMode {
+                        if entry == nil && !hasDraftContent {
                             WritingStarterChip(
                                 onTalkItOut: { presentTalkItOut() },
                                 onUseTemplate: { template in
