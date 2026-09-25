@@ -1,7 +1,4 @@
-Riflessioni passate più affidabili e meno inizi ripetuti.
+Una correzione di base per riflessioni, riepiloghi settimanali e rapporti mensili.
 
-• Risolto un problema per cui apparivano schede duplicate in Riflessioni passate quando una riflessione richiedeva più di un tentativo.
-• I giorni in cui non è stato possibile trovare una riflessione non affollano più la cronologia.
-• Ridotti i casi in cui una riflessione iniziava allo stesso modo di una recente.
-• Risolto un problema per cui il Rapporto mensile mostrava occasionalmente il rapporto sbagliato per un mese passato.
+• Risolto un caso raro in cui una riflessione, un riepilogo settimanale o un rapporto mensile poteva essere generato senza alcun reale riferimento a ciò che hai scritto, risultando generico.
 • Piccole correzioni e miglioramenti.

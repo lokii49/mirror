@@ -1,7 +1,4 @@
-Des réflexions passées plus fiables et moins d'ouvertures répétées.
+Une correction de fond pour les réflexions, les résumés hebdomadaires et les rapports mensuels.
 
-• Correction d'un bug où des cartes en double apparaissaient dans Réflexions passées lorsqu'une réflexion nécessitait plusieurs tentatives.
-• Les jours où aucune réflexion n'a pu être trouvée n'encombrent plus votre historique.
-• Réduction des cas où une réflexion reprenait la même ouverture qu'une réflexion récente.
-• Correction d'un bug où le Rapport mensuel affichait parfois le mauvais rapport pour un mois passé.
+• Correction d'un cas rare où une réflexion, un résumé hebdomadaire ou un rapport mensuel pouvait être généré sans réel appui sur vos propres écrits, donnant un résultat générique.
 • Petites corrections et améliorations.

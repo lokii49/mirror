@@ -1,7 +1,4 @@
-More reliable Past Reflections, and fewer repeated openings.
+A grounding fix for reflections, digests, and monthly reports.
 
-• Fixed duplicate cards appearing in Past Reflections after a reflection needed more than one attempt.
-• Days where no reflection could be found no longer clutter your history.
-• Reduced cases where a reflection repeated the same opening as a recent one.
-• Fixed Monthly Report occasionally showing the wrong report for a past month.
+• Fixed a rare case where a reflection, weekly digest, or monthly report could be generated without any of your own writing to actually draw from, and read as generic instead.
 • Small fixes and polish.

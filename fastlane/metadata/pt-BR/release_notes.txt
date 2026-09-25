@@ -1,7 +1,4 @@
-Reflexões passadas mais confiáveis e menos aberturas repetidas.
+Uma correção de base para reflexões, resumos semanais e relatórios mensais.
 
-• Corrigido um problema em que cartões duplicados apareciam em Reflexões passadas quando uma reflexão precisava de mais de uma tentativa.
-• Dias em que nenhuma reflexão pôde ser encontrada não sobrecarregam mais seu histórico.
-• Reduzidos os casos em que uma reflexão repetia a mesma abertura de uma reflexão recente.
-• Corrigido um problema em que o Relatório mensal mostrava ocasionalmente o relatório errado para um mês passado.
+• Corrigido um caso raro em que uma reflexão, um resumo semanal ou um relatório mensal podia ser gerado sem nenhuma base real nos seus próprios escritos, ficando genérico.
 • Pequenas correções e melhorias.
