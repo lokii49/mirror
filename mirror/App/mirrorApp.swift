@@ -402,7 +402,18 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let entries = (try? context.fetch(entryDescriptor)) ?? []
+        // Real device case (2026-09-25): a background pass running while the device is locked can
+        // hit a Keychain read failure (KeychainManager's documented errSecInteractionNotAllowed),
+        // which Entry.text silently turns into "". formatEntries then drops that entry from the
+        // prompt entirely, and isUngrounded/sharesNoWordWithRecent/openingIsUngrounded all
+        // early-return "not ungrounded" on an empty source word set — so a Gemma nudge generated
+        // against a blank "Recent entries:" block sails through every guard.
+        // InsightService.hasReadableContext, not the narrower textDecryptionFailed — matches
+        // exactly what generateNudge itself filters on, so this count gate and that function agree
+        // on which entries count as "readable" (a photo-only or failed-voice-transcription entry
+        // isn't a decryption failure but is just as unreadable). Filtered before the count gate so
+        // unreadable entries don't count toward "enough to generate from" either.
+        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         guard entries.count >= 3 else {
             #if DEBUG
             print("[nudge] blocked: entries<3")
@@ -607,7 +618,8 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let entries = (try? context.fetch(entryDescriptor)) ?? []
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
+        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         // Digest covers the current week only — gate on this week's entries, not lifetime.
         let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
@@ -666,7 +678,8 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let allEntries = (try? context.fetch(entryDescriptor)) ?? []
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
+        let allEntries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         let cal = Calendar.current
         let now = Date()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now

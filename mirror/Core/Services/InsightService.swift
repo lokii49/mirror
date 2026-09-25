@@ -525,7 +525,14 @@ enum InsightService {
     /// X-ray this mirrors): if an entry from that window has since been edited or deleted, the
     /// answer for that nudge may no longer be accurate.
     static func ungroundedDailyNudges(among insights: [Insight], allEntries: [Entry]) -> [Insight] {
-        insights
+        // Same filter generateNudge itself now applies (hasReadableContext, not the narrower
+        // textDecryptionFailed — a photo-only or failed-voice-transcription entry has no
+        // decryption failure but is just as unreadable) — without it, an entry unreadable at
+        // audit time (not necessarily at generation time) would drop out of the reconstructed
+        // context and could make a genuinely grounded nudge look fabricated on replay. Hoisted
+        // out of the per-insight closure below — computed once here, not once per insight audited.
+        let decryptableEntries = allEntries.filter(hasReadableContext)
+        return insights
             .filter { $0.type == .dailyNudge }
             // A fallback row's own boilerplate ("MirrorNotes couldn't find today's reflection...")
             // shares no vocabulary with any entry by construction — it's the guard's own safe
@@ -536,7 +543,7 @@ enum InsightService {
             .filter { !isUngroundedFallback($0.content) }
             .filter { insight in
                 let asOf = insight.generatedAt
-                let priorEntries = allEntries.filter { $0.createdAt <= asOf }
+                let priorEntries = decryptableEntries.filter { $0.createdAt <= asOf }
                 let (recent, background) = dailyNudgeContext(from: priorEntries, asOf: asOf)
                 // Same dual check as generateNudge's live guard — this audit exists specifically
                 // to retroactively find insights the pre-fix combined-only check let through, so
@@ -547,8 +554,36 @@ enum InsightService {
             .sorted { $0.generatedAt < $1.generatedAt }
     }
 
+    // True when an entry has nothing an LLM prompt or a grounding guard could actually read.
+    // Broader than `Entry.textDecryptionFailed` on purpose: a locked-device Keychain failure is
+    // one way `insightContext` ends up empty, but by that property's own implementation
+    // (Entry.swift), a photo-only entry with no typed caption and no voice note, or a voice note
+    // whose transcript and translation are both empty, produces the same empty string — not
+    // separately verified live, but a direct read of what insightContext actually returns for
+    // those shapes. Either way, formatEntries silently drops the entry, and isUngrounded/
+    // sharesNoWordWithRecent/openingIsUngrounded all early-return "not ungrounded" against an
+    // empty source word set. Filtering on the symptom (empty context) rather than one specific
+    // cause (decryption) catches all of them with one check.
+    static func hasReadableContext(_ entry: Entry) -> Bool {
+        !entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
+        // Real device case (2026-09-25): mirrorApp.swift's own call site filters this too, but
+        // generateWeeklyDigest/generateMonthlyReport/ask also have callers that never went through
+        // that filter (InsightViewModel's retry paths, AskView) — filtering here, at the
+        // chokepoint every caller passes through, means the guarantee holds regardless of what
+        // the caller remembered to do.
+        let entries = entries.filter(hasReadableContext)
         let (recent, background) = dailyNudgeContext(from: entries, asOf: Date())
+        guard !recent.isEmpty else {
+            // Nothing readable to ground in at all — generating here would mean the model
+            // inventing a reflection from a blank prompt, then persisting the honest-sounding
+            // fallback text as if a real attempt had been made and genuinely failed grounding.
+            // Throwing instead means nothing gets saved for today; a later call with readable
+            // entries can still succeed normally.
+            throw InsightError.serviceUnavailable("no readable entries to ground a nudge in")
+        }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
 
         var userMessage = buildUserMessage(
@@ -767,6 +802,12 @@ enum InsightService {
     /// (which includes them) is passed as long-term background for continuity in
     /// `WHAT'S BUILDING` / `NEXT WEEK`, never as digest material.
     static func generateWeeklyDigest(weekEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context guard as generateNudge — see hasReadableContext's doc comment.
+        let weekEntries = weekEntries.filter(hasReadableContext)
+        let allEntries = allEntries.filter(hasReadableContext)
+        guard !weekEntries.isEmpty else {
+            throw InsightError.serviceUnavailable("no readable entries to ground a weekly digest in")
+        }
         let thisWeek = weekEntries.sorted { $0.createdAt > $1.createdAt }
         let weekIDs = Set(weekEntries.map(\.id))
         let priorWeeks = allEntries
@@ -860,6 +901,12 @@ enum InsightService {
     // that alone covers everything the prompt draws vocabulary from — see
     // buildMonthlyReportMessage's recentBlock/backgroundBlock, both sourced from these two sets).
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context guard as generateNudge — see hasReadableContext's doc comment.
+        let monthEntries = monthEntries.filter(hasReadableContext)
+        let allEntries = allEntries.filter(hasReadableContext)
+        guard !monthEntries.isEmpty else {
+            throw InsightError.serviceUnavailable("no readable entries to ground a monthly report in")
+        }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
         let maxAttempts = 3
@@ -912,6 +959,12 @@ enum InsightService {
     )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context filter as generateNudge/generateWeeklyDigest/generateMonthlyReport
+        // — see hasReadableContext's doc comment. Unlike those, no throw-when-empty here: Ask
+        // already has its own honest "you haven't written about this yet" sentinel for when
+        // nothing relevant is found (askNoAnswerPhrase below), which is the right UX for an
+        // interactive query with no readable entries, not a thrown error.
+        let entries = entries.filter(hasReadableContext)
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))

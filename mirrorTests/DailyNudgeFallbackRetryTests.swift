@@ -27,7 +27,11 @@ import Foundation
 struct DailyNudgeFallbackRetryTests {
 
     private func makeContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        // cloudKitDatabase: .none — see the 2026-09-25 correction in the trailing comment below.
+        // Without it, this in-memory container still attempts CloudKit mirroring setup against
+        // this CloudKit-entitled test host with no iCloud account signed in, which is what the
+        // header comment's "store was removed from the coordinator" crash traces back to.
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: Entry.self, Insight.self, configurations: config)
         return ModelContext(container)
     }
@@ -75,4 +79,10 @@ struct DailyNudgeFallbackRetryTests {
         #expect(!mirrorApp.hasDailyNudgeForToday(context: context))
         #expect(mirrorApp.todaysDailyNudgeText(context: context) == nil)
     }
+
+    // The 2026-09-25 empty-context regression (locked-device decrypt failure defeating every
+    // grounding guard) is covered by GroundingSampleHarness.test_generateNudge_
+    // allEntriesUndecryptable_throwsWithoutGenerating instead of here — that version calls
+    // InsightService.generateNudge directly with no ModelContainer at all, so it needs neither
+    // this file's CloudKit-mirroring setup nor the `cloudKitDatabase: .none` fix above.
 }
