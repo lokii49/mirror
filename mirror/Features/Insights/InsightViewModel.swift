@@ -123,6 +123,15 @@ final class InsightViewModel {
         // seconds on-device), and runDailyNudgeIfNeeded gives no progress callback of its own.
         // Without this the button looks dead for that whole window.
         nudgeState = .loading
+        // Real device case (2026-09-26): app-open pre-gen was already mid-generation when the
+        // user tapped, so runDailyNudgeIfNeeded hit its coordinator-claimed gate and returned
+        // instantly — the card flashed .loading for a frame and snapped back to the fallback,
+        // repeatedly, for ~14s. Wait for that in-flight run first, THEN run our own: if it
+        // landed a real row, runDailyNudgeIfNeeded's newestToday-is-real gate returns early;
+        // if it landed another fallback (or threw), the tap still gets a genuine fresh attempt
+        // instead of being swallowed.
+        let key = "nudge_\(DateHelpers.dayIdentifier(for: Date()))"
+        await InsightGenerationCoordinator.shared.waitUntilReleased(key)
         await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true, userInitiatedRetry: true)
         let freshInsights = (try? context.fetch(FetchDescriptor<Insight>())) ?? insights
         await loadNudge(entries: entries, insights: freshInsights, context: context)
@@ -149,7 +158,11 @@ final class InsightViewModel {
         if let cached = insights
             .filter({ $0.type == .dailyNudge && $0.periodIdentifier == today })
             .max(by: { $0.generatedAt < $1.generatedAt }) {
-            return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
+            guard InsightService.isUngroundedFallback(cached.content) else { return .loaded(cached) }
+            // A fallback row with a generation actively running is stale by definition — show
+            // progress, not a "Couldn't confirm" card whose Try Again would just queue behind
+            // the run already in flight. InsightView re-resolves on the coordinator's release.
+            return InsightGenerationCoordinator.shared.isInFlight(coordinatorKey) ? .loading : .groundingFallback(cached)
         }
 
         // Pre-gen (mirrorApp.preGenerateInsightsIfNeeded) is actively running — show spinner.
