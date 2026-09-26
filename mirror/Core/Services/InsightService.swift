@@ -1087,6 +1087,11 @@ enum InsightService {
         // one of two fixed English tokens (GROUNDED/FABRICATED), not localized prose.
         guard task != .emotion, task != .groundingVerification else { return nil }
         guard let target = target ?? responseLanguageTargetFromCurrentLocale() else { return nil }
+        // Every base prompt is already English. For an English target the templates below read
+        // "Respond only in English. Do not use English unless quoting the user's own words." — a
+        // direct contradiction that shipped to every English-writing user from 0e31e03 (2026-07-05)
+        // until 2026-09-26. Foundation Models shrugged it off; a 1B model can't.
+        guard target.code != "en" else { return nil }
 
         switch task {
         case .weeklyDigest, .monthlyReport:
