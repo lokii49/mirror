@@ -877,4 +877,243 @@ final class GroundingSampleHarness: XCTestCase {
         print("[floorCheck] todaysInsights=\(todaysInsights.count) content=\(todaysInsights.first?.content ?? "<none>")")
         XCTAssertEqual(todaysInsights.count, 1, "3 decryptable entries at the floor should still produce an attempt (real or honest fallback), not be blocked")
     }
+
+    // MARK: - Name-attribution conflation (2026-09-26 device recording)
+    //
+    // Real device case: an entry about a bad night (stomach upset, little sleep), a short chat
+    // with one friend, and a DIFFERENT friend only saying he'd come over later produced a
+    // reflection crediting the second friend with "a quiet afternoon... shared laughter and
+    // gentle conversation" — wrong person, a plan turned into a past event, and the day's main
+    // event (being sick) missed entirely. It passed every guard because the name itself is a
+    // genuine shared word. SYNTHETIC stand-in with the same structure (different names and
+    // details — the real entry never goes in a committed file):
+    //   - illness/poor sleep as the dominant event, mood Drained
+    //   - person A: actually met ("short chat on the balcony")
+    //   - person B: only a future plan ("texted he'd come over")
+    //
+    // Measures, per raw generation: does the reflection credit B with a past shared activity,
+    // does it mention the illness at all, and would the candidate name-anchor check
+    // (nameSentenceSharesNoContextWord) have flagged it. Data collection, not a gate.
+    //
+    // RESULTS (2026-09-26, simulator, 12 raw runs each):
+    // - Foundation Models (the simulator's default engine — the first run measured this by
+    //   accident, see HARNESS_ENGINE): 12/12 correct — illness named every time, Dev never given a
+    //   past activity. The candidate name check flagged 5/12 of these CORRECT outputs (4x "ORS",
+    //   an acronym it treats as a name; 1x "Dev's visit" paraphrase) and caught nothing: rejected.
+    // - Gemma (HARNESS_ENGINE=gemma): 12/12 opened "The rain outside…", all rejected by the
+    //   existing guards. Full pipeline (…_fullPipeline, 8 runs x 3 attempts): 8/8 ended on the
+    //   "couldn't confirm" fallback. So Gemma users essentially never get a real reflection here,
+    //   and the rare pass is a partial fabrication — the real device incident.
+    // Root cause and the fix were then found off-device with tools/llmrig (see its README):
+    // the creative prompt itself, not tokenization or sampling.
+    private static let sickDayEntries: [Entry] = {
+        let today = Entry(text: """
+            Barely slept, got back from a late concert around 2 and my stomach was bad all night, \
+            up four or five times. Woke at 10, way later than usual, drank ORS like Meera said. \
+            Had lunch, slept again, got up at 5:30 and had some soup. Sat with Karan on the \
+            balcony for a short chat. Came back to my room and showered, Dev texted that he'd \
+            come over, let's see what happens.
+            """, mood: "Drained")
+        let yesterday = Entry(text: """
+            Usual gym, went to the barber for a haircut and came back to the flat, worked from \
+            home today. Should learn to ignore the group chat noise.
+            """, mood: "Content")
+        yesterday.createdAt = Date().addingTimeInterval(-86_400)
+        let twoDaysAgo = Entry(text: """
+            Usual morning routine, gym, came back had breakfast and oats. Started office, picked \
+            up the parcel on the way back, quiet evening.
+            """, mood: "Content")
+        twoDaysAgo.createdAt = Date().addingTimeInterval(-2 * 86_400)
+        return [today, yesterday, twoDaysAgo]
+    }()
+
+    private static let harnessStopWords: Set<String> = [
+        "about", "after", "again", "also", "back", "been", "before", "being", "came", "come",
+        "could", "from", "have", "into", "just", "like", "more", "much", "only", "over", "said",
+        "some", "than", "that", "their", "them", "then", "there", "these", "they", "this", "today",
+        "very", "want", "were", "what", "when", "where", "which", "while", "with", "would", "your",
+        "you're", "yours", "feel", "feeling", "felt", "seems", "something", "moment", "moments",
+    ]
+
+    private static func harnessContentWords(_ text: String) -> Set<String> {
+        Set(text.lowercased()
+            .components(separatedBy: CharacterSet.letters.inverted)
+            .filter { $0.count >= 4 && !harnessStopWords.contains($0) })
+    }
+
+    private static func sentences(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Candidate check (NOT shipped): for every capitalized name the entries use that the
+    /// reflection also uses, the reflection sentence containing it must share at least one
+    /// content word (besides the name) with some entry sentence containing that same name.
+    /// Returns the names that fail.
+    static func nameSentenceSharesNoContextWord(_ reflection: String, entries: [Entry]) -> [String] {
+        let entrySentences = entries.flatMap { sentences($0.text) }
+        var names = Set<String>()
+        for s in entrySentences {
+            let tokens = s.components(separatedBy: CharacterSet.letters.inverted).filter { !$0.isEmpty }
+            for (i, t) in tokens.enumerated() where i > 0 && t.first!.isUppercase && t.count >= 3 {
+                names.insert(t)
+            }
+        }
+        var failing: [String] = []
+        for name in names.sorted() {
+            let reflSentences = sentences(reflection).filter { $0.contains(name) }
+            guard !reflSentences.isEmpty else { continue }
+            let source = entrySentences.filter { $0.contains(name) }
+                .reduce(into: Set<String>()) { $0.formUnion(harnessContentWords($1)) }
+            let nameKey = name.lowercased()
+            for rs in reflSentences {
+                let words = harnessContentWords(rs).subtracting([nameKey])
+                if words.isDisjoint(with: source.subtracting([nameKey])) { failing.append(name); break }
+            }
+        }
+        return failing
+    }
+
+    func test_nameAttributionConflation_sickDayCase() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 10
+        // First run of this (2026-09-26) silently measured Foundation Models — the simulator had
+        // Apple Intelligence available, so LocalLLMService never reached Gemma. HARNESS_ENGINE=gemma
+        // forces the fallback path the real incident may have come from.
+        let forceGemma = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        LocalLLMService.forceGemmaForTesting = forceGemma
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let (recent, background) = InsightService.dailyNudgeContext(from: Self.sickDayEntries, asOf: Date())
+        let userMessage = InsightService.buildUserMessage(
+            title: "Daily reflection context",
+            recentEntries: recent,
+            backgroundEntries: background,
+            maxChars: InsightService.dailyNudgePromptBudget,
+            includeRecurringTerms: false
+        )
+        let illnessWords = ["stomach", "sick", "slept", "sleep", "night", "rest", "unwell", "ors", "tired", "drained"]
+
+        var creditsDev = 0, mentionsIllness = 0, flaggedByCandidate = 0, flaggedByExisting = 0
+        for i in 1...runs {
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await InsightService.localGenerate(
+                    systemPrompt: DAILY_NUDGE_SYSTEM, userMessage: userMessage,
+                    task: .dailyNudge, responseLanguageInstruction: nil)
+            } catch {
+                print("[conflation][\(i)] THREW: \(error)")
+                continue
+            }
+            let t = result.text
+            let lower = t.lowercased()
+            let devSentences = Self.sentences(t).filter { $0.contains("Dev") }
+            let devPast = devSentences.contains { s in
+                let l = s.lowercased()
+                return !(l.contains("text") || l.contains("come over") || l.contains("coming") || l.contains("will") || l.contains("see what"))
+            }
+            let illness = illnessWords.contains { lower.contains($0) }
+            let candidate = Self.nameSentenceSharesNoContextWord(t, entries: Self.sickDayEntries)
+            let existing = InsightService.isUngrounded(t, sourceEntries: recent + background)
+                || InsightService.sharesNoWordWithRecent(t, recentEntries: recent)
+                || InsightService.openingIsUngrounded(t, recentEntries: recent)
+            if devPast { creditsDev += 1 }
+            if illness { mentionsIllness += 1 }
+            if !candidate.isEmpty { flaggedByCandidate += 1 }
+            if existing { flaggedByExisting += 1 }
+            print("[conflation][\(i)] engine=\(result.engine.rawValue) devPast=\(devPast) illness=\(illness) candidateFlags=\(candidate) existingGuards=\(existing)")
+            print("[conflation][\(i)] TEXT: \(t)")
+        }
+        print("[conflation][SUMMARY] runs=\(runs) creditsDevWithPastActivity=\(creditsDev) mentionsIllness=\(mentionsIllness) flaggedByCandidate=\(flaggedByCandidate) flaggedByExistingGuards=\(flaggedByExisting)")
+    }
+
+
+    /// Same synthetic case through the FULL generateNudge pipeline (3-attempt retry loop with
+    /// violation feedback), not a single raw call. The raw-call run showed Gemma's attempt 1 is
+    /// the "rain outside" template 12/12 and always rejected — so whatever users actually see
+    /// from Gemma comes from attempt 2/3, after the "didn't reference anything actually
+    /// written" retry note. That's where the real device conflation most plausibly originated.
+    func test_nameAttributionConflation_sickDayCase_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 8
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        for i in 1...runs {
+            do {
+                let (text, engine, degraded) = try await InsightService.generateNudge(entries: Self.sickDayEntries)
+                let fallback = InsightService.isUngroundedFallback(text)
+                let candidate = Self.nameSentenceSharesNoContextWord(text, entries: Self.sickDayEntries)
+                print("[pipeline][\(i)] engine=\(engine.rawValue) degraded=\(degraded) fallback=\(fallback) candidateFlags=\(candidate)")
+                print("[pipeline][\(i)] TEXT: \(text)")
+            } catch {
+                print("[pipeline][\(i)] THREW: \(error)")
+            }
+        }
+    }
+
+
+    // MARK: - Prompt capture for the off-device test rig (2026-09-26)
+    //
+    // Additional synthetic cases (no real journal text) so prompt changes aren't tuned to the
+    // one sick-day shape. Each has a clear main event, >=2 named people with distinct roles, and
+    // (where noted) a plan that hasn't happened yet — the three things the real incident got wrong.
+    static let rigCases: [(label: String, entries: [Entry])] = {
+        func older(_ text: String, _ mood: String, daysAgo: Double) -> Entry {
+            let e = Entry(text: text, mood: mood)
+            e.createdAt = Date().addingTimeInterval(-daysAgo * 86_400)
+            return e
+        }
+        let routine1 = older("Usual gym, went to the barber for a haircut and came back to the flat, worked from home today. Should learn to ignore the group chat noise.", "Content", daysAgo: 1)
+        let routine2 = older("Usual morning routine, gym, came back had breakfast and oats. Started office, picked up the parcel on the way back, quiet evening.", "Content", daysAgo: 2)
+        let lunch = Entry(text: """
+            Lunch with Priya went long, she finally told me about the new job offer in Pune and \
+            she's nervous about moving. Called Mom on the way back, she sounded tired from the \
+            wedding prep. Rahul wants to go hiking on Sunday, not sure I'm up for it.
+            """, mood: "Content")
+        let work = Entry(text: """
+            Client presentation got pushed to Thursday again. Spent the whole afternoon fixing \
+            the dashboard bug with Omar, finally found it in the date parsing. Skipped dinner and \
+            ate chips at my desk. Feel behind on everything and Nisha's review is due Monday.
+            """, mood: "Overwhelmed")
+        let walk = Entry(text: """
+            Walked by the lake with Bruno after work, he chased the ducks again. Sun was out for \
+            once. Felt light for the first time this week. Might call Anu tomorrow to plan the trip.
+            """, mood: "Peaceful")
+        return [
+            ("sickday", sickDayEntries),
+            ("lunch", [lunch, routine1, routine2]),
+            ("work", [work, routine1, routine2]),
+            ("walk", [walk, routine1, routine2]),
+        ]
+    }()
+
+    /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
+    /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
+    /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.
+    func test_dumpNudgePromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for c in Self.rigCases {
+            var captured: [(String, String)] = []
+            LocalLLMService.generateInterceptForTesting = { system, user, _ in
+                captured.append((system, user))
+                return ("The rain outside feels heavy tonight, doesn't it?", .gemma)
+            }
+            _ = try? await InsightService.generateNudge(entries: c.entries)
+            XCTAssertEqual(captured.count, 3, "expected 3 attempts for \(c.label)")
+            for (i, pair) in captured.enumerated() {
+                try pair.0.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_system.txt", atomically: true, encoding: .utf8)
+                try pair.1.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_user.txt", atomically: true, encoding: .utf8)
+            }
+        }
+    }
 }

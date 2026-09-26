@@ -84,6 +84,18 @@ actor LocalLLMService {
 
     private init() {}
 
+    #if DEBUG
+    /// Test-only: skip Foundation Models so research harnesses can measure Gemma on a
+    /// simulator/device where Apple Intelligence is available (it's preferred otherwise, so a
+    /// harness run silently measures the wrong engine). Stripped from Release builds.
+    nonisolated(unsafe) static var forceGemmaForTesting = false
+
+    /// Test-only: when set, `generate` returns this instead of running any model — lets a
+    /// harness capture the exact final system/user prompts a pipeline sends (including retry
+    /// messages) without a slow real generation. Stripped from Release builds.
+    nonisolated(unsafe) static var generateInterceptForTesting: ((String, String, LocalLLMTask) throws -> (text: String, engine: LLMEngine))?
+    #endif
+
     func resetContext() async {
         if let service {
             await service.stopCompletion()
@@ -97,7 +109,16 @@ actor LocalLLMService {
         // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
         // when a Gemma model actually exists locally — otherwise the fallback itself throws
         // LocalLLMError.modelMissing, turning one real failure into a guaranteed second one.
-        if FoundationModelEngine.isAvailable {
+        #if DEBUG
+        if let intercept = Self.generateInterceptForTesting {
+            return try intercept(systemPrompt, userMessage, task)
+        }
+        #endif
+        var preferFoundationModels = FoundationModelEngine.isAvailable
+        #if DEBUG
+        if Self.forceGemmaForTesting { preferFoundationModels = false }
+        #endif
+        if preferFoundationModels {
             do {
                 let text = try await FoundationModelEngine.generate(
                     systemPrompt: systemPrompt,
