@@ -47,3 +47,21 @@ feeling/suggestion line.
 
 Foundation Models on the same sick-day case with the production prompt: 12/12 correct. The production
 prompt is kept for that engine.
+
+## Shipped version, verified (2026-09-26)
+
+Production-built prompts + grammars (dumped by `test_dumpNudgePromptsForRig`, not hand-built) for
+the 4 cases above plus 4 messy ones (unpunctuated run-on, checklist, quotes/backslash/emoji, two
+entries same day): **80/80 pass `validateGroundedNudge`**, every quote verbatim and on-topic.
+Strict rubric ~76/80 — misses are all in the feeling line: a to-do list read as done ("after
+tackling these tasks"), one misattributed "relieved about this exciting opportunity", and one
+"stubborn mood that's making you want to just disappear" (1/80).
+
+Real app pipeline in the simulator with `HARNESS_ENGINE=gemma`, all 8 cases x 2: **16/16 real
+reflections on attempt 1, 0 fallbacks**, 18–49s each on the simulator's single-thread CPU path
+(the old path took ~27s per attempt x 3 and still fell back).
+
+Same-style prompts NOT yet fixed on Gemma (baseline, synthetic week): weekly digest and monthly
+report invent details ("organizing your photography workflow", "during a conversation with Bruno,
+I realized", "steaming mug of chamomile tea") and the monthly report opens with a preamble; Ask
+stays on the entries but swaps some attributions. Non-English daily nudges still use the old prompt.

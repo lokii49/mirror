@@ -46,6 +46,20 @@ Rules:
 - Be specific. Be warm. Be honest. Do not over-explain.
 """
 
+// Gemma-only daily nudge (2026-09-26 root-cause fix). DAILY_NUDGE_SYSTEM's creative framing ("warm
+// and familiar", "open by naming something concrete — an image…") puts Gemma 3 1B in creative-
+// writing mode: measured ~0/40 faithful across four synthetic cases, nearly every output opening on
+// an invented sensory scene ("The rain outside…", "The scent of sandalwood…"). Rewording the rules
+// only got to ~55-65% — a 1B model paraphrasing facts swaps people and turns plans into events —
+// so on Gemma the facts aren't paraphrased at all: groundedNudgeGrammar makes the quote a verbatim
+// sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
+// Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
+// Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
+let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
+Write a short reflection for the person who wrote the journal entry above, in this exact form:
+You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one or two sentences, speaking to them as "you", about how they seem to be feeling. If their mood is difficult, add one small, practical suggestion. After the quote, do not mention anyone by name and do not add anything that is not in the entry.
+"""
+
 private let WEEKLY_DIGEST_SYSTEM = """
 You are MirrorNotes. Read this person's local journal context and write a structured weekly reflection in the voice of a close friend who understands them.
 Output EXACTLY this format with no extra sections:
@@ -585,6 +599,12 @@ enum InsightService {
             throw InsightError.serviceUnavailable("no readable entries to ground a nudge in")
         }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
+        let grounded = groundedNudgePlan(recent: recent, background: background, recentNudges: recentNudges)
+        if case .unsuitable = grounded.plan, !LocalLLMService.prefersFoundationModels {
+            // Gemma is the only engine and today's writing has no quotable sentence (a one- or
+            // two-word entry). Honest fallback without running a model that could only invent.
+            return (dailyNudgeUngroundedFallback, .gemma, true)
+        }
 
         var userMessage = buildUserMessage(
             title: "Daily reflection context",
@@ -636,7 +656,11 @@ enum InsightService {
                     systemPrompt: DAILY_NUDGE_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .dailyNudge,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: grounded.plan,
+                    gemmaValidator: grounded.quoteOptions.isEmpty ? nil : { text in
+                        try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+                    }
                 )
             } catch {
                 // A later attempt throwing (contextExhausted on a repeat full pass is realistic
@@ -1217,7 +1241,9 @@ enum InsightService {
         userMessage: String,
         task: LocalLLMTask,
         responseLanguageInstruction: String?,
-        askNoAnswerPhrase: String? = nil
+        askNoAnswerPhrase: String? = nil,
+        gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt,
+        gemmaValidator: ((String) throws -> String)? = nil
     ) async throws -> (text: String, engine: LLMEngine) {
         let systemPrompt: String
         if let instruction = responseLanguageInstruction {
@@ -1232,21 +1258,27 @@ enum InsightService {
         } else {
             finalSystemPrompt = systemPrompt
         }
+        // Grammar-constrained Gemma output has its own shape (a verbatim quote, which the generic
+        // first-person check would reject for containing the writer's own "my"/"I"), so it gets
+        // the plan's validator instead. Foundation Models output always takes the generic path.
+        func validated(_ result: (text: String, engine: LLMEngine)) throws -> String {
+            if result.engine == .gemma, case .grammarConstrained = gemmaPlan, let gemmaValidator {
+                return try gemmaValidator(result.text)
+            }
+            return try validate(result.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+        }
         do {
             do {
-                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                let validated = try validate(first.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, first.engine)
+                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: gemmaPlan)
+                return (try validated(first), first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task)
-                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, second.engine)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: gemmaPlan)
+                return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, second.engine)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: gemmaPlan)
+                return (try validated(second), second.engine)
             }
         } catch let error as InsightError {
             throw error
@@ -1255,13 +1287,20 @@ enum InsightService {
         }
     }
 
-    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
         let raw = try await LLMGenerationQueue.shared.run {
             try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
                 userMessage: userMessage,
-                task: task
+                task: task,
+                gemmaPlan: gemmaPlan
             )
+        }
+        // Grammar-constrained output is already in final shape and holds a verbatim quote of the
+        // user's own words. The cleaners below rewrite first person ("I felt" -> "you felt") and
+        // strip brackets/asterisks — applied here they would corrupt the quote.
+        if raw.engine == .gemma, case .grammarConstrained = gemmaPlan {
+            return (raw.text.trimmingCharacters(in: .whitespacesAndNewlines), raw.engine)
         }
 
         let cleaned: String
@@ -2231,6 +2270,185 @@ extension Entry {
     }
 }
 
+// MARK: - Grounded daily nudge (Gemma)
+//
+// On Gemma the factual part of a daily reflection is a verbatim quote, enforced by a GBNF grammar
+// whose only allowed quotes are sentences cut from the user's own entry — so it can't swap people,
+// turn a plan into an event, or invent a scene; those were the measured failure modes of every
+// free-paraphrase prompt (tools/llmrig/README.md). After the quote the grammar allows only
+// "That sounds …"/"You seem …" plus an optional "Maybe …"/"Try …", in lowercase letters: no
+// capitals means no names, so nobody can be credited with anything outside the quote.
+
+extension InsightService {
+    static let groundedNudgePrefix = "You wrote, \""
+    static let groundedNudgeMaxQuoteChars = 200
+    static let groundedNudgeMinQuoteWords = 4
+    // Bounds the grammar's size. Entries rarely have more quotable sentences than this; a long
+    // one just offers its first 24.
+    static let groundedNudgeMaxQuoteOptions = 24
+    private static let groundedNudgeWindowWords = 25
+
+    /// The Gemma plan for a daily nudge, with the quote options its validator needs.
+    /// English only: the grammar's fixed phrases and lowercase-only character class are English.
+    /// Other languages keep DAILY_NUDGE_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
+    static func groundedNudgePlan(recent: [Entry], background: [Entry], recentNudges: [String]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        let source = groundedNudgeSourceEntries(recent)
+        let options = groundedNudgeQuoteOptions(from: source, excludingQuotesIn: recentNudges)
+        guard !options.isEmpty else { return (.unsuitable, []) }
+        return (.grammarConstrained(userMessage: groundedNudgeUserMessage(source), grammar: groundedNudgeGrammar(quotes: options)), options)
+    }
+
+    /// The most recent entry plus any others written the same day. Only these are quoted: with
+    /// earlier entries in view, Gemma blended yesterday into today ("working from home" pulled
+    /// from the previous entry).
+    static func groundedNudgeSourceEntries(_ recent: [Entry]) -> [Entry] {
+        guard let newest = recent.first else { return [] }
+        return recent.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: newest.createdAt) }
+    }
+
+    static func groundedNudgeUserMessage(_ source: [Entry]) -> String {
+        let isToday = source.first.map { Calendar.current.isDateInToday($0.createdAt) } ?? true
+        let heading: String
+        switch (isToday, source.count) {
+        case (true, 1): heading = "Today's journal entry:"
+        case (true, _): heading = "Today's journal entries:"
+        case (false, 1): heading = "Most recent journal entry:"
+        case (false, _): heading = "Most recent journal entries:"
+        }
+        return "\(heading)\n\(formatEntries(source, maxChars: 3_000))\n\n\(DAILY_NUDGE_GEMMA_INSTRUCTIONS)"
+    }
+
+    /// Verbatim sentences (or clause/word-window chunks of over-long ones) from the entries,
+    /// deduped, minus any quoted by a recent nudge so routine entries ("Usual gym…") don't
+    /// produce the same reflection two days running — unless that would leave nothing.
+    static func groundedNudgeQuoteOptions(from entries: [Entry], excludingQuotesIn recentNudges: [String] = []) -> [String] {
+        var seen = Set<String>()
+        var options: [String] = []
+        for entry in entries {
+            var texts = [entry.text]
+            for note in entry.voiceNotes {
+                if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text {
+                    texts.append(transcript)
+                }
+            }
+            for text in texts {
+                for quote in groundedNudgeQuoteCandidates(in: text) where seen.insert(quote).inserted {
+                    options.append(quote)
+                }
+            }
+        }
+        let fresh = options.filter { option in
+            !recentNudges.contains { $0.hasPrefix(groundedNudgePrefix + option + "\"") }
+        }
+        return Array((fresh.isEmpty ? options : fresh).prefix(groundedNudgeMaxQuoteOptions))
+    }
+
+    static func groundedNudgeQuoteCandidates(in text: String) -> [String] {
+        var result: [String] = []
+        for rawLine in text.components(separatedBy: .newlines) {
+            let collapsed = rawLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            let line = collapsed.replacing(/^(?:[-*•◦▪·☐☑✓✔]|\d{1,3}[.)]|\[[ xX]\])\s+/, with: "")
+            guard !line.isEmpty else { continue }
+            for sentence in splitAfter(line, boundaries: ".!?…") {
+                for chunk in fittedToQuoteLength(sentence) {
+                    let trimmed = chunk.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:—–-"))
+                    let words = trimmed.split(separator: " ").count
+                    if words >= groundedNudgeMinQuoteWords && trimmed.count <= groundedNudgeMaxQuoteChars {
+                        result.append(trimmed)
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    /// Splits after any boundary character that's followed by a space, keeping every character —
+    /// concatenating the pieces reproduces `text` exactly, so any run of pieces is verbatim.
+    private static func splitAfter(_ text: String, boundaries: String) -> [String] {
+        var pieces: [String] = []
+        var current = ""
+        let chars = Array(text)
+        for (i, c) in chars.enumerated() {
+            current.append(c)
+            if c == " ", i > 0, boundaries.contains(chars[i - 1]) {
+                pieces.append(current)
+                current = ""
+            }
+        }
+        if !current.isEmpty { pieces.append(current) }
+        return pieces
+    }
+
+    /// A sentence within the quote limit as-is; a longer one cut into consecutive clause runs;
+    /// a clause still too long (unpunctuated voice transcripts) cut into word windows.
+    private static func fittedToQuoteLength(_ sentence: String) -> [String] {
+        guard sentence.count > groundedNudgeMaxQuoteChars else { return [sentence] }
+        var chunks: [String] = []
+        var current = ""
+        for clause in splitAfter(sentence, boundaries: ",;:—–") {
+            if clause.count > groundedNudgeMaxQuoteChars {
+                if !current.isEmpty { chunks.append(current); current = "" }
+                let words = clause.split(separator: " ")
+                stride(from: 0, to: words.count, by: groundedNudgeWindowWords).forEach { start in
+                    chunks.append(words[start..<min(start + groundedNudgeWindowWords, words.count)].joined(separator: " "))
+                }
+            } else if current.count + clause.count > groundedNudgeMaxQuoteChars {
+                chunks.append(current)
+                current = clause
+            } else {
+                current += clause
+            }
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks
+    }
+
+    static func groundedNudgeGrammar(quotes: [String]) -> String {
+        let alternatives = quotes.map(gbnfLiteral).joined(separator: " | ")
+        return """
+        root ::= "You wrote, \\"" quote "\\" " feel (" " tip)?
+        quote ::= \(alternatives)
+        feel ::= ("That sounds " | "You seem ") words "."
+        tip ::= ("Maybe " | "Try ") words "."
+        words ::= [a-z0-9 ,;:'’()-]{6,150}
+        """
+    }
+
+    private static func gbnfLiteral(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// Re-checks the grammar's guarantees after generation. The wrapper's sampler silently drops a
+    /// grammar that fails to parse, and unconstrained Gemma asked for a quote invents one — so
+    /// "the grammar should guarantee it" isn't trusted: the quote must be exactly one of the
+    /// options and what follows must have the grammar's shape and no journal-writer first person.
+    static func validateGroundedNudge(_ text: String, quoteOptions: [String]) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let quote = quoteOptions.first(where: { trimmed.hasPrefix(groundedNudgePrefix + $0 + "\" ") }) else {
+            throw InsightError.incompleteResponse
+        }
+        let afterQuote = String(trimmed.dropFirst(groundedNudgePrefix.count + quote.count + 2))
+        // After the quote Mirror is talking to "you", so any first person there is the model
+        // slipping into the writer's voice ("…and my stomach still hurts"). Stricter than
+        // containsJournalWriterFirstPerson, whose "my" patterns only cover a fixed noun list.
+        let afterQuoteWords = Set(afterQuote.lowercased()
+            .replacingOccurrences(of: "’", with: "'")
+            .split { !$0.isLetter && $0 != "'" }
+            .map(String.init))
+        guard afterQuote.hasPrefix("That sounds ") || afterQuote.hasPrefix("You seem "),
+              endsAsCompleteSentence(afterQuote),
+              afterQuoteWords.isDisjoint(with: groundedNudgeFirstPersonWords)
+        else { throw InsightError.incompleteResponse }
+        return trimmed
+    }
+
+    private static let groundedNudgeFirstPersonWords: Set<String> = [
+        "i", "i'm", "i've", "i'd", "i'll", "me", "my", "mine", "myself",
+    ]
+}
+
 // MARK: - Source disclosure (Sentinel X-ray)
 
 extension InsightService {
@@ -2239,9 +2457,14 @@ extension InsightService {
     /// uses (CLAUDE.md: prompts live in `InsightService.swift` only) — the
     /// Sentinel press-hold X-ray shows this so the generation is inspectable,
     /// never a paraphrase that can drift.
-    static func systemPrompt(for type: InsightType) -> (ref: String, body: String) {
+    /// `content` picks the Gemma variant for a grounded daily nudge — the "You wrote, \"…" shape
+    /// only the grammar path produces — so the sheet never shows a prompt that wasn't sent.
+    static func systemPrompt(for type: InsightType, content: String? = nil) -> (ref: String, body: String) {
         switch type {
         case .dailyNudge:
+            if let content, content.hasPrefix(groundedNudgePrefix) {
+                return ("InsightService.swift · DAILY_NUDGE_GEMMA_INSTRUCTIONS", DAILY_NUDGE_GEMMA_INSTRUCTIONS)
+            }
             return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
         case .weeklyDigest:
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)

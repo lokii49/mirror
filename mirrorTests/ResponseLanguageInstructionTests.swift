@@ -12,7 +12,7 @@ struct ResponseLanguageInstructionTests {
 
     private func capturedSystemPrompts(for entries: [Entry]) async -> [String] {
         var captured: [String] = []
-        LocalLLMService.generateInterceptForTesting = { system, _, _ in
+        LocalLLMService.generateInterceptForTesting = { system, _, _, _ in
             captured.append(system)
             return ("You wrote about the long walk home after the late shift.", .gemma)
         }

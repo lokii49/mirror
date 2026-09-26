@@ -6,6 +6,8 @@ enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
     case emptyResponse
     case contextExhausted
+    /// The caller said this request has no Gemma-safe form (`GemmaPlan.unsuitable`).
+    case gemmaUnsuitable
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +17,10 @@ enum LocalLLMError: LocalizedError {
             return String(localized: "Local AI returned an empty response.")
         case .contextExhausted:
             return String(localized: "Not enough device memory right now. Mirror will generate this overnight while your phone is charging.")
+        case .gemmaUnsuitable:
+            // Never user-facing (InsightService maps it to its own fallback), so this reuses an
+            // existing localized string rather than adding an untranslated one.
+            return String(localized: "Local AI returned an empty response.")
         }
     }
 }
@@ -93,8 +99,31 @@ actor LocalLLMService {
     /// Test-only: when set, `generate` returns this instead of running any model — lets a
     /// harness capture the exact final system/user prompts a pipeline sends (including retry
     /// messages) without a slow real generation. Stripped from Release builds.
-    nonisolated(unsafe) static var generateInterceptForTesting: ((String, String, LocalLLMTask) throws -> (text: String, engine: LLMEngine))?
+    nonisolated(unsafe) static var generateInterceptForTesting: ((String, String, LocalLLMTask, GemmaPlan) throws -> (text: String, engine: LLMEngine))?
     #endif
+
+    /// How the Gemma path handles a request. Foundation Models always gets `systemPrompt`/
+    /// `userMessage` as-is; this only changes what happens when generation runs on Gemma —
+    /// either up front (no Foundation Models on this device) or as the fallback after a
+    /// Foundation Models failure, which is why it's decided here and not by the caller.
+    enum GemmaPlan: Sendable {
+        /// Same prompt as Foundation Models (every task except the English daily nudge).
+        case samePrompt
+        /// A user-only message plus a GBNF grammar that constrains the output's shape.
+        case grammarConstrained(userMessage: String, grammar: String)
+        /// No Gemma-safe form of this request exists — throw `gemmaUnsuitable` rather than
+        /// fall back to an unconstrained prompt that measurably fabricates.
+        case unsuitable
+    }
+
+    /// True when `generate` will try Foundation Models first. Lets a caller skip building a
+    /// Gemma-only failure path it knows can't be reached, or short-circuit one it knows will be.
+    nonisolated static var prefersFoundationModels: Bool {
+        #if DEBUG
+        if forceGemmaForTesting { return false }
+        #endif
+        return FoundationModelEngine.isAvailable
+    }
 
     func resetContext() async {
         if let service {
@@ -103,7 +132,7 @@ actor LocalLLMService {
         service = nil
     }
 
-    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
+    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
         // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
         // no bundled weights, no download, better instruction-following than Gemma 3 1B.
         // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
@@ -111,14 +140,10 @@ actor LocalLLMService {
         // LocalLLMError.modelMissing, turning one real failure into a guaranteed second one.
         #if DEBUG
         if let intercept = Self.generateInterceptForTesting {
-            return try intercept(systemPrompt, userMessage, task)
+            return try intercept(systemPrompt, userMessage, task, gemmaPlan)
         }
         #endif
-        var preferFoundationModels = FoundationModelEngine.isAvailable
-        #if DEBUG
-        if Self.forceGemmaForTesting { preferFoundationModels = false }
-        #endif
-        if preferFoundationModels {
+        if Self.prefersFoundationModels {
             do {
                 let text = try await FoundationModelEngine.generate(
                     systemPrompt: systemPrompt,
@@ -128,8 +153,28 @@ actor LocalLLMService {
                 return (text, .foundationModels)
             } catch {
                 guard Self.isGemmaModelAvailable else { throw error }
+                #if DEBUG
+                // Error type only — never prompt or entry content.
+                print("[llm] foundationModels failed (\(type(of: error))), falling back to gemma")
+                #endif
                 // Fall through to Gemma.
             }
+        }
+
+        let messages: [LlamaChatMessage]
+        let grammarConfig: LlamaGrammarConfig?
+        switch gemmaPlan {
+        case .samePrompt:
+            messages = [
+                LlamaChatMessage(role: .system, content: systemPrompt),
+                LlamaChatMessage(role: .user, content: userMessage)
+            ]
+            grammarConfig = nil
+        case .grammarConstrained(let constrainedMessage, let grammar):
+            messages = [LlamaChatMessage(role: .user, content: constrainedMessage)]
+            grammarConfig = LlamaGrammarConfig(grammar: grammar)
+        case .unsuitable:
+            throw LocalLLMError.gemmaUnsuitable
         }
 
         await resetContext()
@@ -138,15 +183,12 @@ actor LocalLLMService {
         defer {
             service = nil
         }
-        let messages = [
-            LlamaChatMessage(role: .system, content: systemPrompt),
-            LlamaChatMessage(role: .user, content: userMessage)
-        ]
         let sampling = LlamaSamplingConfig(
             temperature: task.temperature,
             seed: UInt32.random(in: 1...UInt32.max),
             topP: 0.9,
-            topK: 40
+            topK: 40,
+            grammarConfig: grammarConfig
         )
         // Use streaming so we can stop immediately when Gemma emits <end_of_turn>.
         // Without this, llama.cpp doesn't recognise the token as EOG and keeps

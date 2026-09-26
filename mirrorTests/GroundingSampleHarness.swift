@@ -1044,15 +1044,20 @@ final class GroundingSampleHarness: XCTestCase {
         let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 8
         LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
         defer { LocalLLMService.forceGemmaForTesting = false }
-        for i in 1...runs {
-            do {
-                let (text, engine, degraded) = try await InsightService.generateNudge(entries: Self.sickDayEntries)
-                let fallback = InsightService.isUngroundedFallback(text)
-                let candidate = Self.nameSentenceSharesNoContextWord(text, entries: Self.sickDayEntries)
-                print("[pipeline][\(i)] engine=\(engine.rawValue) degraded=\(degraded) fallback=\(fallback) candidateFlags=\(candidate)")
-                print("[pipeline][\(i)] TEXT: \(text)")
-            } catch {
-                print("[pipeline][\(i)] THREW: \(error)")
+        let cases = ProcessInfo.processInfo.environment["HARNESS_ALL_CASES"] == "1"
+            ? Self.rigCases + Self.groundedEdgeCases
+            : [("sickday", Self.sickDayEntries)]
+        for c in cases {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine, degraded) = try await InsightService.generateNudge(entries: c.1)
+                    let fallback = InsightService.isUngroundedFallback(text)
+                    print("[pipeline][\(c.0)][\(i)] engine=\(engine.rawValue) degraded=\(degraded) fallback=\(fallback) seconds=\(Int(Date().timeIntervalSince(started)))")
+                    print("[pipeline][\(c.0)][\(i)] TEXT: \(text)")
+                } catch {
+                    print("[pipeline][\(c.0)][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
+                }
             }
         }
     }
@@ -1093,6 +1098,23 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Messy real-world shapes for the grounded-nudge builder (all synthetic): an unpunctuated
+    /// voice-style run-on, a checklist, quotes/backslashes/emoji, several entries the same day.
+    static let groundedEdgeCases: [(label: String, entries: [Entry])] = {
+        let runOn = Entry(text: "so today was kind of a mess honestly I woke up late again and missed the bus and then the whole morning just went sideways because the manager moved the standup and I hadn't prepped anything and by lunch I was just exhausted and kind of annoyed at myself for not sleeping earlier like I keep saying I will", mood: "Frustrated")
+        let checklist = Entry(text: "Things to sort this week\n- call the landlord about the leak\n- finish the tax forms\n- book the dentist\nFeeling a bit calmer now that it's written down.", mood: "Hopeful")
+        let punctuation = Entry(text: #"Mum said "don't worry about it" but I still feel bad 😔. The recipe called for 1/2 cup and I used a whole one \ oops. Tried again at night and it came out fine!"#, mood: "Content")
+        let morning = Entry(text: "Ran 5k before work, legs felt heavy but I finished.", mood: "Energized")
+        let evening = Entry(text: "Evening was rough, argued with my brother over the phone about Dad's birthday plans. Still annoyed.", mood: "Frustrated")
+        evening.createdAt = Date().addingTimeInterval(60)
+        return [
+            ("runon", [runOn]),
+            ("checklist", [checklist]),
+            ("punctuation", [punctuation]),
+            ("sameday", [morning, evening]),
+        ]
+    }()
+
     /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
     /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
     /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.
@@ -1102,18 +1124,60 @@ final class GroundingSampleHarness: XCTestCase {
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { LocalLLMService.generateInterceptForTesting = nil }
-        for c in Self.rigCases {
-            var captured: [(String, String)] = []
-            LocalLLMService.generateInterceptForTesting = { system, user, _ in
-                captured.append((system, user))
-                return ("The rain outside feels heavy tonight, doesn't it?", .gemma)
+        for c in Self.rigCases + Self.groundedEdgeCases {
+            var captured: [(String, String, LocalLLMService.GemmaPlan)] = []
+            // Reported as Foundation Models so the ungrounded reply takes the generic validation
+            // path and all 3 attempts run; the Gemma plan is captured regardless of engine.
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                captured.append((system, user, plan))
+                return ("The rain outside feels heavy tonight, doesn't it?", .foundationModels)
             }
             _ = try? await InsightService.generateNudge(entries: c.entries)
             XCTAssertEqual(captured.count, 3, "expected 3 attempts for \(c.label)")
-            for (i, pair) in captured.enumerated() {
-                try pair.0.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_system.txt", atomically: true, encoding: .utf8)
-                try pair.1.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_user.txt", atomically: true, encoding: .utf8)
+            for (i, call) in captured.enumerated() {
+                try call.0.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_system.txt", atomically: true, encoding: .utf8)
+                try call.1.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_user.txt", atomically: true, encoding: .utf8)
+            }
+            // The production-built Gemma prompt + grammar, for tools/llmrig `gengrammar`.
+            if case .grammarConstrained(let message, let grammar) = captured.first?.2 {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(c.label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(c.label)_gemma.gbnf", atomically: true, encoding: .utf8)
+            } else {
+                try "\(String(describing: captured.first?.2))".write(toFile: "\(dir)/\(c.label)_gemma.none", atomically: true, encoding: .utf8)
             }
         }
+    }
+
+
+    /// Dumps the first (system, user) prompt the weekly digest, monthly report and Ask send for a
+    /// synthetic week made of the rig cases, so their Gemma baseline can be measured on the rig.
+    func test_dumpOtherInsightPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        // One entry per case, spread over the last four days (all inside this week/month when
+        // run mid-week; the prompt content is what matters here, not the calendar gate).
+        let week: [Entry] = Self.rigCases.enumerated().map { i, c in
+            let e = Entry(text: c.entries[0].text, mood: c.entries[0].mood)
+            e.createdAt = Date().addingTimeInterval(-Double(i) * 86_400)
+            return e
+        }
+        func capture(_ label: String, _ run: () async throws -> Void) async throws {
+            var first: (String, String)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                if first == nil { first = (system, user) }
+                return ("x", .gemma)
+            }
+            try? await run()
+            guard let first else { XCTFail("no generation captured for \(label)"); return }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+        try await capture("digest") { _ = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week) }
+        try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week, allEntries: week) }
+        try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
     }
 }
