@@ -1,7 +1,4 @@
-Zuverlässigere vergangene Reflexionen und weniger wiederholte Eröffnungssätze.
+Ein Fix für die Grundlage von Reflexionen, Zusammenfassungen und Monatsberichten.
 
-• Ein Fehler behoben, durch den doppelte Karten in „Vergangene Reflexionen" erschienen, wenn für eine Reflexion mehr als ein Versuch nötig war.
-• Tage, an denen keine Reflexion gefunden werden konnte, überladen deinen Verlauf nicht mehr.
-• Fälle reduziert, in denen eine Reflexion mit demselben Satz begann wie eine kürzliche.
-• Ein Fehler behoben, durch den der Monatsbericht gelegentlich den falschen Bericht für einen vergangenen Monat zeigte.
+• Ein seltener Fall behoben, in dem eine Reflexion, ein Wochenrückblick oder ein Monatsbericht ohne echten Bezug zu deinen eigenen Einträgen erstellt wurde und dadurch generisch wirkte.
 • Kleinere Fehlerbehebungen und Feinschliff.

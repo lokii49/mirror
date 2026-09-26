@@ -640,4 +640,241 @@ final class GroundingSampleHarness: XCTestCase {
         }
         print("\n=== UNCONTAMINATED FIRST-PASS RESULTS: \(neitherTokenCount)/19 answered neither GROUNDED nor FABRICATED exactly ===\n")
     }
+
+    // Advisor's alternate hypothesis, checked directly against code already read: Entry.text
+    // (Entry.swift:42-48) returns `decryptedText ?? ""` — NOT MirrorEncryption.decryptString's
+    // existing unavailable-placeholder — so a Keychain read that fails while the device is locked
+    // (KeychainManager.swift:8's own documented errSecInteractionNotAllowed case) silently turns
+    // an entry's text into "". formatEntries (InsightService.swift:1764) then SKIPS any entry
+    // whose insightContext is empty via `guard !context.isEmpty else { continue }` — so a locked-
+    // phone decrypt failure across the "recent 3" wouldn't just weaken the prompt, it can make the
+    // ENTIRE "Recent entries:" block render blank while the entries still count toward
+    // dailyNudgeContext's recent-3 selection (that function is purely date-based, doesn't check
+    // text at all). Separately, isUngrounded/openingIsUngrounded/sharesNoWordWithRecent each have
+    // an early-return when their source word set is empty (`guard !sourceWords.isEmpty else
+    // { return false }` etc.) — so the SAME empty-text entries that starve the model's prompt also
+    // disable every guard that's supposed to catch what it invents in response. One condition,
+    // both failure modes, unlike the corpus-scale dilution measured earlier in this file (a
+    // different, also-real mechanism, but one that only explains partial embellishment on an
+    // anchor — not the live incident's total-invention severity, which this does explain).
+    //
+    // This only tests the code's documented if-empty behavior directly — it does NOT prove the
+    // user's phone was actually locked at 3:01 AM on 25 Sep (that's inference from the timestamp
+    // and the mismatch between the live pass and the audit's later catch, not something this test
+    // can observe). No model calls — pure function replay, deterministic, milliseconds.
+    func test_emptyDecryptedTextDefeatsAllThreeGuards() throws {
+        let cal = Calendar.current
+        let now = Date()
+
+        // Simulates all 3 "recent" entries surviving dailyNudgeContext's date-based selection
+        // (they exist, have real createdAt dates) but each having failed decryption — Entry.text
+        // returns "" for each, exactly Entry.swift's documented ?? "" fallback.
+        func makeUndecryptableEntry(daysAgo: Int) -> Entry {
+            var e = Entry(text: "placeholder")
+            // Simulates the ?? "" fallback Entry.text hits on a failed Keychain read, without
+            // needing to actually break Keychain access inside this test process.
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            return e
+        }
+        let undecryptableRecent = [
+            makeUndecryptableEntry(daysAgo: 1),
+            makeUndecryptableEntry(daysAgo: 2),
+            makeUndecryptableEntry(daysAgo: 4),
+        ]
+
+        // Confirms the premise before testing the consequence: text really is "" and
+        // formatEntries really does render a blank block, not a placeholder.
+        for e in undecryptableRecent {
+            XCTAssertEqual(e.text, "", "Entry.text should silently become empty on decrypt failure, per Entry.swift:42-48")
+        }
+        let recentBlock = InsightService.buildUserMessage(
+            title: "Daily reflection context",
+            recentEntries: undecryptableRecent,
+            backgroundEntries: [],
+            maxChars: InsightService.dailyNudgePromptBudget,
+            includeRecurringTerms: false
+        )
+        print("[emptyDecrypt] rendered prompt when all 3 recent entries fail to decrypt:\n\(recentBlock)\n")
+
+        // Now check whether the guards notice — using the REAL fabricated live-incident text.
+        let realFabricatedText = "The rain outside feels like it's mirroring the quiet ache in your chest – a persistent, grey wash. You were sketching that old oak tree in the park yesterday, trying to capture its weathered branches, and it just felt... heavy."
+        let combined = InsightService.isUngrounded(realFabricatedText, sourceEntries: undecryptableRecent)
+        let noShare = InsightService.sharesNoWordWithRecent(realFabricatedText, recentEntries: undecryptableRecent)
+        let openingBad = InsightService.openingIsUngrounded(realFabricatedText, recentEntries: undecryptableRecent)
+        print("[emptyDecrypt] guards against the REAL rain text, with all 3 recent entries undecryptable:")
+        print("[emptyDecrypt] isUngrounded=\(combined) sharesNoWordWithRecent=\(noShare) openingIsUngrounded=\(openingBad) => anyGuardCaughtIt=\(combined || noShare || openingBad)")
+    }
+
+    private static func makeUndecryptableEntries(daysAgo: [Int]) -> [Entry] {
+        let cal = Calendar.current
+        let now = Date()
+        return daysAgo.map { d in
+            var e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -d, to: now) ?? now
+            return e
+        }
+    }
+
+    // The actual chokepoint fix, tested at the chokepoint: generateNudge/generateWeeklyDigest/
+    // generateMonthlyReport (InsightService.swift) now filter `hasReadableContext` and throw
+    // InsightError.serviceUnavailable("no readable entries...") when nothing readable remains —
+    // before this, the ModelContainer-based version of these tests ("No eligible connection
+    // available") turned out to be testing CloudKit sync setup inside an in-memory SwiftData
+    // container (this test host is CloudKit-entitled; an in-memory store still attempts mirroring
+    // setup with no iCloud account signed in), not the fix itself — the failure signature was
+    // identical whether the fix was present or not. No SwiftData, no ModelContainer, no CloudKit,
+    // no model, no device — just the function call. Without the fix, this reaches localGenerate on
+    // a blank prompt and either returns real (fabricated, on Gemma — Foundation Models on this
+    // simulator instead) text or throws for an unrelated reason (network/model); with the fix, it
+    // throws InsightError.serviceUnavailable immediately, matched on its exact reason string so a
+    // different serviceUnavailable cause (e.g. model unavailable in CI) can't false-pass this.
+    func test_generateNudge_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [1, 2, 4])
+        XCTAssertEqual(undecryptable.filter { $0.text.isEmpty }.count, 3, "each entry's ciphertext is garbage, so Entry.text should come back empty per Entry.swift's decrypt-failure fallback")
+
+        do {
+            let result = try await InsightService.generateNudge(entries: undecryptable)
+            XCTFail("generateNudge should have thrown — no readable entries to ground a nudge in. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    func test_generateWeeklyDigest_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [0, 1, 2])
+        do {
+            let result = try await InsightService.generateWeeklyDigest(weekEntries: undecryptable, allEntries: undecryptable)
+            XCTFail("generateWeeklyDigest should have thrown. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    func test_generateMonthlyReport_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [1, 5, 10])
+        do {
+            let result = try await InsightService.generateMonthlyReport(monthEntries: undecryptable, allEntries: undecryptable)
+            XCTFail("generateMonthlyReport should have thrown. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    // Companion: 3 real, readable entries alongside 2 undecryptable ones should NOT throw —
+    // confirms the fix isn't over-strict, filtering just removes the bad entries rather than
+    // blocking generation outright when enough real material remains. Needs the real model, so
+    // opt-in like the rest of this harness; no container needed here either.
+    func test_generateNudge_mixOfReadableAndNot_doesNotThrow() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let cal = Calendar.current
+        let now = Date()
+        var entries: [Entry] = [1, 2, 4].map { daysAgo in
+            var e = Entry(text: "Usual morning routine, gym then office. Fixed a small bug and had lunch with a coworker, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            return e
+        }
+        entries += Self.makeUndecryptableEntries(daysAgo: [3, 6])
+
+        let result = try await InsightService.generateNudge(entries: entries)
+        print("[mixReadable] engine=\(result.engine.rawValue) isFallback=\(InsightService.isUngroundedFallback(result.text)) text=\(result.text)")
+    }
+
+    // Production-path verification, one layer up from the chokepoint tests above: does
+    // mirrorApp.runDailyNudgeIfNeeded's own count-gate + coordinator + caching logic behave
+    // correctly around the fix, not just InsightService.generateNudge in isolation. Needs a real
+    // ModelContainer for that, which is where the earlier "No eligible connection available"
+    // failures actually came from: ModelConfiguration(schema:isStoredInMemoryOnly:) defaults
+    // cloudKitDatabase to .automatic, and this test host is CloudKit-entitled — an in-memory store
+    // still attempts CloudKit mirroring setup with no iCloud account signed in
+    // ("NSCloudKitMirroringDelegate ... Failed to set up CloudKit integration", visible in every
+    // failing run's log) and that failure surfaced as this opaque connection exception, identical
+    // whether the underlying fix was present or not. `cloudKitDatabase: .none` opts this
+    // in-memory test container out of CloudKit entirely — it was never meant to sync anywhere.
+    @MainActor
+    func test_mostlyUndecryptableEntries_blocksNudgeGenerationEntirely() async throws {
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+
+        let cal = Calendar.current
+        let now = Date()
+        for daysAgo in [1, 3] {
+            let e = Entry(text: "A normal entry with real content, written and decryptable, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        for daysAgo in [2, 5, 7] {
+            let e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        try context.save()
+
+        let entries = try context.fetch(FetchDescriptor<Entry>())
+        XCTAssertEqual(entries.count, 5)
+        XCTAssertEqual(entries.filter { !$0.textDecryptionFailed }.count, 2, "only the 2 real entries should survive the decrypt-failure filter")
+
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+
+        XCTAssertFalse(mirrorApp.hasDailyNudgeForToday(context: context), "with only 2 decryptable entries (below the 3-entry floor), no nudge — real or fabricated — should have been generated")
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let todaysInsights = try context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))
+        XCTAssertTrue(todaysInsights.isEmpty)
+    }
+
+    // Companion to the block-when-undecryptable test above: confirms the fix isn't OVER strict —
+    // 3 decryptable entries (right at the floor) plus 2 undecryptable ones mixed in should still
+    // generate normally, undecryptable entries just excluded rather than the whole generation
+    // being blocked. Needs the real model (this does call generateNudge for real), so opt-in like
+    // the rest of this harness.
+    @MainActor
+    func test_decryptableEntriesAtFloor_stillGeneratesDespiteSomeUndecryptable() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+
+        let cal = Calendar.current
+        let now = Date()
+        for daysAgo in [1, 2, 4] {
+            let e = Entry(text: "Usual morning routine, gym then office. Fixed a small bug and had lunch with a coworker, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        for daysAgo in [3, 6] {
+            let e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        try context.save()
+
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let todaysInsights = try context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))
+        print("[floorCheck] todaysInsights=\(todaysInsights.count) content=\(todaysInsights.first?.content ?? "<none>")")
+        XCTAssertEqual(todaysInsights.count, 1, "3 decryptable entries at the floor should still produce an attempt (real or honest fallback), not be blocked")
+    }
 }
