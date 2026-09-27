@@ -1252,4 +1252,35 @@ final class GroundingSampleHarness: XCTestCase {
             }
         }
     }
+
+
+    /// Real InsightService.ask pipeline on Gemma over the synthetic entries, one answerable question
+    /// per kind (sleep, work stress, people, gym) plus one nothing answers (guitar).
+    func test_groundedAsk_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let entries: [Entry] = Self.rigCases.map { $0.entries[0] } + Self.digestWeekB
+        let questions = [
+            "How has my sleep been lately?", "What has been stressing me at work?",
+            "Who have I spent time with recently?", "Have I been going to the gym?",
+            "How is my guitar practice going?",
+        ]
+        print("[ask] embeddingAvailable=\(InsightService.askTerms(for: "sleep").embeddingAvailable)")
+        for question in questions {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.ask(question: question, entries: entries)
+                    print("[ask][\(question)][\(i)] engine=\(engine.rawValue) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[ask][\(question)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
 }
