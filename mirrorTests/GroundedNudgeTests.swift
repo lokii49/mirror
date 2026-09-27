@@ -133,6 +133,17 @@ struct GroundedNudgeTests {
         }
     }
 
+    // MARK: Outside the app
+
+    @Test func widgetAndNotificationTextDropsTheUsersQuote() {
+        let grounded = #"You wrote, "Barely slept, my stomach was bad all night." You seem worn down. Maybe keep today slow."#
+        #expect(InsightService.nudgeTextForOutsideApp(grounded) == "You seem worn down. Maybe keep today slow.")
+        let quoteWithInnerQuotes = #"You wrote, "Mum said "don't worry" but I still feel bad." That sounds heavy to carry."#
+        #expect(InsightService.nudgeTextForOutsideApp(quoteWithInnerQuotes) == "That sounds heavy to carry.")
+        let foundationModels = "You sat with a friend on the balcony after a long night; rest looks like the priority today."
+        #expect(InsightService.nudgeTextForOutsideApp(foundationModels) == foundationModels)
+    }
+
     // MARK: Through generateNudge (intercepted, no model)
 
     @Test func gemmaQuoteSurvivesThePipelineUnmodified() async throws {

@@ -106,7 +106,9 @@ enum NotificationService {
         content.title = title
         content.sound = .default
         content.categoryIdentifier = nudgeCategoryID
-        if hasWrittenToday, insightReady, let preview = previewText, let snippet = notificationSnippet(preview) {
+        // Never the user's own quoted journal sentence on the lock screen — see nudgeTextForOutsideApp.
+        if hasWrittenToday, insightReady, let preview = previewText.map(InsightService.nudgeTextForOutsideApp),
+           let snippet = notificationSnippet(preview) {
             content.body = snippet
         } else {
             content.body = hasWrittenToday
