@@ -24,4 +24,10 @@ enum AppConstants {
     static var feedbackURL: URL? {
         URL(string: "mailto:hello@mirrornotes.org?subject=MirrorNotes%20Feedback")
     }
+
+    // The developer's own X account, where release updates are posted. A plain web link (opens
+    // the X app when installed) — no social SDK, so the App Store privacy label doesn't change.
+    static var updatesOnXURL: URL? {
+        URL(string: "https://x.com/lokeshpudari")
+    }
 }
