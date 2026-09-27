@@ -284,17 +284,27 @@ def swift():
 
 if __name__ == "__main__":
     if "--csv" in sys.argv:
+        # "kind" tells a translator what a change costs:
+        # - model instruction: Gemma's prompt — changing it changes model behaviour; re-measure on
+        #   tools/llmrig (CLAUDE.md) before shipping.
+        # - detection anchor: saved insights are recognized by this exact text (widget/lock-screen
+        #   quote stripping, isGrammarGrounded, Sentinel sheet). Changing it after release needs
+        #   the old wording kept and still recognized, or saved insights lose that protection.
+        # - user text: shown verbatim; free to improve.
+        INSTRUCTION = {"moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"}
+        ANCHOR = {"open", "close", "joiner", "youWrote", "energyHard", "energyGood", "becomingSuffix", "releaseFallback", "askPrefix"}
+        kind = lambda k: "model instruction" if k in INSTRUCTION else "detection anchor" if k in ANCHOR else "user text"
         w = csv.writer(sys.stdout)
-        w.writerow(["language", "key", "mood/variant", "text"])
+        w.writerow(["language", "key", "kind", "mood/variant", "text"])
         for code, d in L.items():
             for k in ORDER:
                 v = d[k]
                 if isinstance(v, dict):
                     for b, x in v.items():
                         for i, t in enumerate(x if isinstance(x, list) else [x]):
-                            w.writerow([code, k, f"{b}{'/' + str(i+1) if isinstance(x, list) else ''}", t])
+                            w.writerow([code, k, kind(k), f"{b}{'/' + str(i+1) if isinstance(x, list) else ''}", t])
                 else:
-                    w.writerow([code, k, "", v])
+                    w.writerow([code, k, kind(k), "", v])
     elif "--write" in sys.argv:
         p = "mirror/Core/Services/InsightService.swift"
         s = open(p).read()
