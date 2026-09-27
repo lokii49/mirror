@@ -124,6 +124,20 @@ Rules:
 - Only if the entries truly contain nothing at all related to the question, use the exact no-answer fallback phrase specified below.
 """
 
+// Gemma-only Ask (2026-09-27). Free-text answers on Gemma 3 1B swapped who-did-what ("you felt
+// tired from the wedding prep" — it was Mom), and even with verbatim quotes the one-line comment
+// after each quote invented ("you spent time with friends after the concert"). So on Gemma, Ask
+// answers only with the user's own dated sentences — groundedAskGrammar allows nothing else — and
+// relevance is helped deterministically (groundedAskPlan): stress/worry questions draw from hard-
+// mood entries, happy ones from good-mood entries, and a question none of whose words (or their
+// nearest word-embedding neighbours) appear anywhere gets the no-answer phrase without a model run.
+let ASK_GEMMA_INSTRUCTIONS = """
+Answer the question below using only the journal entries above, in this exact form:
+The closest things you've written: On <date>, you wrote, "<copy the one sentence that best answers the question>"
+Add a second quote in the same form only if another sentence also directly answers the question.
+Copy each quote word for word.
+"""
+
 private let MONTHLY_REPORT_SYSTEM = """
 You are MirrorNotes. Read this person's full month of journal entries and write a deep monthly reflection about who they are becoming, what tensions are shaping them, and what they might not have noticed themselves.
 
@@ -1062,6 +1076,10 @@ enum InsightService {
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
+        let grounded = groundedAskPlan(question: question, pool: relevant + Array(background), languageCode: target?.code)
+        if grounded.noAnswer && !LocalLLMService.prefersFoundationModels {
+            return (askNoAnswerPhrase(for: target), .gemma)
+        }
         return try await localGenerate(
             systemPrompt: ASK_SYSTEM,
             userMessage: buildAskMessage(
@@ -1071,7 +1089,11 @@ enum InsightService {
             ),
             task: .ask,
             responseLanguageInstruction: languageInstruction,
-            askNoAnswerPhrase: askNoAnswerPhrase(for: target)
+            askNoAnswerPhrase: askNoAnswerPhrase(for: target),
+            gemmaPlan: grounded.noAnswer ? .unsuitable : grounded.plan,
+            gemmaValidator: grounded.quoteOptions.isEmpty ? nil : { text in
+                try validateGroundedAsk(text, quoteOptions: grounded.quoteOptions)
+            }
         )
     }
 
@@ -2572,6 +2594,142 @@ extension InsightService {
         """
     }
 
+    // MARK: Ask
+
+    static let groundedAskPrefix = "The closest things you've written: "
+    static let groundedAskMaxOptions = 40
+
+    private static let askQuestionStopWords: Set<String> = [
+        "how", "what", "when", "where", "who", "whom", "why", "which", "has", "have", "had", "been",
+        "my", "me", "i", "i'm", "am", "is", "are", "was", "were", "do", "does", "did", "doing", "going",
+        "the", "a", "an", "to", "of", "at", "in", "on", "for", "with", "about", "from", "and", "or",
+        "lately", "recently", "ever", "any", "anything", "something", "it", "its", "this", "that",
+        "these", "those", "be", "feel", "feeling", "felt", "think", "things", "thing", "much", "many",
+        "can", "could", "should", "would", "will", "more", "most", "time", "times", "really",
+    ]
+    static let askHardLeanWords: Set<String> = [
+        "stress", "stressed", "stressing", "stressful", "worried", "worry", "worrying", "anxious",
+        "anxiety", "sad", "upset", "angry", "anger", "frustrated", "frustrating", "overwhelmed",
+        "tired", "exhausted", "drained", "lonely", "scared", "afraid", "hurt", "bothering",
+        "bother", "struggle", "struggling", "difficult", "hardest", "worst", "down",
+    ]
+    static let askGoodLeanWords: Set<String> = [
+        "happy", "happiest", "joy", "joyful", "grateful", "gratitude", "calm", "peaceful", "excited",
+        "proud", "fun", "best", "love", "loved", "enjoy", "enjoyed", "glad", "hopeful",
+    ]
+
+    enum AskLean { case hard, good }
+
+    static func askLean(of question: String) -> AskLean? {
+        let words = Set(question.lowercased().split { !$0.isLetter }.map(String.init))
+        if !words.isDisjoint(with: askHardLeanWords) { return .hard }
+        if !words.isDisjoint(with: askGoodLeanWords) { return .good }
+        return nil
+    }
+
+    // Irregular past forms common in journal writing, so "How has my sleep been?" finds "slept".
+    private static let askIrregularStems: [String: String] = [
+        "slept": "sleep", "woke": "wake", "ate": "eat", "went": "go", "gone": "go", "ran": "run",
+        "met": "meet", "spent": "spend", "bought": "buy", "drank": "drink", "wrote": "write",
+        "saw": "see", "seen": "see", "lost": "lose", "left": "leave", "told": "tell", "said": "say",
+        "made": "make", "took": "take", "got": "get", "came": "come", "gave": "give", "found": "find",
+        "cried": "cry", "tried": "try", "thought": "think", "brought": "bring", "taught": "teach",
+        "fought": "fight", "kept": "keep", "sat": "sit", "paid": "pay", "sold": "sell", "held": "hold",
+    ]
+
+    static func askStem(_ word: String) -> String {
+        let lower = word.lowercased()
+        if let irregular = askIrregularStems[lower] { return irregular }
+        for suffix in ["ing", "ed", "es", "s", "ly"] where lower.hasSuffix(suffix) && lower.count - suffix.count >= 3 {
+            return String(lower.dropLast(suffix.count))
+        }
+        return lower
+    }
+
+    private static func askStems(in text: String) -> Set<String> {
+        Set(text.lowercased().split { !$0.isLetter && $0 != "'" }.map { askStem(String($0)) })
+    }
+
+    /// The question's content-word stems, widened with each word's nearest English word-embedding
+    /// neighbours when that embedding is available ("sleep" → nap, asleep, night, restful…).
+    /// `embeddingAvailable` is false on devices/simulators without the asset — then the terms are
+    /// stems only, too narrow to justify a no-answer.
+    static func askTerms(for question: String) -> (terms: Set<String>, embeddingAvailable: Bool) {
+        let words = question.lowercased().split { !$0.isLetter && $0 != "'" }.map(String.init)
+            .filter { $0.count >= 3 && !askQuestionStopWords.contains($0) }
+        var terms = Set(words.map(askStem))
+        guard let embedding = NLEmbedding.wordEmbedding(for: .english) else { return (terms, false) }
+        for word in words {
+            embedding.neighbors(for: word, maximumCount: 8).forEach { terms.insert(askStem($0.0)) }
+        }
+        return (terms, true)
+    }
+
+    static func askEntryMentions(_ terms: Set<String>, _ entry: Entry) -> Bool {
+        !askStems(in: entry.insightContext).isDisjoint(with: terms)
+    }
+
+    /// English-only. `noAnswer` means Gemma shouldn't be asked at all (see the check below) —
+    /// "How is my guitar practice going?" with no guitar anywhere. Otherwise the answer is 1–2
+    /// dated verbatim quotes.
+    static func groundedAskPlan(question: String, pool: [Entry], languageCode: String?) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String], noAnswer: Bool) {
+        guard (languageCode ?? "en") == "en" else { return (.samePrompt, [], false) }
+        let lean = askLean(of: question)
+        let (terms, embeddingAvailable) = askTerms(for: question)
+        let mentioning = terms.isEmpty ? [] : pool.filter { askEntryMentions(terms, $0) }
+        // No-answer only when the check is trustworthy: an embedding to widen the terms with, a
+        // question with content words and no emotional lean, and still no entry mentioning any of
+        // it. Otherwise Gemma answers with the closest sentences, framed as exactly that.
+        if embeddingAvailable, lean == nil, !terms.isEmpty, mentioning.isEmpty {
+            return (.unsuitable, [], true)
+        }
+        var candidates: [Entry]
+        switch lean {
+        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
+        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
+        case nil: candidates = mentioning + pool.filter { entry in !mentioning.contains { $0.id == entry.id } }
+        }
+        if candidates.isEmpty { candidates = pool }
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d MMM"
+        let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
+        var options: [String] = []
+        var seen = Set<String>()
+        for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
+            for (entry, quotes) in perEntry where round < quotes.count && seen.insert(quotes[round]).inserted {
+                options.append("On \(dayFormatter.string(from: entry.createdAt)), you wrote, \"\(quotes[round])\"")
+            }
+        }
+        options = Array(options.prefix(groundedAskMaxOptions))
+        guard !options.isEmpty else { return (.unsuitable, [], true) }
+        let message = "Journal entries:\n\(formatEntries(candidates, maxChars: 3_800))\n\n\(ASK_GEMMA_INSTRUCTIONS)Question: \(question)"
+        let grammar = """
+        root ::= "\(groundedAskPrefix)" datedq (" " datedq)?
+        datedq ::= \(options.map(gbnfLiteral).joined(separator: " | "))
+        """
+        return (.grammarConstrained(userMessage: message, grammar: grammar), options, false)
+    }
+
+    /// The prefix, then one or two quote options separated by a single space, nothing else. The
+    /// grammar can't forbid picking the same quote twice (the simulator pipeline did, twice), so a
+    /// repeat is dropped here rather than shown.
+    static func validateGroundedAsk(_ text: String, quoteOptions: [String]) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix(groundedAskPrefix) else { throw InsightError.incompleteResponse }
+        var rest = Substring(trimmed.dropFirst(groundedAskPrefix.count))
+        var quotes: [String] = []
+        while !rest.isEmpty {
+            guard quotes.count < 2, let quote = quoteOptions.first(where: { rest.hasPrefix($0) }) else { throw InsightError.incompleteResponse }
+            rest = rest.dropFirst(quote.count)
+            if rest.hasPrefix(" ") { rest = rest.dropFirst() }
+            if !quotes.contains(quote) { quotes.append(quote) }
+        }
+        guard !quotes.isEmpty else { throw InsightError.incompleteResponse }
+        return groundedAskPrefix + quotes.joined(separator: " ")
+    }
+
     // MARK: Monthly report
 
     // A MOMENT body is "On 23 Sep, you wrote, \"<quote>\" It seems to have <≤16 words>." and must
@@ -2730,6 +2888,9 @@ extension InsightService {
             }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:
+            if let content, content.hasPrefix(groundedAskPrefix) {
+                return ("InsightService.swift · ASK_GEMMA_INSTRUCTIONS", ASK_GEMMA_INSTRUCTIONS)
+            }
             return ("InsightService.swift:69 · ASK_SYSTEM", ASK_SYSTEM)
         }
     }
