@@ -95,3 +95,20 @@ Production-built grammar: 10/10 on the rig; real pipeline with Gemma forced 2/2,
 output quoted a grief entry under "Maybe it's time to let go of…" — Sad/Numb entries are now excluded
 from that section (still quotable as a moment). Images/tensions are generic ("A solitary lighthouse
 against a stormy sea", "pulled between responsibility and freedom") — metaphors, not claims.
+
+## Other languages (2026-09-27)
+
+Baseline: the shared prompts on Gemma invent scenes in every language tried, same as English
+("Der Duft von frisch gemähtem Gras…", "El sol se filtraba a través de las persianas…",
+"夕焼けが空を染めて…"). The English grammar (free lowercase line after the quote) doesn't carry
+over: German capitalises nouns ("unruhigenabend"), and a Japanese grammar with a negated character
+class was silently dropped by the sampler.
+
+Shipped: outside English, Gemma only picks sentence(s) from a grammar of literal sentences; the app
+composes fixed, translated text around them by mood (`groundedLocales`). Prompt layout matters —
+instruction first, then the entry, with the mood named in the instruction: Spanish went from quoting
+the last sentence 6/6 to the main event 6/6. Production-built prompts, 5 runs each: 7/9 languages
+quote the main event 5/5; ja/zh quote "woke at 10, much later than usual" (true, relevant).
+Digest picks valid in all 9. Real pipeline (de/ja/zh nudge + digest, Gemma forced): 6/6 real
+outputs, 4–15s on the simulator. The word-overlap guards are skipped for grammar-verified output —
+they rejected a verified Japanese nudge 3/3 (no spaces to split words on).
