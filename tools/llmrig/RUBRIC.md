@@ -23,3 +23,43 @@ Per shown output, PASS only if all hold:
 Informational, not a failure: SPECIFIC (refers to something actually in the text) and
 REGISTER (du/tú/you — the question addresses the writer, not a third party).
 Threshold: ship as-is only if >= 95% of shown outputs PASS across all cases; otherwise ground it.
+
+---
+Follow-up prototype (a) rubric — Gemma picks one phrase, the app composes a fixed question
+(fixed BEFORE any prototype run, 2026-09-27). Nothing can be invented by construction (literal
+grammar of the draft's own clauses), so this scores the pick. Per output, PASS only if:
+1 VALID   — exactly one of the offered phrases (the grammar should guarantee it; count anyway).
+2 SALIENT — the phrase carries the writer's feeling, worry, decision or a key event:
+            sickday: barely slept / stomach in knots / called in sick / not sure I want company /
+                     Dev might come over;
+            offer:   team has an opening / offered it to me / haven't told Mom or Rahul /
+                     going back and forth;
+            work:    presentation moved up / dashboard bug not fixed / Nisha review / feel so
+                     behind / snapped at Omar;
+            walk:    long walk with Bruno around the lake / should call Anu / weeks since we talked;
+            runon:   so tired / back to back meetings / forgot lunch again / car insurance.
+            de/es: the same things in translation.
+            FAIL: scenery/timing/logistics only (the gold light, the ducks, "until almost 4am",
+            "with the heating on", "gym at 7"), or a fragment that means nothing on its own.
+Adopt (a) if the total is >= 85% and no case is below 7/10. Choose the instruction variant with
+the higher total.
+Added after the first prototype run (picks were near-deterministic: ~1 real sample per case, so
+more cases were needed). Written BEFORE the second run; same PASS rule, SALIENT lists:
+            biopsy:    Dad called / biopsy results Friday / trying not to think about it
+                       (FAIL: the run, the legs, the emails);
+            scenefirst:told Sam I don't want to renew the lease / took it better than expected
+                       (FAIL: pink sky, the radio song);
+            checklist: fraud charge being reversed / haven't replied to Meera, feel guilty
+                       (FAIL: groceries done);
+            good:      presented the redesign, people clapped / Kavya's praise / still buzzing;
+            mid:       argument with Jonas / I was unfair to him (FAIL: slow Sunday, balcony, pasta);
+            night:     can't sleep, 2am / brain going over the interview / gap year question.
+            de/es mid + scenefirst: same as English.
+Variant LB = variant B translated for de/es (Claude translation, not native-reviewed), added after
+the first run showed the shipped pickNeutral ("most important thing of the day") picking
+logistics on fu_offer_es, the same failure as English variant A on fu_walk.
+Round 2 result: no variant met the bar (English B 100/110 but fu_mid 0/10; de 30/40; es LB 28/40);
+picks track first/last position more than meaning. Two layout variants added AFTER seeing that
+(post-hoc, same PASS rule; a winner still needs held-out cases): C = entry first, instruction
+after (the English nudge's layout); D = entry, then the candidate parts as a numbered list, then
+the instruction. Both use the B wording (LB translation for de/es).

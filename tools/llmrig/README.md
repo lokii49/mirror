@@ -159,3 +159,39 @@ people being given the writer's words or actions (German). Talk It Out's generat
 mostly don't reference the conversation at all, which is why they rarely invent — a quality
 problem, not a fabrication one. No ja/zh follow-up case: `strippedWordCount` splits on whitespace,
 so CJK drafts never reach the chip's 20-word gate.
+
+## Follow-up prototype (a): Gemma picks a phrase, the app composes the question (2026-09-27)
+
+Rig-only, no app change. `test_dumpFollowUpPrototypeForRig` builds candidates from the nudge's own
+`groundedNudgeQuoteCandidates`, merged or cut into verbatim clause runs of <= 100 chars (so e.g.
+`What's underneath "<phrase>"?` stays under validateFollowUp's 160). The prompt goes in as a
+user-only message with a literal grammar of those phrases, at temp 0.5, N=10. Scored with the
+prototype section of RUBRIC.md: did it pick the writer's feeling, worry, decision or a key event,
+not scenery or logistics.
+
+The grammar held for every one of the 380+ picks: always an exact phrase from the draft, so
+**nothing can be invented.** The problem is *which* phrase. Picks are near-deterministic (usually
+10/10 the same), so each case is about one real sample: 11 English drafts, 4 German, 4 Spanish.
+None of these was validated on held-out cases.
+
+| Instruction / layout | English (11) | German (4) | Spanish (4) |
+|---|---|---|---|
+| A: "the most important thing of the day" (= shipped `pickNeutral` for de/es) | 80/110 (73%): walk, scene-first, mid 0/10 | 30/40 | 10/40 |
+| **B: "the part they'd most want to say more about: a feeling, a worry, or something that happened to them"** | **100/110 (91%)**: mid 0/10 ("Made pasta for dinner" over the Jonas argument) | 30/40 | 28/40 |
+| BC: B with the instruction after the entry | 80/110 | 29/40 | 26/40 |
+| BD: B + the parts as a numbered list | 100/110 (91%): walk 0/10 (the gold light) | 20/40 | 12/40 |
+
+**What fails:**
+- **Scenery at the start.** The scene-first draft picks "the sky was pink…" in German and Spanish under every variant.
+- **Position over meaning.** The model follows where a phrase sits more than what it says, e.g. the last sentence, "Made pasta for dinner".
+- **Too few candidates.** When a draft yields only one or two, the pick is forced.
+
+Against the bar fixed before the run (>= 85% and no case below 7/10), **no variant qualifies**.
+
+A wrong pick here is a dull question, e.g. `What's underneath "Made pasta for dinner"?`, not an
+invented one. By comparison, the shipped free-prose chip scored 73/90: 17 of 90 questions
+invented or misattributed something.
+
+Two design choices were settled here: no "drop the unfinished last piece" rule (it dropped the
+most salient part in 3 of 11 unpunctuated drafts), and clause runs are merged, not split at every
+comma (German subordinate clauses became fragments like "wenn ich will").

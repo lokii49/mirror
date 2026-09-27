@@ -1205,6 +1205,22 @@ final class GroundingSampleHarness: XCTestCase {
         ("fu_offer_es", "La comida con Priya se alargó. Me contó que en su equipo hay una vacante y prácticamente me la ofreció si la quiero. Todavía no se lo he dicho a mamá ni a Rahul porque sigo dándole vueltas."),
     ]
 
+    /// More drafts for prototype (a) only: grammar-constrained picks were near-deterministic
+    /// (~1 real sample per case), so these add cases where the salient part is buried mid-draft,
+    /// after scenery, in a checklist, or in a lowercase run-on.
+    static let followUpPrototypeExtraCases: [(label: String, draft: String)] = [
+        ("fu_biopsy", "Morning run by the river, legs felt heavy. Work was fine, mostly emails. Dad called and said the biopsy results come back Friday. Trying not to think about it."),
+        ("fu_scenefirst", "The sky was pink on the drive home and the radio played that old song from college. Finally told Sam I don't want to renew the lease. He took it better than I expected."),
+        ("fu_checklist", "- groceries done\n- called the bank about the fraud charge, they're reversing it\n- still haven't replied to Meera's message about the wedding, feel guilty"),
+        ("fu_good", "Presented the redesign to the whole team today and people actually clapped. Kavya said it was the clearest demo she's seen this year. Still buzzing."),
+        ("fu_mid", "Slow Sunday. Read on the balcony for a while. Keep replaying the argument with Jonas from Friday, I think I was unfair to him. Made pasta for dinner."),
+        ("fu_night", "cant sleep again its 2am and my brain keeps going over the interview tomorrow what if they ask about the gap year"),
+        ("fu_mid_de", "Ruhiger Sonntag. Habe eine Weile auf dem Balkon gelesen. Ich denke immer wieder an den Streit mit Jonas vom Freitag, ich glaube, ich war unfair zu ihm. Abends habe ich Nudeln gekocht."),
+        ("fu_scenefirst_de", "Der Himmel war rosa auf der Heimfahrt, und im Radio lief das alte Lied aus der Uni-Zeit. Ich habe Sam endlich gesagt, dass ich den Mietvertrag nicht verlängern will. Er hat es besser aufgenommen als gedacht."),
+        ("fu_mid_es", "Domingo tranquilo. Leí un rato en el balcón. No dejo de pensar en la discusión con Jonas del viernes, creo que fui injusto con él. Hice pasta para cenar."),
+        ("fu_scenefirst_es", "El cielo estaba rosa de camino a casa y en la radio sonó esa canción vieja de la universidad. Por fin le dije a Sam que no quiero renovar el contrato del piso. Se lo tomó mejor de lo que esperaba."),
+    ]
+
     static let guidedRigCases: [(label: String, turns: [(question: String, answer: String)])] = [
         ("gq_tired", [("How are you feeling today?", "Tired. Work was a lot and I didn't get much done.")]),
         ("gq_sister", [
@@ -1264,6 +1280,108 @@ final class GroundingSampleHarness: XCTestCase {
         }
         for c in Self.guidedRigCases {
             try await capture(c.label) { _ = try await InsightService.generateGuidedQuestion(conversationSoFar: c.turns) }
+        }
+    }
+
+    /// Prototype (a) for the follow-up chip on Gemma, rig-only: Gemma picks one short phrase of
+    /// the draft (literal grammar), the app would compose a fixed question around it. Candidates
+    /// are the nudge's own sentences, cut here into clause runs of <= 100 chars so the composed
+    /// question stays within validateFollowUp's 160. Instruction variant A mirrors pickNeutral;
+    /// B asks for the part most worth writing more about. de/es use the shipped pickNeutral.
+    func test_dumpFollowUpPrototypeForRig() throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let maxPhrase = 100
+        let conjunctions: Set<String> = ["and", "then", "but", "because", "so", "und", "aber", "weil", "dann", "y", "pero", "porque", "luego"]
+        // Cut points are character offsets into the sentence, so every merged run of pieces is a
+        // verbatim substring: clause punctuation first, then (only inside a comma-free run that's
+        // still too long) before a conjunction, then 12-word windows; adjacent pieces are merged
+        // greedily up to maxPhrase so subordinate clauses ("wenn ich will") stay attached.
+        func clauses(_ sentence: String) -> [String] {
+            let trimSet = CharacterSet(charactersIn: " ,;:—–-.!?…")
+            let chars = Array(sentence.trimmingCharacters(in: trimSet))
+            guard chars.count > maxPhrase else { return [String(chars)] }
+            let wordStarts = (1..<chars.count).filter { chars[$0 - 1] == " " && chars[$0] != " " }
+            var cuts = [0] + wordStarts.filter { $0 >= 2 && ",;:—".contains(chars[$0 - 2]) } + [chars.count]
+            var refined = [0]
+            for (a, b) in zip(cuts, cuts.dropFirst()) {
+                if b - a > maxPhrase {
+                    let inner = wordStarts.filter { $0 > a && $0 < b }
+                    let conj = inner.filter { j in
+                        let word = String(chars[j...].prefix { $0 != " " }).lowercased()
+                        return conjunctions.contains(word)
+                    }
+                    var sub = [a] + conj + [b]
+                    var windowed = [a]
+                    for (x, y) in zip(sub, sub.dropFirst()) {
+                        if y - x > maxPhrase {
+                            let starts = inner.filter { $0 > x && $0 < y }
+                            windowed += stride(from: 11, to: starts.count, by: 12).map { starts[$0] }
+                        }
+                        windowed.append(y)
+                    }
+                    sub = windowed
+                    refined += sub.dropFirst()
+                } else {
+                    refined.append(b)
+                }
+            }
+            cuts = refined
+            var out: [String] = []
+            var start = cuts[0], last = cuts[0]
+            for c in cuts.dropFirst() {
+                if c - start > maxPhrase && last > start { out.append(String(chars[start..<last])); start = last }
+                last = c
+            }
+            if last > start { out.append(String(chars[start..<last])) }
+            return out
+                .map { $0.trimmingCharacters(in: trimSet) }
+                .filter { $0.split(separator: " ").count >= 3 }
+        }
+        func literal(_ s: String) -> String {
+            "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        }
+        let english: [String: String] = [
+            "A": "Copy word for word the part of the journal entry that shows the most important thing of the day. Output only that part.",
+            "B": "Copy word for word the part of the journal entry that the writer would most want to say more about: a feeling, a worry, or something that happened to them. Output only that part.",
+        ]
+        let translatedB: [String: String] = [
+            "de": "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
+            "es": "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
+        ]
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases {
+            var seen = Set<String>()
+            // No "drop the unfinished last piece" rule: the chip only fires after 6s idle on an
+            // unchanged draft, and unpunctuated drafts (checklists, run-ons) put their most
+            // salient part last — the rule dropped it in 3 of 11 drafts.
+            let options = InsightService.groundedNudgeQuoteCandidates(in: c.draft)
+                .flatMap(clauses)
+                .filter { seen.insert($0).inserted }
+            try options.joined(separator: "\n").write(toFile: "\(dir)/\(c.label)_options.txt", atomically: true, encoding: .utf8)
+            let grammar = "root ::= " + options.map(literal).joined(separator: " | ")
+            let variants: [(String, String, String)]   // (variant, instruction, entry label)
+            if c.label.hasSuffix("_de") || c.label.hasSuffix("_es") {
+                let code = String(c.label.suffix(2))
+                let loc = try XCTUnwrap(InsightService.groundedLocales[code])
+                variants = [("L", loc.pickNeutral, loc.entryLabel), ("LB", try XCTUnwrap(translatedB[code]), loc.entryLabel)]
+            } else {
+                variants = english.sorted { $0.key < $1.key }.map { ($0.key, $0.value, "Journal entry:") }
+            }
+            let partsLabel = ["de": "Teile des Eintrags:", "es": "Partes de la entrada:"][String(c.label.suffix(2))] ?? "Parts of the entry:"
+            let numbered = options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            var messages: [(String, String)] = variants.map { ($0.0, "\($0.1)\n\n\($0.2)\n\(c.draft)") }
+            // Post-hoc layout variants (RUBRIC.md, round 2), B wording only.
+            if let b = variants.first(where: { $0.0 == "B" || $0.0 == "LB" }) {
+                messages.append((b.0 + "C", "\(b.2)\n\(c.draft)\n\n\(b.1)"))
+                messages.append((b.0 + "D", "\(b.2)\n\(c.draft)\n\n\(partsLabel)\n\(numbered)\n\n\(b.1)"))
+            }
+            for (variant, message) in messages {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(c.label)_\(variant).prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(c.label)_\(variant).gbnf", atomically: true, encoding: .utf8)
+            }
         }
     }
 
