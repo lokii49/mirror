@@ -107,9 +107,9 @@ struct InsightSignalSource: View {
 
         switch insight.type {
         case .weeklyDigest:
-            let wk = DateHelpers.weekIdentifier(for: asOf)
-            let thisWeek = Array(prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == wk }.prefix(12))
-            let earlier = prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
+            let wk = DateHelpers.digestWeekIdentifier(for: asOf)
+            let thisWeek = Array(prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == wk }.prefix(12))
+            let earlier = prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
             rows.append(("THIS WEEK", Self.span(thisWeek)))
             if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
             rows.append(("MOOD READ", Self.moods(thisWeek)))

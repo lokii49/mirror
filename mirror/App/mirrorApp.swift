@@ -601,7 +601,7 @@ struct mirrorApp: App {
 
     @MainActor
     static func runWeeklyDigestIfNeeded(context: ModelContext) async {
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
         let coordinatorKey = "digest_\(thisWeek)"
 
         let descriptor = FetchDescriptor<Insight>(
@@ -621,7 +621,7 @@ struct mirrorApp: App {
         // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
         let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         // Digest covers the current week only — gate on this week's entries, not lifetime.
-        let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
               SubscriptionService.shared.isSubscribed else { return }
 

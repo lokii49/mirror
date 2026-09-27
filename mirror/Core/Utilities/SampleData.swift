@@ -634,7 +634,7 @@ enum SampleData {
         "Across the last few entries it's not the argument you return to — it's the silence right after, where you decided saying more wasn't worth it. The replay seems to be about testing whether that call was self-protection or avoidance."
 
     static func seedWeeklyDigestSample(into context: ModelContext) {
-        let period = DateHelpers.weekIdentifier(for: Date())
+        let period = DateHelpers.digestWeekIdentifier(for: Date())
         let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
         context.insert(Insight(type: .weeklyDigest, content: weeklyDigestSampleContent,
@@ -670,7 +670,7 @@ enum SampleData {
     /// Scratch-device only.
     static func seedPriorWeekDigestSample(into context: ModelContext) {
         guard let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) else { return }
-        let period = DateHelpers.weekIdentifier(for: lastWeek)
+        let period = DateHelpers.digestWeekIdentifier(for: lastWeek)
         let existing = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         guard !existing.contains(where: { $0.type == .weeklyDigest && $0.periodIdentifier == period }) else { return }
         let insight = Insight(type: .weeklyDigest, content: priorWeekDigestSampleContent,

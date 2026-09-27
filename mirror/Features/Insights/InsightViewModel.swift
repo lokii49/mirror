@@ -182,7 +182,7 @@ final class InsightViewModel {
     // On-demand if no cache. Background Sunday task pre-generates so it's ready on wake.
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
         let coordinatorKey = "digest_\(thisWeek)"
 
         guard SubscriptionService.shared.isSubscribed else {
@@ -191,7 +191,7 @@ final class InsightViewModel {
         }
 
         // The digest is "this week" — gate on entries written this week, not lifetime.
-        let weekEntries = entries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == thisWeek }
+        let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
         // Newest row wins; a stale digest is superseded by a fresh insert, never
         // deleted (a CloudKit-synced Insight deletion can hand a second device a
         // tombstoned object). Matches the monthly report's non-destructive approach.
