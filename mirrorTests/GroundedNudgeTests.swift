@@ -146,6 +146,24 @@ struct GroundedNudgeTests {
         #expect(engine == .gemma)
     }
 
+    // Routine entries start alike ("Usual gym, went to…"), so two different quotes share the
+    // 7-word opening repeatsPriorOpening compares. On the grammar path a retry is the same prompt
+    // with a new seed — it picks the same quote, so all 3 attempts would fail identically and a
+    // perfectly good reflection would come back degraded. Recently-quoted-sentence exclusion is
+    // the repeat guard for this format instead.
+    @Test func similarRoutineOpeningIsNotTreatedAsARepeat() async throws {
+        let entry = Entry(text: "Usual gym, went to the barber for a haircut and came back to the flat.", mood: "Content")
+        let yesterday = #"You wrote, "Usual gym, went to the office and stayed late for the release." You seem steady and a little tired."#
+        let reply = #"You wrote, "Usual gym, went to the barber for a haircut and came back to the flat." You seem settled and at ease today."#
+        var calls = 0
+        LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (reply, .gemma) }
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        let (text, _, degraded) = try await InsightService.generateNudge(entries: [entry], recentNudges: [yesterday])
+        #expect(calls == 1)
+        #expect(text == reply)
+        #expect(!degraded)
+    }
+
     @Test func unquotableEntryOnGemmaOnlyDeviceSkipsTheModel() async throws {
         var calls = 0
         LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .gemma) }
