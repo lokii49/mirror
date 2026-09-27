@@ -1166,18 +1166,67 @@ final class GroundingSampleHarness: XCTestCase {
             return e
         }
         func capture(_ label: String, _ run: () async throws -> Void) async throws {
-            var first: (String, String)?
-            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
-                if first == nil { first = (system, user) }
-                return ("x", .gemma)
+            var first: (String, String, LocalLLMService.GemmaPlan)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                if first == nil { first = (system, user, plan) }
+                return ("x", .foundationModels)
             }
             try? await run()
             guard let first else { XCTFail("no generation captured for \(label)"); return }
             try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
             try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+            if case .grammarConstrained(let message, let grammar) = first.2 {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(label)_gemma.gbnf", atomically: true, encoding: .utf8)
+            }
         }
         try await capture("digest") { _ = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week) }
+        try await capture("digestB") { _ = try await InsightService.generateWeeklyDigest(weekEntries: Self.digestWeekB, allEntries: Self.digestWeekB) }
         try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week, allEntries: week) }
         try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
+    }
+
+
+    /// A second synthetic week, unlike the rig cases: new job, rent rise, a grief anniversary.
+    static let digestWeekB: [Entry] = {
+        let texts: [(String, String, Double)] = [
+            ("Landlord emailed that the rent goes up in November. Spent an hour redoing the budget spreadsheet and it still doesn't add up. Couldn't focus on the book after.", "Anxious", 0),
+            ("Second day at the new job. The team lead, Farah, walked me through the codebase and it's less scary than I thought. Took the long way home through the market.", "Hopeful", 1),
+            ("Grandpa's birthday would have been today. Looked at old photos with Lina over video call and we both cried a bit. Made his dal recipe for dinner.", "Sad", 3),
+            ("First day at the new job! Commute was 40 minutes, not bad. Joel from IT set up my laptop. Signed up for the Saturday climbing session with Sam.", "Energized", 4),
+            ("Packing up the old desk, found my notes from three years ago. Annoyed that I stayed so long at that place.", "Frustrated", 5),
+        ]
+        return texts.map { text, mood, daysAgo in
+            let e = Entry(text: text, mood: mood)
+            e.createdAt = Date().addingTimeInterval(-daysAgo * 3_600)   // hours, so all stay in this week
+            return e
+        }
+    }()
+
+    /// Real generateWeeklyDigest pipeline (validators, cleaners, grounding checks) on Gemma for
+    /// both synthetic weeks. Opt-in like the rest of this harness.
+    func test_groundedDigest_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let weekA: [Entry] = Self.rigCases.map { $0.entries[0] }
+        for (label, week) in [("weekA", weekA), ("weekB", Self.digestWeekB)] {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week)
+                    let fallback = InsightService.isUngroundedFallback(text)
+                    print("[digest][\(label)][\(i)] engine=\(engine.rawValue) fallback=\(fallback) seconds=\(Int(Date().timeIntervalSince(started)))")
+                    print("[digest][\(label)][\(i)] TEXT: \(text.replacingOccurrences(of: "\n", with: " ⏎ "))")
+                } catch {
+                    print("[digest][\(label)][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
+                }
+            }
+        }
     }
 }

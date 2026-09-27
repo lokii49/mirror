@@ -89,6 +89,25 @@ Rules:
 - Be specific. Be honest. Be warm. Do not over-explain.
 """
 
+// Gemma-only weekly digest (2026-09-27). Same root cause as DAILY_NUDGE_GEMMA_INSTRUCTIONS: on
+// Gemma 3 1B, WEEKLY_DIGEST_SYSTEM invents details in most sections ("a system for organizing your
+// photography workflow", "a steaming mug of chamomile tea"). groundedDigestGrammar anchors YOUR
+// ENERGY / WHAT'S BUILDING / WATCH OUT FOR to verbatim sentences from this week's entries — energy's
+// adjective bound to the quoted entry's mood, building to good-mood entries, watch to hard-mood
+// ones — and allows only lowercase text (no names) around them. Rig: 20/20 digests with nothing
+// invented across two synthetic weeks (tools/llmrig/README.md). Foundation Models keeps
+// WEEKLY_DIGEST_SYSTEM.
+let WEEKLY_DIGEST_GEMMA_INSTRUCTIONS = """
+Write a weekly reflection for the person who wrote the journal entries above, in exactly this form, one line per section:
+THIS WEEK'S THEME: A week of <what the week was mostly about>.
+YOUR ENERGY: You seemed most <drained, tired, stressed, calm, light or content> when you wrote, "<copy one sentence from the entries>" Then say how that sounds.
+WHAT'S BUILDING: You wrote, "<copy a sentence about something good that is growing or changing for them>" Then say what it might mean.
+WATCH OUT FOR: You wrote, "<copy a sentence about something that may be quietly costing them>" Then say what to watch.
+MOOD BOOST: One small, specific action tied to what they wrote.
+NEXT WEEK: One practical, kind suggestion for next week.
+Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
+"""
+
 private let ASK_SYSTEM = """
 You are MirrorNotes, a private journaling companion. Read the journal entries and answer the question based on what the person actually wrote.
 Rules:
@@ -858,6 +877,11 @@ enum InsightService {
             backgroundEntries: backgroundEntries,
             maxChars: weeklyDigestPromptBudget
         )
+        let grounded = groundedDigestPlan(weekEntries: recentEntries, languageSource: languageSource)
+        if case .unsuitable = grounded.plan, !LocalLLMService.prefersFoundationModels {
+            // Gemma-only device and nothing quotable this week (only one- or two-word entries).
+            return (weeklyDigestUngroundedFallback, .gemma)
+        }
 
         // Same isUngrounded backstop and bounded-retry-loop shape as generateNudge (see its doc
         // comment for the motivating "rain outside..." incident) — applied to the whole digest
@@ -883,7 +907,11 @@ enum InsightService {
                     systemPrompt: WEEKLY_DIGEST_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .weeklyDigest,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: grounded.plan,
+                    gemmaValidator: grounded.quoteOptions.isEmpty ? nil : { text in
+                        try validateGroundedDigest(text, quoteOptions: grounded.quoteOptions)
+                    }
                 )
             } catch {
                 // Every path that reaches lastResult here already failed the grounding check
@@ -2338,22 +2366,25 @@ extension InsightService {
         var seen = Set<String>()
         var options: [String] = []
         for entry in entries {
-            var texts = [entry.text]
-            for note in entry.voiceNotes {
-                if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text {
-                    texts.append(transcript)
-                }
-            }
-            for text in texts {
-                for quote in groundedNudgeQuoteCandidates(in: text) where seen.insert(quote).inserted {
-                    options.append(quote)
-                }
+            for quote in groundedQuoteCandidates(of: entry) where seen.insert(quote).inserted {
+                options.append(quote)
             }
         }
         let fresh = options.filter { option in
             !recentNudges.contains { $0.hasPrefix(groundedNudgePrefix + option + "\"") }
         }
         return Array((fresh.isEmpty ? options : fresh).prefix(groundedNudgeMaxQuoteOptions))
+    }
+
+    /// Quotable sentences from an entry's text plus any voice transcript that isn't the text itself.
+    static func groundedQuoteCandidates(of entry: Entry) -> [String] {
+        var texts = [entry.text]
+        for note in entry.voiceNotes {
+            if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text {
+                texts.append(transcript)
+            }
+        }
+        return texts.flatMap(groundedNudgeQuoteCandidates(in:))
     }
 
     static func groundedNudgeQuoteCandidates(in text: String) -> [String] {
@@ -2444,13 +2475,9 @@ extension InsightService {
         // After the quote Mirror is talking to "you", so any first person there is the model
         // slipping into the writer's voice ("…and my stomach still hurts"). Stricter than
         // containsJournalWriterFirstPerson, whose "my" patterns only cover a fixed noun list.
-        let afterQuoteWords = Set(afterQuote.lowercased()
-            .replacingOccurrences(of: "’", with: "'")
-            .split { !$0.isLetter && $0 != "'" }
-            .map(String.init))
         guard afterQuote.hasPrefix("That sounds ") || afterQuote.hasPrefix("You seem "),
               endsAsCompleteSentence(afterQuote),
-              afterQuoteWords.isDisjoint(with: groundedNudgeFirstPersonWords)
+              !containsGroundedFirstPerson(afterQuote)
         else { throw InsightError.incompleteResponse }
         return trimmed
     }
@@ -2458,6 +2485,92 @@ extension InsightService {
     private static let groundedNudgeFirstPersonWords: Set<String> = [
         "i", "i'm", "i've", "i'd", "i'll", "me", "my", "mine", "myself",
     ]
+
+    private static func containsGroundedFirstPerson(_ text: String) -> Bool {
+        let words = Set(text.lowercased()
+            .replacingOccurrences(of: "’", with: "'")
+            .split { !$0.isLetter && $0 != "'" }
+            .map(String.init))
+        return !words.isDisjoint(with: groundedNudgeFirstPersonWords)
+    }
+
+    // MARK: Weekly digest
+
+    static let groundedDigestMaxOptionsPerBucket = 24
+    static let groundedDigestHardMoodWords = ["drained", "stressed", "tired"]
+    static let groundedDigestGoodMoodWords = ["light", "calm", "content"]
+
+    /// English-only, like the nudge. Quote options come from this week's entries, split by the
+    /// entry's mood so the grammar can bind "most drained" to hard-mood sentences, "most light" to
+    /// good-mood ones, WHAT'S BUILDING to good-mood and WATCH OUT FOR to hard-mood. An empty bucket
+    /// (a week of only good days) falls back to every option rather than dropping the section.
+    static func groundedDigestPlan(weekEntries: [Entry], languageSource: [Entry]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: languageSource) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        var all: [String] = [], good: [String] = [], hard: [String] = []
+        var seen = Set<String>()
+        for entry in weekEntries {
+            for quote in groundedQuoteCandidates(of: entry) where seen.insert(quote).inserted {
+                all.append(quote)
+                guard let mood = entry.mood else { continue }
+                if MirrorTheme.negativeMoods.contains(mood) { hard.append(quote) } else { good.append(quote) }
+            }
+        }
+        guard !all.isEmpty else { return (.unsuitable, []) }
+        let cap = groundedDigestMaxOptionsPerBucket
+        let goodOptions = Array((good.isEmpty ? all : good).prefix(cap))
+        let hardOptions = Array((hard.isEmpty ? all : hard).prefix(cap))
+        let message = "This week's journal entries:\n\(formatEntries(weekEntries, maxChars: 4_000))\n\n\(WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)"
+        let grammar = groundedDigestGrammar(good: goodOptions, hard: hardOptions)
+        return (.grammarConstrained(userMessage: message, grammar: grammar), Array(Set(goodOptions + hardOptions)))
+    }
+
+    static func groundedDigestGrammar(good: [String], hard: [String]) -> String {
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        let alt: ([String]) -> String = { $0.map(gbnfLiteral).joined(separator: " | ") }
+        let hardWords = groundedDigestHardMoodWords.map { "\"\($0)\"" }.joined(separator: " | ")
+        let goodWords = groundedDigestGoodMoodWords.map { "\"\($0)\"" }.joined(separator: " | ")
+        return """
+        root ::= theme "\\n" energy "\\n" building "\\n" watch "\\n" boost "\\n" next
+        theme ::= "\(labels[0]): A week of " words "."
+        energy ::= "\(labels[1]): You seemed most " ((\(hardWords)) " when you wrote, \\"" hardq | (\(goodWords)) " when you wrote, \\"" goodq) "\\" " ("That sounds " | "It sounds like ") words "."
+        building ::= "\(labels[2]): You wrote, \\"" goodq "\\" " ("That sounds like " | "It feels like ") words "."
+        watch ::= "\(labels[3]): You wrote, \\"" hardq "\\" " ("Watch whether " | "Notice if ") words "."
+        boost ::= "\(labels[4]): " ("Try " | "Maybe ") words "."
+        next ::= "\(labels[5]): " ("Next week, " | "Maybe ") words "."
+        goodq ::= \(alt(good))
+        hardq ::= \(alt(hard))
+        words ::= [a-z0-9 ,;:'’()-]{8,120}
+        """
+    }
+
+    /// Re-checks the digest grammar's guarantees: six lines in label order, every quote exactly one
+    /// of the options, the validator's usual 20–400 char complete-sentence bodies, and no first
+    /// person outside the quotes (inside them it's the writer's own words).
+    static func validateGroundedDigest(_ text: String, quoteOptions: [String]) throws -> String {
+        let lines = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        guard lines.count == labels.count else { throw InsightError.incompleteResponse }
+        let moodWords = (groundedDigestHardMoodWords + groundedDigestGoodMoodWords).joined(separator: "|")
+        let quotePrefixes: [Int: String] = [1: "You seemed most (?:\(moodWords)) when you wrote, \"", 2: "You wrote, \"", 3: "You wrote, \""]
+        for (index, line) in lines.enumerated() {
+            let head = labels[index] + ": "
+            guard line.hasPrefix(head) else { throw InsightError.incompleteResponse }
+            let body = String(line.dropFirst(head.count))
+            guard body.count >= 20, body.count <= 400, endsAsCompleteSentence(body) else { throw InsightError.incompleteResponse }
+            var outsideQuote = body
+            if let pattern = quotePrefixes[index] {
+                guard let opener = body.range(of: "^" + pattern, options: .regularExpression) else { throw InsightError.incompleteResponse }
+                let afterOpener = body[opener.upperBound...]
+                guard let quote = quoteOptions.first(where: { afterOpener.hasPrefix($0 + "\" ") }) else { throw InsightError.incompleteResponse }
+                outsideQuote = String(body[..<opener.upperBound]) + afterOpener.dropFirst(quote.count + 2)
+            }
+            guard !containsGroundedFirstPerson(outsideQuote) else { throw InsightError.incompleteResponse }
+        }
+        return lines.joined(separator: "\n")
+    }
 }
 
 // MARK: - Source disclosure (Sentinel X-ray)
@@ -2478,6 +2591,9 @@ extension InsightService {
             }
             return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
         case .weeklyDigest:
+            if let content, content.contains("WHAT'S BUILDING: You wrote, \"") {
+                return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
+            }
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
         case .monthlyReport:
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
