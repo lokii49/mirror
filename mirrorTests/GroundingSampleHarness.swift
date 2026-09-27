@@ -1183,7 +1183,7 @@ final class GroundingSampleHarness: XCTestCase {
         }
         try await capture("digest") { _ = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week) }
         try await capture("digestB") { _ = try await InsightService.generateWeeklyDigest(weekEntries: Self.digestWeekB, allEntries: Self.digestWeekB) }
-        try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week, allEntries: week) }
+        try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week + Self.digestWeekB, allEntries: week + Self.digestWeekB) }
         try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
     }
 
@@ -1226,6 +1226,29 @@ final class GroundingSampleHarness: XCTestCase {
                 } catch {
                     print("[digest][\(label)][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
                 }
+            }
+        }
+    }
+
+
+    /// Real generateMonthlyReport pipeline on Gemma for a synthetic month (both digest weeks).
+    func test_groundedMonthly_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let month: [Entry] = Self.rigCases.map { $0.entries[0] } + Self.digestWeekB
+        for i in 1...runs {
+            let started = Date()
+            do {
+                let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: month, allEntries: month)
+                print("[monthly][\(i)] engine=\(engine.rawValue) fallback=\(InsightService.isUngroundedFallback(text)) seconds=\(Int(Date().timeIntervalSince(started)))")
+                print("[monthly][\(i)] TEXT: \(text.replacingOccurrences(of: "\n", with: " ⏎ "))")
+            } catch {
+                print("[monthly][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
             }
         }
     }
