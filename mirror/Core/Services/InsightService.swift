@@ -673,7 +673,18 @@ enum InsightService {
                 return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
             }
 
-            let violatesRepeat = repeatsPriorOpening(result.text, openings: openings)
+            // Not for grammar-path output: its opening is `You wrote, "` plus the first words of
+            // the quote, and routine entries start alike ("Usual gym, went to…"), so two different
+            // quotes collide on this 7-word check. A retry there is the same prompt with a new
+            // seed — it picks the same quote, fails the same way three times, and a good
+            // reflection comes back degraded (GroundedNudgeTests.similarRoutineOpening…). The
+            // repeat guard for that format is groundedNudgeQuoteOptions dropping sentences quoted
+            // by recent nudges.
+            let isGroundedQuote: Bool = {
+                guard result.engine == .gemma, case .grammarConstrained = grounded.plan else { return false }
+                return true
+            }()
+            let violatesRepeat = !isGroundedQuote && repeatsPriorOpening(result.text, openings: openings)
             // Checked against `recent` alone too (via the flat sharesNoWordWithRecent backstop,
             // not a second scaled isUngrounded pass — see its doc comment for why reusing the
             // scaled threshold on a small corpus regressed live on 2026-09-20). DAILY_NUDGE_
