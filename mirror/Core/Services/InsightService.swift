@@ -148,6 +148,25 @@ Rules:
 - Be warm, specific, and honest
 """
 
+// Gemma-only monthly report (2026-09-27). Same root cause as the nudge/digest: on Gemma 3 1B,
+// MONTHLY_REPORT_SYSTEM opens with a preamble ("Okay, here's a deep monthly reflection…") and
+// invents specifics ("During a conversation with Bruno, I realized…" — Bruno is a dog). The
+// grammar from groundedMonthlyGrammar ties A MOMENT THAT SHIFTED SOMETHING to a real entry's date
+// plus a verbatim sentence from it, WHAT YOU'RE BECOMING / WHAT WANTS TO BE RELEASED to quotes from
+// good-/hard-mood entries, and keeps the image, tension and question to lowercase word-by-word text
+// (no names, no double spaces) after fixed openers. Rig: 10/10 with nothing invented
+// (tools/llmrig/README.md). Foundation Models keeps MONTHLY_REPORT_SYSTEM.
+let MONTHLY_REPORT_GEMMA_INSTRUCTIONS = """
+Write a monthly reflection for the person who wrote the journal entries above, in exactly this form, one line per section:
+YOUR MONTH IN ONE IMAGE: A <short metaphor for how this month felt>.
+THE TENSION AT THE CENTER: You seem pulled between <two things from their entries>.
+A MOMENT THAT SHIFTED SOMETHING: On <date>, you wrote, "<copy one sentence from that day's entry>" Then say what it might have changed.
+WHAT YOU'RE BECOMING: You wrote, "<copy a hopeful sentence>" You seem to be becoming someone who <...>.
+WHAT WANTS TO BE RELEASED: You wrote, "<copy a heavy sentence>" Maybe it's time to let go of <...>.
+YOUR QUESTION FOR NEXT MONTH: One honest, open question ending with a question mark.
+Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
+"""
+
 private let EMOTION_DETECT_SYSTEM = """
 You are MirrorNotes. Read this journal entry and identify the writer's primary emotional state.
 Reply with EXACTLY one word from this list:
@@ -972,6 +991,11 @@ enum InsightService {
         }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
+        let grounded = groundedMonthlyPlan(monthEntries: monthEntries)
+        if case .unsuitable = grounded.plan, !LocalLLMService.prefersFoundationModels {
+            // Gemma-only device and nothing quotable this month (only one- or two-word entries).
+            return (monthlyReportUngroundedFallback, .gemma)
+        }
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -983,7 +1007,11 @@ enum InsightService {
                     systemPrompt: MONTHLY_REPORT_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .monthlyReport,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: grounded.plan,
+                    gemmaValidator: grounded.quoteOptions.isEmpty ? nil : { text in
+                        try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
+                    }
                 )
             } catch {
                 guard let previous = lastResult else { throw error }
@@ -2544,6 +2572,107 @@ extension InsightService {
         """
     }
 
+    // MARK: Monthly report
+
+    // A MOMENT body is "On 23 Sep, you wrote, \"<quote>\" It seems to have <≤16 words>." and must
+    // stay inside validateMonthlyReport's 350-char section limit, so monthly quotes are shorter.
+    static let groundedMonthlyMaxQuoteChars = 170
+    static let groundedMonthlyMaxMoments = 40
+    // Kept out of WHAT WANTS TO BE RELEASED, whose fixed opener is "Maybe it's time to let go of":
+    // a simulator run paired it with "Grandpa's birthday would have been today." Grief isn't a
+    // friction to drop. These entries still reach A MOMENT THAT SHIFTED SOMETHING.
+    static let groundedMonthlyGriefMoods: Set<String> = ["Sad", "Numb"]
+
+    /// English-only. Options are taken round-robin across the month's entries (first sentence of
+    /// each entry, then second…) so a busy last week can't crowd out the rest of the month.
+    static func groundedMonthlyPlan(monthEntries: [Entry]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: monthEntries) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let perEntry = entries.map { entry in
+            (entry, groundedQuoteCandidates(of: entry).filter { $0.count <= groundedMonthlyMaxQuoteChars })
+        }
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d MMM"
+        var moments: [String] = [], good: [String] = [], hard: [String] = []
+        var seen = Set<String>()
+        let rounds = perEntry.map(\.1.count).max() ?? 0
+        for round in 0..<rounds {
+            for (entry, quotes) in perEntry where round < quotes.count {
+                let quote = quotes[round]
+                guard seen.insert(quote).inserted else { continue }
+                moments.append("On \(dayFormatter.string(from: entry.createdAt)), you wrote, \"\(quote)\"")
+                guard let mood = entry.mood else { continue }
+                if !MirrorTheme.negativeMoods.contains(mood) {
+                    good.append(quote)
+                } else if !groundedMonthlyGriefMoods.contains(mood) {
+                    hard.append(quote)
+                }
+            }
+        }
+        guard !moments.isEmpty else { return (.unsuitable, []) }
+        let all = Array(seen)
+        let cap = groundedDigestMaxOptionsPerBucket
+        let goodOptions = Array((good.isEmpty ? all : good).prefix(cap))
+        let hardOptions = Array((hard.isEmpty ? all : hard).prefix(cap))
+        let momentOptions = Array(moments.prefix(groundedMonthlyMaxMoments))
+        let message = "This month's journal entries:\n\(formatEntries(entries, maxChars: 5_000))\n\n\(MONTHLY_REPORT_GEMMA_INSTRUCTIONS)"
+        let grammar = groundedMonthlyGrammar(moments: momentOptions, good: goodOptions, hard: hardOptions)
+        return (.grammarConstrained(userMessage: message, grammar: grammar), momentOptions + goodOptions + hardOptions)
+    }
+
+    static func groundedMonthlyGrammar(moments: [String], good: [String], hard: [String]) -> String {
+        let labels = monthlyReportSectionLabels.map { $0["en"] ?? "" }
+        let alt: ([String]) -> String = { $0.map(gbnfLiteral).joined(separator: " | ") }
+        return """
+        root ::= image "\\n" tension "\\n" moment "\\n" becoming "\\n" release "\\n" question
+        image ::= "\(labels[0]): A " phrase "."
+        tension ::= "\(labels[1]): You seem pulled between " phrase "."
+        moment ::= "\(labels[2]): " momentq " " ("That might have " | "It seems to have ") words "."
+        becoming ::= "\(labels[3]): You wrote, \\"" goodq "\\" You seem to be becoming someone who " words "."
+        release ::= "\(labels[4]): You wrote, \\"" hardq "\\" Maybe it's time to let go of " words "."
+        question ::= "\(labels[5]): " ("How can you " | "What would it take for you to " | "Where could you " | "What if you ") phrase "?"
+        momentq ::= \(alt(moments))
+        goodq ::= \(alt(good))
+        hardq ::= \(alt(hard))
+        words ::= w (","? " " w){3,16}
+        phrase ::= w (","? " " w){2,14}
+        w ::= "a" | [a-z0-9’'-]{2,20}
+        """
+    }
+
+    /// Re-checks the monthly grammar's guarantees: six lines in label order with their fixed
+    /// openers, every quote (moments include their date) exactly an option, the usual 15–350 char
+    /// complete-sentence bodies, a question that ends in "?", and no first person outside quotes.
+    static func validateGroundedMonthly(_ text: String, quoteOptions: [String]) throws -> String {
+        let lines = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let labels = monthlyReportSectionLabels.map { $0["en"] ?? "" }
+        guard lines.count == labels.count else { throw InsightError.incompleteResponse }
+        // Fixed text before the quote option, per quoted section. A MOMENT option already carries
+        // its own "On 23 Sep, you wrote, \"…\"" wrapper, so its opener is empty and it closes on " ".
+        let openers: [Int: String] = [2: "", 3: "You wrote, \"", 4: "You wrote, \""]
+        for (index, line) in lines.enumerated() {
+            let head = labels[index] + ": "
+            guard line.hasPrefix(head) else { throw InsightError.incompleteResponse }
+            let body = String(line.dropFirst(head.count))
+            guard body.count >= 15, body.count <= 350, endsAsCompleteSentence(body) else { throw InsightError.incompleteResponse }
+            if index == 5 { guard body.hasSuffix("?") else { throw InsightError.incompleteResponse } }
+            var outsideQuote = body
+            if let opener = openers[index] {
+                guard body.hasPrefix(opener) else { throw InsightError.incompleteResponse }
+                let afterOpener = body.dropFirst(opener.count)
+                let closing = index == 2 ? " " : "\" "
+                guard let quote = quoteOptions.first(where: { afterOpener.hasPrefix($0 + closing) }) else { throw InsightError.incompleteResponse }
+                outsideQuote = opener + afterOpener.dropFirst(quote.count + closing.count)
+            }
+            guard !containsGroundedFirstPerson(outsideQuote) else { throw InsightError.incompleteResponse }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Re-checks the digest grammar's guarantees: six lines in label order, every quote exactly one
     /// of the options, the validator's usual 20–400 char complete-sentence bodies, and no first
     /// person outside the quotes (inside them it's the writer's own words).
@@ -2596,6 +2725,9 @@ extension InsightService {
             }
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
         case .monthlyReport:
+            if let content, content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
+                return ("InsightService.swift · MONTHLY_REPORT_GEMMA_INSTRUCTIONS", MONTHLY_REPORT_GEMMA_INSTRUCTIONS)
+            }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:
             return ("InsightService.swift:69 · ASK_SYSTEM", ASK_SYSTEM)

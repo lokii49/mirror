@@ -80,5 +80,18 @@ Production-built grammar (dumped via `test_dumpOtherInsightPromptsForRig`): 20/2
 quote often fills both YOUR ENERGY and WATCH OUT FOR; a salient entry can be skipped (week B's grief
 entry never surfaced); MOOD BOOST/NEXT WEEK are generic ("short walk in nature").
 
-Still NOT fixed on Gemma: monthly report (invents, opens with a preamble — Deep tier, 1st of month);
-Ask stays on the entries but swaps some attributions; non-English nudges/digests use the old prompts.
+## Monthly report (2026-09-27)
+
+Baseline on Gemma: opens "Okay, here's a deep monthly reflection…" and invents specifics ("During a
+conversation with Bruno, I realized…"). Prototypes on a 10-entry synthetic month, N=10:
+
+| Variant | Result |
+|---|---|
+| Quoted moment/becoming/release + char-level free text | nothing invented, but free text garbles ("stability and adventure uring the unknown", "A swirling nebula  nebula.") and "How can **i**…" in 4/10 questions |
+| Word-level free text, "you"-led question openers | garble persisted in the forced "X and Y" tension |
+| **"You seem pulled between <phrase>" tension (shipped)** | **10/10 well-formed, nothing invented, moment dates match their quotes** |
+
+Production-built grammar: 10/10 on the rig; real pipeline with Gemma forced 2/2, 54–67s. One real-run
+output quoted a grief entry under "Maybe it's time to let go of…" — Sad/Numb entries are now excluded
+from that section (still quotable as a moment). Images/tensions are generic ("A solitary lighthouse
+against a stormy sea", "pulled between responsibility and freedom") — metaphors, not claims.
