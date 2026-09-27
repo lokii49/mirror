@@ -291,7 +291,7 @@ struct InsightView: View {
 
     private func recomputeInsightCaches() {
         let today = DateHelpers.dayIdentifier(for: Date())
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
         cachedPastNudges = newestRealPerPeriod(
             insights.filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
         )

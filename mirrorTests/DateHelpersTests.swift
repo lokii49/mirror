@@ -78,3 +78,35 @@ struct DateHelpersIsSundayTests {
         #expect(!DateHelpers.isSunday(date(year: 2026, month: 9, day: 12)))
     }
 }
+
+// The digest runs only on Sunday. With the locale week, Sunday-first regions (US, India) put that
+// Sunday in a new, empty week, so the 3-entry gate never passed and digests silently stopped
+// (2026-09-27 device report: 6 entries Mon–Sat, no digest on Sunday).
+@Suite("DateHelpers.digestWeekIdentifier")
+struct DateHelpersDigestWeekTests {
+
+    private func noon(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+
+    @Test func sundayBelongsToTheWeekThatStartedOnMonday() {
+        let sunday = DateHelpers.digestWeekIdentifier(for: noon(2026, 9, 27))
+        for day in 21...26 {
+            #expect(DateHelpers.digestWeekIdentifier(for: noon(2026, 9, day)) == sunday, "Sep \(day)")
+        }
+        #expect(DateHelpers.digestWeekIdentifier(for: noon(2026, 9, 28)) != sunday)
+        #expect(DateHelpers.digestWeekIdentifier(for: noon(2026, 9, 20)) != sunday)
+    }
+
+    @Test func lateSundayNightStaysInTheSameWeek() {
+        let lateSunday = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 27, hour: 23, minute: 50))!
+        #expect(DateHelpers.digestWeekIdentifier(for: lateSunday) == DateHelpers.digestWeekIdentifier(for: noon(2026, 9, 21)))
+    }
+
+    @Test func yearBoundaryUsesISOWeekYear() {
+        // Thu 31 Dec 2026 and Sun 3 Jan 2027 are both in ISO week 2026-W53.
+        #expect(DateHelpers.digestWeekIdentifier(for: noon(2026, 12, 31)) == "2026-W53")
+        #expect(DateHelpers.digestWeekIdentifier(for: noon(2027, 1, 3)) == "2026-W53")
+        #expect(DateHelpers.digestWeekIdentifier(for: noon(2027, 1, 4)) == "2027-W01")
+    }
+}

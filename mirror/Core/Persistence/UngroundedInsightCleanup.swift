@@ -91,7 +91,12 @@ enum UngroundedInsightCleanup {
             // Computed from createdAt, not the stored `Entry.weekIdentifier` — that field
             // defaults to "" and can be unset on entries created before it existed or restored
             // via CloudKit without it, which would silently match nothing here.
-            let weekEntries = allEntries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == insight.periodIdentifier }
+            // Digests saved before digestWeekIdentifier used the locale week; match either so a
+            // Sunday-first user's older digest isn't checked against a one-day-shifted entry set.
+            let weekEntries = allEntries.filter {
+                DateHelpers.weekIdentifier(for: $0.createdAt) == insight.periodIdentifier
+                    || DateHelpers.digestWeekIdentifier(for: $0.createdAt) == insight.periodIdentifier
+            }
             // Flat sharesNoWordWithRecent, not the scaled isUngrounded — a single week's entries
             // is a small corpus, same regime that regressed for the daily nudge (see that
             // function's doc comment).
