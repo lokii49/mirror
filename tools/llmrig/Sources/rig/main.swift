@@ -80,12 +80,13 @@ case "integrity":
     let eot = model.tokenize(text: "<end_of_turn>", addBos: false, special: true)
     print("tokenize('<start_of_turn>')=\(sot) tokenize('<end_of_turn>')=\(eot)")
 case "gen":
-    // gen <promptFile(raw, already templated)> <temp> <n>
+    // gen <promptFile(raw, already templated)> <temp> <n> [maxChars]
     let prompt = try! String(contentsOfFile: args[2], encoding: .utf8)
     let temp = Float(args[3])!
     let runs = Int(args[4])!
+    let maxChars = args.count > 5 ? Int(args[5])! : 700   // app: LocalLLMTask.maxOutputChars (.followUp 140)
     for i in 1...runs {
-        let text = generate(prompt: prompt, temperature: temp, seed: UInt32(1000 + i))
+        let text = generate(prompt: prompt, temperature: temp, seed: UInt32(1000 + i), maxChars: maxChars)
         print("[\(i)] \(show(text.replacingOccurrences(of: "<end_of_turn>", with: "")))")
         fflush(stdout)
     }

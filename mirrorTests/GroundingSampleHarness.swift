@@ -1187,6 +1187,86 @@ final class GroundingSampleHarness: XCTestCase {
         try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
     }
 
+    // MARK: - Follow-up chip + Talk It Out rig cases (2026-09-27)
+    //
+    // Synthetic drafts/transcripts (no real journal text), scored with the follow-up section of
+    // tools/llmrig/RUBRIC.md. Same traps as rigCases: >=2 named people with distinct roles, a pet,
+    // and plans or undecided things that haven't happened. No ja/zh follow-up case: the chip's
+    // 20-word gate counts whitespace-separated words, so CJK drafts never reach it.
+    static let followUpRigCases: [(label: String, draft: String)] = [
+        ("fu_sickday", "Barely slept last night, my stomach was in knots until almost 4am. Called in sick and spent the day on the couch with the heating on. Dev texted that he might come over later with soup, but I'm not sure I want company."),
+        ("fu_offer", "Lunch with Priya ran long. She told me her team has an opening and basically offered it to me if I want it. I haven't told Mom or Rahul yet because I keep going back and forth."),
+        ("fu_work", "The client presentation got moved up to Thursday and the dashboard bug still isn't fixed. Nisha wants to review everything on Monday. I feel so behind, and I snapped at Omar in standup for no reason."),
+        ("fu_walk", "Took Bruno for a long walk around the lake after work. The light on the water was gold and a few ducks followed us along the shore. I should call Anu tomorrow, it's been weeks since we talked."),
+        ("fu_runon", "ugh so tired today gym at 7 then back to back meetings till 5 forgot lunch again and still need to sort out the car insurance thing before friday"),
+        ("fu_sickday_de", "Letzte Nacht kaum geschlafen, mein Magen hat bis fast vier Uhr rumort. Ich habe mich krankgemeldet und den ganzen Tag auf dem Sofa verbracht. Dev hat geschrieben, dass er vielleicht später mit Suppe vorbeikommt, aber ich weiß nicht, ob ich Besuch will."),
+        ("fu_offer_de", "Das Mittagessen mit Priya hat lange gedauert. Sie hat erzählt, dass in ihrem Team eine Stelle frei ist, und sie mir praktisch angeboten, wenn ich will. Ich habe es Mama und Rahul noch nicht gesagt, weil ich ständig hin und her überlege."),
+        ("fu_sickday_es", "Anoche casi no dormí, tuve el estómago revuelto hasta casi las cuatro. Llamé para decir que estaba enfermo y pasé el día en el sofá. Dev me escribió que quizá venga más tarde con sopa, pero no sé si quiero compañía."),
+        ("fu_offer_es", "La comida con Priya se alargó. Me contó que en su equipo hay una vacante y prácticamente me la ofreció si la quiero. Todavía no se lo he dicho a mamá ni a Rahul porque sigo dándole vueltas."),
+    ]
+
+    static let guidedRigCases: [(label: String, turns: [(question: String, answer: String)])] = [
+        ("gq_tired", [("How are you feeling today?", "Tired. Work was a lot and I didn't get much done.")]),
+        ("gq_sister", [
+            ("What's on your mind tonight?", "My sister Maya is moving to Berlin next month."),
+            ("How do you feel about her moving?", "Happy for her, but I'll miss our Sunday dinners."),
+        ]),
+        ("gq_quilt", [("What stood out about your day?", "I finally finished the quilt I started in the spring.")]),
+        ("gq_raise", [
+            ("What's been on your mind lately?", "Thinking about asking my manager Leo for a raise."),
+            ("What makes you want to ask now?", "I've taken on two extra projects since June and nobody seems to have noticed."),
+        ]),
+        ("gq_sister_de", [
+            ("Was beschäftigt dich heute Abend?", "Meine Schwester Maya zieht nächsten Monat nach Berlin."),
+            ("Wie fühlst du dich damit?", "Ich freue mich für sie, aber ich werde unsere Sonntagsessen vermissen."),
+        ]),
+        // Chat-style casual answers: the lowercase run-on shape was the follow-up chip's worst case.
+        ("gq_runon", [
+            ("How are you feeling today?", "ugh so tired today gym at 7 then back to back meetings till 5 forgot lunch again and still need to sort out the car insurance thing before friday"),
+        ]),
+        ("gq_plan3", [
+            ("What's on your mind tonight?", "thinking about the trip to see grandma in Kochi, we're supposed to go in december"),
+            ("What makes that trip feel important right now?", "she's been sick and mom keeps saying we should go sooner"),
+            ("How do you feel about going sooner?", "honestly scared of seeing her like that. arjun says he can't get leave till december anyway"),
+        ]),
+    ]
+
+    /// Writes the exact first-attempt prompt generateFollowUp / generateGuidedQuestion send, as
+    /// Gemma would receive it (the Gemma-only system prompt when the plan swaps one in), so the
+    /// rig can template it with `rig template`. No model runs. Output dir from HARNESS_DUMP_DIR.
+    func test_dumpFollowUpPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        func capture(_ label: String, _ run: () async throws -> Void) async throws {
+            var first: (String, String, LocalLLMService.GemmaPlan)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                if first == nil { first = (system, user, plan) }
+                return ("What do you mean?", .foundationModels)
+            }
+            try? await run()
+            guard let first else { XCTFail("no generation captured for \(label)"); return }
+            let gemmaSystem: String
+            switch first.2 {
+            case .samePrompt: gemmaSystem = first.0
+            case .ownSystemPrompt(let own): gemmaSystem = own
+            default:
+                XCTFail("unexpected Gemma plan for \(label): \(first.2)")
+                return
+            }
+            try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+        for c in Self.followUpRigCases {
+            try await capture(c.label) { _ = try await InsightService.generateFollowUp(currentText: c.draft) }
+        }
+        for c in Self.guidedRigCases {
+            try await capture(c.label) { _ = try await InsightService.generateGuidedQuestion(conversationSoFar: c.turns) }
+        }
+    }
+
 
     /// A second synthetic week, unlike the rig cases: new job, rent rise, a grief anniversary.
     static let digestWeekB: [Entry] = {

@@ -125,3 +125,37 @@ none; the Mac only Italian). Gemma itself took a grammar-offered no-answer 24/24
 questions. So Gemma's Ask always answers with the closest sentences under "The closest things you've
 written:" (and localized equivalents); the no-answer phrase is used only when nothing is quotable.
 Mood routing (worry questions → hard-mood entries, happy → good-mood) stays in every language.
+
+## Follow-up chip + Talk It Out (2026-09-27) — baseline, not yet changed
+
+Both still run the shared free-prose prompt on Gemma (`FOLLOW_UP_SYSTEM` / `GUIDED_ENTRY_SYSTEM`,
+`GemmaPlan.samePrompt`). Prompts dumped from the app with
+`GroundingSampleHarness.test_dumpFollowUpPromptsForRig`, templated with `rig template`, run with
+`rig gen <prompt> 0.5 10 140` (the app's `.followUp` temperature and 140-char cap). Scored with the
+follow-up section of RUBRIC.md, written before the first run in the same session (not committed
+first). All 160 outputs pass the validator's shape rules (checked with an approximation of
+`validateFollowUp`), so every one would be shown.
+
+| Case | Pass | Failures |
+|---|---|---|
+| fu_sickday | 8/10 | quotes "comfort", which the draft never says (2) |
+| fu_offer | 9/10 | asks what *Priya* is excited about; 9/10 assume "excites you" though the writer is undecided |
+| fu_work | 10/10 | — |
+| fu_walk | 9/10 | "Bruno's posture shifted" |
+| **fu_runon** (lowercase, no punctuation) | **3/10** | **"the rain" 5/10**, quotes 'lost', "solitude" |
+| **fu_sickday_de** | **5/10** | **Dev "describes a feeling", Dev "meant 'rumort'" (the writer's stomach), Dev "said something about the room" (2)**, quotes 'Rumble' |
+| fu_offer_de | 10/10 | grammar slips only |
+| fu_sickday_es | 10/10 | one generic "what music do you like" |
+| fu_offer_es | 9/10 | addresses the writer as "Priya" |
+| **Follow-up total** | **73/90 (81%)** | below the 95% bar; ~86% even dropping every invented-quote and borderline call |
+| gq_tired / gq_quilt / gq_raise / gq_sister_de | 40/40 | often ignore the answer ("one small thing that brought joy" after "tired") |
+| gq_sister | 9/10 | "remember about Berlin" (the sister is moving, not the writer) |
+| gq_runon | 10/10 | all generic "one small joy today" after "ugh so tired" |
+| gq_plan3 | 8/10 | "remember from that trip" (planned for December) (2) |
+| **Talk It Out total** | **67/70 (96%) strict** | passes narrowly; every miss is the same "remember from a move/trip that hasn't happened" shape |
+
+The follow-up chip fails where the old nudge failed: unpunctuated text (the rain again) and other
+people being given the writer's words or actions (German). Talk It Out's generated questions
+mostly don't reference the conversation at all, which is why they rarely invent — a quality
+problem, not a fabrication one. No ja/zh follow-up case: `strippedWordCount` splits on whitespace,
+so CJK drafts never reach the chip's 20-word gate.
