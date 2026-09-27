@@ -140,5 +140,69 @@ extension SharedLLMState {
             insight.generatedAt = entry.createdAt.addingTimeInterval(60)
             #expect(InsightService.ungroundedDailyNudges(among: [insight], allEntries: [entry]).isEmpty)
         }
+
+        // MARK: Monthly report outside English
+
+        private func month(_ code: String) -> [Entry] {
+            let calendar = Calendar(identifier: .gregorian)
+            let texts: [String: [(String, String, Int)]] = [
+                "de": [("Die Präsentation wurde schon wieder verschoben. Ich fühle mich mit allem im Rückstand.", "Overwhelmed", 24),
+                       ("Bin nach der Arbeit mit dem Hund am See spazieren gegangen. Zum ersten Mal diese Woche fühlte ich mich leicht.", "Peaceful", 23),
+                       ("Opas Geburtstag wäre heute gewesen. Habe sein Dal-Rezept zum Abendessen gekocht.", "Sad", 12)],
+                "ja": [("クライアントへのプレゼンがまた延期された。何もかも遅れている気がする。", "Overwhelmed", 24),
+                       ("仕事のあと犬と湖のそばを散歩した。今週はじめて気持ちが軽くなった。", "Peaceful", 23),
+                       ("今日は祖父の誕生日だったはずだ。祖父のレシピでカレーを作った。", "Sad", 12)],
+            ]
+            return texts[code]!.map { text, mood, day in
+                let e = Entry(text: text, mood: mood)
+                e.createdAt = calendar.date(from: DateComponents(year: 2026, month: 9, day: day, hour: 12))!
+                return e
+            }
+        }
+
+        @Test(arguments: ["de", "ja"])
+        func monthlyComposesSixLocalizedSectionsWithDatedMoment(code: String) throws {
+            let entries = month(code)
+            let localized = try #require(InsightService.localizedGroundedMonthly(monthEntries: entries))
+            guard case .grammarConstrained(_, let grammar) = localized.plan else { Issue.record("no grammar"); return }
+            #expect(grammar.hasPrefix("root ::= momentq \"\\n\" goodq \"\\n\" releaseq"))
+            let releaseLine = grammar.components(separatedBy: "\n").first { $0.hasPrefix("releaseq ::=") } ?? ""
+            #expect(!releaseLine.contains(code == "de" ? "Opas" : "祖父"), "grief never goes under 'let go of'")
+            let q = entries.map { InsightService.groundedNudgeQuoteCandidates(in: $0.text) }
+            let text = try #require(try localized.validator?("\(q[0][0])\n\(q[1][1])\n\(q[0][1])"))
+            let lines = text.components(separatedBy: "\n")
+            let labels = InsightService.monthlyReportSectionLabels.map { $0[code]! }
+            #expect(lines.count == 6)
+            for (line, label) in zip(lines, labels) { #expect(line.hasPrefix(label + ": ")) }
+            let loc = try #require(InsightService.groundedLocales[code])
+            #expect(lines[2].contains(loc.open + q[0][0] + loc.close))
+            #expect(lines[2].contains(code == "de" ? "24." : "9月24日"), "moment carries its entry's localized date: \(lines[2])")
+            #expect(lines[4].contains(loc.releaseSuffix))
+            #expect(InsightService.isGrammarGrounded(text))
+            #expect(InsightService.systemPrompt(for: .monthlyReport, content: text).body == loc.pickMonthly)
+        }
+
+        @Test func monthlyWithoutAHeavySentenceUsesTheFallbackLine() throws {
+            let calm = Entry(text: "Bin nach der Arbeit mit dem Hund am See spazieren gegangen. Zum ersten Mal diese Woche fühlte ich mich leicht.", mood: "Peaceful")
+            let grief = Entry(text: "Opas Geburtstag wäre heute gewesen. Habe sein Dal-Rezept zum Abendessen gekocht.", mood: "Sad")
+            grief.createdAt = calm.createdAt.addingTimeInterval(-86_400)
+            let localized = try #require(InsightService.localizedGroundedMonthly(monthEntries: [calm, grief]))
+            let q = InsightService.groundedNudgeQuoteCandidates(in: calm.text)
+            let text = try #require(try localized.validator?("\(q[0])\n\(q[1])"))
+            #expect(text.components(separatedBy: "\n")[4].hasSuffix(InsightService.groundedLocales["de"]!.releaseFallback))
+            #expect(throws: InsightError.self) { try localized.validator?("\(q[0])\n\(q[1])\n\(q[0])") }
+        }
+
+        @Test func japaneseMonthlySurvivesTheRealPipeline() async throws {
+            let entries = month("ja")
+            let q = entries.map { InsightService.groundedNudgeQuoteCandidates(in: $0.text) }
+            let reply = "\(q[0][0])\n\(q[1][1])\n\(q[0][1])"
+            var calls = 0
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (reply, .gemma) }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+            let (text, _) = try await InsightService.generateMonthlyReport(monthEntries: entries, allEntries: entries)
+            #expect(calls == 1)
+            #expect(text.hasPrefix(InsightService.monthlyReportSectionLabels[0]["ja"]! + ": "), "\(text)")
+        }
     }
 }

@@ -1305,6 +1305,8 @@ final class GroundingSampleHarness: XCTestCase {
             calm.createdAt = entry.createdAt.addingTimeInterval(-3_600)
             let digest = try XCTUnwrap(InsightService.localizedGroundedDigest(weekEntries: [entry, calm], languageSource: [entry]), code)
             try write("\(code)_digest", digest.plan)
+            let monthly = try XCTUnwrap(InsightService.localizedGroundedMonthly(monthEntries: [entry, calm]), code)
+            try write("\(code)_monthly", monthly.plan)
         }
     }
 
@@ -1332,6 +1334,9 @@ final class GroundingSampleHarness: XCTestCase {
             started = Date()
             let (digest, _) = try await InsightService.generateWeeklyDigest(weekEntries: [sick, calm], allEntries: [sick, calm])
             print("[loc][\(code)][digest] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(digest)) TEXT: \(digest.replacingOccurrences(of: "\n", with: " ⏎ "))")
+            started = Date()
+            let (monthly, _) = try await InsightService.generateMonthlyReport(monthEntries: [sick, calm], allEntries: [sick, calm])
+            print("[loc][\(code)][monthly] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(monthly)) TEXT: \(monthly.replacingOccurrences(of: "\n", with: " ⏎ "))")
         }
     }
 }
