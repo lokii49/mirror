@@ -1020,7 +1020,12 @@ enum InsightService {
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
         let grounded = groundedMonthlyPlan(monthEntries: monthEntries)
-        if case .unsuitable = grounded.plan, !LocalLLMService.prefersFoundationModels {
+        let localized = localizedGroundedMonthly(monthEntries: monthEntries)
+        let monthlyPlan = localized?.plan ?? grounded.plan
+        let monthlyValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
+            try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
+        })
+        if case .unsuitable = monthlyPlan, !LocalLLMService.prefersFoundationModels {
             // Gemma-only device and nothing quotable this month (only one- or two-word entries).
             return (monthlyReportUngroundedFallback, .gemma)
         }
@@ -1036,10 +1041,8 @@ enum InsightService {
                     userMessage: currentUserMessage,
                     task: .monthlyReport,
                     responseLanguageInstruction: languageInstruction,
-                    gemmaPlan: grounded.plan,
-                    gemmaValidator: grounded.quoteOptions.isEmpty ? nil : { text in
-                        try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
-                    }
+                    gemmaPlan: monthlyPlan,
+                    gemmaValidator: monthlyValidator
                 )
             } catch {
                 guard let previous = lastResult else { throw error }
@@ -1052,7 +1055,7 @@ enum InsightService {
             // flat sharesNoWordWithRecent backstop, not a second scaled isUngrounded pass (see
             // that function's doc comment for why the scaled version regressed on a small corpus).
             // Grammar-path output is verified by the plan's validator — see generateNudge.
-            if result.engine == .gemma, case .grammarConstrained = grounded.plan { return result }
+            if result.engine == .gemma, case .grammarConstrained = monthlyPlan { return result }
             guard isUngrounded(result.text, sourceEntries: allEntries)
                 || sharesNoWordWithRecent(result.text, recentEntries: monthEntries) else { return result }
 
@@ -2574,6 +2577,7 @@ extension InsightService {
         return groundedLocales.values.contains { loc in
             content.hasPrefix(loc.youWrote + loc.open) || content.hasPrefix(loc.askPrefix)
                 || content.contains(loc.energyHard) || content.contains(loc.energyGood)
+                || content.contains(loc.becomingSuffix) || content.contains(loc.releaseFallback)
         }
     }
 
@@ -2956,7 +2960,6 @@ extension InsightService {
 // them is fixed, pre-translated text chosen by the entry's mood. Baseline for comparison — the
 // shared prompt on Gemma in German/Spanish/Japanese invented scenes just like English ("Der Duft
 // von frisch gemähtem Gras…", "El sol se filtraba…", "夕焼けが空を染めて…").
-// Monthly reports in other languages still use the shared prompt (not yet measured).
 
 enum GroundedMoodBucket: Hashable {
     case tired, stressed, sad, good, neutral
@@ -2976,7 +2979,7 @@ enum GroundedMoodBucket: Hashable {
 
 /// Fixed text for one language. `pick*` are prompts (the model's only instructions); the rest
 /// is shown to the user verbatim around the quotes the model picked. `neutral` keys double as
-/// "mixed week" for the digest.
+/// "mixed week/month". Generated from tools/i18n/grounded_locales.py — edit there, not here.
 struct GroundedLocale {
     let open: String
     let close: String
@@ -2987,8 +2990,10 @@ struct GroundedLocale {
     let pickNeutral: String
     let pickDigest: String
     let pickAsk: String
+    let pickMonthly: String
     let entryLabel: String
     let weekLabel: String
+    let monthLabel: String
     let entriesLabel: String
     let questionLabel: String
     let feel: [GroundedMoodBucket: [String]]
@@ -3000,26 +3005,37 @@ struct GroundedLocale {
     let boost: [GroundedMoodBucket: String]
     let nextWeek: [GroundedMoodBucket: String]
     let askPrefix: String
+    let monthImage: [GroundedMoodBucket: String]
+    let monthTension: [GroundedMoodBucket: String]
+    let monthQuestion: [GroundedMoodBucket: String]
+    /// Contains `{date}`, replaced with the moment's entry date in the user's locale.
+    let momentLead: String
+    let momentSuffix: String
+    let becomingSuffix: String
+    let releaseSuffix: String
+    /// Used when the month has no hard, non-grief entry to quote under WHAT WANTS TO BE RELEASED.
+    let releaseFallback: String
 }
 
 extension InsightService {
     static let groundedLocales: [String: GroundedLocale] = [
         "de": GroundedLocale(
-            open: "„", close: "“", joiner: " ",
+            open: "„",
+            close: "“",
+            joiner: " ",
             youWrote: "Du hast geschrieben: ",
             moodWord: [.tired: "erschöpft", .stressed: "gestresst", .sad: "traurig", .good: "gut"],
             pickNudge: "Kopiere Wort für Wort den Satz aus dem Tagebucheintrag, der am besten erklärt, warum sich die Person {mood} fühlte. Gib nur diesen Satz aus.",
             pickNeutral: "Kopiere Wort für Wort den Satz aus dem Tagebucheintrag, der das Wichtigste des Tages zeigt. Gib nur diesen Satz aus.",
             pickDigest: "Kopiere drei Sätze Wort für Wort aus den Tagebucheinträgen, jeden in einer eigenen Zeile: zuerst den Satz, der zeigt, wann die Person am erschöpftesten wirkte, dann einen Satz über etwas Gutes, das wächst, dann einen Satz über etwas, das sie belasten könnte. Gib nur diese drei Sätze aus.",
             pickAsk: "Kopiere Wort für Wort den einen Satz (oder höchstens zwei Sätze) aus den Tagebucheinträgen, die die Frage am besten beantworten, jeden in einer eigenen Zeile. Gib nur diese Sätze aus.",
-            entryLabel: "Tagebucheintrag:", weekLabel: "Tagebucheinträge dieser Woche:", entriesLabel: "Tagebucheinträge:", questionLabel: "Frage:",
-            feel: [
-                .tired: ["Das klingt nach einem Tag, der viel Kraft gekostet hat. Gönn dir heute Abend etwas Ruhe.", "Du wirkst ziemlich erschöpft. Ein ruhiger, langsamer Abend könnte guttun."],
-                .stressed: ["Das klingt nach ziemlich viel auf einmal. Vielleicht hilft es, eine kleine Sache zuerst zu erledigen.", "Du wirkst unter Druck. Eine kurze Pause könnte dir helfen, durchzuatmen."],
-                .sad: ["Das klingt schwer. Sei heute behutsam mit dir.", "Du wirkst niedergeschlagen. Es ist in Ordnung, es langsam angehen zu lassen."],
-                .good: ["Das klingt nach einem guten Moment. Halte ihn fest.", "Du wirkst leichter. Vielleicht lohnt es sich zu merken, was dir gutgetan hat."],
-                .neutral: ["Schön, dass du es aufgeschrieben hast.", "Das ist es wert, bemerkt zu werden."],
-            ],
+            pickMonthly: "Kopiere drei Sätze Wort für Wort aus den Tagebucheinträgen, jeden in einer eigenen Zeile: zuerst einen Satz über einen Moment, der in diesem Monat etwas verändert hat, dann einen hoffnungsvollen Satz, dann einen schweren Satz. Gib nur diese drei Sätze aus.",
+            entryLabel: "Tagebucheintrag:",
+            weekLabel: "Tagebucheinträge dieser Woche:",
+            monthLabel: "Tagebucheinträge dieses Monats:",
+            entriesLabel: "Tagebucheinträge:",
+            questionLabel: "Frage:",
+            feel: [.tired: ["Das klingt nach einem Tag, der viel Kraft gekostet hat. Gönn dir heute Abend etwas Ruhe.", "Du wirkst ziemlich erschöpft. Ein ruhiger, langsamer Abend könnte guttun."], .stressed: ["Das klingt nach ziemlich viel auf einmal. Vielleicht hilft es, eine kleine Sache zuerst zu erledigen.", "Du wirkst unter Druck. Eine kurze Pause könnte dir helfen, durchzuatmen."], .sad: ["Das klingt schwer. Sei heute behutsam mit dir.", "Du wirkst niedergeschlagen. Es ist in Ordnung, es langsam angehen zu lassen."], .good: ["Das klingt nach einem guten Moment. Halte ihn fest.", "Du wirkst leichter. Vielleicht lohnt es sich zu merken, was dir gutgetan hat."], .neutral: ["Schön, dass du es aufgeschrieben hast.", "Das ist es wert, bemerkt zu werden."]],
             theme: [.tired: "Eine Woche, die viel Kraft gekostet hat.", .stressed: "Eine Woche mit viel Druck.", .sad: "Eine schwere Woche.", .good: "Eine Woche mit guten Momenten.", .neutral: "Eine Woche mit Höhen und Tiefen."],
             energyHard: "Am schwersten wirkte es, als du schriebst: ",
             energyGood: "Am leichtesten wirkte es, als du schriebst: ",
@@ -3027,174 +3043,237 @@ extension InsightService {
             watchSuffix: "Behalte das im Blick.",
             boost: [.tired: "Plane bewusst einen ruhigen Abend nur für dich ein.", .stressed: "Such dir eine kleine Aufgabe aus, die du heute abschließen kannst.", .sad: "Melde dich bei jemandem, dem du vertraust.", .good: "Mach mehr von dem, was dir diese Woche gutgetan hat.", .neutral: "Nimm dir fünf Minuten für etwas, das dir guttut."],
             nextWeek: [.tired: "Schütze deinen Schlaf und plane Pausen ein.", .stressed: "Nimm dir jeden Tag nur eine wichtige Sache vor.", .sad: "Sei geduldig mit dir und schreib weiter auf, wie es dir geht.", .good: "Halte fest, was funktioniert hat.", .neutral: "Achte darauf, was dir Energie gibt und was sie nimmt."],
-            askPrefix: "Am nächsten kommt, was du geschrieben hast:"
+            askPrefix: "Am nächsten kommt, was du geschrieben hast:",
+            monthImage: [.tired: "Eine Kerze, die an beiden Enden brennt.", .stressed: "Ein Kessel kurz vor dem Kochen.", .sad: "Ein grauer Himmel, der noch nicht aufgeklart ist.", .good: "Ein Fenster, das sich zum Morgenlicht öffnet.", .neutral: "Wetter, das ständig wechselte – Sonne, dann Regen, dann wieder Sonne."],
+            monthTension: [.tired: "Zwischen allem, was deine Energie fordert, und der Ruhe, die du brauchst.", .stressed: "Zwischen dem, was von dir erwartet wird, und dem, was du tragen kannst.", .sad: "Zwischen dem Wunsch weiterzugehen und der Zeit, die du zum Fühlen brauchst.", .good: "Zwischen dem Genießen des Guten und der Frage, ob es bleibt.", .neutral: "Zwischen den Tagen, die dich Kraft gekostet haben, und denen, die dir Kraft zurückgaben."],
+            monthQuestion: [.tired: "Was könntest du loslassen, um im nächsten Monat mehr Energie zu haben?", .stressed: "Welche eine Sache könntest du dir im nächsten Monat vom Tisch nehmen?", .sad: "Wer oder was könnte dich im nächsten Monat ein bisschen mehr stützen?", .good: "Was würde dir helfen, im nächsten Monat mehr davon zu behalten?", .neutral: "Was hat dir diesen Monat Energie gegeben, und wie könntest du mehr Raum dafür schaffen?"],
+            momentLead: "Am {date} hast du geschrieben: ",
+            momentSuffix: "Solche Momente sagen viel über deinen Monat.",
+            becomingSuffix: "Du scheinst zu lernen, darauf zu achten, was dir guttut.",
+            releaseSuffix: "Vielleicht ist es Zeit, das nicht mehr so festzuhalten.",
+            releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut."
         ),
         "es": GroundedLocale(
-            open: "“", close: "”", joiner: " ",
+            open: "“",
+            close: "”",
+            joiner: " ",
             youWrote: "Escribiste: ",
             moodWord: [.tired: "agotada", .stressed: "estresada", .sad: "triste", .good: "bien"],
             pickNudge: "Copia palabra por palabra la frase de la entrada del diario que mejor explica por qué la persona se sintió {mood}. Escribe solo esa frase.",
             pickNeutral: "Copia palabra por palabra la frase de la entrada del diario que muestra lo más importante del día. Escribe solo esa frase.",
             pickDigest: "Copia palabra por palabra tres frases de las entradas del diario, cada una en su propia línea: primero la frase que muestra cuándo la persona parecía más agotada, luego una frase sobre algo bueno que está creciendo, y luego una frase sobre algo que podría estar pesándole. Escribe solo esas tres frases.",
             pickAsk: "Copia palabra por palabra la frase (o como máximo dos frases) de las entradas del diario que mejor responden a la pregunta, cada una en su propia línea. Escribe solo esas frases.",
-            entryLabel: "Entrada del diario:", weekLabel: "Entradas del diario de esta semana:", entriesLabel: "Entradas del diario:", questionLabel: "Pregunta:",
-            feel: [
-                .tired: ["Suena a un día que te dejó sin energía. Esta noche date un respiro.", "Parece que fue agotador. Una tarde tranquila y sin prisas podría ayudarte."],
-                .stressed: ["Suena a mucho a la vez. Quizás ayude empezar por una sola cosa pequeña.", "Parece que hay bastante presión. Una pausa corta podría ayudarte a respirar."],
-                .sad: ["Suena duro. Trátate con cariño hoy.", "Parece un momento difícil. Está bien ir despacio."],
-                .good: ["Suena a un buen momento. Vale la pena guardarlo.", "Parece que hubo algo de ligereza. Quizás valga la pena notar qué te ayudó."],
-                .neutral: ["Gracias por escribirlo.", "Vale la pena fijarse en esto."],
-            ],
+            pickMonthly: "Copia palabra por palabra tres frases de las entradas del diario, cada una en su propia línea: primero una frase sobre un momento que cambió algo este mes, luego una frase esperanzadora, luego una frase difícil. Escribe solo esas tres frases.",
+            entryLabel: "Entrada del diario:",
+            weekLabel: "Entradas del diario de esta semana:",
+            monthLabel: "Entradas del diario de este mes:",
+            entriesLabel: "Entradas del diario:",
+            questionLabel: "Pregunta:",
+            feel: [.tired: ["Suena a un día que te dejó sin energía. Esta noche date un respiro.", "Parece que fue agotador. Una tarde tranquila y sin prisas podría ayudarte."], .stressed: ["Suena a mucho a la vez. Quizás ayude empezar por una sola cosa pequeña.", "Parece que hay bastante presión. Una pausa corta podría ayudarte a respirar."], .sad: ["Suena difícil. Trátate con cariño hoy.", "Parece un momento duro. Está bien ir despacio."], .good: ["Suena a un buen momento. Vale la pena guardarlo.", "Parece que hubo algo de ligereza. Quizás valga la pena notar qué te ayudó."], .neutral: ["Gracias por escribirlo.", "Vale la pena fijarse en esto."]],
             theme: [.tired: "Una semana que te pidió mucha energía.", .stressed: "Una semana con mucha presión.", .sad: "Una semana difícil.", .good: "Una semana con buenos momentos.", .neutral: "Una semana con altibajos."],
-            energyHard: "Lo más pesado pareció cuando escribiste: ",
-            energyGood: "Lo más ligero pareció cuando escribiste: ",
+            energyHard: "El momento más pesado pareció ser cuando escribiste: ",
+            energyGood: "El momento más ligero pareció ser cuando escribiste: ",
             buildingSuffix: "Ahí hay algo que puede crecer.",
             watchSuffix: "Vale la pena prestarle atención.",
             boost: [.tired: "Reserva una tarde tranquila solo para ti.", .stressed: "Elige una tarea pequeña que puedas terminar hoy.", .sad: "Escríbele a alguien de confianza.", .good: "Haz más de lo que te sentó bien esta semana.", .neutral: "Tómate cinco minutos para algo que te haga bien."],
             nextWeek: [.tired: "Cuida tu descanso y deja espacio para pausas.", .stressed: "Céntrate en una sola cosa importante cada día.", .sad: "Ten paciencia contigo y sigue escribiendo cómo estás.", .good: "Repite lo que funcionó.", .neutral: "Fíjate en qué te da energía y qué te la quita."],
-            askPrefix: "Lo más cercano que has escrito:"
+            askPrefix: "Lo más cercano que has escrito:",
+            monthImage: [.tired: "Una vela que arde por los dos extremos.", .stressed: "Una tetera a punto de hervir.", .sad: "Un cielo gris que todavía no se ha despejado.", .good: "Una ventana que se abre a la luz de la mañana.", .neutral: "Un tiempo que no dejaba de cambiar: sol, luego lluvia, luego sol otra vez."],
+            monthTension: [.tired: "Entre todo lo que te pide energía y el descanso que necesitas.", .stressed: "Entre lo que se espera de ti y lo que puedes cargar.", .sad: "Entre las ganas de seguir adelante y el tiempo que necesitas para sentirlo.", .good: "Entre disfrutar lo bueno y preguntarte si va a durar.", .neutral: "Entre los días que te dejaron sin energía y los que te la devolvieron."],
+            monthQuestion: [.tired: "¿Qué podrías soltar para tener más energía el próximo mes?", .stressed: "¿Qué cosa podrías quitarte de encima el próximo mes?", .sad: "¿Quién o qué podría apoyarte un poco más el próximo mes?", .good: "¿Qué te ayudaría a conservar más de esto el próximo mes?", .neutral: "¿Qué te dio energía este mes y cómo podrías hacerle más espacio?"],
+            momentLead: "El {date} escribiste: ",
+            momentSuffix: "Momentos así dicen mucho de tu mes.",
+            becomingSuffix: "Parece que estás aprendiendo a notar lo que te hace bien.",
+            releaseSuffix: "Quizás es momento de dejar de cargar con esto con tanta fuerza.",
+            releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien."
         ),
         "fr": GroundedLocale(
-            open: "« ", close: " »", joiner: " ",
-            youWrote: "Tu as écrit : ",
+            open: "«\u{00A0}",
+            close: "\u{00A0}»",
+            joiner: " ",
+            youWrote: "Tu as écrit\u{00A0}: ",
             moodWord: [.tired: "épuisée", .stressed: "stressée", .sad: "triste", .good: "bien"],
             pickNudge: "Recopie mot pour mot la phrase de l'entrée du journal qui explique le mieux pourquoi la personne s'est sentie {mood}. Écris seulement cette phrase.",
             pickNeutral: "Recopie mot pour mot la phrase de l'entrée du journal qui montre le plus important de la journée. Écris seulement cette phrase.",
-            pickDigest: "Recopie mot pour mot trois phrases des entrées du journal, chacune sur sa propre ligne : d'abord la phrase qui montre quand la personne semblait le plus épuisée, puis une phrase sur quelque chose de bien qui grandit, puis une phrase sur quelque chose qui pourrait lui peser. Écris seulement ces trois phrases.",
+            pickDigest: "Recopie mot pour mot trois phrases des entrées du journal, chacune sur sa propre ligne\u{00A0}: d'abord la phrase qui montre quand la personne semblait le plus épuisée, puis une phrase sur quelque chose de bien qui grandit, puis une phrase sur quelque chose qui pourrait lui peser. Écris seulement ces trois phrases.",
             pickAsk: "Recopie mot pour mot la phrase (ou au plus deux phrases) des entrées du journal qui répondent le mieux à la question, chacune sur sa propre ligne. Écris seulement ces phrases.",
-            entryLabel: "Entrée du journal :", weekLabel: "Entrées du journal de cette semaine :", entriesLabel: "Entrées du journal :", questionLabel: "Question :",
-            feel: [
-                .tired: ["On dirait une journée très fatigante. Accorde-toi un peu de repos ce soir.", "Ça a l'air d'avoir été épuisant. Une soirée calme pourrait te faire du bien."],
-                .stressed: ["Ça fait beaucoup à la fois. Commencer par une seule petite chose pourrait aider.", "Tu sembles sous pression. Une courte pause pourrait t'aider à souffler."],
-                .sad: ["Ça a l'air lourd. Prends soin de toi aujourd'hui.", "Ça semble difficile. C'est normal d'y aller doucement."],
-                .good: ["Ça ressemble à un bon moment. Garde-le en tête.", "Ça semble plus léger. Note peut-être ce qui t'a fait du bien."],
-                .neutral: ["Merci de l'avoir écrit.", "Ça vaut la peine de le remarquer."],
-            ],
+            pickMonthly: "Recopie mot pour mot trois phrases des entrées du journal, chacune sur sa propre ligne\u{00A0}: d'abord une phrase sur un moment qui a changé quelque chose ce mois-ci, puis une phrase pleine d'espoir, puis une phrase lourde. Écris seulement ces trois phrases.",
+            entryLabel: "Entrée du journal\u{00A0}:",
+            weekLabel: "Entrées du journal de cette semaine\u{00A0}:",
+            monthLabel: "Entrées du journal de ce mois-ci\u{00A0}:",
+            entriesLabel: "Entrées du journal\u{00A0}:",
+            questionLabel: "Question\u{00A0}:",
+            feel: [.tired: ["On dirait une journée très fatigante. Accorde-toi un peu de repos ce soir.", "Ça a l'air d'avoir été épuisant. Une soirée calme pourrait te faire du bien."], .stressed: ["Ça fait beaucoup à la fois. Commencer par une seule petite chose pourrait aider.", "Tu sembles sous pression. Une courte pause pourrait t'aider à souffler."], .sad: ["Ça a l'air lourd. Prends soin de toi aujourd'hui.", "Ça semble difficile. C'est normal d'y aller doucement."], .good: ["Ça ressemble à un bon moment. Garde-le en tête.", "Ça semble plus léger. Note peut-être ce qui t'a fait du bien."], .neutral: ["Merci de l'avoir écrit.", "Ça vaut la peine de le remarquer."]],
             theme: [.tired: "Une semaine qui t'a demandé beaucoup d'énergie.", .stressed: "Une semaine sous pression.", .sad: "Une semaine difficile.", .good: "Une semaine avec de bons moments.", .neutral: "Une semaine en dents de scie."],
-            energyHard: "Le plus lourd semblait être quand tu as écrit : ",
-            energyGood: "Le plus léger semblait être quand tu as écrit : ",
+            energyHard: "Le moment le plus lourd semble être quand tu as écrit\u{00A0}: ",
+            energyGood: "Le moment le plus léger semble être quand tu as écrit\u{00A0}: ",
             buildingSuffix: "Il y a là quelque chose qui peut grandir.",
             watchSuffix: "Garde un œil là-dessus.",
             boost: [.tired: "Prévois une soirée calme rien que pour toi.", .stressed: "Choisis une petite tâche que tu peux terminer aujourd'hui.", .sad: "Écris à quelqu'un en qui tu as confiance.", .good: "Refais ce qui t'a fait du bien cette semaine.", .neutral: "Prends cinq minutes pour quelque chose qui te fait du bien."],
             nextWeek: [.tired: "Protège ton sommeil et prévois des pauses.", .stressed: "Concentre-toi sur une seule chose importante par jour.", .sad: "Prends ton temps et continue d'écrire comment tu vas.", .good: "Refais ce qui a marché.", .neutral: "Observe ce qui te donne de l'énergie et ce qui t'en prend."],
-            askPrefix: "Ce que tu as écrit de plus proche :"
+            askPrefix: "Ce que tu as écrit de plus proche\u{00A0}:",
+            monthImage: [.tired: "Une bougie qui brûle par les deux bouts.", .stressed: "Une bouilloire sur le point de bouillir.", .sad: "Un ciel gris qui ne s'est pas encore dégagé.", .good: "Une fenêtre qui s'ouvre sur la lumière du matin.", .neutral: "Une météo qui changeait sans cesse\u{00A0}: soleil, puis pluie, puis soleil."],
+            monthTension: [.tired: "Entre tout ce qui réclame ton énergie et le repos dont tu as besoin.", .stressed: "Entre ce qu'on attend de toi et ce que tu peux porter.", .sad: "Entre l'envie d'avancer et le temps qu'il te faut pour le ressentir.", .good: "Entre profiter de ce qui est bon et te demander si ça va durer.", .neutral: "Entre les jours qui t'ont pris de l'énergie et ceux qui t'en ont redonné."],
+            monthQuestion: [.tired: "Qu'est-ce que tu pourrais lâcher pour avoir plus d'énergie le mois prochain\u{00A0}?", .stressed: "Quelle chose pourrais-tu retirer de ton assiette le mois prochain\u{00A0}?", .sad: "Qui ou quoi pourrait te soutenir un peu plus le mois prochain\u{00A0}?", .good: "Qu'est-ce qui t'aiderait à garder davantage de tout ça le mois prochain\u{00A0}?", .neutral: "Qu'est-ce qui t'a donné de l'énergie ce mois-ci, et comment lui faire plus de place\u{00A0}?"],
+            momentLead: "Le {date}, tu as écrit\u{00A0}: ",
+            momentSuffix: "Ce genre de moment en dit long sur ton mois.",
+            becomingSuffix: "Tu sembles apprendre à remarquer ce qui te fait du bien.",
+            releaseSuffix: "Il est peut-être temps de ne plus porter ça aussi fort.",
+            releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien."
         ),
         "it": GroundedLocale(
-            open: "“", close: "”", joiner: " ",
+            open: "“",
+            close: "”",
+            joiner: " ",
             youWrote: "Hai scritto: ",
             moodWord: [.tired: "esausta", .stressed: "stressata", .sad: "triste", .good: "bene"],
             pickNudge: "Copia parola per parola la frase della voce del diario che spiega meglio perché la persona si è sentita {mood}. Scrivi solo quella frase.",
             pickNeutral: "Copia parola per parola la frase della voce del diario che mostra la cosa più importante della giornata. Scrivi solo quella frase.",
             pickDigest: "Copia parola per parola tre frasi dalle voci del diario, ognuna su una riga: prima la frase che mostra quando la persona sembrava più esausta, poi una frase su qualcosa di buono che sta crescendo, poi una frase su qualcosa che potrebbe pesarle. Scrivi solo queste tre frasi.",
             pickAsk: "Copia parola per parola la frase (o al massimo due frasi) delle voci del diario che rispondono meglio alla domanda, ognuna su una riga. Scrivi solo quelle frasi.",
-            entryLabel: "Voce del diario:", weekLabel: "Voci del diario di questa settimana:", entriesLabel: "Voci del diario:", questionLabel: "Domanda:",
-            feel: [
-                .tired: ["Sembra una giornata che ti ha tolto tante energie. Stasera concediti un po' di riposo.", "Sembra essere stato faticoso. Una serata tranquilla potrebbe farti bene."],
-                .stressed: ["Sembra tanto tutto insieme. Forse aiuta iniziare da una sola piccola cosa.", "Sembra che ci sia parecchia pressione. Una breve pausa potrebbe aiutarti a respirare."],
-                .sad: ["Sembra pesante. Oggi trattati con gentilezza.", "Sembra un momento difficile. Va bene prendersela con calma."],
-                .good: ["Sembra un bel momento. Vale la pena tenerlo a mente.", "Sembra che ci sia stata un po' di leggerezza. Forse vale la pena notare cosa ti ha aiutato."],
-                .neutral: ["Grazie per averlo scritto.", "Vale la pena notarlo."],
-            ],
+            pickMonthly: "Copia parola per parola tre frasi dalle voci del diario, ognuna su una riga: prima una frase su un momento che ha cambiato qualcosa questo mese, poi una frase piena di speranza, poi una frase pesante. Scrivi solo queste tre frasi.",
+            entryLabel: "Voce del diario:",
+            weekLabel: "Voci del diario di questa settimana:",
+            monthLabel: "Voci del diario di questo mese:",
+            entriesLabel: "Voci del diario:",
+            questionLabel: "Domanda:",
+            feel: [.tired: ["Sembra una giornata che ti ha tolto tante energie. Stasera concediti un po' di riposo.", "Dev'essere stata una giornata faticosa. Una serata tranquilla potrebbe farti bene."], .stressed: ["Sembra tanto tutto insieme. Forse aiuta iniziare da una sola piccola cosa.", "Sembra che ci sia parecchia pressione. Una breve pausa potrebbe aiutarti a respirare."], .sad: ["Sembra pesante. Oggi trattati con gentilezza.", "Sembra un momento difficile. Va bene prendersela con calma."], .good: ["Sembra un bel momento. Vale la pena tenerlo a mente.", "Sembra che ci sia stata un po' di leggerezza. Forse vale la pena notare cosa ti ha aiutato."], .neutral: ["Grazie per averlo scritto.", "Vale la pena notarlo."]],
             theme: [.tired: "Una settimana che ti ha chiesto molte energie.", .stressed: "Una settimana con molta pressione.", .sad: "Una settimana difficile.", .good: "Una settimana con bei momenti.", .neutral: "Una settimana di alti e bassi."],
-            energyHard: "Il momento più pesante sembrava quando hai scritto: ",
-            energyGood: "Il momento più leggero sembrava quando hai scritto: ",
+            energyHard: "Il momento più pesante sembra essere stato quando hai scritto: ",
+            energyGood: "Il momento più leggero sembra essere stato quando hai scritto: ",
             buildingSuffix: "Qui c'è qualcosa che può crescere.",
             watchSuffix: "Vale la pena tenerlo d'occhio.",
             boost: [.tired: "Tieni libera una serata tranquilla solo per te.", .stressed: "Scegli un piccolo compito da finire oggi.", .sad: "Scrivi a qualcuno di cui ti fidi.", .good: "Fai di più di ciò che ti ha fatto bene questa settimana.", .neutral: "Prenditi cinque minuti per qualcosa che ti fa bene."],
             nextWeek: [.tired: "Proteggi il sonno e prevedi delle pause.", .stressed: "Concentrati su una sola cosa importante al giorno.", .sad: "Prenditi il tuo tempo e continua a scrivere come stai.", .good: "Ripeti ciò che ha funzionato.", .neutral: "Nota cosa ti dà energia e cosa te la toglie."],
-            askPrefix: "Le cose più vicine che hai scritto:"
+            askPrefix: "Le cose più vicine che hai scritto:",
+            monthImage: [.tired: "Una candela che brucia da entrambe le estremità.", .stressed: "Un bollitore sul punto di bollire.", .sad: "Un cielo grigio che non si è ancora rasserenato.", .good: "Una finestra che si apre sulla luce del mattino.", .neutral: "Un tempo che cambiava di continuo: sole, poi pioggia, poi di nuovo sole."],
+            monthTension: [.tired: "Tra tutto ciò che ti chiede energia e il riposo di cui hai bisogno.", .stressed: "Tra ciò che ci si aspetta da te e ciò che riesci a portare.", .sad: "Tra la voglia di andare avanti e il tempo che ti serve per sentirlo.", .good: "Tra il goderti ciò che va bene e il chiederti se durerà.", .neutral: "Tra i giorni che ti hanno tolto energia e quelli che te l'hanno restituita."],
+            monthQuestion: [.tired: "Cosa potresti lasciar andare per avere più energia il mese prossimo?", .stressed: "Quale cosa potresti toglierti di dosso il mese prossimo?", .sad: "Chi o cosa potrebbe sostenerti un po' di più il mese prossimo?", .good: "Cosa ti aiuterebbe a conservare di più di tutto questo il mese prossimo?", .neutral: "Cosa ti ha dato energia questo mese, e come potresti farle più spazio?"],
+            momentLead: "Il {date} hai scritto: ",
+            momentSuffix: "Momenti così dicono molto del tuo mese.",
+            becomingSuffix: "Sembra che tu stia imparando a notare ciò che ti fa bene.",
+            releaseSuffix: "Forse è il momento di smettere di portarlo con tanta fatica.",
+            releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene."
         ),
         "pt": GroundedLocale(
-            open: "“", close: "”", joiner: " ",
+            open: "“",
+            close: "”",
+            joiner: " ",
             youWrote: "Você escreveu: ",
             moodWord: [.tired: "exausta", .stressed: "estressada", .sad: "triste", .good: "bem"],
             pickNudge: "Copie palavra por palavra a frase da entrada do diário que melhor explica por que a pessoa se sentiu {mood}. Escreva só essa frase.",
             pickNeutral: "Copie palavra por palavra a frase da entrada do diário que mostra o mais importante do dia. Escreva só essa frase.",
             pickDigest: "Copie palavra por palavra três frases das entradas do diário, cada uma em sua própria linha: primeiro a frase que mostra quando a pessoa parecia mais exausta, depois uma frase sobre algo bom que está crescendo, depois uma frase sobre algo que pode estar pesando. Escreva só essas três frases.",
             pickAsk: "Copie palavra por palavra a frase (ou no máximo duas frases) das entradas do diário que melhor respondem à pergunta, cada uma em sua própria linha. Escreva só essas frases.",
-            entryLabel: "Entrada do diário:", weekLabel: "Entradas do diário desta semana:", entriesLabel: "Entradas do diário:", questionLabel: "Pergunta:",
-            feel: [
-                .tired: ["Parece um dia que tirou muita energia de você. Hoje à noite, se dê um descanso.", "Parece ter sido cansativo. Uma noite tranquila pode fazer bem."],
-                .stressed: ["Parece muita coisa ao mesmo tempo. Talvez ajude começar por uma coisa pequena.", "Parece que há bastante pressão. Uma pausa curta pode ajudar você a respirar."],
-                .sad: ["Parece pesado. Seja gentil com você hoje.", "Parece um momento difícil. Tudo bem ir devagar."],
-                .good: ["Parece um bom momento. Vale a pena guardar.", "Parece que houve um pouco de leveza. Talvez valha notar o que ajudou."],
-                .neutral: ["Obrigado por escrever isso.", "Vale a pena notar isso."],
-            ],
+            pickMonthly: "Copie palavra por palavra três frases das entradas do diário, cada uma em sua própria linha: primeiro uma frase sobre um momento que mudou algo neste mês, depois uma frase esperançosa, depois uma frase pesada. Escreva só essas três frases.",
+            entryLabel: "Entrada do diário:",
+            weekLabel: "Entradas do diário desta semana:",
+            monthLabel: "Entradas do diário deste mês:",
+            entriesLabel: "Entradas do diário:",
+            questionLabel: "Pergunta:",
+            feel: [.tired: ["Parece um dia que tirou muita energia de você. Hoje à noite, dê-se um descanso.", "Parece ter sido cansativo. Uma noite tranquila pode fazer bem a você."], .stressed: ["Parece muita coisa ao mesmo tempo. Talvez ajude começar por uma coisa pequena.", "Parece que há bastante pressão. Uma pausa curta pode ajudar você a respirar."], .sad: ["Parece pesado. Seja gentil com você hoje.", "Parece um momento difícil. Tudo bem ir devagar."], .good: ["Parece um bom momento. Vale a pena guardá-lo.", "Parece que houve um pouco de leveza. Talvez valha notar o que ajudou."], .neutral: ["Que bom que você escreveu isso.", "Vale a pena notar isso."]],
             theme: [.tired: "Uma semana que pediu muita energia.", .stressed: "Uma semana com muita pressão.", .sad: "Uma semana difícil.", .good: "Uma semana com bons momentos.", .neutral: "Uma semana de altos e baixos."],
-            energyHard: "O mais pesado pareceu quando você escreveu: ",
-            energyGood: "O mais leve pareceu quando você escreveu: ",
+            energyHard: "O momento mais pesado parece ter sido quando você escreveu: ",
+            energyGood: "O momento mais leve parece ter sido quando você escreveu: ",
             buildingSuffix: "Há algo aí que pode crescer.",
             watchSuffix: "Vale a pena ficar de olho nisso.",
-            boost: [.tired: "Reserve uma noite tranquila só para você.", .stressed: "Escolha uma tarefa pequena para terminar hoje.", .sad: "Mande uma mensagem para alguém de confiança.", .good: "Faça mais do que te fez bem esta semana.", .neutral: "Tire cinco minutos para algo que te faça bem."],
-            nextWeek: [.tired: "Proteja seu sono e reserve pausas.", .stressed: "Foque em uma só coisa importante por dia.", .sad: "Vá com calma e continue escrevendo como você está.", .good: "Repita o que funcionou.", .neutral: "Repare no que te dá energia e no que tira."],
-            askPrefix: "O mais próximo que você escreveu:"
+            boost: [.tired: "Reserve uma noite tranquila só para você.", .stressed: "Escolha uma tarefa pequena para terminar hoje.", .sad: "Mande uma mensagem para alguém de confiança.", .good: "Faça mais do que fez bem a você esta semana.", .neutral: "Tire cinco minutos para algo que faça bem a você."],
+            nextWeek: [.tired: "Proteja seu sono e reserve pausas.", .stressed: "Foque em uma só coisa importante por dia.", .sad: "Vá com calma e continue escrevendo como você está.", .good: "Repita o que funcionou.", .neutral: "Repare no que dá energia a você e no que a tira."],
+            askPrefix: "O mais próximo que você escreveu:",
+            monthImage: [.tired: "Uma vela queimando dos dois lados.", .stressed: "Uma chaleira quase fervendo.", .sad: "Um céu cinzento que ainda não abriu.", .good: "Uma janela se abrindo para a luz da manhã.", .neutral: "Um tempo que não parava de mudar: sol, depois chuva, depois sol de novo."],
+            monthTension: [.tired: "Entre tudo o que pede sua energia e o descanso de que você precisa.", .stressed: "Entre o que esperam de você e o que você consegue carregar.", .sad: "Entre a vontade de seguir em frente e o tempo de que você precisa para sentir isso.", .good: "Entre aproveitar o que é bom e se perguntar se vai durar.", .neutral: "Entre os dias que tiraram sua energia e os que a devolveram."],
+            monthQuestion: [.tired: "O que você poderia deixar de lado para ter mais energia no próximo mês?", .stressed: "Que coisa você poderia tirar dos seus ombros no próximo mês?", .sad: "Quem ou o que poderia apoiar você um pouco mais no próximo mês?", .good: "O que ajudaria você a manter mais disso no próximo mês?", .neutral: "O que deu energia a você este mês, e como você poderia abrir mais espaço para isso?"],
+            momentLead: "Em {date}, você escreveu: ",
+            momentSuffix: "Momentos assim dizem muito sobre o seu mês.",
+            becomingSuffix: "Parece que você está aprendendo a perceber o que faz bem a você.",
+            releaseSuffix: "Talvez seja hora de parar de carregar isso com tanta força.",
+            releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você."
         ),
         "ru": GroundedLocale(
-            open: "«", close: "»", joiner: " ",
+            open: "«",
+            close: "»",
+            joiner: " ",
             youWrote: "Ты написал(а): ",
             moodWord: [.tired: "измотанным", .stressed: "напряжённым", .sad: "грустным", .good: "хорошо"],
             pickNudge: "Перепиши слово в слово предложение из записи в дневнике, которое лучше всего объясняет, почему человек чувствовал себя {mood}. Выведи только это предложение.",
             pickNeutral: "Перепиши слово в слово предложение из записи в дневнике, которое показывает самое важное за день. Выведи только это предложение.",
             pickDigest: "Перепиши слово в слово три предложения из записей в дневнике, каждое на отдельной строке: сначала предложение, показывающее, когда человек казался самым измотанным, затем предложение о чём-то хорошем, что растёт, затем предложение о том, что может его тяготить. Выведи только эти три предложения.",
             pickAsk: "Перепиши слово в слово одно предложение (или не больше двух) из записей в дневнике, которые лучше всего отвечают на вопрос, каждое на отдельной строке. Выведи только эти предложения.",
-            entryLabel: "Запись в дневнике:", weekLabel: "Записи в дневнике за эту неделю:", entriesLabel: "Записи в дневнике:", questionLabel: "Вопрос:",
-            feel: [
-                .tired: ["Похоже, этот день забрал много сил. Позволь себе вечером отдохнуть.", "Похоже, это было изматывающе. Спокойный вечер может помочь."],
-                .stressed: ["Похоже, всего слишком много сразу. Возможно, стоит начать с одного небольшого дела.", "Похоже, давление немаленькое. Короткая пауза может помочь выдохнуть."],
-                .sad: ["Похоже, это тяжело. Будь сегодня бережнее к себе.", "Похоже, сейчас непросто. Можно никуда не спешить."],
-                .good: ["Похоже на хороший момент. Его стоит запомнить.", "Похоже, стало немного легче. Возможно, стоит заметить, что помогло."],
-                .neutral: ["Спасибо, что записал(а) это.", "Это стоит заметить."],
-            ],
+            pickMonthly: "Перепиши слово в слово три предложения из записей в дневнике, каждое на отдельной строке: сначала предложение о моменте, который что-то изменил в этом месяце, затем предложение с надеждой, затем тяжёлое предложение. Выведи только эти три предложения.",
+            entryLabel: "Запись в дневнике:",
+            weekLabel: "Записи в дневнике за эту неделю:",
+            monthLabel: "Записи в дневнике за этот месяц:",
+            entriesLabel: "Записи в дневнике:",
+            questionLabel: "Вопрос:",
+            feel: [.tired: ["Похоже, этот день забрал много сил. Позволь себе вечером отдохнуть.", "Похоже, это было изматывающе. Спокойный вечер может помочь."], .stressed: ["Похоже, всего слишком много сразу. Возможно, стоит начать с одного небольшого дела.", "Похоже, давление немаленькое. Короткая пауза может помочь выдохнуть."], .sad: ["Похоже, это тяжело. Будь сегодня бережнее к себе.", "Похоже, сейчас непросто. Можно никуда не спешить."], .good: ["Похоже на хороший момент. Его стоит запомнить.", "Похоже, стало немного легче. Возможно, стоит заметить, что помогло."], .neutral: ["Спасибо, что записал(а) это.", "Это стоит заметить."]],
             theme: [.tired: "Неделя, которая потребовала много сил.", .stressed: "Неделя под давлением.", .sad: "Тяжёлая неделя.", .good: "Неделя с хорошими моментами.", .neutral: "Неделя со взлётами и падениями."],
             energyHard: "Тяжелее всего, похоже, было, когда ты написал(а): ",
             energyGood: "Легче всего, похоже, было, когда ты написал(а): ",
             buildingSuffix: "Здесь есть то, что может вырасти.",
             watchSuffix: "За этим стоит последить.",
             boost: [.tired: "Выдели спокойный вечер только для себя.", .stressed: "Выбери одно небольшое дело, которое можно закончить сегодня.", .sad: "Напиши тому, кому доверяешь.", .good: "Делай больше того, что помогло на этой неделе.", .neutral: "Удели пять минут тому, что тебе приятно."],
-            nextWeek: [.tired: "Береги сон и планируй паузы.", .stressed: "Одно важное дело в день.", .sad: "Не торопи себя и продолжай записывать, как ты.", .good: "Повтори то, что сработало.", .neutral: "Замечай, что даёт силы, а что их забирает."],
-            askPrefix: "Самое близкое из того, что ты написал(а):"
+            nextWeek: [.tired: "Береги сон и планируй паузы.", .stressed: "Бери на себя одно важное дело в день.", .sad: "Не торопи себя и продолжай записывать, как ты.", .good: "Повтори то, что сработало.", .neutral: "Замечай, что даёт силы, а что их забирает."],
+            askPrefix: "Самое близкое из того, что ты написал(а):",
+            monthImage: [.tired: "Свеча, горящая с двух концов.", .stressed: "Чайник, который вот-вот закипит.", .sad: "Серое небо, которое ещё не прояснилось.", .good: "Окно, открытое навстречу утреннему свету.", .neutral: "Погода, которая всё время менялась: солнце, потом дождь, потом снова солнце."],
+            monthTension: [.tired: "Между всем, что требует твоих сил, и отдыхом, который тебе нужен.", .stressed: "Между тем, чего от тебя ждут, и тем, что ты можешь унести.", .sad: "Между желанием двигаться дальше и временем, которое нужно, чтобы это прожить.", .good: "Между радостью от хорошего и вопросом, надолго ли это.", .neutral: "Между днями, которые забирали силы, и теми, что их возвращали."],
+            monthQuestion: [.tired: "От чего ты мог(ла) бы отказаться, чтобы в следующем месяце было больше сил?", .stressed: "Какое одно дело ты мог(ла) бы снять с себя в следующем месяце?", .sad: "Кто или что могло бы поддержать тебя чуть больше в следующем месяце?", .good: "Что помогло бы тебе сохранить больше этого в следующем месяце?", .neutral: "Что давало тебе силы в этом месяце и как освободить для этого больше места?"],
+            momentLead: "{date} ты написал(а): ",
+            momentSuffix: "Такие моменты многое говорят о твоём месяце.",
+            becomingSuffix: "Похоже, ты учишься замечать, что тебе помогает.",
+            releaseSuffix: "Может быть, пора перестать так крепко держаться за это.",
+            releaseFallback: "Похоже, в этом месяце нет ничего, что просит отпустить, — продолжай замечать, что тебе помогает."
         ),
         "ja": GroundedLocale(
-            open: "「", close: "」", joiner: "",
+            open: "「",
+            close: "」",
+            joiner: "",
             youWrote: "あなたはこう書きました：",
             moodWord: [.tired: "疲れ切っていた", .stressed: "ストレスを感じていた", .sad: "悲しかった", .good: "気分がよかった"],
             pickNudge: "次の日記から、その人がなぜ{mood}のかをいちばんよく表している一文を、そのまま書き写してください。その一文だけを出力してください。",
             pickNeutral: "次の日記から、その日いちばん大事なことを表す一文をそのまま書き写してください。その一文だけを出力してください。",
             pickDigest: "次の日記から、三つの文をそのまま書き写してください。それぞれ別の行に：まず、その人がいちばん疲れていたように見える文、次に、何かよいことが育っている文、最後に、その人の負担になっていそうな文。その三つの文だけを出力してください。",
             pickAsk: "次の日記から、質問にいちばんよく答えている文を一つ（多くても二つ）、そのまま書き写してください。一文ずつ別の行に。その文だけを出力してください。",
-            entryLabel: "日記：", weekLabel: "今週の日記：", entriesLabel: "日記：", questionLabel: "質問：",
-            feel: [
-                .tired: ["とても疲れる一日だったようですね。今夜はゆっくり休んでください。", "かなり消耗しているように見えます。静かな夜を過ごすといいかもしれません。"],
-                .stressed: ["いろいろなことが一度に重なっているようですね。まず小さなことを一つだけ片づけてみては。", "プレッシャーが大きそうです。少し休憩をとると楽になるかもしれません。"],
-                .sad: ["つらい時間だったようですね。今日は自分にやさしくしてください。", "気持ちが沈んでいるようです。ゆっくりで大丈夫です。"],
-                .good: ["いい時間だったようですね。その気持ちを大切に。", "少し心が軽くなったようですね。何が助けになったのか覚えておくといいかも。"],
-                .neutral: ["書き留めてくれてありがとう。", "気づいておく価値のあることですね。"],
-            ],
+            pickMonthly: "次の日記から、三つの文をそのまま書き写してください。それぞれ別の行に：まず、今月何かが変わった瞬間を表す文、次に、希望が感じられる文、最後に、重さが感じられる文。その三つの文だけを出力してください。",
+            entryLabel: "日記：",
+            weekLabel: "今週の日記：",
+            monthLabel: "今月の日記：",
+            entriesLabel: "日記：",
+            questionLabel: "質問：",
+            feel: [.tired: ["とても疲れる一日だったようですね。今夜はゆっくり休んでください。", "かなり消耗しているように見えます。静かな夜を過ごすといいかもしれません。"], .stressed: ["いろいろなことが一度に重なっているようですね。まず小さなことを一つだけ片づけてみてはどうでしょう。", "プレッシャーが大きそうです。少し休憩をとると楽になるかもしれません。"], .sad: ["つらい時間だったようですね。今日は自分にやさしくしてください。", "気持ちが沈んでいるようです。ゆっくりで大丈夫です。"], .good: ["いい時間だったようですね。その気持ちを大切にしてください。", "少し心が軽くなったようですね。何が助けになったのか、覚えておくといいかもしれません。"], .neutral: ["書き留めてくれてありがとうございます。", "気づいておく価値のあることですね。"]],
             theme: [.tired: "たくさんのエネルギーを使った一週間。", .stressed: "プレッシャーの多い一週間。", .sad: "つらい一週間。", .good: "いい時間があった一週間。", .neutral: "浮き沈みのあった一週間。"],
             energyHard: "いちばん大変そうだったのは、こう書いたときです：",
             energyGood: "いちばん軽やかだったのは、こう書いたときです：",
             buildingSuffix: "――ここから育っていくものがありそうです。",
             watchSuffix: "――ここは少し気にかけておきましょう。",
-            boost: [.tired: "今夜は自分のための静かな時間をつくってみて。", .stressed: "今日終わらせられる小さなことを一つ選んでみて。", .sad: "信頼できる人に連絡してみて。", .good: "今週よかったことを、もう少し続けてみて。", .neutral: "自分をいたわる時間を五分とってみて。"],
+            boost: [.tired: "今夜は自分のための静かな時間をつくってみてください。", .stressed: "今日終わらせられる小さなことを一つ選んでみてください。", .sad: "信頼できる人に連絡してみてください。", .good: "今週よかったことを、もう少し続けてみてください。", .neutral: "自分をいたわる時間を五分とってみてください。"],
             nextWeek: [.tired: "睡眠を守って、休憩を予定に入れましょう。", .stressed: "一日ひとつの大事なことに集中しましょう。", .sad: "無理せず、気持ちを書き続けましょう。", .good: "うまくいったことを繰り返しましょう。", .neutral: "何が元気をくれて、何が奪うのかに気づいてみましょう。"],
-            askPrefix: "いちばん近いのは、あなたが書いたこの言葉です："
+            askPrefix: "いちばん近いのは、あなたが書いたこの言葉です：",
+            monthImage: [.tired: "両端から燃えているろうそく。", .stressed: "今にも沸騰しそうなやかん。", .sad: "まだ晴れない灰色の空。", .good: "朝の光に向かって開く窓。", .neutral: "晴れたり雨が降ったり、めまぐるしく変わる天気。"],
+            monthTension: [.tired: "エネルギーを求めてくるすべてのことと、あなたに必要な休息とのあいだ。", .stressed: "あなたに期待されていることと、あなたが抱えられることとのあいだ。", .sad: "前に進みたい気持ちと、それを感じきるための時間とのあいだ。", .good: "いいことを楽しむ気持ちと、それが続くのかという思いとのあいだ。", .neutral: "エネルギーを奪われた日々と、取り戻せた日々とのあいだ。"],
+            monthQuestion: [.tired: "来月もっと元気でいるために、手放せることは何でしょうか？", .stressed: "来月、抱えていることを一つ減らすとしたら何でしょうか？", .sad: "来月、誰や何があなたをもう少し支えてくれるでしょうか？", .good: "来月もこの感じを続けるために、何が助けになるでしょうか？", .neutral: "今月あなたに元気をくれたものは何で、それをもっと増やすにはどうしたらいいでしょうか？"],
+            momentLead: "{date}、あなたはこう書きました：",
+            momentSuffix: "――こうした瞬間が、今月をよく表しています。",
+            becomingSuffix: "――何が自分の助けになるかに気づける人になりつつあるようです。",
+            releaseSuffix: "――これを、そろそろ少し手放してもいいのかもしれません。",
+            releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。"
         ),
         "ko": GroundedLocale(
-            open: "“", close: "”", joiner: " ",
+            open: "“",
+            close: "”",
+            joiner: " ",
             youWrote: "이렇게 썼어요: ",
             moodWord: [.tired: "지쳤는지", .stressed: "스트레스를 받았는지", .sad: "슬펐는지", .good: "기분이 좋았는지"],
             pickNudge: "아래 일기에서 이 사람이 왜 {mood}를 가장 잘 보여 주는 문장을 그대로 옮겨 적어 주세요. 그 문장만 출력하세요.",
             pickNeutral: "아래 일기에서 그날 가장 중요한 일을 보여 주는 문장을 그대로 옮겨 적어 주세요. 그 문장만 출력하세요.",
             pickDigest: "아래 일기에서 세 문장을 그대로 옮겨 적어 주세요. 각 문장은 한 줄씩: 먼저 이 사람이 가장 지쳐 보였던 문장, 다음으로 좋은 일이 자라고 있는 문장, 마지막으로 이 사람에게 부담이 될 수 있는 문장. 그 세 문장만 출력하세요.",
             pickAsk: "아래 일기에서 질문에 가장 잘 답하는 문장 하나(많아야 두 개)를 그대로 옮겨 적어 주세요. 한 줄에 한 문장씩. 그 문장만 출력하세요.",
-            entryLabel: "일기:", weekLabel: "이번 주 일기:", entriesLabel: "일기:", questionLabel: "질문:",
-            feel: [
-                .tired: ["많이 지친 하루였던 것 같아요. 오늘 밤은 푹 쉬어요.", "꽤 힘들었던 것 같아요. 조용한 저녁이 도움이 될 수 있어요."],
-                .stressed: ["한꺼번에 많은 일이 겹친 것 같아요. 작은 일 하나부터 시작해 보면 어떨까요.", "부담이 큰 것 같아요. 잠깐 쉬어 가면 숨 돌리는 데 도움이 될 거예요."],
-                .sad: ["마음이 무거웠던 것 같아요. 오늘은 자신에게 다정하게 대해 주세요.", "힘든 때인 것 같아요. 천천히 가도 괜찮아요."],
-                .good: ["좋은 순간이었던 것 같아요. 잘 간직해 두세요.", "마음이 조금 가벼워진 것 같아요. 무엇이 도움이 됐는지 기억해 두면 좋겠어요."],
-                .neutral: ["적어 줘서 고마워요.", "눈여겨볼 만한 일이에요."],
-            ],
+            pickMonthly: "아래 일기에서 세 문장을 그대로 옮겨 적어 주세요. 각 문장은 한 줄씩: 먼저 이번 달 무언가를 바꾼 순간에 관한 문장, 다음으로 희망이 느껴지는 문장, 마지막으로 무거운 문장. 그 세 문장만 출력하세요.",
+            entryLabel: "일기:",
+            weekLabel: "이번 주 일기:",
+            monthLabel: "이번 달 일기:",
+            entriesLabel: "일기:",
+            questionLabel: "질문:",
+            feel: [.tired: ["많이 지친 하루였던 것 같아요. 오늘 밤은 푹 쉬어요.", "꽤 힘들었던 것 같아요. 조용한 저녁이 도움이 될 수 있어요."], .stressed: ["한꺼번에 많은 일이 겹친 것 같아요. 작은 일 하나부터 시작해 보면 어떨까요.", "부담이 큰 것 같아요. 잠깐 쉬어 가면 숨 돌리는 데 도움이 될 거예요."], .sad: ["마음이 무거웠던 것 같아요. 오늘은 자신에게 다정하게 대해 주세요.", "힘든 때인 것 같아요. 천천히 가도 괜찮아요."], .good: ["좋은 순간이었던 것 같아요. 잘 간직해 두세요.", "마음이 조금 가벼워진 것 같아요. 무엇이 도움이 됐는지 기억해 두면 좋겠어요."], .neutral: ["적어 줘서 고마워요.", "눈여겨볼 만한 일이에요."]],
             theme: [.tired: "힘을 많이 쓴 한 주.", .stressed: "부담이 많았던 한 주.", .sad: "힘든 한 주.", .good: "좋은 순간들이 있었던 한 주.", .neutral: "기복이 있었던 한 주."],
             energyHard: "가장 힘들어 보였던 건 이렇게 썼을 때예요: ",
             energyGood: "가장 가벼워 보였던 건 이렇게 썼을 때예요: ",
@@ -3202,24 +3281,33 @@ extension InsightService {
             watchSuffix: "이 부분은 조금 지켜봐 주세요.",
             boost: [.tired: "오늘 밤은 나만을 위한 조용한 시간을 가져 보세요.", .stressed: "오늘 끝낼 수 있는 작은 일 하나를 골라 보세요.", .sad: "믿을 수 있는 사람에게 연락해 보세요.", .good: "이번 주에 좋았던 일을 조금 더 해 보세요.", .neutral: "나를 위한 5분을 가져 보세요."],
             nextWeek: [.tired: "잠을 지키고 쉬는 시간을 계획해 보세요.", .stressed: "하루에 중요한 일 하나에만 집중해 보세요.", .sad: "서두르지 말고 마음을 계속 적어 보세요.", .good: "잘된 일을 다시 해 보세요.", .neutral: "무엇이 힘을 주고 무엇이 힘을 빼는지 살펴보세요."],
-            askPrefix: "가장 가까운 건 이렇게 쓴 내용이에요:"
+            askPrefix: "가장 가까운 건 이렇게 쓴 내용이에요:",
+            monthImage: [.tired: "양쪽 끝에서 타들어 가는 초.", .stressed: "곧 끓어오를 것 같은 주전자.", .sad: "아직 개지 않은 잿빛 하늘.", .good: "아침 햇살을 향해 열리는 창문.", .neutral: "해가 났다가 비가 왔다가, 계속 바뀌는 날씨."],
+            monthTension: [.tired: "에너지를 요구하는 모든 일과 당신에게 필요한 휴식 사이.", .stressed: "당신에게 기대되는 것과 당신이 감당할 수 있는 것 사이.", .sad: "앞으로 나아가고 싶은 마음과 그 감정을 충분히 느낄 시간 사이.", .good: "좋은 것을 누리는 마음과 그것이 계속될지 묻는 마음 사이.", .neutral: "힘을 빼앗긴 날들과 힘을 되찾은 날들 사이."],
+            monthQuestion: [.tired: "다음 달에 더 힘을 내기 위해 내려놓을 수 있는 건 무엇일까요?", .stressed: "다음 달에 덜어낼 수 있는 일 하나는 무엇일까요?", .sad: "다음 달에 누가, 또는 무엇이 당신을 조금 더 지지해 줄 수 있을까요?", .good: "다음 달에도 이 느낌을 이어가려면 무엇이 도움이 될까요?", .neutral: "이번 달 당신에게 힘을 준 것은 무엇이었고, 그것을 위한 자리를 어떻게 더 만들 수 있을까요?"],
+            momentLead: "{date}에 이렇게 썼어요: ",
+            momentSuffix: "이런 순간이 이번 달을 잘 보여 줘요.",
+            becomingSuffix: "무엇이 도움이 되는지 알아차리는 사람이 되어 가고 있는 것 같아요.",
+            releaseSuffix: "이제는 이걸 조금 내려놓아도 괜찮을지 몰라요.",
+            releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요."
         ),
         "zh": GroundedLocale(
-            open: "“", close: "”", joiner: "",
+            open: "“",
+            close: "”",
+            joiner: "",
             youWrote: "你写道：",
             moodWord: [.tired: "精疲力尽", .stressed: "有压力", .sad: "难过", .good: "心情不错"],
             pickNudge: "请把下面日记中最能解释这个人为什么感到{mood}的那一句话原样抄写下来。只输出这一句话。",
             pickNeutral: "请把下面日记中最能体现这一天最重要的事的那一句话原样抄写下来。只输出这一句话。",
-            pickDigest: "请从下面的日记中原样抄写三句话，每句一行：第一句是这个人看起来最累的时候，第二句是关于正在成长的好事，第三句是关于可能让他负担的事。只输出这三句话。",
+            pickDigest: "请从下面的日记中原样抄写三句话，每句一行：第一句是这个人看起来最累的时候，第二句是关于正在成长的好事，第三句是关于可能让这个人感到负担的事。只输出这三句话。",
             pickAsk: "请从下面的日记中原样抄写最能回答这个问题的一句话（最多两句），每句一行。只输出这些句子。",
-            entryLabel: "日记：", weekLabel: "本周日记：", entriesLabel: "日记：", questionLabel: "问题：",
-            feel: [
-                .tired: ["听起来是很耗精力的一天。今晚好好休息一下吧。", "看起来真的很累。安静地过个晚上也许会有帮助。"],
-                .stressed: ["听起来很多事情同时压过来。也许可以先从一件小事开始。", "看起来压力不小。短暂休息一下，也许能喘口气。"],
-                .sad: ["听起来很沉重。今天对自己温柔一点。", "看起来这段时间不容易。慢慢来就好。"],
-                .good: ["听起来是个美好的时刻。值得记住。", "看起来心情轻松了一些。也许可以留意一下是什么帮到了你。"],
-                .neutral: ["谢谢你把它写下来。", "这值得留意。"],
-            ],
+            pickMonthly: "请从下面的日记中原样抄写三句话，每句一行：第一句是关于这个月改变了什么的时刻，第二句是充满希望的一句，第三句是沉重的一句。只输出这三句话。",
+            entryLabel: "日记：",
+            weekLabel: "本周日记：",
+            monthLabel: "本月日记：",
+            entriesLabel: "日记：",
+            questionLabel: "问题：",
+            feel: [.tired: ["听起来是很耗精力的一天。今晚好好休息一下吧。", "看起来真的很累。安静地过个晚上也许会有帮助。"], .stressed: ["听起来很多事情同时压过来。也许可以先从一件小事开始。", "看起来压力不小。短暂休息一下，也许能喘口气。"], .sad: ["听起来很沉重。今天对自己温柔一点。", "看起来这段时间不容易。慢慢来就好。"], .good: ["听起来是个美好的时刻。值得记住。", "看起来心情轻松了一些。也许可以留意一下是什么帮到了你。"], .neutral: ["谢谢你把它写下来。", "这值得留意。"]],
             theme: [.tired: "耗费了很多精力的一周。", .stressed: "压力很大的一周。", .sad: "艰难的一周。", .good: "有美好时刻的一周。", .neutral: "有起有落的一周。"],
             energyHard: "最辛苦的时候，似乎是你写下这句话时：",
             energyGood: "最轻松的时候，似乎是你写下这句话时：",
@@ -3227,7 +3315,15 @@ extension InsightService {
             watchSuffix: "这一点值得留意。",
             boost: [.tired: "今晚给自己留一段安静的时间。", .stressed: "选一件今天能完成的小事。", .sad: "联系一个你信任的人。", .good: "多做一些这周让你感觉好的事。", .neutral: "花五分钟做一件让自己舒服的事。"],
             nextWeek: [.tired: "保护好睡眠，安排一些休息。", .stressed: "每天只专注一件重要的事。", .sad: "别着急，继续写下自己的感受。", .good: "重复那些有效的做法。", .neutral: "留意什么给你能量，什么在消耗你。"],
-            askPrefix: "和这个问题最接近的是你写的这些："
+            askPrefix: "和这个问题最接近的是你写的这些：",
+            monthImage: [.tired: "一支两头烧的蜡烛。", .stressed: "一壶快要烧开的水。", .sad: "一片还没有放晴的灰色天空。", .good: "一扇向晨光打开的窗。", .neutral: "忽晴忽雨、变个不停的天气。"],
+            monthTension: [.tired: "在所有消耗你精力的事和你需要的休息之间。", .stressed: "在别人对你的期待和你能承担的之间。", .sad: "在想要往前走的心和需要时间去感受之间。", .good: "在享受美好和担心它能否持续之间。", .neutral: "在耗尽你精力的日子和让你恢复元气的日子之间。"],
+            monthQuestion: [.tired: "下个月，你可以放下什么，让自己更有精力？", .stressed: "下个月，你可以卸下的一件事是什么？", .sad: "下个月，谁或什么能多支持你一点？", .good: "下个月，什么能帮你留住更多这样的感觉？", .neutral: "这个月是什么给了你能量？你可以怎样为它留出更多空间？"],
+            momentLead: "{date}，你写道：",
+            momentSuffix: "这样的时刻很能说明你这个月。",
+            becomingSuffix: "你似乎正在成为一个能察觉什么对自己有帮助的人。",
+            releaseSuffix: "也许是时候不再把它抓得那么紧了。",
+            releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。"
         ),
     ]
 
@@ -3308,17 +3404,7 @@ extension InsightService {
         let energyIsHard = !hard.isEmpty
         let energyOptions = energyIsHard ? hardOptions : goodOptions
 
-        let hardCount = bucketCounts.filter { $0.key.isHard }.values.reduce(0, +)
-        let goodCount = bucketCounts[.good] ?? 0
-        let total = max(1, hardCount + goodCount)
-        let dominant: GroundedMoodBucket
-        if hardCount > 0, goodCount > 0, Double(max(hardCount, goodCount)) < 0.7 * Double(total) {
-            dominant = .neutral
-        } else if goodCount >= hardCount {
-            dominant = goodCount > 0 ? .good : .neutral
-        } else {
-            dominant = [.tired, .stressed, .sad].max { (bucketCounts[$0] ?? 0) < (bucketCounts[$1] ?? 0) } ?? .neutral
-        }
+        let dominant = dominantMoodBucket(bucketCounts)
 
         let entriesText = weekEntries.map(quotableText(of:)).joined(separator: "\n---\n")
         let message = "\(loc.pickDigest)\n\n\(loc.weekLabel)\n\(entriesText)"
@@ -3343,6 +3429,88 @@ extension InsightService {
                     loc.open + watch + loc.close + loc.joiner + loc.watchSuffix,
                     loc.boost[dominant] ?? "",
                     loc.nextWeek[dominant] ?? "",
+                ]
+                return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
+            }
+        )
+    }
+
+    /// The period's mood: the most common hard bucket or `.good`, or `.neutral` ("mixed") when both
+    /// sides are present and neither reaches 70%.
+    private static func dominantMoodBucket(_ counts: [GroundedMoodBucket: Int]) -> GroundedMoodBucket {
+        let hardCount = counts.filter { $0.key.isHard }.values.reduce(0, +)
+        let goodCount = counts[.good] ?? 0
+        let total = max(1, hardCount + goodCount)
+        if hardCount > 0, goodCount > 0, Double(max(hardCount, goodCount)) < 0.7 * Double(total) { return .neutral }
+        if goodCount >= hardCount { return goodCount > 0 ? .good : .neutral }
+        return [.tired, .stressed, .sad].max { (counts[$0] ?? 0) < (counts[$1] ?? 0) } ?? .neutral
+    }
+
+    /// Monthly report outside English: Gemma copies a sentence for a moment that changed something
+    /// (shown with its entry's date), a hopeful one (good-mood entries) and a heavy one (hard-mood
+    /// entries except grief — groundedMonthlyGriefMoods — since the fixed line after it is "let go
+    /// of"); image, tension and question are fixed lines for the month's dominant mood. With no
+    /// quotable heavy sentence the grammar asks for two lines and the release section uses
+    /// `releaseFallback`. Options are taken round-robin across the month, like the English path.
+    static func localizedGroundedMonthly(monthEntries: [Entry]) -> LocalizedGrounded? {
+        guard let code = groundedLocaleCode(for: monthEntries), let loc = groundedLocales[code] else { return nil }
+        let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let perEntry = entries.map { entry in
+            (entry, groundedQuoteCandidates(of: entry).filter { $0.count <= groundedMonthlyMaxQuoteChars })
+        }
+        var moments: [String] = [], good: [String] = [], release: [String] = []
+        var dates: [String: Date] = [:]
+        var bucketCounts: [GroundedMoodBucket: Int] = [:]
+        for entry in entries { bucketCounts[GroundedMoodBucket(mood: entry.mood), default: 0] += 1 }
+        for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
+            for (entry, quotes) in perEntry where round < quotes.count && dates[quotes[round]] == nil {
+                let quote = quotes[round]
+                dates[quote] = entry.createdAt
+                moments.append(quote)
+                let bucket = GroundedMoodBucket(mood: entry.mood)
+                if bucket == .good {
+                    good.append(quote)
+                } else if bucket.isHard, !(entry.mood.map(groundedMonthlyGriefMoods.contains) ?? false) {
+                    release.append(quote)
+                }
+            }
+        }
+        guard !moments.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+        let cap = groundedDigestMaxOptionsPerBucket
+        let momentOptions = Array(moments.prefix(groundedMonthlyMaxMoments))
+        let goodOptions = Array((good.isEmpty ? moments : good).prefix(cap))
+        let releaseOptions = Array(release.prefix(cap))
+        let hasRelease = !releaseOptions.isEmpty
+        let dominant = dominantMoodBucket(bucketCounts)
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: code)
+        dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        let entriesText = entries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(loc.pickMonthly)\n\n\(loc.monthLabel)\n\(entriesText)"
+        var rules = [
+            hasRelease ? #"root ::= momentq "\n" goodq "\n" releaseq"# : #"root ::= momentq "\n" goodq"#,
+            literalOnlyGrammar("momentq", momentOptions),
+            literalOnlyGrammar("goodq", goodOptions),
+        ]
+        if hasRelease { rules.append(literalOnlyGrammar("releaseq", releaseOptions)) }
+        let labels = monthlyReportSectionLabels.map { $0[code] ?? $0["en"] ?? "" }
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: rules.joined(separator: "\n")),
+            validator: { text in
+                let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                guard lines.count == (hasRelease ? 3 : 2), momentOptions.contains(lines[0]), goodOptions.contains(lines[1]),
+                      !hasRelease || releaseOptions.contains(lines[2])
+                else { throw InsightError.incompleteResponse }
+                let hopeful = lines[1] == lines[0] ? (goodOptions.first { $0 != lines[0] } ?? lines[1]) : lines[1]
+                let date = dates[lines[0]].map(dayFormatter.string(from:)) ?? ""
+                let bodies = [
+                    loc.monthImage[dominant] ?? "",
+                    loc.monthTension[dominant] ?? "",
+                    loc.momentLead.replacingOccurrences(of: "{date}", with: date) + loc.open + lines[0] + loc.close + loc.joiner + loc.momentSuffix,
+                    loc.open + hopeful + loc.close + loc.joiner + loc.becomingSuffix,
+                    hasRelease ? loc.open + lines[2] + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
+                    loc.monthQuestion[dominant] ?? "",
                 ]
                 return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
             }
@@ -3417,6 +3585,9 @@ extension InsightService {
         case .monthlyReport:
             if let content, content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
                 return ("InsightService.swift · MONTHLY_REPORT_GEMMA_INSTRUCTIONS", MONTHLY_REPORT_GEMMA_INSTRUCTIONS)
+            }
+            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.becomingSuffix) || content.contains($0.releaseFallback) }) {
+                return ("InsightService.swift · groundedLocales.pickMonthly", loc.pickMonthly)
             }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:
