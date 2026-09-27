@@ -1225,6 +1225,17 @@ enum InsightService {
         )
     }
 
+    /// The AI voice's form of address where the fixed Gemma text (`groundedLocales`, and the
+    /// existing AI replies like `askNoAnswerPhrases`) already says tu/ты. Measured on Foundation
+    /// Models (synthetic entries, N=10 per task): Russian said вы in 3/30 nudges, digests and
+    /// follow-ups without it, 0/30 with it. French was already 0/30 (its "vous" hits were plural,
+    /// "entre vous et Karan"); the line is a safeguard there. Safety-filter refusals unchanged
+    /// (ru nudges 4/20 without, 3/20 with).
+    private static let responseRegisterInstructions: [String: String] = [
+        "fr": #"Address the user informally as "tu", never "vous"."#,
+        "ru": #"Address the user informally as "ты", never "вы"."#,
+    ]
+
     // Gemma's system prompts are English, so without an explicit directive it tends
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
@@ -1238,6 +1249,7 @@ enum InsightService {
         // direct contradiction that shipped to every English-writing user from 0e31e03 (2026-07-05)
         // until 2026-09-26. Foundation Models shrugged it off; a 1B model can't.
         guard target.code != "en" else { return nil }
+        let register = responseRegisterInstructions[target.code].map { " " + $0 } ?? ""
 
         switch task {
         case .weeklyDigest, .monthlyReport:
@@ -1246,10 +1258,10 @@ enum InsightService {
             Use exactly these section labels instead of any English labels listed above:
             \(labels.joined(separator: "\n"))
 
-            Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.
+            Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.\(register)
             """
         case .dailyNudge, .ask, .followUp:
-            return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
+            return "Respond only in \(target.name). Do not use English unless quoting the user's own words.\(register)"
         case .emotion, .groundingVerification:
             return nil
         }
@@ -1389,17 +1401,27 @@ enum InsightService {
             }
             return try validate(result.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
         }
+        // The tu/ты register line is for Foundation Models only. On llmrig it barely moved Gemma's
+        // register (French follow-ups 7/10 -> 6/10 vous, Russian 10/10 -> 8/10 вы) and made it
+        // tack ", tu ?" onto 3/10 French questions, so Gemma's copy of a shared prompt drops it.
+        var plan = gemmaPlan
+        if case .samePrompt = gemmaPlan {
+            let gemmaSystemPrompt = responseRegisterInstructions.values.reduce(finalSystemPrompt) {
+                $0.replacingOccurrences(of: " " + $1, with: "")
+            }
+            if gemmaSystemPrompt != finalSystemPrompt { plan = .ownSystemPrompt(gemmaSystemPrompt) }
+        }
         do {
             do {
-                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: gemmaPlan)
+                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
                 return (try validated(first), first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: gemmaPlan)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan)
                 return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: gemmaPlan)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
                 return (try validated(second), second.engine)
             }
         } catch let error as InsightError {

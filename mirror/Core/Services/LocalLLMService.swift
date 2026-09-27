@@ -109,6 +109,9 @@ actor LocalLLMService {
     enum GemmaPlan: Sendable {
         /// Same prompt as Foundation Models (every task except the English daily nudge).
         case samePrompt
+        /// Same user message as Foundation Models, with this system prompt instead — the shared
+        /// one minus lines measured to hurt Gemma (InsightService's register line).
+        case ownSystemPrompt(String)
         /// A user-only message plus a GBNF grammar that constrains the output's shape.
         case grammarConstrained(userMessage: String, grammar: String)
         /// No Gemma-safe form of this request exists — throw `gemmaUnsuitable` rather than
@@ -167,6 +170,12 @@ actor LocalLLMService {
         case .samePrompt:
             messages = [
                 LlamaChatMessage(role: .system, content: systemPrompt),
+                LlamaChatMessage(role: .user, content: userMessage)
+            ]
+            grammarConfig = nil
+        case .ownSystemPrompt(let gemmaSystemPrompt):
+            messages = [
+                LlamaChatMessage(role: .system, content: gemmaSystemPrompt),
                 LlamaChatMessage(role: .user, content: userMessage)
             ]
             grammarConfig = nil
