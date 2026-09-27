@@ -270,7 +270,7 @@ enum InsightService {
         "ja": "まだこれについて書いていません。",
         "ko": "아직 이것에 대해 쓰지 않았어요.",
         "pt": "Você ainda não escreveu sobre isso.",
-        "ru": "Ты ещё не писал(а) об этом.",
+        "ru": "Об этом у тебя ещё нет записей.",
         "zh": "你还没有写过这个话题。",
     ]
     private static func askNoAnswerPhrase(for target: ResponseLanguageTarget?) -> String {
