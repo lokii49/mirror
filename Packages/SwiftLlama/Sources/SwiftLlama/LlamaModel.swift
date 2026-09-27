@@ -102,6 +102,18 @@ public final class LlamaModel {
         return String(cString: chars, encoding: .utf8) ?? ""
     }
 
+    /// mirror patch: a token's raw bytes. `piece(from:)` decodes each token on its own, which drops
+    /// a character split across tokens — stream through `UTF8StreamDecoder` instead.
+    public func pieceBytes(from token: llama_token, renderSpecial: Bool = false) -> [UInt8] {
+        var buffer = [CChar](repeating: 0, count: 64)
+        var count = llama_token_to_piece(vocabPointer, token, &buffer, Int32(buffer.count), 0, renderSpecial)
+        if count < 0 {
+            buffer = [CChar](repeating: 0, count: Int(-count))
+            count = llama_token_to_piece(vocabPointer, token, &buffer, Int32(buffer.count), 0, renderSpecial)
+        }
+        return buffer.prefix(max(0, Int(count))).map { UInt8(bitPattern: $0) }
+    }
+
     /// Beginning-of-sentence token id.
     public func bosToken() -> llama_token {
         llama_vocab_bos(vocabPointer)

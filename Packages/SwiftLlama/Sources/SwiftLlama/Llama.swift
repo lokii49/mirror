@@ -19,6 +19,8 @@ final actor Llama {
     /// Tracks the current position in the token sequence during decoding.
     var currentTokenPosition: Int32 = 0
     var processedTokens: [llama_token] = []
+    /// mirror patch: see UTF8StreamDecoder — keeps characters that span tokens intact.
+    private var utf8Decoder = UTF8StreamDecoder()
 
     init(modelPath: String, config: LlamaConfig) throws {
         self.config = config
@@ -101,6 +103,7 @@ final actor Llama {
     }
 
     private func initializeCompletion(text: String) throws {
+        utf8Decoder = UTF8StreamDecoder()
         let tokenList = model.tokenize(text: text, addBos: model.shouldAddBos(), special: true)
         guard tokenList.count < maxTokenCount - 4 else {
             throw LlamaError.contextSizeLimitExeeded
@@ -186,7 +189,7 @@ final actor Llama {
         currentTokenPosition += 1
         try context.decode(batch: batch)
 
-        return .token(model.piece(from: newTokenId))
+        return .token(utf8Decoder.append(model.pieceBytes(from: newTokenId)))
     }
 
     func updateSamplingConfig(_ config: LlamaSamplingConfig) {
