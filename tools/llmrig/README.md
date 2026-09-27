@@ -113,3 +113,15 @@ quote the main event 5/5; ja/zh quote "woke at 10, much later than usual" (true,
 Digest picks valid in all 9. Real pipeline (de/ja/zh nudge + digest, Gemma forced): 6/6 real
 outputs, 4–15s on the simulator. The word-overlap guards are skipped for grammar-verified output —
 they rejected a verified Japanese nudge 3/3 (no spaces to split words on).
+
+## Ask "you haven't written about this" (2026-09-27) — removed on Gemma
+
+The deterministic no-answer shortcut (question words + stems + word-embedding neighbours, none found
+in the entries) was measured on paraphrased, answerable questions and said "not written about" when
+the answer was there: English 3/10 ("Do I exercise?" over a gym entry, "How are my finances?" over a
+rent/budget entry, "What was my mood like?"), Italian 2/11 ("Faccio sport?" over a *palestra* entry,
+"Com'era il mio umore?"). Most languages have no word embedding on device at all (the simulator had
+none; the Mac only Italian). Gemma itself took a grammar-offered no-answer 24/24 even for answerable
+questions. So Gemma's Ask always answers with the closest sentences under "The closest things you've
+written:" (and localized equivalents); the no-answer phrase is used only when nothing is quotable.
+Mood routing (worry questions → hard-mood entries, happy → good-mood) stays in every language.

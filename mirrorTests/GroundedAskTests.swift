@@ -24,17 +24,23 @@ extension SharedLLMState {
             ]
         }
 
-        @Test func questionAboutSomethingNeverWrittenIsNoAnswerWhenTheCheckIsTrustworthy() {
+        // A "not written about this" verdict was measured unsafe (false for "Do I exercise?" over a
+        // gym entry, "How are my finances?" over a rent entry) and removed: an unrelated question
+        // still gets the closest sentences, under a heading that says exactly that.
+        @Test func questionAboutSomethingNeverWrittenStillGetsClosestSentences() {
             let plan = InsightService.groundedAskPlan(question: "How is my guitar practice going?", pool: pool(), languageCode: "en")
-            // Without the embedding asset the terms are too narrow to justify a no-answer.
-            #expect(plan.noAnswer == InsightService.askTerms(for: "guitar").embeddingAvailable)
+            #expect(!plan.noAnswer)
+            #expect(!plan.quoteOptions.isEmpty)
+            for question in ["Do I exercise?", "How are my finances?", "What was my mood like?"] {
+                #expect(!InsightService.groundedAskPlan(question: question, pool: pool(), languageCode: "en").noAnswer, "\(question)")
+            }
         }
 
         @Test func stemmingMatchesIrregularAndSuffixedForms() {
             #expect(InsightService.askStem("slept") == "sleep")
             #expect(InsightService.askStem("sleeping") == "sleep")
             #expect(InsightService.askStem("worked") == "work")
-            #expect(InsightService.askTerms(for: "How has my sleep been?").terms.contains("sleep"))
+            #expect(InsightService.askTerms(for: "How has my sleep been?").contains("sleep"))
         }
 
         @Test func sleepQuestionFindsTheEntryThatSaysSlept() {
@@ -57,7 +63,9 @@ extension SharedLLMState {
             #expect(!plan.quoteOptions.contains { $0.contains("Barely slept") })
         }
 
-        @Test func nonEnglishKeepsTheSharedPrompt() {
+        // The English plan steps aside for other languages; localizedGroundedAsk owns those
+        // (GroundedLocalizedTests).
+        @Test func englishPlanStepsAsideForOtherLanguages() {
             let plan = InsightService.groundedAskPlan(question: "Wie schlafe ich?", pool: pool(), languageCode: "de")
             guard case .samePrompt = plan.plan else { Issue.record("expected .samePrompt"); return }
             #expect(!plan.noAnswer)
@@ -88,7 +96,7 @@ extension SharedLLMState {
             #expect(engine == .gemma)
         }
 
-        @Test func noAnswerOnGemmaOnlyDeviceSkipsTheModel() async throws {
+        @Test func noQuotableEntriesOnGemmaOnlyDeviceSkipsTheModel() async throws {
             var calls = 0
             LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .gemma) }
             LocalLLMService.forceGemmaForTesting = true
@@ -96,8 +104,7 @@ extension SharedLLMState {
                 LocalLLMService.generateInterceptForTesting = nil
                 LocalLLMService.forceGemmaForTesting = false
             }
-            guard InsightService.askTerms(for: "guitar").embeddingAvailable else { return }  // no-answer needs the embedding
-            let (text, _) = try await InsightService.ask(question: "How is my guitar practice going?", entries: pool())
+            let (text, _) = try await InsightService.ask(question: "How is my guitar practice going?", entries: [Entry(text: "Tired.", mood: "Drained")])
             #expect(calls == 0)
             #expect(text == "You haven't written about this yet.")
         }

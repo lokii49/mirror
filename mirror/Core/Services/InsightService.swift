@@ -1096,6 +1096,14 @@ enum InsightService {
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
         let grounded = groundedAskPlan(question: question, pool: relevant + Array(background), languageCode: target?.code)
+        // `noAnswer` only means there's nothing quotable at all (no entries with a usable
+        // sentence). There's deliberately no "this topic isn't in your entries" shortcut on Gemma:
+        // measured 2026-09-27, the word/embedding check it relied on said "not written about" for
+        // answerable questions — 3/10 in English ("Do I exercise?" over a gym entry, "How are my
+        // finances?" over a rent/budget entry, "What was my mood like?"), 2/11 in Italian — and
+        // the only other judge on Gemma, the model itself, took a grammar-offered no-answer 24/24
+        // even for answerable questions. The closest sentences under "The closest things you've
+        // written:" is honest; a wrong "you haven't written about this" isn't.
         if grounded.noAnswer && !LocalLLMService.prefersFoundationModels {
             return (askNoAnswerPhrase(for: target), .gemma)
         }
@@ -2739,38 +2747,32 @@ extension InsightService {
     }
 
     /// The question's content-word stems, widened with each word's nearest English word-embedding
-    /// neighbours when that embedding is available ("sleep" → nap, asleep, night, restful…).
-    /// `embeddingAvailable` is false on devices/simulators without the asset — then the terms are
-    /// stems only, too narrow to justify a no-answer.
-    static func askTerms(for question: String) -> (terms: Set<String>, embeddingAvailable: Bool) {
+    /// neighbours when that embedding is available ("sleep" → nap, asleep, night, restful…). Used
+    /// to order quote options only.
+    static func askTerms(for question: String) -> Set<String> {
         let words = question.lowercased().split { !$0.isLetter && $0 != "'" }.map(String.init)
             .filter { $0.count >= 3 && !askQuestionStopWords.contains($0) }
         var terms = Set(words.map(askStem))
-        guard let embedding = NLEmbedding.wordEmbedding(for: .english) else { return (terms, false) }
-        for word in words {
-            embedding.neighbors(for: word, maximumCount: 8).forEach { terms.insert(askStem($0.0)) }
+        if let embedding = NLEmbedding.wordEmbedding(for: .english) {
+            for word in words {
+                embedding.neighbors(for: word, maximumCount: 8).forEach { terms.insert(askStem($0.0)) }
+            }
         }
-        return (terms, true)
+        return terms
     }
 
     static func askEntryMentions(_ terms: Set<String>, _ entry: Entry) -> Bool {
         !askStems(in: entry.insightContext).isDisjoint(with: terms)
     }
 
-    /// English-only. `noAnswer` means Gemma shouldn't be asked at all (see the check below) —
-    /// "How is my guitar practice going?" with no guitar anywhere. Otherwise the answer is 1–2
-    /// dated verbatim quotes.
+    /// English-only. The answer is 1–2 dated verbatim quotes; `noAnswer` only when there's nothing
+    /// quotable at all. Entries mentioning the question's terms (stems + embedding neighbours) are
+    /// offered first — ordering only, never a "not written about" verdict (see `ask`).
     static func groundedAskPlan(question: String, pool: [Entry], languageCode: String?) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String], noAnswer: Bool) {
         guard (languageCode ?? "en") == "en" else { return (.samePrompt, [], false) }
         let lean = askLean(of: question)
-        let (terms, embeddingAvailable) = askTerms(for: question)
+        let terms = askTerms(for: question)
         let mentioning = terms.isEmpty ? [] : pool.filter { askEntryMentions(terms, $0) }
-        // No-answer only when the check is trustworthy: an embedding to widen the terms with, a
-        // question with content words and no emotional lean, and still no entry mentioning any of
-        // it. Otherwise Gemma answers with the closest sentences, framed as exactly that.
-        if embeddingAvailable, lean == nil, !terms.isEmpty, mentioning.isEmpty {
-            return (.unsuitable, [], true)
-        }
         var candidates: [Entry]
         switch lean {
         case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
@@ -3517,15 +3519,91 @@ extension InsightService {
         )
     }
 
+    // MARK: Ask relevance outside English
+
+    /// Per-language word stems that give an Ask question an emotional lean, routing its quote
+    /// options to hard- or good-mood entries like the English path. Matching is by stem prefix, so
+    /// inflected forms still count ("Sorgen"/"sorge"). `stopWords`/`language` are kept for
+    /// experiments (a measured no-answer check using them was rejected — see `ask`).
+    struct AskLexicon {
+        let language: NLLanguage
+        let stopWords: Set<String>
+        let hardStems: [String]
+        let goodStems: [String]
+    }
+
+    static let askLexicons: [String: AskLexicon] = [
+        "de": AskLexicon(language: .german,
+            stopWords: ["wie", "was", "wann", "wo", "wer", "warum", "welche", "welcher", "welches", "habe", "hab", "hast", "hat", "bin", "bist", "ist", "sind", "war", "waren", "ich", "mich", "mir", "mein", "meine", "meinem", "meinen", "meiner", "du", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "in", "im", "am", "an", "auf", "mit", "über", "um", "zu", "zum", "zur", "von", "für", "und", "oder", "es", "letzter", "letzten", "zeit", "zuletzt", "gerade", "geht", "läuft", "mache", "macht", "gemacht", "wurde", "wird", "viel", "oft", "so", "sich", "eigentlich"],
+            hardStems: ["stress", "sorg", "angst", "ängst", "traurig", "müde", "erschöpf", "überford", "frust", "ärger", "belast", "einsam", "kummer", "nervös", "druck"],
+            goodStems: ["glück", "freu", "froh", "dankbar", "ruhig", "entspann", "stolz", "zufrieden", "hoffnung", "spaß"]),
+        "es": AskLexicon(language: .spanish,
+            stopWords: ["cómo", "como", "qué", "que", "cuándo", "cuando", "dónde", "donde", "quién", "quien", "por", "cuál", "cual", "he", "has", "ha", "hemos", "estoy", "estado", "estás", "está", "soy", "es", "fue", "mi", "mis", "me", "yo", "tú", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "sobre", "a", "al", "y", "o", "último", "últimamente", "ahora", "va", "van", "ido", "hecho", "hago", "lo", "se", "mucho", "tan"],
+            hardStems: ["estrés", "estres", "preocup", "ansi", "trist", "cansad", "agotad", "abrumad", "frustr", "enfad", "presión", "nervios", "miedo"],
+            goodStems: ["feliz", "alegr", "content", "agradec", "tranquil", "relaj", "orgull", "esperanz", "diviert"]),
+        "fr": AskLexicon(language: .french,
+            stopWords: ["comment", "quoi", "que", "qu", "quand", "où", "qui", "pourquoi", "quel", "quelle", "ai", "as", "a", "suis", "es", "est", "été", "était", "je", "j", "me", "m", "mon", "ma", "mes", "moi", "le", "la", "les", "l", "un", "une", "des", "de", "du", "d", "en", "dans", "avec", "sur", "à", "au", "aux", "et", "ou", "dernier", "dernièrement", "récemment", "temps", "va", "vais", "fait", "se", "beaucoup", "ça"],
+            hardStems: ["stress", "inquiét", "inquiet", "anxi", "angoiss", "trist", "fatigu", "épuis", "débord", "frustr", "énerv", "pression", "peur"],
+            goodStems: ["heureu", "joie", "content", "reconnaiss", "calme", "détend", "fier", "fière", "espoir", "amus"]),
+        "it": AskLexicon(language: .italian,
+            stopWords: ["come", "cosa", "che", "quando", "dove", "chi", "perché", "quale", "ho", "hai", "ha", "sono", "sei", "è", "stato", "stata", "ero", "io", "mi", "mio", "mia", "miei", "mie", "me", "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "di", "del", "della", "in", "nel", "con", "su", "a", "al", "e", "o", "ultimo", "ultimamente", "periodo", "va", "vado", "fatto", "si", "molto", "tanto"],
+            hardStems: ["stress", "preoccup", "ansi", "trist", "stanc", "esaust", "sopraff", "frustr", "arrabb", "pressione", "paura"],
+            goodStems: ["felic", "gioi", "content", "grat", "tranquill", "rilass", "orgogli", "speranz", "divert"]),
+        "pt": AskLexicon(language: .portuguese,
+            stopWords: ["como", "que", "quê", "quando", "onde", "quem", "por", "porque", "qual", "eu", "me", "meu", "minha", "meus", "minhas", "tenho", "tem", "tive", "estou", "está", "estive", "sou", "é", "foi", "o", "a", "os", "as", "um", "uma", "de", "do", "da", "em", "no", "na", "com", "sobre", "e", "ou", "último", "ultimamente", "tempo", "vai", "vou", "feito", "se", "muito"],
+            hardStems: ["estress", "preocup", "ansi", "trist", "cansad", "exaust", "sobrecarreg", "frustr", "irrit", "sozinh", "pressão", "medo"],
+            goodStems: ["feliz", "alegr", "content", "grat", "tranquil", "relax", "orgulh", "esperan", "divert"]),
+        "ru": AskLexicon(language: .russian,
+            stopWords: ["как", "что", "когда", "где", "кто", "почему", "какой", "какая", "какие", "я", "мне", "меня", "мой", "моя", "мои", "моё", "был", "была", "было", "были", "есть", "в", "во", "на", "с", "со", "о", "об", "про", "и", "или", "а", "последнее", "время", "недавно", "идёт", "дела", "это", "так", "много", "у"],
+            hardStems: ["стресс", "беспоко", "тревож", "грус", "устал", "измот", "перегруж", "раздраж", "одинок", "давлен", "страх", "волну"],
+            goodStems: ["счаст", "радост", "рад", "доволь", "благодар", "спокой", "расслаб", "горд", "надежд", "весел"]),
+        "ja": AskLexicon(language: .japanese,
+            stopWords: ["最近", "よく", "どう", "何", "なに", "いつ", "どこ", "誰", "なぜ", "どんな", "私", "わたし", "僕", "俺", "は", "が", "を", "に", "で", "と", "の", "も", "か", "て", "い", "ます", "です", "した", "して", "いる", "ある", "た", "だ", "でし", "ましょ", "う"],
+            hardStems: ["ストレス", "心配", "不安", "悲し", "疲れ", "疲労", "つら", "辛", "悩", "イライラ", "孤独", "怖"],
+            goodStems: ["嬉し", "うれし", "幸せ", "楽し", "感謝", "穏やか", "リラックス", "誇り", "希望"]),
+        "ko": AskLexicon(language: .korean,
+            stopWords: ["어떻게", "무엇", "뭐", "언제", "어디", "누구", "왜", "어떤", "나", "내", "저", "제", "요즘", "최근", "은", "는", "이", "가", "을", "를", "에", "에서", "와", "과", "도", "했나요", "있나요", "어땠나요", "어때요"],
+            hardStems: ["스트레스", "걱정", "불안", "슬프", "슬픔", "피곤", "지쳤", "지침", "벅차", "짜증", "외로", "힘들", "압박", "무서"],
+            goodStems: ["행복", "기쁘", "기쁨", "즐거", "감사", "평온", "편안", "뿌듯", "희망"]),
+        "zh": AskLexicon(language: .simplifiedChinese,
+            stopWords: ["我", "我的", "最近", "怎么样", "怎么", "什么", "何时", "哪里", "谁", "为什么", "哪个", "得", "了", "的", "吗", "呢", "在", "是", "有", "和", "过", "吧"],
+            hardStems: ["压力", "担心", "焦虑", "难过", "伤心", "累", "疲惫", "烦", "孤独", "害怕"],
+            goodStems: ["开心", "高兴", "快乐", "幸福", "感激", "平静", "放松", "骄傲", "满意", "希望"]),
+    ]
+
+    private static func wordTokens(_ text: String) -> [String] {
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        return tokenizer.tokens(for: text.startIndex..<text.endIndex).map { text[$0].lowercased() }
+    }
+
+    static func localizedAskLean(of question: String, code: String) -> AskLean? {
+        guard let lexicon = askLexicons[code] else { return nil }
+        let tokens = wordTokens(question)
+        let hits: ([String]) -> Bool = { stems in tokens.contains { token in stems.contains { token.hasPrefix($0) } } }
+        if hits(lexicon.hardStems) { return .hard }
+        if hits(lexicon.goodStems) { return .good }
+        return nil
+    }
+
     /// Ask outside English: Gemma copies one or two sentences; the app lists them under a fixed
-    /// heading with each one's entry date in the user's locale. No no-answer shortcut here — the
-    /// relevance helpers (lean words, stop words, word embedding) are English-only.
+    /// heading with each one's entry date in the user's locale. No "not written about" shortcut —
+    /// see `ask` for why.
     static func localizedGroundedAsk(question: String, pool: [Entry]) -> LocalizedGrounded? {
         guard let code = groundedLocaleCode(for: pool, extraText: question), let loc = groundedLocales[code] else { return nil }
         let dayFormatter = DateFormatter()
         dayFormatter.locale = Locale(identifier: code)
         dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
-        let perEntry = pool.map { ($0, groundedQuoteCandidates(of: $0)) }
+        // Same mood routing as the English path: stress/worry questions quote hard-mood entries,
+        // happy ones good-mood entries.
+        var candidates: [Entry]
+        switch localizedAskLean(of: question, code: code) {
+        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
+        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
+        case nil: candidates = pool
+        }
+        if candidates.isEmpty { candidates = pool }
+        let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
         var options: [String] = []
         var dates: [String: String] = [:]
         for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
@@ -3536,7 +3614,7 @@ extension InsightService {
         }
         options = Array(options.prefix(groundedAskMaxOptions))
         guard !options.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
-        let entriesText = pool.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = candidates.map(quotableText(of:)).joined(separator: "\n---\n")
         let message = "\(loc.pickAsk)\n\n\(loc.questionLabel) \(question)\n\n\(loc.entriesLabel)\n\(entriesText)"
         let grammar = #"root ::= q ("\n" q)?"# + "\n" + literalOnlyGrammar("q", options)
         return LocalizedGrounded(

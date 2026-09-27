@@ -204,5 +204,19 @@ extension SharedLLMState {
             #expect(calls == 1)
             #expect(text.hasPrefix(InsightService.monthlyReportSectionLabels[0]["ja"]! + ": "), "\(text)")
         }
+
+        // MARK: Ask relevance outside English
+
+        @Test func worryQuestionRoutesToHardMoodEntries() throws {
+            let rent = Entry(text: "Die Miete steigt im November. Ich habe das Budget neu gerechnet und es geht nicht auf.", mood: "Anxious")
+            let walk = Entry(text: "Bin nach der Arbeit mit dem Hund am See spazieren gegangen. Zum ersten Mal diese Woche fühlte ich mich leicht.", mood: "Peaceful")
+            walk.createdAt = rent.createdAt.addingTimeInterval(-86_400)
+            let question = "Mache ich mir Sorgen um Geld?"
+            #expect(InsightService.localizedAskLean(of: question, code: "de") == .hard)
+            let localized = try #require(InsightService.localizedGroundedAsk(question: question, pool: [rent, walk]))
+            guard case .grammarConstrained(_, let grammar) = localized.plan else { Issue.record("no grammar"); return }
+            #expect(grammar.contains("Die Miete steigt im November."))
+            #expect(!grammar.contains("am See spazieren"))
+        }
     }
 }

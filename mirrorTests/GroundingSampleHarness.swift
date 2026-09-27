@@ -1270,7 +1270,6 @@ final class GroundingSampleHarness: XCTestCase {
             "Who have I spent time with recently?", "Have I been going to the gym?",
             "How is my guitar practice going?",
         ]
-        print("[ask] embeddingAvailable=\(InsightService.askTerms(for: "sleep").embeddingAvailable)")
         for question in questions {
             for i in 1...runs {
                 let started = Date()
