@@ -1283,4 +1283,55 @@ final class GroundingSampleHarness: XCTestCase {
             }
         }
     }
+
+
+    /// Dumps the production-built localized nudge and digest Gemma prompts + grammars for every
+    /// supported non-English language (synthetic entries from GroundedLocalizedTests), for the rig.
+    func test_dumpLocalizedPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        func write(_ label: String, _ plan: LocalLLMService.GemmaPlan) throws {
+            guard case .grammarConstrained(let message, let grammar) = plan else { XCTFail("no grammar plan for \(label)"); return }
+            try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n".write(toFile: "\(dir)/\(label).prompt", atomically: true, encoding: .utf8)
+            try grammar.write(toFile: "\(dir)/\(label).gbnf", atomically: true, encoding: .utf8)
+        }
+        for (code, text) in GroundedLocalizedTests.sickDay {
+            let entry = Entry(text: text, mood: "Drained")
+            let nudge = try XCTUnwrap(InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: []), code)
+            try write("\(code)_nudge", nudge.plan)
+            let calm = Entry(text: text, mood: "Peaceful")
+            calm.createdAt = entry.createdAt.addingTimeInterval(-3_600)
+            let digest = try XCTUnwrap(InsightService.localizedGroundedDigest(weekEntries: [entry, calm], languageSource: [entry]), code)
+            try write("\(code)_digest", digest.plan)
+        }
+    }
+
+
+    /// Real generateNudge / generateWeeklyDigest on Gemma in German, Japanese and Chinese.
+    func test_localizedGrounded_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let calmDay: [String: String] = [
+            "de": "Bin nach der Arbeit mit dem Hund am See spazieren gegangen. Zum ersten Mal diese Woche fühlte ich mich leicht.",
+            "ja": "仕事のあと犬と湖のそばを散歩した。今週はじめて気持ちが軽くなった。",
+            "zh": "下班后带狗在湖边散步。这周第一次觉得轻松。",
+        ]
+        for code in ["de", "ja", "zh"] {
+            let sick = Entry(text: GroundedLocalizedTests.sickDay[code]!, mood: "Drained")
+            let calm = Entry(text: calmDay[code]!, mood: "Peaceful")
+            calm.createdAt = sick.createdAt.addingTimeInterval(-3_600)
+            var started = Date()
+            let (nudge, _, degraded) = try await InsightService.generateNudge(entries: [sick])
+            print("[loc][\(code)][nudge] seconds=\(Int(Date().timeIntervalSince(started))) degraded=\(degraded) fallback=\(InsightService.isUngroundedFallback(nudge)) TEXT: \(nudge)")
+            started = Date()
+            let (digest, _) = try await InsightService.generateWeeklyDigest(weekEntries: [sick, calm], allEntries: [sick, calm])
+            print("[loc][\(code)][digest] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(digest)) TEXT: \(digest.replacingOccurrences(of: "\n", with: " ⏎ "))")
+        }
+    }
 }
