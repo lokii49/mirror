@@ -2512,6 +2512,20 @@ extension InsightService {
         "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
+    /// The part of a nudge that may leave the app (home-screen widget, lock-screen preview): a
+    /// grounded nudge's opening quote is the user's own journal sentence, so outside the app only
+    /// the "You seem…/That sounds…" line after it is shown. The line after the quote can't contain
+    /// a double quote (the grammar's character class excludes it), so the quote ends at the last
+    /// `" `. Any other nudge is returned unchanged.
+    static func nudgeTextForOutsideApp(_ text: String) -> String {
+        guard text.hasPrefix(groundedNudgePrefix),
+              let close = text.range(of: "\" ", options: .backwards),
+              close.lowerBound > text.index(text.startIndex, offsetBy: groundedNudgePrefix.count)
+        else { return text }
+        let rest = text[close.upperBound...].trimmingCharacters(in: .whitespaces)
+        return rest.isEmpty ? text : rest
+    }
+
     /// Re-checks the grammar's guarantees after generation. The wrapper's sampler silently drops a
     /// grammar that fails to parse, and unconstrained Gemma asked for a quote invents one — so
     /// "the grammar should guarantee it" isn't trusted: the quote must be exactly one of the

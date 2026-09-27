@@ -515,7 +515,7 @@ struct mirrorApp: App {
             // card with a fallback in place.
             if !InsightService.isUngroundedFallback(text) {
                 let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
-                wDefaults?.set(text, forKey: "widget.nudge.text")
+                wDefaults?.set(InsightService.nudgeTextForOutsideApp(text), forKey: "widget.nudge.text")
                 wDefaults?.set(today, forKey: "widget.nudge.date")
                 if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
                     wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
@@ -977,7 +977,7 @@ struct mirrorApp: App {
                   .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
                   .max(by: { $0.generatedAt < $1.generatedAt }) else { return }
         let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
-        defaults?.set(nudge.content, forKey: "widget.nudge.text")
+        defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
