@@ -70,8 +70,8 @@ platform :ios do
     )
   end
 
-  desc "Archive, upload, and submit the current version for App Store review"
-  lane :release do
+  desc "Archive, upload, and submit the current version for App Store review (auto_release:true to go live on approval)"
+  lane :release do |options|
     auth
 
     build_app(
@@ -89,7 +89,7 @@ platform :ios do
       skip_metadata: false,
       skip_screenshots: false,
       submit_for_review: true,
-      automatic_release: false,
+      automatic_release: options[:auto_release].to_s == "true",
       run_precheck_before_submit: false,
       submission_information: {
         add_id_info_uses_idfa: false,
