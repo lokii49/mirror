@@ -93,8 +93,9 @@ case "gengrammar":
     let grammar = try! String(contentsOfFile: args[3], encoding: .utf8)
     let temp = Float(args[4])!
     let runs = Int(args[5])!
+    let maxChars = args.count > 6 ? Int(args[6])! : 700   // app: .dailyNudge 700, .weeklyDigest/.monthlyReport 2800
     for i in 1...runs {
-        let text = generate(prompt: prompt, temperature: temp, seed: UInt32(1000 + i), grammar: grammar)
+        let text = generate(prompt: prompt, temperature: temp, seed: UInt32(1000 + i), maxChars: maxChars, grammar: grammar)
         print("[\(i)] \(show(text))")
         fflush(stdout)
     }

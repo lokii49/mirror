@@ -61,7 +61,24 @@ Real app pipeline in the simulator with `HARNESS_ENGINE=gemma`, all 8 cases x 2:
 reflections on attempt 1, 0 fallbacks**, 18–49s each on the simulator's single-thread CPU path
 (the old path took ~27s per attempt x 3 and still fell back).
 
-Same-style prompts NOT yet fixed on Gemma (baseline, synthetic week): weekly digest and monthly
-report invent details ("organizing your photography workflow", "during a conversation with Bruno,
-I realized", "steaming mug of chamomile tea") and the monthly report opens with a preamble; Ask
-stays on the entries but swaps some attributions. Non-English daily nudges still use the old prompt.
+## Weekly digest (2026-09-27)
+
+Baseline, `WEEKLY_DIGEST_SYSTEM` on Gemma, synthetic week: invents details in most sections ("a system
+for organizing your photography workflow", "a dull ache in your shoulders", "a steaming mug of
+chamomile tea"). Prototypes (DIGEST_RUBRIC fixed before running):
+
+| Variant | Result |
+|---|---|
+| Quote-anchored energy/building/watch, free lowercase theme | nothing invented; same quote often reused for building + watch |
+| Theme built only from the week's keywords | unusable ("A week of around, around and around") |
+| + building from good-mood entries, watch from hard-mood entries | week B: "most **drained** when you wrote '<hopeful sentence>'" 10/10 |
+| **+ energy adjective bound to the quote's mood bucket (shipped)** | **20/20 nothing invented** (two different synthetic weeks) |
+
+Production-built grammar (dumped via `test_dumpOtherInsightPromptsForRig`): 20/20 pass
+`validateGroundedDigest`. Real pipeline, `HARNESS_ENGINE=gemma`, both weeks x 2: 4/4 real digests,
+0 fallbacks, 39–82s on the simulator CPU path. Known quality limits (not fabrication): the same hard
+quote often fills both YOUR ENERGY and WATCH OUT FOR; a salient entry can be skipped (week B's grief
+entry never surfaced); MOOD BOOST/NEXT WEEK are generic ("short walk in nature").
+
+Still NOT fixed on Gemma: monthly report (invents, opens with a preamble — Deep tier, 1st of month);
+Ask stays on the entries but swaps some attributions; non-English nudges/digests use the old prompts.
