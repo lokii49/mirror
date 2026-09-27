@@ -99,6 +99,23 @@ case "gengrammar":
         print("[\(i)] \(show(text))")
         fflush(stdout)
     }
+case "vcount":
+    // Tokenizer-only load (what LocalLLMService's batch-boundary guard uses) vs the full model.
+    var vp = llama_model_default_params()
+    vp.vocab_only = true
+    print("loading vocab-only"); fflush(stdout)
+    guard let vocab = LlamaModel(path: modelPath, parameters: vp) else { print("vocab-only load returned nil"); exit(1) }
+    print("loaded"); fflush(stdout)
+    let prompt = try! String(contentsOfFile: args[2], encoding: .utf8)
+    let full = model.tokenize(text: prompt, addBos: model.shouldAddBos(), special: true).count
+    print("full=\(full) trainedCtx=\(vocab.trainedContextSize()) addBos=\(vocab.shouldAddBos())"); fflush(stdout)
+    let v = vocab.tokenize(text: prompt, addBos: vocab.shouldAddBos(), special: true).count
+    print("vocabOnly=\(v)"); fflush(stdout)
+    let msgs = [LlamaChatMessage(role: .user, content: "hello there")]
+    print("full=\(full) vocabOnly=\(v) templateEqual=\(vocab.applyChatTemplate(to: msgs) == model.applyChatTemplate(to: msgs))")
+case "count":
+    let prompt = try! String(contentsOfFile: args[2], encoding: .utf8)
+    print(model.tokenize(text: prompt, addBos: model.shouldAddBos(), special: true).count)
 case "template":
     // template <sysFile> <userFile> -> prints templated prompt exactly as the app builds it
     let sys = try! String(contentsOfFile: args[2], encoding: .utf8)
