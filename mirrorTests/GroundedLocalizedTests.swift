@@ -125,7 +125,7 @@ extension SharedLLMState {
                 InsightService.groundedAskPrefix + #"On 27 Sep, you wrote, "Barely slept.""#,
                 jaNudge,
                 "今週のテーマ: つらい一週間。\nあなたのエネルギー: いちばん大変そうだったのは、こう書いたときです：「ほとんど眠れなかった。」",
-                "Am nächsten kommt, was du geschrieben hast:\n27. Sept. – „Kaum geschlafen.“",
+                "Am ehesten passt dazu, was du geschrieben hast:\n27. Sept. – „Kaum geschlafen.“",
             ]
             for shape in shapes { #expect(InsightService.isGrammarGrounded(shape), "\(shape)") }
             #expect(!InsightService.isGrammarGrounded("You sat with a friend on the balcony after a long night."))
