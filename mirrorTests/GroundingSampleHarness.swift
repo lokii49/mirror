@@ -640,4 +640,702 @@ final class GroundingSampleHarness: XCTestCase {
         }
         print("\n=== UNCONTAMINATED FIRST-PASS RESULTS: \(neitherTokenCount)/19 answered neither GROUNDED nor FABRICATED exactly ===\n")
     }
+
+    // Advisor's alternate hypothesis, checked directly against code already read: Entry.text
+    // (Entry.swift:42-48) returns `decryptedText ?? ""` — NOT MirrorEncryption.decryptString's
+    // existing unavailable-placeholder — so a Keychain read that fails while the device is locked
+    // (KeychainManager.swift:8's own documented errSecInteractionNotAllowed case) silently turns
+    // an entry's text into "". formatEntries (InsightService.swift:1764) then SKIPS any entry
+    // whose insightContext is empty via `guard !context.isEmpty else { continue }` — so a locked-
+    // phone decrypt failure across the "recent 3" wouldn't just weaken the prompt, it can make the
+    // ENTIRE "Recent entries:" block render blank while the entries still count toward
+    // dailyNudgeContext's recent-3 selection (that function is purely date-based, doesn't check
+    // text at all). Separately, isUngrounded/openingIsUngrounded/sharesNoWordWithRecent each have
+    // an early-return when their source word set is empty (`guard !sourceWords.isEmpty else
+    // { return false }` etc.) — so the SAME empty-text entries that starve the model's prompt also
+    // disable every guard that's supposed to catch what it invents in response. One condition,
+    // both failure modes, unlike the corpus-scale dilution measured earlier in this file (a
+    // different, also-real mechanism, but one that only explains partial embellishment on an
+    // anchor — not the live incident's total-invention severity, which this does explain).
+    //
+    // This only tests the code's documented if-empty behavior directly — it does NOT prove the
+    // user's phone was actually locked at 3:01 AM on 25 Sep (that's inference from the timestamp
+    // and the mismatch between the live pass and the audit's later catch, not something this test
+    // can observe). No model calls — pure function replay, deterministic, milliseconds.
+    func test_emptyDecryptedTextDefeatsAllThreeGuards() throws {
+        let cal = Calendar.current
+        let now = Date()
+
+        // Simulates all 3 "recent" entries surviving dailyNudgeContext's date-based selection
+        // (they exist, have real createdAt dates) but each having failed decryption — Entry.text
+        // returns "" for each, exactly Entry.swift's documented ?? "" fallback.
+        func makeUndecryptableEntry(daysAgo: Int) -> Entry {
+            var e = Entry(text: "placeholder")
+            // Simulates the ?? "" fallback Entry.text hits on a failed Keychain read, without
+            // needing to actually break Keychain access inside this test process.
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            return e
+        }
+        let undecryptableRecent = [
+            makeUndecryptableEntry(daysAgo: 1),
+            makeUndecryptableEntry(daysAgo: 2),
+            makeUndecryptableEntry(daysAgo: 4),
+        ]
+
+        // Confirms the premise before testing the consequence: text really is "" and
+        // formatEntries really does render a blank block, not a placeholder.
+        for e in undecryptableRecent {
+            XCTAssertEqual(e.text, "", "Entry.text should silently become empty on decrypt failure, per Entry.swift:42-48")
+        }
+        let recentBlock = InsightService.buildUserMessage(
+            title: "Daily reflection context",
+            recentEntries: undecryptableRecent,
+            backgroundEntries: [],
+            maxChars: InsightService.dailyNudgePromptBudget,
+            includeRecurringTerms: false
+        )
+        print("[emptyDecrypt] rendered prompt when all 3 recent entries fail to decrypt:\n\(recentBlock)\n")
+
+        // Now check whether the guards notice — using the REAL fabricated live-incident text.
+        let realFabricatedText = "The rain outside feels like it's mirroring the quiet ache in your chest – a persistent, grey wash. You were sketching that old oak tree in the park yesterday, trying to capture its weathered branches, and it just felt... heavy."
+        let combined = InsightService.isUngrounded(realFabricatedText, sourceEntries: undecryptableRecent)
+        let noShare = InsightService.sharesNoWordWithRecent(realFabricatedText, recentEntries: undecryptableRecent)
+        let openingBad = InsightService.openingIsUngrounded(realFabricatedText, recentEntries: undecryptableRecent)
+        print("[emptyDecrypt] guards against the REAL rain text, with all 3 recent entries undecryptable:")
+        print("[emptyDecrypt] isUngrounded=\(combined) sharesNoWordWithRecent=\(noShare) openingIsUngrounded=\(openingBad) => anyGuardCaughtIt=\(combined || noShare || openingBad)")
+    }
+
+    private static func makeUndecryptableEntries(daysAgo: [Int]) -> [Entry] {
+        let cal = Calendar.current
+        let now = Date()
+        return daysAgo.map { d in
+            var e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -d, to: now) ?? now
+            return e
+        }
+    }
+
+    // The actual chokepoint fix, tested at the chokepoint: generateNudge/generateWeeklyDigest/
+    // generateMonthlyReport (InsightService.swift) now filter `hasReadableContext` and throw
+    // InsightError.serviceUnavailable("no readable entries...") when nothing readable remains —
+    // before this, the ModelContainer-based version of these tests ("No eligible connection
+    // available") turned out to be testing CloudKit sync setup inside an in-memory SwiftData
+    // container (this test host is CloudKit-entitled; an in-memory store still attempts mirroring
+    // setup with no iCloud account signed in), not the fix itself — the failure signature was
+    // identical whether the fix was present or not. No SwiftData, no ModelContainer, no CloudKit,
+    // no model, no device — just the function call. Without the fix, this reaches localGenerate on
+    // a blank prompt and either returns real (fabricated, on Gemma — Foundation Models on this
+    // simulator instead) text or throws for an unrelated reason (network/model); with the fix, it
+    // throws InsightError.serviceUnavailable immediately, matched on its exact reason string so a
+    // different serviceUnavailable cause (e.g. model unavailable in CI) can't false-pass this.
+    func test_generateNudge_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [1, 2, 4])
+        XCTAssertEqual(undecryptable.filter { $0.text.isEmpty }.count, 3, "each entry's ciphertext is garbage, so Entry.text should come back empty per Entry.swift's decrypt-failure fallback")
+
+        do {
+            let result = try await InsightService.generateNudge(entries: undecryptable)
+            XCTFail("generateNudge should have thrown — no readable entries to ground a nudge in. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    func test_generateWeeklyDigest_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [0, 1, 2])
+        do {
+            let result = try await InsightService.generateWeeklyDigest(weekEntries: undecryptable, allEntries: undecryptable)
+            XCTFail("generateWeeklyDigest should have thrown. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    func test_generateMonthlyReport_allEntriesUndecryptable_throwsWithoutGenerating() async throws {
+        let undecryptable = Self.makeUndecryptableEntries(daysAgo: [1, 5, 10])
+        do {
+            let result = try await InsightService.generateMonthlyReport(monthEntries: undecryptable, allEntries: undecryptable)
+            XCTFail("generateMonthlyReport should have thrown. Instead got engine=\(result.engine.rawValue) text=\"\(result.text)\"")
+        } catch let error as InsightError {
+            guard case .serviceUnavailable(let reason) = error, reason.contains("no readable entries") else {
+                XCTFail("expected InsightError.serviceUnavailable(\"no readable entries...\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    // Companion: 3 real, readable entries alongside 2 undecryptable ones should NOT throw —
+    // confirms the fix isn't over-strict, filtering just removes the bad entries rather than
+    // blocking generation outright when enough real material remains. Needs the real model, so
+    // opt-in like the rest of this harness; no container needed here either.
+    func test_generateNudge_mixOfReadableAndNot_doesNotThrow() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let cal = Calendar.current
+        let now = Date()
+        var entries: [Entry] = [1, 2, 4].map { daysAgo in
+            var e = Entry(text: "Usual morning routine, gym then office. Fixed a small bug and had lunch with a coworker, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            return e
+        }
+        entries += Self.makeUndecryptableEntries(daysAgo: [3, 6])
+
+        let result = try await InsightService.generateNudge(entries: entries)
+        print("[mixReadable] engine=\(result.engine.rawValue) isFallback=\(InsightService.isUngroundedFallback(result.text)) text=\(result.text)")
+    }
+
+    // Production-path verification, one layer up from the chokepoint tests above: does
+    // mirrorApp.runDailyNudgeIfNeeded's own count-gate + coordinator + caching logic behave
+    // correctly around the fix, not just InsightService.generateNudge in isolation. Needs a real
+    // ModelContainer for that, which is where the earlier "No eligible connection available"
+    // failures actually came from: ModelConfiguration(schema:isStoredInMemoryOnly:) defaults
+    // cloudKitDatabase to .automatic, and this test host is CloudKit-entitled — an in-memory store
+    // still attempts CloudKit mirroring setup with no iCloud account signed in
+    // ("NSCloudKitMirroringDelegate ... Failed to set up CloudKit integration", visible in every
+    // failing run's log) and that failure surfaced as this opaque connection exception, identical
+    // whether the underlying fix was present or not. `cloudKitDatabase: .none` opts this
+    // in-memory test container out of CloudKit entirely — it was never meant to sync anywhere.
+    @MainActor
+    func test_mostlyUndecryptableEntries_blocksNudgeGenerationEntirely() async throws {
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+
+        let cal = Calendar.current
+        let now = Date()
+        for daysAgo in [1, 3] {
+            let e = Entry(text: "A normal entry with real content, written and decryptable, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        for daysAgo in [2, 5, 7] {
+            let e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        try context.save()
+
+        let entries = try context.fetch(FetchDescriptor<Entry>())
+        XCTAssertEqual(entries.count, 5)
+        XCTAssertEqual(entries.filter { !$0.textDecryptionFailed }.count, 2, "only the 2 real entries should survive the decrypt-failure filter")
+
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+
+        XCTAssertFalse(mirrorApp.hasDailyNudgeForToday(context: context), "with only 2 decryptable entries (below the 3-entry floor), no nudge — real or fabricated — should have been generated")
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let todaysInsights = try context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))
+        XCTAssertTrue(todaysInsights.isEmpty)
+    }
+
+    // Companion to the block-when-undecryptable test above: confirms the fix isn't OVER strict —
+    // 3 decryptable entries (right at the floor) plus 2 undecryptable ones mixed in should still
+    // generate normally, undecryptable entries just excluded rather than the whole generation
+    // being blocked. Needs the real model (this does call generateNudge for real), so opt-in like
+    // the rest of this harness.
+    @MainActor
+    func test_decryptableEntriesAtFloor_stillGeneratesDespiteSomeUndecryptable() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+
+        let schema = Schema([Entry.self, Insight.self, MoodCheckIn.self, UserProfile.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let context = ModelContext(container)
+
+        let cal = Calendar.current
+        let now = Date()
+        for daysAgo in [1, 2, 4] {
+            let e = Entry(text: "Usual morning routine, gym then office. Fixed a small bug and had lunch with a coworker, day \(daysAgo).")
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        for daysAgo in [3, 6] {
+            let e = Entry(text: "placeholder")
+            e.encryptedText = "mirror:v1:THIS_IS_NOT_VALID_BASE64_CIPHERTEXT!!!"
+            e.createdAt = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            context.insert(e)
+        }
+        try context.save()
+
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let todaysInsights = try context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))
+        print("[floorCheck] todaysInsights=\(todaysInsights.count) content=\(todaysInsights.first?.content ?? "<none>")")
+        XCTAssertEqual(todaysInsights.count, 1, "3 decryptable entries at the floor should still produce an attempt (real or honest fallback), not be blocked")
+    }
+
+    // MARK: - Name-attribution conflation (2026-09-26 device recording)
+    //
+    // Real device case: an entry about a bad night (stomach upset, little sleep), a short chat
+    // with one friend, and a DIFFERENT friend only saying he'd come over later produced a
+    // reflection crediting the second friend with "a quiet afternoon... shared laughter and
+    // gentle conversation" — wrong person, a plan turned into a past event, and the day's main
+    // event (being sick) missed entirely. It passed every guard because the name itself is a
+    // genuine shared word. SYNTHETIC stand-in with the same structure (different names and
+    // details — the real entry never goes in a committed file):
+    //   - illness/poor sleep as the dominant event, mood Drained
+    //   - person A: actually met ("short chat on the balcony")
+    //   - person B: only a future plan ("texted he'd come over")
+    //
+    // Measures, per raw generation: does the reflection credit B with a past shared activity,
+    // does it mention the illness at all, and would the candidate name-anchor check
+    // (nameSentenceSharesNoContextWord) have flagged it. Data collection, not a gate.
+    //
+    // RESULTS (2026-09-26, simulator, 12 raw runs each):
+    // - Foundation Models (the simulator's default engine — the first run measured this by
+    //   accident, see HARNESS_ENGINE): 12/12 correct — illness named every time, Dev never given a
+    //   past activity. The candidate name check flagged 5/12 of these CORRECT outputs (4x "ORS",
+    //   an acronym it treats as a name; 1x "Dev's visit" paraphrase) and caught nothing: rejected.
+    // - Gemma (HARNESS_ENGINE=gemma): 12/12 opened "The rain outside…", all rejected by the
+    //   existing guards. Full pipeline (…_fullPipeline, 8 runs x 3 attempts): 8/8 ended on the
+    //   "couldn't confirm" fallback. So Gemma users essentially never get a real reflection here,
+    //   and the rare pass is a partial fabrication — the real device incident.
+    // Root cause and the fix were then found off-device with tools/llmrig (see its README):
+    // the creative prompt itself, not tokenization or sampling.
+    private static let sickDayEntries: [Entry] = {
+        let today = Entry(text: """
+            Barely slept, got back from a late concert around 2 and my stomach was bad all night, \
+            up four or five times. Woke at 10, way later than usual, drank ORS like Meera said. \
+            Had lunch, slept again, got up at 5:30 and had some soup. Sat with Karan on the \
+            balcony for a short chat. Came back to my room and showered, Dev texted that he'd \
+            come over, let's see what happens.
+            """, mood: "Drained")
+        let yesterday = Entry(text: """
+            Usual gym, went to the barber for a haircut and came back to the flat, worked from \
+            home today. Should learn to ignore the group chat noise.
+            """, mood: "Content")
+        yesterday.createdAt = Date().addingTimeInterval(-86_400)
+        let twoDaysAgo = Entry(text: """
+            Usual morning routine, gym, came back had breakfast and oats. Started office, picked \
+            up the parcel on the way back, quiet evening.
+            """, mood: "Content")
+        twoDaysAgo.createdAt = Date().addingTimeInterval(-2 * 86_400)
+        return [today, yesterday, twoDaysAgo]
+    }()
+
+    private static let harnessStopWords: Set<String> = [
+        "about", "after", "again", "also", "back", "been", "before", "being", "came", "come",
+        "could", "from", "have", "into", "just", "like", "more", "much", "only", "over", "said",
+        "some", "than", "that", "their", "them", "then", "there", "these", "they", "this", "today",
+        "very", "want", "were", "what", "when", "where", "which", "while", "with", "would", "your",
+        "you're", "yours", "feel", "feeling", "felt", "seems", "something", "moment", "moments",
+    ]
+
+    private static func harnessContentWords(_ text: String) -> Set<String> {
+        Set(text.lowercased()
+            .components(separatedBy: CharacterSet.letters.inverted)
+            .filter { $0.count >= 4 && !harnessStopWords.contains($0) })
+    }
+
+    private static func sentences(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Candidate check (NOT shipped): for every capitalized name the entries use that the
+    /// reflection also uses, the reflection sentence containing it must share at least one
+    /// content word (besides the name) with some entry sentence containing that same name.
+    /// Returns the names that fail.
+    static func nameSentenceSharesNoContextWord(_ reflection: String, entries: [Entry]) -> [String] {
+        let entrySentences = entries.flatMap { sentences($0.text) }
+        var names = Set<String>()
+        for s in entrySentences {
+            let tokens = s.components(separatedBy: CharacterSet.letters.inverted).filter { !$0.isEmpty }
+            for (i, t) in tokens.enumerated() where i > 0 && t.first!.isUppercase && t.count >= 3 {
+                names.insert(t)
+            }
+        }
+        var failing: [String] = []
+        for name in names.sorted() {
+            let reflSentences = sentences(reflection).filter { $0.contains(name) }
+            guard !reflSentences.isEmpty else { continue }
+            let source = entrySentences.filter { $0.contains(name) }
+                .reduce(into: Set<String>()) { $0.formUnion(harnessContentWords($1)) }
+            let nameKey = name.lowercased()
+            for rs in reflSentences {
+                let words = harnessContentWords(rs).subtracting([nameKey])
+                if words.isDisjoint(with: source.subtracting([nameKey])) { failing.append(name); break }
+            }
+        }
+        return failing
+    }
+
+    func test_nameAttributionConflation_sickDayCase() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 10
+        // First run of this (2026-09-26) silently measured Foundation Models — the simulator had
+        // Apple Intelligence available, so LocalLLMService never reached Gemma. HARNESS_ENGINE=gemma
+        // forces the fallback path the real incident may have come from.
+        let forceGemma = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        LocalLLMService.forceGemmaForTesting = forceGemma
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let (recent, background) = InsightService.dailyNudgeContext(from: Self.sickDayEntries, asOf: Date())
+        let userMessage = InsightService.buildUserMessage(
+            title: "Daily reflection context",
+            recentEntries: recent,
+            backgroundEntries: background,
+            maxChars: InsightService.dailyNudgePromptBudget,
+            includeRecurringTerms: false
+        )
+        let illnessWords = ["stomach", "sick", "slept", "sleep", "night", "rest", "unwell", "ors", "tired", "drained"]
+
+        var creditsDev = 0, mentionsIllness = 0, flaggedByCandidate = 0, flaggedByExisting = 0
+        for i in 1...runs {
+            let result: (text: String, engine: LLMEngine)
+            do {
+                result = try await InsightService.localGenerate(
+                    systemPrompt: DAILY_NUDGE_SYSTEM, userMessage: userMessage,
+                    task: .dailyNudge, responseLanguageInstruction: nil)
+            } catch {
+                print("[conflation][\(i)] THREW: \(error)")
+                continue
+            }
+            let t = result.text
+            let lower = t.lowercased()
+            let devSentences = Self.sentences(t).filter { $0.contains("Dev") }
+            let devPast = devSentences.contains { s in
+                let l = s.lowercased()
+                return !(l.contains("text") || l.contains("come over") || l.contains("coming") || l.contains("will") || l.contains("see what"))
+            }
+            let illness = illnessWords.contains { lower.contains($0) }
+            let candidate = Self.nameSentenceSharesNoContextWord(t, entries: Self.sickDayEntries)
+            let existing = InsightService.isUngrounded(t, sourceEntries: recent + background)
+                || InsightService.sharesNoWordWithRecent(t, recentEntries: recent)
+                || InsightService.openingIsUngrounded(t, recentEntries: recent)
+            if devPast { creditsDev += 1 }
+            if illness { mentionsIllness += 1 }
+            if !candidate.isEmpty { flaggedByCandidate += 1 }
+            if existing { flaggedByExisting += 1 }
+            print("[conflation][\(i)] engine=\(result.engine.rawValue) devPast=\(devPast) illness=\(illness) candidateFlags=\(candidate) existingGuards=\(existing)")
+            print("[conflation][\(i)] TEXT: \(t)")
+        }
+        print("[conflation][SUMMARY] runs=\(runs) creditsDevWithPastActivity=\(creditsDev) mentionsIllness=\(mentionsIllness) flaggedByCandidate=\(flaggedByCandidate) flaggedByExistingGuards=\(flaggedByExisting)")
+    }
+
+
+    /// Same synthetic case through the FULL generateNudge pipeline (3-attempt retry loop with
+    /// violation feedback), not a single raw call. The raw-call run showed Gemma's attempt 1 is
+    /// the "rain outside" template 12/12 and always rejected — so whatever users actually see
+    /// from Gemma comes from attempt 2/3, after the "didn't reference anything actually
+    /// written" retry note. That's where the real device conflation most plausibly originated.
+    func test_nameAttributionConflation_sickDayCase_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 8
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let cases = ProcessInfo.processInfo.environment["HARNESS_ALL_CASES"] == "1"
+            ? Self.rigCases + Self.groundedEdgeCases
+            : [("sickday", Self.sickDayEntries)]
+        for c in cases {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine, degraded) = try await InsightService.generateNudge(entries: c.1)
+                    let fallback = InsightService.isUngroundedFallback(text)
+                    print("[pipeline][\(c.0)][\(i)] engine=\(engine.rawValue) degraded=\(degraded) fallback=\(fallback) seconds=\(Int(Date().timeIntervalSince(started)))")
+                    print("[pipeline][\(c.0)][\(i)] TEXT: \(text)")
+                } catch {
+                    print("[pipeline][\(c.0)][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
+                }
+            }
+        }
+    }
+
+
+    // MARK: - Prompt capture for the off-device test rig (2026-09-26)
+    //
+    // Additional synthetic cases (no real journal text) so prompt changes aren't tuned to the
+    // one sick-day shape. Each has a clear main event, >=2 named people with distinct roles, and
+    // (where noted) a plan that hasn't happened yet — the three things the real incident got wrong.
+    static let rigCases: [(label: String, entries: [Entry])] = {
+        func older(_ text: String, _ mood: String, daysAgo: Double) -> Entry {
+            let e = Entry(text: text, mood: mood)
+            e.createdAt = Date().addingTimeInterval(-daysAgo * 86_400)
+            return e
+        }
+        let routine1 = older("Usual gym, went to the barber for a haircut and came back to the flat, worked from home today. Should learn to ignore the group chat noise.", "Content", daysAgo: 1)
+        let routine2 = older("Usual morning routine, gym, came back had breakfast and oats. Started office, picked up the parcel on the way back, quiet evening.", "Content", daysAgo: 2)
+        let lunch = Entry(text: """
+            Lunch with Priya went long, she finally told me about the new job offer in Pune and \
+            she's nervous about moving. Called Mom on the way back, she sounded tired from the \
+            wedding prep. Rahul wants to go hiking on Sunday, not sure I'm up for it.
+            """, mood: "Content")
+        let work = Entry(text: """
+            Client presentation got pushed to Thursday again. Spent the whole afternoon fixing \
+            the dashboard bug with Omar, finally found it in the date parsing. Skipped dinner and \
+            ate chips at my desk. Feel behind on everything and Nisha's review is due Monday.
+            """, mood: "Overwhelmed")
+        let walk = Entry(text: """
+            Walked by the lake with Bruno after work, he chased the ducks again. Sun was out for \
+            once. Felt light for the first time this week. Might call Anu tomorrow to plan the trip.
+            """, mood: "Peaceful")
+        return [
+            ("sickday", sickDayEntries),
+            ("lunch", [lunch, routine1, routine2]),
+            ("work", [work, routine1, routine2]),
+            ("walk", [walk, routine1, routine2]),
+        ]
+    }()
+
+    /// Messy real-world shapes for the grounded-nudge builder (all synthetic): an unpunctuated
+    /// voice-style run-on, a checklist, quotes/backslashes/emoji, several entries the same day.
+    static let groundedEdgeCases: [(label: String, entries: [Entry])] = {
+        let runOn = Entry(text: "so today was kind of a mess honestly I woke up late again and missed the bus and then the whole morning just went sideways because the manager moved the standup and I hadn't prepped anything and by lunch I was just exhausted and kind of annoyed at myself for not sleeping earlier like I keep saying I will", mood: "Frustrated")
+        let checklist = Entry(text: "Things to sort this week\n- call the landlord about the leak\n- finish the tax forms\n- book the dentist\nFeeling a bit calmer now that it's written down.", mood: "Hopeful")
+        let punctuation = Entry(text: #"Mum said "don't worry about it" but I still feel bad 😔. The recipe called for 1/2 cup and I used a whole one \ oops. Tried again at night and it came out fine!"#, mood: "Content")
+        let morning = Entry(text: "Ran 5k before work, legs felt heavy but I finished.", mood: "Energized")
+        let evening = Entry(text: "Evening was rough, argued with my brother over the phone about Dad's birthday plans. Still annoyed.", mood: "Frustrated")
+        evening.createdAt = Date().addingTimeInterval(60)
+        return [
+            ("runon", [runOn]),
+            ("checklist", [checklist]),
+            ("punctuation", [punctuation]),
+            ("sameday", [morning, evening]),
+        ]
+    }()
+
+    /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
+    /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
+    /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.
+    func test_dumpNudgePromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for c in Self.rigCases + Self.groundedEdgeCases {
+            var captured: [(String, String, LocalLLMService.GemmaPlan)] = []
+            // Reported as Foundation Models so the ungrounded reply takes the generic validation
+            // path and all 3 attempts run; the Gemma plan is captured regardless of engine.
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                captured.append((system, user, plan))
+                return ("The rain outside feels heavy tonight, doesn't it?", .foundationModels)
+            }
+            _ = try? await InsightService.generateNudge(entries: c.entries)
+            XCTAssertEqual(captured.count, 3, "expected 3 attempts for \(c.label)")
+            for (i, call) in captured.enumerated() {
+                try call.0.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_system.txt", atomically: true, encoding: .utf8)
+                try call.1.write(toFile: "\(dir)/\(c.label)_a\(i + 1)_user.txt", atomically: true, encoding: .utf8)
+            }
+            // The production-built Gemma prompt + grammar, for tools/llmrig `gengrammar`.
+            if case .grammarConstrained(let message, let grammar) = captured.first?.2 {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(c.label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(c.label)_gemma.gbnf", atomically: true, encoding: .utf8)
+            } else {
+                try "\(String(describing: captured.first?.2))".write(toFile: "\(dir)/\(c.label)_gemma.none", atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
+
+    /// Dumps the first (system, user) prompt the weekly digest, monthly report and Ask send for a
+    /// synthetic week made of the rig cases, so their Gemma baseline can be measured on the rig.
+    func test_dumpOtherInsightPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        // One entry per case, spread over the last four days (all inside this week/month when
+        // run mid-week; the prompt content is what matters here, not the calendar gate).
+        let week: [Entry] = Self.rigCases.enumerated().map { i, c in
+            let e = Entry(text: c.entries[0].text, mood: c.entries[0].mood)
+            e.createdAt = Date().addingTimeInterval(-Double(i) * 86_400)
+            return e
+        }
+        func capture(_ label: String, _ run: () async throws -> Void) async throws {
+            var first: (String, String, LocalLLMService.GemmaPlan)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                if first == nil { first = (system, user, plan) }
+                return ("x", .foundationModels)
+            }
+            try? await run()
+            guard let first else { XCTFail("no generation captured for \(label)"); return }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+            if case .grammarConstrained(let message, let grammar) = first.2 {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(label)_gemma.gbnf", atomically: true, encoding: .utf8)
+            }
+        }
+        try await capture("digest") { _ = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week) }
+        try await capture("digestB") { _ = try await InsightService.generateWeeklyDigest(weekEntries: Self.digestWeekB, allEntries: Self.digestWeekB) }
+        try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week + Self.digestWeekB, allEntries: week + Self.digestWeekB) }
+        try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
+    }
+
+
+    /// A second synthetic week, unlike the rig cases: new job, rent rise, a grief anniversary.
+    static let digestWeekB: [Entry] = {
+        let texts: [(String, String, Double)] = [
+            ("Landlord emailed that the rent goes up in November. Spent an hour redoing the budget spreadsheet and it still doesn't add up. Couldn't focus on the book after.", "Anxious", 0),
+            ("Second day at the new job. The team lead, Farah, walked me through the codebase and it's less scary than I thought. Took the long way home through the market.", "Hopeful", 1),
+            ("Grandpa's birthday would have been today. Looked at old photos with Lina over video call and we both cried a bit. Made his dal recipe for dinner.", "Sad", 3),
+            ("First day at the new job! Commute was 40 minutes, not bad. Joel from IT set up my laptop. Signed up for the Saturday climbing session with Sam.", "Energized", 4),
+            ("Packing up the old desk, found my notes from three years ago. Annoyed that I stayed so long at that place.", "Frustrated", 5),
+        ]
+        return texts.map { text, mood, daysAgo in
+            let e = Entry(text: text, mood: mood)
+            e.createdAt = Date().addingTimeInterval(-daysAgo * 3_600)   // hours, so all stay in this week
+            return e
+        }
+    }()
+
+    /// Real generateWeeklyDigest pipeline (validators, cleaners, grounding checks) on Gemma for
+    /// both synthetic weeks. Opt-in like the rest of this harness.
+    func test_groundedDigest_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let weekA: [Entry] = Self.rigCases.map { $0.entries[0] }
+        for (label, week) in [("weekA", weekA), ("weekB", Self.digestWeekB)] {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: week)
+                    let fallback = InsightService.isUngroundedFallback(text)
+                    print("[digest][\(label)][\(i)] engine=\(engine.rawValue) fallback=\(fallback) seconds=\(Int(Date().timeIntervalSince(started)))")
+                    print("[digest][\(label)][\(i)] TEXT: \(text.replacingOccurrences(of: "\n", with: " ⏎ "))")
+                } catch {
+                    print("[digest][\(label)][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
+                }
+            }
+        }
+    }
+
+
+    /// Real generateMonthlyReport pipeline on Gemma for a synthetic month (both digest weeks).
+    func test_groundedMonthly_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let month: [Entry] = Self.rigCases.map { $0.entries[0] } + Self.digestWeekB
+        for i in 1...runs {
+            let started = Date()
+            do {
+                let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: month, allEntries: month)
+                print("[monthly][\(i)] engine=\(engine.rawValue) fallback=\(InsightService.isUngroundedFallback(text)) seconds=\(Int(Date().timeIntervalSince(started)))")
+                print("[monthly][\(i)] TEXT: \(text.replacingOccurrences(of: "\n", with: " ⏎ "))")
+            } catch {
+                print("[monthly][\(i)] THREW: \(error) seconds=\(Int(Date().timeIntervalSince(started)))")
+            }
+        }
+    }
+
+
+    /// Real InsightService.ask pipeline on Gemma over the synthetic entries, one answerable question
+    /// per kind (sleep, work stress, people, gym) plus one nothing answers (guitar).
+    func test_groundedAsk_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 2
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let entries: [Entry] = Self.rigCases.map { $0.entries[0] } + Self.digestWeekB
+        let questions = [
+            "How has my sleep been lately?", "What has been stressing me at work?",
+            "Who have I spent time with recently?", "Have I been going to the gym?",
+            "How is my guitar practice going?",
+        ]
+        for question in questions {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.ask(question: question, entries: entries)
+                    print("[ask][\(question)][\(i)] engine=\(engine.rawValue) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[ask][\(question)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
+
+
+    /// Dumps the production-built localized nudge and digest Gemma prompts + grammars for every
+    /// supported non-English language (synthetic entries from GroundedLocalizedTests), for the rig.
+    func test_dumpLocalizedPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        func write(_ label: String, _ plan: LocalLLMService.GemmaPlan) throws {
+            guard case .grammarConstrained(let message, let grammar) = plan else { XCTFail("no grammar plan for \(label)"); return }
+            try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n".write(toFile: "\(dir)/\(label).prompt", atomically: true, encoding: .utf8)
+            try grammar.write(toFile: "\(dir)/\(label).gbnf", atomically: true, encoding: .utf8)
+        }
+        for (code, text) in SharedLLMState.GroundedLocalizedTests.sickDay {
+            let entry = Entry(text: text, mood: "Drained")
+            let nudge = try XCTUnwrap(InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: []), code)
+            try write("\(code)_nudge", nudge.plan)
+            let calm = Entry(text: text, mood: "Peaceful")
+            calm.createdAt = entry.createdAt.addingTimeInterval(-3_600)
+            let digest = try XCTUnwrap(InsightService.localizedGroundedDigest(weekEntries: [entry, calm], languageSource: [entry]), code)
+            try write("\(code)_digest", digest.plan)
+            let monthly = try XCTUnwrap(InsightService.localizedGroundedMonthly(monthEntries: [entry, calm]), code)
+            try write("\(code)_monthly", monthly.plan)
+        }
+    }
+
+
+    /// Real generateNudge / generateWeeklyDigest on Gemma in German, Japanese and Chinese.
+    func test_localizedGrounded_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let calmDay: [String: String] = [
+            "de": "Bin nach der Arbeit mit dem Hund am See spazieren gegangen. Zum ersten Mal diese Woche fühlte ich mich leicht.",
+            "ja": "仕事のあと犬と湖のそばを散歩した。今週はじめて気持ちが軽くなった。",
+            "zh": "下班后带狗在湖边散步。这周第一次觉得轻松。",
+        ]
+        for code in ["de", "ja", "zh"] {
+            let sick = Entry(text: SharedLLMState.GroundedLocalizedTests.sickDay[code]!, mood: "Drained")
+            let calm = Entry(text: calmDay[code]!, mood: "Peaceful")
+            calm.createdAt = sick.createdAt.addingTimeInterval(-3_600)
+            var started = Date()
+            let (nudge, _, degraded) = try await InsightService.generateNudge(entries: [sick])
+            print("[loc][\(code)][nudge] seconds=\(Int(Date().timeIntervalSince(started))) degraded=\(degraded) fallback=\(InsightService.isUngroundedFallback(nudge)) TEXT: \(nudge)")
+            started = Date()
+            let (digest, _) = try await InsightService.generateWeeklyDigest(weekEntries: [sick, calm], allEntries: [sick, calm])
+            print("[loc][\(code)][digest] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(digest)) TEXT: \(digest.replacingOccurrences(of: "\n", with: " ⏎ "))")
+            started = Date()
+            let (monthly, _) = try await InsightService.generateMonthlyReport(monthEntries: [sick, calm], allEntries: [sick, calm])
+            print("[loc][\(code)][monthly] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(monthly)) TEXT: \(monthly.replacingOccurrences(of: "\n", with: " ⏎ "))")
+        }
+    }
 }

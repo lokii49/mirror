@@ -23,7 +23,7 @@ struct InsightSourceSheet: View {
             .background(MirrorTheme.inkBase)
             .navigationTitle("How this was generated")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: InsightType.self) { SystemPromptDetail(type: $0) }
+            .navigationDestination(for: InsightType.self) { SystemPromptDetail(type: $0, content: insight.content) }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -107,9 +107,9 @@ struct InsightSignalSource: View {
 
         switch insight.type {
         case .weeklyDigest:
-            let wk = DateHelpers.weekIdentifier(for: asOf)
-            let thisWeek = Array(prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == wk }.prefix(12))
-            let earlier = prior.filter { DateHelpers.weekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
+            let wk = DateHelpers.digestWeekIdentifier(for: asOf)
+            let thisWeek = Array(prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == wk }.prefix(12))
+            let earlier = prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
             rows.append(("THIS WEEK", Self.span(thisWeek)))
             if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
             rows.append(("MOOD READ", Self.moods(thisWeek)))
@@ -156,7 +156,7 @@ struct InsightSignalSource: View {
 
     var body: some View {
         let r = resolve()
-        let symbol = InsightService.systemPrompt(for: insight.type).ref
+        let symbol = InsightService.systemPrompt(for: insight.type, content: insight.content).ref
             .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
             ?? "system prompt"
 
@@ -251,9 +251,10 @@ struct InsightSignalSource: View {
 /// the same constant the generator sends. Pushed from `InsightSourceSheet`.
 struct SystemPromptDetail: View {
     let type: InsightType
+    var content: String? = nil
 
     var body: some View {
-        let p = InsightService.systemPrompt(for: type)
+        let p = InsightService.systemPrompt(for: type, content: content)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.ref)

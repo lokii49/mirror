@@ -37,7 +37,7 @@ enum WidgetBridge {
     /// No-op (leaves the last value in place) if there's no digest for this week yet.
     @MainActor
     static func syncWeeklyDigest(from context: ModelContext) {
-        let week = DateHelpers.weekIdentifier(for: Date())
+        let week = DateHelpers.digestWeekIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == week }
         )

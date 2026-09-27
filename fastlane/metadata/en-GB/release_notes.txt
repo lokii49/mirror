@@ -1,7 +1,21 @@
-More reliable Past Reflections, and fewer repeated openings.
+What went wrong with reflections, and what's different now
 
-• Fixed duplicate cards appearing in Past Reflections after a reflection needed more than one attempt.
-• Days where no reflection could be found no longer clutter your history.
-• Reduced cases where a reflection repeated the same opening as a recent one.
-• Fixed Monthly Report occasionally showing the wrong report for a past month.
-• Small fixes and polish.
+Several earlier updates said reflections were fixed. They weren't, and I'm sorry.
+
+This time I found the cause. On iPhones without Apple Intelligence, mirror's built-in AI wrote like a storyteller and made up details: rain that wasn't there, people swapped around.
+
+On those iPhones, starting now:
+• Reflections, weekly digests, monthly reports and Ask quote your own sentences word for word. Anything in quotation marks is exactly what you wrote, so you can check it against your entry.
+• Apart from the quote, there's one short line about how it sounds. That line can still misread your mood or get a small detail wrong.
+• If Ask can't find your topic, it shows the closest things you wrote instead of guessing.
+
+On iPhones with Apple Intelligence, Apple's on-device model still writes in its own words.
+
+Also in this update:
+• Weekly digests now arrive on Sundays in regions where the week starts on Sunday.
+• The home screen widget and notifications show only the short line, never your own sentence.
+• Try Again now waits for a reflection that's still being written, instead of doing nothing.
+• Fixed characters sometimes going missing in Japanese, Korean and Chinese AI text.
+• Reflections created before this update aren't changed.
+
+If a reflection ever gets something wrong, please tell me: Settings → About → Send feedback.

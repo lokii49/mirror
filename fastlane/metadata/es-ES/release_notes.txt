@@ -1,7 +1,21 @@
-Reflexiones pasadas más fiables y menos aperturas repetidas.
+Qué falló en las reflexiones y qué cambia ahora
 
-• Corregido un fallo por el que aparecían tarjetas duplicadas en Reflexiones pasadas cuando una reflexión necesitaba más de un intento.
-• Los días en los que no se pudo encontrar ninguna reflexión ya no saturan tu historial.
-• Reducidos los casos en los que una reflexión repetía la misma apertura que una reciente.
-• Corregido un fallo por el que el Informe mensual mostraba ocasionalmente el informe incorrecto para un mes pasado.
-• Pequeñas correcciones y mejoras.
+Varias actualizaciones anteriores decían que las reflexiones estaban arregladas. No lo estaban, y lo siento.
+
+Esta vez encontré la causa. En los iPhone sin Apple Intelligence, la IA integrada de mirror escribía como un narrador e inventaba detalles: lluvia que no existía, personas intercambiadas.
+
+En esos iPhone, a partir de ahora:
+• Las reflexiones, los resúmenes semanales, los informes mensuales y las respuestas de «Preguntar» citan tus propias frases palabra por palabra. Todo lo que aparece entre comillas es exactamente lo que escribiste, así que puedes comprobarlo en tu entrada.
+• Aparte de la cita, solo hay una línea breve sobre cómo suena. Esa línea aún puede interpretar mal tu estado de ánimo o equivocarse en algún detalle.
+• Si «Preguntar» no encuentra tu tema, muestra lo más parecido que escribiste en lugar de adivinar.
+
+En los iPhone con Apple Intelligence, el modelo de Apple en el dispositivo sigue escribiendo con sus propias palabras.
+
+También en esta actualización:
+• Los resúmenes semanales ahora llegan el domingo en las regiones donde la semana empieza en domingo.
+• El widget de la pantalla de inicio y las notificaciones solo muestran la línea breve, nunca tu propia frase.
+• «Intentar de nuevo» ahora espera a una reflexión que todavía se está escribiendo, en lugar de no hacer nada.
+• Corregidos caracteres que a veces faltaban en los textos de la IA en japonés, coreano y chino.
+• Las reflexiones creadas antes de esta actualización no cambian.
+
+Si alguna reflexión se equivoca, cuéntamelo: Ajustes → Acerca de → Enviar comentarios.

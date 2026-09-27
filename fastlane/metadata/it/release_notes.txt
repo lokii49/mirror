@@ -1,7 +1,21 @@
-Riflessioni passate più affidabili e meno inizi ripetuti.
+Cosa non funzionava nelle riflessioni, e cosa cambia ora
 
-• Risolto un problema per cui apparivano schede duplicate in Riflessioni passate quando una riflessione richiedeva più di un tentativo.
-• I giorni in cui non è stato possibile trovare una riflessione non affollano più la cronologia.
-• Ridotti i casi in cui una riflessione iniziava allo stesso modo di una recente.
-• Risolto un problema per cui il Rapporto mensile mostrava occasionalmente il rapporto sbagliato per un mese passato.
-• Piccole correzioni e miglioramenti.
+Diversi aggiornamenti precedenti dicevano che le riflessioni erano state sistemate. Non era così, e mi dispiace.
+
+Questa volta ho trovato la causa. Sugli iPhone senza Apple Intelligence, l'IA integrata di mirror scriveva come un narratore e inventava dettagli: pioggia che non c'era, persone scambiate.
+
+Su questi iPhone, da ora:
+• Riflessioni, riepiloghi settimanali, report mensili e risposte di «Chiedi» citano le tue frasi parola per parola. Tutto ciò che è tra virgolette è esattamente ciò che hai scritto, quindi puoi verificarlo nel tuo diario.
+• Oltre alla citazione c'è solo una breve riga su come sembra andare. Quella riga può ancora fraintendere il tuo umore o sbagliare un piccolo dettaglio.
+• Se «Chiedi» non trova il tuo argomento, mostra le cose più vicine che hai scritto invece di tirare a indovinare.
+
+Sugli iPhone con Apple Intelligence, il modello di Apple sul dispositivo scrive ancora con parole sue.
+
+Inoltre in questo aggiornamento:
+• I riepiloghi settimanali ora arrivano la domenica anche nei Paesi in cui la settimana inizia di domenica.
+• Il widget della schermata Home e le notifiche mostrano solo la breve riga, mai la tua frase.
+• «Riprova» ora aspetta una riflessione ancora in scrittura, invece di non fare nulla.
+• Risolti caratteri che a volte mancavano nei testi dell'IA in giapponese, coreano e cinese.
+• Le riflessioni create prima di questo aggiornamento non cambiano.
+
+Se una riflessione sbaglia qualcosa, dimmelo: Impostazioni → Informazioni → Invia feedback.

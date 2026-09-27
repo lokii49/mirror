@@ -27,7 +27,9 @@ enum CachedInsightRepair {
 
         let insights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         var changed = 0
-        for insight in insights where insight.type == .dailyNudge {
+        // Grammar-path nudges hold a verbatim quote of the user's own words, which the cleaner
+        // would rewrite ("I felt" → "you felt") — see InsightService.isGrammarGrounded.
+        for insight in insights where insight.type == .dailyNudge && !InsightService.isGrammarGrounded(insight.content) {
             let original = insight.content
             let repaired = original.cleanedInsightOutput()
             // Accept only a strict improvement: shorter (preamble / "friend"

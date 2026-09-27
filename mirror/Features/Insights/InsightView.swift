@@ -170,6 +170,14 @@ struct InsightView: View {
                 await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
             }
         }
+        .onChange(of: InsightGenerationCoordinator.shared.isInFlight("nudge_\(DateHelpers.dayIdentifier(for: Date()))")) { _, inFlight in
+            // A nudge generation that throws inserts no row, so insights.count never changes —
+            // without this, a .loading card derived from the in-flight flag would stick forever.
+            guard !inFlight else { return }
+            Task {
+                await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
+            }
+        }
         .onChange(of: SubscriptionService.shared.tier) { _, _ in
             // Re-evaluate when subscription status settles after cold launch
             Task { await refreshInsights() }
@@ -283,7 +291,7 @@ struct InsightView: View {
 
     private func recomputeInsightCaches() {
         let today = DateHelpers.dayIdentifier(for: Date())
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
         cachedPastNudges = newestRealPerPeriod(
             insights.filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
         )

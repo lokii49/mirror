@@ -86,11 +86,17 @@ enum UngroundedInsightCleanup {
         // daily nudge's `ungroundedDailyNudges`) — reconstructed inline here using each insight's
         // own `periodIdentifier` against the fixed dual grounding check.
         for insight in allInsights where insight.type == .weeklyDigest {
-            guard !InsightService.isUngroundedFallback(insight.content) else { continue }
+            guard !InsightService.isUngroundedFallback(insight.content),
+                  !InsightService.isGrammarGrounded(insight.content) else { continue }
             // Computed from createdAt, not the stored `Entry.weekIdentifier` — that field
             // defaults to "" and can be unset on entries created before it existed or restored
             // via CloudKit without it, which would silently match nothing here.
-            let weekEntries = allEntries.filter { DateHelpers.weekIdentifier(for: $0.createdAt) == insight.periodIdentifier }
+            // Digests saved before digestWeekIdentifier used the locale week; match either so a
+            // Sunday-first user's older digest isn't checked against a one-day-shifted entry set.
+            let weekEntries = allEntries.filter {
+                DateHelpers.weekIdentifier(for: $0.createdAt) == insight.periodIdentifier
+                    || DateHelpers.digestWeekIdentifier(for: $0.createdAt) == insight.periodIdentifier
+            }
             // Flat sharesNoWordWithRecent, not the scaled isUngrounded — a single week's entries
             // is a small corpus, same regime that regressed for the daily nudge (see that
             // function's doc comment).
@@ -100,7 +106,8 @@ enum UngroundedInsightCleanup {
         }
 
         for insight in allInsights where insight.type == .monthlyReport {
-            guard !InsightService.isUngroundedFallback(insight.content) else { continue }
+            guard !InsightService.isUngroundedFallback(insight.content),
+                  !InsightService.isGrammarGrounded(insight.content) else { continue }
             let monthEntries = allEntries.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == insight.periodIdentifier }
             guard !monthEntries.isEmpty, InsightService.sharesNoWordWithRecent(insight.content, recentEntries: monthEntries) else { continue }
             insight.content = InsightService.monthlyReportUngroundedFallback

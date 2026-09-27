@@ -15,6 +15,20 @@ enum DateHelpers {
         return String(format: "%d-W%02d", year, week)
     }
 
+    /// The weekly digest's week: always Monday–Sunday (ISO 8601), whatever the device's first
+    /// weekday. The digest is generated on Sunday as a look back at the week ending that day.
+    /// With `weekIdentifier`'s locale calendar, Sunday-first regions (US, India, …) put that
+    /// Sunday in a brand-new, empty week, so the 3-entry gate never passed on the only day
+    /// generation runs — digests silently stopped there. `Entry.weekIdentifier` keeps the locale
+    /// week; only digest lookups use this.
+    static func digestWeekIdentifier(for date: Date) -> String {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = Calendar.current.timeZone
+        let year = cal.component(.yearForWeekOfYear, from: date)
+        let week = cal.component(.weekOfYear, from: date)
+        return String(format: "%d-W%02d", year, week)
+    }
+
     static func dayIdentifier(for date: Date) -> String {
         let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)

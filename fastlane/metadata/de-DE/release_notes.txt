@@ -1,7 +1,21 @@
-Zuverlässigere vergangene Reflexionen und weniger wiederholte Eröffnungssätze.
+Was bei den Reflexionen schiefgelaufen ist – und was jetzt anders ist
 
-• Ein Fehler behoben, durch den doppelte Karten in „Vergangene Reflexionen" erschienen, wenn für eine Reflexion mehr als ein Versuch nötig war.
-• Tage, an denen keine Reflexion gefunden werden konnte, überladen deinen Verlauf nicht mehr.
-• Fälle reduziert, in denen eine Reflexion mit demselben Satz begann wie eine kürzliche.
-• Ein Fehler behoben, durch den der Monatsbericht gelegentlich den falschen Bericht für einen vergangenen Monat zeigte.
-• Kleinere Fehlerbehebungen und Feinschliff.
+Mehrere frühere Updates haben gesagt, die Reflexionen seien repariert. Das stimmte nicht, und das tut mir leid.
+
+Diesmal habe ich die Ursache gefunden. Auf iPhones ohne Apple Intelligence hat die eingebaute KI von mirror wie ein Geschichtenerzähler geschrieben und Details erfunden: Regen, den es nicht gab, vertauschte Personen.
+
+Auf diesen iPhones gilt ab jetzt:
+• Reflexionen, wöchentliche Zusammenfassungen, Monatsberichte und Antworten unter „Fragen“ zitieren deine eigenen Sätze Wort für Wort. Alles in Anführungszeichen ist genau das, was du geschrieben hast – du kannst es mit deinem Eintrag vergleichen.
+• Neben dem Zitat gibt es nur eine kurze Zeile dazu, wie es klingt. Diese Zeile kann deine Stimmung trotzdem falsch einschätzen oder ein kleines Detail falsch wiedergeben.
+• Findet „Fragen“ dein Thema nicht, zeigt es das Ähnlichste aus deinen Einträgen, statt zu raten.
+
+Auf iPhones mit Apple Intelligence schreibt Apples Modell auf dem Gerät weiterhin in eigenen Worten.
+
+Außerdem in diesem Update:
+• Wöchentliche Zusammenfassungen kommen jetzt auch dort am Sonntag, wo die Woche am Sonntag beginnt.
+• Das Widget auf dem Home-Bildschirm und Mitteilungen zeigen nur noch die kurze Zeile, nie deinen eigenen Satz.
+• „Erneut versuchen“ wartet jetzt auf eine Reflexion, die noch erstellt wird, statt nichts zu tun.
+• Fehlende Zeichen in japanischen, koreanischen und chinesischen KI-Texten behoben.
+• Reflexionen, die vor diesem Update entstanden sind, bleiben unverändert.
+
+Wenn eine Reflexion einmal etwas falsch wiedergibt, sag mir bitte Bescheid: Einstellungen → Über → Feedback senden.

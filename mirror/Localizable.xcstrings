@@ -49611,7 +49611,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Что я писал(а) о %@?"
+            "value" : "Что у меня записано о %@?"
           }
         },
         "zh-Hans" : {

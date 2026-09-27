@@ -42,7 +42,7 @@ struct DigestWidgetProvider: TimelineProvider {
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         let text = defaults?.string(forKey: WidgetShared.digestThemeKey)
         let storedWeek = defaults?.string(forKey: WidgetShared.digestWeekKey) ?? ""
-        let thisWeek = DateHelpers.weekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
         return DigestWidgetEntry(date: .now, themeText: text, isCurrentWeek: storedWeek == thisWeek)
     }
 }

@@ -46,6 +46,20 @@ Rules:
 - Be specific. Be warm. Be honest. Do not over-explain.
 """
 
+// Gemma-only daily nudge (2026-09-26 root-cause fix). DAILY_NUDGE_SYSTEM's creative framing ("warm
+// and familiar", "open by naming something concrete — an image…") puts Gemma 3 1B in creative-
+// writing mode: measured ~0/40 faithful across four synthetic cases, nearly every output opening on
+// an invented sensory scene ("The rain outside…", "The scent of sandalwood…"). Rewording the rules
+// only got to ~55-65% — a 1B model paraphrasing facts swaps people and turns plans into events —
+// so on Gemma the facts aren't paraphrased at all: groundedNudgeGrammar makes the quote a verbatim
+// sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
+// Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
+// Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
+let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
+Write a short reflection for the person who wrote the journal entry above, in this exact form:
+You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one or two sentences, speaking to them as "you", about how they seem to be feeling. If their mood is difficult, add one small, practical suggestion. After the quote, do not mention anyone by name and do not add anything that is not in the entry.
+"""
+
 private let WEEKLY_DIGEST_SYSTEM = """
 You are MirrorNotes. Read this person's local journal context and write a structured weekly reflection in the voice of a close friend who understands them.
 Output EXACTLY this format with no extra sections:
@@ -75,6 +89,25 @@ Rules:
 - Be specific. Be honest. Be warm. Do not over-explain.
 """
 
+// Gemma-only weekly digest (2026-09-27). Same root cause as DAILY_NUDGE_GEMMA_INSTRUCTIONS: on
+// Gemma 3 1B, WEEKLY_DIGEST_SYSTEM invents details in most sections ("a system for organizing your
+// photography workflow", "a steaming mug of chamomile tea"). groundedDigestGrammar anchors YOUR
+// ENERGY / WHAT'S BUILDING / WATCH OUT FOR to verbatim sentences from this week's entries — energy's
+// adjective bound to the quoted entry's mood, building to good-mood entries, watch to hard-mood
+// ones — and allows only lowercase text (no names) around them. Rig: 20/20 digests with nothing
+// invented across two synthetic weeks (tools/llmrig/README.md). Foundation Models keeps
+// WEEKLY_DIGEST_SYSTEM.
+let WEEKLY_DIGEST_GEMMA_INSTRUCTIONS = """
+Write a weekly reflection for the person who wrote the journal entries above, in exactly this form, one line per section:
+THIS WEEK'S THEME: A week of <what the week was mostly about>.
+YOUR ENERGY: You seemed most <drained, tired, stressed, calm, light or content> when you wrote, "<copy one sentence from the entries>" Then say how that sounds.
+WHAT'S BUILDING: You wrote, "<copy a sentence about something good that is growing or changing for them>" Then say what it might mean.
+WATCH OUT FOR: You wrote, "<copy a sentence about something that may be quietly costing them>" Then say what to watch.
+MOOD BOOST: One small, specific action tied to what they wrote.
+NEXT WEEK: One practical, kind suggestion for next week.
+Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
+"""
+
 private let ASK_SYSTEM = """
 You are MirrorNotes, a private journaling companion. Read the journal entries and answer the question based on what the person actually wrote.
 Rules:
@@ -89,6 +122,20 @@ Rules:
 - Do not mention that you are an AI or model
 - Avoid clinical phrases like "this suggests", "patterns indicate", or "the source mentions"
 - Only if the entries truly contain nothing at all related to the question, use the exact no-answer fallback phrase specified below.
+"""
+
+// Gemma-only Ask (2026-09-27). Free-text answers on Gemma 3 1B swapped who-did-what ("you felt
+// tired from the wedding prep" — it was Mom), and even with verbatim quotes the one-line comment
+// after each quote invented ("you spent time with friends after the concert"). So on Gemma, Ask
+// answers only with the user's own dated sentences — groundedAskGrammar allows nothing else — and
+// relevance is helped deterministically (groundedAskPlan): stress/worry questions draw from hard-
+// mood entries, happy ones from good-mood entries, and a question none of whose words (or their
+// nearest word-embedding neighbours) appear anywhere gets the no-answer phrase without a model run.
+let ASK_GEMMA_INSTRUCTIONS = """
+Answer the question below using only the journal entries above, in this exact form:
+The closest things you've written: On <date>, you wrote, "<copy the one sentence that best answers the question>"
+Add a second quote in the same form only if another sentence also directly answers the question.
+Copy each quote word for word.
 """
 
 private let MONTHLY_REPORT_SYSTEM = """
@@ -113,6 +160,25 @@ Rules:
 - Do not add any text outside these six sections
 - Do not mention that you are an AI
 - Be warm, specific, and honest
+"""
+
+// Gemma-only monthly report (2026-09-27). Same root cause as the nudge/digest: on Gemma 3 1B,
+// MONTHLY_REPORT_SYSTEM opens with a preamble ("Okay, here's a deep monthly reflection…") and
+// invents specifics ("During a conversation with Bruno, I realized…" — Bruno is a dog). The
+// grammar from groundedMonthlyGrammar ties A MOMENT THAT SHIFTED SOMETHING to a real entry's date
+// plus a verbatim sentence from it, WHAT YOU'RE BECOMING / WHAT WANTS TO BE RELEASED to quotes from
+// good-/hard-mood entries, and keeps the image, tension and question to lowercase word-by-word text
+// (no names, no double spaces) after fixed openers. Rig: 10/10 with nothing invented
+// (tools/llmrig/README.md). Foundation Models keeps MONTHLY_REPORT_SYSTEM.
+let MONTHLY_REPORT_GEMMA_INSTRUCTIONS = """
+Write a monthly reflection for the person who wrote the journal entries above, in exactly this form, one line per section:
+YOUR MONTH IN ONE IMAGE: A <short metaphor for how this month felt>.
+THE TENSION AT THE CENTER: You seem pulled between <two things from their entries>.
+A MOMENT THAT SHIFTED SOMETHING: On <date>, you wrote, "<copy one sentence from that day's entry>" Then say what it might have changed.
+WHAT YOU'RE BECOMING: You wrote, "<copy a hopeful sentence>" You seem to be becoming someone who <...>.
+WHAT WANTS TO BE RELEASED: You wrote, "<copy a heavy sentence>" Maybe it's time to let go of <...>.
+YOUR QUESTION FOR NEXT MONTH: One honest, open question ending with a question mark.
+Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
 """
 
 private let EMOTION_DETECT_SYSTEM = """
@@ -204,7 +270,7 @@ enum InsightService {
         "ja": "まだこれについて書いていません。",
         "ko": "아직 이것에 대해 쓰지 않았어요.",
         "pt": "Você ainda não escreveu sobre isso.",
-        "ru": "Ты ещё не писал(а) об этом.",
+        "ru": "Об этом у тебя ещё нет записей.",
         "zh": "你还没有写过这个话题。",
     ]
     private static func askNoAnswerPhrase(for target: ResponseLanguageTarget?) -> String {
@@ -525,8 +591,17 @@ enum InsightService {
     /// X-ray this mirrors): if an entry from that window has since been edited or deleted, the
     /// answer for that nudge may no longer be accurate.
     static func ungroundedDailyNudges(among insights: [Insight], allEntries: [Entry]) -> [Insight] {
-        insights
+        // Same filter generateNudge itself now applies (hasReadableContext, not the narrower
+        // textDecryptionFailed — a photo-only or failed-voice-transcription entry has no
+        // decryption failure but is just as unreadable) — without it, an entry unreadable at
+        // audit time (not necessarily at generation time) would drop out of the reconstructed
+        // context and could make a genuinely grounded nudge look fabricated on replay. Hoisted
+        // out of the per-insight closure below — computed once here, not once per insight audited.
+        let decryptableEntries = allEntries.filter(hasReadableContext)
+        return insights
             .filter { $0.type == .dailyNudge }
+            // Grammar-path nudges were verified quote-by-quote at generation; see isGrammarGrounded.
+            .filter { !isGrammarGrounded($0.content) }
             // A fallback row's own boilerplate ("MirrorNotes couldn't find today's reflection...")
             // shares no vocabulary with any entry by construction — it's the guard's own safe
             // placeholder, not a generated reflection that needs auditing. Without this, the
@@ -536,7 +611,7 @@ enum InsightService {
             .filter { !isUngroundedFallback($0.content) }
             .filter { insight in
                 let asOf = insight.generatedAt
-                let priorEntries = allEntries.filter { $0.createdAt <= asOf }
+                let priorEntries = decryptableEntries.filter { $0.createdAt <= asOf }
                 let (recent, background) = dailyNudgeContext(from: priorEntries, asOf: asOf)
                 // Same dual check as generateNudge's live guard — this audit exists specifically
                 // to retroactively find insights the pre-fix combined-only check let through, so
@@ -547,9 +622,48 @@ enum InsightService {
             .sorted { $0.generatedAt < $1.generatedAt }
     }
 
+    // True when an entry has nothing an LLM prompt or a grounding guard could actually read.
+    // Broader than `Entry.textDecryptionFailed` on purpose: a locked-device Keychain failure is
+    // one way `insightContext` ends up empty, but by that property's own implementation
+    // (Entry.swift), a photo-only entry with no typed caption and no voice note, or a voice note
+    // whose transcript and translation are both empty, produces the same empty string — not
+    // separately verified live, but a direct read of what insightContext actually returns for
+    // those shapes. Either way, formatEntries silently drops the entry, and isUngrounded/
+    // sharesNoWordWithRecent/openingIsUngrounded all early-return "not ungrounded" against an
+    // empty source word set. Filtering on the symptom (empty context) rather than one specific
+    // cause (decryption) catches all of them with one check.
+    static func hasReadableContext(_ entry: Entry) -> Bool {
+        !entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
+        // Real device case (2026-09-25): mirrorApp.swift's own call site filters this too, but
+        // generateWeeklyDigest/generateMonthlyReport/ask also have callers that never went through
+        // that filter (InsightViewModel's retry paths, AskView) — filtering here, at the
+        // chokepoint every caller passes through, means the guarantee holds regardless of what
+        // the caller remembered to do.
+        let entries = entries.filter(hasReadableContext)
         let (recent, background) = dailyNudgeContext(from: entries, asOf: Date())
+        guard !recent.isEmpty else {
+            // Nothing readable to ground in at all — generating here would mean the model
+            // inventing a reflection from a blank prompt, then persisting the honest-sounding
+            // fallback text as if a real attempt had been made and genuinely failed grounding.
+            // Throwing instead means nothing gets saved for today; a later call with readable
+            // entries can still succeed normally.
+            throw InsightError.serviceUnavailable("no readable entries to ground a nudge in")
+        }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: recent + background), task: .dailyNudge)
+        let grounded = groundedNudgePlan(recent: recent, background: background, recentNudges: recentNudges)
+        let localized = localizedGroundedNudge(recent: recent, background: background, recentNudges: recentNudges)
+        let nudgePlan = localized?.plan ?? grounded.plan
+        let nudgeValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
+            try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+        })
+        if case .unsuitable = nudgePlan, !LocalLLMService.prefersFoundationModels {
+            // Gemma is the only engine and today's writing has no quotable sentence (a one- or
+            // two-word entry). Honest fallback without running a model that could only invent.
+            return (dailyNudgeUngroundedFallback, .gemma, true)
+        }
 
         var userMessage = buildUserMessage(
             title: "Daily reflection context",
@@ -601,7 +715,9 @@ enum InsightService {
                     systemPrompt: DAILY_NUDGE_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .dailyNudge,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: nudgePlan,
+                    gemmaValidator: nudgeValidator
                 )
             } catch {
                 // A later attempt throwing (contextExhausted on a repeat full pass is realistic
@@ -614,7 +730,18 @@ enum InsightService {
                 return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
             }
 
-            let violatesRepeat = repeatsPriorOpening(result.text, openings: openings)
+            // Not for grammar-path output: its opening is `You wrote, "` plus the first words of
+            // the quote, and routine entries start alike ("Usual gym, went to…"), so two different
+            // quotes collide on this 7-word check. A retry there is the same prompt with a new
+            // seed — it picks the same quote, fails the same way three times, and a good
+            // reflection comes back degraded (GroundedNudgeTests.similarRoutineOpening…). The
+            // repeat guard for that format is groundedNudgeQuoteOptions dropping sentences quoted
+            // by recent nudges.
+            let isGroundedQuote: Bool = {
+                guard result.engine == .gemma, case .grammarConstrained = nudgePlan else { return false }
+                return true
+            }()
+            let violatesRepeat = !isGroundedQuote && repeatsPriorOpening(result.text, openings: openings)
             // Checked against `recent` alone too (via the flat sharesNoWordWithRecent backstop,
             // not a second scaled isUngrounded pass — see its doc comment for why reusing the
             // scaled threshold on a small corpus regressed live on 2026-09-20). DAILY_NUDGE_
@@ -625,9 +752,13 @@ enum InsightService {
             // hundreds of words). Real device case (2026-09-19): a rain/"quiet moments"
             // fabrication shared zero vocabulary with the 3 recent entries (self-control, a Timer
             // app launch, MirrorNotes feedback) yet still rendered as a real reflection.
-            let violatesGrounding = isUngrounded(result.text, sourceEntries: recent + background)
+            // Grammar-path output was already checked quote-by-quote against the entry by the
+            // plan's validator; these word-overlap heuristics exist for free prose and wrongly
+            // reject verified Chinese/Japanese output, which has no spaces to split words on
+            // (GroundedLocalizedTests.localizedNudgeSurvivesTheRealPipeline, "ja").
+            let violatesGrounding = !isGroundedQuote && (isUngrounded(result.text, sourceEntries: recent + background)
                 || sharesNoWordWithRecent(result.text, recentEntries: recent)
-                || openingIsUngrounded(result.text, recentEntries: recent)
+                || openingIsUngrounded(result.text, recentEntries: recent))
             #if DEBUG
             print("[nudge][attempt \(attempt)] rawChars=\(result.text.count) rawWords=\(result.text.split(separator: " ").count)")
             #endif
@@ -767,6 +898,12 @@ enum InsightService {
     /// (which includes them) is passed as long-term background for continuity in
     /// `WHAT'S BUILDING` / `NEXT WEEK`, never as digest material.
     static func generateWeeklyDigest(weekEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context guard as generateNudge — see hasReadableContext's doc comment.
+        let weekEntries = weekEntries.filter(hasReadableContext)
+        let allEntries = allEntries.filter(hasReadableContext)
+        guard !weekEntries.isEmpty else {
+            throw InsightError.serviceUnavailable("no readable entries to ground a weekly digest in")
+        }
         let thisWeek = weekEntries.sorted { $0.createdAt > $1.createdAt }
         let weekIDs = Set(weekEntries.map(\.id))
         let priorWeeks = allEntries
@@ -782,6 +919,16 @@ enum InsightService {
             backgroundEntries: backgroundEntries,
             maxChars: weeklyDigestPromptBudget
         )
+        let grounded = groundedDigestPlan(weekEntries: recentEntries, languageSource: languageSource)
+        let localized = localizedGroundedDigest(weekEntries: recentEntries, languageSource: languageSource)
+        let digestPlan = localized?.plan ?? grounded.plan
+        let digestValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
+            try validateGroundedDigest(text, quoteOptions: grounded.quoteOptions)
+        })
+        if case .unsuitable = digestPlan, !LocalLLMService.prefersFoundationModels {
+            // Gemma-only device and nothing quotable this week (only one- or two-word entries).
+            return (weeklyDigestUngroundedFallback, .gemma)
+        }
 
         // Same isUngrounded backstop and bounded-retry-loop shape as generateNudge (see its doc
         // comment for the motivating "rain outside..." incident) — applied to the whole digest
@@ -807,7 +954,9 @@ enum InsightService {
                     systemPrompt: WEEKLY_DIGEST_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .weeklyDigest,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: digestPlan,
+                    gemmaValidator: digestValidator
                 )
             } catch {
                 // Every path that reaches lastResult here already failed the grounding check
@@ -825,6 +974,8 @@ enum InsightService {
             // (this week only) via the flat sharesNoWordWithRecent backstop — not a second
             // scaled isUngrounded pass, which regressed live against a small corpus (see that
             // function's doc comment).
+            // Grammar-path output is verified by the plan's validator — see generateNudge.
+            if result.engine == .gemma, case .grammarConstrained = digestPlan { return result }
             guard isUngrounded(result.text, sourceEntries: sourceEntries)
                 || sharesNoWordWithRecent(result.text, recentEntries: recentEntries) else { return result }
 
@@ -860,8 +1011,24 @@ enum InsightService {
     // that alone covers everything the prompt draws vocabulary from — see
     // buildMonthlyReportMessage's recentBlock/backgroundBlock, both sourced from these two sets).
     static func generateMonthlyReport(monthEntries: [Entry], allEntries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context guard as generateNudge — see hasReadableContext's doc comment.
+        let monthEntries = monthEntries.filter(hasReadableContext)
+        let allEntries = allEntries.filter(hasReadableContext)
+        guard !monthEntries.isEmpty else {
+            throw InsightError.serviceUnavailable("no readable entries to ground a monthly report in")
+        }
         let languageInstruction = responseLanguageInstruction(for: responseLanguageTarget(from: monthEntries), task: .monthlyReport)
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
+        let grounded = groundedMonthlyPlan(monthEntries: monthEntries)
+        let localized = localizedGroundedMonthly(monthEntries: monthEntries)
+        let monthlyPlan = localized?.plan ?? grounded.plan
+        let monthlyValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
+            try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
+        })
+        if case .unsuitable = monthlyPlan, !LocalLLMService.prefersFoundationModels {
+            // Gemma-only device and nothing quotable this month (only one- or two-word entries).
+            return (monthlyReportUngroundedFallback, .gemma)
+        }
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -873,7 +1040,9 @@ enum InsightService {
                     systemPrompt: MONTHLY_REPORT_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .monthlyReport,
-                    responseLanguageInstruction: languageInstruction
+                    responseLanguageInstruction: languageInstruction,
+                    gemmaPlan: monthlyPlan,
+                    gemmaValidator: monthlyValidator
                 )
             } catch {
                 guard let previous = lastResult else { throw error }
@@ -885,6 +1054,8 @@ enum InsightService {
             // threshold on coincidental overlap. `monthEntries` alone (this month only) via the
             // flat sharesNoWordWithRecent backstop, not a second scaled isUngrounded pass (see
             // that function's doc comment for why the scaled version regressed on a small corpus).
+            // Grammar-path output is verified by the plan's validator — see generateNudge.
+            if result.engine == .gemma, case .grammarConstrained = monthlyPlan { return result }
             guard isUngrounded(result.text, sourceEntries: allEntries)
                 || sharesNoWordWithRecent(result.text, recentEntries: monthEntries) else { return result }
 
@@ -912,12 +1083,38 @@ enum InsightService {
     )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        // Same empty-context filter as generateNudge/generateWeeklyDigest/generateMonthlyReport
+        // — see hasReadableContext's doc comment. Unlike those, no throw-when-empty here: Ask
+        // already has its own honest "you haven't written about this yet" sentinel for when
+        // nothing relevant is found (askNoAnswerPhrase below), which is the right UX for an
+        // interactive query with no readable entries, not a thrown error.
+        let entries = entries.filter(hasReadableContext)
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let relevant = SearchService.search(query: question, in: sorted, limit: 10)
         let relevantIDs = Set(relevant.map(\.id))
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
+        let grounded = groundedAskPlan(question: question, pool: relevant + Array(background), languageCode: target?.code)
+        // `noAnswer` only means there's nothing quotable at all (no entries with a usable
+        // sentence). There's deliberately no "this topic isn't in your entries" shortcut on Gemma:
+        // measured 2026-09-27, the word/embedding check it relied on said "not written about" for
+        // answerable questions — 3/10 in English ("Do I exercise?" over a gym entry, "How are my
+        // finances?" over a rent/budget entry, "What was my mood like?"), 2/11 in Italian — and
+        // the only other judge on Gemma, the model itself, took a grammar-offered no-answer 24/24
+        // even for answerable questions. The closest sentences under "The closest things you've
+        // written:" is honest; a wrong "you haven't written about this" isn't.
+        if grounded.noAnswer && !LocalLLMService.prefersFoundationModels {
+            return (askNoAnswerPhrase(for: target), .gemma)
+        }
+        let localized = localizedGroundedAsk(question: question, pool: relevant + Array(background))
+        let askPlan = grounded.noAnswer ? .unsuitable : (localized?.plan ?? grounded.plan)
+        let askValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
+            try validateGroundedAsk(text, quoteOptions: grounded.quoteOptions)
+        })
+        if case .unsuitable = askPlan, !grounded.noAnswer, !LocalLLMService.prefersFoundationModels {
+            return (askNoAnswerPhrase(for: target), .gemma)
+        }
         return try await localGenerate(
             systemPrompt: ASK_SYSTEM,
             userMessage: buildAskMessage(
@@ -927,7 +1124,9 @@ enum InsightService {
             ),
             task: .ask,
             responseLanguageInstruction: languageInstruction,
-            askNoAnswerPhrase: askNoAnswerPhrase(for: target)
+            askNoAnswerPhrase: askNoAnswerPhrase(for: target),
+            gemmaPlan: askPlan,
+            gemmaValidator: askValidator
         )
     }
 
@@ -1026,6 +1225,17 @@ enum InsightService {
         )
     }
 
+    /// The AI voice's form of address where the fixed Gemma text (`groundedLocales`, and the
+    /// existing AI replies like `askNoAnswerPhrases`) already says tu/ты. Measured on Foundation
+    /// Models (synthetic entries, N=10 per task): Russian said вы in 3/30 nudges, digests and
+    /// follow-ups without it, 0/30 with it. French was already 0/30 (its "vous" hits were plural,
+    /// "entre vous et Karan"); the line is a safeguard there. Safety-filter refusals unchanged
+    /// (ru nudges 4/20 without, 3/20 with).
+    private static let responseRegisterInstructions: [String: String] = [
+        "fr": #"Address the user informally as "tu", never "vous"."#,
+        "ru": #"Address the user informally as "ты", never "вы"."#,
+    ]
+
     // Gemma's system prompts are English, so without an explicit directive it tends
     // to answer in English even when the journal content is not. Emotion detection
     // is intentionally skipped because it must return the persisted English mood key.
@@ -1034,6 +1244,12 @@ enum InsightService {
         // one of two fixed English tokens (GROUNDED/FABRICATED), not localized prose.
         guard task != .emotion, task != .groundingVerification else { return nil }
         guard let target = target ?? responseLanguageTargetFromCurrentLocale() else { return nil }
+        // Every base prompt is already English. For an English target the templates below read
+        // "Respond only in English. Do not use English unless quoting the user's own words." — a
+        // direct contradiction that shipped to every English-writing user from 0e31e03 (2026-07-05)
+        // until 2026-09-26. Foundation Models shrugged it off; a 1B model can't.
+        guard target.code != "en" else { return nil }
+        let register = responseRegisterInstructions[target.code].map { " " + $0 } ?? ""
 
         switch task {
         case .weeklyDigest, .monthlyReport:
@@ -1042,10 +1258,10 @@ enum InsightService {
             Use exactly these section labels instead of any English labels listed above:
             \(labels.joined(separator: "\n"))
 
-            Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.
+            Write all reflection prose after each label only in \(target.name). Do not use English in the prose unless quoting the user's own words.\(register)
             """
         case .dailyNudge, .ask, .followUp:
-            return "Respond only in \(target.name). Do not use English unless quoting the user's own words."
+            return "Respond only in \(target.name). Do not use English unless quoting the user's own words.\(register)"
         case .emotion, .groundingVerification:
             return nil
         }
@@ -1159,7 +1375,9 @@ enum InsightService {
         userMessage: String,
         task: LocalLLMTask,
         responseLanguageInstruction: String?,
-        askNoAnswerPhrase: String? = nil
+        askNoAnswerPhrase: String? = nil,
+        gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt,
+        gemmaValidator: ((String) throws -> String)? = nil
     ) async throws -> (text: String, engine: LLMEngine) {
         let systemPrompt: String
         if let instruction = responseLanguageInstruction {
@@ -1174,21 +1392,37 @@ enum InsightService {
         } else {
             finalSystemPrompt = systemPrompt
         }
+        // Grammar-constrained Gemma output has its own shape (a verbatim quote, which the generic
+        // first-person check would reject for containing the writer's own "my"/"I"), so it gets
+        // the plan's validator instead. Foundation Models output always takes the generic path.
+        func validated(_ result: (text: String, engine: LLMEngine)) throws -> String {
+            if result.engine == .gemma, case .grammarConstrained = gemmaPlan, let gemmaValidator {
+                return try gemmaValidator(result.text)
+            }
+            return try validate(result.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
+        }
+        // The tu/ты register line is for Foundation Models only. On llmrig it barely moved Gemma's
+        // register (French follow-ups 7/10 -> 6/10 vous, Russian 10/10 -> 8/10 вы) and made it
+        // tack ", tu ?" onto 3/10 French questions, so Gemma's copy of a shared prompt drops it.
+        var plan = gemmaPlan
+        if case .samePrompt = gemmaPlan {
+            let gemmaSystemPrompt = responseRegisterInstructions.values.reduce(finalSystemPrompt) {
+                $0.replacingOccurrences(of: " " + $1, with: "")
+            }
+            if gemmaSystemPrompt != finalSystemPrompt { plan = .ownSystemPrompt(gemmaSystemPrompt) }
+        }
         do {
             do {
-                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                let validated = try validate(first.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, first.engine)
+                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
+                return (try validated(first), first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task)
-                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, second.engine)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan)
+                return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task)
-                let validated = try validate(second.text, for: task, askNoAnswerPhrase: askNoAnswerPhrase)
-                return (validated, second.engine)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
+                return (try validated(second), second.engine)
             }
         } catch let error as InsightError {
             throw error
@@ -1197,13 +1431,20 @@ enum InsightService {
         }
     }
 
-    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> (text: String, engine: LLMEngine) {
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
         let raw = try await LLMGenerationQueue.shared.run {
             try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
                 userMessage: userMessage,
-                task: task
+                task: task,
+                gemmaPlan: gemmaPlan
             )
+        }
+        // Grammar-constrained output is already in final shape and holds a verbatim quote of the
+        // user's own words. The cleaners below rewrite first person ("I felt" -> "you felt") and
+        // strip brackets/asterisks — applied here they would corrupt the quote.
+        if raw.engine == .gemma, case .grammarConstrained = gemmaPlan {
+            return (raw.text.trimmingCharacters(in: .whitespacesAndNewlines), raw.engine)
         }
 
         let cleaned: String
@@ -2173,6 +2414,1246 @@ extension Entry {
     }
 }
 
+// MARK: - Grounded daily nudge (Gemma)
+//
+// On Gemma the factual part of a daily reflection is a verbatim quote, enforced by a GBNF grammar
+// whose only allowed quotes are sentences cut from the user's own entry — so it can't swap people,
+// turn a plan into an event, or invent a scene; those were the measured failure modes of every
+// free-paraphrase prompt (tools/llmrig/README.md). After the quote the grammar allows only
+// "That sounds …"/"You seem …" plus an optional "Maybe …"/"Try …", in lowercase letters: no
+// capitals means no names, so nobody can be credited with anything outside the quote.
+
+extension InsightService {
+    static let groundedNudgePrefix = "You wrote, \""
+    static let groundedNudgeMaxQuoteChars = 200
+    static let groundedNudgeMinQuoteWords = 4
+    // Bounds the grammar's size. Entries rarely have more quotable sentences than this; a long
+    // one just offers its first 24.
+    static let groundedNudgeMaxQuoteOptions = 24
+    private static let groundedNudgeWindowWords = 25
+
+    /// The Gemma plan for a daily nudge, with the quote options its validator needs.
+    /// English only: the grammar's fixed phrases and lowercase-only character class are English.
+    /// Other languages keep DAILY_NUDGE_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
+    static func groundedNudgePlan(recent: [Entry], background: [Entry], recentNudges: [String]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        let source = groundedNudgeSourceEntries(recent)
+        let options = groundedNudgeQuoteOptions(from: source, excludingQuotesIn: recentNudges)
+        guard !options.isEmpty else { return (.unsuitable, []) }
+        return (.grammarConstrained(userMessage: groundedNudgeUserMessage(source), grammar: groundedNudgeGrammar(quotes: options)), options)
+    }
+
+    /// The most recent entry plus any others written the same day. Only these are quoted: with
+    /// earlier entries in view, Gemma blended yesterday into today ("working from home" pulled
+    /// from the previous entry).
+    static func groundedNudgeSourceEntries(_ recent: [Entry]) -> [Entry] {
+        guard let newest = recent.first else { return [] }
+        return recent.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: newest.createdAt) }
+    }
+
+    static func groundedNudgeUserMessage(_ source: [Entry]) -> String {
+        let isToday = source.first.map { Calendar.current.isDateInToday($0.createdAt) } ?? true
+        let heading: String
+        switch (isToday, source.count) {
+        case (true, 1): heading = "Today's journal entry:"
+        case (true, _): heading = "Today's journal entries:"
+        case (false, 1): heading = "Most recent journal entry:"
+        case (false, _): heading = "Most recent journal entries:"
+        }
+        return "\(heading)\n\(formatEntries(source, maxChars: 3_000))\n\n\(DAILY_NUDGE_GEMMA_INSTRUCTIONS)"
+    }
+
+    /// Verbatim sentences (or clause/word-window chunks of over-long ones) from the entries,
+    /// deduped, minus any quoted by a recent nudge so routine entries ("Usual gym…") don't
+    /// produce the same reflection two days running — unless that would leave nothing.
+    static func groundedNudgeQuoteOptions(from entries: [Entry], excludingQuotesIn recentNudges: [String] = []) -> [String] {
+        var seen = Set<String>()
+        var options: [String] = []
+        for entry in entries {
+            for quote in groundedQuoteCandidates(of: entry) where seen.insert(quote).inserted {
+                options.append(quote)
+            }
+        }
+        let fresh = options.filter { option in
+            !recentNudges.contains { $0.hasPrefix(groundedNudgePrefix + option + "\"") }
+        }
+        return Array((fresh.isEmpty ? options : fresh).prefix(groundedNudgeMaxQuoteOptions))
+    }
+
+    /// Quotable sentences from an entry's text plus any voice transcript that isn't the text itself.
+    static func groundedQuoteCandidates(of entry: Entry) -> [String] {
+        var texts = [entry.text]
+        for note in entry.voiceNotes {
+            if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text {
+                texts.append(transcript)
+            }
+        }
+        return texts.flatMap(groundedNudgeQuoteCandidates(in:))
+    }
+
+    static func groundedNudgeQuoteCandidates(in text: String) -> [String] {
+        var result: [String] = []
+        for rawLine in text.components(separatedBy: .newlines) {
+            let collapsed = rawLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            let line = collapsed.replacing(/^(?:[-*•◦▪·☐☑✓✔]|\d{1,3}[.)]|\[[ xX]\])\s+/, with: "")
+            guard !line.isEmpty else { continue }
+            for sentence in splitAfter(line, boundaries: ".!?…", immediate: "。！？") {
+                for chunk in fittedToQuoteLength(sentence) {
+                    let trimmed = chunk.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:—–-，、；："))
+                    // Chinese/Japanese don't put spaces between words, so "4 words" is measured
+                    // as 8 characters there instead.
+                    let longEnough = containsCJK(trimmed)
+                        ? trimmed.count >= groundedMinCJKQuoteChars
+                        : trimmed.split(separator: " ").count >= groundedNudgeMinQuoteWords
+                    if longEnough && trimmed.count <= groundedNudgeMaxQuoteChars {
+                        result.append(trimmed)
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    static let groundedMinCJKQuoteChars = 8
+    private static let groundedCJKWindowChars = 60
+
+    static func containsCJK(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30FF, 0x3400...0x9FFF, 0xAC00...0xD7AF, 0x1100...0x11FF: return true
+            default: return false
+            }
+        }
+    }
+
+    /// Splits after any `boundaries` character that's followed by a space, and right after any
+    /// `immediate` character (CJK punctuation, which takes no space), keeping every character —
+    /// concatenating the pieces reproduces `text` exactly, so any run of pieces is verbatim.
+    private static func splitAfter(_ text: String, boundaries: String, immediate: String = "") -> [String] {
+        var pieces: [String] = []
+        var current = ""
+        let chars = Array(text)
+        for (i, c) in chars.enumerated() {
+            current.append(c)
+            if immediate.contains(c) || (c == " " && i > 0 && boundaries.contains(chars[i - 1])) {
+                pieces.append(current)
+                current = ""
+            }
+        }
+        if !current.isEmpty { pieces.append(current) }
+        return pieces
+    }
+
+    /// A sentence within the quote limit as-is; a longer one cut into consecutive clause runs;
+    /// a clause still too long (unpunctuated voice transcripts) cut into word windows.
+    private static func fittedToQuoteLength(_ sentence: String) -> [String] {
+        guard sentence.count > groundedNudgeMaxQuoteChars else { return [sentence] }
+        var chunks: [String] = []
+        var current = ""
+        for clause in splitAfter(sentence, boundaries: ",;:—–", immediate: "，、；：") {
+            if clause.count > groundedNudgeMaxQuoteChars {
+                if !current.isEmpty { chunks.append(current); current = "" }
+                if !clause.contains(" ") {
+                    // Unspaced CJK run: fixed character windows instead of word windows.
+                    let chars = Array(clause)
+                    stride(from: 0, to: chars.count, by: groundedCJKWindowChars).forEach { start in
+                        chunks.append(String(chars[start..<min(start + groundedCJKWindowChars, chars.count)]))
+                    }
+                    continue
+                }
+                let words = clause.split(separator: " ")
+                stride(from: 0, to: words.count, by: groundedNudgeWindowWords).forEach { start in
+                    chunks.append(words[start..<min(start + groundedNudgeWindowWords, words.count)].joined(separator: " "))
+                }
+            } else if current.count + clause.count > groundedNudgeMaxQuoteChars {
+                chunks.append(current)
+                current = clause
+            } else {
+                current += clause
+            }
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks
+    }
+
+    static func groundedNudgeGrammar(quotes: [String]) -> String {
+        let alternatives = quotes.map(gbnfLiteral).joined(separator: " | ")
+        return """
+        root ::= "You wrote, \\"" quote "\\" " feel (" " tip)?
+        quote ::= \(alternatives)
+        feel ::= ("That sounds " | "You seem ") words "."
+        tip ::= ("Maybe " | "Try ") words "."
+        words ::= [a-z0-9 ,;:'’()-]{6,150}
+        """
+    }
+
+    private static func gbnfLiteral(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// True for any insight produced by a grammar-constrained Gemma path (English or localized
+    /// nudge, digest, monthly report, Ask). Such content was verified quote-by-quote when it was
+    /// generated, so passes that re-process saved insights must leave it alone: the generic
+    /// cleaner rewrites "I felt" → "you felt" inside the user's own quote, and the word-overlap
+    /// audits flag correct Chinese/Japanese output (no spaces to split words on). Those passes run
+    /// once per device, so a new or restored device runs them over content synced from another.
+    static func isGrammarGrounded(_ content: String) -> Bool {
+        if content.hasPrefix(groundedNudgePrefix) || content.hasPrefix(groundedAskPrefix)
+            || content.contains("WHAT'S BUILDING: You wrote, \"")
+            || content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
+            return true
+        }
+        return groundedLocales.values.contains { loc in
+            content.hasPrefix(loc.youWrote + loc.open) || content.hasPrefix(loc.askPrefix)
+                || content.contains(loc.energyHard) || content.contains(loc.energyGood)
+                || content.contains(loc.becomingSuffix) || content.contains(loc.releaseFallback)
+        }
+    }
+
+    /// The part of a nudge that may leave the app (home-screen widget, lock-screen preview): a
+    /// grounded nudge's opening quote is the user's own journal sentence, so outside the app only
+    /// the "You seem…/That sounds…" line after it is shown. The line after the quote can't contain
+    /// a double quote (the grammar's character class excludes it), so the quote ends at the last
+    /// `" `. Any other nudge is returned unchanged.
+    static func nudgeTextForOutsideApp(_ text: String) -> String {
+        // (opening, closer) for English and every localized grounded nudge. Neither the English
+        // line after the quote nor the fixed localized lines contain their language's closing mark.
+        let shapes = [(groundedNudgePrefix, "\" ")] + groundedLocales.values.map { ($0.youWrote + $0.open, $0.close + $0.joiner) }
+        for (opening, closer) in shapes where text.hasPrefix(opening) {
+            guard let close = text.range(of: closer, options: .backwards),
+                  close.lowerBound > text.index(text.startIndex, offsetBy: opening.count)
+            else { continue }
+            let rest = text[close.upperBound...].trimmingCharacters(in: .whitespaces)
+            return rest.isEmpty ? text : rest
+        }
+        return text
+    }
+
+    /// Re-checks the grammar's guarantees after generation. The wrapper's sampler silently drops a
+    /// grammar that fails to parse, and unconstrained Gemma asked for a quote invents one — so
+    /// "the grammar should guarantee it" isn't trusted: the quote must be exactly one of the
+    /// options and what follows must have the grammar's shape and no journal-writer first person.
+    static func validateGroundedNudge(_ text: String, quoteOptions: [String]) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let quote = quoteOptions.first(where: { trimmed.hasPrefix(groundedNudgePrefix + $0 + "\" ") }) else {
+            throw InsightError.incompleteResponse
+        }
+        let afterQuote = String(trimmed.dropFirst(groundedNudgePrefix.count + quote.count + 2))
+        // After the quote Mirror is talking to "you", so any first person there is the model
+        // slipping into the writer's voice ("…and my stomach still hurts"). Stricter than
+        // containsJournalWriterFirstPerson, whose "my" patterns only cover a fixed noun list.
+        guard afterQuote.hasPrefix("That sounds ") || afterQuote.hasPrefix("You seem "),
+              endsAsCompleteSentence(afterQuote),
+              !containsGroundedFirstPerson(afterQuote)
+        else { throw InsightError.incompleteResponse }
+        return trimmed
+    }
+
+    private static let groundedNudgeFirstPersonWords: Set<String> = [
+        "i", "i'm", "i've", "i'd", "i'll", "me", "my", "mine", "myself",
+    ]
+
+    private static func containsGroundedFirstPerson(_ text: String) -> Bool {
+        let words = Set(text.lowercased()
+            .replacingOccurrences(of: "’", with: "'")
+            .split { !$0.isLetter && $0 != "'" }
+            .map(String.init))
+        return !words.isDisjoint(with: groundedNudgeFirstPersonWords)
+    }
+
+    // MARK: Weekly digest
+
+    static let groundedDigestMaxOptionsPerBucket = 24
+    static let groundedDigestHardMoodWords = ["drained", "stressed", "tired"]
+    static let groundedDigestGoodMoodWords = ["light", "calm", "content"]
+
+    /// English-only, like the nudge. Quote options come from this week's entries, split by the
+    /// entry's mood so the grammar can bind "most drained" to hard-mood sentences, "most light" to
+    /// good-mood ones, WHAT'S BUILDING to good-mood and WATCH OUT FOR to hard-mood. An empty bucket
+    /// (a week of only good days) falls back to every option rather than dropping the section.
+    static func groundedDigestPlan(weekEntries: [Entry], languageSource: [Entry]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: languageSource) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        var all: [String] = [], good: [String] = [], hard: [String] = []
+        var seen = Set<String>()
+        for entry in weekEntries {
+            for quote in groundedQuoteCandidates(of: entry) where seen.insert(quote).inserted {
+                all.append(quote)
+                guard let mood = entry.mood else { continue }
+                if MirrorTheme.negativeMoods.contains(mood) { hard.append(quote) } else { good.append(quote) }
+            }
+        }
+        guard !all.isEmpty else { return (.unsuitable, []) }
+        let cap = groundedDigestMaxOptionsPerBucket
+        let goodOptions = Array((good.isEmpty ? all : good).prefix(cap))
+        let hardOptions = Array((hard.isEmpty ? all : hard).prefix(cap))
+        let message = "This week's journal entries:\n\(formatEntries(weekEntries, maxChars: 4_000))\n\n\(WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)"
+        let grammar = groundedDigestGrammar(good: goodOptions, hard: hardOptions)
+        return (.grammarConstrained(userMessage: message, grammar: grammar), Array(Set(goodOptions + hardOptions)))
+    }
+
+    static func groundedDigestGrammar(good: [String], hard: [String]) -> String {
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        let alt: ([String]) -> String = { $0.map(gbnfLiteral).joined(separator: " | ") }
+        let hardWords = groundedDigestHardMoodWords.map { "\"\($0)\"" }.joined(separator: " | ")
+        let goodWords = groundedDigestGoodMoodWords.map { "\"\($0)\"" }.joined(separator: " | ")
+        return """
+        root ::= theme "\\n" energy "\\n" building "\\n" watch "\\n" boost "\\n" next
+        theme ::= "\(labels[0]): A week of " words "."
+        energy ::= "\(labels[1]): You seemed most " ((\(hardWords)) " when you wrote, \\"" hardq | (\(goodWords)) " when you wrote, \\"" goodq) "\\" " ("That sounds " | "It sounds like ") words "."
+        building ::= "\(labels[2]): You wrote, \\"" goodq "\\" " ("That sounds like " | "It feels like ") words "."
+        watch ::= "\(labels[3]): You wrote, \\"" hardq "\\" " ("Watch whether " | "Notice if ") words "."
+        boost ::= "\(labels[4]): " ("Try " | "Maybe ") words "."
+        next ::= "\(labels[5]): " ("Next week, " | "Maybe ") words "."
+        goodq ::= \(alt(good))
+        hardq ::= \(alt(hard))
+        words ::= [a-z0-9 ,;:'’()-]{8,120}
+        """
+    }
+
+    // MARK: Ask
+
+    static let groundedAskPrefix = "The closest things you've written: "
+    static let groundedAskMaxOptions = 40
+
+    private static let askQuestionStopWords: Set<String> = [
+        "how", "what", "when", "where", "who", "whom", "why", "which", "has", "have", "had", "been",
+        "my", "me", "i", "i'm", "am", "is", "are", "was", "were", "do", "does", "did", "doing", "going",
+        "the", "a", "an", "to", "of", "at", "in", "on", "for", "with", "about", "from", "and", "or",
+        "lately", "recently", "ever", "any", "anything", "something", "it", "its", "this", "that",
+        "these", "those", "be", "feel", "feeling", "felt", "think", "things", "thing", "much", "many",
+        "can", "could", "should", "would", "will", "more", "most", "time", "times", "really",
+    ]
+    static let askHardLeanWords: Set<String> = [
+        "stress", "stressed", "stressing", "stressful", "worried", "worry", "worrying", "anxious",
+        "anxiety", "sad", "upset", "angry", "anger", "frustrated", "frustrating", "overwhelmed",
+        "tired", "exhausted", "drained", "lonely", "scared", "afraid", "hurt", "bothering",
+        "bother", "struggle", "struggling", "difficult", "hardest", "worst", "down",
+    ]
+    static let askGoodLeanWords: Set<String> = [
+        "happy", "happiest", "joy", "joyful", "grateful", "gratitude", "calm", "peaceful", "excited",
+        "proud", "fun", "best", "love", "loved", "enjoy", "enjoyed", "glad", "hopeful",
+    ]
+
+    enum AskLean { case hard, good }
+
+    static func askLean(of question: String) -> AskLean? {
+        let words = Set(question.lowercased().split { !$0.isLetter }.map(String.init))
+        if !words.isDisjoint(with: askHardLeanWords) { return .hard }
+        if !words.isDisjoint(with: askGoodLeanWords) { return .good }
+        return nil
+    }
+
+    // Irregular past forms common in journal writing, so "How has my sleep been?" finds "slept".
+    private static let askIrregularStems: [String: String] = [
+        "slept": "sleep", "woke": "wake", "ate": "eat", "went": "go", "gone": "go", "ran": "run",
+        "met": "meet", "spent": "spend", "bought": "buy", "drank": "drink", "wrote": "write",
+        "saw": "see", "seen": "see", "lost": "lose", "left": "leave", "told": "tell", "said": "say",
+        "made": "make", "took": "take", "got": "get", "came": "come", "gave": "give", "found": "find",
+        "cried": "cry", "tried": "try", "thought": "think", "brought": "bring", "taught": "teach",
+        "fought": "fight", "kept": "keep", "sat": "sit", "paid": "pay", "sold": "sell", "held": "hold",
+    ]
+
+    static func askStem(_ word: String) -> String {
+        let lower = word.lowercased()
+        if let irregular = askIrregularStems[lower] { return irregular }
+        for suffix in ["ing", "ed", "es", "s", "ly"] where lower.hasSuffix(suffix) && lower.count - suffix.count >= 3 {
+            return String(lower.dropLast(suffix.count))
+        }
+        return lower
+    }
+
+    private static func askStems(in text: String) -> Set<String> {
+        Set(text.lowercased().split { !$0.isLetter && $0 != "'" }.map { askStem(String($0)) })
+    }
+
+    /// The question's content-word stems, widened with each word's nearest English word-embedding
+    /// neighbours when that embedding is available ("sleep" → nap, asleep, night, restful…). Used
+    /// to order quote options only.
+    static func askTerms(for question: String) -> Set<String> {
+        let words = question.lowercased().split { !$0.isLetter && $0 != "'" }.map(String.init)
+            .filter { $0.count >= 3 && !askQuestionStopWords.contains($0) }
+        var terms = Set(words.map(askStem))
+        if let embedding = NLEmbedding.wordEmbedding(for: .english) {
+            for word in words {
+                embedding.neighbors(for: word, maximumCount: 8).forEach { terms.insert(askStem($0.0)) }
+            }
+        }
+        return terms
+    }
+
+    static func askEntryMentions(_ terms: Set<String>, _ entry: Entry) -> Bool {
+        !askStems(in: entry.insightContext).isDisjoint(with: terms)
+    }
+
+    /// English-only. The answer is 1–2 dated verbatim quotes; `noAnswer` only when there's nothing
+    /// quotable at all. Entries mentioning the question's terms (stems + embedding neighbours) are
+    /// offered first — ordering only, never a "not written about" verdict (see `ask`).
+    static func groundedAskPlan(question: String, pool: [Entry], languageCode: String?) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String], noAnswer: Bool) {
+        guard (languageCode ?? "en") == "en" else { return (.samePrompt, [], false) }
+        let lean = askLean(of: question)
+        let terms = askTerms(for: question)
+        let mentioning = terms.isEmpty ? [] : pool.filter { askEntryMentions(terms, $0) }
+        var candidates: [Entry]
+        switch lean {
+        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
+        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
+        case nil: candidates = mentioning + pool.filter { entry in !mentioning.contains { $0.id == entry.id } }
+        }
+        if candidates.isEmpty { candidates = pool }
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d MMM"
+        let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
+        var options: [String] = []
+        var seen = Set<String>()
+        for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
+            for (entry, quotes) in perEntry where round < quotes.count && seen.insert(quotes[round]).inserted {
+                options.append("On \(dayFormatter.string(from: entry.createdAt)), you wrote, \"\(quotes[round])\"")
+            }
+        }
+        options = Array(options.prefix(groundedAskMaxOptions))
+        guard !options.isEmpty else { return (.unsuitable, [], true) }
+        let message = "Journal entries:\n\(formatEntries(candidates, maxChars: 3_800))\n\n\(ASK_GEMMA_INSTRUCTIONS)Question: \(question)"
+        let grammar = """
+        root ::= "\(groundedAskPrefix)" datedq (" " datedq)?
+        datedq ::= \(options.map(gbnfLiteral).joined(separator: " | "))
+        """
+        return (.grammarConstrained(userMessage: message, grammar: grammar), options, false)
+    }
+
+    /// The prefix, then one or two quote options separated by a single space, nothing else. The
+    /// grammar can't forbid picking the same quote twice (the simulator pipeline did, twice), so a
+    /// repeat is dropped here rather than shown.
+    static func validateGroundedAsk(_ text: String, quoteOptions: [String]) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix(groundedAskPrefix) else { throw InsightError.incompleteResponse }
+        var rest = Substring(trimmed.dropFirst(groundedAskPrefix.count))
+        var quotes: [String] = []
+        while !rest.isEmpty {
+            guard quotes.count < 2, let quote = quoteOptions.first(where: { rest.hasPrefix($0) }) else { throw InsightError.incompleteResponse }
+            rest = rest.dropFirst(quote.count)
+            if rest.hasPrefix(" ") { rest = rest.dropFirst() }
+            if !quotes.contains(quote) { quotes.append(quote) }
+        }
+        guard !quotes.isEmpty else { throw InsightError.incompleteResponse }
+        return groundedAskPrefix + quotes.joined(separator: " ")
+    }
+
+    // MARK: Monthly report
+
+    // A MOMENT body is "On 23 Sep, you wrote, \"<quote>\" It seems to have <≤16 words>." and must
+    // stay inside validateMonthlyReport's 350-char section limit, so monthly quotes are shorter.
+    static let groundedMonthlyMaxQuoteChars = 170
+    static let groundedMonthlyMaxMoments = 40
+    // Kept out of WHAT WANTS TO BE RELEASED, whose fixed opener is "Maybe it's time to let go of":
+    // a simulator run paired it with "Grandpa's birthday would have been today." Grief isn't a
+    // friction to drop. These entries still reach A MOMENT THAT SHIFTED SOMETHING.
+    static let groundedMonthlyGriefMoods: Set<String> = ["Sad", "Numb"]
+
+    /// English-only. Options are taken round-robin across the month's entries (first sentence of
+    /// each entry, then second…) so a busy last week can't crowd out the rest of the month.
+    static func groundedMonthlyPlan(monthEntries: [Entry]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
+        let target = responseLanguageTarget(from: monthEntries) ?? responseLanguageTargetFromCurrentLocale()
+        guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
+        let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let perEntry = entries.map { entry in
+            (entry, groundedQuoteCandidates(of: entry).filter { $0.count <= groundedMonthlyMaxQuoteChars })
+        }
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d MMM"
+        var moments: [String] = [], good: [String] = [], hard: [String] = []
+        var seen = Set<String>()
+        let rounds = perEntry.map(\.1.count).max() ?? 0
+        for round in 0..<rounds {
+            for (entry, quotes) in perEntry where round < quotes.count {
+                let quote = quotes[round]
+                guard seen.insert(quote).inserted else { continue }
+                moments.append("On \(dayFormatter.string(from: entry.createdAt)), you wrote, \"\(quote)\"")
+                guard let mood = entry.mood else { continue }
+                if !MirrorTheme.negativeMoods.contains(mood) {
+                    good.append(quote)
+                } else if !groundedMonthlyGriefMoods.contains(mood) {
+                    hard.append(quote)
+                }
+            }
+        }
+        guard !moments.isEmpty else { return (.unsuitable, []) }
+        let all = Array(seen)
+        let cap = groundedDigestMaxOptionsPerBucket
+        let goodOptions = Array((good.isEmpty ? all : good).prefix(cap))
+        let hardOptions = Array((hard.isEmpty ? all : hard).prefix(cap))
+        let momentOptions = Array(moments.prefix(groundedMonthlyMaxMoments))
+        let message = "This month's journal entries:\n\(formatEntries(entries, maxChars: 5_000))\n\n\(MONTHLY_REPORT_GEMMA_INSTRUCTIONS)"
+        let grammar = groundedMonthlyGrammar(moments: momentOptions, good: goodOptions, hard: hardOptions)
+        return (.grammarConstrained(userMessage: message, grammar: grammar), momentOptions + goodOptions + hardOptions)
+    }
+
+    static func groundedMonthlyGrammar(moments: [String], good: [String], hard: [String]) -> String {
+        let labels = monthlyReportSectionLabels.map { $0["en"] ?? "" }
+        let alt: ([String]) -> String = { $0.map(gbnfLiteral).joined(separator: " | ") }
+        return """
+        root ::= image "\\n" tension "\\n" moment "\\n" becoming "\\n" release "\\n" question
+        image ::= "\(labels[0]): A " phrase "."
+        tension ::= "\(labels[1]): You seem pulled between " phrase "."
+        moment ::= "\(labels[2]): " momentq " " ("That might have " | "It seems to have ") words "."
+        becoming ::= "\(labels[3]): You wrote, \\"" goodq "\\" You seem to be becoming someone who " words "."
+        release ::= "\(labels[4]): You wrote, \\"" hardq "\\" Maybe it's time to let go of " words "."
+        question ::= "\(labels[5]): " ("How can you " | "What would it take for you to " | "Where could you " | "What if you ") phrase "?"
+        momentq ::= \(alt(moments))
+        goodq ::= \(alt(good))
+        hardq ::= \(alt(hard))
+        words ::= w (","? " " w){3,16}
+        phrase ::= w (","? " " w){2,14}
+        w ::= "a" | [a-z0-9’'-]{2,20}
+        """
+    }
+
+    /// Re-checks the monthly grammar's guarantees: six lines in label order with their fixed
+    /// openers, every quote (moments include their date) exactly an option, the usual 15–350 char
+    /// complete-sentence bodies, a question that ends in "?", and no first person outside quotes.
+    static func validateGroundedMonthly(_ text: String, quoteOptions: [String]) throws -> String {
+        let lines = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let labels = monthlyReportSectionLabels.map { $0["en"] ?? "" }
+        guard lines.count == labels.count else { throw InsightError.incompleteResponse }
+        // Fixed text before the quote option, per quoted section. A MOMENT option already carries
+        // its own "On 23 Sep, you wrote, \"…\"" wrapper, so its opener is empty and it closes on " ".
+        let openers: [Int: String] = [2: "", 3: "You wrote, \"", 4: "You wrote, \""]
+        for (index, line) in lines.enumerated() {
+            let head = labels[index] + ": "
+            guard line.hasPrefix(head) else { throw InsightError.incompleteResponse }
+            let body = String(line.dropFirst(head.count))
+            guard body.count >= 15, body.count <= 350, endsAsCompleteSentence(body) else { throw InsightError.incompleteResponse }
+            if index == 5 { guard body.hasSuffix("?") else { throw InsightError.incompleteResponse } }
+            var outsideQuote = body
+            if let opener = openers[index] {
+                guard body.hasPrefix(opener) else { throw InsightError.incompleteResponse }
+                let afterOpener = body.dropFirst(opener.count)
+                let closing = index == 2 ? " " : "\" "
+                guard let quote = quoteOptions.first(where: { afterOpener.hasPrefix($0 + closing) }) else { throw InsightError.incompleteResponse }
+                outsideQuote = opener + afterOpener.dropFirst(quote.count + closing.count)
+            }
+            guard !containsGroundedFirstPerson(outsideQuote) else { throw InsightError.incompleteResponse }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Re-checks the digest grammar's guarantees: six lines in label order, every quote exactly one
+    /// of the options, the validator's usual 20–400 char complete-sentence bodies, and no first
+    /// person outside the quotes (inside them it's the writer's own words).
+    static func validateGroundedDigest(_ text: String, quoteOptions: [String]) throws -> String {
+        let lines = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        guard lines.count == labels.count else { throw InsightError.incompleteResponse }
+        let moodWords = (groundedDigestHardMoodWords + groundedDigestGoodMoodWords).joined(separator: "|")
+        let quotePrefixes: [Int: String] = [1: "You seemed most (?:\(moodWords)) when you wrote, \"", 2: "You wrote, \"", 3: "You wrote, \""]
+        for (index, line) in lines.enumerated() {
+            let head = labels[index] + ": "
+            guard line.hasPrefix(head) else { throw InsightError.incompleteResponse }
+            let body = String(line.dropFirst(head.count))
+            guard body.count >= 20, body.count <= 400, endsAsCompleteSentence(body) else { throw InsightError.incompleteResponse }
+            var outsideQuote = body
+            if let pattern = quotePrefixes[index] {
+                guard let opener = body.range(of: "^" + pattern, options: .regularExpression) else { throw InsightError.incompleteResponse }
+                let afterOpener = body[opener.upperBound...]
+                guard let quote = quoteOptions.first(where: { afterOpener.hasPrefix($0 + "\" ") }) else { throw InsightError.incompleteResponse }
+                outsideQuote = String(body[..<opener.upperBound]) + afterOpener.dropFirst(quote.count + 2)
+            }
+            guard !containsGroundedFirstPerson(outsideQuote) else { throw InsightError.incompleteResponse }
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Grounded insights in other languages (Gemma)
+//
+// The English grammar path has the model write a short free line after the quote, kept to
+// lowercase letters so no names can appear. That doesn't carry over: German capitalises every
+// noun (the lowercase class mangled "unruhigen Abend" into "unruhigenabend"), and a Japanese
+// grammar with a negated character class was silently dropped by the sampler. What did work in
+// every language measured (de/es/ja/ru/zh on tools/llmrig, 2026-09-27) is the one thing the
+// model is reliable at: picking which of the entry's own sentences matters, from a grammar of
+// literal sentences only. So outside English, Gemma only picks the quote(s); everything around
+// them is fixed, pre-translated text chosen by the entry's mood. Baseline for comparison — the
+// shared prompt on Gemma in German/Spanish/Japanese invented scenes just like English ("Der Duft
+// von frisch gemähtem Gras…", "El sol se filtraba…", "夕焼けが空を染めて…").
+
+enum GroundedMoodBucket: Hashable {
+    case tired, stressed, sad, good, neutral
+
+    init(mood: String?) {
+        switch mood {
+        case "Drained": self = .tired
+        case "Anxious", "Overwhelmed", "Frustrated": self = .stressed
+        case "Sad", "Numb": self = .sad
+        case .some(let mood) where !MirrorTheme.negativeMoods.contains(mood): self = .good
+        default: self = .neutral
+        }
+    }
+
+    var isHard: Bool { self == .tired || self == .stressed || self == .sad }
+}
+
+/// Fixed text for one language. `pick*` are prompts (the model's only instructions); the rest
+/// is shown to the user verbatim around the quotes the model picked. `neutral` keys double as
+/// "mixed week/month". Generated from tools/i18n/grounded_locales.py — edit there, not here.
+struct GroundedLocale {
+    let open: String
+    let close: String
+    let joiner: String
+    let youWrote: String
+    let moodWord: [GroundedMoodBucket: String]
+    let pickNudge: String
+    let pickNeutral: String
+    let pickDigest: String
+    let pickAsk: String
+    let pickMonthly: String
+    let entryLabel: String
+    let weekLabel: String
+    let monthLabel: String
+    let entriesLabel: String
+    let questionLabel: String
+    let feel: [GroundedMoodBucket: [String]]
+    let theme: [GroundedMoodBucket: String]
+    let energyHard: String
+    let energyGood: String
+    let buildingSuffix: String
+    let watchSuffix: String
+    let boost: [GroundedMoodBucket: String]
+    let nextWeek: [GroundedMoodBucket: String]
+    let askPrefix: String
+    let monthImage: [GroundedMoodBucket: String]
+    let monthTension: [GroundedMoodBucket: String]
+    let monthQuestion: [GroundedMoodBucket: String]
+    /// Contains `{date}`, replaced with the moment's entry date in the user's locale.
+    let momentLead: String
+    let momentSuffix: String
+    let becomingSuffix: String
+    let releaseSuffix: String
+    /// Used when the month has no hard, non-grief entry to quote under WHAT WANTS TO BE RELEASED.
+    let releaseFallback: String
+}
+
+extension InsightService {
+    static let groundedLocales: [String: GroundedLocale] = [
+        "de": GroundedLocale(
+            open: "„",
+            close: "“",
+            joiner: " ",
+            youWrote: "Du hast geschrieben: ",
+            moodWord: [.tired: "erschöpft", .stressed: "gestresst", .sad: "traurig", .good: "gut"],
+            pickNudge: "Kopiere Wort für Wort den Satz aus dem Tagebucheintrag, der am besten erklärt, warum sich die Person {mood} fühlte. Gib nur diesen Satz aus.",
+            pickNeutral: "Kopiere Wort für Wort den Satz aus dem Tagebucheintrag, der das Wichtigste des Tages zeigt. Gib nur diesen Satz aus.",
+            pickDigest: "Kopiere drei Sätze Wort für Wort aus den Tagebucheinträgen, jeden in einer eigenen Zeile: zuerst den Satz, der zeigt, wann die Person am erschöpftesten wirkte, dann einen Satz über etwas Gutes, das wächst, dann einen Satz über etwas, das sie belasten könnte. Gib nur diese drei Sätze aus.",
+            pickAsk: "Kopiere Wort für Wort den einen Satz (oder höchstens zwei Sätze) aus den Tagebucheinträgen, die die Frage am besten beantworten, jeden in einer eigenen Zeile. Gib nur diese Sätze aus.",
+            pickMonthly: "Kopiere drei Sätze Wort für Wort aus den Tagebucheinträgen, jeden in einer eigenen Zeile: zuerst einen Satz über einen Moment, der in diesem Monat etwas verändert hat, dann einen hoffnungsvollen Satz, dann einen schweren Satz. Gib nur diese drei Sätze aus.",
+            entryLabel: "Tagebucheintrag:",
+            weekLabel: "Tagebucheinträge dieser Woche:",
+            monthLabel: "Tagebucheinträge dieses Monats:",
+            entriesLabel: "Tagebucheinträge:",
+            questionLabel: "Frage:",
+            feel: [.tired: ["Das klingt nach einem Tag, der viel Kraft gekostet hat. Gönn dir heute Abend etwas Ruhe.", "Du wirkst ziemlich erschöpft. Ein ruhiger, entspannter Abend könnte dir guttun."], .stressed: ["Das klingt nach ziemlich viel auf einmal. Vielleicht hilft es, erst mal mit einer kleinen Sache anzufangen.", "Du scheinst ziemlich unter Druck zu stehen. Eine kurze Pause könnte dir helfen, durchzuatmen."], .sad: ["Das klingt belastend. Geh heute behutsam mit dir um.", "Du wirkst niedergeschlagen. Es ist in Ordnung, es langsam angehen zu lassen."], .good: ["Das klingt nach einem guten Moment. Halte ihn fest.", "Du wirkst gelöster. Vielleicht lohnt es sich, dir zu merken, was dir gutgetan hat."], .neutral: ["Schön, dass du es aufgeschrieben hast.", "Es lohnt sich, darauf zu achten."]],
+            theme: [.tired: "Eine Woche, die viel Kraft gekostet hat.", .stressed: "Eine Woche mit viel Druck.", .sad: "Eine schwere Woche.", .good: "Eine Woche mit guten Momenten.", .neutral: "Eine Woche mit Höhen und Tiefen."],
+            energyHard: "Am schwersten wirkte es, als du schriebst: ",
+            energyGood: "Am leichtesten wirkte es, als du schriebst: ",
+            buildingSuffix: "Daran lässt sich anknüpfen.",
+            watchSuffix: "Behalte das im Blick.",
+            boost: [.tired: "Plane bewusst einen ruhigen Abend nur für dich ein.", .stressed: "Such dir eine kleine Aufgabe aus, die du heute abschließen kannst.", .sad: "Melde dich bei jemandem, dem du vertraust.", .good: "Mach mehr von dem, was dir diese Woche gutgetan hat.", .neutral: "Nimm dir fünf Minuten für etwas, das dir guttut."],
+            nextWeek: [.tired: "Schütze deinen Schlaf und plane Pausen ein.", .stressed: "Nimm dir jeden Tag nur eine wichtige Sache vor.", .sad: "Sei geduldig mit dir und schreib weiter auf, wie es dir geht.", .good: "Bleib bei dem, was funktioniert hat.", .neutral: "Achte darauf, was dir Energie gibt und was sie nimmt."],
+            askPrefix: "Am ehesten passt dazu, was du geschrieben hast:",
+            monthImage: [.tired: "Eine Kerze, die an beiden Enden brennt.", .stressed: "Ein Topf kurz vor dem Überkochen.", .sad: "Ein grauer Himmel, der noch nicht aufgeklart ist.", .good: "Ein Fenster, das sich zum Morgenlicht öffnet.", .neutral: "Wetter, das ständig wechselte – Sonne, dann Regen, dann wieder Sonne."],
+            monthTension: [.tired: "Zwischen allem, was deine Energie fordert, und der Ruhe, die du brauchst.", .stressed: "Zwischen dem, was von dir erwartet wird, und dem, was du tragen kannst.", .sad: "Zwischen dem Wunsch, nach vorn zu schauen, und der Zeit, die du brauchst, um das zu verarbeiten.", .good: "Zwischen der Freude am Guten und der Frage, ob es bleibt.", .neutral: "Zwischen den Tagen, die dich Kraft gekostet haben, und denen, die dir Kraft zurückgaben."],
+            monthQuestion: [.tired: "Was könntest du loslassen, um im nächsten Monat mehr Energie zu haben?", .stressed: "Welche Aufgabe könntest du im nächsten Monat abgeben oder streichen?", .sad: "Wer oder was könnte dich im nächsten Monat ein bisschen mehr stützen?", .good: "Was würde dir helfen, im nächsten Monat mehr davon zu behalten?", .neutral: "Was hat dir diesen Monat Energie gegeben, und wie könntest du mehr Raum dafür schaffen?"],
+            momentLead: "Am {date} hast du geschrieben: ",
+            momentSuffix: "Solche Momente sagen viel über deinen Monat.",
+            becomingSuffix: "Du scheinst zu lernen, darauf zu achten, was dir guttut.",
+            releaseSuffix: "Vielleicht ist es Zeit, das nicht mehr so festzuhalten.",
+            releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut."
+        ),
+        "es": GroundedLocale(
+            open: "“",
+            close: "”",
+            joiner: " ",
+            youWrote: "Escribiste: ",
+            moodWord: [.tired: "agotada", .stressed: "estresada", .sad: "triste", .good: "bien"],
+            pickNudge: "Copia palabra por palabra la frase de la entrada del diario que mejor explica por qué la persona se sintió {mood}. Escribe solo esa frase.",
+            pickNeutral: "Copia palabra por palabra la frase de la entrada del diario que muestra lo más importante del día. Escribe solo esa frase.",
+            pickDigest: "Copia palabra por palabra tres frases de las entradas del diario, cada una en su propia línea: primero la frase que muestra cuándo la persona parecía más agotada, luego una frase sobre algo bueno que está creciendo, y luego una frase sobre algo que podría estar pesándole. Escribe solo esas tres frases.",
+            pickAsk: "Copia palabra por palabra la frase (o como máximo dos frases) de las entradas del diario que mejor responden a la pregunta, cada una en su propia línea. Escribe solo esas frases.",
+            pickMonthly: "Copia palabra por palabra tres frases de las entradas del diario, cada una en su propia línea: primero una frase sobre un momento que cambió algo este mes, luego una frase esperanzadora, luego una frase difícil. Escribe solo esas tres frases.",
+            entryLabel: "Entrada del diario:",
+            weekLabel: "Entradas del diario de esta semana:",
+            monthLabel: "Entradas del diario de este mes:",
+            entriesLabel: "Entradas del diario:",
+            questionLabel: "Pregunta:",
+            feel: [.tired: ["Suena a un día que te dejó sin energía. Esta noche date un respiro.", "Parece que fue agotador. Una noche tranquila y sin prisas podría ayudarte."], .stressed: ["Parece que son muchas cosas a la vez. Quizás ayude empezar por una sola cosa pequeña.", "Parece que hay bastante presión. Una pausa corta podría ayudarte a respirar."], .sad: ["Suena difícil. Trátate con cariño hoy.", "Parece un momento duro. Está bien ir despacio."], .good: ["Suena a un buen momento. Vale la pena guardarlo.", "Parece que las cosas pesaron un poco menos. Quizás valga la pena fijarte en qué te ayudó."], .neutral: ["Qué bien que lo hayas escrito.", "Vale la pena fijarse en esto."]],
+            theme: [.tired: "Una semana que te pidió mucha energía.", .stressed: "Una semana con mucha presión.", .sad: "Una semana difícil.", .good: "Una semana con buenos momentos.", .neutral: "Una semana con altibajos."],
+            energyHard: "El momento más pesado pareció ser cuando escribiste: ",
+            energyGood: "El momento más ligero pareció ser cuando escribiste: ",
+            buildingSuffix: "Ahí hay algo que puede crecer.",
+            watchSuffix: "Vale la pena prestarle atención.",
+            boost: [.tired: "Reserva una tarde tranquila solo para ti.", .stressed: "Elige una tarea pequeña que puedas terminar hoy.", .sad: "Escríbele a alguien de confianza.", .good: "Haz más de lo que te sentó bien esta semana.", .neutral: "Tómate cinco minutos para algo que te haga bien."],
+            nextWeek: [.tired: "Cuida tu descanso y deja espacio para pausas.", .stressed: "Concéntrate en una sola cosa importante cada día.", .sad: "Ten paciencia contigo y sigue escribiendo cómo te sientes.", .good: "Repite lo que funcionó.", .neutral: "Fíjate en qué te da energía y qué te la quita."],
+            askPrefix: "Lo más cercano que has escrito:",
+            monthImage: [.tired: "Una vela que arde por los dos extremos.", .stressed: "Una olla a presión a punto de estallar.", .sad: "Un cielo gris que todavía no se ha despejado.", .good: "Una ventana que se abre a la luz de la mañana.", .neutral: "Un tiempo que no dejaba de cambiar: sol, luego lluvia, luego sol otra vez."],
+            monthTension: [.tired: "Entre todo lo que te pide energía y el descanso que necesitas.", .stressed: "Entre lo que se espera de ti y lo que puedes cargar.", .sad: "Entre las ganas de seguir adelante y el tiempo que necesitas para sentirlo.", .good: "Entre disfrutar lo bueno y preguntarte si va a durar.", .neutral: "Entre los días que te dejaron sin energía y los que te la devolvieron."],
+            monthQuestion: [.tired: "¿Qué podrías soltar para tener más energía el próximo mes?", .stressed: "¿Qué cosa podrías quitarte de encima el próximo mes?", .sad: "¿Quién o qué podría apoyarte un poco más el próximo mes?", .good: "¿Qué te ayudaría a conservar más de esto el próximo mes?", .neutral: "¿Qué te dio energía este mes y cómo podrías darle más espacio?"],
+            momentLead: "El {date} escribiste: ",
+            momentSuffix: "Momentos así dicen mucho de tu mes.",
+            becomingSuffix: "Parece que estás aprendiendo a notar lo que te hace bien.",
+            releaseSuffix: "Quizás es momento de aferrarte un poco menos a esto.",
+            releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien."
+        ),
+        "fr": GroundedLocale(
+            open: "«\u{00A0}",
+            close: "\u{00A0}»",
+            joiner: " ",
+            youWrote: "Tu as écrit\u{00A0}: ",
+            moodWord: [.tired: "épuisée", .stressed: "stressée", .sad: "triste", .good: "bien"],
+            pickNudge: "Recopie mot pour mot la phrase de l'entrée du journal qui explique le mieux pourquoi la personne s'est sentie {mood}. Écris seulement cette phrase.",
+            pickNeutral: "Recopie mot pour mot la phrase de l'entrée du journal qui montre le plus important de la journée. Écris seulement cette phrase.",
+            pickDigest: "Recopie mot pour mot trois phrases des entrées du journal, chacune sur sa propre ligne\u{00A0}: d'abord la phrase qui montre quand la personne semblait le plus épuisée, puis une phrase sur quelque chose de bien qui grandit, puis une phrase sur quelque chose qui pourrait lui peser. Écris seulement ces trois phrases.",
+            pickAsk: "Recopie mot pour mot la phrase (ou au plus deux phrases) des entrées du journal qui répondent le mieux à la question, chacune sur sa propre ligne. Écris seulement ces phrases.",
+            pickMonthly: "Recopie mot pour mot trois phrases des entrées du journal, chacune sur sa propre ligne\u{00A0}: d'abord une phrase sur un moment qui a changé quelque chose ce mois-ci, puis une phrase pleine d'espoir, puis une phrase lourde. Écris seulement ces trois phrases.",
+            entryLabel: "Entrée du journal\u{00A0}:",
+            weekLabel: "Entrées du journal de cette semaine\u{00A0}:",
+            monthLabel: "Entrées du journal de ce mois-ci\u{00A0}:",
+            entriesLabel: "Entrées du journal\u{00A0}:",
+            questionLabel: "Question\u{00A0}:",
+            feel: [.tired: ["On dirait une journée très fatigante. Accorde-toi un peu de repos ce soir.", "Ça a l'air d'avoir été épuisant. Une soirée calme pourrait te faire du bien."], .stressed: ["Ça fait beaucoup d'un coup. Commencer par une seule petite chose pourrait t'aider.", "Tu sembles sous pression. Une courte pause pourrait t'aider à souffler."], .sad: ["Ça a l'air lourd. Prends soin de toi aujourd'hui.", "Ça semble difficile. C'est normal d'y aller doucement."], .good: ["On dirait un bon moment. Garde-le précieusement.", "Ça semble plus léger. Note peut-être ce qui t'a fait du bien."], .neutral: ["C'est bien que tu l'aies écrit.", "Ça vaut la peine de le remarquer."]],
+            theme: [.tired: "Une semaine qui t'a demandé beaucoup d'énergie.", .stressed: "Une semaine sous pression.", .sad: "Une semaine difficile.", .good: "Une semaine avec de bons moments.", .neutral: "Une semaine en dents de scie."],
+            energyHard: "Le moment le plus lourd semble être quand tu as écrit\u{00A0}: ",
+            energyGood: "Le moment le plus léger semble être quand tu as écrit\u{00A0}: ",
+            buildingSuffix: "Il y a là quelque chose qui peut grandir.",
+            watchSuffix: "Garde un œil là-dessus.",
+            boost: [.tired: "Prévois une soirée calme rien que pour toi.", .stressed: "Choisis une petite tâche que tu peux terminer aujourd'hui.", .sad: "Écris à quelqu'un en qui tu as confiance.", .good: "Refais ce qui t'a fait du bien cette semaine.", .neutral: "Prends cinq minutes pour quelque chose qui te fait du bien."],
+            nextWeek: [.tired: "Protège ton sommeil et prévois des pauses.", .stressed: "Concentre-toi sur une seule chose importante par jour.", .sad: "Prends ton temps et continue d'écrire ce que tu ressens.", .good: "Continue ce qui a marché.", .neutral: "Observe ce qui te donne de l'énergie et ce qui t'en prend."],
+            askPrefix: "Ce que tu as écrit de plus proche\u{00A0}:",
+            monthImage: [.tired: "Une chandelle qui brûle par les deux bouts.", .stressed: "Une cocotte-minute prête à exploser.", .sad: "Un ciel gris qui ne s'est pas encore dégagé.", .good: "Une fenêtre qui s'ouvre sur la lumière du matin.", .neutral: "Une météo qui changeait sans cesse\u{00A0}: soleil, puis pluie, puis soleil."],
+            monthTension: [.tired: "Entre tout ce qui réclame ton énergie et le repos dont tu as besoin.", .stressed: "Entre ce qu'on attend de toi et ce que tu peux porter.", .sad: "Entre l'envie d'avancer et le temps qu'il te faut pour le ressentir.", .good: "Entre profiter de ce qui est bon et te demander si ça va durer.", .neutral: "Entre les jours qui t'ont pris de l'énergie et ceux qui t'en ont redonné."],
+            monthQuestion: [.tired: "Qu'est-ce que tu pourrais lâcher pour avoir plus d'énergie le mois prochain\u{00A0}?", .stressed: "De quelle tâche pourrais-tu te décharger le mois prochain\u{00A0}?", .sad: "Qui ou quoi pourrait te soutenir un peu plus le mois prochain\u{00A0}?", .good: "Qu'est-ce qui t'aiderait à garder davantage de tout ça le mois prochain\u{00A0}?", .neutral: "Qu'est-ce qui t'a donné de l'énergie ce mois-ci, et comment lui faire plus de place\u{00A0}?"],
+            momentLead: "Le {date}, tu as écrit\u{00A0}: ",
+            momentSuffix: "Ce genre de moment en dit long sur ton mois.",
+            becomingSuffix: "Tu sembles apprendre à remarquer ce qui te fait du bien.",
+            releaseSuffix: "Il est peut-être temps de t'y accrocher un peu moins.",
+            releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien."
+        ),
+        "it": GroundedLocale(
+            open: "“",
+            close: "”",
+            joiner: " ",
+            youWrote: "Hai scritto: ",
+            moodWord: [.tired: "esausta", .stressed: "stressata", .sad: "triste", .good: "bene"],
+            pickNudge: "Copia parola per parola la frase della voce del diario che spiega meglio perché la persona si è sentita {mood}. Scrivi solo quella frase.",
+            pickNeutral: "Copia parola per parola la frase della voce del diario che mostra la cosa più importante della giornata. Scrivi solo quella frase.",
+            pickDigest: "Copia parola per parola tre frasi dalle voci del diario, ognuna su una riga: prima la frase che mostra quando la persona sembrava più esausta, poi una frase su qualcosa di buono che sta crescendo, poi una frase su qualcosa che potrebbe pesarle. Scrivi solo queste tre frasi.",
+            pickAsk: "Copia parola per parola la frase (o al massimo due frasi) delle voci del diario che rispondono meglio alla domanda, ognuna su una riga. Scrivi solo quelle frasi.",
+            pickMonthly: "Copia parola per parola tre frasi dalle voci del diario, ognuna su una riga: prima una frase su un momento che ha cambiato qualcosa questo mese, poi una frase piena di speranza, poi una frase pesante. Scrivi solo queste tre frasi.",
+            entryLabel: "Voce del diario:",
+            weekLabel: "Voci del diario di questa settimana:",
+            monthLabel: "Voci del diario di questo mese:",
+            entriesLabel: "Voci del diario:",
+            questionLabel: "Domanda:",
+            feel: [.tired: ["Sembra una giornata che ti ha tolto tante energie. Stasera concediti un po' di riposo.", "Dev'essere stata una giornata faticosa. Una serata tranquilla potrebbe farti bene."], .stressed: ["Sembrano tante cose tutte insieme. Magari inizia da una sola piccola cosa.", "Sembra che ci sia parecchia pressione. Una breve pausa potrebbe aiutarti a riprendere fiato."], .sad: ["Sembra pesante. Oggi trattati con gentilezza.", "Sembra un momento difficile. Va bene prendersela con calma."], .good: ["Sembra un bel momento. Vale la pena tenerlo a mente.", "Sembra che ci sia stata un po' di leggerezza. Forse vale la pena notare cosa ti ha aiutato."], .neutral: ["È bello che tu l'abbia scritto.", "Vale la pena notarlo."]],
+            theme: [.tired: "Una settimana che ti ha chiesto molte energie.", .stressed: "Una settimana con molta pressione.", .sad: "Una settimana difficile.", .good: "Una settimana con bei momenti.", .neutral: "Una settimana di alti e bassi."],
+            energyHard: "Il momento più pesante sembra essere stato quando hai scritto: ",
+            energyGood: "Il momento più leggero sembra essere stato quando hai scritto: ",
+            buildingSuffix: "Qui c'è qualcosa che può crescere.",
+            watchSuffix: "Vale la pena tenerlo d'occhio.",
+            boost: [.tired: "Tieni libera una serata tranquilla solo per te.", .stressed: "Scegli un piccolo compito da finire oggi.", .sad: "Scrivi a qualcuno di cui ti fidi.", .good: "Fai più spesso ciò che ti ha fatto bene questa settimana.", .neutral: "Prenditi cinque minuti per qualcosa che ti fa bene."],
+            nextWeek: [.tired: "Proteggi il sonno e prevedi delle pause.", .stressed: "Concentrati su una sola cosa importante al giorno.", .sad: "Prenditi il tuo tempo e continua a scrivere come stai.", .good: "Ripeti ciò che ha funzionato.", .neutral: "Nota cosa ti dà energia e cosa te la toglie."],
+            askPrefix: "Le cose più vicine che hai scritto:",
+            monthImage: [.tired: "Una candela che brucia da entrambe le estremità.", .stressed: "Una pentola a pressione pronta a scoppiare.", .sad: "Un cielo grigio che non si è ancora rasserenato.", .good: "Una finestra che si apre sulla luce del mattino.", .neutral: "Un tempo che cambiava di continuo: sole, poi pioggia, poi di nuovo sole."],
+            monthTension: [.tired: "Tra tutto ciò che ti chiede energia e il riposo di cui hai bisogno.", .stressed: "Tra ciò che ci si aspetta da te e ciò che riesci a reggere.", .sad: "Tra la voglia di andare avanti e il tempo che ti serve per elaborarlo.", .good: "Tra il goderti ciò che va bene e il chiederti se durerà.", .neutral: "Tra i giorni che ti hanno tolto energia e quelli che te l'hanno restituita."],
+            monthQuestion: [.tired: "Cosa potresti lasciar andare per avere più energia il mese prossimo?", .stressed: "Di quale impegno potresti liberarti il mese prossimo?", .sad: "Chi o cosa potrebbe sostenerti un po' di più il mese prossimo?", .good: "Cosa ti aiuterebbe a far durare tutto questo anche il mese prossimo?", .neutral: "Cosa ti ha dato energia questo mese, e come potresti dargli più spazio?"],
+            momentLead: "Il {date} hai scritto: ",
+            momentSuffix: "Momenti così dicono molto del tuo mese.",
+            becomingSuffix: "Sembra che tu stia imparando a notare ciò che ti fa bene.",
+            releaseSuffix: "Forse è il momento di tenerlo un po' meno stretto.",
+            releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene."
+        ),
+        "pt": GroundedLocale(
+            open: "“",
+            close: "”",
+            joiner: " ",
+            youWrote: "Você escreveu: ",
+            moodWord: [.tired: "exausta", .stressed: "estressada", .sad: "triste", .good: "bem"],
+            pickNudge: "Copie palavra por palavra a frase da entrada do diário que melhor explica por que a pessoa se sentiu {mood}. Escreva só essa frase.",
+            pickNeutral: "Copie palavra por palavra a frase da entrada do diário que mostra o mais importante do dia. Escreva só essa frase.",
+            pickDigest: "Copie palavra por palavra três frases das entradas do diário, cada uma em sua própria linha: primeiro a frase que mostra quando a pessoa parecia mais exausta, depois uma frase sobre algo bom que está crescendo, depois uma frase sobre algo que pode estar pesando. Escreva só essas três frases.",
+            pickAsk: "Copie palavra por palavra a frase (ou no máximo duas frases) das entradas do diário que melhor respondem à pergunta, cada uma em sua própria linha. Escreva só essas frases.",
+            pickMonthly: "Copie palavra por palavra três frases das entradas do diário, cada uma em sua própria linha: primeiro uma frase sobre um momento que mudou algo neste mês, depois uma frase esperançosa, depois uma frase pesada. Escreva só essas três frases.",
+            entryLabel: "Entrada do diário:",
+            weekLabel: "Entradas do diário desta semana:",
+            monthLabel: "Entradas do diário deste mês:",
+            entriesLabel: "Entradas do diário:",
+            questionLabel: "Pergunta:",
+            feel: [.tired: ["Parece um dia que tirou muita energia de você. Hoje à noite, se dê um descanso.", "Parece ter sido cansativo. Uma noite tranquila pode te fazer bem."], .stressed: ["Parece muita coisa ao mesmo tempo. Talvez ajude começar por uma coisa pequena.", "Parece que há bastante pressão. Uma pausa curta pode te ajudar a respirar."], .sad: ["Parece pesado. Seja gentil com você hoje.", "Parece um momento difícil. Tudo bem ir devagar."], .good: ["Parece um bom momento. Guarde isso com carinho.", "Parece que houve um pouco de leveza. Talvez valha a pena notar o que ajudou."], .neutral: ["Que bom que você escreveu isso.", "Vale a pena notar isso."]],
+            theme: [.tired: "Uma semana que pediu muita energia.", .stressed: "Uma semana com muita pressão.", .sad: "Uma semana difícil.", .good: "Uma semana com bons momentos.", .neutral: "Uma semana de altos e baixos."],
+            energyHard: "O momento mais pesado parece ter sido quando você escreveu: ",
+            energyGood: "O momento mais leve parece ter sido quando você escreveu: ",
+            buildingSuffix: "Há algo aí que pode crescer.",
+            watchSuffix: "Vale a pena ficar de olho nisso.",
+            boost: [.tired: "Reserve uma noite tranquila só para você.", .stressed: "Escolha uma tarefa pequena para terminar hoje.", .sad: "Mande uma mensagem para alguém de confiança.", .good: "Faça mais do que te fez bem esta semana.", .neutral: "Tire cinco minutos para algo que te faça bem."],
+            nextWeek: [.tired: "Proteja seu sono e faça pausas.", .stressed: "Foque em uma só coisa importante por dia.", .sad: "Vá com calma e continue escrevendo sobre como você se sente.", .good: "Repita o que funcionou.", .neutral: "Repare no que te dá energia e no que te tira energia."],
+            askPrefix: "O mais próximo que você escreveu:",
+            monthImage: [.tired: "Uma vela queimando pelas duas pontas.", .stressed: "Uma chaleira quase fervendo.", .sad: "Um céu cinzento que ainda não abriu.", .good: "Uma janela se abrindo para a luz da manhã.", .neutral: "Um tempo que não parava de mudar: sol, depois chuva, depois sol de novo."],
+            monthTension: [.tired: "Entre tudo o que pede sua energia e o descanso de que você precisa.", .stressed: "Entre o que esperam de você e o que você consegue carregar.", .sad: "Entre a vontade de seguir em frente e o tempo de que você precisa para sentir isso.", .good: "Entre aproveitar o que é bom e se perguntar se vai durar.", .neutral: "Entre os dias que tiraram sua energia e os que a devolveram."],
+            monthQuestion: [.tired: "O que você poderia deixar de lado para ter mais energia no próximo mês?", .stressed: "Que peso você poderia tirar das costas no próximo mês?", .sad: "Quem ou o que poderia apoiar você um pouco mais no próximo mês?", .good: "O que ajudaria você a manter mais disso no próximo mês?", .neutral: "O que te deu energia este mês, e como você poderia abrir mais espaço para isso?"],
+            momentLead: "Em {date}, você escreveu: ",
+            momentSuffix: "Momentos assim dizem muito sobre o seu mês.",
+            becomingSuffix: "Parece que você está aprendendo a perceber o que faz bem a você.",
+            releaseSuffix: "Talvez seja hora de não se agarrar tanto a isso.",
+            releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você."
+        ),
+        "ru": GroundedLocale(
+            open: "«",
+            close: "»",
+            joiner: " ",
+            youWrote: "Ты пишешь: ",
+            moodWord: [.tired: "измотанным", .stressed: "напряжённым", .sad: "грустным", .good: "хорошо"],
+            pickNudge: "Перепиши слово в слово предложение из записи в дневнике, которое лучше всего объясняет, почему человек чувствовал себя {mood}. Выведи только это предложение.",
+            pickNeutral: "Перепиши слово в слово предложение из записи в дневнике, которое показывает самое важное за день. Выведи только это предложение.",
+            pickDigest: "Перепиши слово в слово три предложения из записей в дневнике, каждое на отдельной строке: сначала предложение, показывающее, когда человек казался самым измотанным, затем предложение о чём-то хорошем, что растёт, затем предложение о том, что может его тяготить. Выведи только эти три предложения.",
+            pickAsk: "Перепиши слово в слово одно предложение (или не больше двух) из записей в дневнике, которые лучше всего отвечают на вопрос, каждое на отдельной строке. Выведи только эти предложения.",
+            pickMonthly: "Перепиши слово в слово три предложения из записей в дневнике, каждое на отдельной строке: сначала предложение о моменте, который что-то изменил в этом месяце, затем предложение с надеждой, затем тяжёлое предложение. Выведи только эти три предложения.",
+            entryLabel: "Запись в дневнике:",
+            weekLabel: "Записи в дневнике за эту неделю:",
+            monthLabel: "Записи в дневнике за этот месяц:",
+            entriesLabel: "Записи в дневнике:",
+            questionLabel: "Вопрос:",
+            feel: [.tired: ["Похоже, этот день забрал много сил. Позволь себе вечером отдохнуть.", "Кажется, это было изматывающе. Спокойный вечер может помочь."], .stressed: ["Похоже, всего слишком много сразу. Возможно, стоит начать с одного небольшого дела.", "Кажется, сейчас много напряжения. Короткая пауза может помочь выдохнуть."], .sad: ["Похоже, это тяжело. Будь сегодня бережнее к себе.", "Похоже, сейчас непросто. Можно никуда не спешить."], .good: ["Кажется, это был хороший момент. Его стоит запомнить.", "Похоже, стало немного легче. Возможно, стоит заметить, что помогло."], .neutral: ["Хорошо, что ты это записываешь.", "Это стоит заметить."]],
+            theme: [.tired: "Неделя, которая потребовала много сил.", .stressed: "Напряжённая неделя.", .sad: "Тяжёлая неделя.", .good: "Неделя с хорошими моментами.", .neutral: "Неделя со взлётами и падениями."],
+            energyHard: "Судя по записям, тяжелее всего было здесь: ",
+            energyGood: "Судя по записям, легче всего было здесь: ",
+            buildingSuffix: "Из этого может что-то вырасти.",
+            watchSuffix: "За этим стоит последить.",
+            boost: [.tired: "Выдели спокойный вечер только для себя.", .stressed: "Выбери одно небольшое дело, которое можно закончить сегодня.", .sad: "Напиши тому, кому доверяешь.", .good: "Делай больше того, что радовало тебя на этой неделе.", .neutral: "Удели пять минут тому, что тебе приятно."],
+            nextWeek: [.tired: "Береги сон и планируй паузы.", .stressed: "Сосредоточься на одном важном деле в день.", .sad: "Не торопи себя и продолжай записывать, что чувствуешь.", .good: "Повтори то, что сработало.", .neutral: "Замечай, что даёт силы, а что их забирает."],
+            askPrefix: "Самое близкое в твоих записях:",
+            monthImage: [.tired: "Свеча, горящая с двух концов.", .stressed: "Чайник, который вот-вот закипит.", .sad: "Серое небо, которое ещё не прояснилось.", .good: "Окно, открытое навстречу утреннему свету.", .neutral: "Погода, которая всё время менялась: солнце, потом дождь, потом снова солнце."],
+            monthTension: [.tired: "Между всем, что требует твоих сил, и отдыхом, который тебе нужен.", .stressed: "Между тем, чего от тебя ждут, и тем, что ты можешь вынести.", .sad: "Между желанием двигаться дальше и временем, которое нужно, чтобы это прожить.", .good: "Между радостью от хорошего и вопросом, надолго ли это.", .neutral: "Между днями, которые забирали силы, и теми, что их возвращали."],
+            monthQuestion: [.tired: "От чего можно было бы отказаться, чтобы в следующем месяце было больше сил?", .stressed: "Какую одну задачу можно было бы снять с себя в следующем месяце?", .sad: "Кто или что могло бы поддержать тебя чуть больше в следующем месяце?", .good: "Что помогло бы тебе сохранить больше этого в следующем месяце?", .neutral: "Что давало тебе силы в этом месяце и как освободить для этого больше места?"],
+            momentLead: "Из записи от {date}: ",
+            momentSuffix: "Такие моменты многое говорят о твоём месяце.",
+            becomingSuffix: "Похоже, ты учишься замечать, что тебе помогает.",
+            releaseSuffix: "Может быть, пора перестать так крепко держаться за это.",
+            releaseFallback: "Похоже, в этом месяце нет ничего, что нужно отпустить, — продолжай замечать, что тебе помогает."
+        ),
+        "ja": GroundedLocale(
+            open: "「",
+            close: "」",
+            joiner: "",
+            youWrote: "こう書いていましたね：",
+            moodWord: [.tired: "疲れ切っていた", .stressed: "ストレスを感じていた", .sad: "悲しかった", .good: "気分がよかった"],
+            pickNudge: "次の日記から、その人がなぜ{mood}のかをいちばんよく表している一文を、そのまま書き写してください。その一文だけを出力してください。",
+            pickNeutral: "次の日記から、その日いちばん大事なことを表す一文をそのまま書き写してください。その一文だけを出力してください。",
+            pickDigest: "次の日記から、三つの文をそのまま書き写してください。それぞれ別の行に：まず、その人がいちばん疲れていたように見える文、次に、何かよいことが育っている文、最後に、その人の負担になっていそうな文。その三つの文だけを出力してください。",
+            pickAsk: "次の日記から、質問にいちばんよく答えている文を一つ（多くても二つ）、そのまま書き写してください。一文ずつ別の行に。その文だけを出力してください。",
+            pickMonthly: "次の日記から、三つの文をそのまま書き写してください。それぞれ別の行に：まず、今月何かが変わった瞬間を表す文、次に、希望が感じられる文、最後に、重さが感じられる文。その三つの文だけを出力してください。",
+            entryLabel: "日記：",
+            weekLabel: "今週の日記：",
+            monthLabel: "今月の日記：",
+            entriesLabel: "日記：",
+            questionLabel: "質問：",
+            feel: [.tired: ["とても疲れた一日だったようですね。今夜はゆっくり休んでください。", "かなりお疲れのようですね。今夜は静かに過ごすといいかもしれません。"], .stressed: ["いろいろなことが一度に重なっているようですね。まず小さなことを一つだけ片づけてみてはどうでしょう。", "プレッシャーが大きそうです。少し休憩をとると楽になるかもしれません。"], .sad: ["つらい時間だったようですね。今日は自分にやさしくしてください。", "気持ちが沈んでいるようですね。ゆっくりで大丈夫ですよ。"], .good: ["いい時間だったようですね。その気持ちを大切にしてください。", "少し心が軽くなったようですね。何が助けになったのか、覚えておくといいかもしれません。"], .neutral: ["書き留めておけてよかったですね。", "心に留めておきたいことですね。"]],
+            theme: [.tired: "たくさんのエネルギーを使った一週間。", .stressed: "プレッシャーの多い一週間。", .sad: "つらい一週間。", .good: "いいこともあった一週間。", .neutral: "浮き沈みのあった一週間。"],
+            energyHard: "いちばん大変そうだったのは、こう書いたときです：",
+            energyGood: "いちばん軽やかだったのは、こう書いたときです：",
+            buildingSuffix: "――ここから育っていくものがありそうです。",
+            watchSuffix: "――ここは少し気にかけておきましょう。",
+            boost: [.tired: "自分のためだけの静かな夜を、一日つくってみてください。", .stressed: "今日終わらせられる小さなことを一つ選んでみてください。", .sad: "信頼できる人に連絡してみてください。", .good: "今週よかったことを、もう少し続けてみてください。", .neutral: "自分をいたわる時間を五分とってみてください。"],
+            nextWeek: [.tired: "睡眠を守って、休憩を予定に入れましょう。", .stressed: "一日ひとつの大事なことに集中しましょう。", .sad: "無理せず、気持ちを書き続けましょう。", .good: "うまくいったことを繰り返しましょう。", .neutral: "何が元気をくれて、何がそれを奪うのか、意識してみましょう。"],
+            askPrefix: "いちばん近いのは、あなたが書いたこの言葉です：",
+            monthImage: [.tired: "両端から燃えているろうそく。", .stressed: "今にも沸騰しそうなやかん。", .sad: "まだ晴れない灰色の空。", .good: "朝の光に向かって開く窓。", .neutral: "晴れたり雨が降ったり、めまぐるしく変わる天気。"],
+            monthTension: [.tired: "エネルギーを求めてくるすべてのことと、必要な休息とのあいだ。", .stressed: "期待されていることと、自分が抱えきれることとのあいだ。", .sad: "前に進みたい気持ちと、それを感じきるための時間とのあいだ。", .good: "いいことを楽しむ気持ちと、それが続くのかという思いとのあいだ。", .neutral: "エネルギーを奪われた日々と、取り戻せた日々とのあいだ。"],
+            monthQuestion: [.tired: "来月もっと元気でいるために、手放せることは何でしょうか？", .stressed: "来月、抱えていることを一つ減らすとしたら何でしょうか？", .sad: "来月、もう少し支えになってくれそうな人やものはありますか？", .good: "来月もこの感じを続けるために、何が助けになるでしょうか？", .neutral: "今月、元気をくれたものは何でしたか？それをもっと増やすには、どうしたらいいでしょう？"],
+            momentLead: "{date}には、こう書いていました：",
+            momentSuffix: "――こうした瞬間が、今月をよく表しています。",
+            becomingSuffix: "――何が自分の助けになるかに気づける人になりつつあるようです。",
+            releaseSuffix: "――これを、そろそろ少し手放してもいいのかもしれません。",
+            releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。"
+        ),
+        "ko": GroundedLocale(
+            open: "“",
+            close: "”",
+            joiner: " ",
+            youWrote: "이렇게 썼어요: ",
+            moodWord: [.tired: "지쳤는지", .stressed: "스트레스를 받았는지", .sad: "슬펐는지", .good: "기분이 좋았는지"],
+            pickNudge: "아래 일기에서 이 사람이 왜 {mood}를 가장 잘 보여 주는 문장을 그대로 옮겨 적어 주세요. 그 문장만 출력하세요.",
+            pickNeutral: "아래 일기에서 그날 가장 중요한 일을 보여 주는 문장을 그대로 옮겨 적어 주세요. 그 문장만 출력하세요.",
+            pickDigest: "아래 일기에서 세 문장을 그대로 옮겨 적어 주세요. 각 문장은 한 줄씩: 먼저 이 사람이 가장 지쳐 보였던 문장, 다음으로 좋은 일이 자라고 있는 문장, 마지막으로 이 사람에게 부담이 될 수 있는 문장. 그 세 문장만 출력하세요.",
+            pickAsk: "아래 일기에서 질문에 가장 잘 답하는 문장 하나(많아야 두 개)를 그대로 옮겨 적어 주세요. 한 줄에 한 문장씩. 그 문장만 출력하세요.",
+            pickMonthly: "아래 일기에서 세 문장을 그대로 옮겨 적어 주세요. 각 문장은 한 줄씩: 먼저 이번 달 무언가를 바꾼 순간에 관한 문장, 다음으로 희망이 느껴지는 문장, 마지막으로 무거운 문장. 그 세 문장만 출력하세요.",
+            entryLabel: "일기:",
+            weekLabel: "이번 주 일기:",
+            monthLabel: "이번 달 일기:",
+            entriesLabel: "일기:",
+            questionLabel: "질문:",
+            feel: [.tired: ["많이 지친 하루였던 것 같아요. 오늘 밤은 푹 쉬어요.", "꽤 힘들었던 것 같아요. 조용히 쉬는 저녁이 도움이 될 거예요."], .stressed: ["한꺼번에 많은 일이 겹친 것 같아요. 작은 일 하나부터 시작해 보면 어떨까요?", "부담이 큰 것 같아요. 잠깐 쉬어 가면 숨 돌리는 데 도움이 될 거예요."], .sad: ["마음이 무거웠던 것 같아요. 오늘은 스스로에게 다정하게 대해 주세요.", "마음이 많이 가라앉은 것 같아요. 천천히 가도 괜찮아요."], .good: ["좋은 순간이었던 것 같아요. 잘 간직해 두세요.", "마음이 조금 가벼워진 것 같아요. 무엇이 도움이 됐는지 기억해 두면 좋겠어요."], .neutral: ["적어 두길 잘했어요.", "눈여겨볼 만한 일이에요."]],
+            theme: [.tired: "힘을 많이 쓴 한 주.", .stressed: "부담이 많았던 한 주.", .sad: "힘든 한 주.", .good: "좋은 순간들이 있었던 한 주.", .neutral: "기복이 있었던 한 주."],
+            energyHard: "가장 힘들어 보였던 건 이렇게 썼을 때예요: ",
+            energyGood: "가장 가벼워 보였던 건 이렇게 썼을 때예요: ",
+            buildingSuffix: "여기서 자라날 무언가가 있어 보여요.",
+            watchSuffix: "이 부분은 조금 지켜봐 주세요.",
+            boost: [.tired: "하루 저녁은 나만을 위한 조용한 시간으로 비워 두세요.", .stressed: "오늘 끝낼 수 있는 작은 일 하나를 골라 보세요.", .sad: "믿을 수 있는 사람에게 연락해 보세요.", .good: "이번 주에 좋았던 일을 조금 더 해 보세요.", .neutral: "나를 위한 5분을 가져 보세요."],
+            nextWeek: [.tired: "잠을 지키고 쉬는 시간을 계획해 보세요.", .stressed: "하루에 중요한 일 하나에만 집중해 보세요.", .sad: "서두르지 말고 마음을 계속 적어 보세요.", .good: "효과가 있었던 방법을 계속 이어 가세요.", .neutral: "무엇이 힘을 주고 무엇이 힘을 빼는지 살펴보세요."],
+            askPrefix: "가장 가까운 건 이렇게 쓴 내용이에요:",
+            monthImage: [.tired: "양쪽 끝에서 타들어 가는 초.", .stressed: "곧 끓어오를 것 같은 주전자.", .sad: "아직 개지 않은 잿빛 하늘.", .good: "아침 햇살을 향해 열리는 창문.", .neutral: "해가 났다가 비가 왔다가, 계속 바뀌는 날씨."],
+            monthTension: [.tired: "에너지를 요구하는 모든 일과 지금 필요한 휴식 사이.", .stressed: "기대받는 것과 감당할 수 있는 것 사이.", .sad: "앞으로 나아가고 싶은 마음과 그 감정을 충분히 느낄 시간 사이.", .good: "좋은 것을 누리는 마음과 그것이 계속될지 묻는 마음 사이.", .neutral: "힘을 빼앗긴 날들과 힘을 되찾은 날들 사이."],
+            monthQuestion: [.tired: "다음 달에 더 힘을 내기 위해 내려놓을 수 있는 건 무엇일까요?", .stressed: "다음 달에 덜어낼 수 있는 일 하나는 무엇일까요?", .sad: "다음 달에 조금 더 기댈 수 있는 사람이나 무언가가 있을까요?", .good: "다음 달에도 이 느낌을 이어가려면 무엇이 도움이 될까요?", .neutral: "이번 달 힘이 되어 준 것은 무엇이었나요? 그걸 위한 자리를 어떻게 더 만들 수 있을까요?"],
+            momentLead: "{date}에 이렇게 썼어요: ",
+            momentSuffix: "이런 순간이 이번 달을 잘 보여 줘요.",
+            becomingSuffix: "무엇이 도움이 되는지 알아차리는 사람이 되어 가고 있는 것 같아요.",
+            releaseSuffix: "이제는 이걸 조금 내려놓아도 괜찮을지 몰라요.",
+            releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요."
+        ),
+        "zh": GroundedLocale(
+            open: "“",
+            close: "”",
+            joiner: "",
+            youWrote: "你写道：",
+            moodWord: [.tired: "精疲力尽", .stressed: "有压力", .sad: "难过", .good: "心情不错"],
+            pickNudge: "请把下面日记中最能解释这个人为什么感到{mood}的那一句话原样抄写下来。只输出这一句话。",
+            pickNeutral: "请把下面日记中最能体现这一天最重要的事的那一句话原样抄写下来。只输出这一句话。",
+            pickDigest: "请从下面的日记中原样抄写三句话，每句一行：第一句是这个人看起来最累的时候，第二句是关于正在成长的好事，第三句是关于可能让这个人感到负担的事。只输出这三句话。",
+            pickAsk: "请从下面的日记中原样抄写最能回答这个问题的一句话（最多两句），每句一行。只输出这些句子。",
+            pickMonthly: "请从下面的日记中原样抄写三句话，每句一行：第一句是关于这个月改变了什么的时刻，第二句是充满希望的一句，第三句是沉重的一句。只输出这三句话。",
+            entryLabel: "日记：",
+            weekLabel: "本周日记：",
+            monthLabel: "本月日记：",
+            entriesLabel: "日记：",
+            questionLabel: "问题：",
+            feel: [.tired: ["听起来是很耗精力的一天。今晚好好休息一下吧。", "看起来真的很累。今晚安安静静地放松一下，也许会好一些。"], .stressed: ["听起来很多事情同时压过来。也许可以先从一件小事开始。", "看起来压力不小。短暂休息一下，也许能喘口气。"], .sad: ["听起来很沉重。今天对自己温柔一点。", "看起来这段时间不容易。慢慢来就好。"], .good: ["听起来是个美好的时刻。值得记住。", "看起来心情轻松了一些。也许可以留意一下是什么帮到了你。"], .neutral: ["能写下来，就很好。", "这值得留意。"]],
+            theme: [.tired: "耗费了很多精力的一周。", .stressed: "压力很大的一周。", .sad: "艰难的一周。", .good: "有美好时刻的一周。", .neutral: "有起有落的一周。"],
+            energyHard: "最辛苦的时候，似乎是你写下这句话时：",
+            energyGood: "最轻松的时候，似乎是你写下这句话时：",
+            buildingSuffix: "这是个好苗头，可以继续下去。",
+            watchSuffix: "这一点值得留意。",
+            boost: [.tired: "给自己留一个安静的晚上。", .stressed: "选一件今天能完成的小事。", .sad: "联系一个你信任的人。", .good: "多做一些这周让你感觉好的事。", .neutral: "花五分钟做一件让自己舒服的事。"],
+            nextWeek: [.tired: "保护好睡眠，安排一些休息。", .stressed: "每天只专注一件重要的事。", .sad: "别着急，继续写下自己的感受。", .good: "重复那些有效的做法。", .neutral: "留意什么给你能量，什么在消耗你。"],
+            askPrefix: "和这个问题最接近的是你写的这些：",
+            monthImage: [.tired: "一支两头烧的蜡烛。", .stressed: "一壶快要烧开的水。", .sad: "一片还没有放晴的灰色天空。", .good: "一扇向晨光打开的窗。", .neutral: "忽晴忽雨、变个不停的天气。"],
+            monthTension: [.tired: "在所有消耗你精力的事和你需要的休息之间。", .stressed: "在别人对你的期待和你能承受的限度之间。", .sad: "在想要往前走的心和需要时间慢慢消化之间。", .good: "在享受美好和担心它能否持续之间。", .neutral: "在耗尽你精力的日子和让你恢复元气的日子之间。"],
+            monthQuestion: [.tired: "下个月，你可以放下什么，让自己更有精力？", .stressed: "下个月，你可以卸下的一件事是什么？", .sad: "下个月，谁或什么能多支持你一点？", .good: "下个月，什么能帮你留住更多这样的感觉？", .neutral: "这个月是什么给了你能量？你可以怎样为它留出更多空间？"],
+            momentLead: "{date}，你写道：",
+            momentSuffix: "这样的时刻很能说明你这个月的状态。",
+            becomingSuffix: "你似乎正在成为一个能察觉什么对自己有帮助的人。",
+            releaseSuffix: "也许是时候不再把它抓得那么紧了。",
+            releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。"
+        ),
+    ]
+
+    /// A non-English grounded plan: the Gemma plan plus the validator that checks the model's
+    /// picked quote(s) against the options and returns the fully composed, user-facing text.
+    struct LocalizedGrounded {
+        let plan: LocalLLMService.GemmaPlan
+        let validator: ((String) throws -> String)?
+    }
+
+    private static func groundedLocaleCode(for entries: [Entry], extraText: String? = nil) -> String? {
+        let target = responseLanguageTarget(from: entries, extraText: extraText) ?? responseLanguageTargetFromCurrentLocale()
+        guard let code = target?.code, code != "en", groundedLocales[code] != nil else { return nil }
+        return code
+    }
+
+    private static func quotableText(of entry: Entry) -> String {
+        var texts = [entry.text]
+        for note in entry.voiceNotes {
+            if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text { texts.append(transcript) }
+        }
+        return texts.joined(separator: "\n")
+    }
+
+    private static func literalOnlyGrammar(_ rule: String, _ options: [String]) -> String {
+        "\(rule) ::= " + options.map(gbnfLiteral).joined(separator: " | ")
+    }
+
+    /// Nudge outside English: Gemma copies one sentence (grammar of literals only), the app wraps
+    /// it in `youWrote` + quote marks and adds a fixed line for the entry's mood. nil for English.
+    static func localizedGroundedNudge(recent: [Entry], background: [Entry], recentNudges: [String]) -> LocalizedGrounded? {
+        guard let code = groundedLocaleCode(for: recent + background), let loc = groundedLocales[code] else { return nil }
+        let source = groundedNudgeSourceEntries(recent)
+        var seen = Set<String>()
+        let all = source.flatMap(groundedQuoteCandidates(of:)).filter { seen.insert($0).inserted }
+        let fresh = all.filter { quote in !recentNudges.contains { $0.contains(loc.open + quote + loc.close) } }
+        let options = Array((fresh.isEmpty ? all : fresh).prefix(groundedNudgeMaxQuoteOptions))
+        guard !options.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+
+        let bucket = GroundedMoodBucket(mood: source.first?.mood)
+        let pick = bucket == .neutral
+            ? loc.pickNeutral
+            : loc.pickNudge.replacingOccurrences(of: "{mood}", with: loc.moodWord[bucket] ?? "")
+        let message = "\(pick)\n\n\(loc.entryLabel)\n" + source.map(quotableText(of:)).joined(separator: "\n---\n")
+        let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
+        let feel = loc.feel[bucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
+            validator: { text in
+                let quote = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard options.contains(quote) else { throw InsightError.incompleteResponse }
+                return loc.youWrote + loc.open + quote + loc.close + loc.joiner + feel
+            }
+        )
+    }
+
+    /// Digest outside English: Gemma copies three sentences — hardest moment, something good
+    /// growing, something to watch — one per line from mood-split literal lists; theme, boost and
+    /// next week are fixed lines chosen by the week's dominant mood ("mixed" when neither side
+    /// reaches 70%). Labels are the existing localized digest labels.
+    static func localizedGroundedDigest(weekEntries: [Entry], languageSource: [Entry]) -> LocalizedGrounded? {
+        guard let code = groundedLocaleCode(for: languageSource), let loc = groundedLocales[code] else { return nil }
+        var all: [String] = [], good: [String] = [], hard: [String] = []
+        var seen = Set<String>()
+        var bucketCounts: [GroundedMoodBucket: Int] = [:]
+        for entry in weekEntries {
+            let bucket = GroundedMoodBucket(mood: entry.mood)
+            bucketCounts[bucket, default: 0] += 1
+            for quote in groundedQuoteCandidates(of: entry) where seen.insert(quote).inserted {
+                all.append(quote)
+                if bucket.isHard { hard.append(quote) } else if bucket == .good { good.append(quote) }
+            }
+        }
+        guard !all.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+        let cap = groundedDigestMaxOptionsPerBucket
+        let goodOptions = Array((good.isEmpty ? all : good).prefix(cap))
+        let hardOptions = Array((hard.isEmpty ? all : hard).prefix(cap))
+        let energyIsHard = !hard.isEmpty
+        let energyOptions = energyIsHard ? hardOptions : goodOptions
+
+        let dominant = dominantMoodBucket(bucketCounts)
+
+        let entriesText = weekEntries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(loc.pickDigest)\n\n\(loc.weekLabel)\n\(entriesText)"
+        let grammar = [
+            #"root ::= energyq "\n" goodq "\n" hardq"#,
+            literalOnlyGrammar("energyq", energyOptions),
+            literalOnlyGrammar("goodq", goodOptions),
+            literalOnlyGrammar("hardq", hardOptions),
+        ].joined(separator: "\n")
+        let labels = weeklyDigestSectionLabels.map { $0[code] ?? $0["en"] ?? "" }
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: grammar),
+            validator: { text in
+                let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                guard lines.count == 3, energyOptions.contains(lines[0]), goodOptions.contains(lines[1]), hardOptions.contains(lines[2])
+                else { throw InsightError.incompleteResponse }
+                let watch = lines[2] == lines[0] ? (hardOptions.first { $0 != lines[0] } ?? lines[2]) : lines[2]
+                let bodies = [
+                    loc.theme[dominant] ?? "",
+                    (energyIsHard ? loc.energyHard : loc.energyGood) + loc.open + lines[0] + loc.close,
+                    loc.open + lines[1] + loc.close + loc.joiner + loc.buildingSuffix,
+                    loc.open + watch + loc.close + loc.joiner + loc.watchSuffix,
+                    loc.boost[dominant] ?? "",
+                    loc.nextWeek[dominant] ?? "",
+                ]
+                return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
+            }
+        )
+    }
+
+    /// The period's mood: the most common hard bucket or `.good`, or `.neutral` ("mixed") when both
+    /// sides are present and neither reaches 70%.
+    private static func dominantMoodBucket(_ counts: [GroundedMoodBucket: Int]) -> GroundedMoodBucket {
+        let hardCount = counts.filter { $0.key.isHard }.values.reduce(0, +)
+        let goodCount = counts[.good] ?? 0
+        let total = max(1, hardCount + goodCount)
+        if hardCount > 0, goodCount > 0, Double(max(hardCount, goodCount)) < 0.7 * Double(total) { return .neutral }
+        if goodCount >= hardCount { return goodCount > 0 ? .good : .neutral }
+        return [.tired, .stressed, .sad].max { (counts[$0] ?? 0) < (counts[$1] ?? 0) } ?? .neutral
+    }
+
+    /// Monthly report outside English: Gemma copies a sentence for a moment that changed something
+    /// (shown with its entry's date), a hopeful one (good-mood entries) and a heavy one (hard-mood
+    /// entries except grief — groundedMonthlyGriefMoods — since the fixed line after it is "let go
+    /// of"); image, tension and question are fixed lines for the month's dominant mood. With no
+    /// quotable heavy sentence the grammar asks for two lines and the release section uses
+    /// `releaseFallback`. Options are taken round-robin across the month, like the English path.
+    static func localizedGroundedMonthly(monthEntries: [Entry]) -> LocalizedGrounded? {
+        guard let code = groundedLocaleCode(for: monthEntries), let loc = groundedLocales[code] else { return nil }
+        let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let perEntry = entries.map { entry in
+            (entry, groundedQuoteCandidates(of: entry).filter { $0.count <= groundedMonthlyMaxQuoteChars })
+        }
+        var moments: [String] = [], good: [String] = [], release: [String] = []
+        var dates: [String: Date] = [:]
+        var bucketCounts: [GroundedMoodBucket: Int] = [:]
+        for entry in entries { bucketCounts[GroundedMoodBucket(mood: entry.mood), default: 0] += 1 }
+        for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
+            for (entry, quotes) in perEntry where round < quotes.count && dates[quotes[round]] == nil {
+                let quote = quotes[round]
+                dates[quote] = entry.createdAt
+                moments.append(quote)
+                let bucket = GroundedMoodBucket(mood: entry.mood)
+                if bucket == .good {
+                    good.append(quote)
+                } else if bucket.isHard, !(entry.mood.map(groundedMonthlyGriefMoods.contains) ?? false) {
+                    release.append(quote)
+                }
+            }
+        }
+        guard !moments.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+        let cap = groundedDigestMaxOptionsPerBucket
+        let momentOptions = Array(moments.prefix(groundedMonthlyMaxMoments))
+        let goodOptions = Array((good.isEmpty ? moments : good).prefix(cap))
+        let releaseOptions = Array(release.prefix(cap))
+        let hasRelease = !releaseOptions.isEmpty
+        let dominant = dominantMoodBucket(bucketCounts)
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: code)
+        dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        let entriesText = entries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(loc.pickMonthly)\n\n\(loc.monthLabel)\n\(entriesText)"
+        var rules = [
+            hasRelease ? #"root ::= momentq "\n" goodq "\n" releaseq"# : #"root ::= momentq "\n" goodq"#,
+            literalOnlyGrammar("momentq", momentOptions),
+            literalOnlyGrammar("goodq", goodOptions),
+        ]
+        if hasRelease { rules.append(literalOnlyGrammar("releaseq", releaseOptions)) }
+        let labels = monthlyReportSectionLabels.map { $0[code] ?? $0["en"] ?? "" }
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: rules.joined(separator: "\n")),
+            validator: { text in
+                let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                guard lines.count == (hasRelease ? 3 : 2), momentOptions.contains(lines[0]), goodOptions.contains(lines[1]),
+                      !hasRelease || releaseOptions.contains(lines[2])
+                else { throw InsightError.incompleteResponse }
+                let hopeful = lines[1] == lines[0] ? (goodOptions.first { $0 != lines[0] } ?? lines[1]) : lines[1]
+                let date = dates[lines[0]].map(dayFormatter.string(from:)) ?? ""
+                let bodies = [
+                    loc.monthImage[dominant] ?? "",
+                    loc.monthTension[dominant] ?? "",
+                    loc.momentLead.replacingOccurrences(of: "{date}", with: date) + loc.open + lines[0] + loc.close + loc.joiner + loc.momentSuffix,
+                    loc.open + hopeful + loc.close + loc.joiner + loc.becomingSuffix,
+                    hasRelease ? loc.open + lines[2] + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
+                    loc.monthQuestion[dominant] ?? "",
+                ]
+                return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
+            }
+        )
+    }
+
+    // MARK: Ask relevance outside English
+
+    /// Per-language word stems that give an Ask question an emotional lean, routing its quote
+    /// options to hard- or good-mood entries like the English path. Matching is by stem prefix, so
+    /// inflected forms still count ("Sorgen"/"sorge"). `stopWords`/`language` are kept for
+    /// experiments (a measured no-answer check using them was rejected — see `ask`).
+    struct AskLexicon {
+        let language: NLLanguage
+        let stopWords: Set<String>
+        let hardStems: [String]
+        let goodStems: [String]
+    }
+
+    static let askLexicons: [String: AskLexicon] = [
+        "de": AskLexicon(language: .german,
+            stopWords: ["wie", "was", "wann", "wo", "wer", "warum", "welche", "welcher", "welches", "habe", "hab", "hast", "hat", "bin", "bist", "ist", "sind", "war", "waren", "ich", "mich", "mir", "mein", "meine", "meinem", "meinen", "meiner", "du", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "in", "im", "am", "an", "auf", "mit", "über", "um", "zu", "zum", "zur", "von", "für", "und", "oder", "es", "letzter", "letzten", "zeit", "zuletzt", "gerade", "geht", "läuft", "mache", "macht", "gemacht", "wurde", "wird", "viel", "oft", "so", "sich", "eigentlich"],
+            hardStems: ["stress", "sorg", "angst", "ängst", "traurig", "müde", "erschöpf", "überford", "frust", "ärger", "belast", "einsam", "kummer", "nervös", "druck"],
+            goodStems: ["glück", "freu", "froh", "dankbar", "ruhig", "entspann", "stolz", "zufrieden", "hoffnung", "spaß"]),
+        "es": AskLexicon(language: .spanish,
+            stopWords: ["cómo", "como", "qué", "que", "cuándo", "cuando", "dónde", "donde", "quién", "quien", "por", "cuál", "cual", "he", "has", "ha", "hemos", "estoy", "estado", "estás", "está", "soy", "es", "fue", "mi", "mis", "me", "yo", "tú", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "sobre", "a", "al", "y", "o", "último", "últimamente", "ahora", "va", "van", "ido", "hecho", "hago", "lo", "se", "mucho", "tan"],
+            hardStems: ["estrés", "estres", "preocup", "ansi", "trist", "cansad", "agotad", "abrumad", "frustr", "enfad", "presión", "nervios", "miedo"],
+            goodStems: ["feliz", "alegr", "content", "agradec", "tranquil", "relaj", "orgull", "esperanz", "diviert"]),
+        "fr": AskLexicon(language: .french,
+            stopWords: ["comment", "quoi", "que", "qu", "quand", "où", "qui", "pourquoi", "quel", "quelle", "ai", "as", "a", "suis", "es", "est", "été", "était", "je", "j", "me", "m", "mon", "ma", "mes", "moi", "le", "la", "les", "l", "un", "une", "des", "de", "du", "d", "en", "dans", "avec", "sur", "à", "au", "aux", "et", "ou", "dernier", "dernièrement", "récemment", "temps", "va", "vais", "fait", "se", "beaucoup", "ça"],
+            hardStems: ["stress", "inquiét", "inquiet", "anxi", "angoiss", "trist", "fatigu", "épuis", "débord", "frustr", "énerv", "pression", "peur"],
+            goodStems: ["heureu", "joie", "content", "reconnaiss", "calme", "détend", "fier", "fière", "espoir", "amus"]),
+        "it": AskLexicon(language: .italian,
+            stopWords: ["come", "cosa", "che", "quando", "dove", "chi", "perché", "quale", "ho", "hai", "ha", "sono", "sei", "è", "stato", "stata", "ero", "io", "mi", "mio", "mia", "miei", "mie", "me", "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "di", "del", "della", "in", "nel", "con", "su", "a", "al", "e", "o", "ultimo", "ultimamente", "periodo", "va", "vado", "fatto", "si", "molto", "tanto"],
+            hardStems: ["stress", "preoccup", "ansi", "trist", "stanc", "esaust", "sopraff", "frustr", "arrabb", "pressione", "paura"],
+            goodStems: ["felic", "gioi", "content", "grat", "tranquill", "rilass", "orgogli", "speranz", "divert"]),
+        "pt": AskLexicon(language: .portuguese,
+            stopWords: ["como", "que", "quê", "quando", "onde", "quem", "por", "porque", "qual", "eu", "me", "meu", "minha", "meus", "minhas", "tenho", "tem", "tive", "estou", "está", "estive", "sou", "é", "foi", "o", "a", "os", "as", "um", "uma", "de", "do", "da", "em", "no", "na", "com", "sobre", "e", "ou", "último", "ultimamente", "tempo", "vai", "vou", "feito", "se", "muito"],
+            hardStems: ["estress", "preocup", "ansi", "trist", "cansad", "exaust", "sobrecarreg", "frustr", "irrit", "sozinh", "pressão", "medo"],
+            goodStems: ["feliz", "alegr", "content", "grat", "tranquil", "relax", "orgulh", "esperan", "divert"]),
+        "ru": AskLexicon(language: .russian,
+            stopWords: ["как", "что", "когда", "где", "кто", "почему", "какой", "какая", "какие", "я", "мне", "меня", "мой", "моя", "мои", "моё", "был", "была", "было", "были", "есть", "в", "во", "на", "с", "со", "о", "об", "про", "и", "или", "а", "последнее", "время", "недавно", "идёт", "дела", "это", "так", "много", "у"],
+            hardStems: ["стресс", "беспоко", "тревож", "грус", "устал", "измот", "перегруж", "раздраж", "одинок", "давлен", "страх", "волну"],
+            goodStems: ["счаст", "радост", "рад", "доволь", "благодар", "спокой", "расслаб", "горд", "надежд", "весел"]),
+        "ja": AskLexicon(language: .japanese,
+            stopWords: ["最近", "よく", "どう", "何", "なに", "いつ", "どこ", "誰", "なぜ", "どんな", "私", "わたし", "僕", "俺", "は", "が", "を", "に", "で", "と", "の", "も", "か", "て", "い", "ます", "です", "した", "して", "いる", "ある", "た", "だ", "でし", "ましょ", "う"],
+            hardStems: ["ストレス", "心配", "不安", "悲し", "疲れ", "疲労", "つら", "辛", "悩", "イライラ", "孤独", "怖"],
+            goodStems: ["嬉し", "うれし", "幸せ", "楽し", "感謝", "穏やか", "リラックス", "誇り", "希望"]),
+        "ko": AskLexicon(language: .korean,
+            stopWords: ["어떻게", "무엇", "뭐", "언제", "어디", "누구", "왜", "어떤", "나", "내", "저", "제", "요즘", "최근", "은", "는", "이", "가", "을", "를", "에", "에서", "와", "과", "도", "했나요", "있나요", "어땠나요", "어때요"],
+            hardStems: ["스트레스", "걱정", "불안", "슬프", "슬픔", "피곤", "지쳤", "지침", "벅차", "짜증", "외로", "힘들", "압박", "무서"],
+            goodStems: ["행복", "기쁘", "기쁨", "즐거", "감사", "평온", "편안", "뿌듯", "희망"]),
+        "zh": AskLexicon(language: .simplifiedChinese,
+            stopWords: ["我", "我的", "最近", "怎么样", "怎么", "什么", "何时", "哪里", "谁", "为什么", "哪个", "得", "了", "的", "吗", "呢", "在", "是", "有", "和", "过", "吧"],
+            hardStems: ["压力", "担心", "焦虑", "难过", "伤心", "累", "疲惫", "烦", "孤独", "害怕"],
+            goodStems: ["开心", "高兴", "快乐", "幸福", "感激", "平静", "放松", "骄傲", "满意", "希望"]),
+    ]
+
+    private static func wordTokens(_ text: String) -> [String] {
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        return tokenizer.tokens(for: text.startIndex..<text.endIndex).map { text[$0].lowercased() }
+    }
+
+    static func localizedAskLean(of question: String, code: String) -> AskLean? {
+        guard let lexicon = askLexicons[code] else { return nil }
+        let tokens = wordTokens(question)
+        let hits: ([String]) -> Bool = { stems in tokens.contains { token in stems.contains { token.hasPrefix($0) } } }
+        if hits(lexicon.hardStems) { return .hard }
+        if hits(lexicon.goodStems) { return .good }
+        return nil
+    }
+
+    /// Ask outside English: Gemma copies one or two sentences; the app lists them under a fixed
+    /// heading with each one's entry date in the user's locale. No "not written about" shortcut —
+    /// see `ask` for why.
+    static func localizedGroundedAsk(question: String, pool: [Entry]) -> LocalizedGrounded? {
+        guard let code = groundedLocaleCode(for: pool, extraText: question), let loc = groundedLocales[code] else { return nil }
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: code)
+        dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        // Same mood routing as the English path: stress/worry questions quote hard-mood entries,
+        // happy ones good-mood entries.
+        var candidates: [Entry]
+        switch localizedAskLean(of: question, code: code) {
+        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
+        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
+        case nil: candidates = pool
+        }
+        if candidates.isEmpty { candidates = pool }
+        let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
+        var options: [String] = []
+        var dates: [String: String] = [:]
+        for round in 0..<(perEntry.map(\.1.count).max() ?? 0) {
+            for (entry, quotes) in perEntry where round < quotes.count && dates[quotes[round]] == nil {
+                dates[quotes[round]] = dayFormatter.string(from: entry.createdAt)
+                options.append(quotes[round])
+            }
+        }
+        options = Array(options.prefix(groundedAskMaxOptions))
+        guard !options.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+        let entriesText = candidates.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(loc.pickAsk)\n\n\(loc.questionLabel) \(question)\n\n\(loc.entriesLabel)\n\(entriesText)"
+        let grammar = #"root ::= q ("\n" q)?"# + "\n" + literalOnlyGrammar("q", options)
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: grammar),
+            validator: { text in
+                var quotes: [String] = []
+                for line in text.components(separatedBy: .newlines).map({ $0.trimmingCharacters(in: .whitespaces) }) where !line.isEmpty {
+                    guard options.contains(line) else { throw InsightError.incompleteResponse }
+                    if !quotes.contains(line) { quotes.append(line) }
+                }
+                guard (1...2).contains(quotes.count) else { throw InsightError.incompleteResponse }
+                return ([loc.askPrefix] + quotes.map { "\(dates[$0] ?? "") – \(loc.open)\($0)\(loc.close)" }).joined(separator: "\n")
+            }
+        )
+    }
+}
+
 // MARK: - Source disclosure (Sentinel X-ray)
 
 extension InsightService {
@@ -2181,15 +3662,41 @@ extension InsightService {
     /// uses (CLAUDE.md: prompts live in `InsightService.swift` only) — the
     /// Sentinel press-hold X-ray shows this so the generation is inspectable,
     /// never a paraphrase that can drift.
-    static func systemPrompt(for type: InsightType) -> (ref: String, body: String) {
+    /// `content` picks the Gemma variant for a grounded daily nudge — the "You wrote, \"…" shape
+    /// only the grammar path produces — so the sheet never shows a prompt that wasn't sent.
+    static func systemPrompt(for type: InsightType, content: String? = nil) -> (ref: String, body: String) {
         switch type {
         case .dailyNudge:
+            if let content, content.hasPrefix(groundedNudgePrefix) {
+                return ("InsightService.swift · DAILY_NUDGE_GEMMA_INSTRUCTIONS", DAILY_NUDGE_GEMMA_INSTRUCTIONS)
+            }
+            if let content, let loc = groundedLocales.values.first(where: { content.hasPrefix($0.youWrote + $0.open) }) {
+                return ("InsightService.swift · groundedLocales.pickNudge", loc.pickNudge)
+            }
             return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
         case .weeklyDigest:
+            if let content, content.contains("WHAT'S BUILDING: You wrote, \"") {
+                return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
+            }
+            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.energyHard) || content.contains($0.energyGood) }) {
+                return ("InsightService.swift · groundedLocales.pickDigest", loc.pickDigest)
+            }
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
         case .monthlyReport:
+            if let content, content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
+                return ("InsightService.swift · MONTHLY_REPORT_GEMMA_INSTRUCTIONS", MONTHLY_REPORT_GEMMA_INSTRUCTIONS)
+            }
+            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.becomingSuffix) || content.contains($0.releaseFallback) }) {
+                return ("InsightService.swift · groundedLocales.pickMonthly", loc.pickMonthly)
+            }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:
+            if let content, content.hasPrefix(groundedAskPrefix) {
+                return ("InsightService.swift · ASK_GEMMA_INSTRUCTIONS", ASK_GEMMA_INSTRUCTIONS)
+            }
+            if let content, let loc = groundedLocales.values.first(where: { content.hasPrefix($0.askPrefix) }) {
+                return ("InsightService.swift · groundedLocales.pickAsk", loc.pickAsk)
+            }
             return ("InsightService.swift:69 · ASK_SYSTEM", ASK_SYSTEM)
         }
     }
