@@ -1297,7 +1297,7 @@ final class GroundingSampleHarness: XCTestCase {
             try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n".write(toFile: "\(dir)/\(label).prompt", atomically: true, encoding: .utf8)
             try grammar.write(toFile: "\(dir)/\(label).gbnf", atomically: true, encoding: .utf8)
         }
-        for (code, text) in GroundedLocalizedTests.sickDay {
+        for (code, text) in SharedLLMState.GroundedLocalizedTests.sickDay {
             let entry = Entry(text: text, mood: "Drained")
             let nudge = try XCTUnwrap(InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: []), code)
             try write("\(code)_nudge", nudge.plan)
@@ -1323,7 +1323,7 @@ final class GroundingSampleHarness: XCTestCase {
             "zh": "下班后带狗在湖边散步。这周第一次觉得轻松。",
         ]
         for code in ["de", "ja", "zh"] {
-            let sick = Entry(text: GroundedLocalizedTests.sickDay[code]!, mood: "Drained")
+            let sick = Entry(text: SharedLLMState.GroundedLocalizedTests.sickDay[code]!, mood: "Drained")
             let calm = Entry(text: calmDay[code]!, mood: "Peaceful")
             calm.createdAt = sick.createdAt.addingTimeInterval(-3_600)
             var started = Date()
