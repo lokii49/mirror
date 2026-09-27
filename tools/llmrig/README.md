@@ -1,9 +1,10 @@
 # llmrig — off-device Gemma test rig
 
-Runs the app's exact Gemma 3 1B path (same GGUF, same llama.cpp b6102 build, same SwiftLlama
-wrapper sources, same sampler chain and generation loop as `Llama.swift`) on a Mac, at Metal speed.
-Built 2026-09-26 to find the root cause of fabricated daily reflections. The simulator path works
-too, but at ~25s per generation it can't run the N≥10-per-variant comparisons prompt work needs.
+Runs the app's exact Gemma 3 1B path on a Mac, at Metal speed: same GGUF, and it builds against the
+app's own vendored `Packages/SwiftLlama` (patched swift-llama-cpp + llama.cpp b6102), with a
+generation loop that mirrors the patched `Llama.processPrompt`. Built 2026-09-26 to find the root
+cause of fabricated daily reflections. The simulator path works too, but at ~25s per generation it
+can't run the N≥10-per-variant comparisons prompt work needs.
 
 ```sh
 swift build -c release

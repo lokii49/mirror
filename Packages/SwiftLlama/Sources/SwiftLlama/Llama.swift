@@ -215,7 +215,12 @@ final actor Llama {
         for i in 0..<tokens.count {
             let tokenPosition = startIndex + i
             let tokenId = tokens[i]
-            batch.addToken(tokenId, at: Int32(tokenPosition), logits: false)
+            // mirror patch: request logits for the prompt's final token while it's being added.
+            // The original set them after the loop via setLastTokenLogits, but when the prompt is
+            // an exact multiple of batchSize the last batch has already been flushed and emptied
+            // by then — that call wrote logits[-1] (one byte before the buffer) and the decode
+            // below failed on zero tokens, for every retry of the same prompt.
+            batch.addToken(tokenId, at: Int32(tokenPosition), logits: i == tokens.count - 1)
             processedTokens.append(tokenId)
             if batch.size == config.batchSize {
                 try processBatch()
@@ -223,8 +228,9 @@ final actor Llama {
             }
         }
 
-        batch.setLastTokenLogits(true)
-        try processBatch()
+        if batch.size > 0 {
+            try processBatch()
+        }
 
         currentTokenPosition = Int32(processedTokens.count)
 

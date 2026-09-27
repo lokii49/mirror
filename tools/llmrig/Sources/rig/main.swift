@@ -34,13 +34,13 @@ func generate(prompt: String, temperature: Float, seed: UInt32, maxChars: Int = 
     let batch = LlamaBatch(initialSize: 256)
     batch.reset()
     var n: Int32 = 0
-    for t in tokens {
-        batch.addToken(t, at: n, logits: false)
+    // Same as the patched Llama.processPrompt (Packages/SwiftLlama/PATCHES.md #2).
+    for (i, t) in tokens.enumerated() {
+        batch.addToken(t, at: n, logits: i == tokens.count - 1)
         n += 1
         if batch.size == 256 { try! ctx.decode(batch: batch); batch.reset() }
     }
-    batch.setLastTokenLogits(true)
-    try! ctx.decode(batch: batch)
+    if batch.size > 0 { try! ctx.decode(batch: batch) }
     let sampler = LlamaSampler(config: LlamaSamplingConfig(temperature: temperature, seed: seed, topP: 0.9, topK: 40, grammarConfig: grammar.map { LlamaGrammarConfig(grammar: $0) }), model: model)
     var out = ""
     while n < 4096 {
@@ -101,16 +101,10 @@ case "gengrammar":
     }
 case "vcount":
     // Tokenizer-only load (what LocalLLMService's batch-boundary guard uses) vs the full model.
-    var vp = llama_model_default_params()
-    vp.vocab_only = true
-    print("loading vocab-only"); fflush(stdout)
-    guard let vocab = LlamaModel(path: modelPath, parameters: vp) else { print("vocab-only load returned nil"); exit(1) }
-    print("loaded"); fflush(stdout)
+    guard let vocab = LlamaModel.vocabularyOnly(path: modelPath) else { print("vocab-only load returned nil"); exit(1) }
     let prompt = try! String(contentsOfFile: args[2], encoding: .utf8)
     let full = model.tokenize(text: prompt, addBos: model.shouldAddBos(), special: true).count
-    print("full=\(full) trainedCtx=\(vocab.trainedContextSize()) addBos=\(vocab.shouldAddBos())"); fflush(stdout)
     let v = vocab.tokenize(text: prompt, addBos: vocab.shouldAddBos(), special: true).count
-    print("vocabOnly=\(v)"); fflush(stdout)
     let msgs = [LlamaChatMessage(role: .user, content: "hello there")]
     print("full=\(full) vocabOnly=\(v) templateEqual=\(vocab.applyChatTemplate(to: msgs) == model.applyChatTemplate(to: msgs))")
 case "count":

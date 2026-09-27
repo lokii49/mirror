@@ -29,6 +29,16 @@ public final class LlamaModel {
         self.vocabPointer = vocabPointer
     }
 
+    /// mirror patch: tokenizer-only load (`vocab_only`: no weights, no GPU), with the parameters
+    /// built inside this module — a caller using `init(path:)`'s default argument evaluates
+    /// `llama_model_default_params()` itself and must link llama's C symbols, which the app's test
+    /// bundle doesn't. Supports `applyChatTemplate` and `tokenize`, not inference.
+    public static func vocabularyOnly(path: String) -> LlamaModel? {
+        var parameters = llama_model_default_params()
+        parameters.vocab_only = true
+        return LlamaModel(path: path, parameters: parameters)
+    }
+
     /// Initializes a model from multiple GGUF split files.
     /// The `paths` must be ordered correctly.
     public init?(paths: [String], parameters: llama_model_params = llama_model_default_params()) {
@@ -125,8 +135,10 @@ public final class LlamaModel {
             return []
         }
         let utf8Count = text.utf8.count
-        let maxTokens = trainedContextSize()
         let tokenBufferSize = utf8Count + (addBos ? 1 : 0) + 1
+        // mirror patch: the limit is the buffer's size. It was trainedContextSize(), which is 0
+        // for a vocab-only model (every call then failed) and could exceed the buffer otherwise.
+        let maxTokens = Int32(tokenBufferSize)
         var tokensBuffer = [llama_token](repeating: llama_token(), count: Int(tokenBufferSize))
         let tokenCount = llama_tokenize(vocabPointer, text, Int32(utf8Count), &tokensBuffer, maxTokens, addBos, special)
         return Array(tokensBuffer.prefix(upTo: Int(tokenCount)))

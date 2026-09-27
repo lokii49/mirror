@@ -52,6 +52,8 @@ public final class LlamaBatch {
 
     /// Mark whether the last token should output logits.
     public func setLastTokenLogits(_ logits: Bool) {
+        // mirror patch: an empty batch has no last token (this used to write logits[-1]).
+        guard rawBatch.n_tokens > 0 else { return }
         rawBatch.logits[Int(rawBatch.n_tokens - 1)] = logits ? 1 : 0
     }
 

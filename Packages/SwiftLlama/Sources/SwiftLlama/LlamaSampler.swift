@@ -27,7 +27,8 @@ public final class LlamaSampler {
     ///   - config: The `LlamaSamplingConfig` that defines which samplers to use and their parameters.
     ///   - model: The `LlamaModel` is required to access the vocabulary for the grammar sampler.
     public init(config: LlamaSamplingConfig, model: LlamaModel) {
-        print(config)
+        // mirror patch: no `print(config)` — the config carries the grammar, and mirror's grammars
+        // are made of sentences from the user's journal.
         let sparams = llama_sampler_chain_default_params()
         self.samplerPointer = llama_sampler_chain_init(sparams)
 
