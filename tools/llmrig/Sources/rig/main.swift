@@ -43,6 +43,7 @@ func generate(prompt: String, temperature: Float, seed: UInt32, maxChars: Int = 
     if batch.size > 0 { try! ctx.decode(batch: batch) }
     let sampler = LlamaSampler(config: LlamaSamplingConfig(temperature: temperature, seed: seed, topP: 0.9, topK: 40, grammarConfig: grammar.map { LlamaGrammarConfig(grammar: $0) }), model: model)
     var out = ""
+    var decoder = UTF8StreamDecoder()   // same as the patched Llama.generateNextToken
     while n < 4096 {
         let tok = sampler.sample(context: ctx)
         if model.isEogToken(tok) { break }
@@ -50,7 +51,7 @@ func generate(prompt: String, temperature: Float, seed: UInt32, maxChars: Int = 
         batch.addToken(tok, at: n, logits: true)
         n += 1
         try! ctx.decode(batch: batch)
-        out += model.piece(from: tok)
+        out += decoder.append(model.pieceBytes(from: tok))
         if out.contains("<end_of_turn>") || out.contains("<eos>") || out.count > maxChars { break }
     }
     return out

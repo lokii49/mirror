@@ -16,3 +16,8 @@ All marked `mirror patch` in the source.
    checks without loading weights.
 5. **`LlamaModel.tokenize`: token limit is the buffer size.** It passed `trainedContextSize()`,
    which is 0 for a vocab-only model — every tokenize failed — and could exceed the buffer otherwise.
+6. **Token text is decoded as a UTF-8 stream** (`UTF8StreamDecoder`, `LlamaModel.pieceBytes`).
+   `generateNextToken` used `piece(from:)`, which decodes each token on its own; a character the
+   tokenizer emitted as several byte-level tokens (CJK, especially under a grammar) came out as ""
+   or "�" and silently disappeared — 3/20 grammar-constrained Japanese digests lost characters, so
+   their verbatim quotes failed validation.
