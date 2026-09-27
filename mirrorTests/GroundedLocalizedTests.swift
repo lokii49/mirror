@@ -110,4 +110,33 @@ struct GroundedLocalizedTests {
         #expect(text.hasPrefix(InsightService.weeklyDigestSectionLabels[0]["ja"]! + ": "), "\(text)")
         #expect(text.contains("「今週はじめて気持ちが軽くなった。」"))
     }
+
+    // Saved-insight passes (CachedInsightRepair, UngroundedInsightCleanup, the Diagnostics audit)
+    // must leave grammar-path content alone.
+    @Test func everyGrammarShapeIsRecognizedAndOrdinaryTextIsNot() throws {
+        let entry = Entry(text: Self.sickDay["ja"]!, mood: "Drained")
+        let jaNudge = try #require(try InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: [])?
+            .validator?(InsightService.groundedNudgeQuoteCandidates(in: entry.text)[0]))
+        let shapes = [
+            #"You wrote, "I felt awful all day." You seem worn down."#,
+            "THIS WEEK'S THEME: A week of x.\nWHAT'S BUILDING: You wrote, \"Felt light.\" That sounds good.",
+            "YOUR MONTH IN ONE IMAGE: A lamp.\nWHAT YOU'RE BECOMING: You wrote, \"Felt light.\" You seem to be becoming someone who rests.",
+            InsightService.groundedAskPrefix + #"On 27 Sep, you wrote, "Barely slept.""#,
+            jaNudge,
+            "今週のテーマ: つらい一週間。\nあなたのエネルギー: いちばん大変そうだったのは、こう書いたときです：「ほとんど眠れなかった。」",
+            "Am nächsten kommt, was du geschrieben hast:\n27. Sept. – „Kaum geschlafen.“",
+        ]
+        for shape in shapes { #expect(InsightService.isGrammarGrounded(shape), "\(shape)") }
+        #expect(!InsightService.isGrammarGrounded("You sat with a friend on the balcony after a long night."))
+        #expect(!InsightService.isGrammarGrounded(InsightService.dailyNudgeUngroundedFallback))
+    }
+
+    @Test func retroactiveAuditNeverFlagsAGrammarPathJapaneseNudge() throws {
+        let entry = Entry(text: Self.sickDay["ja"]!, mood: "Drained")
+        let content = try #require(try InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: [])?
+            .validator?(InsightService.groundedNudgeQuoteCandidates(in: entry.text)[0]))
+        let insight = Insight(type: .dailyNudge, content: content, periodIdentifier: DateHelpers.dayIdentifier(for: entry.createdAt))
+        insight.generatedAt = entry.createdAt.addingTimeInterval(60)
+        #expect(InsightService.ungroundedDailyNudges(among: [insight], allEntries: [entry]).isEmpty)
+    }
 }
