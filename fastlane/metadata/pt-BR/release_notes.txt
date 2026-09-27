@@ -1,4 +1,21 @@
-Uma correção de base para reflexões, resumos semanais e relatórios mensais.
+O que deu errado nas reflexões e o que muda agora
 
-• Corrigido um caso raro em que uma reflexão, um resumo semanal ou um relatório mensal podia ser gerado sem nenhuma base real nos seus próprios escritos, ficando genérico.
-• Pequenas correções e melhorias.
+Várias atualizações anteriores diziam que as reflexões estavam corrigidas. Não estavam, e peço desculpas.
+
+Desta vez encontrei a causa. Em iPhones sem Apple Intelligence, a IA integrada do mirror escrevia como um contador de histórias e inventava detalhes: chuva que não existia, pessoas trocadas.
+
+Nesses iPhones, a partir de agora:
+• Reflexões, resumos semanais, relatórios mensais e respostas do “Perguntar” citam suas próprias frases palavra por palavra. Tudo o que está entre aspas é exatamente o que você escreveu, então dá para conferir na sua entrada.
+• Além da citação, há só uma linha curta sobre como aquilo parece. Essa linha ainda pode interpretar mal o seu humor ou errar algum detalhe pequeno.
+• Se o “Perguntar” não encontrar o seu assunto, ele mostra o que você escreveu de mais próximo em vez de chutar.
+
+Em iPhones com Apple Intelligence, o modelo da Apple no próprio aparelho continua escrevendo com as próprias palavras.
+
+Também nesta atualização:
+• Os resumos semanais agora chegam no domingo nas regiões em que a semana começa no domingo.
+• O widget da tela de início e as notificações mostram só a linha curta, nunca a sua frase.
+• “Tentar novamente” agora espera uma reflexão que ainda está sendo escrita, em vez de não fazer nada.
+• Corrigidos caracteres que às vezes sumiam nos textos da IA em japonês, coreano e chinês.
+• Reflexões criadas antes desta atualização não mudam.
+
+Se uma reflexão errar alguma coisa, me conte: Ajustes → Sobre → Enviar feedback.
