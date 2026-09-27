@@ -435,7 +435,7 @@
 			mainGroup = 471287ED2F9CF11200812160;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */,
+				471288842F9D300100812160 /* XCLocalSwiftPackageReference "Packages/SwiftLlama" */,
 				47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1027,15 +1027,14 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/lokii49/swift-llama-cpp";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.1;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		471288842F9D300100812160 /* XCLocalSwiftPackageReference "Packages/SwiftLlama" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SwiftLlama;
 		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 		47E752A62FB47F4F00C6362E /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
@@ -1049,7 +1048,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		471288822F9D300100812160 /* SwiftLlama */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 471288842F9D300100812160 /* XCRemoteSwiftPackageReference "swift-llama-cpp" */;
+			package = 471288842F9D300100812160 /* XCLocalSwiftPackageReference "Packages/SwiftLlama" */;
 			productName = SwiftLlama;
 		};
 		47E752A72FB47F4F00C6362E /* RevenueCat */ = {

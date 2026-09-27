@@ -1,6 +1,5 @@
 import Foundation
 import SwiftLlama
-import llama
 import UIKit
 
 enum LocalLLMError: LocalizedError {
@@ -196,7 +195,7 @@ actor LocalLLMService {
         // generating until the full 4096-token context is exhausted (1+ hours).
         let stream: AsyncThrowingStream<String, Error>
         do {
-            stream = try await svc.streamCompletion(of: avoidingEmptyFinalBatch(messages), samplingConfig: sampling)
+            stream = try await svc.streamCompletion(of: messages, samplingConfig: sampling)
         } catch let error as LlamaContextError {
             await svc.stopCompletion()
             self.service = nil
@@ -287,10 +286,18 @@ actor LocalLLMService {
             maxTokenCount: 4096,
             useGPU: useGPU
         )
+        // llama.cpp's default logger writes to stderr, and a grammar parse error echoes grammar
+        // text — sentences from the user's journal. Silenced before every load (idempotent).
+        LlamaLog.silence()
         let service = LlamaService(modelUrl: try resolvedModelURL(), config: config)
         self.service = service
         return service
     }
+
+    /// Prompt decode batch size. A prompt that's an exact multiple of this used to hit
+    /// swift-llama-cpp's empty-final-batch bug — fixed in the vendored package
+    /// (Packages/SwiftLlama/PATCHES.md, #2).
+    static let llamaBatchSize: UInt32 = 256
 
     private func resolvedModelURL() throws -> URL {
         if let bundled = Bundle.main.url(forResource: Self.modelFileName, withExtension: Self.modelExtension) {
@@ -301,71 +308,6 @@ actor LocalLLMService {
             throw LocalLLMError.modelMissing(installed)
         }
         return installed
-    }
-
-    // MARK: - Batch-boundary guard
-    //
-    // swift-llama-cpp 1.2.1's Llama.processPrompt decodes the prompt in batches of llamaBatchSize,
-    // flushing whenever a batch fills, then marks the last batch's final token for logits and
-    // decodes it. When the templated prompt is an exact multiple of llamaBatchSize tokens that last
-    // batch is empty: setLastTokenLogits writes logits[-1] (one byte before its buffer) and
-    // llama_decode fails on zero tokens — and every retry of the same prompt lands there again.
-    // Found 2026-09-27 via tools/llmrig (a 256-token Ask prompt). The real fix belongs in the fork;
-    // until the app picks one up, count the prompt with a tokenizer-only load and step it off the
-    // boundary before it reaches LlamaService.
-
-    static let llamaBatchSize: UInt32 = 256
-    private var vocabOnlyModel: OpaquePointer?
-
-    /// Token count of `messages` exactly as Llama.initializeCompletion builds it: the model's chat
-    /// template with the assistant turn opened, tokenized with BOS per LlamaModel.shouldAddBos and
-    /// special tokens parsed. nil if the tokenizer can't be loaded (the guard then does nothing).
-    func promptTokenCount(for messages: [LlamaChatMessage]) -> Int? {
-        if vocabOnlyModel == nil, let url = try? resolvedModelURL() {
-            var params = llama_model_default_params()
-            params.vocab_only = true
-            vocabOnlyModel = llama_model_load_from_file(url.path(percentEncoded: false), params)
-        }
-        guard let model = vocabOnlyModel, let vocab = llama_model_get_vocab(model) else { return nil }
-
-        let template = llama_model_chat_template(model, nil)
-        var cMessages = messages.map { llama_chat_message(role: strdup($0.role.rawValue), content: strdup($0.content)) }
-        defer {
-            for message in cMessages {
-                free(UnsafeMutablePointer(mutating: message.role))
-                free(UnsafeMutablePointer(mutating: message.content))
-            }
-        }
-        var buffer = [CChar](repeating: 0, count: messages.reduce(1024) { $0 + $1.content.utf8.count * 2 })
-        var length = llama_chat_apply_template(template, &cMessages, cMessages.count, true, &buffer, Int32(buffer.count))
-        if length >= Int32(buffer.count) {
-            buffer = [CChar](repeating: 0, count: Int(length) + 1)
-            length = llama_chat_apply_template(template, &cMessages, cMessages.count, true, &buffer, Int32(buffer.count))
-        }
-        guard length > 0 else { return nil }
-        let prompt = String(decoding: buffer.prefix(Int(length)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
-
-        let addBos = llama_vocab_get_add_bos(vocab) && llama_vocab_type(vocab) == LLAMA_VOCAB_TYPE_SPM
-        let utf8Count = prompt.utf8.count
-        var tokens = [llama_token](repeating: 0, count: utf8Count + 2)
-        let count = llama_tokenize(vocab, prompt, Int32(utf8Count), &tokens, Int32(tokens.count), addBos, true)
-        return count >= 0 ? Int(count) : nil
-    }
-
-    /// `messages`, with a short suffix on the last one if the prompt would land exactly on a batch
-    /// boundary (rechecked, since a suffix could in principle land on the next one).
-    func avoidingEmptyFinalBatch(_ messages: [LlamaChatMessage]) -> [LlamaChatMessage] {
-        var current = messages
-        for _ in 0..<3 {
-            guard let count = promptTokenCount(for: current), count % Int(Self.llamaBatchSize) == 0,
-                  let last = current.popLast()
-            else { return current }
-            #if DEBUG
-            print("[llm] prompt hit the \(Self.llamaBatchSize)-token batch boundary (\(count) tokens); padding")
-            #endif
-            current.append(LlamaChatMessage(role: last.role, content: last.content + "\n\nBegin."))
-        }
-        return current
     }
 
     private func clean(_ text: String) -> String {

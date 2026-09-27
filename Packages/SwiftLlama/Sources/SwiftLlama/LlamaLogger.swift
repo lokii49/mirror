@@ -15,6 +15,13 @@ extension Logger {
 }
 
 public enum LlamaLog {
+    /// mirror patch: drop every llama.cpp log line. `setLogger(nil)` restores llama.cpp's default
+    /// logger, which writes to stderr — including grammar parse errors that echo grammar text,
+    /// i.e. sentences from the user's journal.
+    public static func silence() {
+        llama_log_set({ _, _, _ in }, nil)
+    }
+
     /// Set a global log callback that bridges to Swift. If `logger` is nil, logging is disabled.
     public static func setLogger(_ logger: Logger?) {
         if let logger {
