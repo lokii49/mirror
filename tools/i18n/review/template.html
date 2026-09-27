@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mirror Translation Review</title>
+<style>
+:root {
+  --bg: #f6f4f1; --surface: #ffffff; --surface-2: #faf8fc; --ink: #1d1b20; --muted: #6a6470; --line: #e5e0e8;
+  --accent: #6a4dc0; --accent-ink: #ffffff; --accent-soft: #efe9fb;
+  --ok: #1d7549; --ok-soft: #e2f3e9; --chg: #9a4c14; --chg-soft: #fbede1;
+  --quote: #ece6f7; --quote-ink: #4a3a78; --shadow: 0 1px 2px rgba(30,20,50,.06), 0 4px 14px rgba(30,20,50,.05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131116; --surface: #1c1920; --surface-2: #211d26; --ink: #ece8f1; --muted: #a39cab; --line: #2f2a35;
+    --accent: #b29cf4; --accent-ink: #1a1424; --accent-soft: #2a2338;
+    --ok: #74d3a0; --ok-soft: #16281e; --chg: #f2a46b; --chg-soft: #2f2016;
+    --quote: #2c2538; --quote-ink: #d4c7f7; --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131116; --surface: #1c1920; --surface-2: #211d26; --ink: #ece8f1; --muted: #a39cab; --line: #2f2a35;
+  --accent: #b29cf4; --accent-ink: #1a1424; --accent-soft: #2a2338;
+  --ok: #74d3a0; --ok-soft: #16281e; --chg: #f2a46b; --chg-soft: #2f2016;
+  --quote: #2c2538; --quote-ink: #d4c7f7; --shadow: none;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 120px; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -.01em; }
+h2 { font-size: 19px; margin: 40px 0 6px; }
+h3 { font-size: 15px; margin: 26px 0 4px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+p { margin: 0 0 10px; }
+.lede { color: var(--muted); max-width: 62ch; }
+.step { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.langs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 14px; }
+.chip { font: inherit; font-size: 15px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.field { display: block; font-size: 14px; color: var(--muted); }
+input[type=text], textarea { width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-top: 4px; }
+textarea { resize: vertical; min-height: 64px; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin: 8px 0 14px; }
+.q { background: var(--quote); color: var(--quote-ink); border-radius: 4px; padding: 0 3px; font-style: italic; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.serif { font-family: ui-serif, "New York", "Iowan Old Style", Georgia, "Noto Serif", serif; }
+.ex-grid { display: grid; gap: 12px; }
+.ex h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ex .body { font-size: 17px; line-height: 1.55; }
+.ex .sec { margin-top: 12px; }
+.ex .sec:first-of-type { margin-top: 0; }
+.ex .sec-t { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.ex .asked { font-size: 15px; color: var(--muted); margin-bottom: 8px; }
+.ex .hint { margin-top: 10px; font-size: 14px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+.ex .entry { font-size: 15px; color: var(--muted); }
+.widget { display: flex; gap: 10px; align-items: flex-start; }
+.widget .dot { flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--accent-soft); display: grid; place-items: center; color: var(--accent); font-weight: 700; }
+.sect { margin-top: 30px; }
+.sect > .intro { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+.row { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.row.is-ok { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.row.is-chg { border-color: color-mix(in srgb, var(--chg) 55%, var(--line)); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.tag { font-size: 12px; border-radius: 6px; padding: 1px 7px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.tag.anchor { color: var(--chg); border-color: color-mix(in srgb, var(--chg) 35%, var(--line)); }
+.tag.proposed { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.orig { font-size: 18px; line-height: 1.5; margin: 2px 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.orig.mark { font-size: 30px; line-height: 1.1; }
+.gloss { font-size: 14px; color: var(--muted); margin: 0; }
+.gloss b { font-weight: 600; color: var(--ink); }
+.note { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn { font: inherit; font-size: 14px; border-radius: 9px; padding: 7px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn.ok[aria-pressed="true"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.btn.chg[aria-pressed="true"] { background: var(--chg-soft); border-color: var(--chg); color: var(--chg); font-weight: 600; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.edit { margin-top: 10px; display: grid; gap: 8px; }
+.edit[hidden] { display: none; }
+details.model { margin-top: 30px; }
+details.model > summary { cursor: pointer; font-weight: 600; padding: 10px 0; }
+fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 14px; margin: 0 0 12px; background: var(--surface); }
+legend { padding: 0 6px; font-weight: 600; }
+.opts { display: grid; gap: 6px; margin: 8px 0; }
+.opts label { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; cursor: pointer; }
+.opts input { margin-top: 4px; accent-color: var(--accent); }
+.scale { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px; }
+.scale .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.scale-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); max-width: 290px; }
+#out { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 140px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+.bar .in { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.meter { flex: 1; min-width: 0; }
+.meter .txt { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meter .track { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.meter .fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.status { font-size: 13px; color: var(--ok); min-height: 1.3em; margin-top: 6px; }
+.hidden { display: none !important; }
+.theme-toggle { float: right; font: inherit; font-size: 13px; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 4px 9px; cursor: pointer; }
+@media (max-width: 520px) { h1 { font-size: 22px; } .orig { font-size: 17px; } .ex .body { font-size: 16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <button class="theme-toggle" id="themeBtn" type="button" aria-label="Switch light or dark">◐</button>
+  <span class="step">mirror</span>
+  <h1>Translation review</h1>
+  <p class="lede">mirror is a private journaling app. Its on-device AI picks one of the writer's own sentences and quotes it back. It never makes up facts. The app then adds a short, fixed line around the quote. Those fixed lines were translated without a native speaker. Please check whether they sound natural, warm and correct in your language.</p>
+  <p class="lede">About 15 minutes. Nothing leaves this page until you copy your answers and send them back.</p>
+
+  <section>
+    <h2><span class="step">Step 1</span><br>Your language</h2>
+    <div class="langs" id="langs" role="group" aria-label="Language"></div>
+    <label class="field">Your name (optional, so we can thank you)
+      <input type="text" id="name" autocomplete="name" maxlength="80">
+    </label>
+  </section>
+
+  <div id="main" class="hidden">
+    <section>
+      <h2><span class="step">Step 2</span><br>How it looks in the app</h2>
+      <p class="muted small" id="variantLine"></p>
+      <div class="legend"><span class="q">highlighted</span><span>= the writer's own words (made-up example). Please don't review these.</span></div>
+      <div class="ex-grid" id="examples"></div>
+    </section>
+
+    <section>
+      <h2><span class="step">Step 3</span><br>Line by line</h2>
+      <p class="muted">For each line, tap <b>Sounds natural</b> or <b>Suggest a change</b>. The English meaning is a guide. A natural phrasing matters more than a word-for-word match.</p>
+      <div id="rows"></div>
+      <details class="model" id="modelBox">
+        <summary>Optional: instructions the AI reads (users never see these)</summary>
+        <div id="modelRows"></div>
+      </details>
+    </section>
+
+    <section>
+      <h2><span class="step">Step 4</span><br>A few questions</h2>
+      <div id="questions"></div>
+    </section>
+
+    <section>
+      <h2><span class="step">Step 5</span><br>Send it back</h2>
+      <p class="muted">Copy your review and paste it into a message to the person who sent you this link. Your answers are also kept in this browser, so you can come back later.</p>
+      <div class="acts">
+        <button class="btn primary" id="copyBtn" type="button">Copy my review</button>
+        <button class="btn hidden" id="shareBtn" type="button">Share…</button>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <label class="field" style="margin-top:10px">Your review (you can also select and copy this text by hand)
+        <textarea id="out" readonly spellcheck="false"></textarea>
+      </label>
+    </section>
+  </div>
+</div>
+
+<div class="bar hidden" id="bar">
+  <div class="in">
+    <div class="meter"><div class="txt" id="meterTxt"></div><div class="track"><div class="fill" id="meterFill"></div></div></div>
+    <button class="btn primary" id="copyBtn2" type="button">Copy review</button>
+  </div>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function () {
+  "use strict";
+  var DATA = JSON.parse(document.getElementById("data").textContent);
+  var LANGS = DATA.languages;
+  var MOOD = { tired: "Mood: drained", stressed: "Mood: under pressure", sad: "Mood: low", good: "Mood: a good day", neutral: "Mood: mixed or unclear" };
+  var SECTION_INTRO = {
+    daily: "After an entry is saved, the app quotes one sentence from it and adds one short line. That line depends on the entry's mood. There are two versions per mood, and the app rotates between them.",
+    digest: "Once a week, in six short sections. Three of them quote the writer.",
+    monthly: "Once a month, in six short sections.",
+    ask: "The writer asks a question about their journal. The app shows the closest sentences they wrote.",
+    proposed: "Not in the app yet. We may add this line under every Ask answer, because the on-device AI can't tell for sure whether a question is covered.",
+    model: "These tell the on-device AI which sentence to pick. Flag a line only if its meaning is wrong or confusing. Please don't polish the style: any change here has to be re-tested."
+  };
+  var KIND_TAG = {
+    user: null,
+    anchor: ["anchor", "Change only if needed"],
+    instruction: [null, "AI only"],
+    proposed: ["proposed", "Proposed"]
+  };
+  var ANCHOR_NOTE = "Fine to change now. After release, the app will have to keep recognizing the old wording in saved reflections, so please suggest a change only if it's actually wrong, not just to polish it.";
+  var HTML_LANG = { zh: "zh-Hans", pt: "pt-BR" };
+
+  var store = {
+    get: function (k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  var current = null;         // language object
+  var state = null;           // { lines: {id: {v, s, n}}, answers: {} }
+  var saveTimer = null;
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "cls") n.className = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function rowId(r) { return r.key + "|" + r.variant; }
+  function htmlLang(code) { return HTML_LANG[code] || code; }
+
+  // ---------- theme ----------
+  var themeBtn = document.getElementById("themeBtn");
+  var savedTheme = store.get("mirror-review:theme");
+  if (savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
+  themeBtn.addEventListener("click", function () {
+    var dark = document.documentElement.getAttribute("data-theme") === "dark" ||
+      (!document.documentElement.getAttribute("data-theme") && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var next = dark ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    store.set("mirror-review:theme", next);
+  });
+
+  // ---------- language + name ----------
+  var langsBox = document.getElementById("langs");
+  LANGS.forEach(function (l) {
+    langsBox.appendChild(el("button", { cls: "chip", type: "button", "aria-pressed": "false", "data-code": l.code, lang: htmlLang(l.code), title: l.english,
+      onclick: function () { pick(l.code); } }, [l.name]));
+  });
+  var nameInput = document.getElementById("name");
+  nameInput.value = store.get("mirror-review:name") || "";
+  nameInput.addEventListener("input", function () { store.set("mirror-review:name", nameInput.value); refreshOut(); });
+
+  function loadState(code) {
+    var raw = store.get("mirror-review:" + code);
+    try { var s = raw && JSON.parse(raw); if (s && s.lines && s.answers) return s; } catch (e) {}
+    return { lines: {}, answers: {} };
+  }
+  function persist() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { if (current) store.set("mirror-review:" + current.code, JSON.stringify(state)); }, 300);
+    refreshOut();
+  }
+
+  function pick(code) {
+    current = LANGS.filter(function (l) { return l.code === code; })[0];
+    state = loadState(code);
+    store.set("mirror-review:lang", code);
+    Array.prototype.forEach.call(langsBox.children, function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-code") === code)); });
+    document.getElementById("main").classList.remove("hidden");
+    document.getElementById("bar").classList.remove("hidden");
+    renderExamples();
+    renderRows();
+    renderQuestions();
+    refreshOut();
+  }
+
+  // ---------- examples ----------
+  function segs(parts, code) {
+    var span = el("span", { lang: htmlLang(code) });
+    parts.forEach(function (p) {
+      if (p.quote !== undefined) span.appendChild(el("span", { cls: "q", text: p.quote }));
+      else span.appendChild(document.createTextNode(p.text));
+    });
+    return span;
+  }
+  function renderExamples() {
+    var ex = current.examples, code = current.code, box = document.getElementById("examples");
+    box.textContent = "";
+    document.getElementById("variantLine").textContent = "Written for: " + current.variant;
+    box.appendChild(el("div", { cls: "card ex" }, [
+      el("h4", { text: "The made-up journal entry used below" }),
+      el("div", { cls: "entry", lang: htmlLang(code), text: ex.entry })
+    ]));
+    box.appendChild(el("div", { cls: "card ex" }, [
+      el("h4", { text: "Daily reflection" }),
+      el("div", { cls: "body serif" }, [segs(ex.nudge, code)])
+    ]));
+    box.appendChild(el("div", { cls: "card ex" }, [
+      el("h4", { text: "Home-screen widget and notification (same line, no quote)" }),
+      el("div", { cls: "widget" }, [el("div", { cls: "dot", "aria-hidden": "true", text: "m" }), el("div", { cls: "body serif", lang: htmlLang(code), text: ex.widget })])
+    ]));
+    function sections(title, list) {
+      var body = el("div", { cls: "body serif" });
+      list.forEach(function (s) { body.appendChild(el("div", { cls: "sec" }, [el("div", { cls: "sec-t", text: s[0] }), segs(s[1], code)])); });
+      return el("div", { cls: "card ex" }, [el("h4", { text: title }), body]);
+    }
+    box.appendChild(sections("Weekly digest (section titles shown in English here; the app translates them)", ex.digest));
+    box.appendChild(sections("Monthly report", ex.monthly));
+    var ask = el("div", { cls: "body serif" });
+    ex.ask.forEach(function (line) { ask.appendChild(el("div", null, [segs(line, code)])); });
+    box.appendChild(el("div", { cls: "card ex" }, [
+      el("h4", { text: "Ask" }),
+      el("div", { cls: "asked" }, ["Question: ", el("span", { lang: htmlLang(code), text: ex.question })]),
+      ask,
+      el("div", { cls: "hint", lang: htmlLang(code) }, [el("span", { cls: "tag proposed", text: "Proposed" }), " ", ex.askHint])
+    ]));
+  }
+
+  // ---------- rows ----------
+  function renderRow(r) {
+    var id = rowId(r), st = state.lines[id] || {};
+    var tags = el("div", { cls: "tags" });
+    if (r.mood) tags.appendChild(el("span", { cls: "tag", text: MOOD[r.mood] }));
+    if (/\/\d$/.test(r.variant)) tags.appendChild(el("span", { cls: "tag", text: "Version " + r.variant.slice(-1) + " of 2" }));
+    var k = KIND_TAG[r.kind];
+    if (k) tags.appendChild(el("span", { cls: "tag" + (k[0] ? " " + k[0] : ""), text: k[1] }));
+    var isMark = r.key === "open" || r.key === "close";
+    var ok = el("button", { cls: "btn ok", type: "button", "aria-pressed": String(st.v === "ok") }, ["✓ Sounds natural"]);
+    var chg = el("button", { cls: "btn chg", type: "button", "aria-pressed": String(st.v === "chg") }, ["✎ Suggest a change"]);
+    var sug = el("textarea", { rows: "2", lang: htmlLang(current.code), "aria-label": "Your wording" });
+    sug.value = st.s !== undefined ? st.s : r.text;
+    var why = el("input", { type: "text", "aria-label": "Why (optional)", placeholder: "Why? (optional)" });
+    why.value = st.n || "";
+    var edit = el("div", { cls: "edit" }, [
+      el("label", { cls: "field" }, ["Your wording", sug]),
+      why
+    ]);
+    edit.hidden = st.v !== "chg";
+    var row = el("div", { cls: "row" + (st.v === "ok" ? " is-ok" : st.v === "chg" ? " is-chg" : "") }, [
+      tags,
+      el("p", { cls: "orig serif" + (isMark ? " mark" : ""), lang: htmlLang(current.code), text: r.text }),
+      el("p", { cls: "gloss" }, [el("b", { text: "Meaning: " }), r.gloss]),
+      r.note ? el("p", { cls: "note", text: r.note }) : null,
+      r.kind === "anchor" ? el("p", { cls: "note", text: ANCHOR_NOTE }) : null,
+      el("div", { cls: "acts" }, [ok, chg]),
+      edit
+    ]);
+    function setV(v) {
+      var s = state.lines[id] || {};
+      s.v = s.v === v ? undefined : v;
+      if (s.v === undefined) delete state.lines[id]; else state.lines[id] = s;
+      ok.setAttribute("aria-pressed", String(s.v === "ok"));
+      chg.setAttribute("aria-pressed", String(s.v === "chg"));
+      row.className = "row" + (s.v === "ok" ? " is-ok" : s.v === "chg" ? " is-chg" : "");
+      edit.hidden = s.v !== "chg";
+      if (s.v === "chg") { sug.focus(); sug.setSelectionRange(sug.value.length, sug.value.length); }
+      persist(); meter();
+    }
+    ok.addEventListener("click", function () { setV("ok"); });
+    chg.addEventListener("click", function () { setV("chg"); });
+    sug.addEventListener("input", function () { var s = state.lines[id]; if (s) { s.s = sug.value; persist(); } });
+    why.addEventListener("input", function () { var s = state.lines[id]; if (s) { s.n = why.value; persist(); } });
+    return row;
+  }
+  function renderRows() {
+    var box = document.getElementById("rows"), modelBox = document.getElementById("modelRows");
+    box.textContent = ""; modelBox.textContent = "";
+    var bySection = {};
+    current.rows.forEach(function (r) { (bySection[r.section] = bySection[r.section] || []).push(r); });
+    Object.keys(bySection).forEach(function (sec) {
+      var target = sec === "model" ? modelBox : box;
+      var wrap = el("div", { cls: "sect" }, [
+        el("h3", { text: DATA.where[sec] }),
+        el("p", { cls: "intro", text: SECTION_INTRO[sec] })
+      ]);
+      bySection[sec].forEach(function (r) { wrap.appendChild(renderRow(r)); });
+      target.appendChild(wrap);
+    });
+    meter();
+  }
+  function required() { return current.rows.filter(function (r) { return r.kind !== "instruction"; }); }
+  function meter() {
+    var req = required(), done = req.filter(function (r) { return state.lines[rowId(r)]; }).length;
+    var chg = Object.keys(state.lines).filter(function (k) { return state.lines[k].v === "chg"; }).length;
+    document.getElementById("meterTxt").textContent = current.name + " · " + done + " of " + req.length + " lines checked" + (chg ? " · " + chg + " suggestion" + (chg > 1 ? "s" : "") : "");
+    document.getElementById("meterFill").style.width = (100 * done / req.length) + "%";
+  }
+
+  // ---------- questions ----------
+  function radioGroup(name, options) {
+    var box = el("div", { cls: "opts", role: "radiogroup" });
+    options.forEach(function (o) {
+      var input = el("input", { type: "radio", name: name, value: o[0] });
+      input.checked = state.answers[name] === o[0];
+      input.addEventListener("change", function () { state.answers[name] = o[0]; persist(); });
+      box.appendChild(el("label", null, [input, el("span", null, [o[1]])]));
+    });
+    return box;
+  }
+  function freeText(name, label, placeholder) {
+    var t = el("textarea", { rows: "2", placeholder: placeholder || "", lang: htmlLang(current.code) });
+    t.value = state.answers[name] || "";
+    t.addEventListener("input", function () { state.answers[name] = t.value; persist(); });
+    return el("label", { cls: "field" }, [label, t]);
+  }
+  function renderQuestions() {
+    var q = document.getElementById("questions"), reg = current.register;
+    q.textContent = "";
+    q.appendChild(el("fieldset", null, [
+      el("legend", { text: "1. How the AI addresses the writer" }),
+      el("p", { text: reg.context }),
+      el("p", { cls: "muted small", text: "It's meant to feel like a close, kind friend, not a doctor or a customer-service agent." }),
+      radioGroup("register", [["keep", "Keep " + reg.current], ["switch", "Switch to " + reg.other], ["either", "Either is fine"]]),
+      freeText("registerNote", "Anything to add? (optional)")
+    ]));
+    var genderKids = [
+      el("legend", { text: "2. The writer's gender" }),
+      el("p", { text: "The app doesn't know whether the writer is a man, a woman, or neither. Does any line assume one?" }),
+      radioGroup("gender", [["no", "No, every line works for anyone"], ["yes", "Yes, some lines assume a gender"]]),
+      freeText("genderNote", "Which lines, and how would you fix them? (optional)")
+    ];
+    if (current.code === "ru") {
+      genderKids.splice(3, 0, el("p", { cls: "small", text: "To avoid guessing, the Russian lines say «Ты написал(а):». A gender-free wording could be «Ты пишешь:» or «Из твоей записи:». Which is better?" }),
+        radioGroup("ruForm", [["keep", "Keep «написал(а)»"], ["neutral", "Use a gender-free wording (write it below)"]]));
+    }
+    q.appendChild(el("fieldset", null, genderKids));
+    q.appendChild(el("fieldset", null, [
+      el("legend", { text: "3. Region and style" }),
+      el("p", { text: "Written for: " + current.variant }),
+      freeText("regional", "Anything that sounds regional, dated, stiff, or machine-translated? (optional)")
+    ]));
+    var scale = el("div", { cls: "scale", role: "group", "aria-label": "Overall naturalness from 1 to 5" });
+    [1, 2, 3, 4, 5].forEach(function (n) {
+      var b = el("button", { cls: "btn", type: "button", "aria-pressed": String(state.answers.overall === n), text: String(n) });
+      b.addEventListener("click", function () {
+        state.answers.overall = state.answers.overall === n ? undefined : n;
+        Array.prototype.forEach.call(scale.children, function (c, i) { c.setAttribute("aria-pressed", String(state.answers.overall === i + 1)); });
+        persist();
+      });
+      scale.appendChild(b);
+    });
+    q.appendChild(el("fieldset", null, [
+      el("legend", { text: "4. Overall" }),
+      el("p", { text: "How natural does it sound overall?" }),
+      scale,
+      el("div", { cls: "scale-ends" }, [el("span", { text: "1 · clearly translated" }), el("span", { text: "5 · like a native writer" })]),
+      el("div", { style: "height:10px" }),
+      freeText("comment", "Anything else? (optional)")
+    ]));
+  }
+
+  // ---------- export ----------
+  function buildReview() {
+    var changes = [], ok = [];
+    current.rows.forEach(function (r) {
+      var s = state.lines[rowId(r)];
+      if (!s) return;
+      if (s.v === "ok") ok.push(rowId(r));
+      else if (s.v === "chg") changes.push({ key: r.key, variant: r.variant, kind: r.kind, original: r.text, suggestion: (s.s !== undefined ? s.s : r.text), why: s.n || "" });
+    });
+    var a = state.answers, answers = {};
+    Object.keys(a).forEach(function (k) { if (a[k] !== undefined && a[k] !== "") answers[k] = a[k]; });
+    var req = required();
+    return {
+      mirrorTranslationReview: 1,
+      language: current.code,
+      reviewer: nameInput.value.trim(),
+      checked: req.filter(function (r) { return state.lines[rowId(r)]; }).length + "/" + req.length,
+      answers: answers,
+      changes: changes,
+      ok: ok
+    };
+  }
+  var out = document.getElementById("out");
+  function refreshOut() { if (current) out.value = JSON.stringify(buildReview(), null, 1); }
+  var statusEl = document.getElementById("status");
+  function say(msg) { statusEl.textContent = msg; }
+  function fallbackCopy() {
+    out.focus(); out.select();
+    var worked = false;
+    try { worked = document.execCommand("copy"); } catch (e) {}
+    say(worked ? "Copied. Paste it into a message to the person who sent you this link." : "Couldn't copy automatically. The text is selected below, so copy it by hand.");
+  }
+  function copy() {
+    refreshOut();
+    document.getElementById("out").scrollIntoView({ block: "center", behavior: "smooth" });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out.value).then(function () {
+        say("Copied. Paste it into a message to the person who sent you this link.");
+      }, fallbackCopy);
+    } else fallbackCopy();
+  }
+  document.getElementById("copyBtn").addEventListener("click", copy);
+  document.getElementById("copyBtn2").addEventListener("click", copy);
+  var shareBtn = document.getElementById("shareBtn");
+  if (navigator.share) {
+    shareBtn.classList.remove("hidden");
+    shareBtn.addEventListener("click", function () {
+      refreshOut();
+      navigator.share({ title: "mirror translation review (" + current.code + ")", text: out.value }).then(function () { say("Shared."); }, function (e) {
+        if (e && e.name === "AbortError") return;
+        say("Sharing isn't available here. Use Copy my review instead.");
+      });
+    });
+  }
+
+  var last = store.get("mirror-review:lang");
+  if (last && LANGS.some(function (l) { return l.code === last; })) pick(last);
+})();
+</script>
+</body>
+</html>
