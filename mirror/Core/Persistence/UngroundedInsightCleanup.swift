@@ -86,7 +86,8 @@ enum UngroundedInsightCleanup {
         // daily nudge's `ungroundedDailyNudges`) — reconstructed inline here using each insight's
         // own `periodIdentifier` against the fixed dual grounding check.
         for insight in allInsights where insight.type == .weeklyDigest {
-            guard !InsightService.isUngroundedFallback(insight.content) else { continue }
+            guard !InsightService.isUngroundedFallback(insight.content),
+                  !InsightService.isGrammarGrounded(insight.content) else { continue }
             // Computed from createdAt, not the stored `Entry.weekIdentifier` — that field
             // defaults to "" and can be unset on entries created before it existed or restored
             // via CloudKit without it, which would silently match nothing here.
@@ -100,7 +101,8 @@ enum UngroundedInsightCleanup {
         }
 
         for insight in allInsights where insight.type == .monthlyReport {
-            guard !InsightService.isUngroundedFallback(insight.content) else { continue }
+            guard !InsightService.isUngroundedFallback(insight.content),
+                  !InsightService.isGrammarGrounded(insight.content) else { continue }
             let monthEntries = allEntries.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == insight.periodIdentifier }
             guard !monthEntries.isEmpty, InsightService.sharesNoWordWithRecent(insight.content, recentEntries: monthEntries) else { continue }
             insight.content = InsightService.monthlyReportUngroundedFallback

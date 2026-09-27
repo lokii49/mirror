@@ -600,6 +600,8 @@ enum InsightService {
         let decryptableEntries = allEntries.filter(hasReadableContext)
         return insights
             .filter { $0.type == .dailyNudge }
+            // Grammar-path nudges were verified quote-by-quote at generation; see isGrammarGrounded.
+            .filter { !isGrammarGrounded($0.content) }
             // A fallback row's own boilerplate ("MirrorNotes couldn't find today's reflection...")
             // shares no vocabulary with any entry by construction — it's the guard's own safe
             // placeholder, not a generated reflection that needs auditing. Without this, the
@@ -2555,6 +2557,24 @@ extension InsightService {
 
     private static func gbnfLiteral(_ text: String) -> String {
         "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// True for any insight produced by a grammar-constrained Gemma path (English or localized
+    /// nudge, digest, monthly report, Ask). Such content was verified quote-by-quote when it was
+    /// generated, so passes that re-process saved insights must leave it alone: the generic
+    /// cleaner rewrites "I felt" → "you felt" inside the user's own quote, and the word-overlap
+    /// audits flag correct Chinese/Japanese output (no spaces to split words on). Those passes run
+    /// once per device, so a new or restored device runs them over content synced from another.
+    static func isGrammarGrounded(_ content: String) -> Bool {
+        if content.hasPrefix(groundedNudgePrefix) || content.hasPrefix(groundedAskPrefix)
+            || content.contains("WHAT'S BUILDING: You wrote, \"")
+            || content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
+            return true
+        }
+        return groundedLocales.values.contains { loc in
+            content.hasPrefix(loc.youWrote + loc.open) || content.hasPrefix(loc.askPrefix)
+                || content.contains(loc.energyHard) || content.contains(loc.energyGood)
+        }
     }
 
     /// The part of a nudge that may leave the app (home-screen widget, lock-screen preview): a
