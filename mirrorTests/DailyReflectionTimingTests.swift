@@ -162,6 +162,21 @@ extension SharedLLMState {
             if case .loaded = viewModel.nudgeState { Issue.record("a reflection about the day before yesterday must not stay on the Today card") }
         }
 
+        // MARK: Reflection time
+
+        @Test func reflectionTime_comparesMinutesToo() {
+            func at(_ h: Int, _ m: Int) -> Date { Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: startOfToday)! }
+            func due(_ now: Date, _ hour: Int, _ minute: Int) -> Bool {
+                mirrorApp.isAtOrPastReflectionTime(now, hour: hour, minute: minute)
+            }
+            #expect(!due(at(8, 15), 8, 30), "8:15 is before an 8:30 reflection time")
+            #expect(due(at(8, 30), 8, 30))
+            #expect(due(at(9, 0), 8, 30))
+            #expect(!due(at(7, 59), 8, 0))
+            #expect(due(at(8, 0), 8, 0), "a whole-hour time behaves as before")
+            #expect(!due(at(0, 0), 23, 59))
+        }
+
         // MARK: Background catch-up condition ("save and leave")
 
         @Test func catchUp_isDue_forTheSameDaySecondReflection() throws {

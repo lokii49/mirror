@@ -371,10 +371,17 @@ struct mirrorApp: App {
 
     // MARK: - Shared generation helpers (also called from BGAppRefreshTask fallback)
 
-    @MainActor
+    /// At or past the user's reflection time today, hour and minute. It used to compare the hour
+    /// only, so a reflection time of 8:30 opened at 8:00.
+    static func isAtOrPastReflectionTime(_ now: Date, hour: Int, minute: Int, calendar: Calendar = .current) -> Bool {
+        let c = calendar.dateComponents([.hour, .minute], from: now)
+        return (c.hour ?? 0, c.minute ?? 0) >= (hour, minute)
+    }
+
     /// Today's real reflection allows one more (InsightService.allowsAnotherReflectionToday),
     /// judged from today's readable entries and the last failed extra attempt. Only today's
     /// entries are fetched (and decrypted).
+    @MainActor
     static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
         let startOfToday = Calendar.current.startOfDay(for: Date())
         let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
@@ -389,6 +396,7 @@ struct mirrorApp: App {
     /// runDailyNudgeIfNeeded makes: none yet, the newest is the fallback, or one more is allowed.
     /// The background catch-up used `!hasDailyNudgeForToday`, which skipped the same-day second
     /// reflection when the user saved and left the app right away.
+    @MainActor
     static func dailyReflectionMayBeDue(context: ModelContext) -> Bool {
         let today = DateHelpers.dayIdentifier(for: Date())
         let rows = (try? context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))) ?? []
@@ -397,6 +405,7 @@ struct mirrorApp: App {
         return anotherReflectionAllowed(after: newestToday, context: context)
     }
 
+    @MainActor
     static func runDailyNudgeIfNeeded(context: ModelContext, bypassTimeGate: Bool = false, userInitiatedRetry: Bool = false) async {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
@@ -492,9 +501,7 @@ struct mirrorApp: App {
         // Nightly background tasks bypass this gate — they're the fallback for users who never
         // opened the app at their preferred hour.
         if !bypassTimeGate {
-            let preferredHour = NotificationService.nudgeHour()
-            let currentHour = Calendar.current.component(.hour, from: Date())
-            guard currentHour >= preferredHour else {
+            guard isAtOrPastReflectionTime(Date(), hour: NotificationService.nudgeHour(), minute: NotificationService.nudgeMinute()) else {
                 #if DEBUG
                 print("[nudge] blocked: before-nudge-hour")
                 #endif
