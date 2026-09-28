@@ -3483,16 +3483,31 @@ extension InsightService {
         var seen = Set<String>()
         let phrases = groundedNudgeQuoteCandidates(in: text)
             .flatMap(followUpClauseRuns(of:))
+            .filter { phrase in !followUpTemplateMarkers.contains { phrase.contains($0) } }
             .filter { seen.insert($0).inserted }
         return Array(phrases.suffix(followUpMaxPhrases))
     }
+
+    /// The fixed text of every follow-up template, in every language: the part before `{quote}`,
+    /// or after it when the quote comes first (ja/ko/zh). Tapping the chip appends the composed
+    /// question to the draft, so without this a later chip could quote the previous one.
+    private static let followUpTemplateMarkers: [String] = {
+        let templates = FOLLOW_UP_GEMMA_QUESTIONS + groundedLocales.values.flatMap(\.followUpQuestion)
+        return templates.compactMap { template in
+            let parts = template.components(separatedBy: "{quote}")
+            let before = parts[0].trimmingCharacters(in: .whitespaces)
+            let after = parts.count > 1 ? parts[1].trimmingCharacters(in: CharacterSet(charactersIn: " ?？\u{00A0}")) : ""
+            let marker = before.isEmpty ? after : before
+            return marker.isEmpty ? nil : marker
+        }
+    }()
 
     /// Cut points are character offsets, so every run of pieces is a verbatim substring: after
     /// clause punctuation first; then, only inside a piece still too long, before a conjunction;
     /// then 12-word (or, unspaced CJK, 50-character) windows. Adjacent pieces merge greedily up to
     /// the limit, so a subordinate clause ("…, wenn ich will") stays attached to its sentence.
     static func followUpClauseRuns(of sentence: String) -> [String] {
-        let trimSet = CharacterSet(charactersIn: " ,;:—–-.!?…，、；：。！？")
+        let trimSet = CharacterSet(charactersIn: " \u{00A0},;:—–-.!?…，、；：。！？")
         let chars = Array(sentence.trimmingCharacters(in: trimSet))
         let isCJK = containsCJK(String(chars))
         func longEnough(_ s: String) -> Bool {

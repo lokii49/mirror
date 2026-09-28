@@ -59,6 +59,19 @@ extension SharedLLMState {
             }
         }
 
+        // Tapping the chip appends the composed question to the draft; ~20 words later it would
+        // otherwise be a candidate itself: What's underneath "What's underneath "…""?
+        @Test(arguments: [
+            ("en", "I feel so behind, and I snapped at Omar in standup for no reason.\nWhat's underneath \"I feel so behind, and I snapped at Omar in standup for no reason\"?\nI think it is the deadline more than anything else going on."),
+            ("fr", "Je repense sans arrêt à la dispute avec Jonas vendredi.\nTu veux en dire plus sur «\u{00A0}Je repense sans arrêt à la dispute avec Jonas vendredi\u{00A0}»\u{00A0}?\nJe crois que j'ai été injuste avec lui ce jour-là."),
+            ("ja", "今日は会議が続いて昼ごはんを食べる時間もなかった。\n「今日は会議が続いて昼ごはんを食べる時間もなかった」について、もう少し書いてみませんか？\n夕方にはもう頭が回らなかった。"),
+        ])
+        func anInsertedChipQuestion_isNeverOfferedAsAPart(code: String, draft: String) {
+            let options = InsightService.followUpPhraseCandidates(in: draft)
+            #expect(!options.isEmpty, "\(code)")
+            #expect(!options.contains { $0.contains("underneath") || $0.contains("Tu veux en dire plus") || $0.contains("もう少し書いてみませんか") }, "\(code): \(options)")
+        }
+
         @Test func longDraft_keepsOnlyItsLastParts() {
             let draft = (1...20).map { "Sentence number \($0) is about something else entirely." }.joined(separator: " ")
             let options = InsightService.followUpPhraseCandidates(in: draft)
