@@ -540,6 +540,9 @@ struct mirrorApp: App {
                 let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
                 wDefaults?.set(InsightService.nudgeTextForOutsideApp(text), forKey: "widget.nudge.text")
                 wDefaults?.set(today, forKey: "widget.nudge.date")
+                // The day it's about (the newest readable entry's), so the widget can keep an
+                // evening-before reflection next morning without resurfacing older ones.
+                wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: $0.createdAt) }, forKey: "widget.nudge.aboutDate")
                 if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
                     wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
                 } else {
@@ -1007,6 +1010,7 @@ struct mirrorApp: App {
         defaults?.set(today, forKey: "widget.nudge.date")
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
+        defaults?.set(InsightService.reflectedDay(of: nudge, entriesNewestFirst: todaysEntries).map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
         if let todaysMood = todaysEntries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {

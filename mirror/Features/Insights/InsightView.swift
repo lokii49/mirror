@@ -440,7 +440,10 @@ struct InsightView: View {
 
     /// Labelled only when the Today card is about an earlier day's writing.
     private func todayCardAboutDay(_ insight: Insight) -> Date? {
-        guard let day = InsightService.reflectedDay(of: insight, entriesNewestFirst: entries),
+        // From the Past-list cache when it has the row (no decrypting in `body`); a reflection
+        // that just landed may not be cached yet.
+        guard let day = cachedReflectedDays[insight.persistentModelID]
+                ?? InsightService.reflectedDay(of: insight, entriesNewestFirst: entries),
               day < Calendar.current.startOfDay(for: Date()) else { return nil }
         return day
     }

@@ -148,6 +148,20 @@ extension SharedLLMState {
             if case .loaded = viewModel.nudgeState { Issue.record("a two-day-old reflection must not come back on the Today card") }
         }
 
+        @Test func nextMorning_afterASkippedDay_stillShowsTheWriteTodayCard() async throws {
+            // Wrote two days ago; the reflection about that was made yesterday; nothing written
+            // yesterday or today. The card must not keep a reflection about the day before.
+            let context = try makeContext()
+            for (i, text) in ["Long walk around the lake with Bruno after work, gold light on the water.", "Fixed the dashboard bug with Omar, it was the date parsing all along.", "Called Anu tonight for the first time in weeks and talked for an hour."].enumerated() {
+                addEntry(text, at: startOfToday.addingTimeInterval(Double(-30 + i) * 3_600), to: context)
+            }
+            addReflection("You wrote, \"Called Anu tonight for the first time in weeks and talked for an hour.\" That sounds warm.", at: startOfToday.addingTimeInterval(-16 * 3_600), to: context)
+            try context.save()
+            let viewModel = InsightViewModel()
+            await viewModel.loadNudge(entries: try context.fetch(FetchDescriptor<Entry>()), insights: try context.fetch(FetchDescriptor<Insight>()), context: context)
+            if case .loaded = viewModel.nudgeState { Issue.record("a reflection about the day before yesterday must not stay on the Today card") }
+        }
+
         // MARK: Through runDailyNudgeIfNeeded
 
         @Test(.enabled(if: LocalLLMService.isModelAvailable))
