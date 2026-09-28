@@ -252,10 +252,54 @@ L["zh"] = dict(
     releaseFallback="这个月似乎没有什么需要放下的。继续留意什么对你有帮助。",
 )
 
+# Follow-up chip on Gemma (2026-09-28). Gemma picks one numbered part of the draft (pickFollowUp,
+# partsLabel: model instructions; de/es/fr/ru measured on tools/llmrig, it/pt/ja/ko/zh not), and the
+# app composes one of the two followUpQuestion templates around it: {quote} = open + phrase + close.
+FOLLOW_UP = {
+    "de": dict(
+        pickFollowUp="Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
+        partsLabel="Teile des Eintrags:",
+        followUpQuestion=["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"]),
+    "es": dict(
+        pickFollowUp="Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
+        partsLabel="Partes de la entrada:",
+        followUpQuestion=["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"]),
+    "fr": dict(
+        pickFollowUp="Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
+        partsLabel=f"Parties de l'entrée{NB}:",
+        followUpQuestion=[f"Qu'est-ce qui se cache derrière {{quote}}{NB}?", f"Tu veux en dire plus sur {{quote}}{NB}?"]),
+    "it": dict(
+        pickFollowUp="Copia parola per parola la parte della voce del diario su cui la persona vorrebbe scrivere di più: un sentimento, una preoccupazione o qualcosa che le è successo. Scrivi solo quella parte.",
+        partsLabel="Parti della voce:",
+        followUpQuestion=["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"]),
+    "pt": dict(
+        pickFollowUp="Copie palavra por palavra a parte da entrada do diário sobre a qual a pessoa mais gostaria de escrever: um sentimento, uma preocupação ou algo que aconteceu com ela. Escreva só essa parte.",
+        partsLabel="Partes da entrada:",
+        followUpQuestion=["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"]),
+    "ru": dict(
+        pickFollowUp="Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
+        partsLabel="Части записи:",
+        followUpQuestion=["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"]),
+    "ja": dict(
+        pickFollowUp="この日記の中から、書いた人がいちばん詳しく書きたいと思いそうな部分（気持ち、心配ごと、または起きた出来事）をそのまま書き写してください。その部分だけを出力してください。",
+        partsLabel="日記の各部分：",
+        followUpQuestion=["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"]),
+    "ko": dict(
+        pickFollowUp="이 일기에서 쓴 사람이 가장 더 이야기하고 싶어 할 부분(감정, 걱정, 또는 있었던 일)을 그대로 옮겨 적어 주세요. 그 부분만 출력하세요.",
+        partsLabel="일기의 부분:",
+        followUpQuestion=["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"]),
+    "zh": dict(
+        pickFollowUp="请从这篇日记中，把作者最想多写一些的那一部分（一种感受、一个担心，或发生在他们身上的事）原样抄写下来。只输出这一部分。",
+        partsLabel="日记的各部分：",
+        followUpQuestion=["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"]),
+}
+for code, extra in FOLLOW_UP.items():
+    L[code].update(extra)
+
 BUCKET = {T: ".tired", S: ".stressed", D: ".sad", G: ".good", N: ".neutral"}
-SCALARS = ["open","close","joiner","youWrote","pickNudge","pickNeutral","pickDigest","pickAsk","pickMonthly","entryLabel","weekLabel","monthLabel","entriesLabel","questionLabel","energyHard","energyGood","buildingSuffix","watchSuffix","askPrefix","momentLead","momentSuffix","becomingSuffix","releaseSuffix","releaseFallback"]
+SCALARS = ["open","close","joiner","youWrote","pickNudge","pickNeutral","pickDigest","pickAsk","pickMonthly","entryLabel","weekLabel","monthLabel","entriesLabel","questionLabel","energyHard","energyGood","buildingSuffix","watchSuffix","askPrefix","momentLead","momentSuffix","becomingSuffix","releaseSuffix","releaseFallback","pickFollowUp","partsLabel"]
 DICTS = ["moodWord","theme","boost","nextWeek","monthImage","monthTension","monthQuestion"]
-ORDER = ["open","close","joiner","youWrote","moodWord","pickNudge","pickNeutral","pickDigest","pickAsk","pickMonthly","entryLabel","weekLabel","monthLabel","entriesLabel","questionLabel","feel","theme","energyHard","energyGood","buildingSuffix","watchSuffix","boost","nextWeek","askPrefix","monthImage","monthTension","monthQuestion","momentLead","momentSuffix","becomingSuffix","releaseSuffix","releaseFallback"]
+ORDER = ["open","close","joiner","youWrote","moodWord","pickNudge","pickNeutral","pickDigest","pickAsk","pickMonthly","entryLabel","weekLabel","monthLabel","entriesLabel","questionLabel","feel","theme","energyHard","energyGood","buildingSuffix","watchSuffix","boost","nextWeek","askPrefix","monthImage","monthTension","monthQuestion","momentLead","momentSuffix","becomingSuffix","releaseSuffix","releaseFallback","pickFollowUp","partsLabel","followUpQuestion"]
 
 def sw(v):
     return '"' + v.replace("\\","\\\\").replace('"','\\"').replace(NB, "\\u{00A0}") + '"'
@@ -271,6 +315,8 @@ def swift():
             if k == "feel":
                 inner = ", ".join(f'{BUCKET[b]}: [{", ".join(sw(x) for x in v[b])}]' for b in [T,S,D,G,N])
                 parts.append(f"            feel: [{inner}]")
+            elif k == "followUpQuestion":
+                parts.append(f"            followUpQuestion: [{', '.join(sw(x) for x in v)}]")
             elif k in DICTS:
                 keys = [T,S,D,G] if k == "moodWord" else [T,S,D,G,N]
                 inner = ", ".join(f"{BUCKET[b]}: {sw(v[b])}" for b in keys)
@@ -291,7 +337,7 @@ if __name__ == "__main__":
         #   quote stripping, isGrammarGrounded, Sentinel sheet). Changing it after release needs
         #   the old wording kept and still recognized, or saved insights lose that protection.
         # - user text: shown verbatim; free to improve.
-        INSTRUCTION = {"moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"}
+        INSTRUCTION = {"moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel", "pickFollowUp", "partsLabel"}
         ANCHOR = {"open", "close", "joiner", "youWrote", "energyHard", "energyGood", "becomingSuffix", "releaseFallback", "askPrefix"}
         kind = lambda k: "model instruction" if k in INSTRUCTION else "detection anchor" if k in ANCHOR else "user text"
         w = csv.writer(sys.stdout)
@@ -303,6 +349,9 @@ if __name__ == "__main__":
                     for b, x in v.items():
                         for i, t in enumerate(x if isinstance(x, list) else [x]):
                             w.writerow([code, k, kind(k), f"{b}{'/' + str(i+1) if isinstance(x, list) else ''}", t])
+                elif isinstance(v, list):
+                    for i, t in enumerate(v):
+                        w.writerow([code, k, kind(k), str(i + 1), t])
                 else:
                     w.writerow([code, k, kind(k), "", v])
     elif "--write" in sys.argv:

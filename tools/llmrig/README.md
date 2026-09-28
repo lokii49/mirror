@@ -276,3 +276,12 @@ RUBRIC.md before running.
 - **Layout.** The numbered-parts layout is better across all four non-English languages: 167/240 vs 139/240 without the list. It is also English's best (BD), so **(a) uses one layout everywhere**: entry, numbered parts, then the instruction.
 - **Shipped chip in French and Russian.** It invents feelings and scenes ("sentiment de vide", "le soleil sur le balcon", "Марко отвернулся") and asks about Lena instead of the fight. It says vous/вы in most outputs, and uses a feminine "говорила" for a writer who wrote in the masculine.
 - **Register.** (a)'s question is fixed text, so it says tu/ты by construction.
+
+### Shipped (2026-09-28)
+
+`InsightService.groundedFollowUpPlan` uses the numbered-parts layout in every grounded language.
+- **Candidates:** production `followUpPhraseCandidates` (the harness logic, plus CJK clause cuts), last 12 parts.
+- **Composed question:** one of two fixed templates per language, with a leading conjunction or ¡/¿ stripped.
+- **Other languages:** outside the 10 grounded languages, the chip doesn't appear on Gemma.
+
+Real pipeline in the simulator (`test_followUp_fullPipeline`, `HARNESS_ENGINE=gemma`, 8 drafts in en/de/es/fr/ru, x2): **16/16 composed questions**, 4-7s each. Picks matched the rig, including the known dull one (fu_walk → the gold light).

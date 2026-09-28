@@ -1515,6 +1515,32 @@ final class GroundingSampleHarness: XCTestCase {
     }
 
 
+    /// Real generateFollowUp (plan, grammar, validator, composition) on Gemma for rig drafts in
+    /// en/de/es/fr/ru. Opt-in like the rest of this harness; HARNESS_ENGINE=gemma forces Gemma.
+    func test_followUp_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 1
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let labels: Set<String> = ["fu_runon", "fu_walk", "hx_biopsyfirst", "hx_worrymid", "fu_sickday_de", "hx_newsfirst_es", "fu_mid_fr", "hx_fightmid_ru"]
+        let drafts = (Self.followUpRigCases + Self.followUpHeldOutCases + Self.followUpFrRuCases).filter { labels.contains($0.label) }
+        for c in drafts {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.generateFollowUp(currentText: c.draft)
+                    print("[followup][\(c.label)][\(i)] engine=\(engine.rawValue) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[followup][\(c.label)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
+
+
     /// Dumps the production-built localized nudge and digest Gemma prompts + grammars for every
     /// supported non-English language (synthetic entries from GroundedLocalizedTests), for the rig.
     func test_dumpLocalizedPromptsForRig() async throws {
