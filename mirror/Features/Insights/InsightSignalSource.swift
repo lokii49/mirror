@@ -49,7 +49,7 @@ struct InsightSignalSource: View {
         let f = DateFormatter(); f.dateFormat = "d MMM"; return f
     }()
 
-    private struct Resolved {
+    struct Resolved {
         var rows: [(label: String, value: String)]
         var reading: [(day: String, snippet: String)]
         var note: String?
@@ -98,10 +98,25 @@ struct InsightSignalSource: View {
     }
 
     private func resolve() -> Resolved {
+        Self.resolve(insight: insight, entries: entries, engineLabel: engineLabel())
+    }
+
+    /// On the grammar-constrained Gemma paths (3.0.5+) the model gets much less than the
+    /// free-prose prompt: the nudge only the newest day's entries, the digest only this week's,
+    /// the monthly report only this month's, with no earlier entries or summary at all. Those
+    /// insights are recognized by their shape (`isGrammarGrounded`), the same test the saved-
+    /// insight repair passes use; Foundation Models output never takes that path.
+    static func resolve(insight: Insight, entries: [Entry], engineLabel: String) -> Resolved {
         let asOf = insight.generatedAt
-        let prior = entries.filter { $0.createdAt <= asOf }.sorted { $0.createdAt > $1.createdAt }
+        let prior = entries
+            .filter { $0.createdAt <= asOf }
+            .filter(InsightService.hasReadableContext)
+            .sorted { $0.createdAt > $1.createdAt }
+        let grammarPath = InsightService.isGrammarGrounded(insight.content)
+            && insight.generatedByEngine != LLMEngine.foundationModels.rawValue
+        let quotedNote = "Every quote is copied word for word from these entries. Long entries are shortened to fit."
         var rows: [(String, String)] = [
-            ("ENGINE", engineLabel()),
+            ("ENGINE", engineLabel),
             ("GENERATED", Self.stamp.string(from: asOf)),
         ]
 
@@ -111,18 +126,26 @@ struct InsightSignalSource: View {
             let thisWeek = Array(prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == wk }.prefix(12))
             let earlier = prior.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) != wk }.prefix(14).count
             rows.append(("THIS WEEK", Self.span(thisWeek)))
-            if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
+            if grammarPath {
+                rows.append(("EARLIER", "none sent"))
+            } else if earlier > 0 {
+                rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in"))
+            }
             rows.append(("MOOD READ", Self.moods(thisWeek)))
-            return Resolved(rows: rows, reading: Self.readingList(thisWeek), note: nil)
+            return Resolved(rows: rows, reading: Self.readingList(thisWeek), note: grammarPath ? quotedNote : nil)
 
         case .monthlyReport:
             let mo = DateHelpers.monthIdentifier(for: asOf)
             let monthE = Array(prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == mo })
             let earlier = prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) != mo }.prefix(20).count
             rows.append(("THIS MONTH", Self.span(monthE)))
-            if earlier > 0 { rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in")) }
+            if grammarPath {
+                rows.append(("EARLIER", "none sent"))
+            } else if earlier > 0 {
+                rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in"))
+            }
             rows.append(("MOOD ARC", Self.moods(monthE)))
-            return Resolved(rows: rows, reading: [], note: "Read as monthly aggregates, not entry-by-entry.")
+            return Resolved(rows: rows, reading: [], note: grammarPath ? quotedNote : "Read as monthly aggregates, not entry-by-entry.")
 
         case .askResponse:
             let q = (insight.question ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -135,10 +158,17 @@ struct InsightSignalSource: View {
             return Resolved(rows: rows, reading: Self.readingList(matched), note: nil)
 
         case .dailyNudge:
-            let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
-            let within = prior.filter { $0.createdAt >= cutoff }
-            let recent = within.isEmpty ? Array(prior.prefix(1)) : Array(within.prefix(3))
-            let background = prior.filter { !Set(recent.map(\.id)).contains($0.id) }.prefix(20).count
+            let (recent, backgroundEntries) = InsightService.dailyNudgeContext(from: prior, asOf: asOf)
+            if grammarPath {
+                // groundedNudgePlan / localizedGroundedNudge: the newest entry and any others
+                // from the same day, nothing else.
+                let source = InsightService.groundedNudgeSourceEntries(recent)
+                rows.append(("READ CLOSELY", Self.span(source)))
+                rows.append(("CONTEXT", "none sent"))
+                rows.append(("MOOD READ", Self.moods(source)))
+                return Resolved(rows: rows, reading: Self.readingList(source), note: quotedNote)
+            }
+            let background = backgroundEntries.count
             rows.append(("READ CLOSELY", Self.span(recent)))
             if background > 0 {
                 // Honest about what actually reaches the model: `background` entries
