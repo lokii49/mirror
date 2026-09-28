@@ -162,6 +162,29 @@ extension SharedLLMState {
             if case .loaded = viewModel.nudgeState { Issue.record("a reflection about the day before yesterday must not stay on the Today card") }
         }
 
+        // MARK: Background catch-up condition ("save and leave")
+
+        @Test func catchUp_isDue_forTheSameDaySecondReflection() throws {
+            clearMarker(); defer { clearMarker() }
+            let context = try makeContext()
+            #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "no reflection yet today")
+
+            try seedYesterdayAndMorningReflection(context)
+            #expect(!mirrorApp.dailyReflectionMayBeDue(context: context), "today's reflection, nothing written today")
+
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
+            try context.save()
+            #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "wrote today after a reflection about yesterday")
+
+            addReflection(#"You wrote, "The whole afternoon went to the new project plan and it finally makes sense now." That sounds good."#, at: startOfToday.addingTimeInterval(3), to: context)
+            try context.save()
+            #expect(!mirrorApp.dailyReflectionMayBeDue(context: context), "today's writing is reflected")
+
+            addReflection(InsightService.dailyNudgeUngroundedFallback, at: startOfToday.addingTimeInterval(4), to: context)
+            try context.save()
+            #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "newest is the fallback: retry, as before")
+        }
+
         // MARK: Through runDailyNudgeIfNeeded
 
         @Test(.enabled(if: LocalLLMService.isModelAvailable))

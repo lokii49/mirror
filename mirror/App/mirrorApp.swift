@@ -372,6 +372,31 @@ struct mirrorApp: App {
     // MARK: - Shared generation helpers (also called from BGAppRefreshTask fallback)
 
     @MainActor
+    /// Today's real reflection allows one more (InsightService.allowsAnotherReflectionToday),
+    /// judged from today's readable entries and the last failed extra attempt. Only today's
+    /// entries are fetched (and decrypted).
+    static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
+        return InsightService.allowsAnotherReflectionToday(
+            todaysReflectionAt: newestToday.generatedAt,
+            todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
+            lastFailedExtraAttempt: UserDefaults.standard.object(forKey: extraReflectionFailedAttemptKey) as? Date
+        )
+    }
+
+    /// Whether today's rows leave room for a reflection now, by the same first check
+    /// runDailyNudgeIfNeeded makes: none yet, the newest is the fallback, or one more is allowed.
+    /// The background catch-up used `!hasDailyNudgeForToday`, which skipped the same-day second
+    /// reflection when the user saved and left the app right away.
+    static func dailyReflectionMayBeDue(context: ModelContext) -> Bool {
+        let today = DateHelpers.dayIdentifier(for: Date())
+        let rows = (try? context.fetch(FetchDescriptor<Insight>(predicate: #Predicate { $0.periodIdentifier == today }))) ?? []
+        guard let newestToday = rows.filter({ $0.type == .dailyNudge }).max(by: { $0.generatedAt < $1.generatedAt }),
+              !InsightService.isUngroundedFallback(newestToday.content) else { return true }
+        return anotherReflectionAllowed(after: newestToday, context: context)
+    }
+
     static func runDailyNudgeIfNeeded(context: ModelContext, bypassTimeGate: Bool = false, userInitiatedRetry: Bool = false) async {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
@@ -399,13 +424,7 @@ struct mirrorApp: App {
             .filter({ $0.type == .dailyNudge })
             .max(by: { $0.generatedAt < $1.generatedAt }),
            !InsightService.isUngroundedFallback(newestToday.content) {
-            let startOfToday = Calendar.current.startOfDay(for: Date())
-            let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
-            guard InsightService.allowsAnotherReflectionToday(
-                todaysReflectionAt: newestToday.generatedAt,
-                todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
-                lastFailedExtraAttempt: UserDefaults.standard.object(forKey: extraReflectionFailedAttemptKey) as? Date
-            ) else {
+            guard anotherReflectionAllowed(after: newestToday, context: context) else {
                 #if DEBUG
                 print("[nudge] blocked: newestToday-is-real")
                 #endif
@@ -859,7 +878,9 @@ struct mirrorApp: App {
 
         Task { @MainActor in
             let context = sharedModelContainer.mainContext
-            if !mirrorApp.hasDailyNudgeForToday(context: context) {
+            // Also covers "save and leave": the same-day second reflection and the save's mood
+            // detection (joined by runDailyNudgeIfNeeded) both run inside this background time.
+            if mirrorApp.dailyReflectionMayBeDue(context: context) {
                 await mirrorApp.runDailyNudgeIfNeeded(context: context)
             }
             app.endBackgroundTask(bgTask.id)

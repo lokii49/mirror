@@ -35,8 +35,10 @@ final class MoodAutoDetector {
         let id = entry.id
         let task = Task { @MainActor [weak self] () -> Bool in
             defer { self?.inFlight[id] = nil }
+            // The entry may have been deleted while the model ran; writing to it then can crash.
             guard let detected = try? await InsightService.detectEmotion(text: text),
                   MirrorTheme.moodOptions.contains(detected),
+                  entry.modelContext != nil, !entry.isDeleted,
                   entry.mood == nil else { return false }
             entry.mood = detected
             try? context.save()
