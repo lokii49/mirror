@@ -235,3 +235,29 @@ The shipped free-prose chip on those 20 drafts: English 108/120, de/es 59/80. Ex
   Starts with a conjunction, which can be stripped and still leave a verbatim substring. Too long for a chip.
 
 Spanish candidates keep an opening "¡" or "¿" without the closing mark; strip them when composing.
+
+### Same metric for both designs (2026-09-28)
+
+The shipped chip was first scored only for invention and the prototype only for salience. To
+compare like with like, the prototype's SALIENT lists (fixed before any run) were applied
+afterwards to the shipped chip's 290 outputs: **salient AND nothing invented**.
+
+| Design | English | German + Spanish |
+|---|---|---|
+| Shipped free-prose chip | 107/170 (63%) | 56/120 (47%) |
+| (a) Gemma picks, app composes (best variant per language) | 150/170 (88%) | 78/120 (65%) |
+
+The shipped chip is often dull as well as sometimes wrong. The biopsy drafts get questions about
+river and pasta colours (1/20 mention the biopsy). The scene-first drafts get questions about the
+song. The walk draft gets questions about the gold light. Spanish drafts get questions about
+coffee types and errands. So (a) beats it on both counts; it is not a trade of dull for safe.
+
+It also prints a literal slash in 18/290 outputs ("felt most hurtful to you/your?", "your/your",
+"tu/tu", "deinem/deinem"), echoing `FOLLOW_UP_SYSTEM`'s `Address them as "you/your"`.
+`validateFollowUp` doesn't catch it.
+
+**Limits:**
+- Salience calls ("vague" vs specific) are one scorer's judgement.
+- The best de/es wording differs between rounds on only 6 drafts per language, so that choice is noise.
+- Only de and es were measured of the 9 non-English languages. fr/it/pt/ru/ko are extrapolation; ja/zh never trigger the chip (word count).
+- All of this is the Gemma path; the Foundation Models chip is unmeasured.
