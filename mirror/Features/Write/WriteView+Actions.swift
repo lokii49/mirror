@@ -82,7 +82,7 @@ extension WriteView {
             entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
             entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
             entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedAtSave.contains(0)
-            autoDetectMoodIfNeeded(for: entry)
+            let moodDetection = autoDetectMoodIfNeeded(for: entry)
             // continueTranscriptionAfterSaveAnyway(for:in:) already ran above,
             // before the early-return guards — transcribingVoiceNoteIndexes is
             // empty here.
@@ -90,6 +90,8 @@ extension WriteView {
             let ctx = modelContext
             Task { @MainActor in
                 try? ctx.save()
+                // The reflection and the alert check both read this entry's mood.
+                _ = await moodDetection?.value
                 await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
                 await mirrorApp.checkMoodAlertIfNeeded(context: ctx)
             }
@@ -120,13 +122,14 @@ extension WriteView {
                 entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
                 modelContext.insert(entry)
                 try? modelContext.save()
-                autoDetectMoodIfNeeded(for: entry)
+                let moodDetection = autoDetectMoodIfNeeded(for: entry)
                 if isTranscribingVoiceNotes {
                     continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
                 }
                 ReviewRequestManager.requestIfEntryMilestoneReached(context: modelContext)
                 let ctx = modelContext
                 Task { @MainActor in
+                    _ = await moodDetection?.value   // the reflection and alert check read the mood
                     // Foreground writes past the nudge hour used to sit dead until the
                     // app backgrounded/reopened — nothing else in-session re-triggers
                     // generation. Firing it here (same non-bypass gate as
@@ -180,7 +183,7 @@ extension WriteView {
         savedEntry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
         modelContext.insert(savedEntry)
         try? modelContext.save()
-        autoDetectMoodIfNeeded(for: savedEntry)
+        let moodDetection = autoDetectMoodIfNeeded(for: savedEntry)
         if isTranscribingVoiceNotes {
             continueTranscriptionAfterSaveAnyway(for: savedEntry, in: modelContext)
         }
@@ -188,6 +191,7 @@ extension WriteView {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         let ctx = modelContext
         Task { @MainActor in
+            _ = await moodDetection?.value   // the reflection reads the entry's mood
             await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
         }
         clearDraft()

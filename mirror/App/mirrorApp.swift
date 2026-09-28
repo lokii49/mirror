@@ -513,6 +513,15 @@ struct mirrorApp: App {
             .prefix(4)
             .map(\.content)
 
+        // The reflection's plan reads its source entries' moods (the mood line in the prompt, the
+        // mood-matched fixed text outside English). A save-time detection may still be running
+        // (joined here), or may have died with the app (Siri saves, a quick background): fill
+        // them in first. Only the entries the reflection reads, so at most three.
+        await MoodAutoDetector.shared.fillMissingMoods(
+            for: InsightService.dailyNudgeContext(from: entries, asOf: Date()).recent,
+            context: context
+        )
+
         do {
             let (text, engine, degraded) = try await InsightService.generateNudge(entries: entries, recentNudges: Array(recentNudges))
             #if DEBUG
@@ -784,15 +793,12 @@ struct mirrorApp: App {
 
         for entry in candidates {
             guard !Task.isCancelled else { return }
-            guard !entry.textDecryptionFailed else { continue }
-            let text = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { continue }
+            // Joins a save-time detection still running for the same entry instead of a second
+            // model call. nil = nothing to classify (unreadable, empty) — skip it.
+            guard let detection = MoodAutoDetector.shared.detectIfNeeded(entry, context: context) else { continue }
             // One failure means the LLM path is unhealthy right now (memory pressure,
             // cancellation mid-load) — stop the pass and let the next trigger retry.
-            guard let detected = try? await InsightService.detectEmotion(text: text),
-                  MirrorTheme.moodOptions.contains(detected) else { return }
-            entry.mood = detected
-            try? context.save()
+            guard await detection.value else { return }
         }
     }
 

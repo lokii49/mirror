@@ -43,21 +43,10 @@ extension WriteView {
         }
     }
 
-    func autoDetectMoodIfNeeded(for entry: Entry) {
-        let sub = SubscriptionService.shared
-        guard sub.tier == .core || sub.tier == .deep else { return }
-        guard LocalLLMService.isModelAvailable else { return }
-        guard entry.mood == nil else { return }
-        let context = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !context.isEmpty else { return }
-        let ctx = modelContext
-        Task {
-            guard let detected = try? await InsightService.detectEmotion(text: context),
-                  MirrorTheme.moodOptions.contains(detected) else { return }
-            await MainActor.run {
-                entry.mood = detected
-                try? ctx.save()
-            }
-        }
+    /// Returns the detection so the save path can wait for it before the daily reflection and
+    /// the mood-alert check read the entry's mood (see MoodAutoDetector).
+    @discardableResult
+    func autoDetectMoodIfNeeded(for entry: Entry) -> Task<Bool, Never>? {
+        MoodAutoDetector.shared.detectIfNeeded(entry, context: modelContext)
     }
 }
