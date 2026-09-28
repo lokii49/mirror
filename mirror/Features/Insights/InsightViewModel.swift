@@ -171,6 +171,20 @@ final class InsightViewModel {
             return .loading
         }
 
+        // With a second reflection allowed on the day of writing (2026-09-28), an evening
+        // writer's reflection lands that evening, so the next morning has no row for today until
+        // they write again. Keep the latest reflection on the card (labelled with the day it's
+        // about) rather than a "generates at 8:00" card nothing new is coming for: only when it
+        // was made yesterday or today and nothing has been written since.
+        let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
+        if let latest = insights
+            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
+            .max(by: { $0.generatedAt < $1.generatedAt }),
+           latest.generatedAt >= startOfYesterday,
+           !entries.contains(where: { $0.createdAt > latest.generatedAt }) {
+            return .loaded(latest)
+        }
+
         guard mirrorApp.modelAvailable() else {
             return .modelNotInstalled
         }

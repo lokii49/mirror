@@ -388,15 +388,30 @@ struct mirrorApp: App {
         // fallback (e.g. a real nudge generated this morning, then a later re-gen off newer
         // entries produced the fallback). Must match resolvedNudgeState's own "newest wins"
         // read: only skip when the newest row for today is real.
+        //
+        // A real one blocks the rest of today unless it was built only from earlier days and the
+        // user has written today since (InsightService.allowsAnotherReflectionToday, 2026-09-28):
+        // otherwise writing after an evening-before reflection waited a day, and was skipped
+        // entirely when the next day's writing came first. Only today's entries are fetched
+        // (and decrypted) for that check.
+        var isExtraReflection = false
         if let newestToday = todayInsights
             .filter({ $0.type == .dailyNudge })
-            .max(by: { $0.generatedAt < $1.generatedAt }) {
-            guard InsightService.isUngroundedFallback(newestToday.content) else {
+            .max(by: { $0.generatedAt < $1.generatedAt }),
+           !InsightService.isUngroundedFallback(newestToday.content) {
+            let startOfToday = Calendar.current.startOfDay(for: Date())
+            let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
+            guard InsightService.allowsAnotherReflectionToday(
+                todaysReflectionAt: newestToday.generatedAt,
+                todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
+                lastFailedExtraAttempt: UserDefaults.standard.object(forKey: extraReflectionFailedAttemptKey) as? Date
+            ) else {
                 #if DEBUG
                 print("[nudge] blocked: newestToday-is-real")
                 #endif
                 return
             }
+            isExtraReflection = true
         }
 
         let entryDescriptor = FetchDescriptor<Entry>(
@@ -503,6 +518,14 @@ struct mirrorApp: App {
             #if DEBUG
             print("[nudge] generateNudge returned: degraded=\(degraded) isFallbackText=\(InsightService.isUngroundedFallback(text)) engine=\(engine)")
             #endif
+            // Today already has a real reflection on the card; a "couldn't confirm" row would
+            // replace it (newest wins) and push it out of sight. Keep it, and try again only
+            // after more writing. A throw or cancellation isn't recorded: it retries on the next
+            // trigger, like a first reflection.
+            if isExtraReflection && InsightService.isUngroundedFallback(text) {
+                UserDefaults.standard.set(Date(), forKey: extraReflectionFailedAttemptKey)
+                return
+            }
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -727,6 +750,9 @@ struct mirrorApp: App {
     // MARK: - Mood Alert (Deep only — 3+ recent negative-mood days)
 
     private static let moodAlertCooldownKey = "mirror.lastMoodAlertSent"
+    /// When a second same-day reflection last came back as the fallback (see
+    /// InsightService.allowsAnotherReflectionToday). Per device, like the other generation state.
+    static let extraReflectionFailedAttemptKey = "mirror.nudge.extraReflectionFailedAttempt"
 
     // MARK: - Mood backfill
     //

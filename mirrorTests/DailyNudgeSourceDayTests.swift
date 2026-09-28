@@ -2,11 +2,11 @@ import Testing
 import Foundation
 @testable import mirror
 
-// Documents how the Gemma grounded nudge picks its source (checked 2026-09-28 for the "is an
-// evening entry ever missed?" question): only the newest day's entries are quotable. So an
-// entry written after today's reflection, followed by an entry the next morning before the next
-// reflection is generated, never gets quoted. Open item in .claude/3.0.6-roadmap.md; update this
-// test if the source rule changes.
+// Pins how the Gemma grounded nudge picks its source: only the newest day's entries are
+// quotable. Before 2026-09-28 that meant an entry written after today's reflection, followed by
+// an entry the next morning before the next reflection, was never quoted. A second reflection on
+// the day of writing (InsightService.allowsAnotherReflectionToday, DailyReflectionTimingTests)
+// now reflects that entry the same day, so the source rule itself stays as it is.
 struct DailyNudgeSourceDayTests {
 
     @Test func onlyTheNewestDaysEntriesAreQuotable_soAnEarlierUnreflectedDayIsSkipped() {

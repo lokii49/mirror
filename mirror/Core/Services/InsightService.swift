@@ -585,6 +585,28 @@ enum InsightService {
     /// `Insight.generatedAt` with `entries` pre-filtered to `createdAt <= asOf` when
     /// reconstructing history — an entry written after a nudge was generated couldn't have been
     /// read by it, so including it here would corrupt the reconstruction.
+    /// The calendar day a daily reflection is about: the day of the newest readable entry at or
+    /// before it was generated. That is the only day the grounded Gemma nudge quotes
+    /// (`groundedNudgeSourceEntries` over `dailyNudgeContext`) and the newest of the entries the
+    /// free-prose prompt reads, so the card label, the Past list grouping and the "How this was
+    /// generated" sheet all agree. Stops at the first match, so it decrypts about one entry.
+    static func reflectedDay(of insight: Insight, entriesNewestFirst: [Entry]) -> Date? {
+        entriesNewestFirst
+            .first { $0.createdAt <= insight.generatedAt && hasReadableContext($0) }
+            .map { Calendar.current.startOfDay(for: $0.createdAt) }
+    }
+
+    /// One more daily reflection today (owner-approved 2026-09-28, relaxing "never regenerate
+    /// within 24h"): only when today's reflection was built without any of today's writing, the
+    /// user has written today since, and, after an extra attempt that came back as the fallback,
+    /// only for writing newer than that attempt. Once a reflection has covered today's writing,
+    /// nothing more today, so at most two per day.
+    static func allowsAnotherReflectionToday(todaysReflectionAt: Date, todayEntryDates: [Date], lastFailedExtraAttempt: Date?) -> Bool {
+        guard !todayEntryDates.contains(where: { $0 <= todaysReflectionAt }) else { return false }
+        let since = max(todaysReflectionAt, lastFailedExtraAttempt ?? .distantPast)
+        return todayEntryDates.contains { $0 > since }
+    }
+
     static func dailyNudgeContext(from entries: [Entry], asOf: Date) -> (recent: [Entry], background: [Entry]) {
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: asOf) ?? asOf
