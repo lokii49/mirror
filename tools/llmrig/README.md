@@ -261,3 +261,18 @@ It also prints a literal slash in 18/290 outputs ("felt most hurtful to you/your
 - The best de/es wording differs between rounds on only 6 drafts per language, so that choice is noise.
 - Only de and es were measured of the 9 non-English languages. fr/it/pt/ru/ko are extrapolation; ja/zh never trigger the chip (word count).
 - All of this is the Gemma path; the Foundation Models chip is unmeasured.
+
+### French and Russian check (2026-09-28): (a) ships there too
+
+The same six drafts de/es were scored on, translated. The rubric and decision rule were added to
+RUBRIC.md before running.
+
+| | French | Russian |
+|---|---|---|
+| (a) numbered parts (LBD) | **58/60** | **49/60** (news draft → "errands and a long nap" 0/10) |
+| (a) no list (LB) | 22/60 | 39/60 |
+| Shipped chip, salient AND nothing invented | 28/60 | 30/60 |
+
+- **Layout.** The numbered-parts layout is better across all four non-English languages: 167/240 vs 139/240 without the list. It is also English's best (BD), so **(a) uses one layout everywhere**: entry, numbered parts, then the instruction.
+- **Shipped chip in French and Russian.** It invents feelings and scenes ("sentiment de vide", "le soleil sur le balcon", "Марко отвернулся") and asks about Lena instead of the fight. It says vous/вы in most outputs, and uses a feminine "говорила" for a writer who wrote in the masculine.
+- **Register.** (a)'s question is fixed text, so it says tu/ты by construction.

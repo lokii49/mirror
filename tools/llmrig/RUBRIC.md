@@ -84,3 +84,12 @@ SALIENT (prototype rule) / TENSE traps (free-prose rubric):
   hx_decisionfirst: going to quit the band / stopped being fun (FAIL: practice at 8, Tom's snacks,
                   the new song). TENSE: hasn't quit yet.
   hx_fightmid_de/_es, hx_newsfirst_de/_es: same as English.
+
+---
+fr/ru check before shipping (a) (fixed BEFORE running, 2026-09-28). The user chose (a). Same 6
+drafts as de/es, translated: sickday, offer, mid, scenefirst (rounds 1-3), fightmid, newsfirst
+(held-out). SALIENT lists are the English ones. Variants: LB (B wording, translated) and LBD
+(LB + numbered parts). Also scored: the shipped free-prose chip on the same drafts, "salient AND
+nothing invented" (same rules as its earlier scoring). Register (vous/вы) is noted, not scored.
+Decision rule per language: ship (a) there if its best variant scores >= the shipped chip AND
+>= 50%; otherwise turn the chip off on Gemma for that language.

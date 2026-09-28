@@ -1236,6 +1236,22 @@ final class GroundingSampleHarness: XCTestCase {
         ("hx_newsfirst_es", "¡Me llegó el correo de aceptación del programa de Lisboa! Se lo conté a Priti en la comida y gritó. El resto del día fueron recados y una siesta larga."),
     ]
 
+    /// fr/ru check before shipping prototype (a): the same six drafts de/es were scored on.
+    static let followUpFrRuCases: [(label: String, draft: String)] = [
+        ("fu_sickday_fr", "J'ai à peine dormi cette nuit, j'avais l'estomac noué jusqu'à presque 4 heures. Je me suis mis en arrêt maladie et j'ai passé la journée sur le canapé. Dev m'a écrit qu'il passerait peut-être plus tard avec de la soupe, mais je ne suis pas sûr d'avoir envie de voir quelqu'un."),
+        ("fu_offer_fr", "Le déjeuner avec Priya s'est éternisé. Elle m'a dit que son équipe avait un poste libre et me l'a pratiquement proposé si je le veux. Je n'en ai pas encore parlé à maman ni à Rahul, parce que je n'arrête pas d'hésiter."),
+        ("fu_mid_fr", "Dimanche tranquille. J'ai lu un moment sur le balcon. Je repense sans arrêt à la dispute avec Jonas vendredi, je crois que j'ai été injuste avec lui. J'ai fait des pâtes pour le dîner."),
+        ("fu_scenefirst_fr", "Le ciel était rose sur la route du retour et la radio passait cette vieille chanson de la fac. J'ai enfin dit à Sam que je ne veux pas renouveler le bail. Il l'a mieux pris que je ne pensais."),
+        ("hx_fightmid_fr", "Pris un café avec Lena avant le travail. Ensuite, Marco et moi nous sommes vraiment disputés à propos d'argent dans la voiture, la première fois depuis des mois, et aucun de nous ne s'est excusé. Soirée calme, j'ai fait une lessive."),
+        ("hx_newsfirst_fr", "J'ai reçu le mail d'acceptation du programme de Lisbonne ! Je l'ai dit à Priti au déjeuner et elle a crié. Le reste de la journée, c'était des courses et une longue sieste."),
+        ("fu_sickday_ru", "Почти не спал этой ночью, живот крутило почти до четырёх. Взял больничный и весь день пролежал на диване. Дев написал, что, может, зайдёт позже с супом, но я не уверен, что хочу кого-то видеть."),
+        ("fu_offer_ru", "Обед с Прией затянулся. Она рассказала, что у них в команде есть вакансия, и практически предложила её мне, если я захочу. Я ещё не сказал ни маме, ни Рахулу, потому что всё время сомневаюсь."),
+        ("fu_mid_ru", "Спокойное воскресенье. Немного почитал на балконе. Всё время прокручиваю в голове ссору с Йонасом в пятницу, кажется, я был к нему несправедлив. Приготовил пасту на ужин."),
+        ("fu_scenefirst_ru", "По дороге домой небо было розовым, и по радио играла та старая песня из универа. Наконец сказал Сэму, что не хочу продлевать аренду. Он воспринял это лучше, чем я ожидал."),
+        ("hx_fightmid_ru", "Выпил кофе с Леной перед работой. Потом мы с Марко по-настоящему поругались из-за денег в машине, впервые за несколько месяцев, и никто не извинился. Вечер был тихий, постирал вещи."),
+        ("hx_newsfirst_ru", "Пришло письмо о зачислении в лиссабонскую программу! Рассказал Прити за обедом, и она закричала. Остаток дня ушёл на дела и долгий дневной сон."),
+    ]
+
     static let guidedRigCases: [(label: String, turns: [(question: String, answer: String)])] = [
         ("gq_tired", [("How are you feeling today?", "Tired. Work was a lot and I didn't get much done.")]),
         ("gq_sister", [
@@ -1290,7 +1306,7 @@ final class GroundingSampleHarness: XCTestCase {
             try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
             try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
         }
-        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases {
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases + Self.followUpFrRuCases {
             try await capture(c.label) { _ = try await InsightService.generateFollowUp(currentText: c.draft) }
         }
         for c in Self.guidedRigCases {
@@ -1365,8 +1381,10 @@ final class GroundingSampleHarness: XCTestCase {
         let translatedB: [String: String] = [
             "de": "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
             "es": "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
+            "fr": "Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
+            "ru": "Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
         ]
-        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases {
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases + Self.followUpFrRuCases {
             var seen = Set<String>()
             // No "drop the unfinished last piece" rule: the chip only fires after 6s idle on an
             // unchanged draft, and unpunctuated drafts (checklists, run-ons) put their most
@@ -1377,14 +1395,14 @@ final class GroundingSampleHarness: XCTestCase {
             try options.joined(separator: "\n").write(toFile: "\(dir)/\(c.label)_options.txt", atomically: true, encoding: .utf8)
             let grammar = "root ::= " + options.map(literal).joined(separator: " | ")
             let variants: [(String, String, String)]   // (variant, instruction, entry label)
-            if c.label.hasSuffix("_de") || c.label.hasSuffix("_es") {
+            if ["_de", "_es", "_fr", "_ru"].contains(where: { c.label.hasSuffix($0) }) {
                 let code = String(c.label.suffix(2))
                 let loc = try XCTUnwrap(InsightService.groundedLocales[code])
                 variants = [("L", loc.pickNeutral, loc.entryLabel), ("LB", try XCTUnwrap(translatedB[code]), loc.entryLabel)]
             } else {
                 variants = english.sorted { $0.key < $1.key }.map { ($0.key, $0.value, "Journal entry:") }
             }
-            let partsLabel = ["de": "Teile des Eintrags:", "es": "Partes de la entrada:"][String(c.label.suffix(2))] ?? "Parts of the entry:"
+            let partsLabel = ["de": "Teile des Eintrags:", "es": "Partes de la entrada:", "fr": "Parties de l'entrée\u{00A0}:", "ru": "Части записи:"][String(c.label.suffix(2))] ?? "Parts of the entry:"
             let numbered = options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
             var messages: [(String, String)] = variants.map { ($0.0, "\($0.1)\n\n\($0.2)\n\(c.draft)") }
             // Post-hoc layout variants (RUBRIC.md, round 2), B wording only.
