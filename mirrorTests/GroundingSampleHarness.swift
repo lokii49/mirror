@@ -1221,6 +1221,21 @@ final class GroundingSampleHarness: XCTestCase {
         ("fu_scenefirst_es", "El cielo estaba rosa de camino a casa y en la radio sonó esa canción vieja de la universidad. Por fin le dije a Sam que no quiero renovar el contrato del piso. Se lo tomó mejor de lo que esperaba."),
     ]
 
+    /// Held-out drafts (2026-09-28): the salient part comes first or mid-draft, never last,
+    /// after the round 1-3 drafts turned out to mostly end on it.
+    static let followUpHeldOutCases: [(label: String, draft: String)] = [
+        ("hx_biopsyfirst", "Dad's biopsy results come back Friday and I can't stop thinking about it. Went for a run after work anyway. Made pasta and watched an episode of that baking show."),
+        ("hx_fightmid", "Grabbed coffee with Lena before work. Then Marco and I had a real fight about money in the car, first one in months, and neither of us apologized. Evening was quiet, did laundry."),
+        ("hx_newsfirst", "Got the acceptance email from the Lisbon program! Told Priti at lunch and she screamed. The rest of the day was errands and a long nap."),
+        ("hx_griefmid", "Rainy morning, stayed in bed late. Found Nani's old recipe book while cleaning and cried over her handwriting for a while. Ordered pizza and called it a night."),
+        ("hx_worrymid", "long day at the clinic then picked up the kids and ben said hes being bullied at school again i dont know what to do then made dinner and bedtime"),
+        ("hx_decisionfirst", "I think I'm going to quit the band. It stopped being fun months ago. Practice was at 8, Tom brought snacks, we ran the new song twice."),
+        ("hx_fightmid_de", "Vor der Arbeit mit Lena Kaffee getrunken. Dann hatten Marco und ich im Auto einen richtigen Streit ums Geld, der erste seit Monaten, und keiner hat sich entschuldigt. Der Abend war ruhig, Wäsche gewaschen."),
+        ("hx_newsfirst_de", "Die Zusage vom Lissabon-Programm ist gekommen! Ich habe es Priti beim Mittagessen erzählt und sie hat geschrien. Der Rest des Tages waren Besorgungen und ein langer Mittagsschlaf."),
+        ("hx_fightmid_es", "Tomé un café con Lena antes del trabajo. Luego Marco y yo tuvimos una pelea de verdad por dinero en el coche, la primera en meses, y ninguno se disculpó. La tarde fue tranquila, puse la lavadora."),
+        ("hx_newsfirst_es", "¡Me llegó el correo de aceptación del programa de Lisboa! Se lo conté a Priti en la comida y gritó. El resto del día fueron recados y una siesta larga."),
+    ]
+
     static let guidedRigCases: [(label: String, turns: [(question: String, answer: String)])] = [
         ("gq_tired", [("How are you feeling today?", "Tired. Work was a lot and I didn't get much done.")]),
         ("gq_sister", [
@@ -1275,7 +1290,7 @@ final class GroundingSampleHarness: XCTestCase {
             try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
             try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
         }
-        for c in Self.followUpRigCases {
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases {
             try await capture(c.label) { _ = try await InsightService.generateFollowUp(currentText: c.draft) }
         }
         for c in Self.guidedRigCases {
@@ -1351,7 +1366,7 @@ final class GroundingSampleHarness: XCTestCase {
             "de": "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
             "es": "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
         ]
-        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases {
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases {
             var seen = Set<String>()
             // No "drop the unfinished last piece" rule: the chip only fires after 6s idle on an
             // unchanged draft, and unpunctuated drafts (checklists, run-ons) put their most

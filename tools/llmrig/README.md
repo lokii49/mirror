@@ -195,3 +195,43 @@ invented or misattributed something.
 Two design choices were settled here: no "drop the unfinished last piece" rule (it dropped the
 most salient part in 3 of 11 unpunctuated drafts), and clause runs are merged, not split at every
 comma (German subordinate clauses became fragments like "wenn ich will").
+
+### Held-out round and baselines (2026-09-28)
+
+Rounds 1-3 drafts mostly ended on the feeling, and on them "always take the last candidate" scored
+as well as Gemma. So 10 fresh drafts (6 en, 2 de, 2 es) put the salient part first or mid-draft;
+SALIENT lists were added to RUBRIC.md before running. The shipped free-prose chip was also run on
+all 20 drafts added since the baseline, so the two designs are compared on the same inputs.
+
+| Picker | Held-out en (6) | Held-out de+es (4) | All en (17) | All de (6) / es (6) |
+|---|---|---|---|---|
+| **Gemma, BD wording + numbered parts** | **50/60** (newsfirst 0/10: "errands and a long nap") | de 10/20, es 18/20 | **150/170 (88%)**; walk and newsfirst 0/10 | 30/60, 30/60 |
+| Gemma, B wording | 33/60 (biopsy draft → "Made pasta…") | de 10/20, es 10/20 | 133/170 (78%) | LB 40/60, 38/60 |
+| Rule: always first candidate | 3/6 | 2/4 | 10/17 drafts | — |
+| Rule: always last candidate | 1/6 | 0/4 | 11/17 drafts | — |
+
+On held-out drafts the model beats both rules in English, so the pick carries real signal. No
+variant meets the adopt bar in any language. German and Spanish pick scenery or logistics
+("coffee with Lena", "the sky was pink") on roughly a third to a half of drafts.
+
+The shipped free-prose chip on those 20 drafts: English 108/120, de/es 59/80. Examples:
+- "your son" and "a shade of blue" on the biopsy draft;
+- "the rain" on the fight draft;
+- a quoted "sunshine" in Nani's recipe;
+- the writer's disillusionment blamed on "Tom's snacks" (5/10);
+- Sam reacting to the song (de, 7/10);
+- Priti "angry", "worried", "horror in her eyes" (de).
+
+**Invented or misattributed across all 29 drafts:** 50/290 (17%).
+- English: 23/170 (14%).
+- German and Spanish: 27/120 (22%).
+
+**What the composed question looks like** (`What's underneath "…"?`, Gemma BD pick):
+- `What's underneath "Dad's biopsy results come back Friday and I can't stop thinking about it"?`
+- `What's underneath "I feel so behind, and I snapped at Omar in standup for no reason"?`
+- `What's underneath "The rest of the day was errands and a long nap"?` (a dull pick)
+- `What's underneath "He took it better than I expected"?` ("He" has nothing to refer to)
+- `What's underneath "and ben said hes being bullied at school again i dont know what to do then made dinner and bedtime"?`
+  Starts with a conjunction, which can be stripped and still leave a verbatim substring. Too long for a chip.
+
+Spanish candidates keep an opening "¡" or "¿" without the closing mark; strip them when composing.

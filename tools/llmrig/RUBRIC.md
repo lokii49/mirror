@@ -63,3 +63,24 @@ picks track first/last position more than meaning. Two layout variants added AFT
 (post-hoc, same PASS rule; a winner still needs held-out cases): C = entry first, instruction
 after (the English nudge's layout); D = entry, then the candidate parts as a numbered list, then
 the instruction. Both use the B wording (LB translation for de/es).
+
+---
+Held-out round (fixed BEFORE running, 2026-09-28). After round 3, an advisor review pointed out
+that Gemma's B pick equalled "always take the last candidate" on the round-1-3 drafts, most of
+which end on the feeling. Fresh drafts put the salient part FIRST or in the MIDDLE. Scored for:
+Gemma pick (B, BD; LB for de/es), always-first rule, always-last rule, and the shipped free-prose
+chip (follow-up rubric above, INVENT/SWAP/TENSE).
+SALIENT (prototype rule) / TENSE traps (free-prose rubric):
+  hx_biopsyfirst: biopsy results Friday / can't stop thinking (FAIL: the run, pasta, baking show)
+                  TENSE: results not back yet.
+  hx_fightmid:    fight with Marco about money / neither apologized (FAIL: coffee with Lena,
+                  quiet evening, laundry). SWAP: Lena wasn't in the fight.
+  hx_newsfirst:   acceptance email from the Lisbon program / told Priti, she screamed (FAIL:
+                  errands, nap). TENSE: accepted, not yet gone to Lisbon.
+  hx_griefmid:    Nani's recipe book / cried over her handwriting (FAIL: rainy morning in bed,
+                  pizza). Rain IS in this draft, so mentioning it is not an INVENT.
+  hx_worrymid:    Ben being bullied at school / don't know what to do (FAIL: clinic, picking up the
+                  kids, dinner, bedtime). SWAP: Ben is the one bullied, not the writer.
+  hx_decisionfirst: going to quit the band / stopped being fun (FAIL: practice at 8, Tom's snacks,
+                  the new song). TENSE: hasn't quit yet.
+  hx_fightmid_de/_es, hx_newsfirst_de/_es: same as English.
