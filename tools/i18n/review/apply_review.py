@@ -20,6 +20,18 @@ def blocks(text):
         if d.get("mirrorTranslationReview") == 1:
             yield d
 
+# The follow-up chip strings live in their own FOLLOW_UP dict, not in the L["xx"] blocks.
+FOLLOW_UP_KEYS = {"pickFollowUp", "partsLabel", "followUpQuestion"}
+
+def follow_up_region(src, code):
+    """(start, end) of code's `"xx": dict(...)` entry inside FOLLOW_UP."""
+    top = src.index("\nFOLLOW_UP = {")
+    close = src.index("\n}\n", top)
+    entries = {m.group(1): m.start() for m in re.finditer(r'^    "(\w+)": dict\(', src[top:close], re.M)}
+    a = top + entries[code]
+    later = [top + o for o in entries.values() if top + o > a]
+    return a, min(later + [close])
+
 reply = open(sys.argv[1]).read()
 src = open(SRC).read()
 starts = {m.group(1): m.start() for m in re.finditer(r'^L\["(\w+)"\] = dict\(', src, re.M)}
@@ -35,6 +47,22 @@ for review in blocks(reply):
             skipped.append((code, ch["id"], "askHint lives in build_data.py ASK_HINT"))
             continue
         old, new = lit(ch["original"]), lit(ch["suggestion"])
+        if key in FOLLOW_UP_KEYS:
+            fa, fb = follow_up_region(src[:a] + block + src[b:], code)
+            whole = src[:a] + block + src[b:]
+            region = whole[fa:fb]
+            n = region.count(old)
+            if n != 1:
+                sys.exit(f"{code} {ch['id']}: original found {n} times in the {code} FOLLOW_UP entry — stale, ambiguous, or an f-string (edit by hand) — nothing written")
+            whole = whole[:fa] + region.replace(old, new) + whole[fb:]
+            # Re-split so the L block boundaries stay consistent for later changes.
+            src = whole
+            starts = {m.group(1): m.start() for m in re.finditer(r'^L\["(\w+)"\] = dict\(', src, re.M)}
+            ends = sorted(list(starts.values()) + [src.index("\nBUCKET = ")])
+            a = starts[code]; b = min(e for e in ends if e > a)
+            block = src[a:b]
+            applied += 1
+            continue
         n = block.count(old)
         if n != 1:
             sys.exit(f"{code} {ch['id']}: original found {n} times in the {code} block — stale or ambiguous, nothing written")

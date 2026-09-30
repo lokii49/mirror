@@ -19,6 +19,7 @@ INTRO = {
     "digest": "Once a week, in six short sections. Three of them quote the writer.",
     "monthly": "Once a month, in six short sections.",
     "ask": "The writer asks a question about their journal. The app shows the closest sentences they wrote.",
+    "followup": "While the writer is still typing, the app can show one question under their draft, built around one phrase cut from their own words.",
     "proposed": "Not in the app yet. It may be added under every Ask answer, because the on-device AI can't tell for sure whether a question is covered.",
     "model": "Optional. These tell a small (1B) on-device model which sentence to copy. Users never see them. Flag a line only if its meaning is wrong or confusing; keep any fix plain and literal. Don't polish the style.",
 }
@@ -43,7 +44,7 @@ These fixed lines were translated from English without a native speaker. Check w
 1. The writer's own words are shown in **bold** in the examples. Don't review them. The fixed lines must read well before or after *any* sentence the writer might have written.
 2. The mood lines (`feel|…`) are also shown **on their own**, without the quote, on the home-screen widget and in the notification. They must make sense standalone.
 3. The app doesn't know the writer's gender. No line may assume one.
-4. Keep the placeholders `{date}` and `{mood}` exactly as they are.
+4. Keep the placeholders `{date}`, `{mood}` and `{quote}` exactly as they are.
 5. A natural phrasing matters more than a word-for-word match with the English meaning. But keep each line's intent and roughly its length.
 6. Lines marked **change only if needed** are detection anchors: after release, the app recognizes saved reflections by this exact text. Suggest a change only if the line is actually wrong or unnatural, not to polish it.
 7. Lines marked **read by the AI only** are instructions for a small (1B) on-device model. Flag only real meaning errors. Keep fixes simple and literal.
@@ -110,6 +111,10 @@ for lang in data["languages"]:
     for line in ex["ask"]:
         w(f"> {seg(line)}  ")
     w(f">\n> *(proposed line under every answer)* {ex['askHint']}\n")
+    w("**Follow-up question** (two versions; the app alternates)\n")
+    for line in ex["followup"]:
+        w(f"> {seg(line)}  ")
+    w("")
 
     w(f"### {code}: lines to review\n")
     sections = []

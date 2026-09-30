@@ -13,7 +13,7 @@ L = g.L
 T, S, D, G, N = "tired", "stressed", "sad", "good", "neutral"
 MOODS = [T, S, D, G, N]
 
-INSTRUCTION = {"moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"}
+INSTRUCTION = {"moodWord", "pickFollowUp", "partsLabel", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"}
 ANCHOR = {"open", "close", "joiner", "youWrote", "energyHard", "energyGood", "becomingSuffix", "releaseFallback", "askPrefix"}
 kind = lambda k: "instruction" if k in INSTRUCTION else "anchor" if k in ANCHOR else "user"
 
@@ -45,6 +45,9 @@ GLOSS = {
     "releaseSuffix": "Maybe it's time to stop holding on to this so tightly.",
     "releaseFallback": "Nothing this month seems to ask to be let go of. Keep noticing what's good for you.",
     "askHint": "If these don't fit, you may not have written about it yet.",
+    "followUpQuestion": ["What's underneath {quote}?", "Do you want to write more about {quote}?"],
+    "pickFollowUp": "Copy, word for word, the part of the journal entry the person would most want to write more about: a feeling, a worry, or something that happened to them. Output only that part.",
+    "partsLabel": "Parts of the entry:",
     "moodWord": {T: "exhausted", S: "stressed", D: "sad", G: "good"},
     "pickNudge": "Copy, word for word, the sentence from the journal entry that best explains why the person felt {mood}. Output only that sentence.",
     "pickNeutral": "Copy, word for word, the sentence from the journal entry that shows the most important thing about the day. Output only that sentence.",
@@ -73,6 +76,7 @@ WHERE = {
     "digest": "Weekly digest",
     "monthly": "Monthly report",
     "ask": "Ask",
+    "followup": "Follow-up question",
     "proposed": "Proposed, not in the app yet",
     "model": "Read by the AI only",
 }
@@ -81,8 +85,9 @@ SECTIONS = [
     ("digest", ["theme", "energyHard", "energyGood", "buildingSuffix", "watchSuffix", "boost", "nextWeek"]),
     ("monthly", ["monthImage", "monthTension", "momentLead", "momentSuffix", "becomingSuffix", "releaseSuffix", "releaseFallback", "monthQuestion"]),
     ("ask", ["askPrefix"]),
+    ("followup", ["followUpQuestion"]),
     ("proposed", ["askHint"]),
-    ("model", ["moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"]),
+    ("model", ["moodWord", "pickNudge", "pickNeutral", "pickDigest", "pickAsk", "pickMonthly", "pickFollowUp", "partsLabel", "entryLabel", "weekLabel", "monthLabel", "entriesLabel", "questionLabel"]),
 ]
 NOTES = {
     "feel": "Also shown on its own, without the quote, on the home-screen widget and in the notification.",
@@ -98,6 +103,8 @@ NOTES = {
     "releaseFallback": "Shown instead when there's nothing heavy to quote.",
     "askPrefix": "Followed by one or two of the writer's sentences, each on its own line with its date.",
     "askHint": "Would appear under every answer from the on-device AI, because it can't tell for sure whether the question is covered.",
+    "followUpQuestion": "Shown while the writer is still typing, under their draft. {quote} becomes one phrase cut from their own draft, in quotation marks (the opening and closing marks above), so the question must read well around any phrase. There are two versions; the app alternates.",
+    "partsLabel": "Introduces a numbered list of parts of the draft that the AI chooses from.",
     "moodWord": "Inserted into the instruction below where {mood} is. It describes \"the person\", so it agrees with that noun (feminine in some languages), not with the writer.",
     "pickNudge": "Shown here with the first mood word filled in.",
 }
@@ -160,6 +167,9 @@ def rows_for(code):
                             rows.append({**base, "variant": f"{mood}/{i+1}", "mood": mood, "text": t, "gloss": GLOSS[k][mood][i]})
                     else:
                         rows.append({**base, "variant": mood, "mood": mood, "text": x, "gloss": GLOSS[k][mood]})
+            elif isinstance(v, list):
+                for i, t in enumerate(v):
+                    rows.append({**base, "variant": f"q/{i+1}", "mood": "", "text": t, "gloss": GLOSS[k][i]})
             else:
                 text = v.replace("{mood}", d["moodWord"][T]) if k == "pickNudge" else v
                 gloss = GLOSS[k].replace("{mood}", GLOSS["moodWord"][T]) if k == "pickNudge" else GLOSS[k]
@@ -197,6 +207,7 @@ def examples_for(code):
             ["Your question for next month", [t(d["monthQuestion"][T])]],
         ],
         "question": QUESTION[code],
+        "followup": [[t(tpl.split("{quote}")[0] + o), q(hard), t(c + tpl.split("{quote}")[1])] for tpl in d["followUpQuestion"]],
         "ask": [[t(d["askPrefix"])], [t(f"{date} – {o}"), q(hard), t(c)], [t(f"{date} – {o}"), q(watch), t(c)]],
         "askHint": ASK_HINT[code],
     }
