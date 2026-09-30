@@ -336,3 +336,34 @@ the real pipeline in the simulator.
 - **The tip.** On difficult moods the app appends a fixed tip (`groundedNudgeTips`, two per mood), keyed to the mood of the entry the quote came from.
 - **Real pipeline** in the simulator (`test_groundedNudge_fullPipeline`, `HARNESS_ENGINE=gemma`): 13/13 real reflections, 0 fallbacks, 8-17s.
 - **Bug found by that run, now fixed.** The same-day case quoted the energized morning but got the frustrated evening's tip, because the tip had been keyed to the newest entry.
+
+## Mood detection on Gemma (2026-09-30)
+
+First measurement of `EMOTION_DETECT_SYSTEM` on Gemma (it had only been assumed). Rubric written
+before the runs (RUBRIC.md, "Mood detection"); driver `mood/run.py`, cases `mood/cases.tsv` and
+`mood/cases_hard.tsv`, all synthetic. Prompt = `EMOTION_DETECT_SYSTEM` + entry as the user turn via
+`rig template`, temp 0.1, 30 chars, 3 seeds (outputs are near-deterministic, so read the effective
+n as the number of entries, not outputs). Scored with the app's `recognizedEmotion` rule; an
+unrecognized reply counts as "Content" like the app does. The rig prompt was not diffed against an
+app dump for this task.
+
+| Set | n entries | EXACT | BUCKET (hard vs not) | MISSED_HARD | FALSE_HARD | UNREC |
+|---|---|---|---|---|---|---|
+| en, clear (3 per label) | 36 | 72% | **100%** | 0/18 | 0/18 | 0 |
+| de, clear | 12 | 67% | **100%** | 0/6 | 0/6 | 0 |
+| es, clear | 12 | 83% | **100%** | 0/6 | 0/6 | 0 |
+| en, hard (negation, mixed days, short, understated) | 24 | 58% | **100%** | 0/14 | 0/10 | 0 |
+
+The pre-set bar (BUCKET >= 90%, MISSED_HARD <= 15%, FALSE_HARD <= 10%, UNREC <= 3%) holds in every
+language on both sets, so **no fix is warranted for tips, alerts or hard-vs-good wording.**
+
+Where it is off, always within a bucket (informational):
+- Overwhelmed -> Frustrated is the largest confusion (en 9 + 6, es 3).
+- Numb -> Sad (en, de, es) and Numb -> Drained/Frustrated. The monthly report keeps only Sad and Numb
+  out of "let go of", so a Numb entry read as Drained or Frustrated (3 of 24 on the hard set) can
+  still be offered there.
+- Content -> Peaceful, and Hopeful/Energized/Joyful -> Content: all inside the good bucket.
+
+Limits: hand-written synthetic entries (2-4 sentences), one clear feeling each; the hard set is
+24 English entries only; nothing measured on long real entries, mixed-language text, or ja/zh/fr/it/
+pt/ru/ko. A bucket score of 100% on 108 outputs is compatible with a true rate in the low 90s.

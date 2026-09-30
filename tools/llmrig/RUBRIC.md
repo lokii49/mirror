@@ -119,3 +119,33 @@ quote, tip only if it follows from the entry, banned self-care and stiff words);
 unless something written points to a next step); c (model writes only the feeling line; grammar
 without the tip; any tip would be fixed text per mood, like the other 9 languages).
 N=10 per case per variant, temp 0.45 (the app's), production-built prompts and grammars.
+
+---
+Mood detection (`EMOTION_DETECT_SYSTEM`) on Gemma (fixed BEFORE any run, 2026-09-30). Never measured
+before; the Laya/Jev eval measured other models. Mood now picks the fixed tips, the other-language
+reflection lines, the digest/monthly options and Mood Alerts, so a wrong mood produces confidently
+wrong text. Cases: `mood/cases.tsv`, synthetic, hand-labelled by construction (one clear primary
+emotion each): 36 English (3 per label), 12 German, 12 Spanish. No real journal text.
+Run: the app's exact prompt (EMOTION_DETECT_SYSTEM + entry as the user turn, templated with
+`rig template`), temp 0.1, max 30 chars, 3 seeds per entry, scored per output with the app's
+`recognizedEmotion` rule (first alphanumeric token, case-insensitive, must be one of the 12; else
+the app defaults to "Content").
+HARD = Anxious, Overwhelmed, Frustrated, Drained, Sad, Numb (the set Mood Alerts and the fixed tips
+treat as difficult). Everything else is NOT_HARD.
+Per output:
+EXACT: predicted label == gold label.
+BUCKET: predicted HARD/NOT_HARD == gold HARD/NOT_HARD. This is what tips, alerts and bucket
+  wording depend on, so it is the headline number.
+FALSE_HARD: gold NOT_HARD, predicted HARD (a good day gets a tip / counts toward an alert).
+MISSED_HARD: gold HARD, predicted NOT_HARD (a hard day is treated as fine).
+UNRECOGNIZED: no valid label parsed (the app silently records "Content").
+Bar for "fine, don't touch it", per language: BUCKET >= 90%, MISSED_HARD <= 15%, FALSE_HARD <= 10%,
+UNRECOGNIZED <= 3%. EXACT is informational (neighbours like Sad/Drained are close); report the
+confusion pairs. If the bar fails, fix candidates (prompt wording, examples per label, a grammar
+over the 12 labels) are measured on the same set before anything ships.
+Mood detection, hard set (added 2026-09-30 after the clear-case run scored BUCKET 100%, so that run
+is an upper bound; this file and its gold labels were fixed BEFORE the hard-set run):
+`mood/cases_hard.tsv`, 24 synthetic English entries that a keyword reader gets wrong: negation
+("not sad"), a bad word inside a good day, a good word inside a bad day, understated hard days, mixed
+days with one dominant feeling, very short entries, a long entry whose feeling comes last. Same
+scoring and bar as above; report it separately (n is small, so read counts, not percentages).
