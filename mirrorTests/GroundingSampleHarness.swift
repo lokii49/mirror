@@ -1526,6 +1526,29 @@ final class GroundingSampleHarness: XCTestCase {
     }
 
 
+    /// Real generateNudge (plan, grammar, validator, fixed tip) on Gemma for the English rig,
+    /// edge and reflection-line cases. Opt-in; HARNESS_ENGINE=gemma forces Gemma.
+    func test_groundedNudge_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 1
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine, degraded) = try await InsightService.generateNudge(entries: c.entries)
+                    print("[nudge][\(c.label)][\(i)] engine=\(engine.rawValue) degraded=\(degraded) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[nudge][\(c.label)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
+
     /// Real generateFollowUp (plan, grammar, validator, composition) on Gemma for rig drafts in
     /// en/de/es/fr/ru. Opt-in like the rest of this harness; HARNESS_ENGINE=gemma forces Gemma.
     func test_followUp_fullPipeline() async throws {

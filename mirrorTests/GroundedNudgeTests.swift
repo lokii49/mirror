@@ -112,7 +112,9 @@ extension SharedLLMState {
             #expect(options.contains(#"Mum said "don't worry about it" but I still feel bad 😔."#))
             #expect(grammar.contains(#""Mum said \"don't worry about it\" but I still feel bad 😔.""#))
             #expect(grammar.contains(#"one \\ oops."#))
-            #expect(grammar.hasPrefix(#"root ::= "You wrote, \"" quote "\" " feel (" " tip)?"#))
+            #expect(grammar.hasPrefix(#"root ::= "You wrote, \"" quote "\" " feel"#))
+            // Since 2026-09-30 Gemma writes only the feeling sentence; tips are the app's fixed text.
+            #expect(!grammar.contains("tip"))
         }
 
         // MARK: Validator
@@ -149,13 +151,43 @@ extension SharedLLMState {
 
         @Test func gemmaQuoteSurvivesThePipelineUnmodified() async throws {
             let entry = Entry(text: "I felt awful after the long shift and I was too tired to cook dinner.", mood: "Drained")
-            let reply = #"You wrote, "I felt awful after the long shift and I was too tired to cook dinner." You seem worn down. Maybe eat something simple and rest early."#
+            let reply = #"You wrote, "I felt awful after the long shift and I was too tired to cook dinner." You seem worn down and running on empty."#
             LocalLLMService.generateInterceptForTesting = { _, _, _, _ in (reply, .gemma) }
             defer { LocalLLMService.generateInterceptForTesting = nil }
             let (text, engine, _) = try await InsightService.generateNudge(entries: [entry])
-            // The generic cleaner would have rewritten "I felt"/"I was" inside the quote.
-            #expect(text == reply)
+            // The generic cleaner would have rewritten "I felt"/"I was" inside the quote; a drained
+            // day gets the app's fixed tip after Gemma's sentence.
+            let tip = try #require(InsightService.groundedNudgeTip(forMood: "Drained"))
+            #expect(text == reply + " " + tip)
             #expect(engine == .gemma)
+            #expect(InsightService.nudgeTextForOutsideApp(text) == "You seem worn down and running on empty. " + tip)
+        }
+
+        // MARK: Fixed tips (2026-09-30)
+
+        @Test func difficultMoodsGetAFixedTip_goodAndNeutralGetNone() {
+            for mood in ["Drained", "Anxious", "Overwhelmed", "Frustrated", "Sad", "Numb"] {
+                let tip = InsightService.groundedNudgeTip(forMood: mood)
+                #expect(tip?.hasPrefix("Maybe ") == true, "\(mood)")
+            }
+            for mood in ["Joyful", "Grateful", "Peaceful", "Content", "Energized", "Hopeful"] {
+                #expect(InsightService.groundedNudgeTip(forMood: mood) == nil, "\(mood)")
+            }
+            #expect(InsightService.groundedNudgeTip(forMood: nil) == nil)
+        }
+
+        @Test func fixedTipsAvoidTheGenericSelfCareWording() {
+            let generic = /breath|mindful|meditat|self-care|grounded|gentle with yourself|kind to yourself|small steps/
+            for tip in InsightService.groundedNudgeTips.values.flatMap({ $0 }) {
+                #expect(tip.lowercased().firstMatch(of: generic) == nil, "\(tip)")
+                #expect(!tip.contains("\" "), "must not look like the end of a quote: \(tip)")
+            }
+        }
+
+        @Test func tipAlternatesByDay() throws {
+            let day = Calendar.current.startOfDay(for: Date())
+            let next = try #require(Calendar.current.date(byAdding: .day, value: 1, to: day))
+            #expect(InsightService.groundedNudgeTip(forMood: "Sad", on: day) != InsightService.groundedNudgeTip(forMood: "Sad", on: next))
         }
 
         // Routine entries start alike ("Usual gym, went to…"), so two different quotes share the

@@ -55,9 +55,15 @@ Rules:
 // sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
 // Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
 // Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
+//
+// 2026-09-30: Gemma writes only the feeling sentence; the grammar has no tip slot. With one, it
+// added a tip ~100% of the time whatever the mood, mostly generic ("take a few deep breaths"),
+// and 8/130 lines stated something not in the entry; feeling-line-only measured 0/130 (rig README,
+// "Daily reflection: the line after the quote"). On difficult moods the app appends a fixed tip
+// instead (groundedNudgeTips), the way the other nine languages already work.
 let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
 Write a short reflection for the person who wrote the journal entry above, in this exact form:
-You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one or two sentences, speaking to them as "you", about how they seem to be feeling. If their mood is difficult, add one small, practical suggestion. After the quote, do not mention anyone by name and do not add anything that is not in the entry.
+You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one sentence, speaking to them as "you", about how they seem to be feeling, in plain everyday words, without repeating the words of the quote. Do not give advice, and do not use words like "significant", "grappling" or "well-being". After the quote, do not mention anyone by name and do not add anything that is not in the entry.
 """
 
 private let WEEKLY_DIGEST_SYSTEM = """
@@ -690,8 +696,11 @@ enum InsightService {
         let grounded = groundedNudgePlan(recent: recent, background: background, recentNudges: recentNudges)
         let localized = localizedGroundedNudge(recent: recent, background: background, recentNudges: recentNudges)
         let nudgePlan = localized?.plan ?? grounded.plan
+        // English grounded nudge: the fixed tip for a difficult mood goes after Gemma's sentence.
+        let groundedTip = groundedNudgeTip(forMood: groundedNudgeSourceEntries(recent).first?.mood)
         let nudgeValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
-            try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+            let validated = try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+            return groundedTip.map { validated + " " + $0 } ?? validated
         })
         if case .unsuitable = nudgePlan, !LocalLLMService.prefersFoundationModels {
             // Gemma is the only engine and today's writing has no quotable sentence (a one- or
@@ -2619,12 +2628,29 @@ extension InsightService {
     static func groundedNudgeGrammar(quotes: [String]) -> String {
         let alternatives = quotes.map(gbnfLiteral).joined(separator: " | ")
         return """
-        root ::= "You wrote, \\"" quote "\\" " feel (" " tip)?
+        root ::= "You wrote, \\"" quote "\\" " feel
         quote ::= \(alternatives)
         feel ::= ("That sounds " | "You seem ") words "."
-        tip ::= ("Maybe " | "Try ") words "."
         words ::= [a-z0-9 ,;:'’()-]{6,150}
         """
+    }
+
+    /// The fixed suggestion the app adds after an English grounded nudge on a difficult day
+    /// (Gemma only writes the feeling sentence, see DAILY_NUDGE_GEMMA_INSTRUCTIONS). Two per mood,
+    /// alternating by day like the localized `feel` lines; nothing on good or neutral days.
+    static let groundedNudgeTips: [GroundedMoodBucket: [String]] = [
+        .tired: ["Maybe keep the rest of today light and get to bed a little earlier.",
+                 "Maybe leave whatever can wait until tomorrow."],
+        .stressed: ["Maybe pick one thing to finish and let the rest wait until tomorrow.",
+                    "Maybe write down what's pressing, so it doesn't all sit in your head tonight."],
+        .sad: ["Maybe tell someone you trust how today felt, even in a short message.",
+               "Maybe keep tonight simple and don't ask much of yourself."],
+    ]
+
+    static func groundedNudgeTip(forMood mood: String?, on date: Date = Date()) -> String? {
+        guard let tips = groundedNudgeTips[GroundedMoodBucket(mood: mood)], !tips.isEmpty else { return nil }
+        let variant = (Calendar.current.ordinality(of: .day, in: .era, for: date) ?? 0) % tips.count
+        return tips[variant]
     }
 
     private static func gbnfLiteral(_ text: String) -> String {
