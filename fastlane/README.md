@@ -53,7 +53,7 @@ Resubmit the current build for review without re-uploading binary/metadata/scree
 [bundle exec] fastlane ios release
 ```
 
-Archive, upload, and submit the current version for App Store review
+Archive, upload, and submit the current version for App Store review (auto_release:true to go live on approval)
 
 ----
 
