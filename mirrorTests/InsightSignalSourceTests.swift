@@ -48,6 +48,20 @@ struct InsightSignalSourceTests {
         #expect(r.note != nil)
     }
 
+    @Test func groundedNudgeWithTheAppsFixedTip_saysTheModelDidntWriteIt() throws {
+        let tip = try #require(InsightService.groundedNudgeTips[.sad]?.first)
+        let withTip = InsightSignalSource.resolve(
+            insight: insight(.dailyNudge, #"You wrote, "Finished the jigsaw puzzle with Leo after dinner and framed the corner piece." You seem a little low. "# + tip, .gemma),
+            entries: nudgeEntries, engineLabel: "GEMMA"
+        )
+        #expect(withTip.note?.contains("fixed text MirrorNotes adds") == true)
+        let withoutTip = InsightSignalSource.resolve(
+            insight: insight(.dailyNudge, #"You wrote, "Finished the jigsaw puzzle with Leo after dinner and framed the corner piece." You seem content."#, .gemma),
+            entries: nudgeEntries, engineLabel: "GEMMA"
+        )
+        #expect(withoutTip.note?.contains("fixed text MirrorNotes adds") == false)
+    }
+
     @Test func freeProseNudge_keepsTheRecentAndSummarizedContext() {
         let r = InsightSignalSource.resolve(
             insight: insight(.dailyNudge, "The evening at the flat sounds like it gave you room to breathe.", .foundationModels),

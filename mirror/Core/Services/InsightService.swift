@@ -57,10 +57,11 @@ Rules:
 // Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
 //
 // 2026-09-30: Gemma writes only the feeling sentence; the grammar has no tip slot. With one, it
-// added a tip ~100% of the time whatever the mood, mostly generic ("take a few deep breaths"),
-// and 8/130 lines stated something not in the entry; feeling-line-only measured 0/130 (rig README,
-// "Daily reflection: the line after the quote"). On difficult moods the app appends a fixed tip
-// instead (groundedNudgeTips), the way the other nine languages already work.
+// added a tip ~100% of the time whatever the mood (about half breathing/mindfulness, a fifth
+// walk/tea), and stated something not in the entry in ~12/130 lines on a strict scoring pass
+// (8 lenient); feeling-line-only had ~5/130 (0 lenient). One scorer; see the rig README, "Daily
+// reflection: the line after the quote". On difficult moods the app appends a fixed tip instead
+// (groundedNudgeTips), the way the other nine languages already work.
 let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
 Write a short reflection for the person who wrote the journal entry above, in this exact form:
 You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one sentence, speaking to them as "you", about how they seem to be feeling, in plain everyday words, without repeating the words of the quote. Do not give advice, and do not use words like "significant", "grappling" or "well-being". After the quote, do not mention anyone by name and do not add anything that is not in the entry.

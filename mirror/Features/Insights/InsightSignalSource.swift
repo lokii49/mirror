@@ -169,7 +169,12 @@ struct InsightSignalSource: View {
                 rows.append(("READ CLOSELY", Self.span(source)))
                 rows.append(("CONTEXT", "none sent"))
                 rows.append(("MOOD READ", Self.moods(source)))
-                return Resolved(rows: rows, reading: Self.readingList(source), note: quotedNote)
+                // The linked instructions say "Do not give advice"; a closing tip is the app's.
+                let endsWithFixedTip = InsightService.groundedNudgeTips.values.joined().contains { insight.content.hasSuffix($0) }
+                let note = endsWithFixedTip
+                    ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
+                    : quotedNote
+                return Resolved(rows: rows, reading: Self.readingList(source), note: note)
             }
             let background = backgroundEntries.count
             rows.append(("READ CLOSELY", Self.span(recent)))
