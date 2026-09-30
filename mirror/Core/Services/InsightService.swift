@@ -277,6 +277,14 @@ enum InsightService {
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
+    /// Longest Ask question the prompt will carry; the view enforces the same cap while typing.
+    static let maxAskQuestionLength = 500
+
+    static func cappedAskQuestion(_ question: String) -> String {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxAskQuestionLength else { return trimmed }
+        return String(trimmed.prefix(maxAskQuestionLength))
+    }
     private static let askNoAnswerSentinelEN = "You haven't written about this yet."
     // Keyed by the same language codes as the digest/report section labels below,
     // so the fallback always matches the language Ask was actually instructed to answer in.
@@ -1129,6 +1137,7 @@ enum InsightService {
     )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        let question = cappedAskQuestion(question)
         // Same empty-context filter as generateNudge/generateWeeklyDigest/generateMonthlyReport
         // — see hasReadableContext's doc comment. Unlike those, no throw-when-empty here: Ask
         // already has its own honest "you haven't written about this yet" sentinel for when
@@ -2030,17 +2039,21 @@ enum InsightService {
     private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {
         let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 1_300)
         let entryBlock = formatEntries(entries, maxChars: 3_800)
-        let message = """
+        let head = """
         Long-term context:
         \(backgroundBlock)
 
         Most relevant entries:
         \(entryBlock)
 
-        Question: \(question)
+        """
+        let tail = """
+
+        Question: \(cappedAskQuestion(question))
         Look carefully at all the entries above for related themes, emotions, or events before answering.
         """
-        return clipped(message, maxChars: askPromptBudget)
+        // Clip the entries, never the question, which sits last.
+        return clipped(head, maxChars: max(0, askPromptBudget - tail.count)) + "\n" + tail
     }
 
     private static func formatEntries(_ entries: [Entry], maxChars: Int) -> String {
