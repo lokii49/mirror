@@ -696,11 +696,13 @@ enum InsightService {
         let grounded = groundedNudgePlan(recent: recent, background: background, recentNudges: recentNudges)
         let localized = localizedGroundedNudge(recent: recent, background: background, recentNudges: recentNudges)
         let nudgePlan = localized?.plan ?? grounded.plan
-        // English grounded nudge: the fixed tip for a difficult mood goes after Gemma's sentence.
-        let groundedTip = groundedNudgeTip(forMood: groundedNudgeSourceEntries(recent).first?.mood)
+        // English grounded nudge: the fixed tip for a difficult mood goes after Gemma's sentence,
+        // keyed to the mood of the entry the quote came from (two same-day entries can differ).
+        let nudgeSource = groundedNudgeSourceEntries(recent)
         let nudgeValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             let validated = try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
-            return groundedTip.map { validated + " " + $0 } ?? validated
+            let tip = groundedNudgeTip(forMood: moodOfQuotedEntry(validated, source: nudgeSource))
+            return tip.map { validated + " " + $0 } ?? validated
         })
         if case .unsuitable = nudgePlan, !LocalLLMService.prefersFoundationModels {
             // Gemma is the only engine and today's writing has no quotable sentence (a one- or
@@ -2646,6 +2648,15 @@ extension InsightService {
         .sad: ["Maybe tell someone you trust how today felt, even in a short message.",
                "Maybe keep tonight simple and don't ask much of yourself."],
     ]
+
+    /// The mood of the source entry whose sentence a grounded nudge quotes; the newest entry's
+    /// when the quote can't be matched.
+    static func moodOfQuotedEntry(_ nudge: String, source: [Entry]) -> String? {
+        let quoted = source.first { entry in
+            groundedQuoteCandidates(of: entry).contains { nudge.hasPrefix(groundedNudgePrefix + $0 + "\" ") }
+        }
+        return (quoted ?? source.first)?.mood
+    }
 
     static func groundedNudgeTip(forMood mood: String?, on date: Date = Date()) -> String? {
         guard let tips = groundedNudgeTips[GroundedMoodBucket(mood: mood)], !tips.isEmpty else { return nil }

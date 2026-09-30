@@ -184,6 +184,25 @@ extension SharedLLMState {
             }
         }
 
+        @Test func tipFollowsTheQuotedEntrysMood_notTheNewestEntrys() async throws {
+            // Same day: an energized morning and a frustrated evening. Quoting the morning must not
+            // get the evening's "stressed" tip.
+            let morning = Entry(text: "Ran 5k before work, legs felt heavy but I finished.", mood: "Energized")
+            morning.createdAt = Calendar.current.startOfDay(for: Date()).addingTimeInterval(7 * 3_600)
+            let evening = Entry(text: "Evening was rough, argued with my brother over the phone about the birthday plans.", mood: "Frustrated")
+            evening.createdAt = Calendar.current.startOfDay(for: Date()).addingTimeInterval(8 * 3_600)
+            let morningReply = #"You wrote, "Ran 5k before work, legs felt heavy but I finished." You seem determined to push through."#
+            let eveningReply = #"You wrote, "Evening was rough, argued with my brother over the phone about the birthday plans." That sounds tense."#
+            for (reply, expectsTip) in [(morningReply, false), (eveningReply, true)] {
+                LocalLLMService.generateInterceptForTesting = { _, _, _, _ in (reply, .gemma) }
+                defer { LocalLLMService.generateInterceptForTesting = nil }
+                let (text, _, _) = try await InsightService.generateNudge(entries: [evening, morning])
+                #expect(text.hasPrefix(reply))
+                #expect((text != reply) == expectsTip, "\(text)")
+                if expectsTip { #expect(text.hasSuffix(try #require(InsightService.groundedNudgeTip(forMood: "Frustrated")))) }
+            }
+        }
+
         @Test func tipAlternatesByDay() throws {
             let day = Calendar.current.startOfDay(for: Date())
             let next = try #require(Calendar.current.date(byAdding: .day, value: 1, to: day))

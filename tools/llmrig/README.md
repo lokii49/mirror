@@ -329,3 +329,10 @@ The rule was relaxed **after seeing the outputs**. The ranking is the same under
 
 Not yet done: the app's `validateGroundedNudge` and `nudgeTextForOutsideApp` on the c shape, and
 the real pipeline in the simulator.
+
+### Shipped (2026-09-30): variant c + a fixed tip on hard days
+
+- **Gemma's part.** `DAILY_NUDGE_GEMMA_INSTRUCTIONS` is variant c's text and the grammar has no tip slot. The app's prompts and grammars are byte-identical to the measured c on all 13 cases.
+- **The tip.** On difficult moods the app appends a fixed tip (`groundedNudgeTips`, two per mood), keyed to the mood of the entry the quote came from.
+- **Real pipeline** in the simulator (`test_groundedNudge_fullPipeline`, `HARNESS_ENGINE=gemma`): 13/13 real reflections, 0 fallbacks, 8-17s.
+- **Bug found by that run, now fixed.** The same-day case quoted the energized morning but got the frustrated evening's tip, because the tip had been keyed to the newest entry.
