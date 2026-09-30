@@ -21,6 +21,10 @@ struct AddJournalEntryIntent: AppIntent {
             return .result(dialog: "That entry was empty — nothing saved.")
         }
 
+        // Never write to the in-memory stand-in: the entry would be lost when the app closes.
+        guard MirrorModelContainer.isStoreAvailable else {
+            return .result(dialog: "MirrorNotes couldn't open your journal, so this wasn't saved. Open the app to fix it.")
+        }
         let context = MirrorModelContainer.shared.mainContext
         let entry = Entry(text: trimmed, source: .typed)
         entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)

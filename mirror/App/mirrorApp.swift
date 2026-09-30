@@ -166,10 +166,17 @@ struct mirrorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if MirrorModelContainer.isStoreAvailable {
+                ContentView()
+            } else {
+                StoreUnavailableView()
+            }
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, phase in
+            // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
+            // below (generation, cleanup passes, reminders) has anything real to work on.
+            guard MirrorModelContainer.isStoreAvailable else { return }
             switch phase {
             case .active:
                 // Request notification permission for users who completed onboarding before
@@ -254,6 +261,10 @@ struct mirrorApp: App {
         ) { task in
             guard let processingTask = task as? BGProcessingTask else {
                 task.setTaskCompleted(success: false)
+                return
+            }
+            guard MirrorModelContainer.isStoreAvailable else {
+                processingTask.setTaskCompleted(success: false)
                 return
             }
             let work = Task { @MainActor in
