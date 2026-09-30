@@ -488,7 +488,7 @@ struct OnboardingFlow: View {
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 Spacer()
-                let wordCount = firstEntryText.split(separator: " ").count
+                let wordCount = segmentedWordCount(firstEntryText)
                 Text(wordCount == 1 ? "1 word" : "\(wordCount) words")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
