@@ -26,9 +26,9 @@ struct InsightSignalSourceTests {
     /// Two entries today, one yesterday, five older.
     private var nudgeEntries: [Entry] {
         [
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
+            entry("Repainted the hallway bookshelf and left it to dry overnight.", "Content", hoursBefore: 2),
+            entry("Finished the jigsaw puzzle with Leo after dinner and framed the corner piece.", "Hopeful", hoursBefore: 6),
+            entry("Slept badly after the late train home, the carriage heater was stuck on high.", "Drained", hoursBefore: 26),
         ] + (2...6).map { entry("An older entry about an ordinary working day number \($0).", "Content", hoursBefore: Double($0) * 24 + 3) }
     }
 
@@ -38,7 +38,7 @@ struct InsightSignalSourceTests {
 
     @Test func groundedGemmaNudge_showsOnlyTheNewestDaysEntries_andNoContext() {
         let r = InsightSignalSource.resolve(
-            [real journal text removed]
+            insight: insight(.dailyNudge, #"You wrote, "Finished the jigsaw puzzle with Leo after dinner and framed the corner piece." That sounds like a good day."#, .gemma),
             entries: nudgeEntries, engineLabel: "GEMMA"
         )
         #expect(value("READ CLOSELY", in: r)?.hasPrefix("2 entries") == true)

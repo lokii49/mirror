@@ -288,7 +288,7 @@ Real pipeline in the simulator (`test_followUp_fullPipeline`, `HARNESS_ENGINE=ge
 
 ## Daily reflection: the line after the quote (2026-09-30)
 
-[real journal text removed]
+A real device report (2026-09-28) got a good quote but a weak line after it: it repeated the quote
 and added generic self-care ("take a few deep breaths", "mindful moments to acknowledge those
 feelings", "a significant amount of"). The quote is grammar-verbatim and out of scope here.
 
@@ -298,33 +298,34 @@ friend, missing someone, low at work, good news, a neutral day). Only the instru
 between variants (plus the grammar for c). `gengrammar` at temp 0.45, N=10, 520 outputs. Scored
 with RUBRIC.md "Daily reflection: the line after the quote", written before the run.
 
-[real journal text removed]
-[real journal text removed]
+**Fact-slip rule, and a caveat.** One scorer, who knew which variant was which, scored twice:
+- **First pass (strict):** also failed ambiguous swaps like "happy with the prospect of a change" when the change was a friend's, and "unpacking some things" when the friend moved out.
+- **Second pass (lenient):** fails a line only if it clearly states or assumes something false or not in the entry.
 
-[real journal text removed]
-|---|---|---|---|---|---|
-[real journal text removed]
-[real journal text removed]
-[real journal text removed]
-[real journal text removed]
+The rule was relaxed **after seeing the outputs**. The ranking is the same under both, but the absolute numbers aren't solid.
 
-[real journal text removed]
+| Variant | Fact slips /130, strict | Fact slips /130, lenient | Self-care tips (rubric list) | Walk/break/tea tips (post-hoc) | Stiff words | Any tip |
+|---|---|---|---|---|---|---|
+| base (current) | ~12 | 8 | 61 | 25 | 3 | 129 |
+| a: plain words, tip from the entry, ban list | ~7 | 1 | 1 | 73 | 0 | 128 |
+| b: a, and no tip unless the entry points to one | ~12 | **10** | 2 | 51 | 0 | 130 |
+| **c: feeling line only (no tip in the grammar)** | ~5 | **0** | 0 | 0 | 0 | 0 |
+
+**What the slips were (lenient pass):**
 - **base.** To-dos read as done ("after tackling this list" x2). The undecided hike treated as planned ("before tackling the weekend hike" x3). "that early wake-up" when the entry says they woke late. "a stubborn mood that's making you want to just disappear". "the busy day ahead".
 - **a.** One: "overwhelmed by the thought of leaving everything familiar behind". The friend is the one moving.
 - **b.** It quoted the to-do "call the landlord about the leak" 9/10 and then called it done 5 times ("relieved that a problem is finally addressed"). Also "after a long shift", and "a pleasant start to the day" for an after-work walk.
 
 **Findings.**
 - **Gemma ignores "only if the mood is difficult".** Every variant with a tip slot added one ~100% of the time, including 59-60 of 60 good or neutral outputs.
-[real journal text removed]
+- **Banning the words doesn't make the tip specific.** Variant a swaps breathing for "a short walk" and "a warm drink" (73/130). That column was added after the run, so treat it as post-hoc. It is the real difference between a and c, because on the pre-set rule they differ by one generic tip, effectively a tie. Restatement was not counted.
+- **c costs something.** Its zero comes partly from saying less. Lines are safe but can be bland: "You seem to be enjoying the quiet of the moment." It removes the generic tip; it doesn't make the reflection more specific. Its better lines: "You seem to be carrying a quiet sadness with you.", "You seem exhausted and frustrated with the constant rescheduling."
 - **The instruction text after the quote also changes which sentence gets quoted:**
   - a and b picked the offer letter on rl_good; base picked the pizza.
   - b picked a to-do on checklist.
-  [real journal text removed]
+  - c split pizza/offer 5/5 on rl_good, and picked the morning run over the evening argument 10/10 on sameday, so the argument disappears.
 
 **Adopt rule** (fact slips ≤ 8, self-care tips ≤ 30, stiff words ≤ 3): a and c qualify, b fails.
-[real journal text removed]
-[real journal text removed]
-"You seem exhausted and frustrated with the constant rescheduling."
 
 Not yet done: the app's `validateGroundedNudge` and `nudgeTextForOutsideApp` on the c shape, and
 the real pipeline in the simulator.

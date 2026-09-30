@@ -82,7 +82,7 @@ extension SharedLLMState {
         // MARK: Which day a reflection is about
 
         @Test func reflectedDay_isTheNewestEntryAtOrBeforeTheReflection() {
-            [real journal text removed]
+            let yesterdayEvening = Entry(text: "Repotted the basil and the mint on the windowsill, then called it a night.", mood: "Content")
             yesterdayEvening.createdAt = startOfToday.addingTimeInterval(-3_600)
             let laterToday = Entry(text: "Wrote this after the reflection was made, about the rest of the day.", mood: "Content")
             laterToday.createdAt = startOfToday.addingTimeInterval(20 * 3_600)
@@ -96,7 +96,7 @@ extension SharedLLMState {
 
         @Test func pastList_keepsBothReflectionsOfADay_butCollapsesSameDayDuplicates() throws {
             let context = try makeContext()
-            [real journal text removed]
+            let yesterday = addEntry("Repotted the basil and the mint on the windowsill, then called it a night.", at: startOfToday.addingTimeInterval(-3_600), to: context)
             let today = addEntry("The whole afternoon went to the new project plan and it finally makes sense.", at: startOfToday.addingTimeInterval(3 * 3_600), to: context)
             let aboutYesterday = addReflection("real one", at: startOfToday.addingTimeInterval(2 * 3_600), to: context)
             let aboutToday = addReflection("real two", at: startOfToday.addingTimeInterval(4 * 3_600), to: context)
