@@ -148,7 +148,30 @@ nonisolated func allPhotoTokens(in text: String) -> [(range: Range<String.Index>
 nonisolated func strippedWordCount(_ s: String) -> Int {
     var cleaned = s
     for (range, _) in allPhotoTokens(in: s).reversed() { cleaned.removeSubrange(range) }
-    return cleaned.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+    return segmentedWordCount(cleaned)
+}
+
+/// True when the text has Han, Hiragana or Katakana, which are written without spaces between
+/// words. Korean uses spaces, so it isn't included.
+nonisolated func containsUnspacedScript(_ s: String) -> Bool {
+    s.unicodeScalars.contains {
+        switch $0.value {
+        case 0x3040...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xFF66...0xFF9F: return true
+        default: return false
+        }
+    }
+}
+
+/// Whitespace-separated words, except in Japanese/Chinese text, where a whole line has no spaces
+/// and would count as one word: that text is split with the system's word segmentation. Text
+/// without those scripts is counted exactly as before.
+nonisolated func segmentedWordCount(_ s: String) -> Int {
+    guard containsUnspacedScript(s) else {
+        return s.split { $0.isWhitespace }.filter { !$0.isEmpty }.count
+    }
+    var count = 0
+    s.enumerateSubstrings(in: s.startIndex..<s.endIndex, options: .byWords) { _, _, _, _ in count += 1 }
+    return count
 }
 
 /// `entry.text` embeds `[[mirror-photo-N]]` markers inline — an internal

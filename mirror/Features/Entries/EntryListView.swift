@@ -865,10 +865,7 @@ private struct EntryRow: View {
         let voiceTranscriptPreview = voicePreview.transcript
         let hasReadablePreview = !textPreview.isEmpty || voiceTranscriptPreview != nil || voicePreview.count > 0 || entry.hasPhoto
         let textSource = textPreview.isEmpty ? (voiceTranscriptPreview ?? "") : textPreview
-        let wordCount = textSource
-            .split { $0.isWhitespace || $0.isNewline }
-            .filter { !$0.isEmpty }
-            .count
+        let wordCount = segmentedWordCount(textSource)
 
         if !textPreview.isEmpty {
             return (Text(verbatim: textPreview), wordCount, hasReadablePreview, voicePreview.count > 0)

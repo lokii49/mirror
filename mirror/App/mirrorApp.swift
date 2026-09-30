@@ -209,6 +209,10 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     UngroundedInsightCleanup.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
+                // One-time: recount word totals for Japanese/Chinese entries (see CJKWordCountRecount).
+                Task { @MainActor in
+                    CJKWordCountRecount.runIfNeeded(context: sharedModelContainer.mainContext)
+                }
                 // One-time: rewrite the latest digest/report if the pre-grammar Gemma path wrote it.
                 Task(priority: .background) { @MainActor in
                     await PreGrammarInsightRegrade.runIfNeeded(context: sharedModelContainer.mainContext)
