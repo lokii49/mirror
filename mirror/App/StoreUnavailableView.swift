@@ -35,7 +35,7 @@ struct StoreUnavailableView: View {
                 EmptyView()
             }
 
-            Button("Try again") {
+            Button("Try Again") {
                 retryResult = MirrorModelContainer.canOpenStoreNow() ? .opens : .stillFailing
             }
             .buttonStyle(.borderedProminent)
