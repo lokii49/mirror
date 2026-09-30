@@ -93,3 +93,29 @@ drafts as de/es, translated: sickday, offer, mid, scenefirst (rounds 1-3), fight
 nothing invented" (same rules as its earlier scoring). Register (vous/вы) is noted, not scored.
 Decision rule per language: ship (a) there if its best variant scores >= the shipped chip AND
 >= 50%; otherwise turn the chip off on Gemma for that language.
+
+---
+Daily reflection: the line after the quote (fixed BEFORE any run, 2026-09-30). The quote is
+grammar-verbatim and out of scope; this scores what Gemma writes after it (feeling line + optional
+tip). Cases: rig + edge cases above, plus rl_sickfriend (Sad), rl_missing (Sad), rl_lowwork
+(Drained), rl_good (Joyful), rl_neutral (Content): synthetic, shaped like a real report, no real text.
+Per output:
+FACT failures (any = fail): INVENT (a detail, event or assumption not in the entry), SWAP (a
+  feeling or action given to the wrong person, e.g. the writer is the one who is sick), TENSE (a
+  plan or wish treated as done).
+GENERIC_TIP: the tip is generic self-care: breathing, mindful/mindfulness, meditation, self-care,
+  "acknowledge (your|those) feelings", "small (achievable) steps", "be gentle/kind with yourself",
+  "take a moment for yourself", "feel more grounded". Rest/sleep after a drained or sick day is
+  not generic. Contacting someone the entry is about ("send her a message") is not generic.
+CLINICAL: significant, grappling, well-being, navigating, processing, emotional toll/weight/state,
+  "it's understandable", "valid".
+RESTATE: the feeling line only rewords the quote, adding no angle (informational).
+TIP_ON_GOOD: any tip on a good or neutral mood case (walk, lunch, checklist, punctuation, rl_good,
+  rl_neutral) (informational).
+Adopt a variant only if: FACT failures <= baseline's count, GENERIC_TIP <= half of baseline's,
+CLINICAL <= baseline's. Among those, prefer the fewest GENERIC_TIP + CLINICAL + RESTATE.
+Variants: base (current DAILY_NUDGE_GEMMA_INSTRUCTIONS); a (plain feeling words, no repeating the
+quote, tip only if it follows from the entry, banned self-care and stiff words); b (a, but no tip
+unless something written points to a next step); c (model writes only the feeling line; grammar
+without the tip; any tip would be fixed text per mood, like the other 9 languages).
+N=10 per case per variant, temp 0.45 (the app's), production-built prompts and grammars.

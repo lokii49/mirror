@@ -285,3 +285,46 @@ RUBRIC.md before running.
 - **Other languages:** outside the 10 grounded languages, the chip doesn't appear on Gemma.
 
 Real pipeline in the simulator (`test_followUp_fullPipeline`, `HARNESS_ENGINE=gemma`, 8 drafts in en/de/es/fr/ru, x2): **16/16 composed questions**, 4-7s each. Picks matched the rig, including the known dull one (fu_walk → the gold light).
+
+## Daily reflection: the line after the quote (2026-09-30)
+
+[real journal text removed]
+and added generic self-care ("take a few deep breaths", "mindful moments to acknowledge those
+feelings", "a significant amount of"). The quote is grammar-verbatim and out of scope here.
+
+**Method.** 13 production-built prompts and grammars (`test_dumpNudgePromptsForRig`): the 8 rig
+and edge cases, plus 5 synthetic `reflectionLineCases` shaped like the report (worry about a sick
+friend, missing someone, low at work, good news, a neutral day). Only the instruction text changed
+between variants (plus the grammar for c). `gengrammar` at temp 0.45, N=10, 520 outputs. Scored
+with RUBRIC.md "Daily reflection: the line after the quote", written before the run.
+
+[real journal text removed]
+[real journal text removed]
+
+[real journal text removed]
+|---|---|---|---|---|---|
+[real journal text removed]
+[real journal text removed]
+[real journal text removed]
+[real journal text removed]
+
+[real journal text removed]
+- **base.** To-dos read as done ("after tackling this list" x2). The undecided hike treated as planned ("before tackling the weekend hike" x3). "that early wake-up" when the entry says they woke late. "a stubborn mood that's making you want to just disappear". "the busy day ahead".
+- **a.** One: "overwhelmed by the thought of leaving everything familiar behind". The friend is the one moving.
+- **b.** It quoted the to-do "call the landlord about the leak" 9/10 and then called it done 5 times ("relieved that a problem is finally addressed"). Also "after a long shift", and "a pleasant start to the day" for an after-work walk.
+
+**Findings.**
+- **Gemma ignores "only if the mood is difficult".** Every variant with a tip slot added one ~100% of the time, including 59-60 of 60 good or neutral outputs.
+[real journal text removed]
+- **The instruction text after the quote also changes which sentence gets quoted:**
+  - a and b picked the offer letter on rl_good; base picked the pizza.
+  - b picked a to-do on checklist.
+  [real journal text removed]
+
+**Adopt rule** (fact slips ≤ 8, self-care tips ≤ 30, stiff words ≤ 3): a and c qualify, b fails.
+[real journal text removed]
+[real journal text removed]
+"You seem exhausted and frustrated with the constant rescheduling."
+
+Not yet done: the app's `validateGroundedNudge` and `nudgeTextForOutsideApp` on the c shape, and
+the real pipeline in the simulator.

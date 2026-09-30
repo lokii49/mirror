@@ -1115,6 +1115,17 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Reflection-line cases (2026-09-30): synthetic entries shaped like a real report (worry
+    /// about someone who's ill, missing someone, feeling low at work) plus a good and a neutral day,
+    /// for measuring the line Gemma writes after the quote. No real journal text.
+    static let reflectionLineCases: [(label: String, entries: [Entry])] = [
+        ("rl_sickfriend", [Entry(text: "Maya called in sick again, her fever hasn't come down since Sunday. I kept checking my phone all through standup. Made dal for dinner but couldn't finish it. Really worried about her and wish I could be there.", mood: "Sad")]),
+        ("rl_missing", [Entry(text: "Rohan left for Bangalore this morning for the new job. The flat feels too quiet without him. Went to work, finished the release notes, came back and ate alone. Missing him a lot tonight.", mood: "Sad")]),
+        ("rl_lowwork", [Entry(text: "Woke up already tired. Got through the client call and two reviews on autopilot. Lunch was at my desk again. Nothing went wrong exactly, I just feel flat and far away from everything.", mood: "Drained")]),
+        ("rl_good", [Entry(text: "Got the offer letter from the design studio today! Called Mum first and she cried a little. Celebrated with pizza and a long walk with Zoe. Still can't quite believe it.", mood: "Joyful")]),
+        ("rl_neutral", [Entry(text: "Normal Tuesday. Gym at seven, office till six, cooked pasta and watched two episodes of the show. Went to bed early.", mood: "Content")]),
+    ]
+
     /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
     /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
     /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.
@@ -1124,7 +1135,7 @@ final class GroundingSampleHarness: XCTestCase {
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { LocalLLMService.generateInterceptForTesting = nil }
-        for c in Self.rigCases + Self.groundedEdgeCases {
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases {
             var captured: [(String, String, LocalLLMService.GemmaPlan)] = []
             // Reported as Foundation Models so the ungrounded reply takes the generic validation
             // path and all 3 attempts run; the Gemma plan is captured regardless of engine.
