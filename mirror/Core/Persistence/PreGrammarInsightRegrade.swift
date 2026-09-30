@@ -12,6 +12,10 @@ import SwiftData
 /// "newest wins" in every reader. Foundation Models output is never touched.
 enum PreGrammarInsightRegrade {
     static let flag = "mirror.didRegradePreGrammarInsights.v1"
+    private static let attemptsKey = "mirror.regradeAttempts.v1"
+    /// Runs that reached generation without finishing (cancelled, failed, or only a fallback
+    /// came back). After this many the pass gives up instead of retrying every foreground.
+    private static let maxAttempts = 3
 
     /// The latest row of each type that the pre-grammar path may have written.
     static func candidates(among insights: [Insight]) -> [Insight] {
@@ -43,11 +47,18 @@ enum PreGrammarInsightRegrade {
             return
         }
         guard mirrorApp.modelAvailable() else { return }
+        let attempts = defaults.integer(forKey: attemptsKey)
+        if attempts >= maxAttempts {
+            defaults.set(true, forKey: flag)
+            return
+        }
+        defaults.set(attempts + 1, forKey: attemptsKey)
 
         var allDone = true
         for old in todo {
             let period = old.periodIdentifier
-            let key = "regrade_\(old.type.rawValue)_\(period)"
+            // The normal runners' keys, so this can't generate the same period at the same time.
+            let key = old.type == .weeklyDigest ? "digest_\(period)" : "monthlyReport_\(period)"
             guard InsightGenerationCoordinator.shared.claim(key: key) else { allDone = false; continue }
             defer { InsightGenerationCoordinator.shared.release(key: key) }
             do {
@@ -59,11 +70,14 @@ enum PreGrammarInsightRegrade {
                     }
                     guard week.count >= InsightService.weeklyDigestMinimumWeekEntries else { continue }
                     let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: week, allEntries: entries)
+                    // A "couldn't confirm" card must not replace what's there; try again later.
+                    guard !InsightService.isUngroundedFallback(text) else { allDone = false; continue }
                     context.insert(Insight(type: .weeklyDigest, content: text, periodIdentifier: period, generatedByEngine: engine))
                 case .monthlyReport:
                     let month = entries.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == period }
                     guard month.count >= InsightService.monthlyReportMinimumEntries else { continue }
                     let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: month, allEntries: entries)
+                    guard !InsightService.isUngroundedFallback(text) else { allDone = false; continue }
                     context.insert(Insight(type: .monthlyReport, content: text, periodIdentifier: period, generatedByEngine: engine))
                 default:
                     continue

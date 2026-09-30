@@ -5,7 +5,7 @@ Des réflexions après avoir écrit, et ce qu'elles ont lu
 • Sur les iPhone sans Apple Intelligence, la réflexion est une citation de votre entrée suivie d'une phrase simple sur ce que vous semblez ressentir. Uniquement les jours plus difficiles, elle ajoute une courte suggestion fixe. Le « respirez profondément » générique a disparu.
 • Sur ces iPhone, la question de suivi qui apparaît pendant que vous écrivez cite désormais vos propres mots : elle ne peut plus rien ajouter que vous n'avez pas écrit.
 • Sur chaque réflexion, vous pouvez voir exactement ce qui a été lu pour l'écrire.
-• Si votre dernier résumé hebdomadaire ou rapport mensuel a été écrit par une version précédente, il peut être réécrit une fois. Les plus anciens ne changent pas.
+• Sur les iPhone sans Apple Intelligence, si votre dernier résumé hebdomadaire ou rapport mensuel a été écrit par une version précédente, il peut être réécrit une fois. Les plus anciens ne changent pas.
 • Les questions de « Demander » peuvent compter jusqu'à 500 caractères.
 • Si mirror ne peut pas ouvrir votre journal, il le dit maintenant, avec un bouton « Réessayer », au lieu de se fermer. Rien n'est supprimé.
 • Les entrées en japonais et en chinois comptent enfin correctement les mots, pour que les totaux, les objectifs quotidiens et les XP aient du sens.

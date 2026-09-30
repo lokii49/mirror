@@ -5,7 +5,7 @@ Reflections after you write, and what they read
 • On iPhones without Apple Intelligence, the reflection is a quote from your entry plus one plain sentence about how you seem. Only on harder days does it add one short, fixed suggestion. The generic "take a few deep breaths" is gone.
 • On those iPhones, the follow-up question that appears while you write now quotes your own words, so it can't bring in things you didn't write.
 • On any reflection, you can see exactly what was read to write it.
-• If your latest weekly digest or monthly report was written by an earlier version, it may be rewritten once. Older ones aren't changed.
+• On iPhones without Apple Intelligence, if your latest weekly digest or monthly report was written by an earlier version, it may be rewritten once. Older ones aren't changed.
 • Questions in Ask can be up to 500 characters.
 • If mirror can't open your journal, it now says so, with a Try Again button, instead of crashing. Nothing is deleted.
 • Japanese and Chinese entries now have proper word counts, so totals, daily goals and XP make sense.

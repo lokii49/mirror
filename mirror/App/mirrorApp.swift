@@ -14,6 +14,8 @@ struct mirrorApp: App {
     // Foreground proactive generation task — cancelled immediately when app backgrounds
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
+    // The one-time regrade of old digests/reports; cancelled on background like the task above.
+    nonisolated(unsafe) static var regradeTask: Task<Void, Never>?
 
     var sharedModelContainer: ModelContainer = MirrorModelContainer.shared
 
@@ -214,7 +216,8 @@ struct mirrorApp: App {
                     CJKWordCountRecount.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
                 // One-time: rewrite the latest digest/report if the pre-grammar Gemma path wrote it.
-                Task(priority: .background) { @MainActor in
+                mirrorApp.regradeTask?.cancel()
+                mirrorApp.regradeTask = Task(priority: .background) { @MainActor in
                     await PreGrammarInsightRegrade.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
@@ -229,6 +232,8 @@ struct mirrorApp: App {
                 // will retry on CPU.
                 mirrorApp.activeGenerationTask?.cancel()
                 mirrorApp.activeGenerationTask = nil
+                mirrorApp.regradeTask?.cancel()
+                mirrorApp.regradeTask = nil
                 scheduleDailyNudgeFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
@@ -351,6 +356,8 @@ struct mirrorApp: App {
 
     @MainActor
     private func preGenerateInsightsIfNeeded() async {
+        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
+        guard MirrorModelContainer.isStoreAvailable else { return }
         let context = sharedModelContainer.mainContext
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
@@ -878,6 +885,8 @@ struct mirrorApp: App {
 
     @MainActor
     private func runDailyNudgeFallback() async {
+        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
+        guard MirrorModelContainer.isStoreAvailable else { return }
         let context = sharedModelContainer.mainContext
         await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
         scheduleDailyNudgeFallback()
@@ -916,6 +925,8 @@ struct mirrorApp: App {
 
     @MainActor
     private func runWeeklyDigestFallback() async {
+        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
+        guard MirrorModelContainer.isStoreAvailable else { return }
         let context = sharedModelContainer.mainContext
         await mirrorApp.runWeeklyDigestIfNeeded(context: context)
         scheduleWeeklyDigestFallback()
@@ -931,6 +942,8 @@ struct mirrorApp: App {
 
     @MainActor
     private func runMonthlyReportFallback() async {
+        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
+        guard MirrorModelContainer.isStoreAvailable else { return }
         let context = sharedModelContainer.mainContext
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
         scheduleMonthlyReportFallback()

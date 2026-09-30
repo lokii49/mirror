@@ -5,7 +5,7 @@ Reflexiones después de escribir, y lo que leyeron
 • En los iPhone sin Apple Intelligence, la reflexión es una cita de tu entrada más una frase sencilla sobre cómo pareces estar. Solo en los días más difíciles añade una sugerencia breve y fija. El genérico «respira hondo unas cuantas veces» ya no aparece.
 • En esos iPhone, la pregunta de seguimiento que aparece mientras escribes ahora cita tus propias palabras, así que no puede añadir cosas que no escribiste.
 • En cualquier reflexión puedes ver exactamente qué se leyó para escribirla.
-• Si tu último resumen semanal o informe mensual lo escribió una versión anterior, puede reescribirse una vez. Los anteriores no cambian.
+• En los iPhone sin Apple Intelligence, si tu último resumen semanal o informe mensual lo escribió una versión anterior, puede reescribirse una vez. Los anteriores no cambian.
 • Las preguntas de «Preguntar» pueden tener hasta 500 caracteres.
 • Si mirror no puede abrir tu diario, ahora lo dice, con un botón «Intentar de nuevo», en lugar de cerrarse. No se borra nada.
 • Las entradas en japonés y chino ahora cuentan bien las palabras, así que los totales, los objetivos diarios y los XP tienen sentido.
