@@ -1115,6 +1115,17 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Reflection-line cases (2026-09-30): synthetic entries shaped like a real report (worry
+    /// about someone who's ill, missing someone, feeling low at work) plus a good and a neutral day,
+    /// for measuring the line Gemma writes after the quote. No real journal text.
+    static let reflectionLineCases: [(label: String, entries: [Entry])] = [
+        ("rl_sickfriend", [Entry(text: "Maya called in sick again, her fever hasn't come down since Sunday. I kept checking my phone all through standup. Made dal for dinner but couldn't finish it. Really worried about her and wish I could be there.", mood: "Sad")]),
+        ("rl_missing", [Entry(text: "Rohan left for Bangalore this morning for the new job. The flat feels too quiet without him. Went to work, finished the release notes, came back and ate alone. Missing him a lot tonight.", mood: "Sad")]),
+        ("rl_lowwork", [Entry(text: "Woke up already tired. Got through the client call and two reviews on autopilot. Lunch was at my desk again. Nothing went wrong exactly, I just feel flat and far away from everything.", mood: "Drained")]),
+        ("rl_good", [Entry(text: "Got the offer letter from the design studio today! Called Mum first and she cried a little. Celebrated with pizza and a long walk with Zoe. Still can't quite believe it.", mood: "Joyful")]),
+        ("rl_neutral", [Entry(text: "Normal Tuesday. Gym at seven, office till six, cooked pasta and watched two episodes of the show. Went to bed early.", mood: "Content")]),
+    ]
+
     /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
     /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
     /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.
@@ -1124,7 +1135,7 @@ final class GroundingSampleHarness: XCTestCase {
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { LocalLLMService.generateInterceptForTesting = nil }
-        for c in Self.rigCases + Self.groundedEdgeCases {
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases {
             var captured: [(String, String, LocalLLMService.GemmaPlan)] = []
             // Reported as Foundation Models so the ungrounded reply takes the generic validation
             // path and all 3 attempts run; the Gemma plan is captured regardless of engine.
@@ -1185,6 +1196,237 @@ final class GroundingSampleHarness: XCTestCase {
         try await capture("digestB") { _ = try await InsightService.generateWeeklyDigest(weekEntries: Self.digestWeekB, allEntries: Self.digestWeekB) }
         try await capture("monthly") { _ = try await InsightService.generateMonthlyReport(monthEntries: week + Self.digestWeekB, allEntries: week + Self.digestWeekB) }
         try await capture("ask") { _ = try await InsightService.ask(question: "How has my sleep been lately?", entries: week) }
+    }
+
+    // MARK: - Follow-up chip + Talk It Out rig cases (2026-09-27)
+    //
+    // Synthetic drafts/transcripts (no real journal text), scored with the follow-up section of
+    // tools/llmrig/RUBRIC.md. Same traps as rigCases: >=2 named people with distinct roles, a pet,
+    // and plans or undecided things that haven't happened. No ja/zh follow-up case: the chip's
+    // 20-word gate counts whitespace-separated words, so CJK drafts never reach it.
+    static let followUpRigCases: [(label: String, draft: String)] = [
+        ("fu_sickday", "Barely slept last night, my stomach was in knots until almost 4am. Called in sick and spent the day on the couch with the heating on. Dev texted that he might come over later with soup, but I'm not sure I want company."),
+        ("fu_offer", "Lunch with Priya ran long. She told me her team has an opening and basically offered it to me if I want it. I haven't told Mom or Rahul yet because I keep going back and forth."),
+        ("fu_work", "The client presentation got moved up to Thursday and the dashboard bug still isn't fixed. Nisha wants to review everything on Monday. I feel so behind, and I snapped at Omar in standup for no reason."),
+        ("fu_walk", "Took Bruno for a long walk around the lake after work. The light on the water was gold and a few ducks followed us along the shore. I should call Anu tomorrow, it's been weeks since we talked."),
+        ("fu_runon", "ugh so tired today gym at 7 then back to back meetings till 5 forgot lunch again and still need to sort out the car insurance thing before friday"),
+        ("fu_sickday_de", "Letzte Nacht kaum geschlafen, mein Magen hat bis fast vier Uhr rumort. Ich habe mich krankgemeldet und den ganzen Tag auf dem Sofa verbracht. Dev hat geschrieben, dass er vielleicht später mit Suppe vorbeikommt, aber ich weiß nicht, ob ich Besuch will."),
+        ("fu_offer_de", "Das Mittagessen mit Priya hat lange gedauert. Sie hat erzählt, dass in ihrem Team eine Stelle frei ist, und sie mir praktisch angeboten, wenn ich will. Ich habe es Mama und Rahul noch nicht gesagt, weil ich ständig hin und her überlege."),
+        ("fu_sickday_es", "Anoche casi no dormí, tuve el estómago revuelto hasta casi las cuatro. Llamé para decir que estaba enfermo y pasé el día en el sofá. Dev me escribió que quizá venga más tarde con sopa, pero no sé si quiero compañía."),
+        ("fu_offer_es", "La comida con Priya se alargó. Me contó que en su equipo hay una vacante y prácticamente me la ofreció si la quiero. Todavía no se lo he dicho a mamá ni a Rahul porque sigo dándole vueltas."),
+    ]
+
+    /// More drafts for prototype (a) only: grammar-constrained picks were near-deterministic
+    /// (~1 real sample per case), so these add cases where the salient part is buried mid-draft,
+    /// after scenery, in a checklist, or in a lowercase run-on.
+    static let followUpPrototypeExtraCases: [(label: String, draft: String)] = [
+        ("fu_biopsy", "Morning run by the river, legs felt heavy. Work was fine, mostly emails. Dad called and said the biopsy results come back Friday. Trying not to think about it."),
+        ("fu_scenefirst", "The sky was pink on the drive home and the radio played that old song from college. Finally told Sam I don't want to renew the lease. He took it better than I expected."),
+        ("fu_checklist", "- groceries done\n- called the bank about the fraud charge, they're reversing it\n- still haven't replied to Meera's message about the wedding, feel guilty"),
+        ("fu_good", "Presented the redesign to the whole team today and people actually clapped. Kavya said it was the clearest demo she's seen this year. Still buzzing."),
+        ("fu_mid", "Slow Sunday. Read on the balcony for a while. Keep replaying the argument with Jonas from Friday, I think I was unfair to him. Made pasta for dinner."),
+        ("fu_night", "cant sleep again its 2am and my brain keeps going over the interview tomorrow what if they ask about the gap year"),
+        ("fu_mid_de", "Ruhiger Sonntag. Habe eine Weile auf dem Balkon gelesen. Ich denke immer wieder an den Streit mit Jonas vom Freitag, ich glaube, ich war unfair zu ihm. Abends habe ich Nudeln gekocht."),
+        ("fu_scenefirst_de", "Der Himmel war rosa auf der Heimfahrt, und im Radio lief das alte Lied aus der Uni-Zeit. Ich habe Sam endlich gesagt, dass ich den Mietvertrag nicht verlängern will. Er hat es besser aufgenommen als gedacht."),
+        ("fu_mid_es", "Domingo tranquilo. Leí un rato en el balcón. No dejo de pensar en la discusión con Jonas del viernes, creo que fui injusto con él. Hice pasta para cenar."),
+        ("fu_scenefirst_es", "El cielo estaba rosa de camino a casa y en la radio sonó esa canción vieja de la universidad. Por fin le dije a Sam que no quiero renovar el contrato del piso. Se lo tomó mejor de lo que esperaba."),
+    ]
+
+    /// Held-out drafts (2026-09-28): the salient part comes first or mid-draft, never last,
+    /// after the round 1-3 drafts turned out to mostly end on it.
+    static let followUpHeldOutCases: [(label: String, draft: String)] = [
+        ("hx_biopsyfirst", "Dad's biopsy results come back Friday and I can't stop thinking about it. Went for a run after work anyway. Made pasta and watched an episode of that baking show."),
+        ("hx_fightmid", "Grabbed coffee with Lena before work. Then Marco and I had a real fight about money in the car, first one in months, and neither of us apologized. Evening was quiet, did laundry."),
+        ("hx_newsfirst", "Got the acceptance email from the Lisbon program! Told Priti at lunch and she screamed. The rest of the day was errands and a long nap."),
+        ("hx_griefmid", "Rainy morning, stayed in bed late. Found Nani's old recipe book while cleaning and cried over her handwriting for a while. Ordered pizza and called it a night."),
+        ("hx_worrymid", "long day at the clinic then picked up the kids and ben said hes being bullied at school again i dont know what to do then made dinner and bedtime"),
+        ("hx_decisionfirst", "I think I'm going to quit the band. It stopped being fun months ago. Practice was at 8, Tom brought snacks, we ran the new song twice."),
+        ("hx_fightmid_de", "Vor der Arbeit mit Lena Kaffee getrunken. Dann hatten Marco und ich im Auto einen richtigen Streit ums Geld, der erste seit Monaten, und keiner hat sich entschuldigt. Der Abend war ruhig, Wäsche gewaschen."),
+        ("hx_newsfirst_de", "Die Zusage vom Lissabon-Programm ist gekommen! Ich habe es Priti beim Mittagessen erzählt und sie hat geschrien. Der Rest des Tages waren Besorgungen und ein langer Mittagsschlaf."),
+        ("hx_fightmid_es", "Tomé un café con Lena antes del trabajo. Luego Marco y yo tuvimos una pelea de verdad por dinero en el coche, la primera en meses, y ninguno se disculpó. La tarde fue tranquila, puse la lavadora."),
+        ("hx_newsfirst_es", "¡Me llegó el correo de aceptación del programa de Lisboa! Se lo conté a Priti en la comida y gritó. El resto del día fueron recados y una siesta larga."),
+    ]
+
+    /// fr/ru check before shipping prototype (a): the same six drafts de/es were scored on.
+    static let followUpFrRuCases: [(label: String, draft: String)] = [
+        ("fu_sickday_fr", "J'ai à peine dormi cette nuit, j'avais l'estomac noué jusqu'à presque 4 heures. Je me suis mis en arrêt maladie et j'ai passé la journée sur le canapé. Dev m'a écrit qu'il passerait peut-être plus tard avec de la soupe, mais je ne suis pas sûr d'avoir envie de voir quelqu'un."),
+        ("fu_offer_fr", "Le déjeuner avec Priya s'est éternisé. Elle m'a dit que son équipe avait un poste libre et me l'a pratiquement proposé si je le veux. Je n'en ai pas encore parlé à maman ni à Rahul, parce que je n'arrête pas d'hésiter."),
+        ("fu_mid_fr", "Dimanche tranquille. J'ai lu un moment sur le balcon. Je repense sans arrêt à la dispute avec Jonas vendredi, je crois que j'ai été injuste avec lui. J'ai fait des pâtes pour le dîner."),
+        ("fu_scenefirst_fr", "Le ciel était rose sur la route du retour et la radio passait cette vieille chanson de la fac. J'ai enfin dit à Sam que je ne veux pas renouveler le bail. Il l'a mieux pris que je ne pensais."),
+        ("hx_fightmid_fr", "Pris un café avec Lena avant le travail. Ensuite, Marco et moi nous sommes vraiment disputés à propos d'argent dans la voiture, la première fois depuis des mois, et aucun de nous ne s'est excusé. Soirée calme, j'ai fait une lessive."),
+        ("hx_newsfirst_fr", "J'ai reçu le mail d'acceptation du programme de Lisbonne ! Je l'ai dit à Priti au déjeuner et elle a crié. Le reste de la journée, c'était des courses et une longue sieste."),
+        ("fu_sickday_ru", "Почти не спал этой ночью, живот крутило почти до четырёх. Взял больничный и весь день пролежал на диване. Дев написал, что, может, зайдёт позже с супом, но я не уверен, что хочу кого-то видеть."),
+        ("fu_offer_ru", "Обед с Прией затянулся. Она рассказала, что у них в команде есть вакансия, и практически предложила её мне, если я захочу. Я ещё не сказал ни маме, ни Рахулу, потому что всё время сомневаюсь."),
+        ("fu_mid_ru", "Спокойное воскресенье. Немного почитал на балконе. Всё время прокручиваю в голове ссору с Йонасом в пятницу, кажется, я был к нему несправедлив. Приготовил пасту на ужин."),
+        ("fu_scenefirst_ru", "По дороге домой небо было розовым, и по радио играла та старая песня из универа. Наконец сказал Сэму, что не хочу продлевать аренду. Он воспринял это лучше, чем я ожидал."),
+        ("hx_fightmid_ru", "Выпил кофе с Леной перед работой. Потом мы с Марко по-настоящему поругались из-за денег в машине, впервые за несколько месяцев, и никто не извинился. Вечер был тихий, постирал вещи."),
+        ("hx_newsfirst_ru", "Пришло письмо о зачислении в лиссабонскую программу! Рассказал Прити за обедом, и она закричала. Остаток дня ушёл на дела и долгий дневной сон."),
+    ]
+
+    static let guidedRigCases: [(label: String, turns: [(question: String, answer: String)])] = [
+        ("gq_tired", [("How are you feeling today?", "Tired. Work was a lot and I didn't get much done.")]),
+        ("gq_sister", [
+            ("What's on your mind tonight?", "My sister Maya is moving to Berlin next month."),
+            ("How do you feel about her moving?", "Happy for her, but I'll miss our Sunday dinners."),
+        ]),
+        ("gq_quilt", [("What stood out about your day?", "I finally finished the quilt I started in the spring.")]),
+        ("gq_raise", [
+            ("What's been on your mind lately?", "Thinking about asking my manager Leo for a raise."),
+            ("What makes you want to ask now?", "I've taken on two extra projects since June and nobody seems to have noticed."),
+        ]),
+        ("gq_sister_de", [
+            ("Was beschäftigt dich heute Abend?", "Meine Schwester Maya zieht nächsten Monat nach Berlin."),
+            ("Wie fühlst du dich damit?", "Ich freue mich für sie, aber ich werde unsere Sonntagsessen vermissen."),
+        ]),
+        // Chat-style casual answers: the lowercase run-on shape was the follow-up chip's worst case.
+        ("gq_runon", [
+            ("How are you feeling today?", "ugh so tired today gym at 7 then back to back meetings till 5 forgot lunch again and still need to sort out the car insurance thing before friday"),
+        ]),
+        ("gq_plan3", [
+            ("What's on your mind tonight?", "thinking about the trip to see grandma in Kochi, we're supposed to go in december"),
+            ("What makes that trip feel important right now?", "she's been sick and mom keeps saying we should go sooner"),
+            ("How do you feel about going sooner?", "honestly scared of seeing her like that. arjun says he can't get leave till december anyway"),
+        ]),
+    ]
+
+    /// Writes the exact first-attempt prompt generateFollowUp / generateGuidedQuestion send, as
+    /// Gemma would receive it (the Gemma-only system prompt when the plan swaps one in), so the
+    /// rig can template it with `rig template`. No model runs. Output dir from HARNESS_DUMP_DIR.
+    func test_dumpFollowUpPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        func capture(_ label: String, _ run: () async throws -> Void) async throws {
+            var first: (String, String, LocalLLMService.GemmaPlan)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, plan in
+                if first == nil { first = (system, user, plan) }
+                return ("What do you mean?", .foundationModels)
+            }
+            try? await run()
+            guard let first else { XCTFail("no generation captured for \(label)"); return }
+            let gemmaSystem: String
+            switch first.2 {
+            case .samePrompt: gemmaSystem = first.0
+            case .ownSystemPrompt(let own): gemmaSystem = own
+            default:
+                XCTFail("unexpected Gemma plan for \(label): \(first.2)")
+                return
+            }
+            try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases + Self.followUpFrRuCases {
+            try await capture(c.label) { _ = try await InsightService.generateFollowUp(currentText: c.draft) }
+        }
+        for c in Self.guidedRigCases {
+            try await capture(c.label) { _ = try await InsightService.generateGuidedQuestion(conversationSoFar: c.turns) }
+        }
+    }
+
+    /// Prototype (a) for the follow-up chip on Gemma, rig-only: Gemma picks one short phrase of
+    /// the draft (literal grammar), the app would compose a fixed question around it. Candidates
+    /// are the nudge's own sentences, cut here into clause runs of <= 100 chars so the composed
+    /// question stays within validateFollowUp's 160. Instruction variant A mirrors pickNeutral;
+    /// B asks for the part most worth writing more about. de/es use the shipped pickNeutral.
+    func test_dumpFollowUpPrototypeForRig() throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let maxPhrase = 100
+        let conjunctions: Set<String> = ["and", "then", "but", "because", "so", "und", "aber", "weil", "dann", "y", "pero", "porque", "luego"]
+        // Cut points are character offsets into the sentence, so every merged run of pieces is a
+        // verbatim substring: clause punctuation first, then (only inside a comma-free run that's
+        // still too long) before a conjunction, then 12-word windows; adjacent pieces are merged
+        // greedily up to maxPhrase so subordinate clauses ("wenn ich will") stay attached.
+        func clauses(_ sentence: String) -> [String] {
+            let trimSet = CharacterSet(charactersIn: " ,;:—–-.!?…")
+            let chars = Array(sentence.trimmingCharacters(in: trimSet))
+            guard chars.count > maxPhrase else { return [String(chars)] }
+            let wordStarts = (1..<chars.count).filter { chars[$0 - 1] == " " && chars[$0] != " " }
+            var cuts = [0] + wordStarts.filter { $0 >= 2 && ",;:—".contains(chars[$0 - 2]) } + [chars.count]
+            var refined = [0]
+            for (a, b) in zip(cuts, cuts.dropFirst()) {
+                if b - a > maxPhrase {
+                    let inner = wordStarts.filter { $0 > a && $0 < b }
+                    let conj = inner.filter { j in
+                        let word = String(chars[j...].prefix { $0 != " " }).lowercased()
+                        return conjunctions.contains(word)
+                    }
+                    var sub = [a] + conj + [b]
+                    var windowed = [a]
+                    for (x, y) in zip(sub, sub.dropFirst()) {
+                        if y - x > maxPhrase {
+                            let starts = inner.filter { $0 > x && $0 < y }
+                            windowed += stride(from: 11, to: starts.count, by: 12).map { starts[$0] }
+                        }
+                        windowed.append(y)
+                    }
+                    sub = windowed
+                    refined += sub.dropFirst()
+                } else {
+                    refined.append(b)
+                }
+            }
+            cuts = refined
+            var out: [String] = []
+            var start = cuts[0], last = cuts[0]
+            for c in cuts.dropFirst() {
+                if c - start > maxPhrase && last > start { out.append(String(chars[start..<last])); start = last }
+                last = c
+            }
+            if last > start { out.append(String(chars[start..<last])) }
+            return out
+                .map { $0.trimmingCharacters(in: trimSet) }
+                .filter { $0.split(separator: " ").count >= 3 }
+        }
+        func literal(_ s: String) -> String {
+            "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        }
+        let english: [String: String] = [
+            "A": "Copy word for word the part of the journal entry that shows the most important thing of the day. Output only that part.",
+            "B": "Copy word for word the part of the journal entry that the writer would most want to say more about: a feeling, a worry, or something that happened to them. Output only that part.",
+        ]
+        let translatedB: [String: String] = [
+            "de": "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
+            "es": "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
+            "fr": "Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
+            "ru": "Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
+        ]
+        for c in Self.followUpRigCases + Self.followUpPrototypeExtraCases + Self.followUpHeldOutCases + Self.followUpFrRuCases {
+            var seen = Set<String>()
+            // No "drop the unfinished last piece" rule: the chip only fires after 6s idle on an
+            // unchanged draft, and unpunctuated drafts (checklists, run-ons) put their most
+            // salient part last — the rule dropped it in 3 of 11 drafts.
+            let options = InsightService.groundedNudgeQuoteCandidates(in: c.draft)
+                .flatMap(clauses)
+                .filter { seen.insert($0).inserted }
+            try options.joined(separator: "\n").write(toFile: "\(dir)/\(c.label)_options.txt", atomically: true, encoding: .utf8)
+            let grammar = "root ::= " + options.map(literal).joined(separator: " | ")
+            let variants: [(String, String, String)]   // (variant, instruction, entry label)
+            if ["_de", "_es", "_fr", "_ru"].contains(where: { c.label.hasSuffix($0) }) {
+                let code = String(c.label.suffix(2))
+                let loc = try XCTUnwrap(InsightService.groundedLocales[code])
+                variants = [("L", loc.pickNeutral, loc.entryLabel), ("LB", try XCTUnwrap(translatedB[code]), loc.entryLabel)]
+            } else {
+                variants = english.sorted { $0.key < $1.key }.map { ($0.key, $0.value, "Journal entry:") }
+            }
+            let partsLabel = ["de": "Teile des Eintrags:", "es": "Partes de la entrada:", "fr": "Parties de l'entrée\u{00A0}:", "ru": "Части записи:"][String(c.label.suffix(2))] ?? "Parts of the entry:"
+            let numbered = options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            var messages: [(String, String)] = variants.map { ($0.0, "\($0.1)\n\n\($0.2)\n\(c.draft)") }
+            // Post-hoc layout variants (RUBRIC.md, round 2), B wording only.
+            if let b = variants.first(where: { $0.0 == "B" || $0.0 == "LB" }) {
+                messages.append((b.0 + "C", "\(b.2)\n\(c.draft)\n\n\(b.1)"))
+                messages.append((b.0 + "D", "\(b.2)\n\(c.draft)\n\n\(partsLabel)\n\(numbered)\n\n\(b.1)"))
+            }
+            for (variant, message) in messages {
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(c.label)_\(variant).prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(c.label)_\(variant).gbnf", atomically: true, encoding: .utf8)
+            }
+        }
     }
 
 
@@ -1278,6 +1520,55 @@ final class GroundingSampleHarness: XCTestCase {
                     print("[ask][\(question)][\(i)] engine=\(engine.rawValue) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
                 } catch {
                     print("[ask][\(question)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
+
+
+    /// Real generateNudge (plan, grammar, validator, fixed tip) on Gemma for the English rig,
+    /// edge and reflection-line cases. Opt-in; HARNESS_ENGINE=gemma forces Gemma.
+    func test_groundedNudge_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 1
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine, degraded) = try await InsightService.generateNudge(entries: c.entries)
+                    print("[nudge][\(c.label)][\(i)] engine=\(engine.rawValue) degraded=\(degraded) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[nudge][\(c.label)][\(i)] THREW: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Real generateFollowUp (plan, grammar, validator, composition) on Gemma for rig drafts in
+    /// en/de/es/fr/ru. Opt-in like the rest of this harness; HARNESS_ENGINE=gemma forces Gemma.
+    func test_followUp_fullPipeline() async throws {
+        try requireHarnessOptIn()
+        guard GemmaModelTestSupport.ensureModelInstalled() else {
+            throw XCTSkip("Gemma model not available in this test process — see this file's header comment")
+        }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RUNS"] ?? "") ?? 1
+        LocalLLMService.forceGemmaForTesting = ProcessInfo.processInfo.environment["HARNESS_ENGINE"] == "gemma"
+        defer { LocalLLMService.forceGemmaForTesting = false }
+        let labels: Set<String> = ["fu_runon", "fu_walk", "hx_biopsyfirst", "hx_worrymid", "fu_sickday_de", "hx_newsfirst_es", "fu_mid_fr", "hx_fightmid_ru"]
+        let drafts = (Self.followUpRigCases + Self.followUpHeldOutCases + Self.followUpFrRuCases).filter { labels.contains($0.label) }
+        for c in drafts {
+            for i in 1...runs {
+                let started = Date()
+                do {
+                    let (text, engine) = try await InsightService.generateFollowUp(currentText: c.draft)
+                    print("[followup][\(c.label)][\(i)] engine=\(engine.rawValue) seconds=\(Int(Date().timeIntervalSince(started))) TEXT: \(text)")
+                } catch {
+                    print("[followup][\(c.label)][\(i)] THREW: \(error)")
                 }
             }
         }

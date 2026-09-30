@@ -510,6 +510,11 @@ struct AskView: View {
                             text: $question, axis: .vertical
                         )
                             .lineLimit(1...5)
+                            .onChange(of: question) { _, new in
+                                if new.count > InsightService.maxAskQuestionLength {
+                                    question = String(new.prefix(InsightService.maxAskQuestionLength))
+                                }
+                            }
                             .textFieldStyle(.plain)
                             .focused($isInputFocused)
                             .disabled(remaining == 0)

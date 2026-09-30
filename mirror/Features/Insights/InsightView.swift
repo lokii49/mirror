@@ -26,6 +26,8 @@ struct InsightView: View {
     @State private var cachedThisMonthEntries: [Entry] = []
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedPastNudges: [Insight] = []
+    /// The day each real reflection is about (InsightService.reflectedDay), for Past rows' labels.
+    @State private var cachedReflectedDays: [PersistentIdentifier: Date] = [:]
     @State private var cachedPastDigests: [Insight] = []
 
     // Standalone daily mood check-ins — merged with entry moods via `MoodLog`
@@ -151,7 +153,7 @@ struct InsightView: View {
         .task(id: entryCacheKey) {
             recomputeEntryCaches()
         }
-        .task(id: insights.count) {
+        .task(id: insightCacheKey) {
             recomputeInsightCaches()
         }
         .onChange(of: entries.count) { _, _ in
@@ -210,9 +212,50 @@ struct InsightView: View {
             .count > 1
     }
 
+    /// Everything but what the Today card shows: the card's own row (which can be yesterday's
+    /// reflection, see InsightViewModel.resolvedNudgeState) and today's newest real row, the
+    /// card's default, so it doesn't flash in the list before the card resolves.
     private var pastNudges: [Insight] {
         guard SubscriptionService.shared.isSubscribed else { return [] }
-        return cachedPastNudges
+        let today = DateHelpers.dayIdentifier(for: Date())
+        var onCard = Set<PersistentIdentifier>()
+        if case .loaded(let insight) = viewModel.nudgeState { onCard.insert(insight.persistentModelID) }
+        if let newestToday = cachedPastNudges.first(where: { $0.periodIdentifier == today }) {
+            onCard.insert(newestToday.persistentModelID)
+        }
+        return cachedPastNudges.filter { !onCard.contains($0.persistentModelID) }
+    }
+
+    /// Past reflections are recomputed when insights change or an entry's date/mood does (the
+    /// day a reflection is about depends on entry dates).
+    private var insightCacheKey: Int {
+        var hasher = Hasher()
+        hasher.combine(insights.count)
+        hasher.combine(entryCacheKey)
+        return hasher.finalize()
+    }
+
+    private struct PastNudgeGroup: Hashable {
+        let period: String
+        let aboutDay: Date?
+    }
+
+    /// Real daily reflections, newest first, one per (day it was made, day it's about): a day
+    /// can hold a reflection about yesterday's writing and one about its own (2026-09-28), and
+    /// both belong in the list. Fallback rows never show, and two devices' reflections about the
+    /// same day (made before CloudKit merged them) still collapse to the newest.
+    static func pastDailyReflections(from insights: [Insight], entriesNewestFirst: [Entry]) -> (rows: [Insight], reflectedDays: [PersistentIdentifier: Date]) {
+        let realNudges = insights.filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+        var reflectedDays: [PersistentIdentifier: Date] = [:]
+        for nudge in realNudges {
+            reflectedDays[nudge.persistentModelID] = InsightService.reflectedDay(of: nudge, entriesNewestFirst: entriesNewestFirst)
+        }
+        let rows = Dictionary(grouping: realNudges) {
+            PastNudgeGroup(period: $0.periodIdentifier, aboutDay: reflectedDays[$0.persistentModelID])
+        }
+        .compactMap { _, group in group.max { $0.generatedAt < $1.generatedAt } }
+        .sorted { $0.generatedAt > $1.generatedAt }
+        return (rows, reflectedDays)
     }
 
     /// Earlier weeks' digests, newest first. When the current digest state is the
@@ -290,11 +333,10 @@ struct InsightView: View {
     }
 
     private func recomputeInsightCaches() {
-        let today = DateHelpers.dayIdentifier(for: Date())
         let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
-        cachedPastNudges = newestRealPerPeriod(
-            insights.filter { $0.type == .dailyNudge && $0.periodIdentifier != today }
-        )
+        let past = Self.pastDailyReflections(from: insights, entriesNewestFirst: entries)
+        cachedPastNudges = past.rows
+        cachedReflectedDays = past.reflectedDays
         cachedPastDigests = newestRealPerPeriod(
             insights.filter { $0.type == .weeklyDigest && $0.periodIdentifier != thisWeek }
         )
@@ -338,7 +380,7 @@ struct InsightView: View {
             if pastNudgesExpanded {
                 VStack(spacing: 10) {
                     ForEach(pastNudges.prefix(14)) { insight in
-                        PastNudgeCard(insight: insight)
+                        PastNudgeCard(insight: insight, aboutDay: cachedReflectedDays[insight.persistentModelID])
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -394,6 +436,16 @@ struct InsightView: View {
     private func refreshInsights() async {
         await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
         await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
+    }
+
+    /// Labelled only when the Today card is about an earlier day's writing.
+    private func todayCardAboutDay(_ insight: Insight) -> Date? {
+        // From the Past-list cache when it has the row (no decrypting in `body`); a reflection
+        // that just landed may not be cached yet.
+        guard let day = cachedReflectedDays[insight.persistentModelID]
+                ?? InsightService.reflectedDay(of: insight, entriesNewestFirst: entries),
+              day < Calendar.current.startOfDay(for: Date()) else { return nil }
+        return day
     }
 
     private var nightlyPendingNudgeCard: some View {
@@ -478,6 +530,7 @@ struct InsightView: View {
                 insight: insight,
                 label: "Daily Reflection",
                 icon: "sparkles",
+                aboutDay: todayCardAboutDay(insight),
                 accentColor: MirrorTheme.primary,
                 isExpanded: nudgeExpanded,
                 collapsedLineLimit: 5,
@@ -745,6 +798,8 @@ private struct PastDigestCard: View {
 
 private struct PastNudgeCard: View {
     let insight: Insight
+    /// The day it's about; labelled only when that isn't the day it was made.
+    var aboutDay: Date? = nil
     @State private var isExpanded = false
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -759,6 +814,10 @@ private struct PastNudgeCard: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MirrorTheme.primary.opacity(0.5))
+            }
+            if let aboutDay, aboutDay < Calendar.current.startOfDay(for: insight.generatedAt) {
+                ReflectedDayLabel(day: aboutDay, isSentinel: displayMode == .sentinel)
+                    .padding(.top, -4)
             }
             Text(insight.content)
                 .font(.system(size: 15, weight: .regular, design: .serif))
@@ -1425,6 +1484,8 @@ private struct InsightTextView: View {
     let insight: Insight
     let label: LocalizedStringKey
     let icon: String
+    /// The day the reflection is about, shown under the header when set.
+    var aboutDay: Date? = nil
     var accentColor: Color = MirrorTheme.primary
     var isExpanded: Bool = true
     var collapsedLineLimit: Int = 5
@@ -1446,6 +1507,10 @@ private struct InsightTextView: View {
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
+            }
+            if let aboutDay {
+                ReflectedDayLabel(day: aboutDay, isSentinel: isSentinel)
+                    .padding(.top, -8)
             }
             Rectangle()
                 .fill(
@@ -1642,5 +1707,20 @@ extension NudgeState: Equatable {
         case (.error(let a), .error(let b)): return a == b
         default: return false
         }
+    }
+}
+
+/// "From what you wrote on 27 Sep": a daily reflection can be about an earlier day's writing
+/// (made the next morning, or before that day's writing was reflected), so the card says which.
+private struct ReflectedDayLabel: View {
+    let day: Date
+    let isSentinel: Bool
+
+    var body: some View {
+        Text("From what you wrote on \(day.formatted(.dateTime.day().month(.abbreviated)))")
+            .font(isSentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12, weight: .medium))
+            .textCase(isSentinel ? .uppercase : nil)
+            .tracking(isSentinel ? 0.6 : 0)
+            .foregroundStyle(MirrorTheme.textTertiary)
     }
 }

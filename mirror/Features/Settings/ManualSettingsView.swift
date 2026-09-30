@@ -91,6 +91,19 @@ struct ManualSettingsView: View {
                         .buttonStyle(.plain)
                     }
 
+                    if let xURL = AppConstants.updatesOnXURL {
+                        SettingsDivider()
+
+                        Link(destination: xURL) {
+                            HStack {
+                                SettingsRowLabel(title: "Follow updates on X", systemImage: "megaphone.fill", iconColor: .indigo)
+                                Spacer()
+                                SettingsChevron()
+                            }
+                        }
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                    }
+
                     SettingsDivider()
 
                     Button { showAcknowledgments = true } label: {

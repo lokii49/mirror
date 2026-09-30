@@ -1,21 +1,13 @@
-What went wrong with reflections, and what's different now
+Reflections after you write, and what they read
 
-Several earlier updates said reflections were fixed. They weren't, and I'm sorry.
+• Write in the evening and you now get a reflection that day. If today's reflection was about earlier days and you then write today, a second one about today can appear. A reflection about an earlier day says which day it's from.
+• Reflections now wait for the exact minute you set, not just the hour.
+• On iPhones without Apple Intelligence, the reflection is a quote from your entry plus one plain sentence about how you seem. Only on harder days does it add one short, fixed suggestion. The generic "take a few deep breaths" is gone.
+• On those iPhones, the follow-up question that appears while you write now quotes your own words, so it can't bring in things you didn't write.
+• On any reflection, you can see exactly what was read to write it.
+• On iPhones without Apple Intelligence, if your latest weekly digest or monthly report was written by an earlier version, it may be rewritten once. Older ones aren't changed.
+• Questions in Ask can be up to 500 characters.
+• If mirror can't open your journal, it now says so, with a Try Again button, instead of crashing. Nothing is deleted.
+• Japanese and Chinese entries now have proper word counts, so totals, daily goals and XP make sense.
 
-This time I found the cause. On iPhones without Apple Intelligence, mirror's built-in AI wrote like a storyteller and made up details: rain that wasn't there, people swapped around.
-
-On those iPhones, starting now:
-• Reflections, weekly digests, monthly reports and Ask quote your own sentences word for word. Anything in quotation marks is exactly what you wrote, so you can check it against your entry.
-• Apart from the quote, there's one short line about how it sounds. That line can still misread your mood or get a small detail wrong.
-• If Ask can't find your topic, it shows the closest things you wrote instead of guessing.
-
-On iPhones with Apple Intelligence, Apple's on-device model still writes in its own words.
-
-Also in this update:
-• Weekly digests now arrive on Sundays in regions where the week starts on Sunday.
-• The home screen widget and notifications show only the short line, never your own sentence.
-• Try Again now waits for a reflection that's still being written, instead of doing nothing.
-• Fixed characters sometimes going missing in Japanese, Korean and Chinese AI text.
-• Reflections created before this update aren't changed.
-
-If a reflection ever gets something wrong, please tell me: Settings → About → Send feedback.
+If a reflection gets something wrong, please tell me: Settings → About → Send feedback.

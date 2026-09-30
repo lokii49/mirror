@@ -1,21 +1,13 @@
-Ce qui n'allait pas avec les réflexions, et ce qui change maintenant
+Des réflexions après avoir écrit, et ce qu'elles ont lu
 
-Plusieurs mises à jour précédentes annonçaient que les réflexions étaient corrigées. Ce n'était pas le cas, et je vous présente mes excuses.
+• Si vous écrivez le soir, vous recevez désormais une réflexion le jour même. Si la réflexion du jour portait sur des jours précédents et que vous écrivez ensuite aujourd'hui, une seconde sur aujourd'hui peut apparaître. Une réflexion sur un jour précédent indique de quel jour il s'agit.
+• Les réflexions attendent maintenant la minute exacte que vous avez choisie, et pas seulement l'heure.
+• Sur les iPhone sans Apple Intelligence, la réflexion est une citation de votre entrée suivie d'une phrase simple sur ce que vous semblez ressentir. Uniquement les jours plus difficiles, elle ajoute une courte suggestion fixe. Le « respirez profondément » générique a disparu.
+• Sur ces iPhone, la question de suivi qui apparaît pendant que vous écrivez cite désormais vos propres mots : elle ne peut plus rien ajouter que vous n'avez pas écrit.
+• Sur chaque réflexion, vous pouvez voir exactement ce qui a été lu pour l'écrire.
+• Sur les iPhone sans Apple Intelligence, si votre dernier résumé hebdomadaire ou rapport mensuel a été écrit par une version précédente, il peut être réécrit une fois. Les plus anciens ne changent pas.
+• Les questions de « Demander » peuvent compter jusqu'à 500 caractères.
+• Si mirror ne peut pas ouvrir votre journal, il le dit maintenant, avec un bouton « Réessayer », au lieu de se fermer. Rien n'est supprimé.
+• Les entrées en japonais et en chinois comptent enfin correctement les mots, pour que les totaux, les objectifs quotidiens et les XP aient du sens.
 
-Cette fois, j'ai trouvé la cause. Sur les iPhone sans Apple Intelligence, l'IA intégrée de mirror écrivait comme un conteur et inventait des détails : une pluie qui n'existait pas, des personnes interverties.
-
-Sur ces iPhone, dès maintenant :
-• Les réflexions, résumés hebdomadaires, rapports mensuels et réponses de « Demander » citent vos propres phrases mot pour mot. Tout ce qui est entre guillemets est exactement ce que vous avez écrit : vous pouvez le vérifier dans votre entrée.
-• En dehors de la citation, il n'y a qu'une courte ligne sur votre ressenti. Elle peut encore mal interpréter votre humeur ou se tromper sur un petit détail.
-• Si « Demander » ne trouve pas votre sujet, il affiche ce que vous avez écrit de plus proche au lieu de deviner.
-
-Sur les iPhone avec Apple Intelligence, le modèle d'Apple sur l'appareil écrit toujours avec ses propres mots.
-
-Aussi dans cette mise à jour :
-• Les résumés hebdomadaires arrivent désormais le dimanche dans les régions où la semaine commence le dimanche.
-• Le widget de l'écran d'accueil et les notifications n'affichent plus que la courte ligne, jamais votre propre phrase.
-• « Réessayer » attend désormais une réflexion encore en cours d'écriture, au lieu de ne rien faire.
-• Correction de caractères qui disparaissaient parfois dans les textes de l'IA en japonais, coréen et chinois.
-• Les réflexions créées avant cette mise à jour ne sont pas modifiées.
-
-Si une réflexion se trompe, dites-le-moi : Réglages → À propos → Envoyer des commentaires.
+Si une réflexion se trompe, dites-le-moi : Réglages → À propos → Envoyer des commentaires.

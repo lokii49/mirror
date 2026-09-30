@@ -1,21 +1,13 @@
-Was bei den Reflexionen schiefgelaufen ist – und was jetzt anders ist
+Reflexionen nach dem Schreiben – und was sie gelesen haben
 
-Mehrere frühere Updates haben gesagt, die Reflexionen seien repariert. Das stimmte nicht, und das tut mir leid.
-
-Diesmal habe ich die Ursache gefunden. Auf iPhones ohne Apple Intelligence hat die eingebaute KI von mirror wie ein Geschichtenerzähler geschrieben und Details erfunden: Regen, den es nicht gab, vertauschte Personen.
-
-Auf diesen iPhones gilt ab jetzt:
-• Reflexionen, wöchentliche Zusammenfassungen, Monatsberichte und Antworten unter „Fragen“ zitieren deine eigenen Sätze Wort für Wort. Alles in Anführungszeichen ist genau das, was du geschrieben hast – du kannst es mit deinem Eintrag vergleichen.
-• Neben dem Zitat gibt es nur eine kurze Zeile dazu, wie es klingt. Diese Zeile kann deine Stimmung trotzdem falsch einschätzen oder ein kleines Detail falsch wiedergeben.
-• Findet „Fragen“ dein Thema nicht, zeigt es das Ähnlichste aus deinen Einträgen, statt zu raten.
-
-Auf iPhones mit Apple Intelligence schreibt Apples Modell auf dem Gerät weiterhin in eigenen Worten.
-
-Außerdem in diesem Update:
-• Wöchentliche Zusammenfassungen kommen jetzt auch dort am Sonntag, wo die Woche am Sonntag beginnt.
-• Das Widget auf dem Home-Bildschirm und Mitteilungen zeigen nur noch die kurze Zeile, nie deinen eigenen Satz.
-• „Erneut versuchen“ wartet jetzt auf eine Reflexion, die noch erstellt wird, statt nichts zu tun.
-• Fehlende Zeichen in japanischen, koreanischen und chinesischen KI-Texten behoben.
-• Reflexionen, die vor diesem Update entstanden sind, bleiben unverändert.
+• Schreibst du abends, bekommst du jetzt noch am selben Tag eine Reflexion. Handelte die heutige Reflexion von früheren Tagen und du schreibst danach heute, kann eine zweite über heute erscheinen. Eine Reflexion über einen früheren Tag sagt, von welchem Tag sie ist.
+• Reflexionen warten jetzt auf die genaue Minute, die du eingestellt hast, nicht nur auf die Stunde.
+• Auf iPhones ohne Apple Intelligence besteht die Reflexion aus einem Zitat aus deinem Eintrag und einem schlichten Satz dazu, wie es dir zu gehen scheint. Nur an schwereren Tagen kommt ein kurzer, fester Vorschlag dazu. Das allgemeine „Atme ein paar Mal tief durch“ ist weg.
+• Auf diesen iPhones zitiert die Anschlussfrage, die beim Schreiben erscheint, jetzt deine eigenen Worte und kann nichts hinzuerfinden.
+• Bei jeder Reflexion kannst du genau sehen, was für sie gelesen wurde.
+• Auf iPhones ohne Apple Intelligence: Wurde deine neueste wöchentliche Zusammenfassung oder dein neuester Monatsbericht von einer früheren Version geschrieben, wird er womöglich einmal neu erstellt. Ältere bleiben unverändert.
+• Fragen unter „Fragen“ dürfen bis zu 500 Zeichen lang sein.
+• Kann mirror dein Tagebuch nicht öffnen, sagt es das jetzt mit einer Schaltfläche „Erneut versuchen“, statt abzustürzen. Nichts wird gelöscht.
+• Japanische und chinesische Einträge werden jetzt richtig gezählt, damit Summen, Tagesziele und XP stimmen.
 
 Wenn eine Reflexion einmal etwas falsch wiedergibt, sag mir bitte Bescheid: Einstellungen → Über → Feedback senden.

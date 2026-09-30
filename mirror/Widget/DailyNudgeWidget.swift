@@ -44,7 +44,14 @@ struct NudgeWidgetProvider: TimelineProvider {
         let text = defaults?.string(forKey: "widget.nudge.text")
         let storedDate = defaults?.string(forKey: "widget.nudge.date") ?? ""
         let todayStr = nudgeDayFormatter.string(from: Date())
-        return NudgeWidgetEntry(date: .now, nudgeText: text, isToday: storedDate == todayStr)
+        // Yesterday's too, when it's about yesterday's or today's writing: since 2026-09-28 an
+        // evening writer's reflection is made that evening, and there's nothing new until they
+        // write again. A reflection made yesterday about an earlier day still reads as stale.
+        let yesterdayStr = Calendar.current.date(byAdding: .day, value: -1, to: Date()).map(nudgeDayFormatter.string(from:)) ?? todayStr
+        let aboutDate = defaults?.string(forKey: "widget.nudge.aboutDate")
+        let isRecent = storedDate == todayStr
+            || (storedDate == yesterdayStr && (aboutDate == yesterdayStr || aboutDate == todayStr))
+        return NudgeWidgetEntry(date: .now, nudgeText: text, isToday: isRecent)
     }
 }
 

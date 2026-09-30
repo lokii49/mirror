@@ -21,36 +21,25 @@ struct AddJournalEntryIntent: AppIntent {
             return .result(dialog: "That entry was empty — nothing saved.")
         }
 
+        // Never write to the in-memory stand-in: the entry would be lost when the app closes.
+        guard MirrorModelContainer.isStoreAvailable else {
+            return .result(dialog: "MirrorNotes couldn't open your journal, so this wasn't saved. Open the app to fix it.")
+        }
         let context = MirrorModelContainer.shared.mainContext
         let entry = Entry(text: trimmed, source: .typed)
         entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
         context.insert(entry)
         try context.save()
 
-        autoDetectMood(for: entry, context: context)
+        // Fire-and-forget here: the app isn't necessarily open. The next daily reflection joins
+        // or redoes it (MoodAutoDetector) before reading the mood.
+        MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
         ReviewRequestManager.requestIfEntryMilestoneReached(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
 
         return .result(dialog: "Saved to your journal.")
     }
 
-    // Mirrors WriteView+MoodDetection's autoDetectMoodIfNeeded — fire-and-forget,
-    // same gating (subscription tier, on-device model availability).
-    private func autoDetectMood(for entry: Entry, context: ModelContext) {
-        let sub = SubscriptionService.shared
-        guard sub.tier == .core || sub.tier == .deep else { return }
-        guard LocalLLMService.isModelAvailable else { return }
-        let moodContext = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !moodContext.isEmpty else { return }
-        Task {
-            guard let detected = try? await InsightService.detectEmotion(text: moodContext),
-                  MirrorTheme.moodOptions.contains(detected) else { return }
-            await MainActor.run {
-                entry.mood = detected
-                try? context.save()
-            }
-        }
-    }
 }
 
 struct MirrorAppShortcuts: AppShortcutsProvider {

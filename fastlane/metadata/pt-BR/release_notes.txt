@@ -1,21 +1,13 @@
-O que deu errado nas reflexões e o que muda agora
+Reflexões depois que você escreve, e o que elas leram
 
-Várias atualizações anteriores diziam que as reflexões estavam corrigidas. Não estavam, e peço desculpas.
-
-Desta vez encontrei a causa. Em iPhones sem Apple Intelligence, a IA integrada do mirror escrevia como um contador de histórias e inventava detalhes: chuva que não existia, pessoas trocadas.
-
-Nesses iPhones, a partir de agora:
-• Reflexões, resumos semanais, relatórios mensais e respostas do “Perguntar” citam suas próprias frases palavra por palavra. Tudo o que está entre aspas é exatamente o que você escreveu, então dá para conferir na sua entrada.
-• Além da citação, há só uma linha curta sobre como aquilo parece. Essa linha ainda pode interpretar mal o seu humor ou errar algum detalhe pequeno.
-• Se o “Perguntar” não encontrar o seu assunto, ele mostra o que você escreveu de mais próximo em vez de chutar.
-
-Em iPhones com Apple Intelligence, o modelo da Apple no próprio aparelho continua escrevendo com as próprias palavras.
-
-Também nesta atualização:
-• Os resumos semanais agora chegam no domingo nas regiões em que a semana começa no domingo.
-• O widget da tela de início e as notificações mostram só a linha curta, nunca a sua frase.
-• “Tentar novamente” agora espera uma reflexão que ainda está sendo escrita, em vez de não fazer nada.
-• Corrigidos caracteres que às vezes sumiam nos textos da IA em japonês, coreano e chinês.
-• Reflexões criadas antes desta atualização não mudam.
+• Se você escreve à noite, agora recebe uma reflexão no mesmo dia. Se a reflexão de hoje era sobre dias anteriores e depois você escreve hoje, uma segunda sobre hoje pode aparecer. Uma reflexão sobre um dia anterior diz de qual dia é.
+• As reflexões agora esperam o minuto exato que você definiu, não só a hora.
+• Em iPhones sem Apple Intelligence, a reflexão é uma citação da sua entrada mais uma frase simples sobre como você parece estar. Só em dias mais difíceis ela acrescenta uma sugestão curta e fixa. O genérico “respire fundo algumas vezes” saiu.
+• Nesses iPhones, a pergunta de acompanhamento que aparece enquanto você escreve agora cita as suas próprias palavras, então ela não consegue trazer coisas que você não escreveu.
+• Em qualquer reflexão, você pode ver exatamente o que foi lido para escrevê-la.
+• Em iPhones sem Apple Intelligence, se o seu último resumo semanal ou relatório mensal foi escrito por uma versão anterior, ele pode ser reescrito uma vez. Os mais antigos não mudam.
+• As perguntas do “Perguntar” podem ter até 500 caracteres.
+• Se o mirror não conseguir abrir o seu diário, agora ele avisa, com um botão “Tentar novamente”, em vez de fechar. Nada é apagado.
+• Entradas em japonês e chinês agora contam as palavras direito, para que totais, metas diárias e XP façam sentido.
 
 Se uma reflexão errar alguma coisa, me conte: Ajustes → Sobre → Enviar feedback.

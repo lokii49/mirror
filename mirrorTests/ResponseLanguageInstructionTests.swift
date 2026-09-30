@@ -64,15 +64,17 @@ extension SharedLLMState {
             _ = try? await InsightService.generateFollowUp(currentText: text)
             let captured = try #require(followUp, "\(code)")
             #expect(captured.system.contains(register), "\(code)")
-            guard case .ownSystemPrompt(let gemmaSystem) = captured.plan else {
-                Issue.record("\(code): expected Gemma to get its own system prompt, got \(captured.plan)")
+            // On Gemma the follow-up question is fixed translated text around a picked phrase
+            // (tu/ты by construction), so Gemma's message carries neither the register line nor
+            // a language line.
+            guard case .grammarConstrained(let gemmaMessage, _) = captured.plan else {
+                Issue.record("\(code): expected a grammar-constrained Gemma follow-up, got \(captured.plan)")
                 return
             }
-            #expect(!gemmaSystem.contains("informally"), "\(code)")
-            #expect(gemmaSystem.contains("Respond only in"), "\(code): the language line itself stays")
+            #expect(!gemmaMessage.contains("informally"), "\(code)")
         }
 
-        @Test func germanFollowUp_keepsTheSharedPrompt() async throws {
+        @Test func germanFollowUp_isGrammarConstrainedOnGemma() async throws {
             var plan: LocalLLMService.GemmaPlan?
             LocalLLMService.generateInterceptForTesting = { _, _, _, p in
                 plan = p
@@ -80,7 +82,8 @@ extension SharedLLMState {
             }
             defer { LocalLLMService.generateInterceptForTesting = nil }
             _ = try? await InsightService.generateFollowUp(currentText: "Heute war ein langer Tag im Büro, aber am Abend bin ich mit meiner Schwester spazieren gegangen.")
-            guard case .samePrompt = try #require(plan) else { Issue.record("expected .samePrompt for German"); return }
+            guard case .grammarConstrained(let message, _) = try #require(plan) else { Issue.record("expected a grammar-constrained plan for German"); return }
+            #expect(message.contains("Teile des Eintrags:"))
         }
     }
 }

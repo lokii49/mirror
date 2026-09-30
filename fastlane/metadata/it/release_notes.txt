@@ -1,21 +1,13 @@
-Cosa non funzionava nelle riflessioni, e cosa cambia ora
+Riflessioni dopo che scrivi, e cosa hanno letto
 
-Diversi aggiornamenti precedenti dicevano che le riflessioni erano state sistemate. Non era così, e mi dispiace.
-
-Questa volta ho trovato la causa. Sugli iPhone senza Apple Intelligence, l'IA integrata di mirror scriveva come un narratore e inventava dettagli: pioggia che non c'era, persone scambiate.
-
-Su questi iPhone, da ora:
-• Riflessioni, riepiloghi settimanali, report mensili e risposte di «Chiedi» citano le tue frasi parola per parola. Tutto ciò che è tra virgolette è esattamente ciò che hai scritto, quindi puoi verificarlo nel tuo diario.
-• Oltre alla citazione c'è solo una breve riga su come sembra andare. Quella riga può ancora fraintendere il tuo umore o sbagliare un piccolo dettaglio.
-• Se «Chiedi» non trova il tuo argomento, mostra le cose più vicine che hai scritto invece di tirare a indovinare.
-
-Sugli iPhone con Apple Intelligence, il modello di Apple sul dispositivo scrive ancora con parole sue.
-
-Inoltre in questo aggiornamento:
-• I riepiloghi settimanali ora arrivano la domenica anche nei Paesi in cui la settimana inizia di domenica.
-• Il widget della schermata Home e le notifiche mostrano solo la breve riga, mai la tua frase.
-• «Riprova» ora aspetta una riflessione ancora in scrittura, invece di non fare nulla.
-• Risolti caratteri che a volte mancavano nei testi dell'IA in giapponese, coreano e cinese.
-• Le riflessioni create prima di questo aggiornamento non cambiano.
+• Se scrivi la sera, ora ricevi una riflessione lo stesso giorno. Se la riflessione di oggi riguardava giorni precedenti e poi scrivi oggi, può comparirne una seconda su oggi. Una riflessione su un giorno precedente indica di quale giorno si tratta.
+• Le riflessioni ora aspettano il minuto esatto che hai impostato, non solo l'ora.
+• Sugli iPhone senza Apple Intelligence, la riflessione è una citazione dal tuo diario più una frase semplice su come sembri stare. Solo nei giorni più difficili aggiunge un breve suggerimento fisso. Il generico «fai qualche respiro profondo» non c'è più.
+• Su quegli iPhone, la domanda di approfondimento che compare mentre scrivi ora cita le tue parole, quindi non può aggiungere cose che non hai scritto.
+• Su ogni riflessione puoi vedere esattamente cosa è stato letto per scriverla.
+• Sugli iPhone senza Apple Intelligence, se il tuo ultimo riepilogo settimanale o report mensile è stato scritto da una versione precedente, può essere riscritto una volta. Quelli più vecchi non cambiano.
+• Le domande in «Chiedi» possono arrivare a 500 caratteri.
+• Se mirror non riesce ad aprire il tuo diario, ora lo dice, con un pulsante «Riprova», invece di chiudersi. Non viene cancellato nulla.
+• Le voci in giapponese e cinese ora contano le parole correttamente, così totali, obiettivi giornalieri e XP tornano.
 
 Se una riflessione sbaglia qualcosa, dimmelo: Impostazioni → Informazioni → Invia feedback.

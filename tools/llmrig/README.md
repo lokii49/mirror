@@ -125,3 +125,245 @@ none; the Mac only Italian). Gemma itself took a grammar-offered no-answer 24/24
 questions. So Gemma's Ask always answers with the closest sentences under "The closest things you've
 written:" (and localized equivalents); the no-answer phrase is used only when nothing is quotable.
 Mood routing (worry questions → hard-mood entries, happy → good-mood) stays in every language.
+
+## Follow-up chip + Talk It Out (2026-09-27) — baseline, not yet changed
+
+Both still run the shared free-prose prompt on Gemma (`FOLLOW_UP_SYSTEM` / `GUIDED_ENTRY_SYSTEM`,
+`GemmaPlan.samePrompt`). Prompts dumped from the app with
+`GroundingSampleHarness.test_dumpFollowUpPromptsForRig`, templated with `rig template`, run with
+`rig gen <prompt> 0.5 10 140` (the app's `.followUp` temperature and 140-char cap). Scored with the
+follow-up section of RUBRIC.md, written before the first run in the same session (not committed
+first). All 160 outputs pass the validator's shape rules (checked with an approximation of
+`validateFollowUp`), so every one would be shown.
+
+| Case | Pass | Failures |
+|---|---|---|
+| fu_sickday | 8/10 | quotes "comfort", which the draft never says (2) |
+| fu_offer | 9/10 | asks what *Priya* is excited about; 9/10 assume "excites you" though the writer is undecided |
+| fu_work | 10/10 | — |
+| fu_walk | 9/10 | "Bruno's posture shifted" |
+| **fu_runon** (lowercase, no punctuation) | **3/10** | **"the rain" 5/10**, quotes 'lost', "solitude" |
+| **fu_sickday_de** | **5/10** | **Dev "describes a feeling", Dev "meant 'rumort'" (the writer's stomach), Dev "said something about the room" (2)**, quotes 'Rumble' |
+| fu_offer_de | 10/10 | grammar slips only |
+| fu_sickday_es | 10/10 | one generic "what music do you like" |
+| fu_offer_es | 9/10 | addresses the writer as "Priya" |
+| **Follow-up total** | **73/90 (81%)** | below the 95% bar; ~86% even dropping every invented-quote and borderline call |
+| gq_tired / gq_quilt / gq_raise / gq_sister_de | 40/40 | often ignore the answer ("one small thing that brought joy" after "tired") |
+| gq_sister | 9/10 | "remember about Berlin" (the sister is moving, not the writer) |
+| gq_runon | 10/10 | all generic "one small joy today" after "ugh so tired" |
+| gq_plan3 | 8/10 | "remember from that trip" (planned for December) (2) |
+| **Talk It Out total** | **67/70 (96%) strict** | passes narrowly; every miss is the same "remember from a move/trip that hasn't happened" shape |
+
+The follow-up chip fails where the old nudge failed: unpunctuated text (the rain again) and other
+people being given the writer's words or actions (German). Talk It Out's generated questions
+mostly don't reference the conversation at all, which is why they rarely invent — a quality
+problem, not a fabrication one. No ja/zh follow-up case: `strippedWordCount` splits on whitespace,
+so CJK drafts never reach the chip's 20-word gate.
+
+## Follow-up prototype (a): Gemma picks a phrase, the app composes the question (2026-09-27)
+
+Rig-only, no app change. `test_dumpFollowUpPrototypeForRig` builds candidates from the nudge's own
+`groundedNudgeQuoteCandidates`, merged or cut into verbatim clause runs of <= 100 chars (so e.g.
+`What's underneath "<phrase>"?` stays under validateFollowUp's 160). The prompt goes in as a
+user-only message with a literal grammar of those phrases, at temp 0.5, N=10. Scored with the
+prototype section of RUBRIC.md: did it pick the writer's feeling, worry, decision or a key event,
+not scenery or logistics.
+
+The grammar held for every one of the 380+ picks: always an exact phrase from the draft, so
+**nothing can be invented.** The problem is *which* phrase. Picks are near-deterministic (usually
+10/10 the same), so each case is about one real sample: 11 English drafts, 4 German, 4 Spanish.
+None of these was validated on held-out cases.
+
+| Instruction / layout | English (11) | German (4) | Spanish (4) |
+|---|---|---|---|
+| A: "the most important thing of the day" (= shipped `pickNeutral` for de/es) | 80/110 (73%): walk, scene-first, mid 0/10 | 30/40 | 10/40 |
+| **B: "the part they'd most want to say more about: a feeling, a worry, or something that happened to them"** | **100/110 (91%)**: mid 0/10 ("Made pasta for dinner" over the Jonas argument) | 30/40 | 28/40 |
+| BC: B with the instruction after the entry | 80/110 | 29/40 | 26/40 |
+| BD: B + the parts as a numbered list | 100/110 (91%): walk 0/10 (the gold light) | 20/40 | 12/40 |
+
+**What fails:**
+- **Scenery at the start.** The scene-first draft picks "the sky was pink…" in German and Spanish under every variant.
+- **Position over meaning.** The model follows where a phrase sits more than what it says, e.g. the last sentence, "Made pasta for dinner".
+- **Too few candidates.** When a draft yields only one or two, the pick is forced.
+
+Against the bar fixed before the run (>= 85% and no case below 7/10), **no variant qualifies**.
+
+A wrong pick here is a dull question, e.g. `What's underneath "Made pasta for dinner"?`, not an
+invented one. By comparison, the shipped free-prose chip scored 73/90: 17 of 90 questions
+invented or misattributed something.
+
+Two design choices were settled here: no "drop the unfinished last piece" rule (it dropped the
+most salient part in 3 of 11 unpunctuated drafts), and clause runs are merged, not split at every
+comma (German subordinate clauses became fragments like "wenn ich will").
+
+### Held-out round and baselines (2026-09-28)
+
+Rounds 1-3 drafts mostly ended on the feeling, and on them "always take the last candidate" scored
+as well as Gemma. So 10 fresh drafts (6 en, 2 de, 2 es) put the salient part first or mid-draft;
+SALIENT lists were added to RUBRIC.md before running. The shipped free-prose chip was also run on
+all 20 drafts added since the baseline, so the two designs are compared on the same inputs.
+
+| Picker | Held-out en (6) | Held-out de+es (4) | All en (17) | All de (6) / es (6) |
+|---|---|---|---|---|
+| **Gemma, BD wording + numbered parts** | **50/60** (newsfirst 0/10: "errands and a long nap") | de 10/20, es 18/20 | **150/170 (88%)**; walk and newsfirst 0/10 | 30/60, 30/60 |
+| Gemma, B wording | 33/60 (biopsy draft → "Made pasta…") | de 10/20, es 10/20 | 133/170 (78%) | LB 40/60, 38/60 |
+| Rule: always first candidate | 3/6 | 2/4 | 10/17 drafts | — |
+| Rule: always last candidate | 1/6 | 0/4 | 11/17 drafts | — |
+
+On held-out drafts the model beats both rules in English, so the pick carries real signal. No
+variant meets the adopt bar in any language. German and Spanish pick scenery or logistics
+("coffee with Lena", "the sky was pink") on roughly a third to a half of drafts.
+
+The shipped free-prose chip on those 20 drafts: English 108/120, de/es 59/80. Examples:
+- "your son" and "a shade of blue" on the biopsy draft;
+- "the rain" on the fight draft;
+- a quoted "sunshine" in Nani's recipe;
+- the writer's disillusionment blamed on "Tom's snacks" (5/10);
+- Sam reacting to the song (de, 7/10);
+- Priti "angry", "worried", "horror in her eyes" (de).
+
+**Invented or misattributed across all 29 drafts:** 50/290 (17%).
+- English: 23/170 (14%).
+- German and Spanish: 27/120 (22%).
+
+**What the composed question looks like** (`What's underneath "…"?`, Gemma BD pick):
+- `What's underneath "Dad's biopsy results come back Friday and I can't stop thinking about it"?`
+- `What's underneath "I feel so behind, and I snapped at Omar in standup for no reason"?`
+- `What's underneath "The rest of the day was errands and a long nap"?` (a dull pick)
+- `What's underneath "He took it better than I expected"?` ("He" has nothing to refer to)
+- `What's underneath "and ben said hes being bullied at school again i dont know what to do then made dinner and bedtime"?`
+  Starts with a conjunction, which can be stripped and still leave a verbatim substring. Too long for a chip.
+
+Spanish candidates keep an opening "¡" or "¿" without the closing mark; strip them when composing.
+
+### Same metric for both designs (2026-09-28)
+
+The shipped chip was first scored only for invention and the prototype only for salience. To
+compare like with like, the prototype's SALIENT lists (fixed before any run) were applied
+afterwards to the shipped chip's 290 outputs: **salient AND nothing invented**.
+
+| Design | English | German + Spanish |
+|---|---|---|
+| Shipped free-prose chip | 107/170 (63%) | 56/120 (47%) |
+| (a) Gemma picks, app composes (best variant per language) | 150/170 (88%) | 78/120 (65%) |
+
+The shipped chip is often dull as well as sometimes wrong. The biopsy drafts get questions about
+river and pasta colours (1/20 mention the biopsy). The scene-first drafts get questions about the
+song. The walk draft gets questions about the gold light. Spanish drafts get questions about
+coffee types and errands. So (a) beats it on both counts; it is not a trade of dull for safe.
+
+It also prints a literal slash in 18/290 outputs ("felt most hurtful to you/your?", "your/your",
+"tu/tu", "deinem/deinem"), echoing `FOLLOW_UP_SYSTEM`'s `Address them as "you/your"`.
+`validateFollowUp` doesn't catch it.
+
+**Limits:**
+- Salience calls ("vague" vs specific) are one scorer's judgement.
+- The best de/es wording differs between rounds on only 6 drafts per language, so that choice is noise.
+- Only de and es were measured of the 9 non-English languages. fr/it/pt/ru/ko are extrapolation; ja/zh never trigger the chip (word count).
+- All of this is the Gemma path; the Foundation Models chip is unmeasured.
+
+### French and Russian check (2026-09-28): (a) ships there too
+
+The same six drafts de/es were scored on, translated. The rubric and decision rule were added to
+RUBRIC.md before running.
+
+| | French | Russian |
+|---|---|---|
+| (a) numbered parts (LBD) | **58/60** | **49/60** (news draft → "errands and a long nap" 0/10) |
+| (a) no list (LB) | 22/60 | 39/60 |
+| Shipped chip, salient AND nothing invented | 28/60 | 30/60 |
+
+- **Layout.** The numbered-parts layout is better across all four non-English languages: 167/240 vs 139/240 without the list. It is also English's best (BD), so **(a) uses one layout everywhere**: entry, numbered parts, then the instruction.
+- **Shipped chip in French and Russian.** It invents feelings and scenes ("sentiment de vide", "le soleil sur le balcon", "Марко отвернулся") and asks about Lena instead of the fight. It says vous/вы in most outputs, and uses a feminine "говорила" for a writer who wrote in the masculine.
+- **Register.** (a)'s question is fixed text, so it says tu/ты by construction.
+
+### Shipped (2026-09-28)
+
+`InsightService.groundedFollowUpPlan` uses the numbered-parts layout in every grounded language.
+- **Candidates:** production `followUpPhraseCandidates` (the harness logic, plus CJK clause cuts), last 12 parts.
+- **Composed question:** one of two fixed templates per language, with a leading conjunction or ¡/¿ stripped.
+- **Other languages:** outside the 10 grounded languages, the chip doesn't appear on Gemma.
+
+Real pipeline in the simulator (`test_followUp_fullPipeline`, `HARNESS_ENGINE=gemma`, 8 drafts in en/de/es/fr/ru, x2): **16/16 composed questions**, 4-7s each. Picks matched the rig, including the known dull one (fu_walk → the gold light).
+
+## Daily reflection: the line after the quote (2026-09-30)
+
+A real device report (2026-09-28) got a good quote but a weak line after it: it repeated the quote
+and added generic self-care ("take a few deep breaths", "mindful moments to acknowledge those
+feelings", "a significant amount of"). The quote is grammar-verbatim and out of scope here.
+
+**Method.** 13 production-built prompts and grammars (`test_dumpNudgePromptsForRig`): the 8 rig
+and edge cases, plus 5 synthetic `reflectionLineCases` shaped like the report (worry about a sick
+friend, missing someone, low at work, good news, a neutral day). Only the instruction text changed
+between variants (plus the grammar for c). `gengrammar` at temp 0.45, N=10, 520 outputs. Scored
+with RUBRIC.md "Daily reflection: the line after the quote", written before the run.
+
+**Fact-slip rule, and a caveat.** One scorer, who knew which variant was which, scored twice:
+- **First pass (strict):** also failed ambiguous swaps like "happy with the prospect of a change" when the change was a friend's, and "unpacking some things" when the friend moved out.
+- **Second pass (lenient):** fails a line only if it clearly states or assumes something false or not in the entry.
+
+The rule was relaxed **after seeing the outputs**. The ranking is the same under both, but the absolute numbers aren't solid.
+
+| Variant | Fact slips /130, strict | Fact slips /130, lenient | Self-care tips (rubric list) | Walk/break/tea tips (post-hoc) | Stiff words | Any tip |
+|---|---|---|---|---|---|---|
+| base (current) | ~12 | 8 | 61 | 25 | 3 | 129 |
+| a: plain words, tip from the entry, ban list | ~7 | 1 | 1 | 73 | 0 | 128 |
+| b: a, and no tip unless the entry points to one | ~12 | **10** | 2 | 51 | 0 | 130 |
+| **c: feeling line only (no tip in the grammar)** | ~5 | **0** | 0 | 0 | 0 | 0 |
+
+**What the slips were (lenient pass):**
+- **base.** To-dos read as done ("after tackling this list" x2). The undecided hike treated as planned ("before tackling the weekend hike" x3). "that early wake-up" when the entry says they woke late. "a stubborn mood that's making you want to just disappear". "the busy day ahead".
+- **a.** One: "overwhelmed by the thought of leaving everything familiar behind". The friend is the one moving.
+- **b.** It quoted the to-do "call the landlord about the leak" 9/10 and then called it done 5 times ("relieved that a problem is finally addressed"). Also "after a long shift", and "a pleasant start to the day" for an after-work walk.
+
+**Findings.**
+- **Gemma ignores "only if the mood is difficult".** Every variant with a tip slot added one ~100% of the time, including 59-60 of 60 good or neutral outputs.
+- **Banning the words doesn't make the tip specific.** Variant a swaps breathing for "a short walk" and "a warm drink" (73/130). That column was added after the run, so treat it as post-hoc. It is the real difference between a and c, because on the pre-set rule they differ by one generic tip, effectively a tie. Restatement was not counted.
+- **c costs something.** Its zero comes partly from saying less. Lines are safe but can be bland: "You seem to be enjoying the quiet of the moment." It removes the generic tip; it doesn't make the reflection more specific. Its better lines: "You seem to be carrying a quiet sadness with you.", "You seem exhausted and frustrated with the constant rescheduling."
+- **The instruction text after the quote also changes which sentence gets quoted:**
+  - a and b picked the offer letter on rl_good; base picked the pizza.
+  - b picked a to-do on checklist.
+  - c split pizza/offer 5/5 on rl_good, and picked the morning run over the evening argument 10/10 on sameday, so the argument disappears.
+
+**Adopt rule** (fact slips ≤ 8, self-care tips ≤ 30, stiff words ≤ 3): a and c qualify, b fails.
+
+Not yet done: the app's `validateGroundedNudge` and `nudgeTextForOutsideApp` on the c shape, and
+the real pipeline in the simulator.
+
+### Shipped (2026-09-30): variant c + a fixed tip on hard days
+
+- **Gemma's part.** `DAILY_NUDGE_GEMMA_INSTRUCTIONS` is variant c's text and the grammar has no tip slot. The app's prompts and grammars are byte-identical to the measured c on all 13 cases.
+- **The tip.** On difficult moods the app appends a fixed tip (`groundedNudgeTips`, two per mood), keyed to the mood of the entry the quote came from.
+- **Real pipeline** in the simulator (`test_groundedNudge_fullPipeline`, `HARNESS_ENGINE=gemma`): 13/13 real reflections, 0 fallbacks, 8-17s.
+- **Bug found by that run, now fixed.** The same-day case quoted the energized morning but got the frustrated evening's tip, because the tip had been keyed to the newest entry.
+
+## Mood detection on Gemma (2026-09-30)
+
+First measurement of `EMOTION_DETECT_SYSTEM` on Gemma (it had only been assumed). Rubric written
+before the runs (RUBRIC.md, "Mood detection"); driver `mood/run.py`, cases `mood/cases.tsv` and
+`mood/cases_hard.tsv`, all synthetic. Prompt = `EMOTION_DETECT_SYSTEM` + entry as the user turn via
+`rig template`, temp 0.1, 30 chars, 3 seeds (outputs are near-deterministic, so read the effective
+n as the number of entries, not outputs). Scored with the app's `recognizedEmotion` rule; an
+unrecognized reply counts as "Content" like the app does. The rig prompt was not diffed against an
+app dump for this task.
+
+| Set | n entries | EXACT | BUCKET (hard vs not) | MISSED_HARD | FALSE_HARD | UNREC |
+|---|---|---|---|---|---|---|
+| en, clear (3 per label) | 36 | 72% | **100%** | 0/18 | 0/18 | 0 |
+| de, clear | 12 | 67% | **100%** | 0/6 | 0/6 | 0 |
+| es, clear | 12 | 83% | **100%** | 0/6 | 0/6 | 0 |
+| en, hard (negation, mixed days, short, understated) | 24 | 58% | **100%** | 0/14 | 0/10 | 0 |
+
+The pre-set bar (BUCKET >= 90%, MISSED_HARD <= 15%, FALSE_HARD <= 10%, UNREC <= 3%) holds in every
+language on both sets, so **no fix is warranted for tips, alerts or hard-vs-good wording.**
+
+Where it is off, always within a bucket (informational):
+- Overwhelmed -> Frustrated is the largest confusion (en 9 + 6, es 3).
+- Numb -> Sad (en, de, es) and Numb -> Drained/Frustrated. The monthly report keeps only Sad and Numb
+  out of "let go of", so a Numb entry read as Drained or Frustrated (3 of 24 on the hard set) can
+  still be offered there.
+- Content -> Peaceful, and Hopeful/Energized/Joyful -> Content: all inside the good bucket.
+
+Limits: hand-written synthetic entries (2-4 sentences), one clear feeling each; the hard set is
+24 English entries only; nothing measured on long real entries, mixed-language text, or ja/zh/fr/it/
+pt/ru/ko. A bucket score of 100% on 108 outputs is compatible with a true rate in the low 90s.

@@ -21,6 +21,9 @@ actor LLMGenerationQueue {
     func run<T>(_ operation: @Sendable () async throws -> T) async throws -> T {
         await acquire()
         defer { release() }
+        // A caller cancelled while waiting for its turn must not spend the model on a result
+        // nobody wants; the defer above still hands the slot to the next waiter.
+        try Task.checkCancellation()
         return try await operation()
     }
 

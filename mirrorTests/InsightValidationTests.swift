@@ -604,17 +604,17 @@ struct InsightValidationTests {
     // The real device case that motivated checking `recent` alone, not just `recent +
     // background` (isUngrounded_fabricatedContent_detected already proves the combined check
     // fires against a small corpus — this proves the loophole that opens once background grows
-    [real journal text removed]
-    [real journal text removed]
-    [real journal text removed]
+    // to ~20 entries). `recentEntries` below are synthetic stand-ins shaped like the entries behind
+    // the 2026-09-19 report (habits and temper, a work session, feedback on an app); like the real
+    // ones, they share no content word with the fabricated nudge. `backgroundEntries` is a representative
     // 20-entry filler corpus standing in for the unseen real one; it isn't the user's actual
     // data, just plausible generic journaling that happens to land a few coincidental words
     // ("quiet", "moments", "space", "present") the fabricated nudge also uses.
     @Test func isUngrounded_fabricationClearsCombinedPool_recentAloneStillCatchesIt() {
         let recentEntries = [
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
+            Entry(text: "Two habits keep dragging my patience down, and I am done with both. Discipline matters, so I am keeping the week plain. Slept late, then spent the afternoon fixing the budget spreadsheet for the allotment group, hoping the volunteers find it useful. Cooked lentils and caught up with my cousin over the phone. Besides discipline, I need to watch my temper. Pause before snapping, count to ten before replying, walk away before any shouting. Temper should come last."),
+            Entry(text: "Got a complaint about the allotment app, and oddly it made me glad, because it means people are actually using it and someone bothered to report a bug. More confident about what I am building. I will set aside proper hours for the app and fix this. It is going to work out."),
+            Entry(text: "Came home hopeful tonight, sure it is all going to be fine."),
         ]
         let backgroundEntries = [
             Entry(text: "Quiet start to the morning, took a few moments before getting out of bed."),
@@ -655,9 +655,9 @@ struct InsightValidationTests {
 
     // The live regression this locks in: the FIRST version of the recent-only fix reused
     // isUngrounded's scaled threshold against `recent` alone, and real device testing
-    [real journal text removed]
-    [real journal text removed]
-    [real journal text removed]
+    // (2026-09-20) showed the groundingFallback card on every attempt, for the user's real recent
+    // three (stood in for here by synthetic entries of the same shape: habits and a work session,
+    // app feedback, "came home hopeful"). These four nudges are plausible MirrorNotes-voice reflections a human would
     // call genuinely grounded — each echoes real specifics but paraphrases the rest, the way an
     // on-device 1B model actually writes — and the scaled threshold flagged them anyway (this
     // test failed against the old `isUngrounded(text, sourceEntries: recentEntries)` call before
@@ -665,15 +665,15 @@ struct InsightValidationTests {
     // reflection over sharing "only" one or two real words.
     @Test func isUngrounded_genuinelyGroundedAgainstRealRecentThree_notDetected() {
         let recentEntries = [
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
+            Entry(text: "Two habits keep dragging my patience down, and I am done with both. Discipline matters, so I am keeping the week plain. Slept late, then spent the afternoon fixing the budget spreadsheet for the allotment group, hoping the volunteers find it useful. Cooked lentils and caught up with my cousin over the phone. Besides discipline, I need to watch my temper. Pause before snapping, count to ten before replying, walk away before any shouting. Temper should come last."),
+            Entry(text: "Got a complaint about the allotment app, and oddly it made me glad, because it means people are actually using it and someone bothered to report a bug. More confident about what I am building. I will set aside proper hours for the app and fix this. It is going to work out."),
+            Entry(text: "Came home hopeful tonight, sure it is all going to be fine."),
         ]
         let plausibleNudges = [
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
+            "The spreadsheet fixes and that complaint about the allotment app landing the same week seem to have given you something real to hold onto.",
+            "You noticed your own pattern with temper today, choosing a pause over snapping before it turns into shouting.",
+            "That complaint about the app stung less because it meant someone out there is actually using what you built.",
+            "Coming home hopeful tonight, after a day split between discipline and the budget spreadsheet, sounds like real progress.",
         ]
         for text in plausibleNudges {
             #expect(!InsightService.sharesNoWordWithRecent(text, recentEntries: recentEntries), "wrongly flagged as ungrounded: \(text)")
@@ -976,9 +976,9 @@ struct InsightValidationTests {
     // this audit) stopped combining them with ||. This locks in that they're actually combined.
     @Test func ungroundedDailyNudges_fabricationDilutedByLargeBackground_stillFlagged() {
         let recentEntries = [
-            [real journal text removed]
-            [real journal text removed]
-            [real journal text removed]
+            entry("Two habits keep dragging my patience down, and I am done with both. Discipline matters, so I am keeping the week plain. Slept late, then spent the afternoon fixing the budget spreadsheet for the allotment group, hoping the volunteers find it useful.", createdAt: makeDate(2026, 9, 19)),
+            entry("Got a complaint about the allotment app, and oddly it made me glad, because it means people are actually using it and someone bothered to report a bug. More confident about what I am building.", createdAt: makeDate(2026, 9, 17)),
+            entry("Came home hopeful tonight, sure it is all going to be fine.", createdAt: makeDate(2026, 9, 11)),
         ]
         let backgroundEntries = (1...20).map { i in
             entry("Quiet moment number \(i), spent some time in the present with small ordinary space to think.", createdAt: makeDate(2026, 8, min(i, 28)))

@@ -55,9 +55,16 @@ Rules:
 // sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
 // Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
 // Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
+//
+// 2026-09-30: Gemma writes only the feeling sentence; the grammar has no tip slot. With one, it
+// added a tip ~100% of the time whatever the mood (about half breathing/mindfulness, a fifth
+// walk/tea), and stated something not in the entry in ~12/130 lines on a strict scoring pass
+// (8 lenient); feeling-line-only had ~5/130 (0 lenient). One scorer; see the rig README, "Daily
+// reflection: the line after the quote". On difficult moods the app appends a fixed tip instead
+// (groundedNudgeTips), the way the other nine languages already work.
 let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
 Write a short reflection for the person who wrote the journal entry above, in this exact form:
-You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one or two sentences, speaking to them as "you", about how they seem to be feeling. If their mood is difficult, add one small, practical suggestion. After the quote, do not mention anyone by name and do not add anything that is not in the entry.
+You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one sentence, speaking to them as "you", about how they seem to be feeling, in plain everyday words, without repeating the words of the quote. Do not give advice, and do not use words like "significant", "grappling" or "well-being". After the quote, do not mention anyone by name and do not add anything that is not in the entry.
 """
 
 private let WEEKLY_DIGEST_SYSTEM = """
@@ -243,6 +250,18 @@ Rules:
 - Do not mention that you are an AI or model
 """
 
+// Follow-up chip on Gemma (2026-09-28). With FOLLOW_UP_SYSTEM, Gemma 3 1B invented or misattributed
+// something in 50/290 rig questions ("the rain", "your son", other people given the writer's words)
+// and printed a literal "you/your" in 18. Instead Gemma only picks one numbered part of the draft
+// (literal grammar) and the app composes the question around it: 150/170 English picks were the
+// part the writer cared about, nothing invented by construction. tools/llmrig/README.md, "Follow-up
+// prototype (a)". Other languages: groundedLocales (pickFollowUp / partsLabel / followUpQuestion).
+let FOLLOW_UP_GEMMA_INSTRUCTIONS = "Copy word for word the part of the journal entry that the writer would most want to say more about: a feeling, a worry, or something that happened to them. Output only that part."
+let FOLLOW_UP_GEMMA_ENTRY_LABEL = "Journal entry:"
+let FOLLOW_UP_GEMMA_PARTS_LABEL = "Parts of the entry:"
+/// `{quote}` becomes the picked phrase in straight double quotes, as in the English grounded nudge.
+let FOLLOW_UP_GEMMA_QUESTIONS = ["What's underneath {quote}?", "Can you say more about {quote}?"]
+
 enum InsightService {
     // How many older-entry excerpts `buildMemoryBrief` quotes verbatim, shared
     // by the daily nudge and weekly digest (both via `buildUserMessage`) and by
@@ -258,6 +277,14 @@ enum InsightService {
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
+    /// Longest Ask question the prompt will carry; the view enforces the same cap while typing.
+    static let maxAskQuestionLength = 500
+
+    static func cappedAskQuestion(_ question: String) -> String {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxAskQuestionLength else { return trimmed }
+        return String(trimmed.prefix(maxAskQuestionLength))
+    }
     private static let askNoAnswerSentinelEN = "You haven't written about this yet."
     // Keyed by the same language codes as the digest/report section labels below,
     // so the fallback always matches the language Ask was actually instructed to answer in.
@@ -564,6 +591,28 @@ enum InsightService {
         return min(scaled, 4, max(nudgeWordCount, 2))
     }
 
+    /// The calendar day a daily reflection is about: the day of the newest readable entry at or
+    /// before it was generated. That is the only day the grounded Gemma nudge quotes
+    /// (`groundedNudgeSourceEntries` over `dailyNudgeContext`) and the newest of the entries the
+    /// free-prose prompt reads, so the card label, the Past list grouping and the "How this was
+    /// generated" sheet all agree. Stops at the first match, so it decrypts about one entry.
+    static func reflectedDay(of insight: Insight, entriesNewestFirst: [Entry]) -> Date? {
+        entriesNewestFirst
+            .first { $0.createdAt <= insight.generatedAt && hasReadableContext($0) }
+            .map { Calendar.current.startOfDay(for: $0.createdAt) }
+    }
+
+    /// One more daily reflection today (owner-approved 2026-09-28, relaxing "never regenerate
+    /// within 24h"): only when today's reflection was built without any of today's writing, the
+    /// user has written today since, and, after an extra attempt that came back as the fallback,
+    /// only for writing newer than that attempt. Once a reflection has covered today's writing,
+    /// nothing more today, so at most two per day.
+    static func allowsAnotherReflectionToday(todaysReflectionAt: Date, todayEntryDates: [Date], lastFailedExtraAttempt: Date?) -> Bool {
+        guard !todayEntryDates.contains(where: { $0 <= todaysReflectionAt }) else { return false }
+        let since = max(todaysReflectionAt, lastFailedExtraAttempt ?? .distantPast)
+        return todayEntryDates.contains { $0 > since }
+    }
+
     /// The recent/background split a daily nudge is generated from. Factored out so
     /// `ungroundedDailyNudges` (a retroactive audit over already-generated nudges) reconstructs
     /// a past nudge's context with the exact same rule `generateNudge` used live, rather than a
@@ -656,8 +705,13 @@ enum InsightService {
         let grounded = groundedNudgePlan(recent: recent, background: background, recentNudges: recentNudges)
         let localized = localizedGroundedNudge(recent: recent, background: background, recentNudges: recentNudges)
         let nudgePlan = localized?.plan ?? grounded.plan
+        // English grounded nudge: the fixed tip for a difficult mood goes after Gemma's sentence,
+        // keyed to the mood of the entry the quote came from (two same-day entries can differ).
+        let nudgeSource = groundedNudgeSourceEntries(recent)
         let nudgeValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
-            try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+            let validated = try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
+            let tip = groundedNudgeTip(forMood: moodOfQuotedEntry(validated, source: nudgeSource))
+            return tip.map { validated + " " + $0 } ?? validated
         })
         if case .unsuitable = nudgePlan, !LocalLLMService.prefersFoundationModels {
             // Gemma is the only engine and today's writing has no quotable sentence (a one- or
@@ -1083,6 +1137,7 @@ enum InsightService {
     )
 
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
+        let question = cappedAskQuestion(question)
         // Same empty-context filter as generateNudge/generateWeeklyDigest/generateMonthlyReport
         // — see hasReadableContext's doc comment. Unlike those, no throw-when-empty here: Ask
         // already has its own honest "you haven't written about this yet" sentinel for when
@@ -1185,15 +1240,20 @@ enum InsightService {
     // dismissed or the entry is saved. Keeps this feature schema-free: WriteView holds the
     // question in @State only, matching the security rule that draft-adjacent text stays
     // entirely on-device and un-cached.
+    //
+    // On Gemma the model doesn't write the question: see groundedFollowUpPlan.
     static func generateFollowUp(currentText: String) async throws -> (text: String, engine: LLMEngine) {
         let trimmed = String(currentText.suffix(3000))
         let target = responseLanguageTarget(from: [], extraText: trimmed) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
+        let grounded = groundedFollowUpPlan(draft: trimmed, languageCode: target?.code)
         return try await localGenerate(
             systemPrompt: FOLLOW_UP_SYSTEM,
             userMessage: trimmed,
             task: .followUp,
-            responseLanguageInstruction: languageInstruction
+            responseLanguageInstruction: languageInstruction,
+            gemmaPlan: grounded.plan,
+            gemmaValidator: grounded.validator
         )
     }
 
@@ -1979,17 +2039,21 @@ enum InsightService {
     private static func buildAskMessage(entries: [Entry], backgroundEntries: [Entry], question: String) -> String {
         let backgroundBlock = buildMemoryBrief(from: backgroundEntries, maxChars: 1_300)
         let entryBlock = formatEntries(entries, maxChars: 3_800)
-        let message = """
+        let head = """
         Long-term context:
         \(backgroundBlock)
 
         Most relevant entries:
         \(entryBlock)
 
-        Question: \(question)
+        """
+        let tail = """
+
+        Question: \(cappedAskQuestion(question))
         Look carefully at all the entries above for related themes, emotions, or events before answering.
         """
-        return clipped(message, maxChars: askPromptBudget)
+        // Clip the entries, never the question, which sits last.
+        return clipped(head, maxChars: max(0, askPromptBudget - tail.count)) + "\n" + tail
     }
 
     private static func formatEntries(_ entries: [Entry], maxChars: Int) -> String {
@@ -2580,12 +2644,44 @@ extension InsightService {
     static func groundedNudgeGrammar(quotes: [String]) -> String {
         let alternatives = quotes.map(gbnfLiteral).joined(separator: " | ")
         return """
-        root ::= "You wrote, \\"" quote "\\" " feel (" " tip)?
+        root ::= "You wrote, \\"" quote "\\" " feel
         quote ::= \(alternatives)
         feel ::= ("That sounds " | "You seem ") words "."
-        tip ::= ("Maybe " | "Try ") words "."
         words ::= [a-z0-9 ,;:'’()-]{6,150}
         """
+    }
+
+    /// The fixed suggestion the app adds after an English grounded nudge on a difficult day
+    /// (Gemma only writes the feeling sentence, see DAILY_NUDGE_GEMMA_INSTRUCTIONS). Two per mood,
+    /// alternating by day like the localized `feel` lines; nothing on good or neutral days.
+    static let groundedNudgeTips: [GroundedMoodBucket: [String]] = [
+        .tired: ["Maybe keep the rest of today light and get to bed a little earlier.",
+                 "Maybe leave whatever can wait until tomorrow."],
+        .stressed: ["Maybe pick one thing to finish and let the rest wait until tomorrow.",
+                    "Maybe write down what's pressing, so it doesn't all sit in your head tonight."],
+        .sad: ["Maybe tell someone you trust how today felt, even in a short message.",
+               "Maybe keep tonight simple and don't ask much of yourself."],
+    ]
+
+    /// The mood of the source entry whose sentence a grounded nudge quotes; the newest entry's
+    /// when the quote can't be matched.
+    static func moodOfQuotedEntry(_ nudge: String, source: [Entry]) -> String? {
+        let quoted = source.first { entry in
+            groundedQuoteCandidates(of: entry).contains { nudge.hasPrefix(groundedNudgePrefix + $0 + "\" ") }
+        }
+        return (quoted ?? source.first)?.mood
+    }
+
+    /// The mood of the source entry one of whose quotable sentences is `quote`; the newest
+    /// entry's when none matches. For the localized nudge, whose model output is the bare quote.
+    static func moodOfEntry(quoting quote: String, source: [Entry]) -> String? {
+        (source.first { groundedQuoteCandidates(of: $0).contains(quote) } ?? source.first)?.mood
+    }
+
+    static func groundedNudgeTip(forMood mood: String?, on date: Date = Date()) -> String? {
+        guard let tips = groundedNudgeTips[GroundedMoodBucket(mood: mood)], !tips.isEmpty else { return nil }
+        let variant = (Calendar.current.ordinality(of: .day, in: .era, for: date) ?? 0) % tips.count
+        return tips[variant]
     }
 
     private static func gbnfLiteral(_ text: String) -> String {
@@ -3039,6 +3135,11 @@ struct GroundedLocale {
     let releaseSuffix: String
     /// Used when the month has no hard, non-grief entry to quote under WHAT WANTS TO BE RELEASED.
     let releaseFallback: String
+    /// Follow-up chip on Gemma: the model instruction and the label over the numbered draft parts.
+    let pickFollowUp: String
+    let partsLabel: String
+    /// Two question templates; `{quote}` becomes `open` + the picked phrase + `close`.
+    let followUpQuestion: [String]
 }
 
 extension InsightService {
@@ -3075,7 +3176,10 @@ extension InsightService {
             momentSuffix: "Solche Momente sagen viel über deinen Monat.",
             becomingSuffix: "Du scheinst zu lernen, darauf zu achten, was dir guttut.",
             releaseSuffix: "Vielleicht ist es Zeit, das nicht mehr so festzuhalten.",
-            releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut."
+            releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut.",
+            pickFollowUp: "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
+            partsLabel: "Teile des Eintrags:",
+            followUpQuestion: ["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"]
         ),
         "es": GroundedLocale(
             open: "“",
@@ -3109,7 +3213,10 @@ extension InsightService {
             momentSuffix: "Momentos así dicen mucho de tu mes.",
             becomingSuffix: "Parece que estás aprendiendo a notar lo que te hace bien.",
             releaseSuffix: "Quizás es momento de aferrarte un poco menos a esto.",
-            releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien."
+            releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien.",
+            pickFollowUp: "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
+            partsLabel: "Partes de la entrada:",
+            followUpQuestion: ["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"]
         ),
         "fr": GroundedLocale(
             open: "«\u{00A0}",
@@ -3143,7 +3250,10 @@ extension InsightService {
             momentSuffix: "Ce genre de moment en dit long sur ton mois.",
             becomingSuffix: "Tu sembles apprendre à remarquer ce qui te fait du bien.",
             releaseSuffix: "Il est peut-être temps de t'y accrocher un peu moins.",
-            releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien."
+            releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien.",
+            pickFollowUp: "Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
+            partsLabel: "Parties de l'entrée\u{00A0}:",
+            followUpQuestion: ["Qu'est-ce qui se cache derrière {quote}\u{00A0}?", "Tu veux en dire plus sur {quote}\u{00A0}?"]
         ),
         "it": GroundedLocale(
             open: "“",
@@ -3177,7 +3287,10 @@ extension InsightService {
             momentSuffix: "Momenti così dicono molto del tuo mese.",
             becomingSuffix: "Sembra che tu stia imparando a notare ciò che ti fa bene.",
             releaseSuffix: "Forse è il momento di tenerlo un po' meno stretto.",
-            releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene."
+            releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene.",
+            pickFollowUp: "Copia parola per parola la parte della voce del diario su cui la persona vorrebbe scrivere di più: un sentimento, una preoccupazione o qualcosa che le è successo. Scrivi solo quella parte.",
+            partsLabel: "Parti della voce:",
+            followUpQuestion: ["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"]
         ),
         "pt": GroundedLocale(
             open: "“",
@@ -3211,7 +3324,10 @@ extension InsightService {
             momentSuffix: "Momentos assim dizem muito sobre o seu mês.",
             becomingSuffix: "Parece que você está aprendendo a perceber o que faz bem a você.",
             releaseSuffix: "Talvez seja hora de não se agarrar tanto a isso.",
-            releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você."
+            releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você.",
+            pickFollowUp: "Copie palavra por palavra a parte da entrada do diário sobre a qual a pessoa mais gostaria de escrever: um sentimento, uma preocupação ou algo que aconteceu com ela. Escreva só essa parte.",
+            partsLabel: "Partes da entrada:",
+            followUpQuestion: ["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"]
         ),
         "ru": GroundedLocale(
             open: "«",
@@ -3245,7 +3361,10 @@ extension InsightService {
             momentSuffix: "Такие моменты многое говорят о твоём месяце.",
             becomingSuffix: "Похоже, ты учишься замечать, что тебе помогает.",
             releaseSuffix: "Может быть, пора перестать так крепко держаться за это.",
-            releaseFallback: "Похоже, в этом месяце нет ничего, что нужно отпустить, — продолжай замечать, что тебе помогает."
+            releaseFallback: "Похоже, в этом месяце нет ничего, что нужно отпустить, — продолжай замечать, что тебе помогает.",
+            pickFollowUp: "Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
+            partsLabel: "Части записи:",
+            followUpQuestion: ["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"]
         ),
         "ja": GroundedLocale(
             open: "「",
@@ -3279,7 +3398,10 @@ extension InsightService {
             momentSuffix: "――こうした瞬間が、今月をよく表しています。",
             becomingSuffix: "――何が自分の助けになるかに気づける人になりつつあるようです。",
             releaseSuffix: "――これを、そろそろ少し手放してもいいのかもしれません。",
-            releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。"
+            releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。",
+            pickFollowUp: "この日記の中から、書いた人がいちばん詳しく書きたいと思いそうな部分（気持ち、心配ごと、または起きた出来事）をそのまま書き写してください。その部分だけを出力してください。",
+            partsLabel: "日記の各部分：",
+            followUpQuestion: ["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"]
         ),
         "ko": GroundedLocale(
             open: "“",
@@ -3313,7 +3435,10 @@ extension InsightService {
             momentSuffix: "이런 순간이 이번 달을 잘 보여 줘요.",
             becomingSuffix: "무엇이 도움이 되는지 알아차리는 사람이 되어 가고 있는 것 같아요.",
             releaseSuffix: "이제는 이걸 조금 내려놓아도 괜찮을지 몰라요.",
-            releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요."
+            releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요.",
+            pickFollowUp: "이 일기에서 쓴 사람이 가장 더 이야기하고 싶어 할 부분(감정, 걱정, 또는 있었던 일)을 그대로 옮겨 적어 주세요. 그 부분만 출력하세요.",
+            partsLabel: "일기의 부분:",
+            followUpQuestion: ["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"]
         ),
         "zh": GroundedLocale(
             open: "“",
@@ -3347,7 +3472,10 @@ extension InsightService {
             momentSuffix: "这样的时刻很能说明你这个月的状态。",
             becomingSuffix: "你似乎正在成为一个能察觉什么对自己有帮助的人。",
             releaseSuffix: "也许是时候不再把它抓得那么紧了。",
-            releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。"
+            releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。",
+            pickFollowUp: "请从这篇日记中，把作者最想多写一些的那一部分（一种感受、一个担心，或发生在他们身上的事）原样抄写下来。只输出这一部分。",
+            partsLabel: "日记的各部分：",
+            followUpQuestion: ["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"]
         ),
     ]
 
@@ -3376,6 +3504,150 @@ extension InsightService {
         "\(rule) ::= " + options.map(gbnfLiteral).joined(separator: " | ")
     }
 
+    // MARK: - Follow-up chip on Gemma
+
+    static let followUpPhraseMaxChars = 100
+    /// A long draft's numbered list is cut to its last parts (the chip asks about what was just
+    /// written). The rig drafts had 2-4 parts; lists this long are unmeasured.
+    static let followUpMaxPhrases = 12
+    private static let followUpCJKWindowChars = 50
+    /// Split points inside an over-long unpunctuated run, and words stripped from the front of a
+    /// picked phrase before it's quoted ("and ben said…" → "ben said…", still verbatim).
+    static let followUpConjunctions: Set<String> = [
+        "and", "then", "but", "because", "so",
+        "und", "aber", "weil", "dann",
+        "y", "pero", "porque", "luego",
+        "et", "mais", "puis",
+        "e", "ma", "poi", "perché",
+        "mas", "depois",
+        "и", "но", "а", "потом",
+    ]
+
+    /// Gemma picks one numbered part of the draft (literal grammar of the parts), and the
+    /// validator composes the question around it, so the model never writes a word of it.
+    /// `.unsuitable` outside the 10 grounded languages or when nothing is quotable: the chip
+    /// then doesn't appear on Gemma rather than fall back to free prose.
+    static func groundedFollowUpPlan(draft: String, languageCode: String?) -> (plan: LocalLLMService.GemmaPlan, validator: ((String) throws -> String)?) {
+        let entryLabel, partsLabel, instruction, open, close: String
+        let templates: [String]
+        if (languageCode ?? "en") == "en" {
+            (entryLabel, partsLabel, instruction) = (FOLLOW_UP_GEMMA_ENTRY_LABEL, FOLLOW_UP_GEMMA_PARTS_LABEL, FOLLOW_UP_GEMMA_INSTRUCTIONS)
+            (open, close, templates) = ("\"", "\"", FOLLOW_UP_GEMMA_QUESTIONS)
+        } else if let code = languageCode, let loc = groundedLocales[code] {
+            (entryLabel, partsLabel, instruction) = (loc.entryLabel, loc.partsLabel, loc.pickFollowUp)
+            (open, close, templates) = (loc.open, loc.close, loc.followUpQuestion)
+        } else {
+            return (.unsuitable, nil)
+        }
+        let text = textWithPhotoTokensReplaced(draft, placeholder: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let options = followUpPhraseCandidates(in: text)
+        guard !options.isEmpty else { return (.unsuitable, nil) }
+        let numbered = options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        let message = "\(entryLabel)\n\(text)\n\n\(partsLabel)\n\(numbered)\n\n\(instruction)"
+        return (
+            .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
+            { output in
+                let pick = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard options.contains(pick) else { throw InsightError.incompleteResponse }
+                return composedFollowUpQuestion(phrase: pick, templates: templates, open: open, close: close)
+            }
+        )
+    }
+
+    /// Verbatim parts of a draft: the nudge's quote candidates, cut into clause runs of at most
+    /// `followUpPhraseMaxChars`, deduped, the last `followUpMaxPhrases` kept. No "drop the
+    /// unfinished last part" rule: the chip waits for 6s of idle on an unchanged draft, and
+    /// unpunctuated drafts (checklists, run-ons) put their most important part last.
+    static func followUpPhraseCandidates(in text: String) -> [String] {
+        var seen = Set<String>()
+        let phrases = groundedNudgeQuoteCandidates(in: text)
+            .flatMap(followUpClauseRuns(of:))
+            .filter { phrase in !followUpTemplateMarkers.contains { phrase.contains($0) } }
+            .filter { seen.insert($0).inserted }
+        return Array(phrases.suffix(followUpMaxPhrases))
+    }
+
+    /// The fixed text of every follow-up template, in every language: the part before `{quote}`,
+    /// or after it when the quote comes first (ja/ko/zh). Tapping the chip appends the composed
+    /// question to the draft, so without this a later chip could quote the previous one.
+    private static let followUpTemplateMarkers: [String] = {
+        let templates = FOLLOW_UP_GEMMA_QUESTIONS + groundedLocales.values.flatMap(\.followUpQuestion)
+        return templates.compactMap { template in
+            let parts = template.components(separatedBy: "{quote}")
+            let before = parts[0].trimmingCharacters(in: .whitespaces)
+            let after = parts.count > 1 ? parts[1].trimmingCharacters(in: CharacterSet(charactersIn: " ?？\u{00A0}")) : ""
+            let marker = before.isEmpty ? after : before
+            return marker.isEmpty ? nil : marker
+        }
+    }()
+
+    /// Cut points are character offsets, so every run of pieces is a verbatim substring: after
+    /// clause punctuation first; then, only inside a piece still too long, before a conjunction;
+    /// then 12-word (or, unspaced CJK, 50-character) windows. Adjacent pieces merge greedily up to
+    /// the limit, so a subordinate clause ("…, wenn ich will") stays attached to its sentence.
+    static func followUpClauseRuns(of sentence: String) -> [String] {
+        let trimSet = CharacterSet(charactersIn: " \u{00A0},;:—–-.!?…，、；：。！？")
+        let chars = Array(sentence.trimmingCharacters(in: trimSet))
+        let isCJK = containsCJK(String(chars))
+        func longEnough(_ s: String) -> Bool {
+            isCJK ? s.count >= groundedMinCJKQuoteChars : s.split(separator: " ").count >= 3
+        }
+        guard chars.count > followUpPhraseMaxChars else {
+            let whole = String(chars)
+            return longEnough(whole) ? [whole] : []
+        }
+        let wordStarts = (1..<chars.count).filter { chars[$0 - 1] == " " && chars[$0] != " " }
+        let clauseCuts = (1..<chars.count).filter { i in
+            "，、；：".contains(chars[i - 1]) || (i >= 2 && chars[i - 1] == " " && ",;:—".contains(chars[i - 2]))
+        }
+        let primary = [0] + clauseCuts + [chars.count]
+        var cuts = [0]
+        for (a, b) in zip(primary, primary.dropFirst()) {
+            guard b - a > followUpPhraseMaxChars else { cuts.append(b); continue }
+            let inner = wordStarts.filter { $0 > a && $0 < b }
+            let conjunctionCuts = inner.filter { j in
+                followUpConjunctions.contains(String(chars[j...].prefix { $0 != " " }).lowercased())
+            }
+            let sub = [a] + conjunctionCuts + [b]
+            for (x, y) in zip(sub, sub.dropFirst()) {
+                if y - x > followUpPhraseMaxChars {
+                    let starts = inner.filter { $0 > x && $0 < y }
+                    if starts.isEmpty {
+                        cuts += Array(stride(from: x + followUpCJKWindowChars, to: y, by: followUpCJKWindowChars))
+                    } else {
+                        cuts += stride(from: 11, to: starts.count, by: 12).map { starts[$0] }
+                    }
+                }
+                cuts.append(y)
+            }
+        }
+        var runs: [String] = []
+        var start = 0, last = 0
+        for c in cuts.dropFirst() {
+            if c - start > followUpPhraseMaxChars && last > start {
+                runs.append(String(chars[start..<last]))
+                start = last
+            }
+            last = c
+        }
+        if last > start { runs.append(String(chars[start..<last])) }
+        return runs.map { $0.trimmingCharacters(in: trimSet) }.filter(longEnough)
+    }
+
+    /// The fixed question around a picked phrase. A leading ¡/¿ (whose closing mark the
+    /// candidate trim already dropped) and one leading conjunction come off the front first;
+    /// the two templates alternate by phrase so repeat chips in one draft don't all read the same.
+    static func composedFollowUpQuestion(phrase: String, templates: [String], open: String, close: String) -> String {
+        var quoted = String(phrase.drop { "¡¿".contains($0) })
+        let head = quoted.split(separator: " ", maxSplits: 1)
+        if head.count == 2, followUpConjunctions.contains(head[0].lowercased()), head[1].split(separator: " ").count >= 3 {
+            quoted = String(head[1])
+        }
+        let index = Int(quoted.unicodeScalars.reduce(UInt32(0)) { $0 &+ $1.value } % UInt32(max(templates.count, 1)))
+        let template = templates.isEmpty ? "{quote}?" : templates[index]
+        return template.replacingOccurrences(of: "{quote}", with: open + quoted + close)
+    }
+
     /// Nudge outside English: Gemma copies one sentence (grammar of literals only), the app wraps
     /// it in `youWrote` + quote marks and adds a fixed line for the entry's mood. nil for English.
     static func localizedGroundedNudge(recent: [Entry], background: [Entry], recentNudges: [String]) -> LocalizedGrounded? {
@@ -3393,12 +3665,15 @@ extension InsightService {
             : loc.pickNudge.replacingOccurrences(of: "{mood}", with: loc.moodWord[bucket] ?? "")
         let message = "\(pick)\n\n\(loc.entryLabel)\n" + source.map(quotableText(of:)).joined(separator: "\n---\n")
         let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
-        let feel = loc.feel[bucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
         return LocalizedGrounded(
             plan: .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
             validator: { text in
                 let quote = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard options.contains(quote) else { throw InsightError.incompleteResponse }
+                // The fixed line follows the mood of the entry the quote came from, not the day's
+                // newest entry (two same-day entries can differ; same fix as the English tip).
+                let quotedBucket = GroundedMoodBucket(mood: moodOfEntry(quoting: quote, source: source))
+                let feel = loc.feel[quotedBucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
                 return loc.youWrote + loc.open + quote + loc.close + loc.joiner + feel
             }
         )
