@@ -255,18 +255,17 @@ struct mirrorApp: App {
             let work = Task { @MainActor in
                 await mirrorApp.runNightlyInsights(container: self.sharedModelContainer)
             }
-            // Guard against calling setTaskCompleted twice if expiration fires before work finishes.
-            nonisolated(unsafe) var expired = false
+            // setTaskCompleted must be called exactly once: the expiration handler and the
+            // work-finished path can fire together.
+            let completion = RunOnce()
             processingTask.expirationHandler = {
-                expired = true
                 work.cancel()
-                processingTask.setTaskCompleted(success: false)
+                completion.run { processingTask.setTaskCompleted(success: false) }
             }
             Task {
                 _ = await work.result
                 scheduleNightlyInsights()  // always re-schedule, even if expired
-                guard !expired else { return }
-                processingTask.setTaskCompleted(success: true)
+                completion.run { processingTask.setTaskCompleted(success: true) }
             }
         }
     }
