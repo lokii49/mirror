@@ -2659,6 +2659,12 @@ extension InsightService {
         return (quoted ?? source.first)?.mood
     }
 
+    /// The mood of the source entry one of whose quotable sentences is `quote`; the newest
+    /// entry's when none matches. For the localized nudge, whose model output is the bare quote.
+    static func moodOfEntry(quoting quote: String, source: [Entry]) -> String? {
+        (source.first { groundedQuoteCandidates(of: $0).contains(quote) } ?? source.first)?.mood
+    }
+
     static func groundedNudgeTip(forMood mood: String?, on date: Date = Date()) -> String? {
         guard let tips = groundedNudgeTips[GroundedMoodBucket(mood: mood)], !tips.isEmpty else { return nil }
         let variant = (Calendar.current.ordinality(of: .day, in: .era, for: date) ?? 0) % tips.count
@@ -3646,12 +3652,15 @@ extension InsightService {
             : loc.pickNudge.replacingOccurrences(of: "{mood}", with: loc.moodWord[bucket] ?? "")
         let message = "\(pick)\n\n\(loc.entryLabel)\n" + source.map(quotableText(of:)).joined(separator: "\n---\n")
         let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
-        let feel = loc.feel[bucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
         return LocalizedGrounded(
             plan: .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
             validator: { text in
                 let quote = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard options.contains(quote) else { throw InsightError.incompleteResponse }
+                // The fixed line follows the mood of the entry the quote came from, not the day's
+                // newest entry (two same-day entries can differ; same fix as the English tip).
+                let quotedBucket = GroundedMoodBucket(mood: moodOfEntry(quoting: quote, source: source))
+                let feel = loc.feel[quotedBucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
                 return loc.youWrote + loc.open + quote + loc.close + loc.joiner + feel
             }
         )

@@ -203,6 +203,27 @@ extension SharedLLMState {
             }
         }
 
+        @Test func localizedFixedLineFollowsTheQuotedEntrysMood() async throws {
+            // German, same day: a good morning and a frustrated evening (the newest). The fixed
+            // line must match the entry whose sentence Gemma picked.
+            let loc = try #require(InsightService.groundedLocales["de"])
+            let morning = Entry(text: "Heute Morgen bin ich fünf Kilometer gelaufen und habe mich danach richtig gut gefühlt.", mood: "Energized")
+            morning.createdAt = Calendar.current.startOfDay(for: Date()).addingTimeInterval(7 * 3_600)
+            let evening = Entry(text: "Am Abend habe ich mich am Telefon mit meinem Bruder über die Geburtstagspläne gestritten.", mood: "Frustrated")
+            evening.createdAt = Calendar.current.startOfDay(for: Date()).addingTimeInterval(8 * 3_600)
+            let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
+            let cases: [(Entry, GroundedMoodBucket)] = [(morning, .good), (evening, .stressed)]
+            for (quoted, bucket) in cases {
+                let quote = try #require(InsightService.groundedQuoteCandidates(of: quoted).first)
+                LocalLLMService.generateInterceptForTesting = { _, _, _, _ in (quote, .gemma) }
+                defer { LocalLLMService.generateInterceptForTesting = nil }
+                let (text, _, _) = try await InsightService.generateNudge(entries: [evening, morning])
+                let expected = try #require(loc.feel[bucket]?[variant])
+                #expect(text.hasPrefix(loc.youWrote + loc.open + quote + loc.close))
+                #expect(text.hasSuffix(expected), "\(text)")
+            }
+        }
+
         @Test func tipAlternatesByDay() throws {
             let day = Calendar.current.startOfDay(for: Date())
             let next = try #require(Calendar.current.date(byAdding: .day, value: 1, to: day))

@@ -170,8 +170,14 @@ struct InsightSignalSource: View {
                 rows.append(("CONTEXT", "none sent"))
                 rows.append(("MOOD READ", Self.moods(source)))
                 // The linked instructions say "Do not give advice"; a closing tip is the app's.
+                // Outside English the whole line after the quote is the app's fixed text.
                 let endsWithFixedTip = InsightService.groundedNudgeTips.values.joined().contains { insight.content.hasSuffix($0) }
-                let note = endsWithFixedTip
+                let endsWithLocalizedLine = InsightService.groundedLocales.values.contains { loc in
+                    loc.feel.values.joined().contains { insight.content.hasSuffix($0) }
+                }
+                let note = endsWithLocalizedLine
+                    ? quotedNote + " Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote."
+                    : endsWithFixedTip
                     ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
                     : quotedNote
                 return Resolved(rows: rows, reading: Self.readingList(source), note: note)

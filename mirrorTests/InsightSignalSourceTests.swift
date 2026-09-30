@@ -62,6 +62,14 @@ struct InsightSignalSourceTests {
         #expect(withoutTip.note?.contains("fixed text MirrorNotes adds") == false)
     }
 
+    @Test func localizedGroundedNudge_saysTheLineAfterTheQuoteIsFixedText() throws {
+        let loc = try #require(InsightService.groundedLocales["de"])
+        let feel = try #require(loc.feel[.good]?.first)
+        let content = loc.youWrote + loc.open + "Finished the jigsaw puzzle with Leo after dinner and framed the corner piece." + loc.close + loc.joiner + feel
+        let r = InsightSignalSource.resolve(insight: insight(.dailyNudge, content, .gemma), entries: nudgeEntries, engineLabel: "GEMMA")
+        #expect(r.note?.contains("the model only chose the quote") == true)
+    }
+
     @Test func freeProseNudge_keepsTheRecentAndSummarizedContext() {
         let r = InsightSignalSource.resolve(
             insight: insight(.dailyNudge, "The evening at the flat sounds like it gave you room to breathe.", .foundationModels),
