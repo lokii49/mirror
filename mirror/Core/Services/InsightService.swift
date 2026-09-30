@@ -2490,10 +2490,13 @@ extension Entry {
 extension InsightService {
     static let groundedNudgePrefix = "You wrote, \""
     /// The fixed openers an English grounded nudge can start with. The app picks one (Gemma never
-    /// writes it), rotating so reflections don't all open the same way. Every place that
+    /// writes it), rotating so reflections don't all open the same way. Only openers that held
+    /// 130/130 valid, fact-clean reflections on the rig are listed (tools/llmrig/README.md, "Reflection
+    /// opener rotation"); "In your words", "Something you wrote", "You said" and "You put it this way"
+    /// did not. Every place that
     /// recognises a grounded nudge checks all of them, and the first (the original) must stay
     /// listed: reflections saved by 3.0.5 and 3.0.6 start with it.
-    static let groundedNudgeOpeners = [groundedNudgePrefix, "In your words, \"", "Something you wrote: \""]
+    static let groundedNudgeOpeners = [groundedNudgePrefix, "Earlier you wrote, \""]
 
     /// The opener a grounded nudge starts with, if any.
     static func groundedNudgeOpener(of text: String) -> String? {
