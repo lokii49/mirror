@@ -51,7 +51,7 @@ enum UngroundedInsightCleanup {
     // no version history kept, so a genuine reflection v1 incorrectly replaced is gone. v2 only
     // stops further incorrect flags going forward.
     private static let flag = "mirror.didCleanUngroundedCachedInsights.v2"
-    private static let backgroundingCountKey = "mirror.ungroundedCleanupBackgroundingCount"
+    static let backgroundingCountKey = "mirror.ungroundedCleanupBackgroundingCount"
     private static let minBackgroundings = 1
 
     /// Called from `scenePhase == .background`. Deliberately not `@MainActor` — backgrounding

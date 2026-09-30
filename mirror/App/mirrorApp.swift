@@ -202,6 +202,10 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     UngroundedInsightCleanup.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
+                // One-time: rewrite the latest digest/report if the pre-grammar Gemma path wrote it.
+                Task(priority: .background) { @MainActor in
+                    await PreGrammarInsightRegrade.runIfNeeded(context: sharedModelContainer.mainContext)
+                }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
