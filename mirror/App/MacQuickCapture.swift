@@ -141,11 +141,13 @@ struct MacQuickCaptureView: View {
                 .padding(.vertical, 5)
                 .accessibilityLabel("Quick entry")
             if model.text.isEmpty {
+                // Where the editor's first character lands (measured against typed text), so the
+                // caret sits exactly on the start of the placeholder.
                 Text("What's on your mind?")
                     .font(.system(size: 16, design: .serif))
                     .foregroundStyle(MacTokens.secondaryInk)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.leading, 13.5)
+                    .padding(.top, 5)
                     .allowsHitTesting(false)
             }
         }

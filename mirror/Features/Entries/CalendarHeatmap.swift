@@ -726,12 +726,25 @@ struct CalendarHeatmap: View {
 
     // MARK: - Individual day cell (Year view)
 
+    /// A day with no entries still shows as a faint box. On Mac the list column behind the grid is
+    /// the same colour as `inkMid`, which would make those boxes vanish, so they get their own fill;
+    /// the padding cells before the first day stay empty.
+    private func yearFill(for date: Date?) -> Color {
+        #if os(macOS)
+        guard let date else { return .clear }
+        if dayCache[date] == nil {
+            return MacTokens.controlBorder.opacity(date > today ? 0.5 : 1)
+        }
+        #endif
+        return color(for: date)
+    }
+
     private func cell(for date: Date?) -> some View {
         let isSelected = date.map { cal.isDate($0, inSameDayAs: selectedDate ?? .distantPast) } ?? false
         let isToday = date.map { cal.isDateInToday($0) } ?? false
 
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(color(for: date))
+            .fill(yearFill(for: date))
             .frame(width: cellSize, height: cellSize)
             .overlay {
                 if isToday || isSelected {

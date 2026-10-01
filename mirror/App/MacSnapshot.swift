@@ -128,6 +128,20 @@ enum MacSnapshot {
     @MainActor
     static func quickCapturePass(context: ModelContext) async {
         let model = MacQuickCaptureModel.shared
+        if CommandLine.arguments.contains("--macSnapshotQuickAlign") {
+            let host = NSHostingController(rootView: MacQuickCaptureView().environment(\.modelContext, context).modelContainer(context.container))
+            let window = NSWindow(contentViewController: host)
+            window.styleMask = [.borderless]
+            window.setContentSize(NSSize(width: 400, height: 420))
+            window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            model.text = ""
+            try? await Task.sleep(for: .seconds(2))
+            capture(window, name: "q-empty")
+            model.text = "What's on your mind?"
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(window, name: "q-typed")
+            return
+        }
         model.text = "Left the meeting early and felt relieved, which says something. Want to write about it properly tonight."
         model.mood = "Hopeful"
         let host = NSHostingController(rootView: MacQuickCaptureView().environment(\.modelContext, context).modelContainer(context.container))
