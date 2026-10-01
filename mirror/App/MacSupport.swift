@@ -1,6 +1,8 @@
 #if os(macOS)
 import SwiftUI
 import SwiftData
+import AppKit
+import UniformTypeIdentifiers
 
 // macOS-only app plumbing: menu commands, the Settings window, and the notifications that let
 // the menu bar drive navigation inside ContentView (the commands live at App scope, the
@@ -40,6 +42,9 @@ struct MacEditorActions {
 struct MacEntryActions {
     var isPinned: Bool
     var togglePin: () -> Void
+    var share: () -> Void
+    var exportPDF: () -> Void
+    var delete: () -> Void
 }
 
 private struct MacEditorActionsKey: FocusedValueKey { typealias Value = MacEditorActions }
@@ -88,6 +93,14 @@ struct MirrorMacCommands: Commands {
                 .disabled(!(editor?.canSave ?? false))
             Button(entry?.isPinned == true ? "Unpin Entry" : "Pin Entry") { entry?.togglePin() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
+                .disabled(entry == nil)
+            Button("Share Entry…") { entry?.share() }
+                .disabled(entry == nil)
+            Button("Export as PDF…") { entry?.exportPDF() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(entry == nil)
+            Button("Delete Entry…") { entry?.delete() }
+                .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(entry == nil)
         }
         CommandGroup(after: .sidebar) {
@@ -247,6 +260,73 @@ struct MacEntryWindow: View {
         .environment(\.appDisplayMode, .classic)
         .background(MacWindowConfigurator())
         .frame(minWidth: 560, minHeight: 480)
+    }
+}
+
+/// Export an entry from the Mac: a PDF on A4 pages (the same page and margins as iPhone), saved
+/// where the user chooses. Plain text, like the iPhone PDF.
+enum MacEntryExport {
+    /// Writes the PDF to `url`. False when nothing could be written.
+    @MainActor
+    static func writePDF(for entry: Entry, to url: URL) -> Bool {
+        let date = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        var header = date
+        if let mood = entry.mood { header += " · " + MirrorTheme.localizedMoodName(for: mood) }
+
+        let page = NSSize(width: 595, height: 842)
+        let margin: CGFloat = 57
+        let width = page.width - margin * 2
+
+        let body = NSMutableParagraphStyle()
+        body.lineSpacing = 6
+        let text = NSMutableAttributedString(
+            string: header + "\n\n",
+            attributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.gray]
+        )
+        let plain = textWithPhotoTokensReplaced(entry.text, placeholder: "")
+        text.append(NSAttributedString(string: plain, attributes: [
+            .font: NSFont(name: "Georgia", size: 15) ?? NSFont.systemFont(ofSize: 15),
+            .foregroundColor: NSColor.black,
+            .paragraphStyle: body,
+        ]))
+
+        let view = NSTextView(frame: NSRect(x: 0, y: 0, width: width, height: 100))
+        view.textContainerInset = .zero
+        view.isVerticallyResizable = true
+        view.textStorage?.setAttributedString(text)
+        if let container = view.textContainer, let layout = view.layoutManager {
+            container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+            layout.ensureLayout(for: container)
+            view.frame.size.height = ceil(layout.usedRect(for: container).height)
+        }
+
+        let info = NSPrintInfo(dictionary: [
+            .jobDisposition: NSPrintInfo.JobDisposition.save,
+            .jobSavingURL: url,
+        ])
+        info.paperSize = page
+        info.topMargin = margin; info.bottomMargin = margin; info.leftMargin = margin; info.rightMargin = margin
+        info.isHorizontallyCentered = false
+        info.isVerticallyCentered = false
+        let operation = NSPrintOperation(view: view, printInfo: info)
+        operation.showsPrintPanel = false
+        operation.showsProgressPanel = false
+        return operation.run()
+    }
+
+    /// Asks where to save, then writes the PDF.
+    @MainActor
+    static func exportPDF(_ entry: Entry) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "MirrorNotes \(entry.createdAt.formatted(.iso8601.year().month().day())).pdf"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if !writePDF(for: entry, to: url) {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "Couldn't save the PDF")
+            alert.runModal()
+        }
     }
 }
 #endif

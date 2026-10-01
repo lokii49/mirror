@@ -171,6 +171,7 @@ extension WriteView {
         .buttonStyle(.plain)
         .foregroundStyle(MacTokens.controlInk)
         .accessibilityLabel(label)
+        .help(label)
     }
 
     private var formatDivider: some View {

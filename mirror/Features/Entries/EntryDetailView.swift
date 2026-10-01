@@ -44,10 +44,14 @@ struct EntryDetailView: View {
     var body: some View {
         #if os(macOS)
         macBody
-            .focusedSceneValue(\.macEntryActions, MacEntryActions(isPinned: entry.isPinned) {
-                entry.isPinned.toggle()
-                try? modelContext.save()
-            })
+            .focusedSceneValue(\.macEntryActions, MacEntryActions(
+                isPinned: entry.isPinned,
+                togglePin: { entry.isPinned.toggle(); try? modelContext.save() },
+                share: { shareText() },
+                exportPDF: { MacEntryExport.exportPDF(entry) },
+                delete: { showDeleteConfirm = true }
+            ))
+            .textSelection(.enabled)
         #else
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {

@@ -3,6 +3,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 import SceneKit
+import PDFKit
 
 // DEBUG-only: renders the Mac UI to PNGs from inside the app, then quits. Run the app binary with
 //   --macSnapshot --macSnapshotDir=/some/dir
@@ -188,6 +189,33 @@ enum MacSnapshot {
             NSLog("MacSnapshot: saved entry on chosen day = %@, weekIdentifier matches = %@", sameDay ? "yes" : "no", saved.weekIdentifier == DateHelpers.weekIdentifier(for: target) ? "yes" : "no")
         } else {
             NSLog("MacSnapshot: saved entry not found")
+        }
+
+        // Entries calendar in Year mode (and Month, for comparison).
+        for mode in ["Year", "Month"] {
+            UserDefaults.standard.set(mode, forKey: "heatmapMode")
+            go("entries")
+            try? await Task.sleep(for: .seconds(1.5))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["calendar": true])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "13-calendar-\(mode.lowercased())")
+        }
+        UserDefaults.standard.removeObject(forKey: "heatmapMode")
+        NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["calendar": false])
+
+        // Export a real entry to PDF and read it back.
+        if let first = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])))?.first {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("mirror-parity-export.pdf")
+            try? FileManager.default.removeItem(at: url)
+            let wrote = MacEntryExport.writePDF(for: first, to: url)
+            let doc = PDFDocument(url: url)
+            let text = doc?.string ?? ""
+            NSLog("MacSnapshot: pdf written = %@, pages = %d, contains entry text = %@", wrote ? "yes" : "no", doc?.pageCount ?? 0, text.contains(String(first.text.prefix(12))) ? "yes" : "no")
+        }
+        for dest in ["write", "entries", "today", "ask"] {
+            go(dest)
+            try? await Task.sleep(for: .seconds(1))
+            NSLog("MacSnapshot: window title on %@ = %@", dest, mainWindow()?.title ?? "none")
         }
 
         // Entries: keyboard navigation with real key events.

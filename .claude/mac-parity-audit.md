@@ -15,14 +15,22 @@ Shims checked: `UIApplication.open` goes to `NSWorkspace` (About links, Rate, fe
 | Entries list | Tap, swipe actions | No keyboard use | Up/Down move the selection (scrolls into view), Return edits, Delete asks first then selects the neighbour; context menu gains Edit and Open in New Window | Real key events: moves 0>1>2>1, Return reaches the handler, Delete shows the confirmation, Esc cancels with the count unchanged |
 | Ask | Return adds a line | Same | Return sends, Shift-Return adds a line | Builds; not exercised (needs a model) |
 
+| Reader: share and export | Share as text, Export as PDF (iOS only) | No way to share or export an entry | File menu: Share Entry…, Export as PDF… (⇧⌘E, A4 pages like iPhone, save panel), Delete Entry… (⌘⌫, with the confirmation); the board's toolbar is unchanged | PDF written from the first entry, 1 page, entry text read back out of the PDF |
+| Share picker (all share actions) | Share sheet | Opened at the window's top-left corner | Anchored at the pointer | Builds; not exercised |
+| Reader and insight pages: text | Long-press to select and copy | Not selectable | Selection enabled on the reader, Digest, Report, Mood, Ask (not on Brain's canvas) | Builds; not exercised |
+| Icon buttons | n/a | Write's toolbar icons had no tooltips | `.help` on every Write icon button (reader already had them) | Builds |
+| Windows | Titles in the app switcher | Title empty (hidden title bar) so the Window menu and Mission Control showed blanks | Title follows the page (Write, Entries, Today, Ask…), "New Entry" for the new-entry window | Read back from the running window: Entries, Today, Ask |
+| Ask | Field focus on tap | Page opened with no focus | The question field is focused when the page opens | Builds; not exercised |
+
 ## Checked, nothing to fix
 - Reminders: scheduled through `UNUserNotificationCenter` on Mac too, and tapping the check-in reminder sets `MoodCheckInPresenter.pending`, so the Log Mood sheet opens. A time-triggered popup (without tapping a notification) is a separate, later piece.
 
+- Digest, Report, Mood, Ask, Brain: no gestures beyond buttons on iPhone, so no pointer gaps; Brain's 2D view uses drag and pinch (trackpad pinch maps to the same gesture).
+
 ## Open (not done yet)
-- Reader: no Share or Export on the Mac toolbar (the board's reader toolbar is pin, window, delete, Edit). Candidates: File menu items (Share Entry, Export as PDF) rather than new toolbar buttons. "Export as PDF" is iOS-only code (`makePDF`).
-- `presentShareSheet` on Mac anchors the share picker at the window origin; it should anchor to the clicked row or button.
 - Today: iOS has a mood chart, streak and a Log mood button that the approved board does not show. Needs the owner's OK before adding visible UI.
 - Write: daily word goal and word-goal UI from iOS (needs the owner's OK; not on the board).
 - Mood timeline, Monthly report, Digest: no hover or keyboard work yet; Mood timeline chart has faint wedges inside the plot (area fill with several entries per day), likely also on iPhone.
 - Ask: Esc, focus order and Tab order not checked. Brain View: wheel zoom, pinch and trackpad pan untested.
-- Per-view keyboard pass for Digest, Report, Mood, Brain (Esc and Tab order).
+- Brain 2D: mouse-wheel zoom (3D has it; the flat view relies on drag, pinch and the +/- buttons).
+- Report: Left/Right arrows for the month switch (the chevrons work).

@@ -190,9 +190,11 @@ struct PlatformNavigationStack<Content: View>: View {
         .first?.windows.first?.rootViewController?
         .present(av, animated: true)
     #else
-    guard let view = NSApp.keyWindow?.contentView else { return }
+    guard let window = NSApp.keyWindow, let view = window.contentView else { return }
+    // Anchored where the pointer is (the row or button just used), not at the window's corner.
+    let point = view.convert(window.mouseLocationOutsideOfEventStream, from: nil)
     NSSharingServicePicker(items: items)
-        .show(relativeTo: .zero, of: view, preferredEdge: .minY)
+        .show(relativeTo: NSRect(x: point.x, y: point.y, width: 1, height: 1), of: view, preferredEdge: .minY)
     #endif
 }
 

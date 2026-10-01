@@ -456,7 +456,12 @@ struct WriteView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        #if os(macOS)
+        // Hidden title bar, but the Window menu shows the title.
+        .navigationTitle(macStandaloneWindow ? String(localized: "New Entry") : (entry == nil ? String(localized: "Write") : String(localized: "Entries")))
+        #else
         .navigationTitle("")
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) { macToolbar }

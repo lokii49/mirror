@@ -158,6 +158,12 @@ struct AskView: View {
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .onAppear {
             viewModel.loadAskState(entries: entries)
+            #if os(macOS)
+            // Ready to type as soon as the page opens.
+            if initialQuestion == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { isInputFocused = true }
+            }
+            #endif
             if let initialQuestion, question.isEmpty {
                 question = initialQuestion
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

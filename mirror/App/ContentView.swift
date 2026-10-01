@@ -381,6 +381,8 @@ struct ContentView: View {
             macDetailView
         }
         .frame(minWidth: 980, minHeight: 600)
+        // The title bar is hidden, but the Window menu and Mission Control still show the title.
+        .navigationTitle(macDestination.windowTitle)
         .onChange(of: selectedSidebarItem) { _, item in
             // Widget and URL deep links still set the shared selection.
             switch item {

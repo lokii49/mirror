@@ -81,6 +81,20 @@ enum MacDestination: String, CaseIterable, Hashable {
         }
     }
 
+    /// The window's title, by page.
+    var windowTitle: String {
+        switch self {
+        case .write: return String(localized: "Write")
+        case .entries: return String(localized: "Entries")
+        case .today: return String(localized: "Today")
+        case .digest: return String(localized: "Weekly digest")
+        case .report: return String(localized: "Monthly report")
+        case .mood: return String(localized: "Mood timeline")
+        case .ask: return String(localized: "Ask")
+        case .brain: return String(localized: "Brain View")
+        }
+    }
+
     var icon: String {
         switch self {
         case .write: return "pen"
@@ -324,6 +338,7 @@ struct MacBarToggle: View {
 private struct MacPageModifier<Trailing: View>: ViewModifier {
     let title: LocalizedStringKey
     let dark: Bool
+    let selectable: Bool
     @ViewBuilder var trailing: () -> Trailing
     @Environment(\.colorScheme) private var scheme
 
@@ -331,7 +346,14 @@ private struct MacPageModifier<Trailing: View>: ViewModifier {
         VStack(spacing: 0) {
             MacPageBar(title: title, trailing: trailing)
                 .environment(\.colorScheme, dark ? .dark : scheme)
-            content.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+            Group {
+                if selectable {
+                    content.textSelection(.enabled)
+                } else {
+                    content
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
         }
     }
 }
@@ -340,7 +362,7 @@ extension View {
     /// Puts the screen under the shared title bar. `dark` is for screens drawn on an always-dark
     /// canvas (Brain View), where the bar must match it.
     func macPage<Trailing: View>(_ title: LocalizedStringKey, dark: Bool = false, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) -> some View {
-        modifier(MacPageModifier(title: title, dark: dark, trailing: trailing))
+        modifier(MacPageModifier(title: title, dark: dark, selectable: !dark, trailing: trailing))
     }
 }
 
