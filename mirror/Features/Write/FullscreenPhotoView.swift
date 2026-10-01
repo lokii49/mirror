@@ -11,6 +11,22 @@ struct FullscreenPhotoView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
 
+    private static var doneEdge: ToolbarItemPlacement {
+        #if os(macOS)
+        return .cancellationAction
+        #else
+        return .topBarLeading
+        #endif
+    }
+
+    private static var shareEdge: ToolbarItemPlacement {
+        #if os(macOS)
+        return .primaryAction
+        #else
+        return .topBarTrailing
+        #endif
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
@@ -59,7 +75,7 @@ struct FullscreenPhotoView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: Self.doneEdge) {
                     Button {
                         onDismiss?()
                         dismiss()
@@ -71,8 +87,9 @@ struct FullscreenPhotoView: View {
                         }
                     }
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : .white)
+                    .cancelActionOnMac()
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: Self.shareEdge) {
                     if let image = UIImage(data: photoData) {
                         ShareLink(item: Image(uiImage: image), preview: SharePreview("Photo", image: Image(uiImage: image))) {
                             Image(systemName: "square.and.arrow.up")
@@ -87,5 +104,10 @@ struct FullscreenPhotoView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             #endif
         }
+        #if os(macOS)
+        // On Mac the full-screen cover is a plain sheet with no size of its own; without one the
+        // viewer collapses to a strip. It sizes to the photo's shape, up to most of the screen.
+        .frame(minWidth: 560, idealWidth: 880, maxWidth: .infinity, minHeight: 420, idealHeight: 640, maxHeight: .infinity)
+        #endif
     }
 }

@@ -22,6 +22,10 @@ Shims checked: `UIApplication.open` goes to `NSWorkspace` (About links, Rate, fe
 | Windows | Titles in the app switcher | Title empty (hidden title bar) so the Window menu and Mission Control showed blanks | Title follows the page (Write, Entries, Today, Ask…), "New Entry" for the new-entry window | Read back from the running window: Entries, Today, Ask |
 | Ask | Field focus on tap | Page opened with no focus | The question field is focused when the page opens | Builds; not exercised |
 
+| Photo viewer (tap a photo in Write) | Full-screen cover with pinch and double-tap zoom | A sheet with no size: collapsed to a thin strip, photo cropped to a few pixels (user report) | Sized sheet (560x420 minimum, up to the screen), Done on the left (Esc closes), Share on the right | Opened from the harness: photo fits, Done and Share visible |
+| Calendar, Year mode (Entries) | Grid under the header | Horizontal ScrollView stretched to fill the column, leaving a big empty gap (user report) | Frame at the grid's natural height | Before and after captures |
+| First-run onboarding | Full-screen flow, five steps | Sheet with no size (user screenshot: just dots and a button); fifth step offers Sentinel, which Mac hides | Sized sheet (560x720); Mac flow ends at "Write your first entry" with "Start journaling" | Each step captured |
+
 ## Checked, nothing to fix
 - Reminders: scheduled through `UNUserNotificationCenter` on Mac too, and tapping the check-in reminder sets `MoodCheckInPresenter.pending`, so the Log Mood sheet opens. A time-triggered popup (without tapping a notification) is a separate, later piece.
 

@@ -473,6 +473,7 @@ struct WriteView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugWrite)) { note in
             switch note.userInfo?["action"] as? String {
             case "openDate": showDatePicker = true
+            case "openPhoto": if !photoDataArray.isEmpty { fullscreenPhotoIndex = 0 }
             case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
             case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
             default: break

@@ -203,6 +203,16 @@ enum MacSnapshot {
         UserDefaults.standard.removeObject(forKey: "heatmapMode")
         NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["calendar": false])
 
+        // The photo viewer, opened from Write's photo tile.
+        go("write"); try? await Task.sleep(for: .seconds(2))
+        NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "openPhoto"])
+        try? await Task.sleep(for: .seconds(2))
+        let viewer = mainWindow()?.attachedSheet
+        NSLog("MacSnapshot: photo viewer presented = %@ size = %@", viewer != nil ? "yes" : "no", NSStringFromSize(viewer?.frame.size ?? .zero))
+        capture(viewer ?? mainWindow(), name: "15-photo-viewer")
+        if let viewer { mainWindow()?.endSheet(viewer) }
+        try? await Task.sleep(for: .seconds(1))
+
         // Export a real entry to PDF and read it back.
         if let first = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])))?.first {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("mirror-parity-export.pdf")
@@ -387,6 +397,21 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        if CommandLine.arguments.contains("--macSnapshotOnboardingOnly") {
+            let profiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
+            profiles.first?.onboardingComplete = false
+            try? context.save()
+            try? await Task.sleep(for: .seconds(2))
+            for step in 0...3 {
+                NotificationCenter.default.post(name: .mirrorMacDebugOnboardingStep, object: nil, userInfo: ["step": step])
+                try? await Task.sleep(for: .seconds(1.2))
+                let sheet = mainWindow()?.attachedSheet
+                NSLog("MacSnapshot: onboarding step %d sheet = %@", step, NSStringFromSize(sheet?.frame.size ?? .zero))
+                capture(sheet ?? mainWindow(), name: "14-onboarding-\(step)")
+            }
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotParityOnly") {
             await parityPass(context: context, mainWindow: mainWindow, go: go)
             NSApp.terminate(nil)
@@ -542,6 +567,8 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    /// userInfo["step"]: jumps the onboarding flow to that step.
+    static let mirrorMacDebugOnboardingStep = Notification.Name("mirror.mac.debug.onboardingStep")
     /// userInfo["action"]: "openDate", "setDate" (+ "date"), "save". Drives Write from the harness.
     static let mirrorMacDebugWrite = Notification.Name("mirror.mac.debug.write")
     static let mirrorMacDebugBrainSheet = Notification.Name("mirror.mac.debug.brainSheet")
