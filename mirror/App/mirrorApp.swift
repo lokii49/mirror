@@ -341,8 +341,46 @@ struct mirrorApp: App {
                 completion.run { processingTask.setTaskCompleted(success: true) }
             }
         }
+        #elseif os(macOS)
+        // Mac has no BGTaskScheduler. A Mac left open overnight gets the same pass from a
+        // background activity that checks hourly and runs once in the small hours; a Mac that
+        // is asleep or closed catches up through the app-active path on the next launch.
+        let scheduler = NSBackgroundActivityScheduler(identifier: "com.lokesh.mirror.nightlyInsights")
+        scheduler.repeats = true
+        scheduler.interval = 60 * 60
+        scheduler.tolerance = 15 * 60
+        scheduler.qualityOfService = .utility
+        let container = sharedModelContainer
+        scheduler.schedule { completion in
+            guard MirrorModelContainer.isStoreAvailable,
+                  Self.macNightlyIsDue(now: Date(), lastRun: UserDefaults.standard.object(forKey: Self.macNightlyLastRunKey) as? Date) else {
+                completion(.finished)
+                return
+            }
+            Task { @MainActor in
+                UserDefaults.standard.set(Date(), forKey: Self.macNightlyLastRunKey)
+                await mirrorApp.runNightlyInsights(container: container)
+                completion(.finished)
+            }
+        }
+        Self.macNightlyScheduler = scheduler
         #endif
     }
+
+    #if os(macOS)
+    private static var macNightlyScheduler: NSBackgroundActivityScheduler?
+    private static let macNightlyLastRunKey = "macNightlyInsightsLastRun"
+
+    /// True from 3 AM to 6 AM local time when the pass has not run since the last 3 AM, matching
+    /// the iPhone task's "around 3 AM, once a night".
+    static func macNightlyIsDue(now: Date, lastRun: Date?, calendar: Calendar = .current) -> Bool {
+        let hour = calendar.component(.hour, from: now)
+        guard (3..<6).contains(hour) else { return false }
+        let threeAM = calendar.date(bySettingHour: 3, minute: 0, second: 0, of: now) ?? now
+        guard let lastRun else { return true }
+        return lastRun < threeAM
+    }
+    #endif
 
     private func scheduleNightlyInsights() {
         #if os(iOS)

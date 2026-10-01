@@ -1,12 +1,20 @@
 # Platform roadmap: Mac, then visionOS
 
-Date: 2026-10-01. Not scheduled for any release. Nothing here has been built.
+Date: 2026-10-01. Updated 2026-10-02: native macOS is built on branch `mac` (see Status). visionOS is still only a plan.
 
 **Legend.** **[checked]** means I read the code, project file or binary this pass. **[unverified]** means it comes from memory of Apple's platform behaviour; confirm before building on it.
 
 ---
 
-## Where it stands [checked]
+## Status, 2026-10-02 (native macOS on branch `mac`)
+
+Built and checked in a harness (screenshots, real key events, state read-back): sidebar and window chrome, Write (rich-text editor, photos, date popover, Format menu), Entries (list, reader, keyboard, calendar), Today with the inspector, Digest, Report, Mood, Ask, Brain View (real 3D), Settings window, menus, quick-capture menu-bar popover, onboarding, widgets (extension builds for macOS; Write is a small tile). See `macos-design-plan.md` for the decisions and `mac-parity-audit.md` for the iPhone-versus-Mac comparison.
+
+Background work: no `BGTaskScheduler` on Mac. Generation runs on app-active (same as the iOS foreground path) plus a once-a-night pass (3-6 AM) from `NSBackgroundActivityScheduler` while the app is open. A Mac that is asleep or closed at night catches up on next launch.
+
+Not done: a signed Mac build (needs a Mac provisioning profile with iCloud, push and the app group), real-device sync check, widget rendering, translations of the new Mac strings, App Store screenshots, global hotkey for quick capture, time-triggered check-in popup, app lock, Sentinel on Mac, visionOS.
+
+## Where it stands [checked, as of 2026-10-01, before the Mac port]
 
 - The app is iPhone and iPad only: `TARGETED_DEVICE_FAMILY = "1,2"`, `SDKROOT = iphoneos`, no `SUPPORTS_MACCATALYST` or `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD` set anywhere in `mirror.xcodeproj`.
 - Deployment target: 17.6 for the app, 26.4 for the project default.

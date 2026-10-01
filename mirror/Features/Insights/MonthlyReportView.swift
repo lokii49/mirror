@@ -99,6 +99,10 @@ struct MonthlyReportView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canGoBack)
+            #if os(macOS)
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .help("Previous month")
+            #endif
 
             VStack(alignment: .center, spacing: 4) {
                 Group {
@@ -138,6 +142,10 @@ struct MonthlyReportView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canGoForward)
+            #if os(macOS)
+            .keyboardShortcut(.rightArrow, modifiers: [])
+            .help("Next month")
+            #endif
         }
         .padding(20)
         .themedCard(cornerRadius: 26)

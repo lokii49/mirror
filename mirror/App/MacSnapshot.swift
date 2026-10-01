@@ -397,6 +397,25 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        if CommandLine.arguments.contains("--macSnapshotNightlyCheck") {
+            let cal = Calendar.current
+            func at(_ h: Int, _ m: Int = 0, daysAgo: Int = 0) -> Date {
+                let base = cal.date(byAdding: .day, value: -daysAgo, to: Date())!
+                return cal.date(bySettingHour: h, minute: m, second: 0, of: base)!
+            }
+            let cases: [(String, Bool)] = [
+                ("2am", mirrorApp.macNightlyIsDue(now: at(2), lastRun: nil)),
+                ("3:30am never run", mirrorApp.macNightlyIsDue(now: at(3, 30), lastRun: nil)),
+                ("3:30am ran yesterday", mirrorApp.macNightlyIsDue(now: at(3, 30), lastRun: at(4, daysAgo: 1))),
+                ("4am already ran 3:10", mirrorApp.macNightlyIsDue(now: at(4), lastRun: at(3, 10))),
+                ("5:59am not run today", mirrorApp.macNightlyIsDue(now: at(5, 59), lastRun: at(23, daysAgo: 1))),
+                ("6am", mirrorApp.macNightlyIsDue(now: at(6), lastRun: nil)),
+                ("2pm", mirrorApp.macNightlyIsDue(now: at(14), lastRun: nil)),
+            ]
+            for (name, due) in cases { NSLog("MacSnapshot: nightly due [%@] = %@", name, due ? "yes" : "no") }
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotOnboardingOnly") {
             let profiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
             profiles.first?.onboardingComplete = false
