@@ -130,6 +130,8 @@ struct WriteView: View {
     @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    /// True while the selected mood came from "Mirror suggests" rather than a manual pick.
+    @State var moodWasSuggested = false
     @State var recPulse = false
     @State var showSignalPanel = false
     @State var pendingTextCommand: NoteTextCommand?
@@ -194,7 +196,11 @@ struct WriteView: View {
                 MirrorTheme.inkBase.ignoresSafeArea()
                 SentinelGridBackground().ignoresSafeArea()
             } else {
+                #if os(macOS)
+                MacTokens.windowBackground.ignoresSafeArea()
+                #else
                 MirrorTheme.inkMid.ignoresSafeArea()
+                #endif
             }
 
             // Date/word-count/mood and tags are a fixed header, not scroll content —
@@ -203,6 +209,10 @@ struct WriteView: View {
             // floats the header over the scroll content and lets it bleed through
             // underneath, which is exactly the ghosting this replaced.
             VStack(spacing: 0) {
+                #if os(macOS)
+                // The Mac screen has its own toolbar and puts the date and chips in the column.
+                Color.clear.frame(height: 0)
+                #else
                 if !focusMode {
                     dateHeader
                     tagsBar
@@ -212,9 +222,13 @@ struct WriteView: View {
                     // same bleed-through dateHeader/tagsBar exist to prevent above.
                     Color.clear.frame(height: 8)
                 }
+                #endif
 
                 ScrollView {
                     VStack(spacing: 0) {
+                        #if os(macOS)
+                        macDateLine
+                        #endif
                         if !draftVoiceNotes.isEmpty {
                             VStack(spacing: 8) {
                                 ForEach(draftVoiceNotes.indices, id: \.self) { index in
@@ -296,10 +310,21 @@ struct WriteView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 4)
                         .frame(maxWidth: .infinity)
+
+                        #if os(macOS)
+                        macChipsRow
+                        #endif
                     }
+                    #if os(macOS)
+                    .modifier(MacEditorColumn())
+                    #endif
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .scrollBounceBehavior(.basedOnSize)
+                #if os(macOS)
+                .modifier(MacNoScrollEdgeEffect())
+                #endif
+
             }
 
             if showSaved {
@@ -415,12 +440,19 @@ struct WriteView: View {
         .navigationBarBackButtonHidden(true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(macOS)
+        .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
+        .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
+        // Escape leaves the editor of an existing entry without saving (the design has no back button).
+        .onExitCommand { if entry != nil { dismiss() } }
+        #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
                 toolRow
             }
         }
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardVisible = true
         }
@@ -447,7 +479,21 @@ struct WriteView: View {
             }
             entryDate = entry?.createdAt ?? Date()
             entryTags = entry?.tags ?? []
+            #if os(macOS)
+            // The Mac design sets body text in a serif face; new entries start there.
+            entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.serif.rawValue
+            #else
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
+            #endif
+            #if DEBUG && os(macOS)
+            if MacSnapshot.isRequested, entry == nil, viewModel.text.isEmpty {
+                // Snapshot mode only: the board's sample entry, so the screen can be compared.
+                viewModel.text = "Slow morning. I made coffee and sat on the balcony without my phone for the first hour, which I haven't done in weeks. The street was quiet except for a delivery van and someone watering plants two floors down.\nI keep circling back to the conversation from yesterday. I said I was fine with the new schedule, and I'm not sure that's true. Writing it here makes it easier to see: I'm tired more than I'm upset."
+                viewModel.selectedMood = "Drained"
+                moodWasSuggested = true
+                entryTags = ["morning", "work"]
+            }
+            #endif
             if entry == nil {
                 // Real bug, found on-device (0.1's widget prompt, 0.2's templates, and Tier 2's
                 // "Talk it out" all hit this): restoring an unrelated leftover autosaved draft

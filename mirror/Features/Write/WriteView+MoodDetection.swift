@@ -58,6 +58,7 @@ extension WriteView {
             await MainActor.run {
                 if let detected, MirrorTheme.moodOptions.contains(detected) {
                     viewModel.selectedMood = detected
+                    moodWasSuggested = true
                 }
                 isDetectingMood = false
             }

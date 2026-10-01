@@ -16,7 +16,7 @@ import AppKit
 // MARK: - Visual styling
 
 enum MacEditorStyle {
-    static let bodySize: CGFloat = 17
+    static let bodySize: CGFloat = 18
     /// Width reserved left of list text for the marker.
     static func gutter(for style: NoteParagraphTextStyle) -> CGFloat {
         style == .numberedList ? 24 : 28
@@ -64,17 +64,18 @@ enum MacEditorStyle {
         case .title: ps.lineSpacing = 3; ps.paragraphSpacing = 10
         case .heading: ps.lineSpacing = 4; ps.paragraphSpacing = 8
         case .subheading: ps.lineSpacing = 4; ps.paragraphSpacing = 6
-        case .monospaced: ps.lineSpacing = 6; ps.paragraphSpacing = 5
+        case .monospaced: ps.lineSpacing = 8; ps.paragraphSpacing = 10
         case .blockQuote:
             ps.lineSpacing = 5; ps.paragraphSpacing = 8
             ps.firstLineHeadIndent = 16; ps.headIndent = 16
         case .checklistUnchecked, .checklistChecked, .bulletedList, .dashedList, .numberedList:
-            ps.lineSpacing = 6; ps.paragraphSpacing = 5
+            ps.lineSpacing = 10; ps.paragraphSpacing = 8
             // The marker is drawn in the gutter, so first and wrapped lines share one left edge.
             ps.firstLineHeadIndent = offset + gutter(for: model.style)
             ps.headIndent = offset + gutter(for: model.style)
         case .body:
-            ps.lineSpacing = 6; ps.paragraphSpacing = 5
+            // The board's 18 pt / 1.78 line height with 20 pt between paragraphs.
+            ps.lineSpacing = 10; ps.paragraphSpacing = 20
         }
         return ps
     }
@@ -299,7 +300,7 @@ struct NoteEditorTextView: NSViewRepresentable {
     var displayMode: DisplayMode
     var onPhotoTapped: ((Int) -> Void)?
 
-    private static let minHeight: CGFloat = 360
+    private static let minHeight: CGFloat = 60
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -324,7 +325,7 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.drawsBackground = false
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
-        textView.textContainerInset = NSSize(width: 0, height: 8)
+        textView.textContainerInset = NSSize(width: 0, height: 0)
         textView.importsGraphics = false
         textView.usesFontPanel = false
         textView.usesInspectorBar = false

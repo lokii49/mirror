@@ -16,6 +16,14 @@ enum MacTokens {
     static let ink = MirrorTheme.hex(0xF2EEF8, 0x1A1530)
     static let secondaryInk = MirrorTheme.hex(0x9A93B5, 0x6B6485)
     static let accent = MirrorTheme.hex(0x7C5CE4, 0x6341CC)
+    /// Cards and controls sitting on the window background.
+    static let surface = MirrorTheme.hex(0x1C1830, 0xFFFFFF)
+    static let controlBorder = MirrorTheme.hex(0x2A2545, 0xD9D0EE)
+    static let divider = MirrorTheme.hex(0x221E3A, 0xE0D9F5)
+    static let segmentDivider = MirrorTheme.hex(0x2A2545, 0xE8E2F6)
+    /// Icon-button and chip ink (the boards' #4A4366 / light violet).
+    static let controlInk = MirrorTheme.hex(0xC9BEF2, 0x4A4366)
+    static let accentInk = MirrorTheme.hex(0xC9BEF2, 0x4B2FA8)
 
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
@@ -196,17 +204,9 @@ struct MacWindowConfigurator: NSViewRepresentable {
 
     private static func configure(_ window: NSWindow?) {
         guard let window else { return }
+        // The scene uses the hidden title bar style, so the content runs under the traffic lights.
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.styleMask.insert(.fullSizeContentView)
-        window.toolbarStyle = .unified
-        if window.toolbar == nil {
-            // An empty toolbar gives the tall (52 pt) title bar that centers the traffic lights
-            // on the sidebar's top row.
-            let toolbar = NSToolbar(identifier: "mirror.main")
-            toolbar.showsBaselineSeparator = false
-            window.toolbar = toolbar
-        }
         window.backgroundColor = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor(srgbRed: 8 / 255, green: 6 / 255, blue: 15 / 255, alpha: 1)

@@ -486,11 +486,18 @@ private struct WriteTabView: View {
     var onSave: (() -> Void)? = nil
 
     var body: some View {
+        #if os(macOS)
+        // The Mac Write screen draws its own toolbar, so it needs no navigation bar.
+        WriteView(autoFocus: true) {
+            onSave?()
+        }
+        #else
         NavigationStack {
             WriteView(autoFocus: true) {
                 onSave?()
             }
         }
+        #endif
     }
 }
 

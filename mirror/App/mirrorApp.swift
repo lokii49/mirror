@@ -185,6 +185,7 @@ struct mirrorApp: App {
         .modelContainer(sharedModelContainer)
         #if os(macOS)
         .commands { MirrorMacCommands() }
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 800)
         #endif
         .onChange(of: scenePhase) { _, phase in
