@@ -158,6 +158,12 @@ struct ContentView: View {
     /// past their preferred time today and no mood (check-in or entry) is on the
     /// books for today yet.
     private func maybeAutoPromptMoodCheckIn() {
+        #if os(macOS)
+        // Off on Mac for now: "active" fires on every switch back to the app, so the sheet would
+        // pop up unprompted. Log Mood stays in Go > Log Mood… (⌥⌘M). Later: present it at the
+        // scheduled check-in time, like iPhone (see .claude/platform-roadmap.md).
+        return
+        #else
         guard onboardingComplete, moodCheckInEnabled, !isUITesting else { return }
         // Don't race the What's New sheet: SwiftUI drops the second concurrent sheet.
         guard !featureCardService.shouldShowWhatsNew else { return }
@@ -188,6 +194,7 @@ struct ContentView: View {
 
             moodCheckInPresenter.pending = true
         }
+        #endif
     }
 
     var body: some View {

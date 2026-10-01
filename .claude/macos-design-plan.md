@@ -125,3 +125,7 @@ Follow the standing rule (`feedback_standalone_features`): new surfaces are deco
 - Quick capture: in. A menu bar item opens a small popover (text, mood chips, dictate, Save with Cmd-Return). Built as a decoupled surface that saves an Entry the same way `AddJournalEntryIntent` does; it runs no reflection. The global hotkey (Option-Cmd-J in the mock) is a placeholder, not a decision.
 - Native macOS vs Catalyst: still open (recommended: native).
 - UI mocks: https://claude.ai/artifact/1iYZQiUkUhhRSQCYZRbpS2 (six boards). Nothing is implemented until the owner approves them.
+
+## Decisions 2026-10-02
+
+- Mood check-in on Mac: the automatic sheet (shown when the app becomes active after the check-in time with no mood logged) is off. On Mac "active" fires on every switch back to the app, so it popped up unprompted. Log Mood stays available from Go > Log Mood… (Option-Cmd-M). Later, like iPhone: when the user sets a check-in time, show the Log Mood sheet at that scheduled time (a local notification and/or a timer while the app is open). Not built yet.
