@@ -6,10 +6,12 @@ import SwiftUI
 // selection state lives in ContentView).
 
 extension Notification.Name {
-    /// userInfo["destination"]: "write" | "entries" | "insights"
+    /// userInfo["destination"]: a `MacDestination` raw value ("write", "entries", "today", "digest",
+    /// "report", "mood", "ask", "brain").
     static let mirrorMacNavigate = Notification.Name("mirror.mac.navigate")
     /// Start a fresh entry (Write destination, new editor).
     static let mirrorMacNewEntry = Notification.Name("mirror.mac.newEntry")
+    static let mirrorMacToggleSidebar = Notification.Name("mirror.mac.toggleSidebar")
 }
 
 struct MirrorMacCommands: Commands {
@@ -20,12 +22,18 @@ struct MirrorMacCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: .command)
         }
+        CommandGroup(after: .sidebar) {
+            Button("Hide Sidebar") {
+                NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+        }
         CommandMenu("Go") {
             Button("Write") { navigate("write") }
                 .keyboardShortcut("1", modifiers: .command)
             Button("Entries") { navigate("entries") }
                 .keyboardShortcut("2", modifiers: .command)
-            Button("Insights") { navigate("insights") }
+            Button("Insights") { navigate("today") }
                 .keyboardShortcut("3", modifiers: .command)
         }
     }

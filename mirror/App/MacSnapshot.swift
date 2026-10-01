@@ -77,6 +77,9 @@ enum MacSnapshot {
         }
 
         try? await Task.sleep(for: .seconds(3))
+        // The board's window size, regardless of any saved frame.
+        mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
+        try? await Task.sleep(for: .seconds(1))
         capture(mainWindow(), name: "1-write")
 
         go("entries")
@@ -91,7 +94,7 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(2))
         capture(mainWindow(), name: "3b-editor")
 
-        go("insights")
+        go("today")
         try? await Task.sleep(for: .seconds(3))
         capture(mainWindow(), name: "4-insights")
 

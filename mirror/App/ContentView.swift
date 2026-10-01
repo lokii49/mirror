@@ -55,6 +55,8 @@ struct ContentView: View {
     #if os(macOS)
     @State private var macSelectedEntry: Entry? = nil
     @State private var macWriteID = UUID()
+    @State private var macDestination: MacDestination = .write
+    @State private var macSidebarVisible = true
     #endif
     @State private var showWriteFromWidgetPrompt = false
     @State private var widgetPromptText: String = ""
@@ -367,34 +369,30 @@ struct ContentView: View {
 
     #if os(macOS)
     private var macLayout: some View {
-        NavigationSplitView {
-            List([AppSidebarItem.write, .entries, .insights], id: \.self, selection: $selectedSidebarItem) { item in
-                Label(item.title, systemImage: item.icon)
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 232, max: 280)
-            .safeAreaInset(edge: .bottom) {
-                Label("On-device. Nothing leaves this Mac.", systemImage: "lock")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-            }
-        } detail: {
+        MacRootView(selection: $macDestination, sidebarVisible: $macSidebarVisible) {
             macDetailView
         }
         .frame(minWidth: 980, minHeight: 600)
-        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNavigate)) { note in
-            switch note.userInfo?["destination"] as? String {
-            case "write": selectedSidebarItem = .write
-            case "entries": selectedSidebarItem = .entries
-            case "insights": selectedSidebarItem = .insights
+        .onChange(of: selectedSidebarItem) { _, item in
+            // Widget and URL deep links still set the shared selection.
+            switch item {
+            case .entries: macDestination = .entries
+            case .write: macDestination = .write
+            case .insights: macDestination = .today
             default: break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNavigate)) { note in
+            if let raw = note.userInfo?["destination"] as? String, let destination = MacDestination(rawValue: raw) {
+                macDestination = destination
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntry)) { _ in
             macWriteID = UUID()
-            selectedSidebarItem = .write
+            macDestination = .write
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacToggleSidebar)) { _ in
+            macSidebarVisible.toggle()
         }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugSelectFirstEntry)) { _ in
@@ -410,7 +408,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var macDetailView: some View {
-        switch selectedSidebarItem ?? .write {
+        switch macDestination {
         case .entries:
             HSplitView {
                 EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID, macSelection: $macSelectedEntry)
@@ -431,14 +429,22 @@ struct ContentView: View {
             }
         case .write:
             WriteTabView(onSave: {
-                selectedSidebarItem = .entries
+                macDestination = .entries
                 entriesNavResetID = UUID()
             })
             .id(macWriteID)
-        case .insights:
+        case .today, .digest:
+            // Until each Insights page has its own Mac screen, Today and Weekly digest share the
+            // existing Insights page.
             InsightView(viewModel: insightViewModel)
-        case .settings:
-            SettingsView()
+        case .report:
+            NavigationStack { MonthlyReportView(viewModel: insightViewModel) }
+        case .mood:
+            NavigationStack { MoodTimelineView() }
+        case .ask:
+            NavigationStack { AskView(viewModel: insightViewModel) }
+        case .brain:
+            NavigationStack { BrainView(viewModel: insightViewModel) }
         }
     }
     #endif

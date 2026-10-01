@@ -185,7 +185,7 @@ struct mirrorApp: App {
         .modelContainer(sharedModelContainer)
         #if os(macOS)
         .commands { MirrorMacCommands() }
-        .defaultSize(width: 1180, height: 760)
+        .defaultSize(width: 1280, height: 800)
         #endif
         .onChange(of: scenePhase) { _, phase in
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
