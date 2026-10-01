@@ -55,6 +55,7 @@ struct ContentView: View {
     #if os(macOS)
     @State private var macSelectedEntry: Entry? = nil
     @State private var macWriteID = UUID()
+    @State private var macWriteInitialText = ""
     @State private var macDestination: MacDestination = .write
     @State private var macSidebarVisible = true
     #endif
@@ -388,8 +389,26 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntry)) { _ in
+            macWriteInitialText = ""
             macWriteID = UUID()
             macDestination = .write
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntrySeeded)) { note in
+            macWriteInitialText = note.userInfo?["text"] as? String ?? ""
+            macWriteID = UUID()
+            macDestination = .write
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacOpenEntry)) { note in
+            // Set the selection here: the Entries view may not exist yet, and a binding that is
+            // already set when a view appears never fires its onChange.
+            if let id = note.userInfo?["id"] as? UUID {
+                var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+                descriptor.fetchLimit = 1
+                if let entry = try? modelContext.fetch(descriptor).first {
+                    macDestination = .entries
+                    macSelectedEntry = entry
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacToggleSidebar)) { _ in
             macSidebarVisible.toggle()
@@ -434,7 +453,7 @@ struct ContentView: View {
             // Without this the split view sizes itself to its content and floats in the middle.
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .write:
-            WriteTabView(onSave: {
+            WriteTabView(initialText: macWriteInitialText, onSave: {
                 macDestination = .entries
                 entriesNavResetID = UUID()
             })
@@ -489,12 +508,13 @@ struct ContentView: View {
 
 // Write tab wraps WriteView in a NavigationStack for its toolbar + sheets.
 private struct WriteTabView: View {
+    var initialText: String = ""
     var onSave: (() -> Void)? = nil
 
     var body: some View {
         #if os(macOS)
         // The Mac Write screen draws its own toolbar, so it needs no navigation bar.
-        WriteView(autoFocus: true) {
+        WriteView(autoFocus: true, initialText: initialText) {
             onSave?()
         }
         #else

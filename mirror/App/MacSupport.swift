@@ -13,6 +13,10 @@ extension Notification.Name {
     /// Start a fresh entry (Write destination, new editor).
     static let mirrorMacNewEntry = Notification.Name("mirror.mac.newEntry")
     static let mirrorMacToggleSidebar = Notification.Name("mirror.mac.toggleSidebar")
+    /// userInfo["id"]: an entry's UUID. Shows Entries with that entry selected.
+    static let mirrorMacOpenEntry = Notification.Name("mirror.mac.openEntry")
+    /// userInfo["text"]: starts a new entry with that text in it.
+    static let mirrorMacNewEntrySeeded = Notification.Name("mirror.mac.newEntrySeeded")
     /// userInfo["data"]: image data pasted into the editor.
     static let mirrorMacPasteImage = Notification.Name("mirror.mac.pasteImage")
 }
@@ -38,6 +42,8 @@ struct MirrorMacCommands: Commands {
                 .keyboardShortcut("2", modifiers: .command)
             Button("Insights") { navigate("today") }
             Divider()
+            Button("Log Mood…") { MoodCheckInPresenter.shared.pending = true }
+                .keyboardShortcut("m", modifiers: [.command, .option])
             Button("Find in Entries") {
                 navigate("entries")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {

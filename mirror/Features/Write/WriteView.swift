@@ -506,7 +506,7 @@ struct WriteView: View {
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
             #endif
             #if DEBUG && os(macOS)
-            if MacSnapshot.isRequested, entry == nil, viewModel.text.isEmpty {
+            if MacSnapshot.isRequested, entry == nil, viewModel.text.isEmpty, initialText.isEmpty {
                 // Snapshot mode only: the board's sample entry, so the screen can be compared.
                 viewModel.text = "Slow morning. I made coffee and sat on the balcony without my phone for the first hour, which I haven't done in weeks. The street was quiet except for a delivery van and someone watering plants two floors down.\nI keep circling back to the conversation from yesterday. I said I was fine with the new schedule, and I'm not sure that's true. Writing it here makes it easier to see: I'm tired more than I'm upset."
                 viewModel.selectedMood = "Drained"

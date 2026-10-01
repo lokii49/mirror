@@ -30,6 +30,10 @@ enum MacTokens {
     static let selectedRowBorder = MirrorTheme.hex(0x5B45B8, 0xB9A8F0)
     static let selectedRowInk = MirrorTheme.hex(0xC9BEF2, 0x5B45B8)
 
+    /// The quoted sentence of a reflection, and the active state of a toolbar toggle.
+    static let quoteHighlight = MirrorTheme.hex(0x2F2560, 0xEAE2FF)
+    static let toggleActiveFill = MirrorTheme.hex(0x2F2560, 0xE3DBF7)
+
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
 }

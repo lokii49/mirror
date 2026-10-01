@@ -151,9 +151,58 @@ enum MacSnapshot {
         NSLog("MacSnapshot: delete check %d -> %d", beforeCount, afterCount)
         capture(mainWindow(), name: "3c-after-delete")
 
+        // Today with whatever state the data so far produces (no reflection seeded yet).
+        go("today")
+        try? await Task.sleep(for: .seconds(3))
+        capture(mainWindow(), name: "4a-insights-unseeded")
+
+        // Today: a loaded reflection, past reflections, and the inspector.
+        SampleData.seedTodayReflection(into: context)
+        SampleData.seedPastNudges(into: context)
+        // A grounded reflection (synthetic text) in the shape the Gemma path saves, with the entry it quotes.
+        let todayID = DateHelpers.dayIdentifier(for: Date())
+        for stale in ((try? context.fetch(FetchDescriptor<Insight>())) ?? []) where stale.type == .dailyNudge && stale.periodIdentifier == todayID {
+            context.delete(stale)
+        }
+        let quoted = Entry(text: "Slow day. Nothing went wrong and I still feel flat. I'm tired more than I'm upset.", mood: "Drained", source: .typed)
+        quoted.createdAt = Date().addingTimeInterval(-86_400)
+        quoted.weekIdentifier = DateHelpers.weekIdentifier(for: quoted.createdAt)
+        context.insert(quoted)
+        context.insert(Insight(
+            type: .dailyNudge,
+            content: "You wrote, \"I'm tired more than I'm upset.\" That sounds like a day that asked a lot of you.",
+            periodIdentifier: todayID,
+            generatedByEngine: .gemma
+        ))
+        try? context.save()
         go("today")
         try? await Task.sleep(for: .seconds(3))
         capture(mainWindow(), name: "4-insights")
+        NotificationCenter.default.post(name: .mirrorMacDebugToggleInspector, object: nil, userInfo: ["open": true])
+        try? await Task.sleep(for: .seconds(1.5))
+        capture(mainWindow(), name: "4b-inspector")
+        mainWindow()?.setContentSize(NSSize(width: 980, height: 700))
+        try? await Task.sleep(for: .seconds(1.5))
+        capture(mainWindow(), name: "4c-inspector-narrow")
+        mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
+        // Inspector "Open" → Entries with that entry selected in the reader.
+        NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": quoted.id])
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "4d-open-from-inspector")
+        // Follow-up chip → Write with the question already in the entry.
+        NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": "Can you say more about \u{201C}Nothing went wrong and I still feel flat\u{201D}?\n"])
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "4e-chip-write")
+        // Go > Log Mood… presents the check-in sheet.
+        MoodCheckInPresenter.shared.pending = true
+        try? await Task.sleep(for: .seconds(2))
+        NSLog("MacSnapshot: mood sheet presented = %@", mainWindow()?.attachedSheet != nil ? "yes" : "no")
+        capture(mainWindow()?.attachedSheet ?? mainWindow(), name: "4f-log-mood")
+        if let sheet = mainWindow()?.attachedSheet { mainWindow()?.endSheet(sheet) }
+        try? await Task.sleep(for: .seconds(1))
+        go("today")
+        NotificationCenter.default.post(name: .mirrorMacDebugToggleInspector, object: nil, userInfo: ["open": false])
+        try? await Task.sleep(for: .seconds(1))
 
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         try? await Task.sleep(for: .seconds(2))
@@ -165,6 +214,7 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    static let mirrorMacDebugToggleInspector = Notification.Name("mirror.mac.debug.toggleInspector")
     static let mirrorMacDebugConfirmDelete = Notification.Name("mirror.mac.debug.confirmDelete")
     static let mirrorMacDebugOpenFormatPanel = Notification.Name("mirror.mac.debug.openFormatPanel")
     static let mirrorMacDebugOpenEditor = Notification.Name("mirror.mac.debug.openEditor")
