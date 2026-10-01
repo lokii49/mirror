@@ -20,8 +20,22 @@ enum MacSnapshot {
         return FileManager.default.temporaryDirectory.appendingPathComponent("mirror-mac-snapshots", isDirectory: true)
     }
 
+    /// Re-applied before every capture: the app refreshes the plan and appearance on its own.
+    @MainActor
+    static func applyOverrides() {
+        if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--macSnapshotTier=") }),
+           let tier = SubscriptionTier(rawValue: String(arg.dropFirst("--macSnapshotTier=".count))) {
+            SubscriptionService.shared.debugSetTier(tier)
+        }
+        if CommandLine.arguments.contains("--macSnapshotDark") {
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
     @MainActor
     static func capture(_ window: NSWindow?, name: String) {
+        applyOverrides()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window?.displayIfNeeded()
@@ -69,6 +83,9 @@ enum MacSnapshot {
         SampleData.seed(into: context)
         try? context.save()
 
+        applyOverrides()
+        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
+
         func mainWindow() -> NSWindow? {
             NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && $0.title != "" } ?? NSApp.windows.first { $0.isVisible }
         }
@@ -81,6 +98,13 @@ enum MacSnapshot {
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
         capture(mainWindow(), name: "1-write")
+        if CommandLine.arguments.contains("--macSnapshotPanel") {
+            NotificationCenter.default.post(name: .mirrorMacDebugOpenFormatPanel, object: nil)
+            try? await Task.sleep(for: .seconds(1.5))
+            for (index, window) in NSApp.windows.filter({ $0.isVisible && $0 !== mainWindow() }).enumerated() {
+                capture(window, name: "1b-panel-\(index)")
+            }
+        }
 
         go("entries")
         try? await Task.sleep(for: .seconds(2))
@@ -108,6 +132,7 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    static let mirrorMacDebugOpenFormatPanel = Notification.Name("mirror.mac.debug.openFormatPanel")
     static let mirrorMacDebugOpenEditor = Notification.Name("mirror.mac.debug.openEditor")
     static let mirrorMacDebugSelectFirstEntry = Notification.Name("mirror.mac.debug.selectFirstEntry")
 }
@@ -264,6 +289,63 @@ enum MacEditorSelfTest {
             check("indent preserved", NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels == [0, 0, 0, 1, 0], "\(String(describing: NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels))")
             check("inline preserved", ranges(box.inline).map { [$0.location, $0.length] } == [[6, 4]] && ranges(box.inline).first?.highlightIndex == 1, "\(ranges(box.inline))")
             _ = c
+        }
+
+        func doc(_ styles: [NoteParagraphTextStyle], indents: [Int]? = nil) -> Data? {
+            try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles, indentLevels: indents, fontChoices: Array(repeating: "system", count: styles.count)))
+        }
+
+        // 9. Return on an empty list item leaves the list.
+        do {
+            let box = Box(text: "one\n", style: doc([.bulletedList, .bulletedList]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            check("return on empty item keeps text", box.text == "one\n", box.text.debugDescription)
+            check("return on empty item exits the list", styles(box.style) == ["bulletedList"], "\(styles(box.style))")
+        }
+
+        // 10. Backspace at the start of a list item removes the list style first.
+        do {
+            let box = Box(text: "a\nb", style: doc([.bulletedList, .bulletedList]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            tv.doCommand(by: #selector(NSResponder.deleteBackward(_:)))
+            check("backspace keeps text", box.text == "a\nb", box.text)
+            check("backspace turns the item into body", styles(box.style) == ["bulletedList", "body"], "\(styles(box.style))")
+        }
+
+        // 11. Tab and Shift-Tab change a list item's level.
+        do {
+            let box = Box(text: "a\nb", style: doc([.bulletedList, .bulletedList]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 3, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertTab(_:)))
+            check("tab indents", NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels == [0, 1], "\(String(describing: NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels))")
+            tv.doCommand(by: #selector(NSResponder.insertBacktab(_:)))
+            check("shift-tab outdents", NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels == nil, "\(String(describing: NoteEditorCodec.decodeTextStyleDocument(box.style)?.indentLevels))")
+        }
+
+        // 12. Checklist commands.
+        do {
+            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            c.apply(.checkAllItems, to: tv)
+            check("check all", styles(box.style) == ["checklistChecked", "checklistChecked", "checklistChecked"], "\(styles(box.style))")
+            c.apply(.uncheckAllItems, to: tv)
+            check("uncheck all", styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistUnchecked"], "\(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            c.apply(.deleteCheckedItems, to: tv)
+            check("delete checked removes the row", box.text == "a\nc" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked"], "\(box.text.debugDescription) \(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "x\ny\nz", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            c.apply(.sortCheckedToBottom, to: tv)
+            check("sort checked to bottom", box.text == "y\nz\nx" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistChecked"], "\(box.text.debugDescription) \(styles(box.style))")
         }
 
         // 8. Pasting is plain text.

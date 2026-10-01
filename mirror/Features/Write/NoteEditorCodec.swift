@@ -201,6 +201,11 @@ enum NoteEditorCodec {
                 models.append(paragraphModel(at: start, in: attributed))
             }
         }
+        return encodeTextStyleData(models: models, entryFont: entryFont)
+    }
+
+    /// The stored document for these paragraphs; nil when nothing is non-default (the iOS rule).
+    static func encodeTextStyleData(models: [ParagraphModel], entryFont: WritingFontChoice) -> Data? {
         guard !models.isEmpty else { return nil }
 
         let hasIndent = models.contains { $0.indent > 0 }

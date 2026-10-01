@@ -207,10 +207,51 @@ struct MacWindowConfigurator: NSViewRepresentable {
         // The scene uses the hidden title bar style, so the content runs under the traffic lights.
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        positionTrafficLights(in: window)
+        observeResizes(of: window)
         window.backgroundColor = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor(srgbRed: 8 / 255, green: 6 / 255, blue: 15 / 255, alpha: 1)
                 : NSColor(srgbRed: 242 / 255, green: 238 / 255, blue: 248 / 255, alpha: 1)
+        }
+    }
+}
+
+extension MacWindowConfigurator {
+    private static var observedWindows = Set<ObjectIdentifier>()
+
+    /// AppKit moves the buttons back on resize and full screen; put them where the design has them.
+    fileprivate static func observeResizes(of window: NSWindow) {
+        guard observedWindows.insert(ObjectIdentifier(window)).inserted else { return }
+        let names: [Notification.Name] = [NSWindow.didResizeNotification, NSWindow.didEndLiveResizeNotification,
+                                          NSWindow.didEnterFullScreenNotification, NSWindow.didExitFullScreenNotification,
+                                          NSWindow.didBecomeKeyNotification]
+        for name in names {
+            NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak window] _ in
+                if let window { positionTrafficLights(in: window) }
+            }
+        }
+    }
+
+    /// The board centers the traffic lights on the sidebar's 52 pt top row, 16 pt from the left.
+    fileprivate static func positionTrafficLights(in window: NSWindow) {
+        guard let close = window.standardWindowButton(.closeButton),
+              let mini = window.standardWindowButton(.miniaturizeButton),
+              let zoom = window.standardWindowButton(.zoomButton),
+              let container = close.superview else { return }
+        let spacing = mini.frame.minX - close.frame.minX
+        // The container is 28 pt tall and anchored to the window top; AppKit measures y from its
+        // bottom, so a lower button needs a taller container.
+        if container.frame.height < MacTokens.chromeHeight {
+            var frame = container.frame
+            let grow = MacTokens.chromeHeight - frame.height
+            frame.size.height += grow
+            frame.origin.y -= grow
+            container.frame = frame
+        }
+        let y = (container.frame.height - close.frame.height) / 2
+        for (index, button) in [close, mini, zoom].enumerated() {
+            button.setFrameOrigin(NSPoint(x: 16 + CGFloat(index) * spacing, y: y))
         }
     }
 }

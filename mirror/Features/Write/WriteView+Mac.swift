@@ -63,7 +63,7 @@ extension WriteView {
                 .accessibilityLabel("Text formatting")
                 .popover(isPresented: $showFormattingPanel, arrowEdge: .bottom) {
                     FormattingPanelView(state: panelState, presentation: .popover)
-                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
+                        .frame(width: 600, height: 350)
                         .environment(\.appDisplayMode, displayMode)
                 }
             }

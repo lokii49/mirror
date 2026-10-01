@@ -560,6 +560,173 @@ struct NoteEditorTextView: NSViewRepresentable {
             textView.typingAttributes = attrs
         }
 
+        // MARK: List behaviors
+
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard textView.selectedRange().length == 0 else { return false }
+            switch commandSelector {
+            case #selector(NSResponder.insertNewline(_:)):
+                return exitEmptyListItem(in: textView)
+            case #selector(NSResponder.deleteBackward(_:)):
+                return leaveListAtParagraphStart(in: textView)
+            case #selector(NSResponder.insertTab(_:)):
+                return changeIndent(by: +1, in: textView)
+            case #selector(NSResponder.insertBacktab(_:)):
+                return changeIndent(by: -1, in: textView)
+            default:
+                return false
+            }
+        }
+
+        /// The caret's paragraph: its range, its model and whether it is the empty one after a final newline.
+        private func caretParagraph(in textView: NSTextView) -> (range: NSRange, model: NoteEditorCodec.ParagraphModel, isTrailing: Bool)? {
+            guard let storage = textView.textStorage else { return nil }
+            let text = storage.string as NSString
+            let caret = textView.selectedRange().location
+            if caret >= text.length, text.length == 0 || text.character(at: text.length - 1) == 10 {
+                return (NSRange(location: text.length, length: 0), trailing, true)
+            }
+            let range = text.paragraphRange(for: NSRange(location: min(caret, text.length), length: 0))
+            return (range, NoteEditorCodec.paragraphModel(at: range.location, in: storage), false)
+        }
+
+        private func setModel(_ model: NoteEditorCodec.ParagraphModel, forParagraph range: NSRange, isTrailing: Bool, in textView: NSTextView) {
+            if isTrailing {
+                trailing = model
+                layout?.trailingModel = model
+                refreshTypingAttributes(in: textView)
+                if let storage = textView.textStorage { emit(storage: storage, textView: textView) }
+                return
+            }
+            mutate(textView, range: range) { storage in
+                storage.removeAttribute(NoteEditorCodec.paragraphStyleKey, range: range)
+                storage.removeAttribute(NoteEditorCodec.indentLevelKey, range: range)
+                storage.addAttributes(model.attributes.filter { $0.key != NoteEditorCodec.fontChoiceKey }, range: range)
+            }
+            refreshTypingAttributes(in: textView)
+        }
+
+        /// Return on an empty list item leaves the list instead of adding another empty item.
+        private func exitEmptyListItem(in textView: NSTextView) -> Bool {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), NoteEditorCodec.isListStyle(model.style) else { return false }
+            let text = textView.string as NSString
+            let isEmpty = isTrailing || range.length == 0 || (range.length == 1 && text.character(at: range.location) == 10)
+            guard isEmpty else { return false }
+            var plain = model
+            plain.style = .body
+            plain.indent = 0
+            setModel(plain, forParagraph: range, isTrailing: isTrailing, in: textView)
+            return true
+        }
+
+        /// Backspace at the start of a list item turns it into a plain paragraph first.
+        private func leaveListAtParagraphStart(in textView: NSTextView) -> Bool {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), NoteEditorCodec.isListStyle(model.style) else { return false }
+            guard textView.selectedRange().location == range.location else { return false }
+            var plain = model
+            plain.style = .body
+            plain.indent = 0
+            setModel(plain, forParagraph: range, isTrailing: isTrailing, in: textView)
+            return true
+        }
+
+        /// Tab and Shift-Tab indent and outdent a list item (levels 0 to 4, as on iOS).
+        private func changeIndent(by delta: Int, in textView: NSTextView) -> Bool {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), NoteEditorCodec.isListStyle(model.style) else { return false }
+            let level = max(0, min(4, model.indent + delta))
+            guard level != model.indent else { return true }
+            var next = model
+            next.indent = level
+            setModel(next, forParagraph: range, isTrailing: isTrailing, in: textView)
+            return true
+        }
+
+        // MARK: Checklist commands (whole document, like the iOS editor)
+
+        /// Every paragraph as text plus model, trailing empty paragraph included.
+        private func paragraphRows(in textView: NSTextView) -> [(text: String, model: NoteEditorCodec.ParagraphModel)]? {
+            guard let storage = textView.textStorage else { return nil }
+            let text = storage.string as NSString
+            let starts = NoteEditorCodec.paragraphStarts(in: text)
+            var rows: [(String, NoteEditorCodec.ParagraphModel)] = []
+            for (index, start) in starts.enumerated() {
+                let end = index + 1 < starts.count ? starts[index + 1] - 1 : text.length
+                let content = text.substring(with: NSRange(location: start, length: max(0, end - start)))
+                let model = start >= text.length ? trailing : NoteEditorCodec.paragraphModel(at: start, in: storage)
+                rows.append((content, model))
+            }
+            return rows
+        }
+
+        /// Replaces the document with `rows`. Inline ranges are dropped because paragraph positions
+        /// moved (the iOS editor does the same).
+        private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], in textView: MirrorNSTextView) {
+            guard !rows.isEmpty else { return }
+            parent.text = rows.map(\.text).joined(separator: "\n")
+            // The stored document lists the empty last paragraph only when it is a list item.
+            var models = rows.map(\.model)
+            if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
+            parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
+            parent.inlineStyleData = nil
+            load(into: textView)
+            publishActiveState(in: textView)
+        }
+
+        private func setAllChecklistItems(checked: Bool, in textView: MirrorNSTextView) {
+            guard var rows = paragraphRows(in: textView) else { return }
+            var changed = false
+            for index in rows.indices {
+                let style = rows[index].model.style
+                guard style == .checklistChecked || style == .checklistUnchecked else { continue }
+                let target: NoteParagraphTextStyle = checked ? .checklistChecked : .checklistUnchecked
+                if style != target { rows[index].model.style = target; changed = true }
+            }
+            guard changed else { return }
+            let selection = textView.selectedRange()
+            applyRowsKeepingInline(rows, in: textView)
+            textView.setSelectedRange(clamped(selection, in: textView))
+        }
+
+        /// Style-only changes keep the text and the inline ranges.
+        private func applyRowsKeepingInline(_ rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], in textView: MirrorNSTextView) {
+            var models = rows.map(\.model)
+            if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
+            parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
+            load(into: textView)
+            publishActiveState(in: textView)
+        }
+
+        private func deleteCheckedItems(in textView: MirrorNSTextView) {
+            guard let rows = paragraphRows(in: textView) else { return }
+            let kept = rows.filter { $0.model.style != .checklistChecked }
+            guard kept.count < rows.count, !kept.isEmpty else {
+                if kept.isEmpty, !rows.isEmpty { replaceDocument(with: [("", NoteEditorCodec.ParagraphModel())], in: textView) }
+                return
+            }
+            replaceDocument(with: kept, in: textView)
+        }
+
+        /// Within each run of checklist items, unchecked ones come first (stable).
+        private func sortCheckedToBottom(in textView: MirrorNSTextView) {
+            guard var rows = paragraphRows(in: textView) else { return }
+            func isChecklist(_ style: NoteParagraphTextStyle) -> Bool { style == .checklistChecked || style == .checklistUnchecked }
+            var changed = false
+            var i = 0
+            while i < rows.count {
+                guard isChecklist(rows[i].model.style) else { i += 1; continue }
+                var j = i
+                while j < rows.count, isChecklist(rows[j].model.style) { j += 1 }
+                let block = Array(rows[i..<j])
+                let sorted = block.filter { $0.model.style != .checklistChecked } + block.filter { $0.model.style == .checklistChecked }
+                if sorted.map(\.model.style) != block.map(\.model.style) {
+                    changed = true
+                    rows.replaceSubrange(i..<j, with: sorted)
+                }
+                i = j
+            }
+            if changed { replaceDocument(with: rows, in: textView) }
+        }
+
         // MARK: Commands
 
         /// Runs a change as one undoable edit and restyles what it touched.
@@ -601,8 +768,14 @@ struct NoteEditorTextView: NSViewRepresentable {
             case .moveCursor(let location):
                 textView.setSelectedRange(clamped(NSRange(location: location, length: 0), in: textView))
                 refreshTypingAttributes(in: textView)
-            case .indentMore, .indentLess, .checkAllItems, .uncheckAllItems, .deleteCheckedItems, .sortCheckedToBottom, .photo:
-                break  // later steps / not on Mac yet
+            case .indentMore: _ = changeIndent(by: +1, in: textView)
+            case .indentLess: _ = changeIndent(by: -1, in: textView)
+            case .checkAllItems: setAllChecklistItems(checked: true, in: textView)
+            case .uncheckAllItems: setAllChecklistItems(checked: false, in: textView)
+            case .deleteCheckedItems: deleteCheckedItems(in: textView)
+            case .sortCheckedToBottom: sortCheckedToBottom(in: textView)
+            case .photo:
+                break  // photos are attached under the editor on Mac
             }
         }
 

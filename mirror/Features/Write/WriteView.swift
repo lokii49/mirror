@@ -459,6 +459,9 @@ struct WriteView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenFormatPanel)) { _ in showFormattingPanel = true }
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacPasteImage)) { note in
             if let data = note.userInfo?["data"] as? Data { macAttachPhoto(data: data) }
         }
