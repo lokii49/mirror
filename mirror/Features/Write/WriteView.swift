@@ -45,6 +45,19 @@ struct WriteView: View {
         #endif
     }
 
+    /// The text the editor shows and edits. On Mac the photo tokens at the end of the stored text
+    /// are kept out of the editor (the photos show as thumbnails under it) and put back on save.
+    var editorTextBinding: Binding<String> {
+        #if os(macOS)
+        Binding(
+            get: { NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body },
+            set: { viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: $0, count: photoDataArray.count) }
+        )
+        #else
+        $viewModel.text
+        #endif
+    }
+
     var usesPopoverPanel: Bool {
         #if os(iOS)
         UIDevice.current.userInterfaceIdiom == .pad
@@ -287,7 +300,7 @@ struct WriteView: View {
                         }
 
                         NoteEditorTextView(
-                            text: $viewModel.text,
+                            text: editorTextBinding,
                             textStyleData: $viewModel.textStyleData,
                             inlineStyleData: $inlineStyleData,
                             photoDataArray: $photoDataArray,
@@ -313,6 +326,7 @@ struct WriteView: View {
 
                         #if os(macOS)
                         macChipsRow
+                        macPhotosRow
                         #endif
                     }
                     #if os(macOS)
@@ -445,6 +459,9 @@ struct WriteView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacPasteImage)) { note in
+            if let data = note.userInfo?["data"] as? Data { macAttachPhoto(data: data) }
+        }
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -492,6 +509,15 @@ struct WriteView: View {
                 viewModel.selectedMood = "Drained"
                 moodWasSuggested = true
                 entryTags = ["morning", "work"]
+                let size = NSSize(width: 480, height: 340)
+                let sample = NSImage(size: size, flipped: false) { rect in
+                    NSGradient(colors: [NSColor(srgbRed: 0.42, green: 0.55, blue: 0.78, alpha: 1), NSColor(srgbRed: 0.93, green: 0.78, blue: 0.62, alpha: 1)])?.draw(in: rect, angle: 60)
+                    return true
+                }
+                if let tiff = sample.tiffRepresentation, let jpeg = NSBitmapImageRep(data: tiff)?.representation(using: .jpeg, properties: [:]) {
+                    photoDataArray = [jpeg]
+                    viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: viewModel.text, count: 1)
+                }
             }
             #endif
             if entry == nil {

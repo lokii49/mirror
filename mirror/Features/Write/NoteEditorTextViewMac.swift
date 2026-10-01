@@ -253,7 +253,15 @@ final class MirrorNSTextView: NSTextView {
 
     /// Anything pasted is plain text: rich pasteboard content would bring fonts, colors and
     /// attachments that bypass the model attributes and would never survive a save.
-    override func paste(_ sender: Any?) { pasteAsPlainText(sender) }
+    override func paste(_ sender: Any?) {
+        let pasteboard = NSPasteboard.general
+        if pasteboard.string(forType: .string) == nil,
+           let image = NSImage(pasteboard: pasteboard), let data = image.tiffRepresentation {
+            NotificationCenter.default.post(name: .mirrorMacPasteImage, object: nil, userInfo: ["data": data])
+            return
+        }
+        pasteAsPlainText(sender)
+    }
 
     override func mouseDown(with event: NSEvent) {
         if let layout = layoutManager as? MirrorLayoutManager {

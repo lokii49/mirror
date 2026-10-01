@@ -285,16 +285,59 @@ enum NoteEditorCodec {
 
     // MARK: - Safety gate
 
-    /// True when an entry can be edited by the Mac editor without changing what iPhone and iPad
-    /// read back. The Mac editor never edits photos, and legacy entries (no style document,
-    /// block style inferred from a "# ", "○ ", "✓ " or 4-space prefix) are converted by the iOS
-    /// editor only. The round trip check proves the stored documents survive load → save
-    /// unchanged; anything it cannot prove stays read-only on Mac.
-    static func canEditOnMac(text: String, textStyleData: Data?, inlineStyleData: Data?, entryFont: WritingFontChoice, hasPhotos: Bool) -> Bool {
-        if hasPhotos || !allPhotoTokens(in: text).isEmpty { return false }
-        if textStyleData == nil, hasLegacyPrefix(text) { return false }
+    // MARK: - Photos at the end of the text
 
-        let rendered = render(text: text, textStyleData: textStyleData, inlineStyleData: inlineStyleData, entryFont: entryFont)
+    /// A photo is stored as a `[[mirror-photo-N]]` token line inside the text. The Mac editor does
+    /// not draw photos inline; it supports photos only when every token sits at the very end of
+    /// the text (what attaching a photo produces), shows them as thumbnails under the editor, and
+    /// keeps the tokens out of the editable text.
+    static func splitTrailingPhotoTokens(_ text: String) -> (body: String, count: Int) {
+        var rest = text
+        while rest.hasSuffix("\n") { rest.removeLast() }
+        var count = 0
+        let pattern = #"\[\[mirror-photo(?:-\d+)?\]\]$"#
+        while let range = rest.range(of: pattern, options: .regularExpression) {
+            rest.removeSubrange(range.lowerBound..<rest.endIndex)
+            count += 1
+            if rest.hasSuffix("\n") { rest.removeLast() }
+        }
+        // No photo tokens: the text is untouched (its trailing newlines are content).
+        return count == 0 ? (text, 0) : (rest, count)
+    }
+
+    /// The inverse of `splitTrailingPhotoTokens`: the body with one token line per photo.
+    static func appendingPhotoTokens(to body: String, count: Int) -> String {
+        var text = body
+        for index in 0..<max(0, count) {
+            let token = inlinePhotoToken(at: index)
+            if text.isEmpty {
+                text = token
+            } else {
+                var trimmed = text
+                if index > 0 { while trimmed.hasSuffix("\n") { trimmed.removeLast() } }
+                text = trimmed + "\n" + token + "\n"
+            }
+        }
+        return text
+    }
+
+    // MARK: - Safety gate
+
+    /// True when an entry can be edited by the Mac editor without changing what iPhone and iPad
+    /// read back. Photos are allowed only when their tokens are all at the end of the text and
+    /// match the stored photos one to one; legacy entries (no style document, block style inferred
+    /// from a "# ", "○ ", "✓ " or 4-space prefix) are converted by the iOS editor only. The round
+    /// trip check proves the stored documents survive load → save unchanged; anything it cannot
+    /// prove stays read-only on Mac.
+    static func canEditOnMac(text: String, textStyleData: Data?, inlineStyleData: Data?, entryFont: WritingFontChoice, photoCount: Int) -> Bool {
+        let (body, tokenCount) = splitTrailingPhotoTokens(text)
+        guard tokenCount == photoCount,
+              allPhotoTokens(in: body).isEmpty,
+              appendingPhotoTokens(to: body, count: tokenCount) == text
+        else { return false }
+        if textStyleData == nil, hasLegacyPrefix(body) { return false }
+
+        let rendered = render(text: body, textStyleData: textStyleData, inlineStyleData: inlineStyleData, entryFont: entryFont)
         let styles = extractTextStyleData(from: rendered.attributed, trailing: rendered.trailing, entryFont: entryFont)
         let inline = extractInlineStyleData(from: rendered.attributed)
         return normalizedParagraphs(styles, entryFont: entryFont) == normalizedParagraphs(textStyleData, entryFont: entryFont)

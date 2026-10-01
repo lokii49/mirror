@@ -254,7 +254,7 @@ struct EntryDetailView: View {
         NoteEditorCodec.canEditOnMac(
             text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData,
             entryFont: WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .system,
-            hasPhotos: entry.hasPhoto || !entry.photoDataArray.isEmpty
+            photoCount: entry.photoDataArray.count
         )
     }
     #endif

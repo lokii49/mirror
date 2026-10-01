@@ -12,6 +12,8 @@ extension Notification.Name {
     /// Start a fresh entry (Write destination, new editor).
     static let mirrorMacNewEntry = Notification.Name("mirror.mac.newEntry")
     static let mirrorMacToggleSidebar = Notification.Name("mirror.mac.toggleSidebar")
+    /// userInfo["data"]: image data pasted into the editor.
+    static let mirrorMacPasteImage = Notification.Name("mirror.mac.pasteImage")
 }
 
 struct MirrorMacCommands: Commands {

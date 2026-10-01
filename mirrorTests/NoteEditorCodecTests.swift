@@ -176,26 +176,47 @@ struct NoteEditorCodecTests {
         for fixture in fixtures {
             #expect(
                 NoteEditorCodec.canEditOnMac(text: fixture.text, textStyleData: styleData(fixture),
-                                             inlineStyleData: inlineData(fixture), entryFont: fixture.entryFont, hasPhotos: false),
+                                             inlineStyleData: inlineData(fixture), entryFont: fixture.entryFont, photoCount: 0),
                 "round trip changed: \(fixture.name)"
             )
         }
     }
 
-    @Test func photoEntriesAndLegacyPrefixesStayReadOnlyOnMac() {
-        #expect(!NoteEditorCodec.canEditOnMac(text: "a [[mirror-photo-0]] b", textStyleData: nil, inlineStyleData: nil,
-                                              entryFont: .system, hasPhotos: false))
-        #expect(!NoteEditorCodec.canEditOnMac(text: "plain", textStyleData: nil, inlineStyleData: nil,
-                                              entryFont: .system, hasPhotos: true))
+    @Test func photosAtTheEndAreEditableAndOtherPhotoCasesAreNot() {
+        // What attaching photos produces: tokens at the end.
+        let two = "Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n"
+        #expect(NoteEditorCodec.canEditOnMac(text: two, textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 2))
+        #expect(NoteEditorCodec.canEditOnMac(text: "[[mirror-photo-0]]", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        // A photo in the middle of the text: iOS placed it inline, the Mac editor cannot.
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        // Photos stored without a matching token, or tokens without photos.
+        #expect(!NoteEditorCodec.canEditOnMac(text: "plain", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\n", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 0))
+    }
+
+    @Test func trailingPhotoTokensSplitAndRebuild() {
+        for text in ["Some words\n[[mirror-photo-0]]\n", "Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n", "[[mirror-photo-0]]", "no photos here"] {
+            let (body, count) = NoteEditorCodec.splitTrailingPhotoTokens(text)
+            #expect(NoteEditorCodec.appendingPhotoTokens(to: body, count: count) == text, "round trip of \(text.debugDescription)")
+            #expect(allPhotoTokens(in: body).isEmpty)
+        }
+        let (body, count) = NoteEditorCodec.splitTrailingPhotoTokens("Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n")
+        #expect(body == "Some words" && count == 2)
+        // A newline typed at the end of the body survives the round trip.
+        let typed = NoteEditorCodec.appendingPhotoTokens(to: "Some words\n", count: 1)
+        #expect(NoteEditorCodec.splitTrailingPhotoTokens(typed).body == "Some words\n")
+    }
+
+    @Test func legacyPrefixesStayReadOnlyOnMac() {
         #expect(!NoteEditorCodec.canEditOnMac(text: "# Old heading\nbody", textStyleData: nil, inlineStyleData: nil,
-                                              entryFont: .system, hasPhotos: false))
+                                              entryFont: .system, photoCount: 0))
         #expect(!NoteEditorCodec.canEditOnMac(text: "○ old todo", textStyleData: nil, inlineStyleData: nil,
-                                              entryFont: .system, hasPhotos: false))
+                                              entryFont: .system, photoCount: 0))
         // With a style document the prefix is literal text typed by the user, not a marker.
         let doc = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.body, .heading], indentLevels: nil,
                                                                    fontChoices: ["system", "system"]))
         #expect(NoteEditorCodec.canEditOnMac(text: "# hash\ntitle", textStyleData: doc, inlineStyleData: nil,
-                                             entryFont: .system, hasPhotos: false))
+                                             entryFont: .system, photoCount: 0))
     }
 
     @Test func plainEntriesProduceNoDocuments() {

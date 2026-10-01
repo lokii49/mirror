@@ -1,6 +1,8 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
+import ImageIO
 
 // The Mac Write screen's chrome, built to the approved design: a 52 pt toolbar, a 680 pt
 // editor column with the date line above and mood/tag chips below, and a status bar. The
@@ -88,7 +90,7 @@ extension WriteView {
                 showTagInput = true
             }
             macIconButton("image", label: "Add photo") {
-                showPhotoPicker = true
+                macChoosePhoto()
             }
             macIconButton("mic", label: "Record voice note") {
                 toggleInlineRecording()
@@ -238,6 +240,65 @@ extension WriteView {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Photos
+
+    /// Thumbnails of the attached photos and the drop zone, under the chips.
+    var macPhotosRow: some View {
+        HStack(spacing: 12) {
+            ForEach(photoDataArray.indices, id: \.self) { index in
+                MacPhotoTile(
+                    data: photoDataArray[index],
+                    onOpen: { fullscreenPhotoIndex = index },
+                    onRemove: { macRemovePhoto(at: index) }
+                )
+            }
+            MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Opens a file chooser and attaches the chosen image, the same way the iOS picker does.
+    func macChoosePhoto() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension(url.pathExtension.isEmpty ? "image" : url.pathExtension)
+            try FileManager.default.copyItem(at: url, to: tempURL)
+            handlePickedPhoto(.success(tempURL))
+        } catch {
+            handlePickedPhoto(.failure(error))
+        }
+    }
+
+    /// Attaches image data that arrived by drop or paste.
+    func macAttachPhoto(data: Data) {
+        isAttachingPhoto = true
+        Task {
+            let prepared = await Task.detached(priority: .userInitiated) { preparedInlinePhotoData(from: data) }.value
+            let index = photoDataArray.count
+            photoDataArray.append(prepared)
+            viewModel.text = textWithInlinePhotoToken(viewModel.text, at: index)
+            isAttachingPhoto = false
+        }
+    }
+
+    func macRemovePhoto(at index: Int) {
+        guard photoDataArray.indices.contains(index) else { return }
+        let body = NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body
+        photoDataArray.remove(at: index)
+        viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, count: photoDataArray.count)
+        if entry == nil { saveDraftToStorage() }
+    }
+
     // MARK: - Status bar
 
     var macStatusBar: some View {
@@ -296,6 +357,104 @@ struct MacEditorColumn: ViewModifier {
         content
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// One attached photo: a 132 x 92 thumbnail, opened on click, removable from its menu or the
+/// hover button.
+struct MacPhotoTile: View {
+    let data: Data
+    let onOpen: () -> Void
+    let onRemove: () -> Void
+    @State private var image: NSImage?
+    @State private var hovering = false
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else {
+                    MacTokens.surface
+                }
+            }
+            .frame(width: 132, height: 92)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
+
+            if hovering {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.black.opacity(0.55), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(5)
+                .accessibilityLabel("Remove photo")
+            }
+        }
+        .onHover { hovering = $0 }
+        .contextMenu { Button("Remove photo", role: .destructive, action: onRemove) }
+        .task(id: data.count) { image = Self.thumbnail(from: data) }
+        .accessibilityLabel("Photo")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private static func thumbnail(from data: Data) -> NSImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 320,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return NSImage(cgImage: cg, size: .zero)
+    }
+}
+
+/// "Drop a photo or paste one": a dashed tile that also opens the file chooser on click.
+struct MacPhotoDropZone: View {
+    let onChoose: () -> Void
+    let onData: (Data) -> Void
+    @State private var targeted = false
+
+    var body: some View {
+        Button(action: onChoose) {
+            Text("Drop a photo\nor paste one")
+                .font(.system(size: 11.5))
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+                .foregroundStyle(MacTokens.secondaryInk)
+                .frame(width: 132, height: 92)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(targeted ? MacTokens.accent : MacTokens.controlBorder,
+                                      style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onDrop(of: [.image, .fileURL], isTargeted: $targeted) { providers in
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                    provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                        if let data { DispatchQueue.main.async { onData(data) } }
+                    }
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        if let url, let data = try? Data(contentsOf: url), NSImage(data: data) != nil {
+                            DispatchQueue.main.async { onData(data) }
+                        }
+                    }
+                }
+            }
+            return true
+        }
+        .accessibilityLabel("Add a photo")
     }
 }
 #endif
