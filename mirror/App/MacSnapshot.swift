@@ -74,11 +74,11 @@ enum MacSnapshot {
         for menu in NSApp.mainMenu?.items ?? [] { menu.submenu?.delegate?.menuNeedsUpdate?(menu.submenu!) }
         guard let menus = NSApp.mainMenu?.items else { return }
         NSLog("MacSnapshot: menu bar = %@", menus.map(\.title).joined(separator: " | "))
-        for menu in menus where ["File", "Go"].contains(menu.title) {
+        for menu in menus where ["File", "Format", "Go"].contains(menu.title) {
             for item in menu.submenu?.items ?? [] {
                 let mods = item.keyEquivalentModifierMask
                 let keys = (mods.contains(.control) ? "⌃" : "") + (mods.contains(.option) ? "⌥" : "") + (mods.contains(.shift) ? "⇧" : "") + (mods.contains(.command) ? "⌘" : "") + (item.keyEquivalent == "\r" ? "↩" : item.keyEquivalent)
-                NSLog("MacSnapshot: [%@] %@ > %@ %@ %@", label, menu.title, item.isSeparatorItem ? "—" : item.title, item.isSeparatorItem ? "" : keys, item.isEnabled ? "" : "(disabled)")
+                NSLog("MacSnapshot: [%@] %@ > %@ %@ %@%@", label, menu.title, item.isSeparatorItem ? "—" : item.title, item.isSeparatorItem ? "" : keys, item.isEnabled ? "" : "(disabled)", item.state == .on ? " ✓" : "")
             }
         }
     }
@@ -158,6 +158,67 @@ enum MacSnapshot {
         model.text = ""
         let blocked = model.save(in: context)
         NSLog("MacSnapshot: quick capture empty save blocked = %@", blocked ? "no" : "yes")
+    }
+
+    /// Mac-vs-iPhone parity checks, one section per surface, each reading real state.
+    @MainActor
+    static func parityPass(context: ModelContext, mainWindow: () -> NSWindow?, go: (String) -> Void) async {
+        mainWindow()?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        go("write")
+        try? await Task.sleep(for: .seconds(2))
+
+        // Write: the entry date sheet.
+        NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "openDate"])
+        try? await Task.sleep(for: .seconds(1.5))
+        let popover = NSApp.windows.first { $0.isVisible && $0.className.contains("Popover") }
+        NSLog("MacSnapshot: date popover presented = %@ size = %@", popover != nil ? "yes" : "no", NSStringFromSize(popover?.frame.size ?? .zero))
+        capture(popover ?? mainWindow(), name: "11-write-date-popover")
+
+        // Change the date the way the popover does and save; read the stored entry back.
+        let target = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
+        NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "setDate", "date": target])
+        try? await Task.sleep(for: .seconds(1))
+        capture(mainWindow(), name: "11b-write-date-changed")
+        NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "save"])
+        try? await Task.sleep(for: .seconds(2))
+        let all = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+        if let saved = all.first(where: { $0.text.hasPrefix("Slow morning. I made coffee") }) {
+            let sameDay = Calendar.current.isDate(saved.createdAt, inSameDayAs: target)
+            NSLog("MacSnapshot: saved entry on chosen day = %@, weekIdentifier matches = %@", sameDay ? "yes" : "no", saved.weekIdentifier == DateHelpers.weekIdentifier(for: target) ? "yes" : "no")
+        } else {
+            NSLog("MacSnapshot: saved entry not found")
+        }
+
+        // Entries: keyboard navigation with real key events.
+        go("entries")
+        try? await Task.sleep(for: .seconds(2))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        if let window = mainWindow() {
+            func key(_ code: UInt16, _ chars: String, to target: NSWindow? = nil) {
+                let w = target ?? window
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: w.windowNumber, context: nil, characters: chars, charactersIgnoringModifiers: chars,
+                                                    isARepeat: false, keyCode: code) { w.sendEvent(event) }
+                }
+            }
+            key(125, "\u{F701}"); try? await Task.sleep(for: .seconds(0.6))
+            key(125, "\u{F701}"); try? await Task.sleep(for: .seconds(0.6))
+            key(126, "\u{F700}"); try? await Task.sleep(for: .seconds(0.6))
+            capture(window, name: "12-entries-keyboard-moved")
+            let before = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+            key(51, "\u{7F}"); try? await Task.sleep(for: .seconds(1.5))
+            NSLog("MacSnapshot: delete key shows confirmation = %@", window.attachedSheet != nil ? "yes" : "no")
+            capture(window.attachedSheet ?? window, name: "12c-entries-delete-confirm")
+            if let sheet = window.attachedSheet { key(53, "\u{1b}", to: sheet) }
+            try? await Task.sleep(for: .seconds(1.5))
+            let after = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+            NSLog("MacSnapshot: after Esc entries %d -> %d, dialog closed = %@", before, after, window.attachedSheet == nil ? "yes" : "no")
+            key(36, "\r"); try? await Task.sleep(for: .seconds(1.5))
+            capture(window, name: "12b-entries-return-edits")
+        }
     }
 
     /// Opens Settings the way a user does (the app menu item), captures every tab, then checks a
@@ -295,6 +356,11 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(1))
         if CommandLine.arguments.contains("--macSnapshotQuickCaptureOnly") {
             await quickCapturePass(context: context)
+            NSApp.terminate(nil)
+            return
+        }
+        if CommandLine.arguments.contains("--macSnapshotParityOnly") {
+            await parityPass(context: context, mainWindow: mainWindow, go: go)
             NSApp.terminate(nil)
             return
         }
@@ -448,6 +514,8 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    /// userInfo["action"]: "openDate", "setDate" (+ "date"), "save". Drives Write from the harness.
+    static let mirrorMacDebugWrite = Notification.Name("mirror.mac.debug.write")
     static let mirrorMacDebugBrainSheet = Notification.Name("mirror.mac.debug.brainSheet")
     static let mirrorMacDebugBrainDimension = Notification.Name("mirror.mac.debug.brainDimension")
     static let mirrorMacDebugToggleInspector = Notification.Name("mirror.mac.debug.toggleInspector")
@@ -541,6 +609,73 @@ enum MacEditorSelfTest {
             check("bold range", ranges(box.inline).map { [$0.location, $0.length] } == [[11, 6]] && ranges(box.inline).first?.bold == true, "\(ranges(box.inline))")
             c.apply(.bold, to: tv)
             check("bold toggles off", box.inline == nil, "\(ranges(box.inline))")
+        }
+
+        // 2b. Notes-like inline styling. A caret with no selection sets the style for what is typed
+        // next; a second press stops it; the buttons' state follows the caret; mixed selections
+        // go all-on; Undo reverts.
+        do {
+            // Bold with the caret only, then type.
+            let box = Box(text: "plain ")
+            let (tv, c) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 6, length: 0))
+            c.apply(.bold, to: tv)
+            check("caret bold: button reports on", box.flags.bold, "\(box.flags)")
+            tv.insertText("abc", replacementRange: tv.selectedRange())
+            check("caret bold: typed text is bold", ranges(box.inline).map { [$0.location, $0.length] } == [[6, 3]] && ranges(box.inline).first?.bold == true, "\(ranges(box.inline))")
+            // Still bold while typing on; press again to stop, type plain.
+            check("caret bold: still on after typing", box.flags.bold, "\(box.flags)")
+            c.apply(.bold, to: tv)
+            check("caret bold: second press reports off", !box.flags.bold, "\(box.flags)")
+            tv.insertText("xyz", replacementRange: tv.selectedRange())
+            check("caret bold: text after the second press is plain", ranges(box.inline).map { [$0.location, $0.length] } == [[6, 3]], "\(ranges(box.inline))")
+            // The caret moving into bold text reports bold, and back out reports plain.
+            tv.setSelectedRange(NSRange(location: 8, length: 0))
+            check("caret inside bold text reports bold", box.flags.bold, "\(box.flags)")
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            check("caret in plain text reports plain", !box.flags.bold, "\(box.flags)")
+        }
+        do {
+            // Underline and italic with the caret only.
+            let box = Box(text: "")
+            let (tv, c) = makeEditor(box)
+            c.apply(.underline, to: tv)
+            check("caret underline: button reports on", box.flags.underline, "\(box.flags)")
+            tv.insertText("under", replacementRange: tv.selectedRange())
+            check("caret underline: typed text is underlined", ranges(box.inline).first?.underline == true && ranges(box.inline).first?.length == 5, "\(ranges(box.inline))")
+            c.apply(.italic, to: tv)
+            tv.insertText("both", replacementRange: tv.selectedRange())
+            let last = ranges(box.inline).last
+            check("caret italic stacks on underline", last?.italic == true && last?.underline == true, "\(ranges(box.inline))")
+        }
+        do {
+            // A selection that is partly bold goes all bold on the first press, plain on the second, and Undo restores.
+            let box = Box(text: "one two three")
+            let (tv, c) = makeEditor(box)
+            // One click is one undo step; the run loop does not turn over inside this test.
+            func click(_ command: NoteTextCommand) {
+                tv.undoManager?.beginUndoGrouping(); c.apply(command, to: tv); tv.undoManager?.endUndoGrouping()
+            }
+            tv.undoManager?.groupsByEvent = false
+            tv.setSelectedRange(NSRange(location: 0, length: 3))
+            click(.bold)
+            tv.setSelectedRange(NSRange(location: 0, length: 7))
+            click(.bold)
+            check("mixed selection goes all bold", ranges(box.inline).map { [$0.location, $0.length] } == [[0, 7]], "\(ranges(box.inline))")
+            click(.bold)
+            check("all-bold selection goes plain", box.inline == nil, "\(ranges(box.inline))")
+            c.apply(.undo, to: tv)
+            check("undo brings the bold back", ranges(box.inline).map { [$0.location, $0.length] } == [[0, 7]], "\(ranges(box.inline))")
+        }
+        do {
+            // Typing at the end of bold text continues it, like Notes.
+            let box = Box(text: "bold")
+            let (tv, c) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 0, length: 4))
+            c.apply(.bold, to: tv)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.insertText("er", replacementRange: tv.selectedRange())
+            check("typing after bold text continues the bold", ranges(box.inline).map { [$0.location, $0.length] } == [[0, 6]], "\(ranges(box.inline))")
         }
 
         // 3. Return at the end of a styled paragraph continues that style; typing lands in it.

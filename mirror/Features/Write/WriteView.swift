@@ -465,13 +465,25 @@ struct WriteView: View {
         .onExitCommand { if entry != nil { dismiss() } }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenFormatPanel)) { _ in showFormattingPanel = true }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugWrite)) { note in
+            switch note.userInfo?["action"] as? String {
+            case "openDate": showDatePicker = true
+            case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
+            case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
+            default: break
+            }
+        }
         #endif
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacPasteImage)) { note in
             if let data = note.userInfo?["data"] as? Data { macAttachPhoto(data: data) }
         }
-        .focusedSceneValue(\.macEditorActions, MacEditorActions(canSave: hasDraftContent) {
-            if entry == nil { saveDraft() } else { saveAndDismiss() }
-        })
+        .focusedSceneValue(\.macEditorActions, MacEditorActions(
+            canSave: hasDraftContent,
+            save: { if entry == nil { saveDraft() } else { saveAndDismiss() } },
+            apply: { applyTextCommand($0) },
+            inline: activeInlineStyles,
+            paragraph: activeParagraphStyle
+        ))
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -683,6 +695,7 @@ struct WriteView: View {
             // finalize the note we have.
             if !recording && isRecordingInline { finishInlineRecording() }
         }
+        #if os(iOS)
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
                 VStack(spacing: 0) {
@@ -715,6 +728,7 @@ struct WriteView: View {
             }
             .presentationDetents([.large])
         }
+        #endif
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { scheduleDraftSave() }
             scheduleFollowUpCheck()

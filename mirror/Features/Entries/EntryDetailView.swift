@@ -202,6 +202,11 @@ struct EntryDetailView: View {
         #if DEBUG && os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
         #endif
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacEditEntry)) { _ in
+            if macCanEditPlainText, !entry.textDecryptionFailed { showEditor = true }
+        }
+        #endif
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {

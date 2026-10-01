@@ -543,6 +543,10 @@ struct AskView: View {
                             }
                             .textFieldStyle(.plain)
                             .focused($isInputFocused)
+                            #if os(macOS)
+                            // Return sends, as in a chat; Shift-Return adds a line.
+                            .onSubmit { if canAsk { Task { await submitQuestion() } } }
+                            #endif
                             .disabled(remaining == 0)
                             .font(displayMode == .sentinel ? MirrorTheme.mono(14) : .system(size: 15))
                     }

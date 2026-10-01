@@ -32,6 +32,9 @@ struct EntriesTabView: View {
     #if os(macOS)
     @State private var macShowCalendar = false
     @FocusState private var macSearchFocused: Bool
+    @FocusState private var macListFocused: Bool
+    @State private var macPendingDelete: Entry?
+    @Environment(\.openWindow) private var openWindow
     #endif
 
     private enum EntrySortOrder: String, CaseIterable {
@@ -965,6 +968,7 @@ extension EntriesTabView {
                 .padding(.bottom, 8)
             }
 
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if !snapshot.pinnedEntries.isEmpty {
@@ -990,9 +994,74 @@ extension EntriesTabView {
                 .padding(.bottom, 16)
             }
             .modifier(MacNoScrollEdgeEffect())
+            // Keyboard: arrows move through the list, Return edits, Delete asks first.
+            .focusable()
+            .focusEffectDisabled()
+            .focused($macListFocused)
+            .onKeyPress(.upArrow) { macMoveSelection(-1, snapshot); return .handled }
+            .onKeyPress(.downArrow) { macMoveSelection(1, snapshot); return .handled }
+            .onKeyPress(.return) {
+                #if DEBUG
+                NSLog("EntryList return key")
+                #endif
+                guard macSelection?.wrappedValue != nil else { return .ignored }
+                NotificationCenter.default.post(name: .mirrorMacEditEntry, object: nil)
+                return .handled
+            }
+            .onDeleteCommand { _ = macAskToDeleteSelection() }
+            .onChange(of: macSelection?.wrappedValue?.id) { _, id in
+                if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
+            }
+            }
+            .confirmationDialog("Delete this entry?", isPresented: Binding(get: { macPendingDelete != nil }, set: { if !$0 { macPendingDelete = nil } }), titleVisibility: .visible) {
+                Button("Delete", role: .destructive) { macDeletePending(snapshot) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("It will be removed from this Mac and your other devices.")
+            }
         }
         .background(MirrorTheme.inkMid)
         .overlay(alignment: .trailing) { Rectangle().fill(MacTokens.divider).frame(width: 1) }
+        // Arrow keys work as soon as the list is on screen.
+        .onAppear { macListFocused = true }
+    }
+
+    /// The rows in the order they are drawn: pinned first, then each month.
+    private func macOrderedEntries(_ snapshot: EntryListSnapshot) -> [Entry] {
+        var seen = Set<UUID>()
+        return (snapshot.pinnedEntries + snapshot.groupedByMonth.flatMap(\.entries)).filter { seen.insert($0.id).inserted }
+    }
+
+    private func macMoveSelection(_ step: Int, _ snapshot: EntryListSnapshot) {
+        let ordered = macOrderedEntries(snapshot)
+        guard !ordered.isEmpty else { return }
+        let current = macSelection?.wrappedValue.flatMap { selected in ordered.firstIndex { $0.id == selected.id } }
+        let next = current.map { min(max($0 + step, 0), ordered.count - 1) } ?? (step > 0 ? 0 : ordered.count - 1)
+        #if DEBUG
+        NSLog("EntryList key move: %@ -> %d of %d", current.map(String.init) ?? "none", next, ordered.count)
+        #endif
+        macSelection?.wrappedValue = ordered[next]
+    }
+
+    private func macAskToDeleteSelection() -> KeyPress.Result {
+        #if DEBUG
+        NSLog("EntryList delete key: selection %@", macSelection?.wrappedValue == nil ? "none" : "set")
+        #endif
+        guard let selected = macSelection?.wrappedValue else { return .ignored }
+        macPendingDelete = selected
+        return .handled
+    }
+
+    /// Deletes, then selects the neighbouring entry, the way Notes does.
+    private func macDeletePending(_ snapshot: EntryListSnapshot) {
+        guard let entry = macPendingDelete else { return }
+        let ordered = macOrderedEntries(snapshot)
+        let index = ordered.firstIndex { $0.id == entry.id }
+        let neighbour = index.flatMap { i in ordered.indices.contains(i + 1) ? ordered[i + 1] : (i > 0 ? ordered[i - 1] : nil) }
+        macSelection?.wrappedValue = neighbour
+        modelContext.delete(entry)
+        try? modelContext.save()
+        macPendingDelete = nil
     }
 
     fileprivate var macHeader: some View {
@@ -1115,8 +1184,14 @@ extension EntriesTabView {
         let isSelected = macSelection?.wrappedValue?.id == entry.id
         return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: isSelected)
             .padding(.horizontal, 8)
-            .onTapGesture { open(entry) }
+            .onTapGesture { open(entry); macListFocused = true }
             .contextMenu {
+                Button("Edit") {
+                    open(entry)
+                    DispatchQueue.main.async { NotificationCenter.default.post(name: .mirrorMacEditEntry, object: nil) }
+                }
+                Button("Open in New Window") { openWindow(id: "entry", value: entry.id) }
+                Divider()
                 Button(entry.isPinned ? "Unpin" : "Pin") {
                     animatePinChange = true
                     entry.isPinned.toggle()

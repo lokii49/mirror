@@ -17,6 +17,8 @@ extension Notification.Name {
     static let mirrorMacOpenEntry = Notification.Name("mirror.mac.openEntry")
     /// userInfo["text"]: starts a new entry with that text in it.
     static let mirrorMacNewEntrySeeded = Notification.Name("mirror.mac.newEntrySeeded")
+    /// Edit the entry the reader is showing (Return in the Entries list, Edit in the menu).
+    static let mirrorMacEditEntry = Notification.Name("mirror.mac.editEntry")
     /// userInfo["data"]: image data pasted into the editor.
     static let mirrorMacPasteImage = Notification.Name("mirror.mac.pasteImage")
 }
@@ -27,6 +29,11 @@ extension Notification.Name {
 struct MacEditorActions {
     var canSave: Bool
     var save: () -> Void
+    /// Formatting from the Format menu, applied through the same path as the toolbar.
+    var apply: (NoteTextCommand) -> Void
+    /// What the caret or selection currently has, for the menu's checkmarks.
+    var inline: InlineStyleSet
+    var paragraph: NoteParagraphTextStyle
 }
 
 /// Pin for the window whose reader is showing an entry.
@@ -89,6 +96,41 @@ struct MirrorMacCommands: Commands {
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
         }
+        CommandMenu("Format") {
+            paragraphItem("Title", .title, key: "t")
+            paragraphItem("Heading", .heading, key: "h")
+            paragraphItem("Subheading", .subheading, key: "j")
+            paragraphItem("Body", .body, key: "b")
+            paragraphItem("Monospaced", .monospaced, key: "m")
+            paragraphItem("Block Quote", .blockQuote, key: nil)
+            Divider()
+            paragraphItem("Checklist", .checklistUnchecked, command: .checklist, key: "l")
+            paragraphItem("Bulleted List", .bulletedList, key: "8")
+            paragraphItem("Dashed List", .dashedList, key: "7")
+            paragraphItem("Numbered List", .numberedList, key: "9")
+            Divider()
+            Toggle("Bold", isOn: styleBinding(.bold, editor?.inline.bold))
+                .keyboardShortcut("b", modifiers: .command)
+                .disabled(editor == nil)
+            Toggle("Italic", isOn: styleBinding(.italic, editor?.inline.italic))
+                .keyboardShortcut("i", modifiers: .command)
+                .disabled(editor == nil)
+            Toggle("Underline", isOn: styleBinding(.underline, editor?.inline.underline))
+                .keyboardShortcut("u", modifiers: .command)
+                .disabled(editor == nil)
+            Toggle("Strikethrough", isOn: styleBinding(.strikethrough, editor?.inline.strikethrough))
+                .keyboardShortcut("x", modifiers: [.command, .shift])
+                .disabled(editor == nil)
+            Divider()
+            Button("Increase Indent") { editor?.apply(.indentMore) }
+                .disabled(editor == nil)
+                .keyboardShortcut("]", modifiers: .command)
+            Button("Decrease Indent") { editor?.apply(.indentLess) }
+                .disabled(editor == nil)
+                .keyboardShortcut("[", modifiers: .command)
+            Button("Clear Formatting") { editor?.apply(.clearFormatting) }
+                .disabled(editor == nil)
+        }
         CommandMenu("Go") {
             Button("Write") { navigate("write") }
                 .keyboardShortcut("1", modifiers: .command)
@@ -109,6 +151,37 @@ struct MirrorMacCommands: Commands {
             // ⌘, belongs to the system Settings item in the app menu.
             SettingsLink { Text("Settings…") }
         }
+    }
+
+    /// A paragraph-style item with a checkmark when the caret is in that style.
+    private func paragraphItem(_ title: LocalizedStringKey, _ style: NoteParagraphTextStyle, command: NoteTextCommand? = nil, key: KeyEquivalent?) -> some View {
+        let toggle = Toggle(title, isOn: Binding(
+            get: { editor?.paragraph == style },
+            set: { _ in editor?.apply(command ?? commandFor(style)) }
+        ))
+        .disabled(editor == nil)
+        return Group {
+            if let key { toggle.keyboardShortcut(key, modifiers: [.command, .shift]) } else { toggle }
+        }
+    }
+
+    private func commandFor(_ style: NoteParagraphTextStyle) -> NoteTextCommand {
+        switch style {
+        case .title: return .title
+        case .heading: return .heading
+        case .subheading: return .subheading
+        case .monospaced: return .monospaced
+        case .blockQuote: return .blockQuote
+        case .bulletedList: return .bulletedList
+        case .dashedList: return .dashedList
+        case .numberedList: return .numberedList
+        case .checklistUnchecked, .checklistChecked: return .checklist
+        case .body: return .body
+        }
+    }
+
+    private func styleBinding(_ command: NoteTextCommand, _ isOn: Bool?) -> Binding<Bool> {
+        Binding(get: { isOn ?? false }, set: { _ in editor?.apply(command) })
     }
 
     private func navigate(_ destination: String) {

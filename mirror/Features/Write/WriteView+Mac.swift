@@ -10,6 +10,39 @@ import ImageIO
 
 extension WriteView {
 
+    // MARK: - Entry date
+
+    /// The date and time of the entry: a calendar, a time field, and a way back to now. Changes
+    /// apply as they are made, through the same `entryDate` the save reads.
+    var macDatePopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DatePicker("Entry date", selection: $entryDate, in: ...Date(), displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .frame(width: 260)
+            Divider()
+            HStack(spacing: 10) {
+                Text("Time")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(MacTokens.secondaryInk)
+                DatePicker("Entry time", selection: $entryDate, in: ...Date(), displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.stepperField)
+                    .labelsHidden()
+                Spacer(minLength: 0)
+                Button("Now") { entryDate = Date() }
+                    .controlSize(.small)
+                    .help("Set the entry to the current date and time")
+            }
+            HStack {
+                Spacer()
+                Button("Done") { showDatePicker = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
+        .frame(width: 292)
+    }
+
     // MARK: - Toolbar
 
     var macToolbar: some View {
@@ -17,7 +50,6 @@ extension WriteView {
             if entry != nil {
                 // Editing an existing entry in the reader pane: the way back to the reader.
                 macIconButton("chevron-left", label: "Back") { saveAndDismiss() }
-                    .keyboardShortcut("[", modifiers: .command)
                     .help("Back to the entry. Saves your changes (Esc leaves without saving).")
             } else if macStandaloneWindow {
                 // A window of its own: room for the traffic lights instead of a sidebar button.
@@ -47,6 +79,8 @@ extension WriteView {
             .padding(.leading, 6)
             .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel("Change date")
+            .help("Change the entry's date and time")
+            .popover(isPresented: $showDatePicker, arrowEdge: .bottom) { macDatePopover }
 
             Spacer(minLength: 4)
 
@@ -55,21 +89,18 @@ extension WriteView {
                 formatCell(width: 32) {
                     Text("B").font(.system(size: 13, weight: .bold))
                 } isOn: { activeInlineStyles.bold } action: { applyTextCommand(.bold) }
-                .keyboardShortcut("b", modifiers: .command)
                 .accessibilityLabel("Bold")
 
                 formatDivider
                 formatCell(width: 32) {
                     Text("I").font(.custom("Georgia", size: 13).italic())
                 } isOn: { activeInlineStyles.italic } action: { applyTextCommand(.italic) }
-                .keyboardShortcut("i", modifiers: .command)
                 .accessibilityLabel("Italic")
 
                 formatDivider
                 formatCell(width: 32) {
                     Text("U").font(.system(size: 13)).underline()
                 } isOn: { activeInlineStyles.underline } action: { applyTextCommand(.underline) }
-                .keyboardShortcut("u", modifiers: .command)
                 .accessibilityLabel("Underline")
 
                 formatDivider

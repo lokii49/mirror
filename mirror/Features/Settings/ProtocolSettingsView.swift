@@ -47,12 +47,68 @@ struct ProtocolSettingsView: View {
         return Calendar.current.date(from: c) ?? Date()
     }
 
+    // What changing a time does: store it and move the reminder, the same on every platform.
+    private func applyNudgeTime(_ date: Date) {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        nudgeHour = c.hour ?? 8
+        nudgeMinute = c.minute ?? 0
+        Task {
+            let insightReady = mirrorApp.hasDailyNudgeForToday(context: modelContext)
+            let hasWritten = mirrorApp.hasEntryToday(context: modelContext)
+            await NotificationService.rescheduleContextualNudge(
+                hasWrittenToday: hasWritten,
+                insightReady: insightReady,
+                hour: nudgeHour,
+                minute: nudgeMinute,
+                previewText: (nudgePreviewEnabled && insightReady)
+                    ? mirrorApp.todaysDailyNudgeText(context: modelContext) : nil
+            )
+        }
+    }
+
+    private func applyMoodCheckInTime(_ date: Date) {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        moodCheckInHour = c.hour ?? 9
+        moodCheckInMinute = c.minute ?? 0
+        moodCheckInTimeUserSet = true
+        Task {
+            await NotificationService.scheduleMoodCheckIn(hour: moodCheckInHour, minute: moodCheckInMinute)
+        }
+    }
+
+    private func applyMoodCheckInEnabled(_ enabled: Bool) {
+        Task {
+            if enabled {
+                await NotificationService.scheduleMoodCheckIn(hour: moodCheckInHour, minute: moodCheckInMinute)
+            } else {
+                NotificationService.cancelMoodCheckIn()
+            }
+        }
+    }
+
+    #if os(macOS)
+    /// A time on a Mac: the native field with up/down arrows, right in the row.
+    private func macTimeField(_ time: Date, _ set: @escaping (Date) -> Void) -> some View {
+        DatePicker("", selection: Binding(get: { time }, set: set), displayedComponents: .hourAndMinute)
+            .datePickerStyle(.stepperField)
+            .labelsHidden()
+            .fixedSize()
+    }
+    #endif
+
     var body: some View {
         SettingsScroll {
             VStack(spacing: 14) {
                 SettingsGroup(title: "Schedule") {
                     // Daily nudge time — Core only
                     if subscriptionService.isSubscribed {
+                        #if os(macOS)
+                        HStack {
+                            SettingsRowLabel(title: "Daily nudge time", systemImage: "bell.fill", iconColor: .orange)
+                            Spacer()
+                            macTimeField(nudgeTime, applyNudgeTime)
+                        }
+                        #else
                         Button { withAnimation { showNudgeTimePicker.toggle() } } label: {
                             HStack {
                                 SettingsRowLabel(title: "Daily nudge time", systemImage: "bell.fill", iconColor: .orange)
@@ -70,23 +126,7 @@ struct ProtocolSettingsView: View {
                                 "",
                                 selection: Binding(
                                     get: { nudgeTime },
-                                    set: { date in
-                                        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                        nudgeHour = c.hour ?? 8
-                                        nudgeMinute = c.minute ?? 0
-                                        Task {
-                                            let insightReady = mirrorApp.hasDailyNudgeForToday(context: modelContext)
-                                            let hasWritten = mirrorApp.hasEntryToday(context: modelContext)
-                                            await NotificationService.rescheduleContextualNudge(
-                                                hasWrittenToday: hasWritten,
-                                                insightReady: insightReady,
-                                                hour: nudgeHour,
-                                                minute: nudgeMinute,
-                                                previewText: (nudgePreviewEnabled && insightReady)
-                                                    ? mirrorApp.todaysDailyNudgeText(context: modelContext) : nil
-                                            )
-                                        }
-                                    }
+                                    set: { applyNudgeTime($0) }
                                 ),
                                 displayedComponents: .hourAndMinute
                             )
@@ -95,6 +135,7 @@ struct ProtocolSettingsView: View {
                             .frame(maxWidth: .infinity)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
+                        #endif
 
                         SettingsDivider()
 
@@ -149,6 +190,23 @@ struct ProtocolSettingsView: View {
                     SettingsDivider()
 
                     // Unified daily reminder — all tiers, opens the mood check-in
+                    #if os(macOS)
+                    Toggle(isOn: $moodCheckInEnabled) {
+                        SettingsRowLabel(title: "Daily check-in reminder", systemImage: "face.smiling.fill", iconColor: .pink)
+                    }
+                    .tint(MirrorTheme.primary)
+                    .onChange(of: moodCheckInEnabled) { _, enabled in applyMoodCheckInEnabled(enabled) }
+
+                    SettingsDivider()
+
+                    HStack {
+                        SettingsRowLabel(title: "Check-in time", systemImage: "clock.fill", iconColor: .pink)
+                        Spacer()
+                        macTimeField(moodCheckInTime, applyMoodCheckInTime)
+                    }
+                    .disabled(!moodCheckInEnabled)
+                    .opacity(moodCheckInEnabled ? 1 : 0.45)
+                    #else
                     Button { withAnimation { showMoodCheckInPicker.toggle() } } label: {
                         HStack {
                             SettingsRowLabel(title: "Daily check-in reminder", systemImage: "face.smiling.fill", iconColor: .pink)
@@ -167,35 +225,13 @@ struct ProtocolSettingsView: View {
                         VStack(spacing: 12) {
                             Toggle("Remind me to check in once a day", isOn: $moodCheckInEnabled)
                                 .font(.system(size: 14))
-                                .onChange(of: moodCheckInEnabled) { _, enabled in
-                                    Task {
-                                        if enabled {
-                                            await NotificationService.scheduleMoodCheckIn(
-                                                hour: moodCheckInHour,
-                                                minute: moodCheckInMinute
-                                            )
-                                        } else {
-                                            NotificationService.cancelMoodCheckIn()
-                                        }
-                                    }
-                                }
+                                .onChange(of: moodCheckInEnabled) { _, enabled in applyMoodCheckInEnabled(enabled) }
                             if moodCheckInEnabled {
                                 DatePicker(
                                     "",
                                     selection: Binding(
                                         get: { moodCheckInTime },
-                                        set: { date in
-                                            let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                            moodCheckInHour = c.hour ?? 9
-                                            moodCheckInMinute = c.minute ?? 0
-                                            moodCheckInTimeUserSet = true
-                                            Task {
-                                                await NotificationService.scheduleMoodCheckIn(
-                                                    hour: moodCheckInHour,
-                                                    minute: moodCheckInMinute
-                                                )
-                                            }
-                                        }
+                                        set: { applyMoodCheckInTime($0) }
                                     ),
                                     displayedComponents: .hourAndMinute
                                 )
@@ -207,6 +243,7 @@ struct ProtocolSettingsView: View {
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
+                    #endif
                 }
 
                 SettingsGroup(title: "Input") {

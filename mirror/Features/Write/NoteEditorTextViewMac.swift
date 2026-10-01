@@ -536,7 +536,9 @@ struct NoteEditorTextView: NSViewRepresentable {
             let (model, location) = caretModel(in: textView)
             var flags = InlineStyleSet()
             let selection = textView.selectedRange()
-            let sample: Int? = selection.length > 0 ? selection.location : (selection.location > 0 ? selection.location - 1 : location)
+            // A caret reports what typing would produce (the typing style: what a press of Bold just
+            // set, or what the text before the caret carries); a selection reports its first character.
+            let sample: Int? = selection.length > 0 ? selection.location : nil
             if let sample, sample < storage.length {
                 let attrs = storage.attributes(at: sample, effectiveRange: nil)
                 flags.bold = attrs[NoteEditorCodec.boldKey] as? Bool ?? false
