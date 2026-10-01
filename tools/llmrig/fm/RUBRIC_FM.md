@@ -76,3 +76,20 @@ Neither candidate meets the ship rule. Findings:
 4. The quote is the single most important sentence, at most 25 words.
 5. The app capitalises the insight and adds end punctuation when assembling.
 Same cases, N, temperature and blind scoring. V0 results from round 1 are the baseline. Same ship rule.
+
+## Round 2 result (V1b, N=10 x 13 cases, blind-scored 2026-10-02)
+PASS 109/130 (84%), INSIGHT 18/130 (14%), errors 0 (the guardrail refusals are gone), quotes verbatim 129/130,
+19 quotes over 200 characters (run-on and multi-sentence entries), median 1.5 s. By case: rl_lowwork 0/10,
+sameday 6/10, rl_sickfriend 6/10, sickday 8/10, lunch 9/10, all others 10/10.
+Failures: (a) the model-written suggestion invented a person ("Talk to the person at your desk about lunch",
+10/10 on rl_lowwork) and is formulaic ("Talk to X about Y") everywhere; (b) second sentences starting in
+lowercase (sameday, rl_sickfriend), fixable by the app; (c) one "relief" and one "anticipation" not in the
+entries. Insight became terse.
+
+## Round 3: V1c (changes fixed BEFORE running)
+1. No model-written suggestion at all. On hard moods the app appends its existing fixed tip (the
+   `groundedNudgeTips` the Gemma path already uses), so the rig scores quote + insight only.
+2. The app capitalises every sentence and ends with punctuation.
+3. Insight is exactly two sentences: what it seems to mean, then the need, tension or hope their words show.
+   No advice, no questions.
+Same cases, N, temperature, blind scoring and ship rule. INSIGHT must beat V1b's 14%.

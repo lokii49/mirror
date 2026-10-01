@@ -43,6 +43,25 @@ import Foundation
     var insight: String
 }
 
+@Generable struct DailyV1c {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words, one sentence only")
+    var quote: String
+    @Guide(description: "Exactly two sentences speaking to the person as 'you'. First: what this seems to mean for them, using only feelings they wrote or plainly showed. Second: the need, the tension between two things they wrote, or what they seem to hope or worry about, as their own words show it. Plain everyday words. No advice. Nothing they did not write")
+    var insight: String
+}
+
+/// Capitalises every sentence and makes sure the text ends with punctuation (what the app does).
+func tidyAll(_ s: String) -> String {
+    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    var out = "", capNext = true
+    for ch in t {
+        if capNext, ch.isLetter { out += ch.uppercased(); capNext = false } else { out.append(ch) }
+        if ".!?…".contains(ch) { capNext = true }
+    }
+    if let last = out.last, !".!?…".contains(last) { out += "." }
+    return out
+}
+
 func tidy(_ s: String) -> String {
     var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let first = t.first else { return t }
@@ -104,6 +123,11 @@ func emit(_ obj: [String: Any]) {
                 case "v1b_easy":
                     let r = try await session.respond(to: user, generating: DailyV1bEasy.self, options: opts).content
                     rec["text"] = "You wrote, \"\(r.quote)\" \(tidy(r.insight))"
+                    rec["quoteVerbatim"] = source.contains(norm(r.quote))
+                    rec["fields"] = ["quote": r.quote, "insight": r.insight]
+                case "v1c":
+                    let r = try await session.respond(to: user, generating: DailyV1c.self, options: opts).content
+                    rec["text"] = "You wrote, \"\(r.quote)\" \(tidyAll(r.insight))"
                     rec["quoteVerbatim"] = source.contains(norm(r.quote))
                     rec["fields"] = ["quote": r.quote, "insight": r.insight]
                 default:
