@@ -130,6 +130,12 @@ func emit(_ obj: [String: Any]) {
                     rec["text"] = "You wrote, \"\(r.quote)\" \(tidyAll(r.insight))"
                     rec["quoteVerbatim"] = source.contains(norm(r.quote))
                     rec["fields"] = ["quote": r.quote, "insight": r.insight]
+                case "v1d":
+                    // V1b's short prompt for every mood, no model-written suggestion, app-side tidy.
+                    let r = try await session.respond(to: user, generating: DailyV1bEasy.self, options: opts).content
+                    rec["text"] = "You wrote, \"\(r.quote)\" \(tidyAll(r.insight))"
+                    rec["quoteVerbatim"] = source.contains(norm(r.quote))
+                    rec["fields"] = ["quote": r.quote, "insight": r.insight]
                 default:
                     rec["error"] = "unknown variant"
                 }

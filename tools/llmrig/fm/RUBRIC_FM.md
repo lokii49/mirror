@@ -93,3 +93,16 @@ entries. Insight became terse.
 3. Insight is exactly two sentences: what it seems to mean, then the need, tension or hope their words show.
    No advice, no questions.
 Same cases, N, temperature, blind scoring and ship rule. INSIGHT must beat V1b's 14%.
+
+## Round 3 result (V1c, stopped early)
+Blind-scored the first 45 of 130: 25 contained an invention (invented wants and worries: "You worry about
+what Dev will do", "You want to finish the run", "quiet weariness" on an ordinary day; "relief"; a swap: Mom's
+tiredness from the wedding prep given to Priya). Pass ~44%. Rest not scored. Forcing a second "need or
+tension" sentence makes the model pad with invention. 1 guardrail refusal in 130. Rejected.
+
+## Round 4: V1d (fixed BEFORE running)
+`system_v1b_easy.txt` (the short prompt, no mood list, no suggestion) for EVERY mood, schema
+quote + insight only, `tidyAll` applied by the app. On hard moods the app appends its existing approved fixed
+tip, which this rig does not score. Same cases, N, temperature, blind scoring, ship rule
+(PASS >= 95%, no case < 8/10, quotes 100% verbatim, errors <= 5%, INSIGHT above baseline).
+Expected from the V1b data (not a measurement): about 96%.
