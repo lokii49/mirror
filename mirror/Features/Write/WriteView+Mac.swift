@@ -14,8 +14,24 @@ extension WriteView {
 
     var macToolbar: some View {
         HStack(spacing: 6) {
-            macIconButton("sidebar", label: "Hide sidebar") {
-                NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
+            if entry != nil {
+                // Editing an existing entry in the reader pane: the way back to the reader.
+                Button { saveAndDismiss() } label: {
+                    Text("Done")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(MacTokens.ink)
+                        .padding(.horizontal, 14)
+                        .frame(height: 28)
+                        .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Done editing")
+                .help("Save and go back to the entry (Esc leaves without saving)")
+            } else {
+                macIconButton("sidebar", label: "Hide sidebar") {
+                    NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
+                }
             }
 
             Button { showDatePicker = true } label: {
@@ -23,16 +39,22 @@ extension WriteView {
                     Text(entry == nil ? "New entry" : "Edit entry")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(MacTokens.ink)
-                    Text(noteDate, format: .dateTime.weekday(.wide).day().month(.wide))
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(MacTokens.secondaryInk)
+                        .lineLimit(1)
+                    // In the reader pane there is no room for the date; the line above the text shows it.
+                    if entry == nil {
+                        Text(noteDate, format: .dateTime.weekday(.wide).day().month(.wide))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(MacTokens.secondaryInk)
+                            .lineLimit(1)
+                    }
                 }
             }
             .buttonStyle(.plain)
             .padding(.leading, 6)
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel("Change date")
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
 
             // B / I / U / Aa
             HStack(spacing: 0) {
@@ -107,6 +129,7 @@ extension WriteView {
             }
             .buttonStyle(.plain)
             .padding(.leading, 6)
+            .fixedSize()
         }
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)
