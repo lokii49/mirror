@@ -280,6 +280,13 @@ struct mirrorApp: App {
         #endif
 
         #if os(macOS)
+        WindowGroup("New Entry", id: "new-entry") {
+            MacNewEntryWindow()
+        }
+        .modelContainer(sharedModelContainer)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 800)
+
         WindowGroup("Entry", id: "entry", for: UUID.self) { $entryID in
             MacEntryWindow(entryID: entryID)
         }

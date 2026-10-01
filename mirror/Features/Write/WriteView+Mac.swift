@@ -19,6 +19,9 @@ extension WriteView {
                 macIconButton("chevron-left", label: "Back") { saveAndDismiss() }
                     .keyboardShortcut("[", modifiers: .command)
                     .help("Back to the entry. Saves your changes (Esc leaves without saving).")
+            } else if macStandaloneWindow {
+                // A window of its own: room for the traffic lights instead of a sidebar button.
+                Color.clear.frame(width: 56, height: 1)
             } else {
                 macIconButton("sidebar", label: "Hide sidebar") {
                     NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
@@ -342,7 +345,6 @@ extension WriteView {
             }
             .buttonStyle(.plain)
             .disabled(!hasDraftContent)
-            .keyboardShortcut(.return, modifiers: .command)
             .accessibilityLabel("Save entry")
         }
         .padding(.horizontal, 20)

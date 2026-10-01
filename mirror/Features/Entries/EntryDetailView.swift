@@ -44,6 +44,10 @@ struct EntryDetailView: View {
     var body: some View {
         #if os(macOS)
         macBody
+            .focusedSceneValue(\.macEntryActions, MacEntryActions(isPinned: entry.isPinned) {
+                entry.isPinned.toggle()
+                try? modelContext.save()
+            })
         #else
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {

@@ -67,6 +67,61 @@ enum MacSnapshot {
         defaults.removeObject(forKey: MacPrefs.fontKey)
     }
 
+    private static func describeMenus(_ label: String) {
+        NSLog("MacSnapshot: [%@] app active = %@, key window = %@", label, NSApp.isActive ? "yes" : "no", NSApp.keyWindow != nil ? "yes" : "no")
+        NSApp.mainMenu?.update()
+        // SwiftUI refreshes item states as a menu opens; do that for the menus we read.
+        for menu in NSApp.mainMenu?.items ?? [] { menu.submenu?.delegate?.menuNeedsUpdate?(menu.submenu!) }
+        guard let menus = NSApp.mainMenu?.items else { return }
+        NSLog("MacSnapshot: menu bar = %@", menus.map(\.title).joined(separator: " | "))
+        for menu in menus where ["File", "Go"].contains(menu.title) {
+            for item in menu.submenu?.items ?? [] {
+                let mods = item.keyEquivalentModifierMask
+                let keys = (mods.contains(.control) ? "⌃" : "") + (mods.contains(.option) ? "⌥" : "") + (mods.contains(.shift) ? "⇧" : "") + (mods.contains(.command) ? "⌘" : "") + (item.keyEquivalent == "\r" ? "↩" : item.keyEquivalent)
+                NSLog("MacSnapshot: [%@] %@ > %@ %@ %@", label, menu.title, item.isSeparatorItem ? "—" : item.title, item.isSeparatorItem ? "" : keys, item.isEnabled ? "" : "(disabled)")
+            }
+        }
+    }
+
+    /// The File and Go menus as the app really builds them, in Write and in the reader, and the
+    /// New Entry in New Window item.
+    @MainActor
+    static func menusPass(mainWindow: () -> NSWindow?, go: (String) -> Void) async {
+        mainWindow()?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        try? await Task.sleep(for: .seconds(2))
+        describeMenus("write")
+        go("entries")
+        try? await Task.sleep(for: .seconds(1.5))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(2))
+        describeMenus("reader")
+        if let file = NSApp.mainMenu?.items.first(where: { $0.title == "File" })?.submenu,
+           let index = file.items.firstIndex(where: { $0.title.hasSuffix("Pin Entry") }) {
+            NSLog("MacSnapshot: pin item = %@ enabled=%@", file.items[index].title, file.items[index].isEnabled ? "yes" : "no")
+            file.performActionForItem(at: index)
+            try? await Task.sleep(for: .seconds(1))
+            describeMenus("after-pin")
+        }
+        let before = NSApp.windows.filter(\.isVisible).count
+        if let file = NSApp.mainMenu?.items.first(where: { $0.title == "File" })?.submenu,
+           let index = file.items.firstIndex(where: { $0.title == "New Entry in New Window" }) {
+            file.performActionForItem(at: index)
+        }
+        try? await Task.sleep(for: .seconds(2.5))
+        let windows = NSApp.windows.filter { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) }
+        NSLog("MacSnapshot: windows %d -> %d", before, windows.count)
+        if let fresh = windows.first(where: { $0 !== mainWindow() }) {
+            NSLog("MacSnapshot: new window size = %@", NSStringFromSize(fresh.frame.size))
+            capture(fresh, name: "9-new-entry-window")
+            try? await Task.sleep(for: .seconds(3))
+            capture(fresh, name: "9b-new-entry-window-later")
+            fresh.setContentSize(NSSize(width: 900, height: 820))
+            try? await Task.sleep(for: .seconds(2))
+            capture(fresh, name: "9c-new-entry-window-resized")
+        }
+    }
+
     /// Opens Settings the way a user does (the app menu item), captures every tab, then checks a
     /// sheet opened from a settings row, the Appearance choice, and closing and reopening.
     @MainActor
@@ -200,6 +255,11 @@ enum MacSnapshot {
         // The board's window size, regardless of any saved frame.
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
+        if CommandLine.arguments.contains("--macSnapshotMenusOnly") {
+            await menusPass(mainWindow: mainWindow, go: go)
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotSettingsOnly") {
             await settingsPass(mainWindow: mainWindow)
             NSApp.terminate(nil)

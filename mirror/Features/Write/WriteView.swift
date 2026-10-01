@@ -170,6 +170,10 @@ struct WriteView: View {
     let recElapsedTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var noteDate: Date { entryDate }
+    #if os(macOS)
+    @Environment(\.macStandaloneWindow) var macStandaloneWindow
+    #endif
+
     var hasDraftContent: Bool {
         viewModel.hasContent || !photoDataArray.isEmpty || !draftVoiceNotes.isEmpty
     }
@@ -465,6 +469,9 @@ struct WriteView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacPasteImage)) { note in
             if let data = note.userInfo?["data"] as? Data { macAttachPhoto(data: data) }
         }
+        .focusedSceneValue(\.macEditorActions, MacEditorActions(canSave: hasDraftContent) {
+            if entry == nil { saveDraft() } else { saveAndDismiss() }
+        })
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
