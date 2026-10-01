@@ -34,6 +34,10 @@ enum MacTokens {
     static let quoteHighlight = MirrorTheme.hex(0x2F2560, 0xEAE2FF)
     static let toggleActiveFill = MirrorTheme.hex(0x2F2560, 0xE3DBF7)
 
+    /// Settings window: control outline and the selected tab's pill.
+    static let settingsControlBorder = MirrorTheme.hex(0x2A2545, 0xD0C6EC)
+    static let tabSelectedFill = MirrorTheme.hex(0x2F2560, 0xDAD0F3)
+
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
 }
@@ -243,7 +247,7 @@ extension MacWindowConfigurator {
     }
 
     /// The board centers the traffic lights on the sidebar's 52 pt top row, 16 pt from the left.
-    fileprivate static func positionTrafficLights(in window: NSWindow) {
+    static func positionTrafficLights(in window: NSWindow, rowHeight: CGFloat = MacTokens.chromeHeight) {
         guard let close = window.standardWindowButton(.closeButton),
               let mini = window.standardWindowButton(.miniaturizeButton),
               let zoom = window.standardWindowButton(.zoomButton),
@@ -251,9 +255,9 @@ extension MacWindowConfigurator {
         let spacing = mini.frame.minX - close.frame.minX
         // The container is 28 pt tall and anchored to the window top; AppKit measures y from its
         // bottom, so a lower button needs a taller container.
-        if container.frame.height < MacTokens.chromeHeight {
+        if container.frame.height < rowHeight {
             var frame = container.frame
-            let grow = MacTokens.chromeHeight - frame.height
+            let grow = rowHeight - frame.height
             frame.size.height += grow
             frame.origin.y -= grow
             container.frame = frame

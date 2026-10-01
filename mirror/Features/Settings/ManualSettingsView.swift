@@ -9,7 +9,7 @@ struct ManualSettingsView: View {
     @State private var showAcknowledgments = false
 
     var body: some View {
-        ScrollView {
+        SettingsScroll {
             VStack(spacing: 14) {
                 SettingsGroup(title: "About") {
                     Button { showHowItWorks = true } label: {
@@ -171,6 +171,7 @@ struct ManualSettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { showHowItWorks = false }
+                        .cancelActionOnMac()
                 }
             }
         }
@@ -182,6 +183,7 @@ struct ManualSettingsView: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { showAcknowledgments = false }
+                        .cancelActionOnMac()
                     }
                 }
         }

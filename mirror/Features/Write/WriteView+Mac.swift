@@ -367,9 +367,11 @@ struct MacNoScrollEdgeEffect: ViewModifier {
 /// Centers the scrolling content in the board's 680 pt column (plus the 20 pt side padding
 /// every child already has).
 struct MacEditorColumn: ViewModifier {
+    @AppStorage(MacPrefs.widthKey) private var lineWidth = MacPrefs.LineWidth.comfortable.rawValue
+
     func body(content: Content) -> some View {
         content
-            .frame(maxWidth: 720)
+            .frame(maxWidth: MacPrefs.lineWidth(lineWidth).column + 40)
             .frame(maxWidth: .infinity)
     }
 }

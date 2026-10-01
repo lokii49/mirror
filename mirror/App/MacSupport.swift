@@ -106,16 +106,4 @@ struct MacEntryWindow: View {
         .frame(minWidth: 560, minHeight: 480)
     }
 }
-
-/// Content of the standard Settings window (Cmd-,). Reuses the shared SettingsView; the
-/// tabbed Mac layout from the design comes in the polish milestone.
-struct MacSettingsRoot: View {
-    var body: some View {
-        NavigationStack {
-            SettingsView()
-        }
-        .frame(minWidth: 560, idealWidth: 640, minHeight: 560)
-        .environment(\.appDisplayMode, .classic)
-    }
-}
 #endif

@@ -33,6 +33,108 @@ enum MacSnapshot {
         }
     }
 
+    /// Settings > Appearance preferences: Write and the reader at other sizes and widths, changed
+    /// while the screens are open (the live-update path), then put back.
+    @MainActor
+    static func prefsPass(mainWindow: () -> NSWindow?, go: (String) -> Void) async {
+        let defaults = UserDefaults.standard
+        func set(_ size: Double, _ width: String, font: String = "serif") {
+            defaults.set(size, forKey: MacPrefs.sizeKey)
+            defaults.set(width, forKey: MacPrefs.widthKey)
+            defaults.set(font, forKey: MacPrefs.fontKey)
+        }
+        set(22, "wide")
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "8a-write-22-wide")
+        set(14, "narrow")
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "8b-write-14-narrow")
+        go("entries")
+        try? await Task.sleep(for: .seconds(1.5))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "8c-reader-14-narrow")
+        set(22, "wide")
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "8d-reader-22-wide")
+        set(18, "comfortable")
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "8e-reader-18-comfortable")
+        go("write")
+        try? await Task.sleep(for: .seconds(1.5))
+        defaults.removeObject(forKey: MacPrefs.sizeKey)
+        defaults.removeObject(forKey: MacPrefs.widthKey)
+        defaults.removeObject(forKey: MacPrefs.fontKey)
+    }
+
+    /// Opens Settings the way a user does (the app menu item), captures every tab, then checks a
+    /// sheet opened from a settings row, the Appearance choice, and closing and reopening.
+    @MainActor
+    static func settingsPass(mainWindow: () -> NSWindow?) async {
+        UserDefaults.standard.set("general", forKey: "macSettingsTab")
+
+        func openSettings() async {
+            // Key focus may sit in a window from an earlier step; make the main window key first.
+            mainWindow()?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            try? await Task.sleep(for: .seconds(1))
+            var opened = false
+            if let appMenu = NSApp.mainMenu?.items.first?.submenu {
+                for (index, item) in appMenu.items.enumerated() where item.keyEquivalent == "," {
+                    appMenu.performActionForItem(at: index)
+                    opened = true
+                }
+            }
+            if !opened {
+                NSLog("MacSnapshot: no Settings menu item (menu items: %d)", NSApp.mainMenu?.items.count ?? -1)
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+            try? await Task.sleep(for: .seconds(2))
+        }
+        func settingsWindow() -> NSWindow? { NSApp.windows.first { $0.isVisible && abs($0.frame.width - 720) < 1 } }
+
+        await openSettings()
+        for tab in MacSettingsTab.visible {
+            UserDefaults.standard.set(tab.rawValue, forKey: "macSettingsTab")
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(settingsWindow(), name: "5-settings-\(tab.rawValue)")
+        }
+        NSLog("MacSnapshot: settings window title = %@", settingsWindow()?.title ?? "none")
+
+        // A sheet opened from a settings row (General > Voice transcription language), closed by Escape.
+        UserDefaults.standard.set("general", forKey: "macSettingsTab")
+        try? await Task.sleep(for: .seconds(1.5))
+        if let window = settingsWindow() {
+            window.makeKeyAndOrderFront(nil)
+            let pressed = pressElement(labelContaining: "transcription language", in: window.contentView)
+            NSLog("MacSnapshot: pressed settings row = %@", pressed ? "yes" : "no")
+            try? await Task.sleep(for: .seconds(1.5))
+            let sheet = window.attachedSheet
+            NSLog("MacSnapshot: settings row sheet presented = %@", sheet != nil ? "yes" : "no")
+            capture(sheet ?? window, name: "5b-settings-row-sheet")
+            if let sheet { sendEscape(to: sheet) }
+            try? await Task.sleep(for: .seconds(1.5))
+            NSLog("MacSnapshot: settings row sheet closed by Escape = %@", window.attachedSheet == nil ? "yes" : "no")
+        }
+
+        // The Appearance choice, written the way the control does, reaches both windows.
+        UserDefaults.standard.set("appearance", forKey: "macSettingsTab")
+        UserDefaults.standard.set("dark", forKey: "mirrorAppearanceMode")
+        try? await Task.sleep(for: .seconds(2))
+        capture(settingsWindow(), name: "5c-settings-chose-dark")
+        capture(mainWindow(), name: "5d-main-chose-dark")
+        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
+        if !CommandLine.arguments.contains("--macSnapshotDark") { NSApp.appearance = nil }
+
+        // Close and reopen: the board's chrome must come back.
+        settingsWindow()?.performClose(nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        NSLog("MacSnapshot: settings closed = %@", settingsWindow() == nil ? "yes" : "no")
+        await openSettings()
+        capture(settingsWindow(), name: "5e-settings-reopened")
+        NSLog("MacSnapshot: settings reopened title = %@", settingsWindow()?.title ?? "none")
+    }
+
     @MainActor
     static func capture(_ window: NSWindow?, name: String) {
         applyOverrides()
@@ -88,7 +190,7 @@ enum MacSnapshot {
         UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
 
         func mainWindow() -> NSWindow? {
-            NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && $0.title != "" } ?? NSApp.windows.first { $0.isVisible }
+            NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && abs($0.frame.width - 720) > 1 } ?? NSApp.windows.first { $0.isVisible }
         }
         func go(_ destination: String) {
             NotificationCenter.default.post(name: .mirrorMacNavigate, object: nil, userInfo: ["destination": destination])
@@ -98,7 +200,16 @@ enum MacSnapshot {
         // The board's window size, regardless of any saved frame.
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
+        if CommandLine.arguments.contains("--macSnapshotSettingsOnly") {
+            await settingsPass(mainWindow: mainWindow)
+            NSApp.terminate(nil)
+            return
+        }
         capture(mainWindow(), name: "1-write")
+        if CommandLine.arguments.contains("--macSnapshotPrefs") {
+            await prefsPass(mainWindow: mainWindow, go: go)
+            if CommandLine.arguments.contains("--macSnapshotPrefsOnly") { NSApp.terminate(nil); return }
+        }
         if CommandLine.arguments.contains("--macSnapshotPanel") {
             NotificationCenter.default.post(name: .mirrorMacDebugOpenFormatPanel, object: nil)
             try? await Task.sleep(for: .seconds(1.5))
@@ -227,10 +338,7 @@ enum MacSnapshot {
             if let sheet = mainWindow()?.attachedSheet { mainWindow()?.endSheet(sheet) }
             try? await Task.sleep(for: .seconds(1))
         }
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        try? await Task.sleep(for: .seconds(2))
-        let settings = NSApp.windows.first { $0.isVisible && $0 !== mainWindow() }
-        capture(settings, name: "5-settings")
+        await settingsPass(mainWindow: mainWindow)
 
         if !CommandLine.arguments.contains("--macSnapshotHold") { NSApp.terminate(nil) }
     }
@@ -491,6 +599,17 @@ extension MacSnapshot {
         window.sendEvent(event)
     }
 
+    /// Presses the first accessibility element whose label contains `text`, like assistive tech does.
+    @MainActor
+    private static func pressElement(labelContaining text: String, in root: Any?) -> Bool {
+        guard let element = root as? NSAccessibilityProtocol else { return false }
+        if let label = element.accessibilityLabel(), label.localizedCaseInsensitiveContains(text), element.accessibilityPerformPress() { return true }
+        var children = element.accessibilityChildren() ?? []
+        if children.isEmpty, let view = root as? NSView { children = view.subviews }
+        for child in children where pressElement(labelContaining: text, in: child) { return true }
+        return false
+    }
+
     @MainActor
     private static func pngBytes(_ name: String) -> Data? {
         try? Data(contentsOf: outputDirectory.appendingPathComponent("\(name)-ws.png"))
@@ -508,7 +627,7 @@ extension MacSnapshot {
     @MainActor
     static func brainInputChecks() async {
         func mainWindow() -> NSWindow? {
-            NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && $0.title != "" } ?? NSApp.windows.first { $0.isVisible }
+            NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && abs($0.frame.width - 720) > 1 } ?? NSApp.windows.first { $0.isVisible }
         }
         guard let window = mainWindow() else { return }
         NotificationCenter.default.post(name: .mirrorMacDebugBrainDimension, object: nil, userInfo: ["is3D": true])

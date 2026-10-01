@@ -15,6 +15,9 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+    #if os(macOS)
+    @AppStorage(MacPrefs.widthKey) private var lineWidthPreference = MacPrefs.LineWidth.comfortable.rawValue
+    #endif
     private var writingFontDesign: Font.Design {
         WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
@@ -327,7 +330,7 @@ struct EntryDetailView: View {
                             .padding(.top, 30)
                     }
                 }
-                .frame(maxWidth: 640, alignment: .leading)
+                .frame(maxWidth: MacPrefs.lineWidth(lineWidthPreference).readerColumn, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.top, 52)
                 .padding(.bottom, 40)
@@ -582,6 +585,23 @@ private struct InlineEntryContent: View {
     let inlineStyleData: Data?
     let photoDataArray: [Data]
     let fontChoice: String?
+
+    #if os(macOS)
+    // Settings > Appearance > Text size; the board's reader is 18 pt on a 1.78 line.
+    @AppStorage(MacPrefs.sizeKey) private var textSizePreference = MacPrefs.defaultSize
+    private var bodySize: CGFloat { CGFloat(min(max(textSizePreference, MacPrefs.sizeRange.lowerBound), MacPrefs.sizeRange.upperBound)) }
+    private var bodyLineSpacing: CGFloat { 10 * bodySize / 18 }
+    // Same proportions as the Mac editor, so a paragraph does not change size between the two.
+    private var titleSize: CGFloat { bodySize + 10 }
+    private var headingSize: CGFloat { bodySize + 4 }
+    private var monospacedSize: CGFloat { bodySize - 2 }
+    #else
+    private var bodySize: CGFloat { 17 }
+    private var bodyLineSpacing: CGFloat { 6 }
+    private var titleSize: CGFloat { 30 }
+    private var headingSize: CGFloat { 22 }
+    private var monospacedSize: CGFloat { 16 }
+    #endif
     @Environment(\.appDisplayMode) private var displayMode
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
@@ -770,26 +790,26 @@ private struct InlineEntryContent: View {
         let dropCount = line.count - displayLine.count
         let paragraphStart = paragraphStartOffset(at: index)
         if style == .title {
-            let font = designedFont(size: 30, weight: .bold, design: .default)
+            let font = designedFont(size: titleSize, weight: .bold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .heading {
-            let font = designedFont(size: 22, weight: .bold, design: .default)
+            let font = designedFont(size: headingSize, weight: .bold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .subheading {
-            let font = designedFont(size: 17, weight: .semibold, design: .default)
+            let font = designedFont(size: bodySize, weight: .semibold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
         } else if style == .monospaced {
-            let font = designedFont(size: 16, weight: .regular, design: .monospaced)
+            let font = designedFont(size: monospacedSize, weight: .regular, design: .monospaced)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .blockQuote {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
-                .lineSpacing(6)
+                .lineSpacing(bodyLineSpacing)
                 .padding(.leading, 16)
         } else if style == .checklistUnchecked || style == .checklistChecked {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
                     .font(.system(size: 24, weight: .regular))
@@ -805,7 +825,7 @@ private struct InlineEntryContent: View {
             // here even though the editor shows glyphs/numbers and indent for
             // them. Markers/indent match NoteEditorTextView's; numbering uses
             // the same per-level-restart rule as `numberedOrdinal(at:)`.
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             let level = indentLevels.indices.contains(index) ? indentLevels[index] : 0
             let marker = listMarker(for: style, level: level, index: index)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -818,10 +838,10 @@ private struct InlineEntryContent: View {
             }
             .padding(.leading, CGFloat(level) * 20)
         } else {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font))
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .lineSpacing(6)
+                .lineSpacing(bodyLineSpacing)
         }
     }
 

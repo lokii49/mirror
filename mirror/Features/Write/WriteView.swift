@@ -501,7 +501,8 @@ struct WriteView: View {
             entryTags = entry?.tags ?? []
             #if os(macOS)
             // The Mac design sets body text in a serif face; new entries start there.
-            entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.serif.rawValue
+            // New entries start in the font chosen in Settings (Serif unless changed).
+            entryFontChoiceRaw = entry?.fontChoice ?? MacPrefs.writingFont.rawValue
             #else
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
             #endif

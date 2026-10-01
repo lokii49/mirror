@@ -16,7 +16,10 @@ import AppKit
 // MARK: - Visual styling
 
 enum MacEditorStyle {
-    static let bodySize: CGFloat = 18
+    /// Settings > Appearance > Text size (the board's 18 pt by default).
+    static var bodySize: CGFloat { MacPrefs.textSize }
+    /// Spacing in the board's proportions at 18 pt, scaled with the chosen size.
+    private static var scale: CGFloat { bodySize / 18 }
     /// Width reserved left of list text for the marker.
     static func gutter(for style: NoteParagraphTextStyle) -> CGFloat {
         style == .numberedList ? 24 : 28
@@ -27,15 +30,15 @@ enum MacEditorStyle {
         var size = bodySize
         var paragraphBold = false
         switch style {
-        case .title: size = 28; paragraphBold = true
-        case .heading: size = 22; paragraphBold = true
+        case .title: size = bodySize + 10; paragraphBold = true
+        case .heading: size = bodySize + 4; paragraphBold = true
         case .subheading: paragraphBold = true
         default: break
         }
 
         var font: NSFont
         if style == .monospaced {
-            font = NSFont.monospacedSystemFont(ofSize: 16, weight: .regular)
+            font = NSFont.monospacedSystemFont(ofSize: bodySize - 2, weight: .regular)
         } else {
             let base = NSFont.systemFont(ofSize: size)
             if let descriptor = base.fontDescriptor.withDesign(choice.uiDesign), let designed = NSFont(descriptor: descriptor, size: size) {
@@ -69,13 +72,13 @@ enum MacEditorStyle {
             ps.lineSpacing = 5; ps.paragraphSpacing = 8
             ps.firstLineHeadIndent = 16; ps.headIndent = 16
         case .checklistUnchecked, .checklistChecked, .bulletedList, .dashedList, .numberedList:
-            ps.lineSpacing = 10; ps.paragraphSpacing = 8
+            ps.lineSpacing = 10 * scale; ps.paragraphSpacing = 8
             // The marker is drawn in the gutter, so first and wrapped lines share one left edge.
             ps.firstLineHeadIndent = offset + gutter(for: model.style)
             ps.headIndent = offset + gutter(for: model.style)
         case .body:
             // The board's 18 pt / 1.78 line height with 20 pt between paragraphs.
-            ps.lineSpacing = 10; ps.paragraphSpacing = 20
+            ps.lineSpacing = 10 * scale; ps.paragraphSpacing = 20 * scale
         }
         return ps
     }
@@ -307,6 +310,8 @@ struct NoteEditorTextView: NSViewRepresentable {
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
     var onPhotoTapped: ((Int) -> Void)?
+    /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
+    @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
     private static let minHeight: CGFloat = 60
 
@@ -399,6 +404,7 @@ struct NoteEditorTextView: NSViewRepresentable {
         private var lastStyleData: Data?
         private var lastInlineData: Data?
         private var lastFontChoiceRaw = ""
+        private var lastTextSize: CGFloat = 0
         private var trailing = NoteEditorCodec.ParagraphModel()
 
         init(parent: NoteEditorTextView) { self.parent = parent }
@@ -422,6 +428,7 @@ struct NoteEditorTextView: NSViewRepresentable {
                 || parent.textStyleData != lastStyleData
                 || parent.inlineStyleData != lastInlineData
                 || parent.fontChoiceRaw != lastFontChoiceRaw
+                || lastTextSize != MacEditorStyle.bodySize
         }
 
         func load(into textView: MirrorNSTextView) {
@@ -440,6 +447,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             lastStyleData = parent.textStyleData
             lastInlineData = parent.inlineStyleData
             lastFontChoiceRaw = parent.fontChoiceRaw
+            lastTextSize = MacEditorStyle.bodySize
             refreshTypingAttributes(in: textView)
             textView.needsDisplay = true
         }

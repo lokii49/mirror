@@ -48,7 +48,7 @@ struct ProtocolSettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
+        SettingsScroll {
             VStack(spacing: 14) {
                 SettingsGroup(title: "Schedule") {
                     // Daily nudge time — Core only
