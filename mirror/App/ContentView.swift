@@ -412,7 +412,8 @@ struct ContentView: View {
         case .entries:
             HSplitView {
                 EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID, macSelection: $macSelectedEntry)
-                    .frame(minWidth: 360, idealWidth: 400, maxWidth: 520)
+                    .frame(minWidth: 300, idealWidth: 340, maxWidth: 420, maxHeight: .infinity)
+                    .ignoresSafeArea(.container, edges: .top)
                 Group {
                     if let macSelectedEntry {
                         NavigationStack {
@@ -420,13 +421,18 @@ struct ContentView: View {
                                 self.macSelectedEntry = nil
                             }
                         }
+                        .ignoresSafeArea(.container, edges: .top)
                         .id(macSelectedEntry.id)
+                        // An entry deleted elsewhere (sync, another window) closes the reader and editor.
+                        .background(MacSelectionGuard(entryID: macSelectedEntry.id) { self.macSelectedEntry = nil })
                     } else {
                         ContentUnavailableView("Select an entry", systemImage: "book.closed")
                     }
                 }
-                .frame(minWidth: 360, maxWidth: .infinity)
+                .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             }
+            // Without this the split view sizes itself to its content and floats in the middle.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .write:
             WriteTabView(onSave: {
                 macDestination = .entries

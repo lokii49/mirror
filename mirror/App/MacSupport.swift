@@ -1,5 +1,6 @@
 #if os(macOS)
 import SwiftUI
+import SwiftData
 
 // macOS-only app plumbing: menu commands, the Settings window, and the notifications that let
 // the menu bar drive navigation inside ContentView (the commands live at App scope, the
@@ -36,6 +37,14 @@ struct MirrorMacCommands: Commands {
             Button("Entries") { navigate("entries") }
                 .keyboardShortcut("2", modifiers: .command)
             Button("Insights") { navigate("today") }
+            Divider()
+            Button("Find in Entries") {
+                navigate("entries")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    NotificationCenter.default.post(name: .mirrorMacFocusSearch, object: nil)
+                }
+            }
+            .keyboardShortcut("f", modifiers: .command)
                 .keyboardShortcut("3", modifiers: .command)
         }
     }
@@ -46,6 +55,49 @@ struct MirrorMacCommands: Commands {
             object: nil,
             userInfo: ["destination": destination]
         )
+    }
+}
+
+/// Calls `onGone` when the entry with this id no longer exists, so a reader or editor that still
+/// holds it can be dismissed instead of showing, or saving to, a deleted record.
+struct MacSelectionGuard: View {
+    let onGone: () -> Void
+    @Query private var matches: [Entry]
+
+    init(entryID: UUID, onGone: @escaping () -> Void) {
+        self.onGone = onGone
+        _matches = Query(filter: #Predicate<Entry> { $0.id == entryID })
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: matches.isEmpty) { _, gone in
+                if gone { onGone() }
+            }
+    }
+}
+
+/// An entry in its own window (the reader's "open in new window").
+struct MacEntryWindow: View {
+    @Query private var matches: [Entry]
+
+    init(entryID: UUID?) {
+        let id = entryID ?? UUID()
+        _matches = Query(filter: #Predicate<Entry> { $0.id == id })
+    }
+
+    var body: some View {
+        Group {
+            if let entry = matches.first {
+                NavigationStack { EntryDetailView(entry: entry) }
+            } else {
+                ContentUnavailableView("Entry not found", systemImage: "book.closed")
+            }
+        }
+        .environment(\.appDisplayMode, .classic)
+        .background(MacWindowConfigurator())
+        .frame(minWidth: 560, minHeight: 480)
     }
 }
 

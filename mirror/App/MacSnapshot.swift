@@ -118,6 +118,39 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(2))
         capture(mainWindow(), name: "3b-editor")
 
+        // Edge states of the Entries screen.
+        let all = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+        if let first = all.first { first.isPinned = true; try? context.save() }
+        NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["calendar": true])
+        try? await Task.sleep(for: .seconds(1.5))
+        capture(mainWindow(), name: "2b-pinned-calendar")
+        NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["calendar": false, "search": "zzzzqq-no-match"])
+        try? await Task.sleep(for: .seconds(1.5))
+        capture(mainWindow(), name: "2c-no-results")
+        NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": ""])
+        try? await Task.sleep(for: .seconds(1))
+
+        // An entry removed behind the reader's back (another device's delete arriving by sync).
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        if let open = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])))?.first {
+            context.delete(open)
+            try? context.save()
+        }
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "3d-external-delete")
+        NSLog("MacSnapshot: external delete survived")
+
+        // Deleting the entry open in the reader must not crash or leave a stale reader.
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        let beforeCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+        NotificationCenter.default.post(name: .mirrorMacDebugConfirmDelete, object: nil)
+        try? await Task.sleep(for: .seconds(2))
+        let afterCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+        NSLog("MacSnapshot: delete check %d -> %d", beforeCount, afterCount)
+        capture(mainWindow(), name: "3c-after-delete")
+
         go("today")
         try? await Task.sleep(for: .seconds(3))
         capture(mainWindow(), name: "4-insights")
@@ -132,6 +165,7 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    static let mirrorMacDebugConfirmDelete = Notification.Name("mirror.mac.debug.confirmDelete")
     static let mirrorMacDebugOpenFormatPanel = Notification.Name("mirror.mac.debug.openFormatPanel")
     static let mirrorMacDebugOpenEditor = Notification.Name("mirror.mac.debug.openEditor")
     static let mirrorMacDebugSelectFirstEntry = Notification.Name("mirror.mac.debug.selectFirstEntry")

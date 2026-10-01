@@ -158,6 +158,20 @@ final class UISelectionFeedbackGenerator {
 }
 #endif
 
+/// A navigation stack on iOS. On Mac the list reports selections to a sibling reader instead of
+/// pushing, so the stack (which reserves a title-bar-sized band at the top) is left out.
+struct PlatformNavigationStack<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        #if os(macOS)
+        content()
+        #else
+        NavigationStack { content() }
+        #endif
+    }
+}
+
 /// Resigns the text-input focus (hides the keyboard on iOS).
 @MainActor func dismissKeyboard() {
     #if os(iOS)

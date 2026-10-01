@@ -25,6 +25,11 @@ enum MacTokens {
     static let controlInk = MirrorTheme.hex(0xC9BEF2, 0x4A4366)
     static let accentInk = MirrorTheme.hex(0xC9BEF2, 0x4B2FA8)
 
+    /// Selected list row. The board is dark-only; the light values are derived from it.
+    static let selectedRowFill = MirrorTheme.hex(0x2A2150, 0xE6DEFA)
+    static let selectedRowBorder = MirrorTheme.hex(0x5B45B8, 0xB9A8F0)
+    static let selectedRowInk = MirrorTheme.hex(0xC9BEF2, 0x5B45B8)
+
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
 }
