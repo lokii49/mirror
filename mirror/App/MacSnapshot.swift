@@ -122,6 +122,44 @@ enum MacSnapshot {
         }
     }
 
+    /// The quick-capture popover in an ordinary window (a menu bar panel can't be captured the
+    /// same way), saved through the same model the popover uses.
+    @MainActor
+    static func quickCapturePass(context: ModelContext) async {
+        let model = MacQuickCaptureModel.shared
+        model.text = "Left the meeting early and felt relieved, which says something. Want to write about it properly tonight."
+        model.mood = "Hopeful"
+        let host = NSHostingController(rootView: MacQuickCaptureView().environment(\.modelContext, context).modelContainer(context.container))
+        let window = NSWindow(contentViewController: host)
+        window.styleMask = [.borderless]
+        window.backgroundColor = .clear
+        window.setContentSize(NSSize(width: 400, height: 420))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        try? await Task.sleep(for: .seconds(2))
+        capture(window, name: "10-quick-capture")
+
+        model.showAllMoods = true
+        try? await Task.sleep(for: .seconds(1))
+        capture(window, name: "10b-quick-capture-all-moods")
+        model.showAllMoods = false
+        NSApp.appearance = NSAppearance(named: .aqua)
+        try? await Task.sleep(for: .seconds(1))
+        capture(window, name: "10d-quick-capture-light")
+        NSApp.appearance = nil
+
+        let before = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+        let saved = model.save(in: context)
+        let after = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? -1
+        NSLog("MacSnapshot: quick capture saved = %@, entries %d -> %d, draft cleared = %@", saved ? "yes" : "no", before, after, model.text.isEmpty ? "yes" : "no")
+        try? await Task.sleep(for: .seconds(1.5))
+        capture(window, name: "10c-quick-capture-saved")
+        model.text = ""
+        let blocked = model.save(in: context)
+        NSLog("MacSnapshot: quick capture empty save blocked = %@", blocked ? "no" : "yes")
+    }
+
     /// Opens Settings the way a user does (the app menu item), captures every tab, then checks a
     /// sheet opened from a settings row, the Appearance choice, and closing and reopening.
     @MainActor
@@ -255,6 +293,11 @@ enum MacSnapshot {
         // The board's window size, regardless of any saved frame.
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
+        if CommandLine.arguments.contains("--macSnapshotQuickCaptureOnly") {
+            await quickCapturePass(context: context)
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotMenusOnly") {
             await menusPass(mainWindow: mainWindow, go: go)
             NSApp.terminate(nil)

@@ -175,7 +175,7 @@ struct mirrorApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             if MirrorModelContainer.isStoreAvailable {
                 ContentView()
             } else {
@@ -280,6 +280,14 @@ struct mirrorApp: App {
         #endif
 
         #if os(macOS)
+        MenuBarExtra {
+            MacQuickCaptureView()
+                .modelContainer(sharedModelContainer)
+        } label: {
+            Image("mac-pen").renderingMode(.template)
+        }
+        .menuBarExtraStyle(.window)
+
         WindowGroup("New Entry", id: "new-entry") {
             MacNewEntryWindow()
         }

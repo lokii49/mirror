@@ -38,6 +38,11 @@ enum MacTokens {
     static let settingsControlBorder = MirrorTheme.hex(0x2A2545, 0xD0C6EC)
     static let tabSelectedFill = MirrorTheme.hex(0x2F2560, 0xDAD0F3)
 
+    /// Quick capture popover: its outline, the text field and the footer strip.
+    static let popoverBorder = MirrorTheme.hex(0x3A3360, 0xD9D0EE)
+    static let quickField = MirrorTheme.hex(0x110E1C, 0xF8F5FF)
+    static let quickFooter = MirrorTheme.hex(0x17132B, 0xF0EBFA)
+
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
 }
