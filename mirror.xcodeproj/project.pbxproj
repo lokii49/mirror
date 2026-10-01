@@ -13,7 +13,7 @@
 		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
 		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
 		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
-		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A72FB47F4F00C6362E /* RevenueCat */; };
 		47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A92FB47F4F00C6362E /* RevenueCatUI */; };
 		48A1B0012FC1000100000001 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48A1B0002FC1000100000001 /* FoundationModels.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
@@ -544,7 +544,6 @@
 		};
 		47E752922FB44FE800C6362E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilter = ios;
 			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
 			targetProxy = 47E752912FB44FE800C6362E /* PBXContainerItemProxy */;
 		};
@@ -885,9 +884,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MirrorWidgetExtension;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
@@ -898,11 +899,19 @@
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				SDKROOT = auto;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 			name = Debug;
 		};
 		47E752962FB44FE800C6362E /* Release */ = {
@@ -917,9 +926,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MirrorWidgetExtension;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
@@ -930,11 +941,19 @@
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				SDKROOT = auto;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 			name = Release;
 		};
 		C0C966C686603AEF7C21B1B3 /* Debug */ = {

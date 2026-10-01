@@ -315,6 +315,9 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "mirror" else { return }
+            #if os(macOS)
+            if macHandleWidgetURL(url) { return }
+            #endif
             switch url.host {
             case "write":
                 if let indexString = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -376,6 +379,36 @@ struct ContentView: View {
     // MARK: - Mac layout (sidebar + detail, list and reader side by side for Entries)
 
     #if os(macOS)
+    /// Widget and deep links on Mac. True when handled here; the rest follow the shared routing.
+    private func macHandleWidgetURL(_ url: URL) -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+        switch url.host {
+        case "write":
+            // A prompt tile seeds a new entry in the main window (no sheet on Mac).
+            if let indexString = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "promptIndex" })?.value,
+               let index = Int(indexString), WritingPrompts.all.indices.contains(index) {
+                macWriteInitialText = WritingPrompts.all[index] + "\n\n"
+                macWriteID = UUID()
+                macDestination = .write
+                return true
+            }
+            return false
+        case "entry":
+            guard let idString = url.pathComponents.dropFirst().first, let id = UUID(uuidString: idString) else { return true }
+            NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
+            return true
+        case "monthly-report":
+            macDestination = .report
+            return true
+        case "mood-timeline":
+            macDestination = .mood
+            return true
+        default:
+            return false
+        }
+    }
+
     private var macLayout: some View {
         MacRootView(selection: $macDestination, sidebarVisible: $macSidebarVisible) {
             macDetailView

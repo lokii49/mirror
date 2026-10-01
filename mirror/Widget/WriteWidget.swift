@@ -111,6 +111,46 @@ struct WriteRectangularView: View {
     }
 }
 
+// MARK: - Small tile (Mac desktop and Notification Center)
+
+#if os(macOS)
+/// Mac has no lock-screen sizes, so Quick Write is a small tile there: the same message as the
+/// rectangular lock-screen widget, with room for the streak.
+struct WriteSmallView: View {
+    let entry: WriteTimelineEntry
+
+    private var isUnlocked: Bool {
+        let tier = WidgetShared.tier()
+        return tier == "core" || tier == "deep"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: isUnlocked ? "square.and.pencil" : "lock.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(isUnlocked ? WidgetTheme.violetLight : .secondary)
+            Spacer(minLength: 0)
+            if isUnlocked {
+                Text(entry.wroteToday ? "Written today ✓" : "Write in mirror")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(entry.streak > 0 ? "🔥 \(entry.streak)-day streak" : "Start your streak today")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Quick Write")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Core required")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .containerBackground(.fill.tertiary, for: .widget)
+        .widgetURL(URL(string: isUnlocked ? "mirror://write" : "mirror://upgrade"))
+    }
+}
+#endif
+
 // MARK: - Unified view dispatcher
 
 struct WriteWidgetView: View {
@@ -118,12 +158,16 @@ struct WriteWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
+        #if os(macOS)
+        WriteSmallView(entry: entry)
+        #else
         switch family {
         case .accessoryRectangular:
             WriteRectangularView(entry: entry)
         default:
             WriteCircularView(entry: entry)
         }
+        #endif
     }
 }
 
@@ -138,6 +182,10 @@ struct MirrorWriteWidget: Widget {
         }
         .configurationDisplayName("Quick Write")
         .description("Tap to write in mirror. Shows your current streak.")
+        #if os(macOS)
+        .supportedFamilies([.systemSmall])
+        #else
         .supportedFamilies([.accessoryCircular, .accessoryRectangular])
+        #endif
     }
 }
