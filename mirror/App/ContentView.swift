@@ -458,10 +458,10 @@ struct ContentView: View {
                 entriesNavResetID = UUID()
             })
             .id(macWriteID)
-        case .today, .digest:
-            // Until each Insights page has its own Mac screen, Today and Weekly digest share the
-            // existing Insights page.
-            InsightView(viewModel: insightViewModel)
+        case .today:
+            InsightView(viewModel: insightViewModel, macPage: .today)
+        case .digest:
+            InsightView(viewModel: insightViewModel, macPage: .digest)
         case .report:
             NavigationStack { MonthlyReportView(viewModel: insightViewModel) }
         case .mood:

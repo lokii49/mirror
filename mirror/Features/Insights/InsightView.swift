@@ -17,6 +17,8 @@ struct InsightView: View {
     @State private var pastNudgesExpanded = false
     @State private var pastDigestsExpanded = false
     #if os(macOS)
+    /// Which of the two pages this view backs on Mac (the iOS Insights tab shows both).
+    var macPage: MacInsightPage = .today
     @State private var macInspectorOpen = false
     @State private var macToday: MacTodayContent? = nil
     @State private var macPastRows: [MacPastRow] = []
@@ -149,7 +151,10 @@ struct InsightView: View {
     @ViewBuilder
     private var platformContent: some View {
         #if os(macOS)
-        macTodayScreen
+        switch macPage {
+        case .today: macTodayScreen
+        case .digest: macDigestScreen
+        }
         #else
         iosContent
         #endif
@@ -1746,6 +1751,8 @@ private struct ReflectedDayLabel: View {
 #if os(macOS)
 // MARK: - Mac Today (the design's Insights board)
 
+enum MacInsightPage { case today, digest }
+
 /// The loaded daily reflection, decrypted and parsed once (not in `body`).
 private struct MacTodayContent: Equatable {
     var id: PersistentIdentifier
@@ -1817,30 +1824,40 @@ extension InsightView {
     }
 
     private var macTodayToolbar: some View {
-        HStack(spacing: 6) {
-            Text("Today")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MacTokens.ink)
-            Spacer(minLength: 0)
-            Button {
+        MacPageBar(title: "Today") {
+            MacBarToggle(icon: "panel-right", isOn: macInspectorOpen, label: "How this was generated", isDisabled: macToday == nil) {
                 withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen.toggle() }
-            } label: {
-                MacIcon(name: "panel-right", size: 17)
-                    .frame(width: 34, height: 28)
-                    .background(macInspectorOpen ? MacTokens.toggleActiveFill : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(macInspectorOpen ? MacTokens.accentInk : MacTokens.controlInk)
-            .disabled(macToday == nil)
-            .opacity(macToday == nil ? 0.4 : 1)
-            .accessibilityLabel("How this was generated")
-            .help("How this was generated")
         }
-        .padding(.horizontal, 16)
-        .frame(height: MacTokens.chromeHeight)
+    }
+
+    // MARK: Weekly digest page
+
+    /// Weekly digest: this week's digest in every state the iOS tab has (loading, not enough
+    /// entries, upgrade, pending, fallback…) in the Today column, then earlier weeks.
+    fileprivate var macDigestScreen: some View {
+        VStack(spacing: 0) {
+            MacPageBar(title: "Weekly digest") {}
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    digestStatusContent
+                    if !pastDigests.isEmpty { pastDigestsSection }
+                }
+                .frame(maxWidth: 640, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 44)
+                .padding(.bottom, 40)
+                .frame(maxWidth: .infinity)
+            }
+            .modifier(MacNoScrollEdgeEffect())
+        }
         .background(MirrorTheme.bgBase)
-        .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
+        .onAppear {
+            // On its own page the digest opens in full and the archive is listed.
+            digestExpanded = true
+            pastDigestsExpanded = true
+        }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
     }
 
     @ViewBuilder

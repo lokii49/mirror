@@ -6,6 +6,8 @@ struct AskView: View {
     /// Seeds the question field on first appear (e.g. from a Brain View node).
     /// Prefill only — never auto-submits.
     var initialQuestion: String? = nil
+    /// Set when Ask is shown in a sheet (Brain View), so Mac can show a Done button.
+    var onClose: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
@@ -62,7 +64,58 @@ struct AskView: View {
         remaining > 0 && !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
     }
 
+    /// "N left" for Core; the toolbar shows it on iOS and the title bar on Mac.
+    private var remainingBadge: some View {
+        let isLow = remaining <= 3
+        let isCritical = remaining <= 1
+        return Text(displayMode == .sentinel ? "\(remaining) LEFT" : "\(remaining) left")
+            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+            .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
+            .monospacedDigit()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                (isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.10),
+                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+            )
+            .overlay {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke((isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.3), lineWidth: 1)
+                }
+            }
+    }
+
+    private var suggestionsToggle: some View {
+        Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                showSuggestions.toggle()
+            }
+        } label: {
+            Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
+        askScreen
+        #if os(macOS)
+            .macPage("Ask") {
+                if case .ready = viewModel.askState {
+                    if !subscriptionService.isDeep { remainingBadge }
+                    suggestionsToggle
+                }
+                if let onClose {
+                    Button("Done", action: onClose).keyboardShortcut(.cancelAction)
+                }
+            }
+        #endif
+    }
+
+    private var askScreen: some View {
         Group {
             switch viewModel.askState {
             case .idle:
@@ -81,43 +134,14 @@ struct AskView: View {
                 }
                 .padding(.bottom, keyboardHeight)
                 .ignoresSafeArea(.keyboard, edges: .bottom)
+                #if os(iOS)
                 .toolbar {
                     if !subscriptionService.isDeep {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            let isLow = remaining <= 3
-                            let isCritical = remaining <= 1
-                            Text(displayMode == .sentinel ? "\(remaining) LEFT" : "\(remaining) left")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                                .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
-                                .monospacedDigit()
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(
-                                    (isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.10),
-                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
-                                )
-                                .overlay {
-                                    if displayMode == .sentinel {
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .stroke((isCritical ? Color.red : isLow ? Color.orange : MirrorTheme.textSecondary).opacity(0.3), lineWidth: 1)
-                                    }
-                                }
-                        }
+                        ToolbarItem(placement: .topBarTrailing) { remainingBadge }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                showSuggestions.toggle()
-                            }
-                        } label: {
-                            Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    ToolbarItem(placement: .topBarTrailing) { suggestionsToggle }
                 }
+                #endif
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
                     updateKeyboardHeight(from: notification)
                 }

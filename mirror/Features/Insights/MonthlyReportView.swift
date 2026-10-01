@@ -68,6 +68,9 @@ struct MonthlyReportView: View {
             .frame(maxWidth: .infinity)
         }
         .background(MirrorTheme.bgBase)
+        #if os(macOS)
+        .macPage("Monthly report")
+        #endif
         .navigationTitle(displayMode == .sentinel ? "Debrief" : "Monthly Report")
         .navigationBarTitleDisplayMode(.inline)
         #if os(iOS)

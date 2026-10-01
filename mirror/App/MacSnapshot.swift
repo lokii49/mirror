@@ -2,6 +2,7 @@
 import SwiftUI
 import SwiftData
 import AppKit
+import SceneKit
 
 // DEBUG-only: renders the Mac UI to PNGs from inside the app, then quits. Run the app binary with
 //   --macSnapshot --macSnapshotDir=/some/dir
@@ -193,17 +194,39 @@ enum MacSnapshot {
         NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": "Can you say more about \u{201C}Nothing went wrong and I still feel flat\u{201D}?\n"])
         try? await Task.sleep(for: .seconds(2))
         capture(mainWindow(), name: "4e-chip-write")
-        // Go > Log Mood… presents the check-in sheet.
-        MoodCheckInPresenter.shared.pending = true
-        try? await Task.sleep(for: .seconds(2))
-        NSLog("MacSnapshot: mood sheet presented = %@", mainWindow()?.attachedSheet != nil ? "yes" : "no")
-        capture(mainWindow()?.attachedSheet ?? mainWindow(), name: "4f-log-mood")
-        if let sheet = mainWindow()?.attachedSheet { mainWindow()?.endSheet(sheet) }
-        try? await Task.sleep(for: .seconds(1))
         go("today")
         NotificationCenter.default.post(name: .mirrorMacDebugToggleInspector, object: nil, userInfo: ["open": false])
         try? await Task.sleep(for: .seconds(1))
 
+        // Insights sub-pages (no boards: the shared title bar around the existing content).
+        SampleData.seedWeeklyDigestSample(into: context)
+        SampleData.seedPriorWeekDigestSample(into: context)
+        SampleData.seedMonthlyReportSample(into: context)
+        SampleData.seedAskSample(into: context)
+        for page in ["digest", "report", "mood", "ask", "brain"] {
+            go(page)
+            try? await Task.sleep(for: .seconds(3))
+            capture(mainWindow(), name: "6-\(page)")
+            if page == "brain" {
+                try? await Task.sleep(for: .seconds(2))
+                capture(mainWindow(), name: "6-brain-3d-later")
+                await brainInputChecks()
+                NotificationCenter.default.post(name: .mirrorMacDebugBrainDimension, object: nil, userInfo: ["is3D": false])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow(), name: "6-brain-2d")
+            }
+        }
+
+        // Go > Log Mood… presents the check-in sheet. Opt-in (--macSnapshotMood): it pops a modal
+        // over the window, which is disruptive when the capture run is watched.
+        if CommandLine.arguments.contains("--macSnapshotMood") {
+            MoodCheckInPresenter.shared.pending = true
+            try? await Task.sleep(for: .seconds(2))
+            NSLog("MacSnapshot: mood sheet presented = %@", mainWindow()?.attachedSheet != nil ? "yes" : "no")
+            capture(mainWindow()?.attachedSheet ?? mainWindow(), name: "4f-log-mood")
+            if let sheet = mainWindow()?.attachedSheet { mainWindow()?.endSheet(sheet) }
+            try? await Task.sleep(for: .seconds(1))
+        }
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         try? await Task.sleep(for: .seconds(2))
         let settings = NSApp.windows.first { $0.isVisible && $0 !== mainWindow() }
@@ -214,6 +237,8 @@ enum MacSnapshot {
 }
 
 extension Notification.Name {
+    static let mirrorMacDebugBrainSheet = Notification.Name("mirror.mac.debug.brainSheet")
+    static let mirrorMacDebugBrainDimension = Notification.Name("mirror.mac.debug.brainDimension")
     static let mirrorMacDebugToggleInspector = Notification.Name("mirror.mac.debug.toggleInspector")
     static let mirrorMacDebugConfirmDelete = Notification.Name("mirror.mac.debug.confirmDelete")
     static let mirrorMacDebugOpenFormatPanel = Notification.Name("mirror.mac.debug.openFormatPanel")
@@ -445,6 +470,88 @@ enum MacEditorSelfTest {
         }
 
         return out
+    }
+}
+
+// MARK: - Brain View input checks (DEBUG)
+
+extension MacSnapshot {
+    @MainActor
+    private static func firstSCNView(in view: NSView?) -> SCNView? {
+        guard let view else { return nil }
+        if let scn = view as? SCNView { return scn }
+        for sub in view.subviews { if let found = firstSCNView(in: sub) { return found } }
+        return nil
+    }
+
+    @MainActor
+    private static func send(_ type: NSEvent.EventType, at point: NSPoint, in window: NSWindow, clicks: Int = 1) {
+        guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1) else { return }
+        window.sendEvent(event)
+    }
+
+    @MainActor
+    private static func pngBytes(_ name: String) -> Data? {
+        try? Data(contentsOf: outputDirectory.appendingPathComponent("\(name)-ws.png"))
+    }
+
+    @MainActor
+    private static func sendEscape(to window: NSWindow) {
+        guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                           windowNumber: window.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                                           isARepeat: false, keyCode: 53) else { return }
+        window.sendEvent(event)
+    }
+
+    /// Real mouse events into the 3D view, and the Escape key into each sheet Brain View can open.
+    @MainActor
+    static func brainInputChecks() async {
+        func mainWindow() -> NSWindow? {
+            NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && $0.title != "" } ?? NSApp.windows.first { $0.isVisible }
+        }
+        guard let window = mainWindow() else { return }
+        NotificationCenter.default.post(name: .mirrorMacDebugBrainDimension, object: nil, userInfo: ["is3D": true])
+        try? await Task.sleep(for: .seconds(1.5))
+        guard let scn = firstSCNView(in: window.contentView) else { NSLog("MacSnapshot: brain input: no SCNView"); return }
+        let center = scn.convert(NSPoint(x: scn.bounds.midX, y: scn.bounds.midY), to: nil)
+
+        // Auto-rotate is running: two frames apart differ.
+        capture(window, name: "7-brain-a"); try? await Task.sleep(for: .seconds(2)); capture(window, name: "7-brain-b")
+        NSLog("MacSnapshot: brain input: auto-rotate moves frames = %@", pngBytes("7-brain-a") != pngBytes("7-brain-b") ? "yes" : "no")
+
+        // A click on the hub turns auto-rotate off: later frames identical.
+        send(.leftMouseDown, at: center, in: window); send(.leftMouseUp, at: center, in: window)
+        try? await Task.sleep(for: .seconds(2)); capture(window, name: "7-brain-c")
+        try? await Task.sleep(for: .seconds(2)); capture(window, name: "7-brain-d")
+        NSLog("MacSnapshot: brain input: click stops auto-rotate = %@", pngBytes("7-brain-c") == pngBytes("7-brain-d") ? "yes" : "no")
+
+        // Drag orbits, and the window must not move.
+        let frameBefore = window.frame
+        send(.leftMouseDown, at: center, in: window)
+        for step in 1...12 {
+            send(.leftMouseDragged, at: NSPoint(x: center.x + CGFloat(step) * 12, y: center.y + CGFloat(step) * 3), in: window)
+        }
+        send(.leftMouseUp, at: NSPoint(x: center.x + 144, y: center.y + 36), in: window)
+        try? await Task.sleep(for: .seconds(1)); capture(window, name: "7-brain-e")
+        NSLog("MacSnapshot: brain input: drag changes view = %@, window moved = %@", pngBytes("7-brain-d") != pngBytes("7-brain-e") ? "yes" : "no", window.frame == frameBefore ? "no" : "yes")
+
+        // Double-click resets the camera (and the view changes back).
+        send(.leftMouseDown, at: center, in: window, clicks: 2); send(.leftMouseUp, at: center, in: window, clicks: 2)
+        try? await Task.sleep(for: .seconds(1)); capture(window, name: "7-brain-f")
+        NSLog("MacSnapshot: brain input: double-click changes view = %@", pngBytes("7-brain-e") != pngBytes("7-brain-f") ? "yes" : "no")
+
+        // Sheets: open, then Escape through the real key path.
+        for kind in ["node", "ask"] {
+            NotificationCenter.default.post(name: .mirrorMacDebugBrainSheet, object: nil, userInfo: ["kind": kind])
+            try? await Task.sleep(for: .seconds(2))
+            let sheet = window.attachedSheet
+            NSLog("MacSnapshot: brain sheet %@ presented = %@", kind, sheet != nil ? "yes" : "no")
+            capture(sheet ?? window, name: "7-brain-sheet-\(kind)")
+            if let sheet { sendEscape(to: sheet) }
+            try? await Task.sleep(for: .seconds(1.5))
+            NSLog("MacSnapshot: brain sheet %@ closed by Escape = %@", kind, window.attachedSheet == nil ? "yes" : "no")
+        }
     }
 }
 #endif

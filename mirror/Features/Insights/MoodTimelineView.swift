@@ -213,6 +213,9 @@ struct MoodTimelineView: View {
             }
         }
         .background(MirrorTheme.bgBase)
+        #if os(macOS)
+        .macPage("Mood timeline")
+        #endif
         .navigationTitle(displayMode == .sentinel ? "Vitals" : "Mood Timeline")
         .navigationBarTitleDisplayMode(.inline)
         #if os(iOS)
@@ -915,6 +918,11 @@ private struct MoodChartCard: View {
                 .symbolSize(80)
             }
             .chartYScale(domain: 0...6)
+            #if os(macOS)
+            // Days with several entries give the smoothed area fill duplicate x values, which
+            // overshoots; on Mac the spikes were drawn outside the card. Keep it in the plot.
+            .chartPlotStyle { $0.clipped() }
+            #endif
             .chartYAxis {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {

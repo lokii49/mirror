@@ -16,18 +16,9 @@ extension WriteView {
         HStack(spacing: 6) {
             if entry != nil {
                 // Editing an existing entry in the reader pane: the way back to the reader.
-                Button { saveAndDismiss() } label: {
-                    Text("Done")
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(MacTokens.ink)
-                        .padding(.horizontal, 14)
-                        .frame(height: 28)
-                        .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                        .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Done editing")
-                .help("Save and go back to the entry (Esc leaves without saving)")
+                macIconButton("chevron-left", label: "Back") { saveAndDismiss() }
+                    .keyboardShortcut("[", modifiers: .command)
+                    .help("Back to the entry. Saves your changes (Esc leaves without saving).")
             } else {
                 macIconButton("sidebar", label: "Hide sidebar") {
                     NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)

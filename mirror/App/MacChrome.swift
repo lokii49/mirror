@@ -265,6 +265,76 @@ extension MacWindowConfigurator {
     }
 }
 
+// MARK: - Page title bar
+
+/// The 52 pt bar every Mac screen carries: a title on the left, that screen's controls on the
+/// right, and a hairline under it. The traffic lights sit on the sidebar, not here.
+struct MacPageBar<Trailing: View>: View {
+    let title: LocalizedStringKey
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(MacTokens.ink)
+            Spacer(minLength: 0)
+            trailing()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: MacTokens.chromeHeight)
+        .background(MacTokens.windowBackground)
+        .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
+    }
+}
+
+/// An icon button in the bar that shows an "on" state (the Today inspector toggle).
+struct MacBarToggle: View {
+    let icon: String
+    let isOn: Bool
+    let label: LocalizedStringKey
+    var isDisabled = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            MacIcon(name: icon, size: 17)
+                .frame(width: 34, height: 28)
+                .background(isOn ? MacTokens.toggleActiveFill : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isOn ? MacTokens.accentInk : MacTokens.controlInk)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.4 : 1)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+}
+
+private struct MacPageModifier<Trailing: View>: ViewModifier {
+    let title: LocalizedStringKey
+    let dark: Bool
+    @ViewBuilder var trailing: () -> Trailing
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        VStack(spacing: 0) {
+            MacPageBar(title: title, trailing: trailing)
+                .environment(\.colorScheme, dark ? .dark : scheme)
+            content.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+        }
+    }
+}
+
+extension View {
+    /// Puts the screen under the shared title bar. `dark` is for screens drawn on an always-dark
+    /// canvas (Brain View), where the bar must match it.
+    func macPage<Trailing: View>(_ title: LocalizedStringKey, dark: Bool = false, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) -> some View {
+        modifier(MacPageModifier(title: title, dark: dark, trailing: trailing))
+    }
+}
+
 /// Sidebar plus the screen it selects.
 struct MacRootView<Detail: View>: View {
     @Binding var selection: MacDestination
