@@ -57,9 +57,11 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
         ]
 
         do {
+            #if os(iOS)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .duckOthers])
             try session.setActive(true)
+            #endif
 
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             recorder.delegate = self
@@ -129,7 +131,9 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
     }
 
     private func deactivateSession() {
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 
     private func hasEnoughDiskSpace(for url: URL) -> Bool {
@@ -142,6 +146,8 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
 
     // MARK: - Session interruptions
 
+    // Audio sessions, interruptions and route changes exist only on iOS; macOS has no equivalent.
+    #if os(iOS)
     private func startObservingSession() {
         guard !observing else { return }
         observing = true
@@ -177,6 +183,10 @@ final class VoiceInputManager: NSObject, AVAudioRecorderDelegate {
             self.finishRecording()
         }
     }
+    #else
+    private func startObservingSession() {}
+    private func stopObservingSession() {}
+    #endif
 
     // MARK: - AVAudioRecorderDelegate
 
@@ -215,8 +225,10 @@ final class VoiceNotePlayer: NSObject, AVAudioPlayerDelegate {
     func play(data: Data) {
         Self.active?.stop()
         do {
+            #if os(iOS)
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
+            #endif
             let newPlayer = try AVAudioPlayer(data: data)
             newPlayer.delegate = self
             player = newPlayer
@@ -234,7 +246,9 @@ final class VoiceNotePlayer: NSObject, AVAudioPlayerDelegate {
         player = nil
         isPlaying = false
         if Self.active === self { Self.active = nil }
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 
     // Without a delegate, isPlaying never returns to false at end of playback and

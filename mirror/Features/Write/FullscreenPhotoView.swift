@@ -81,9 +81,11 @@ struct FullscreenPhotoView: View {
                     }
                 }
             }
+            #if os(iOS)
             .toolbarBackground(.black, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
         }
     }
 }

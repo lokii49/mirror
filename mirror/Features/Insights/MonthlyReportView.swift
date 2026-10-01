@@ -70,7 +70,9 @@ struct MonthlyReportView: View {
         .background(MirrorTheme.bgBase)
         .navigationTitle(displayMode == .sentinel ? "Debrief" : "Monthly Report")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .task {
             await viewModel.loadMonthlyReport(entries: entries, insights: insights, context: modelContext)

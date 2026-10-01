@@ -32,7 +32,7 @@ enum FoundationModelEngine {
 
     nonisolated static var unavailableReason: UnavailableReason? {
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *) else { return .unsupportedOS }
+        guard #available(iOS 26.0, macOS 26.0, *) else { return .unsupportedOS }
         switch SystemLanguageModel.default.availability {
         case .available:
             return nil
@@ -52,7 +52,7 @@ enum FoundationModelEngine {
 
     nonisolated static func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
         let session = LanguageModelSession(instructions: systemPrompt)
         let options = GenerationOptions(
             temperature: Double(task.temperature),

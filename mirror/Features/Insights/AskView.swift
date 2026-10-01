@@ -128,7 +128,9 @@ struct AskView: View {
         }
         .background(MirrorTheme.bgBase)
         .navigationTitle(displayMode == .sentinel ? "Comms" : "Ask")
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .onAppear {
             viewModel.loadAskState(entries: entries)
@@ -615,6 +617,9 @@ struct AskView: View {
     }
 
     private func updateKeyboardHeight(from notification: Notification) {
+        #if os(macOS)
+        keyboardHeight = 0
+        #else
         guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
             return
@@ -639,6 +644,7 @@ struct AskView: View {
         withAnimation(.easeOut(duration: duration)) {
             keyboardHeight = overlap > 0 ? overlap - bottomInset : 0
         }
+        #endif
     }
 
 }

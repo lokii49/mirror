@@ -381,7 +381,7 @@ struct OnboardingFlow: View {
 
                 if nudgePreset == .custom {
                     DatePicker("", selection: $customNudgeTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
+                        .platformWheelDatePicker()
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
                         .transition(.move(edge: .top).combined(with: .opacity))

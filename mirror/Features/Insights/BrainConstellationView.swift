@@ -238,6 +238,7 @@ struct BrainConstellationView: View {
 /// SwiftUI's DragGesture/MagnifyGesture/onTapGesture — SwiftUI's
 /// MagnifyGesture in particular carries no location, so it can't drive a
 /// pinch-to-a-point anchor. UIPinchGestureRecognizer's `location(in:)` can.
+#if os(iOS)
 private struct PanPinchTapOverlay: UIViewRepresentable {
     let onPan: (CGSize) -> Void
     let onPinch: (CGFloat, CGPoint) -> Void
@@ -309,3 +310,70 @@ private struct PanPinchTapOverlay: UIViewRepresentable {
         }
     }
 }
+#else
+/// macOS version of the overlay: AppKit gesture recognizers on a top-left-origin view, so the
+/// pan/pinch/tap math in `BrainConstellationView` is unchanged.
+private struct PanPinchTapOverlay: NSViewRepresentable {
+    let onPan: (CGSize) -> Void
+    let onPinch: (CGFloat, CGPoint) -> Void
+    let onTap: (CGPoint) -> Void
+
+    final class FlippedView: NSView {
+        override var isFlipped: Bool { true }
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = FlippedView()
+        let coordinator = context.coordinator
+        let pan = NSPanGestureRecognizer(target: coordinator, action: #selector(Coordinator.handlePan(_:)))
+        let pinch = NSMagnificationGestureRecognizer(target: coordinator, action: #selector(Coordinator.handlePinch(_:)))
+        let click = NSClickGestureRecognizer(target: coordinator, action: #selector(Coordinator.handleTap(_:)))
+        view.addGestureRecognizer(pan)
+        view.addGestureRecognizer(pinch)
+        view.addGestureRecognizer(click)
+        coordinator.view = view
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onPan = onPan
+        context.coordinator.onPinch = onPinch
+        context.coordinator.onTap = onTap
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPan: onPan, onPinch: onPinch, onTap: onTap)
+    }
+
+    final class Coordinator: NSObject {
+        var onPan: (CGSize) -> Void
+        var onPinch: (CGFloat, CGPoint) -> Void
+        var onTap: (CGPoint) -> Void
+        weak var view: NSView?
+
+        init(onPan: @escaping (CGSize) -> Void, onPinch: @escaping (CGFloat, CGPoint) -> Void, onTap: @escaping (CGPoint) -> Void) {
+            self.onPan = onPan
+            self.onPinch = onPinch
+            self.onTap = onTap
+        }
+
+        @objc func handlePan(_ gr: NSPanGestureRecognizer) {
+            guard let view else { return }
+            let t = gr.translation(in: view)
+            onPan(CGSize(width: t.x, height: t.y))
+            gr.setTranslation(.zero, in: view)
+        }
+
+        @objc func handlePinch(_ gr: NSMagnificationGestureRecognizer) {
+            guard let view else { return }
+            onPinch(1 + gr.magnification, gr.location(in: view))
+            gr.magnification = 0
+        }
+
+        @objc func handleTap(_ gr: NSClickGestureRecognizer) {
+            guard let view else { return }
+            onTap(gr.location(in: view))
+        }
+    }
+}
+#endif

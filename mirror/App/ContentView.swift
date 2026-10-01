@@ -52,6 +52,10 @@ struct ContentView: View {
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var deepLinkEntryID: UUID? = nil
+    #if os(macOS)
+    @State private var macSelectedEntry: Entry? = nil
+    @State private var macWriteID = UUID()
+    #endif
     @State private var showWriteFromWidgetPrompt = false
     @State private var widgetPromptText: String = ""
     private let featureCardService = FeatureCardService.shared
@@ -75,6 +79,14 @@ struct ContentView: View {
     /// the stored Appearance setting itself in sync so Settings never
     /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
+        #if os(macOS)
+        // Sentinel is not offered on Mac yet, so only the stored Appearance choice applies.
+        switch mode {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark":  NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:      NSApp.appearance = nil
+        }
+        #else
         let style: UIUserInterfaceStyle
         if displayMode == .sentinel {
             style = .dark
@@ -88,6 +100,7 @@ struct ContentView: View {
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
+        #endif
     }
 
     private var isUITesting: Bool {
@@ -129,7 +142,12 @@ struct ContentView: View {
     }
 
     private var displayMode: DisplayMode {
-        profiles.first?.displayMode ?? .classic
+        #if os(macOS)
+        // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
+        return .classic
+        #else
+        return profiles.first?.displayMode ?? .classic
+        #endif
     }
 
     /// Runs on every foreground. Sets `MoodCheckInPresenter.pending` — which the
@@ -171,11 +189,15 @@ struct ContentView: View {
 
     var body: some View {
         Group {
+            #if os(macOS)
+            macLayout
+            #else
             if sizeClass == .regular {
                 ipadLayout
             } else {
                 phoneLayout
             }
+            #endif
         }
         .environment(\.appDisplayMode, displayMode)
         .onAppear {
@@ -334,10 +356,92 @@ struct ContentView: View {
                 .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(2)
         }
+        #if os(iOS)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        #endif
         .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
     }
+
+    // MARK: - Mac layout (sidebar + detail, list and reader side by side for Entries)
+
+    #if os(macOS)
+    private var macLayout: some View {
+        NavigationSplitView {
+            List([AppSidebarItem.write, .entries, .insights], id: \.self, selection: $selectedSidebarItem) { item in
+                Label(item.title, systemImage: item.icon)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 232, max: 280)
+            .safeAreaInset(edge: .bottom) {
+                Label("On-device. Nothing leaves this Mac.", systemImage: "lock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+        } detail: {
+            macDetailView
+        }
+        .frame(minWidth: 980, minHeight: 600)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNavigate)) { note in
+            switch note.userInfo?["destination"] as? String {
+            case "write": selectedSidebarItem = .write
+            case "entries": selectedSidebarItem = .entries
+            case "insights": selectedSidebarItem = .insights
+            default: break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntry)) { _ in
+            macWriteID = UUID()
+            selectedSidebarItem = .write
+        }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugSelectFirstEntry)) { _ in
+            var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            descriptor.fetchLimit = 1
+            macSelectedEntry = try? modelContext.fetch(descriptor).first
+        }
+        .task {
+            if MacSnapshot.isRequested { await MacSnapshot.run(context: modelContext) }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var macDetailView: some View {
+        switch selectedSidebarItem ?? .write {
+        case .entries:
+            HSplitView {
+                EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID, macSelection: $macSelectedEntry)
+                    .frame(minWidth: 360, idealWidth: 400, maxWidth: 520)
+                Group {
+                    if let macSelectedEntry {
+                        NavigationStack {
+                            EntryDetailView(entry: macSelectedEntry) {
+                                self.macSelectedEntry = nil
+                            }
+                        }
+                        .id(macSelectedEntry.id)
+                    } else {
+                        ContentUnavailableView("Select an entry", systemImage: "book.closed")
+                    }
+                }
+                .frame(minWidth: 360, maxWidth: .infinity)
+            }
+        case .write:
+            WriteTabView(onSave: {
+                selectedSidebarItem = .entries
+                entriesNavResetID = UUID()
+            })
+            .id(macWriteID)
+        case .insights:
+            InsightView(viewModel: insightViewModel)
+        case .settings:
+            SettingsView()
+        }
+    }
+    #endif
 
     // MARK: - iPad layout (NavigationSplitView)
 

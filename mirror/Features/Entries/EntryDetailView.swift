@@ -192,10 +192,16 @@ struct EntryDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
-                    Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-                        .disabled(entry.textDecryptionFailed)
+                    #if os(macOS)
+                    // The Mac editor is plain text for now. Entries with formatting or photos stay
+                    // read-only here so an edit cannot shift the style ranges and photo tokens the
+                    // iPhone and iPad rely on.
+                    if macCanEditPlainText {
+                        editButton
+                    }
+                    #else
+                    editButton
+                    #endif
 
                     Menu {
                         Button(
@@ -207,7 +213,9 @@ struct EntryDetailView: View {
                             try? modelContext.save()
                         }
                         Button("Share as text") { shareText() }
+                        #if os(iOS)
                         Button("Export as PDF") { sharePDF() }
+                        #endif
                         Button("Delete Entry", systemImage: "trash", role: .destructive) {
                             showDeleteConfirm = true
                         }
@@ -232,23 +240,29 @@ struct EntryDetailView: View {
         }
     }
 
+    private var editButton: some View {
+        Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
+            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+            .disabled(entry.textDecryptionFailed)
+    }
+
+    #if os(macOS)
+    private var macCanEditPlainText: Bool {
+        entry.textStyleData == nil && entry.inlineStyleData == nil && !entry.hasPhoto && entry.photoDataArray.isEmpty
+    }
+    #endif
+
     private func shareText() {
         let dateStr = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
         let shareText = "\(dateStr)\n\n\(entry.text)"
-        let av = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.rootViewController?
-            .present(av, animated: true)
+        presentShareSheet(items: [shareText])
     }
 
+    #if os(iOS)
     private func sharePDF() {
         guard let url = makePDF() else { return }
-        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.rootViewController?
-            .present(av, animated: true)
+        presentShareSheet(items: [url])
     }
 
     private func makePDF() -> URL? {
@@ -284,6 +298,7 @@ struct EntryDetailView: View {
         try? (data as Data).write(to: url)
         return url
     }
+    #endif
 }
 
 // MARK: - On This Day
@@ -446,7 +461,11 @@ private struct InlineEntryContent: View {
     private func designedFont(size: CGFloat, weight: UIFont.Weight, design: UIFontDescriptor.SystemDesign) -> UIFont {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
+        #if os(iOS)
         return UIFont(descriptor: descriptor, size: size)
+        #else
+        return UIFont(descriptor: descriptor, size: size) ?? base
+        #endif
     }
 
     /// Bridges to `AttributedString` so `Text` renders bold/italic/underline/

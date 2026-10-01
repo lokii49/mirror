@@ -13,14 +13,14 @@
 		471288832F9D300100812160 /* SwiftLlama in Frameworks */ = {isa = PBXBuildFile; productRef = 471288822F9D300100812160 /* SwiftLlama */; };
 		47E752842FB44FE800C6362E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752832FB44FE800C6362E /* WidgetKit.framework */; };
 		47E752862FB44FE800C6362E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
-		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47E752932FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47E752A82FB47F4F00C6362E /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A72FB47F4F00C6362E /* RevenueCat */; };
 		47E752AA2FB47F4F00C6362E /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 47E752A92FB47F4F00C6362E /* RevenueCatUI */; };
 		48A1B0012FC1000100000001 /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48A1B0002FC1000100000001 /* FoundationModels.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		5C11E0A2CBDE4D6044A79CC3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
 		874A6658760F43242C27D3C7 /* NudgeContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3E8AF6C8029FE2C096B5691 /* NudgeContentView.swift */; };
 		B83E27CB16CA580495291573 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8E07FB40F9F76D9DFAD6F67 /* UIKit.framework */; };
-		C9A5DDDB474001B3BC013FFA /* MirrorNotificationContentExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 343CCF1F3C7AC186F44DC6A2 /* MirrorNotificationContentExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C9A5DDDB474001B3BC013FFA /* MirrorNotificationContentExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 343CCF1F3C7AC186F44DC6A2 /* MirrorNotificationContentExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DE1E4DCED50FB0CD5F7A8078 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9D0E3B54081E7DC818B20E /* NotificationViewController.swift */; };
 		E0FB055DDA685D82E883FD44 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CDB6C7B9AEC1F01EB79C0F39 /* UserNotifications.framework */; };
 /* End PBXBuildFile section */
@@ -544,12 +544,14 @@
 		};
 		47E752922FB44FE800C6362E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 47E752802FB44FE800C6362E /* MirrorWidgetExtensionExtension */;
 			targetProxy = 47E752912FB44FE800C6362E /* PBXContainerItemProxy */;
 		};
 		7B57FAEE7DD4CEF99E8E3ECE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = MirrorNotificationContentExtension;
+			platformFilter = ios;
 			target = 909D4EC6E405B28CEFF69AF8 /* MirrorNotificationContentExtension */;
 			targetProxy = 78309335575E031E9F8E505D /* PBXContainerItemProxy */;
 		};
@@ -685,9 +687,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mirror/Info.plist;
@@ -709,10 +713,19 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 3.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -728,9 +741,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mirror/Info.plist;
@@ -752,10 +767,19 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 3.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

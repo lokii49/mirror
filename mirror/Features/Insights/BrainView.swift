@@ -27,11 +27,15 @@ struct BrainView: View {
         .background(MirrorTheme.bgBase)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         // Default nav bar hairline/background assumes a light backdrop —
         // against this view's always-dark canvas it just reads as a stray
         // line. Not load-bearing, safe to drop.
+        #if os(iOS)
         .toolbarBackground(.hidden, for: .navigationBar)
+        #endif
         // Panning the graph starts drags from anywhere, including near the
         // left edge — the system's edge-swipe-to-pop gesture would hijack
         // those as "go back." Disabling it here (X button replaces back)
@@ -495,6 +499,7 @@ private struct BrainNodeDetailSheet: View {
 /// pop gesture. This finds it via the view controller hierarchy and turns
 /// it off while installed, back on when removed, so panning the graph from
 /// near the left edge isn't swallowed by the system as "go back."
+#if os(iOS)
 private struct InteractivePopGestureDisabler: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         let controller = UIViewController()
@@ -511,3 +516,9 @@ private struct InteractivePopGestureDisabler: UIViewControllerRepresentable {
         uiViewController.navigationController?.interactivePopGestureRecognizer?.isEnabled = true
     }
 }
+#else
+/// macOS has no edge-swipe-to-pop gesture to disable.
+private struct InteractivePopGestureDisabler: View {
+    var body: some View { Color.clear }
+}
+#endif

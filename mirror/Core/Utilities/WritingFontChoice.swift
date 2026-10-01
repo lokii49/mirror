@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// The font family for an entry's body text — stored per-entry (Entry.fontChoice),
 /// not globally, so changing the font for one entry doesn't affect any other.

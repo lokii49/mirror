@@ -6,6 +6,9 @@ private let moodLabels = MirrorTheme.moodOptions
 struct EntriesTabView: View {
     var navResetID: UUID = UUID()
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
+    /// macOS shows the reader beside the list instead of pushing it. When set, opening an
+    /// entry writes it here and the list never navigates.
+    var macSelection: Binding<Entry?>? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
@@ -253,8 +256,7 @@ struct EntriesTabView: View {
             }
             .sheet(isPresented: $showOnThisDay) {
                 OnThisDayView(entries: onThisDayMatches) { entry in
-                    selectedEntry = entry
-                    showEntryDetail = true
+                    open(entry)
                 }
             }
             .task(id: snapshotDeps) {
@@ -271,12 +273,12 @@ struct EntriesTabView: View {
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
                 selectedEntry = nil
+                macSelection?.wrappedValue = nil
             }
             .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
                 guard let id = newID,
                       let match = entries.first(where: { $0.id == id }) else { return }
-                selectedEntry = match
-                showEntryDetail = true
+                open(match)
                 deepLinkEntryID.wrappedValue = nil
             }
         }
@@ -493,18 +495,26 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
+    private func open(_ entry: Entry) {
+        if let macSelection {
+            macSelection.wrappedValue = entry
+        } else {
+            selectedEntry = entry
+            showEntryDetail = true
+        }
+    }
+
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
         EntryRow(entry: entry, rowPreview: preview)
             .contentShape(Rectangle())
             .onTapGesture {
-                selectedEntry = entry
-                showEntryDetail = true
+                open(entry)
             }
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     modelContext.delete(entry)
@@ -627,7 +637,9 @@ struct EntriesTabView: View {
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .contentMargins(.bottom, 96, for: .scrollContent)
+        #if os(iOS)
         .listSectionSpacing(4)
+        #endif
         .environment(\.defaultMinListHeaderHeight, 0)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)

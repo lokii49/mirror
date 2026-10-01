@@ -1,12 +1,28 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 enum MirrorTheme {
 
     // MARK: - Adaptive color helper
 
     static func hex(_ dark: UInt32, _ light: UInt32) -> Color {
-        Color(UIColor { trait in
+        #if os(macOS)
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let h = isDark ? dark : light
+            return NSColor(
+                srgbRed: CGFloat((h >> 16) & 0xFF) / 255,
+                green:   CGFloat((h >> 8)  & 0xFF) / 255,
+                blue:    CGFloat(h         & 0xFF) / 255,
+                alpha:   1
+            )
+        })
+        #else
+        return Color(UIColor { trait in
             let h = trait.userInterfaceStyle == .dark ? dark : light
             return UIColor(
                 red:   CGFloat((h >> 16) & 0xFF) / 255,
@@ -15,6 +31,7 @@ enum MirrorTheme {
                 alpha: 1
             )
         })
+        #endif
     }
 
     // MARK: - Surface tokens

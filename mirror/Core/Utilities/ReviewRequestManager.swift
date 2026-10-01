@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Surfaces the rate-us gate (`RateUsPromptSheet`) once per install, for any
 /// user with 5+ journal entries. Checked after each entry save (from the
@@ -46,9 +50,13 @@ enum ReviewRequestManager {
         // Small beat so the prompt doesn't collide with a save animation or a
         // just-launched screen still settling.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            #if os(iOS)
             guard UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .contains(where: { $0.activationState == .foregroundActive }) else { return }
+            #else
+            guard NSApp.isActive else { return }
+            #endif
             // Re-setting to true when already true is a no-op for SwiftUI's
             // onChange, which is fine — ContentView's retry loop, once started,
             // is self-driving and doesn't need a fresh transition.

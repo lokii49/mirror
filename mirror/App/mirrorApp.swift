@@ -1,7 +1,11 @@
 import SwiftUI
 import SwiftData
 import BackgroundTasks
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import UserNotifications
 import WidgetKit
 import RevenueCat
@@ -9,7 +13,9 @@ import RevenueCat
 @main
 struct mirrorApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
 
     // Foreground proactive generation task — cancelled immediately when app backgrounds
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
@@ -158,12 +164,14 @@ struct mirrorApp: App {
     }
 
     private func configureNavigationBarAppearance() {
+        #if os(iOS)
         let appearance = UINavigationBarAppearance()
         appearance.configureWithDefaultBackground()
         appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
+        #endif
     }
 
     var body: some Scene {
@@ -175,10 +183,18 @@ struct mirrorApp: App {
             }
         }
         .modelContainer(sharedModelContainer)
+        #if os(macOS)
+        .commands { MirrorMacCommands() }
+        .defaultSize(width: 1180, height: 760)
+        #endif
         .onChange(of: scenePhase) { _, phase in
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }
+            #if DEBUG && os(macOS)
+            // Snapshot mode renders sample data only: no generation, cleanup passes or permission prompts.
+            if MacSnapshot.isRequested { return }
+            #endif
             switch phase {
             case .active:
                 // Request notification permission for users who completed onboarding before
@@ -250,6 +266,7 @@ struct mirrorApp: App {
         }
         // Keep BGAppRefreshTask as a lightweight fallback for weekly digest on devices
         // that don't charge overnight (power requirement not met for nightly task).
+        #if os(iOS)
         .backgroundTask(.appRefresh("com.lokesh.mirror.weeklyDigest")) {
             await runWeeklyDigestFallback()
         }
@@ -259,11 +276,20 @@ struct mirrorApp: App {
         .backgroundTask(.appRefresh("com.lokesh.mirror.monthlyReport")) {
             await runMonthlyReportFallback()
         }
+        #endif
+
+        #if os(macOS)
+        Settings {
+            MacSettingsRoot()
+                .modelContainer(sharedModelContainer)
+        }
+        #endif
     }
 
     // MARK: - BGProcessingTask: nightly at ~3AM while charging
 
     private func registerNightlyInsightsTask() {
+        #if os(iOS)
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: "com.lokesh.mirror.nightlyInsights",
             using: nil
@@ -292,9 +318,11 @@ struct mirrorApp: App {
                 completion.run { processingTask.setTaskCompleted(success: true) }
             }
         }
+        #endif
     }
 
     private func scheduleNightlyInsights() {
+        #if os(iOS)
         let request = BGProcessingTaskRequest(identifier: "com.lokesh.mirror.nightlyInsights")
         // Only run while charging → no thermal impact on the user.
         request.requiresExternalPower = true
@@ -302,6 +330,7 @@ struct mirrorApp: App {
         // Target ~3AM local time; iOS fires it opportunistically after that.
         request.earliestBeginDate = next3AM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func next3AM() -> Date {
@@ -893,9 +922,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleDailyNudgeFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.dailyNudge")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 10 * 60)
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func generateDailyNudgeInBackgroundIfNeeded() {
@@ -933,9 +964,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleWeeklyDigestFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
         request.earliestBeginDate = nextSunday7AM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     // MARK: - Monthly report BGAppRefreshTask (fallback for 1st of month)
@@ -950,9 +983,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleMonthlyReportFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
         request.earliestBeginDate = lastDayOfCurrentMonth9PM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func lastDayOfCurrentMonth9PM() -> Date {

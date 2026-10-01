@@ -2,6 +2,8 @@ import SwiftUI
 import SceneKit
 import Combine
 
+#if os(iOS)
+
 /// Bridges the +/- zoom buttons (SwiftUI) to the manual camera rig inside
 /// the SceneKit coordinator, which owns yaw/pitch/distance directly.
 final class BrainCameraController: ObservableObject {
@@ -487,3 +489,15 @@ private struct BrainSceneView: UIViewRepresentable {
         }
     }
 }
+#else
+/// macOS shows the 2D constellation in place of the SceneKit orbit view for now; the 3D scene is
+/// a UIKit gesture-driven view and has not been ported.
+struct Brain3DView: View {
+    let graph: BrainGraph
+    let onNodeTap: (BrainNode) -> Void
+
+    var body: some View {
+        BrainConstellationView(graph: graph, onNodeTap: onNodeTap)
+    }
+}
+#endif

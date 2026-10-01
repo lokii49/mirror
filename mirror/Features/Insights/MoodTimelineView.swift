@@ -215,7 +215,9 @@ struct MoodTimelineView: View {
         .background(MirrorTheme.bgBase)
         .navigationTitle(displayMode == .sentinel ? "Vitals" : "Mood Timeline")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
     }
 

@@ -579,7 +579,7 @@ struct CalendarHeatmap: View {
                 .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
 
             Rectangle()
-                .fill(Color(.separator).opacity(0.35))
+                .fill(Color.platformSeparator.opacity(0.35))
                 .frame(width: 1, height: 44)
         }
         .padding(.horizontal, 7)

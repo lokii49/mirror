@@ -3,7 +3,11 @@ import SwiftData
 import Combine
 import Photos
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -32,7 +36,13 @@ struct WriteView: View {
     /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
     /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
     /// class reports `.compact` on iPad, which sent it down the iPhone path.
-    var usesPopoverPanel: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    var usesPopoverPanel: Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        true
+        #endif
+    }
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
@@ -599,7 +609,7 @@ struct WriteView: View {
                         in: ...Date(),
                         displayedComponents: .hourAndMinute
                     )
-                    .datePickerStyle(.wheel)
+                    .platformWheelDatePicker()
                     .labelsHidden()
                     .padding(.horizontal)
                 }

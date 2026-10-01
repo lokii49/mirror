@@ -90,7 +90,7 @@ struct ProtocolSettingsView: View {
                                 ),
                                 displayedComponents: .hourAndMinute
                             )
-                            .datePickerStyle(.wheel)
+                            .platformWheelDatePicker()
                             .labelsHidden()
                             .frame(maxWidth: .infinity)
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -199,7 +199,7 @@ struct ProtocolSettingsView: View {
                                     ),
                                     displayedComponents: .hourAndMinute
                                 )
-                                .datePickerStyle(.wheel)
+                                .platformWheelDatePicker()
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
                             }

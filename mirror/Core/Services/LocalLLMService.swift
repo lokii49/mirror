@@ -1,6 +1,10 @@
 import Foundation
 import SwiftLlama
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
