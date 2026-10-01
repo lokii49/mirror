@@ -27,6 +27,30 @@ import Foundation
     var suggestion: String
 }
 
+@Generable struct DailyV1bHard {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "One or two sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. Plain everyday words. Say nothing about anything they did not write")
+    var insight: String
+    @Guide(description: "One small practical thing they could do soon, using a person, task or item they named in today's entry")
+    var suggestion: String
+}
+
+@Generable struct DailyV1bEasy {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "One or two sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+    var insight: String
+}
+
+func tidy(_ s: String) -> String {
+    var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let first = t.first else { return t }
+    t = first.uppercased() + t.dropFirst()
+    if let last = t.last, !".!?…".contains(last) { t += "." }
+    return t
+}
+
 func norm(_ s: String) -> String {
     s.replacingOccurrences(of: "\u{2019}", with: "'").replacingOccurrences(of: "\u{2018}", with: "'")
      .replacingOccurrences(of: "\u{201C}", with: "\"").replacingOccurrences(of: "\u{201D}", with: "\"")
@@ -72,6 +96,16 @@ func emit(_ obj: [String: Any]) {
                     rec["quoteVerbatim"] = source.contains(norm(r.quote))
                     rec["earlierVerbatim"] = r.earlierQuote.isEmpty ? true : source.contains(norm(r.earlierQuote))
                     rec["fields"] = ["quote": r.quote, "insight": r.insight, "earlierQuote": r.earlierQuote, "connection": r.connection, "suggestion": r.suggestion]
+                case "v1b_hard":
+                    let r = try await session.respond(to: user, generating: DailyV1bHard.self, options: opts).content
+                    rec["text"] = "You wrote, \"\(r.quote)\" \(tidy(r.insight)) \(tidy(r.suggestion))"
+                    rec["quoteVerbatim"] = source.contains(norm(r.quote))
+                    rec["fields"] = ["quote": r.quote, "insight": r.insight, "suggestion": r.suggestion]
+                case "v1b_easy":
+                    let r = try await session.respond(to: user, generating: DailyV1bEasy.self, options: opts).content
+                    rec["text"] = "You wrote, \"\(r.quote)\" \(tidy(r.insight))"
+                    rec["quoteVerbatim"] = source.contains(norm(r.quote))
+                    rec["fields"] = ["quote": r.quote, "insight": r.insight]
                 default:
                     rec["error"] = "unknown variant"
                 }
