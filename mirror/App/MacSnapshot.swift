@@ -190,6 +190,18 @@ enum MacSnapshot {
         NSLog("MacSnapshot: date popover presented = %@ size = %@", popover != nil ? "yes" : "no", NSStringFromSize(popover?.frame.size ?? .zero))
         capture(popover ?? mainWindow(), name: "11-write-date-popover")
 
+        // The popover's rule for combining a picked day with the chosen time.
+        do {
+            let cal = Calendar.current
+            let now = cal.date(bySettingHour: 15, minute: 30, second: 0, of: Date())!
+            let yesterday = cal.date(byAdding: .day, value: -1, to: now)!
+            let evening = cal.date(bySettingHour: 21, minute: 15, second: 0, of: now)!
+            let a = MacEntryDatePopover.combining(day: yesterday, time: evening, now: now)
+            let b = MacEntryDatePopover.combining(day: now, time: evening, now: now)
+            NSLog("MacSnapshot: date combine: yesterday keeps 21:15 = %@, today at a later time is held to now = %@",
+                  (cal.isDate(a, inSameDayAs: yesterday) && cal.component(.hour, from: a) == 21 && cal.component(.minute, from: a) == 15) ? "yes" : "no",
+                  b == now ? "yes" : "no")
+        }
         // Change the date the way the popover does and save; read the stored entry back.
         let target = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
         NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "setDate", "date": target])

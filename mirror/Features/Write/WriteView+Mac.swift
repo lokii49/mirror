@@ -1,5 +1,6 @@
 #if os(macOS)
 import SwiftUI
+import SwiftData
 import AppKit
 import UniformTypeIdentifiers
 import ImageIO
@@ -12,35 +13,10 @@ extension WriteView {
 
     // MARK: - Entry date
 
-    /// The date and time of the entry: a calendar, a time field, and a way back to now. Changes
-    /// apply as they are made, through the same `entryDate` the save reads.
+    /// The date and time of the entry. Changes apply as they are made, through the same
+    /// `entryDate` the save reads.
     var macDatePopover: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DatePicker("Entry date", selection: $entryDate, in: ...Date(), displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .frame(width: 260)
-            Divider()
-            HStack(spacing: 10) {
-                Text("Time")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(MacTokens.secondaryInk)
-                DatePicker("Entry time", selection: $entryDate, in: ...Date(), displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.stepperField)
-                    .labelsHidden()
-                Spacer(minLength: 0)
-                Button("Now") { entryDate = Date() }
-                    .controlSize(.small)
-                    .help("Set the entry to the current date and time")
-            }
-            HStack {
-                Spacer()
-                Button("Done") { showDatePicker = false }
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(16)
-        .frame(width: 292)
+        MacEntryDatePopover(date: $entryDate) { showDatePicker = false }
     }
 
     // MARK: - Toolbar
@@ -505,6 +481,236 @@ struct MacPhotoDropZone: View {
             return true
         }
         .accessibilityLabel("Add a photo")
+    }
+}
+
+/// A month calendar in the app's own style for choosing an entry's day and time: quick chips for
+/// today and yesterday, a dot under every day that already has an entry, future days off, and a
+/// time field with a way back to now. The day keeps the time already chosen, and the result never
+/// lands in the future.
+struct MacEntryDatePopover: View {
+    @Binding var date: Date
+    let onDone: () -> Void
+
+    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @State private var month: Date
+    @State private var daysWithEntries: Set<Date> = []
+    @FocusState private var doneFocused: Bool
+    private let calendar = Calendar.current
+
+    init(date: Binding<Date>, onDone: @escaping () -> Void) {
+        _date = date
+        self.onDone = onDone
+        _month = State(initialValue: Self.startOfMonth(date.wrappedValue))
+    }
+
+    static func startOfMonth(_ day: Date, calendar: Calendar = .current) -> Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: day)) ?? day
+    }
+
+    /// `day`'s date with `time`'s hour and minute, held back to `now` if that is later.
+    static func combining(day: Date, time: Date, now: Date = Date(), calendar: Calendar = .current) -> Date {
+        let t = calendar.dateComponents([.hour, .minute], from: time)
+        let merged = calendar.date(bySettingHour: t.hour ?? 0, minute: t.minute ?? 0, second: 0, of: day) ?? day
+        return min(merged, now)
+    }
+
+    private var today: Date { calendar.startOfDay(for: Date()) }
+    private var canGoForward: Bool { Self.startOfMonth(today) > month }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            quickChips
+            VStack(spacing: 4) {
+                weekdayRow
+                dayGrid
+            }
+            Rectangle().fill(MacTokens.divider).frame(height: 1)
+            timeRow
+            HStack {
+                Spacer()
+                Button(action: onDone) {
+                    Text("Done")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 18)
+                        .frame(height: 28)
+                        .background(MacTokens.accent, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
+                .focused($doneFocused)
+            }
+        }
+        .padding(16)
+        .frame(width: 300)
+        // Without this the popover opens with the hour field selected, which looks like an edit in progress.
+        .onAppear {
+            doneFocused = true
+            DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
+        }
+        .background(MacTokens.surface)
+        .task(id: entries.count) {
+            daysWithEntries = Set(entries.map { calendar.startOfDay(for: $0.createdAt) })
+        }
+    }
+
+    // MARK: Pieces
+
+    private var header: some View {
+        HStack(spacing: 4) {
+            Text(month.formatted(.dateTime.month(.wide).year()))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(MacTokens.ink)
+            Spacer()
+            navButton("chevron-left", label: "Previous month", enabled: true) {
+                month = calendar.date(byAdding: .month, value: -1, to: month) ?? month
+            }
+            navButton("chevron", label: "Next month", enabled: canGoForward) {
+                month = calendar.date(byAdding: .month, value: 1, to: month) ?? month
+            }
+        }
+    }
+
+    private func navButton(_ icon: String, label: LocalizedStringKey, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            MacIcon(name: icon, size: 14)
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? MacTokens.controlInk : MacTokens.secondaryInk.opacity(0.4))
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+
+    private var quickChips: some View {
+        HStack(spacing: 8) {
+            chip("Today", day: today)
+            chip("Yesterday", day: calendar.date(byAdding: .day, value: -1, to: today) ?? today)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func chip(_ title: LocalizedStringKey, day: Date) -> some View {
+        let selected = calendar.isDate(date, inSameDayAs: day)
+        return Button { pick(day) } label: {
+            Text(title)
+                .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                .foregroundStyle(selected ? MacTokens.accentInk : MacTokens.controlInk)
+                .padding(.horizontal, 11)
+                .frame(height: 24)
+                .background(selected ? MacTokens.toggleActiveFill : Color.clear, in: Capsule())
+                .overlay { if !selected { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) } }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var weekdayRow: some View {
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        let first = calendar.firstWeekday - 1
+        return HStack(spacing: 0) {
+            ForEach(0..<7, id: \.self) { i in
+                Text(symbols[(first + i) % 7])
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MacTokens.secondaryInk)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// Six weeks, leading and trailing days of neighbouring months left blank.
+    private var weeks: [[Date?]] {
+        guard let range = calendar.range(of: .day, in: .month, for: month) else { return [] }
+        let lead = (calendar.component(.weekday, from: month) - calendar.firstWeekday + 7) % 7
+        var cells: [Date?] = Array(repeating: nil, count: lead)
+        for day in range { cells.append(calendar.date(byAdding: .day, value: day - 1, to: month)) }
+        while cells.count % 7 != 0 { cells.append(nil) }
+        return stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<$0 + 7]) }
+    }
+
+    private var dayGrid: some View {
+        VStack(spacing: 2) {
+            ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { i in
+                        dayCell(week[i])
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dayCell(_ day: Date?) -> some View {
+        if let day {
+            let isFuture = day > today
+            let isSelected = calendar.isDate(day, inSameDayAs: date)
+            let isToday = calendar.isDate(day, inSameDayAs: today)
+            let hasEntry = daysWithEntries.contains(calendar.startOfDay(for: day))
+            Button { pick(day) } label: {
+                VStack(spacing: 2) {
+                    Text("\(calendar.component(.day, from: day))")
+                        .font(.system(size: 13, weight: isSelected || isToday ? .semibold : .regular))
+                        .monospacedDigit()
+                    Circle()
+                        .fill(hasEntry ? (isSelected ? Color.white : MacTokens.accent) : Color.clear)
+                        .frame(width: 4, height: 4)
+                }
+                .foregroundStyle(isSelected ? Color.white : (isFuture ? MacTokens.secondaryInk.opacity(0.4) : MacTokens.ink))
+                .frame(width: 34, height: 36)
+                .background(isSelected ? MacTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    if isToday && !isSelected {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(MacTokens.accent.opacity(0.6), lineWidth: 1)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isFuture)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        } else {
+            Color.clear.frame(maxWidth: .infinity).frame(height: 36)
+        }
+    }
+
+    private var timeRow: some View {
+        HStack(spacing: 10) {
+            Text("Time")
+                .font(.system(size: 12.5))
+                .foregroundStyle(MacTokens.secondaryInk)
+            DatePicker("Entry time", selection: Binding(
+                get: { date },
+                set: { date = Self.combining(day: date, time: $0) }
+            ), displayedComponents: .hourAndMinute)
+                .datePickerStyle(.stepperField)
+                .labelsHidden()
+                .fixedSize()
+            Spacer(minLength: 0)
+            Button {
+                date = Date()
+                month = Self.startOfMonth(date)
+            } label: {
+                Text("Now")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MacTokens.accentInk)
+                    .padding(.horizontal, 12)
+                    .frame(height: 24)
+                    .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+            }
+            .buttonStyle(.plain)
+            .help("Set the entry to the current date and time")
+        }
+    }
+
+    private func pick(_ day: Date) {
+        date = Self.combining(day: day, time: date)
+        month = Self.startOfMonth(day)
     }
 }
 #endif
