@@ -36,6 +36,15 @@ struct WriteView: View {
     /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
     /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
     /// class reports `.compact` on iPad, which sent it down the iPhone path.
+    /// There is no keyboard to appear on Mac, and the row must stay put while a button is clicked.
+    var toolRowAlwaysVisible: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     var usesPopoverPanel: Bool {
         #if os(iOS)
         UIDevice.current.userInterfaceIdiom == .pad
@@ -408,7 +417,7 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if (isKeyboardVisible || editorFocused) && !focusMode {
+            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
                 toolRow
             }
         }

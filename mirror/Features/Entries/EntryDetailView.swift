@@ -189,13 +189,15 @@ struct EntryDetailView: View {
             displayedWordCount = strippedWordCount(text)
         }
         .navigationBarTitleDisplayMode(.inline)
+        #if DEBUG && os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
+        #endif
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
                     #if os(macOS)
-                    // The Mac editor is plain text for now. Entries with formatting or photos stay
-                    // read-only here so an edit cannot shift the style ranges and photo tokens the
-                    // iPhone and iPad rely on.
+                    // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
+                    // stay read-only here so an edit cannot change what iPhone and iPad read back.
                     if macCanEditPlainText {
                         editButton
                     }
@@ -249,7 +251,11 @@ struct EntryDetailView: View {
 
     #if os(macOS)
     private var macCanEditPlainText: Bool {
-        entry.textStyleData == nil && entry.inlineStyleData == nil && !entry.hasPhoto && entry.photoDataArray.isEmpty
+        NoteEditorCodec.canEditOnMac(
+            text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData,
+            entryFont: WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .system,
+            hasPhotos: entry.hasPhoto || !entry.photoDataArray.isEmpty
+        )
     }
     #endif
 

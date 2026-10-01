@@ -2903,51 +2903,6 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 }
 
-#else
-/// macOS placeholder editor: plain text only. The rich-text `NSTextView` editor (styles,
-/// inline photos, formatting commands) replaces this in the editor milestone; until then the
-/// style, photo and command bindings are accepted and ignored so `WriteView` is shared as-is.
-struct NoteEditorTextView: View {
-    @Binding var text: String
-    @Binding var textStyleData: Data?
-    @Binding var inlineStyleData: Data?
-    @Binding var photoDataArray: [Data]
-    @Binding var command: NoteTextCommand?
-    @Binding var commandRevision: Int
-    @Binding var isFocused: Bool
-    @Binding var activeParagraphStyle: NoteParagraphTextStyle
-    @Binding var activeInlineStyles: InlineStyleSet
-    @Binding var showFormattingPanel: Bool
-    @Binding var canUndo: Bool
-    @Binding var canRedo: Bool
-    @Binding var fontChoiceRaw: String
-    var panelState: FormattingPanelState
-    var displayMode: DisplayMode
-    var onPhotoTapped: ((Int) -> Void)?
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            TextEditor(text: $text)
-                .font(.system(size: 18, design: .serif))
-                .lineSpacing(7)
-                .scrollContentBackground(.hidden)
-                .focused($focused)
-                .frame(minHeight: 360)
-            if text.isEmpty {
-                Text("What's on your mind?")
-                    .font(.system(size: 18, design: .serif))
-                    .foregroundStyle(.tertiary)
-                    .padding(.leading, 5)
-                    .padding(.top, 8)
-                    .allowsHitTesting(false)
-            }
-        }
-        .onChange(of: focused) { _, new in if isFocused != new { isFocused = new } }
-        .onChange(of: isFocused) { _, new in if focused != new { focused = new } }
-    }
-}
 #endif
 
 #if os(iOS)
