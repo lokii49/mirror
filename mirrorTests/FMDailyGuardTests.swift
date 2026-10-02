@@ -162,9 +162,9 @@ extension SharedLLMState {
             #expect(InsightService.assembleStructuredNudge(quote: "Missing him a lot tonight.", insight: "You feel sad.", source: [sad], recentNudges: [first], allowRepeat: true) != nil)
         }
 
-        @Test func retriesUntilADraftSurvives() async {
+        @Test func retriesUntilADraftSurvives() async throws {
             var calls = 0
-            let text = await InsightService.structuredFMNudge(source: [sad], recentNudges: [], userMessage: "") {
+            let text = try await InsightService.structuredFMNudge(source: [sad], recentNudges: [], userMessage: "") {
                 calls += 1
                 // 1: invented quote; 2: guardrail refusal; 3: good.
                 if calls == 1 { return ("The rain kept me inside all evening long.", "You feel sad.") }
@@ -172,17 +172,54 @@ extension SharedLLMState {
                 return ("Missing him a lot tonight.", "You feel sad.")
             }
             #expect(calls == 3)
-            #expect(text?.hasPrefix("You wrote, \"Missing him a lot tonight.\"") == true)
+            #expect(text.text?.hasPrefix("You wrote, \"Missing him a lot tonight.\"") == true)
         }
 
-        @Test func nilWhenEveryAttemptFails() async {
+        @Test func nilWhenEveryAttemptFails() async throws {
             var calls = 0
-            let text = await InsightService.structuredFMNudge(source: [sad], recentNudges: [], userMessage: "") {
+            let text = try await InsightService.structuredFMNudge(source: [sad], recentNudges: [], userMessage: "") {
                 calls += 1
                 return ("Missing him a lot tonight.", "You feel something like relief.")
             }
-            #expect(text == nil)
+            #expect(text.text == nil)
+            // The quote was found though, so a fixed mood line can still follow it.
+            #expect(text.safeQuote?.quote == "Missing him a lot tonight.")
             #expect(calls == InsightService.structuredNudgeAttempts)
+        }
+
+        @Test func fixedLineFollowsAVerifiedQuoteByMood() throws {
+            let text = try #require(InsightService.fixedLineNudge(quote: "Missing him a lot tonight.", sourceIndex: 0, source: [sad], recentNudges: []))
+            let line = try #require(InsightService.groundedNudgeMoodLines[.sad])
+            #expect(text.hasPrefix("You wrote, \"Missing him a lot tonight.\" " + line))
+            #expect(InsightService.isGrammarGrounded(text))
+            let parts = try #require(InsightService.groundedNudgeParts(of: text))
+            // Both the line and the tip are the app's, none of it the model's.
+            let authorship = InsightService.groundedRestAuthorship(parts)
+            #expect(authorship.modelText == nil)
+            #expect(authorship.appText?.hasPrefix(line) == true)
+            #expect(InsightService.nudgeTextForOutsideApp(text).hasPrefix(line))
+        }
+
+        @Test func noFixedLineWithoutAMood() {
+            let unmooded = Entry(text: "Missing him a lot tonight.", mood: nil)
+            #expect(InsightService.fixedLineNudge(quote: "Missing him a lot tonight.", sourceIndex: 0, source: [unmooded], recentNudges: []) == nil)
+        }
+
+        // A cancelled task (a background task expiring) must not look like a failed reflection.
+        @Test func cancellationIsRethrownNotTreatedAsAFailedAttempt() async {
+            await #expect(throws: CancellationError.self) {
+                _ = try await InsightService.structuredFMNudge(source: [self.sad], recentNudges: [], userMessage: "") {
+                    throw CancellationError()
+                }
+            }
+        }
+
+        // Gemma quotes are one quotable sentence; a Foundation Models quote can be two, or a cut start.
+        @Test func entryQuotingFindsMultiSentenceAndCutQuotes() {
+            let other = Entry(text: "Usual gym, then home.", mood: "Content")
+            #expect(InsightService.entryQuoting("Rohan left for Bangalore this morning for the new job. The flat feels too quiet without him.", in: [other, sad]) === sad)
+            #expect(InsightService.entryQuoting("Missing him a lot tonight.", in: [other, sad]) === sad)
+            #expect(InsightService.entryQuoting("Not in any entry at all.", in: [other, sad]) == nil)
         }
     }
 }

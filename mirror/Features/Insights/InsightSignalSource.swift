@@ -194,7 +194,13 @@ struct InsightSignalSource: View {
                 rows.append(("CONTEXT", "\(background) earlier \(background == 1 ? "entry" : "entries") summarized · \(quoted) quoted"))
             }
             rows.append(("MOOD READ", Self.moods(recent)))
-            return Resolved(rows: rows, reading: Self.readingList(recent), note: nil)
+            // English Foundation Models reflections (2026-10-02): the model returns a quote and one or two
+            // sentences; the app finds the quote in the entries and checks the sentences.
+            let checkedByApp = InsightService.isGrammarGrounded(insight.content)
+            return Resolved(
+                rows: rows, reading: Self.readingList(recent),
+                note: checkedByApp ? "The quote is copied word for word from your newest entries, and MirrorNotes checked the sentence after it against what you wrote. When it can't confirm one, or on difficult days, the last sentence is fixed text MirrorNotes adds by mood." : nil
+            )
         }
     }
 

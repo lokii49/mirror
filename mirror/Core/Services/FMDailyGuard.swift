@@ -273,7 +273,7 @@ nonisolated enum FMDailyGuard {
         "sorrow", "grief", "longing", "homesick", "lonesome", "delighted", "thrilled", "optimistic", "energized",
         "resentful", "regret", "regretful", "hopeless", "panicked", "burned", "burnt", "lighthearted",
         // States the model likes to add to a day: allowed only when the entry or its mood says so.
-        "quiet", "focused", "productive", "active", "busy", "relaxed", "wired", "alert", "steady", "determined"
+        "quiet", "focused", "productive", "active", "busy", "relaxed", "wired", "alert", "determined"
     ]
 
     /// Words that count as the same feeling as a mood label the person chose.

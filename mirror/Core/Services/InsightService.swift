@@ -734,10 +734,11 @@ enum InsightService {
             let tip = groundedNudgeTip(forMood: moodOfQuotedEntry(validated, source: nudgeSource))
             return tip.map { validated + " " + $0 } ?? validated
         })
-        if case .unsuitable = nudgePlan, !LocalLLMService.prefersFoundationModels {
-            // Gemma is the only engine and today's writing has no quotable sentence (a one- or
-            // two-word entry). Honest fallback without running a model that could only invent.
-            return (dailyNudgeUngroundedFallback, .gemma, true)
+        if case .unsuitable = nudgePlan {
+            // Today's writing has no quotable sentence (a one- or two-word entry). Honest fallback
+            // without running a model that could only invent; Foundation Models free prose did
+            // exactly that on such entries (tools/llmrig/fm/RUBRIC_FM.md), so it no longer runs.
+            return (dailyNudgeUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
 
         // English on Foundation Models: structured quote + insight, verified by FMDailyGuard
@@ -753,13 +754,20 @@ enum InsightService {
                 maxChars: dailyNudgePromptBudget,
                 includeRecurringTerms: false
             )
-            if let text = await structuredFMNudge(source: nudgeSource, recentNudges: recentNudges, userMessage: structuredMessage) {
+            let structured = try await structuredFMNudge(source: nudgeSource, recentNudges: recentNudges, userMessage: structuredMessage)
+            if let text = structured.text {
                 return (text, .foundationModels, false)
             }
-            guard LocalLLMService.isGemmaModelAvailable else {
+            // A cancelled run (background task expiring) is not a failed reflection: nothing is saved.
+            try Task.checkCancellation()
+            if LocalLLMService.isGemmaModelAvailable {
+                gemmaOnly = true
+            } else if let safe = structured.safeQuote,
+                      let text = fixedLineNudge(quote: safe.quote, sourceIndex: safe.sourceIndex, source: nudgeSource, recentNudges: recentNudges) {
+                return (text, .foundationModels, false)
+            } else {
                 return (dailyNudgeUngroundedFallback, .foundationModels, true)
             }
-            gemmaOnly = true
         }
 
         var userMessage = buildUserMessage(
@@ -924,18 +932,27 @@ enum InsightService {
         return LocalLLMService.prefersFoundationModels
     }
 
+    struct StructuredNudgeResult {
+        /// The finished reflection, when an attempt's quote and insight both passed.
+        var text: String?
+        /// A quote an attempt did find in today's entries, for `fixedLineNudge` when no insight passed.
+        var safeQuote: (quote: String, sourceIndex: Int)?
+    }
+
     static func structuredFMNudge(
         source: [Entry],
         recentNudges: [String],
         userMessage: String,
         generator: (() async throws -> (quote: String, insight: String))? = nil
-    ) async -> String? {
+    ) async throws -> StructuredNudgeResult {
         let draft = generator ?? {
             try await LLMGenerationQueue.shared.run {
                 try await FoundationModelEngine.generateDailyReflection(systemPrompt: DAILY_REFLECTION_FM_SYSTEM, userMessage: userMessage)
             }
         }
+        var result = StructuredNudgeResult()
         for attempt in 1...structuredNudgeAttempts {
+            try Task.checkCancellation()
             do {
                 let (quote, insight) = try await draft()
                 // A repeat of a recent reflection's quote is only worth a retry; the last attempt
@@ -944,10 +961,14 @@ enum InsightService {
                     quote: quote, insight: insight, source: source, recentNudges: recentNudges,
                     allowRepeat: attempt == structuredNudgeAttempts
                 ) {
-                    return text
+                    result.text = text
+                    return result
+                }
+                if result.safeQuote == nil, let found = FMDailyGuard.locate(quote: quote, in: guardSources(from: source).map(\.text)) {
+                    result.safeQuote = (found.quote, found.index)
                 }
             } catch is CancellationError {
-                return nil
+                throw CancellationError()
             } catch {
                 #if DEBUG
                 // Error type only, never prompt or entry content.
@@ -955,24 +976,45 @@ enum InsightService {
                 #endif
             }
         }
-        return nil
+        return result
     }
 
-    static func assembleStructuredNudge(quote: String, insight: String, source: [Entry], recentNudges: [String], allowRepeat: Bool = false, on date: Date = Date()) -> String? {
-        let sources = source.map { entry -> FMDailyGuard.Source in
+    private static func guardSources(from source: [Entry]) -> [FMDailyGuard.Source] {
+        source.map { entry in
             var texts = [entry.text]
             for note in entry.voiceNotes {
                 if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text { texts.append(transcript) }
             }
             return FMDailyGuard.Source(text: texts.joined(separator: "\n"), mood: entry.mood)
         }
-        guard let verified = FMDailyGuard.verify(quote: quote, insight: insight, sources: sources) else { return nil }
+    }
+
+    static func assembleStructuredNudge(quote: String, insight: String, source: [Entry], recentNudges: [String], allowRepeat: Bool = false, on date: Date = Date()) -> String? {
+        guard let verified = FMDailyGuard.verify(quote: quote, insight: insight, sources: guardSources(from: source)) else { return nil }
         if !allowRepeat, recentNudges.contains(where: { nudge in groundedNudgeOpeners.contains { nudge.hasPrefix($0 + verified.quote + "\"") } }) {
             return nil
         }
         let opener = nextGroundedNudgeOpener(after: recentNudges)
         let tip = groundedNudgeTip(forMood: source[verified.sourceIndex].mood, on: date)
         return opener + verified.quote + "\" " + verified.insight + (tip.map { " " + $0 } ?? "")
+    }
+
+    /// What follows a verified quote when no model-written insight passed the checks and Gemma is not
+    /// installed: one fixed line chosen by the mood the person gave the entry, the way the other
+    /// languages' reflections are composed. Nothing for an entry without a mood (the quote alone would
+    /// leave the app on the widget), so that case ends at the honest card.
+    static let groundedNudgeMoodLines: [GroundedMoodBucket: String] = [
+        .tired: "That sounds like a draining day.",
+        .stressed: "That sounds like a lot to carry.",
+        .sad: "That sounds like a hard day.",
+        .good: "You seem to be in a good place today.",
+    ]
+
+    static func fixedLineNudge(quote: String, sourceIndex: Int, source: [Entry], recentNudges: [String], on date: Date = Date()) -> String? {
+        guard source.indices.contains(sourceIndex), let mood = source[sourceIndex].mood,
+              let line = groundedNudgeMoodLines[GroundedMoodBucket(mood: mood)] else { return nil }
+        let tip = groundedNudgeTip(forMood: mood, on: date)
+        return nextGroundedNudgeOpener(after: recentNudges) + quote + "\" " + line + (tip.map { " " + $0 } ?? "")
     }
 
     // "Flawed beats none" only covers flaws that are still truthful (repetitive phrasing,
@@ -2816,6 +2858,16 @@ extension InsightService {
 
     /// The mood of the source entry one of whose quotable sentences is `quote`; the newest
     /// entry's when none matches. For the localized nudge, whose model output is the bare quote.
+    /// The entry a saved grounded reflection quotes. A Gemma quote is exactly one of the entry's
+    /// quotable sentences; a Foundation Models quote may be several sentences or a cut start of
+    /// one, so it is found as text inside the entry instead.
+    static func entryQuoting(_ quote: String, in entries: [Entry]) -> Entry? {
+        entries.first { groundedQuoteCandidates(of: $0).contains(quote) }
+            ?? entries.first { entry in
+                ([entry.text] + entry.voiceNotes.compactMap(\.transcript)).contains { $0.contains(quote) }
+            }
+    }
+
     static func moodOfEntry(quoting quote: String, source: [Entry]) -> String? {
         (source.first { groundedQuoteCandidates(of: $0).contains(quote) } ?? source.first)?.mood
     }

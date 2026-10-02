@@ -189,3 +189,14 @@ card. Two cosmetic guard fixes landed after round 6 and were not re-measured: a 
 the entry writes capitalised is restored ("maya" -> "Maya"); each only removes a defect seen in rounds 5-6.
 End to end on the simulator's real Foundation Models: 5/5 grounded, assembled, tip appended on Drained
 (`RealFMNudgeTests`, set TEST_RUNNER_HARNESS_REAL_FM=1). Unit suite 501/501.
+
+### Round 7: two input shapes round 6 lacked (N=10, indicative, not gated; scored 2026-10-02, 70 shown outputs)
+Entries with NO mood (sickday, lunch, neutral, work, good): shown 40/50, FALLBACK 6, errors 4 (all nomood_sickday: the FM
+guardrail "May contain sensitive content" fired 4/10 once the mood label was gone). Worst: nomood_work 4/10 fell back.
+Newest entry dated YESTERDAY (sickday, work, good): shown 30/30, no fallback or error; quotes came from the right day.
+Replaying round 6's raw drafts with the mood removed: 47/250 first drafts would be rejected and retried, because the guard
+leans on the mood label for feeling words. Moods are set on practically every entry (detected at save), so this is the rare path.
+Scoring: 3 of 70 shown lines gave one person's feeling to another ("a mix of tiredness and concern" for the writer, where
+"tired" is Mom's), the swap the word check cannot see; 0 invented events. "steady" was taken out of the guard's feeling
+list after this replay (it is the prompt's own sanctioned wording for an ordinary day, and without a mood it made every
+neutral day fall back).

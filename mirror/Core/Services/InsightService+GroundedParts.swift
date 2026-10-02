@@ -47,11 +47,18 @@ extension InsightService {
             return GroundedRestAuthorship(modelText: nil, appText: parts.rest.isEmpty ? nil : parts.rest)
         }
         let tips = groundedNudgeTips.values.joined()
-        if let tip = tips.first(where: { parts.rest.hasSuffix($0) }) {
-            let model = String(parts.rest.dropLast(tip.count)).trimmingCharacters(in: .whitespaces)
-            return GroundedRestAuthorship(modelText: model.isEmpty ? nil : model, appText: tip)
+        var model = parts.rest
+        var app: [String] = []
+        if let tip = tips.first(where: { model.hasSuffix($0) }) {
+            model = String(model.dropLast(tip.count)).trimmingCharacters(in: .whitespaces)
+            app.append(tip)
         }
-        return GroundedRestAuthorship(modelText: parts.rest.isEmpty ? nil : parts.rest, appText: nil)
+        // The fixed mood line the app composes when no model-written sentence passed the checks.
+        if let line = groundedNudgeMoodLines.values.first(where: { model == $0 }) {
+            model = ""
+            app.insert(line, at: 0)
+        }
+        return GroundedRestAuthorship(modelText: model.isEmpty ? nil : model, appText: app.isEmpty ? nil : app.joined(separator: " "))
     }
 
     /// The follow-up question the app composes around a part of the entry the reflection quoted

@@ -2014,12 +2014,12 @@ extension InsightView {
         guard let insight = macLoadedNudge else { macToday = nil; return }
         let content = insight.content
         let parts = InsightService.groundedNudgeParts(of: content)
-        let grounded = InsightService.isGrammarGrounded(content) && insight.generatedByEngine != LLMEngine.foundationModels.rawValue
+        let grounded = InsightService.isGrammarGrounded(content)
         // The chip asks about another part of the entry the reflection quoted, not the quote again.
         var followUp: String?
         if grounded, let parts {
             let window = entries.filter { $0.createdAt <= insight.generatedAt && $0.createdAt >= insight.generatedAt.addingTimeInterval(-14 * 86_400) }
-            if let source = window.first(where: { InsightService.groundedQuoteCandidates(of: $0).contains(parts.quote) }) {
+            if let source = InsightService.entryQuoting(parts.quote, in: window) {
                 followUp = InsightService.followUpQuestion(for: parts, sourceText: source.text)
             }
         }
@@ -2228,7 +2228,7 @@ private struct MacInsightInspector: View {
             .lazy.filter(InsightService.hasReadableContext)
         let recent = InsightService.dailyNudgeContext(from: Array(readable.prefix(3)), asOf: asOf).recent
         guard let newest = recent.first else { return nil }
-        let quoted = today.parts.flatMap { parts in recent.first { InsightService.groundedQuoteCandidates(of: $0).contains(parts.quote) } }
+        let quoted = today.parts.flatMap { parts in InsightService.entryQuoting(parts.quote, in: recent) }
         let oldest = recent.last ?? newest
         let from = Calendar.current.startOfDay(for: oldest.createdAt)
         let to = Calendar.current.startOfDay(for: (quoted ?? newest).createdAt)
