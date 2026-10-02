@@ -1,13 +1,7 @@
-Riflessioni dopo che scrivi, e cosa hanno letto
+Riflessioni più chiare e una correzione per giapponese e cinese
 
-• Se scrivi la sera, ora ricevi una riflessione lo stesso giorno. Se la riflessione di oggi riguardava giorni precedenti e poi scrivi oggi, può comparirne una seconda su oggi. Una riflessione su un giorno precedente indica di quale giorno si tratta.
-• Le riflessioni ora aspettano il minuto esatto che hai impostato, non solo l'ora.
-• Sugli iPhone senza Apple Intelligence, la riflessione è una citazione dal tuo diario più una frase semplice su come sembri stare. Solo nei giorni più difficili aggiunge un breve suggerimento fisso. Il generico «fai qualche respiro profondo» non c'è più.
-• Su quegli iPhone, la domanda di approfondimento che compare mentre scrivi ora cita le tue parole, quindi non può aggiungere cose che non hai scritto.
-• Su ogni riflessione puoi vedere esattamente cosa è stato letto per scriverla.
-• Sugli iPhone senza Apple Intelligence, se il tuo ultimo riepilogo settimanale o report mensile è stato scritto da una versione precedente, può essere riscritto una volta. Quelli più vecchi non cambiano.
-• Le domande in «Chiedi» possono arrivare a 500 caratteri.
-• Se mirror non riesce ad aprire il tuo diario, ora lo dice, con un pulsante «Riprova», invece di chiudersi. Non viene cancellato nulla.
-• Le voci in giapponese e cinese ora contano le parole correttamente, così totali, obiettivi giornalieri e XP tornano.
-
-Se una riflessione sbaglia qualcosa, dimmelo: Impostazioni → Informazioni → Invia feedback.
+• Sugli iPhone con Apple Intelligence, la tua riflessione quotidiana ora cita le tue parole e aggiunge una breve riga. In inglese quella riga viene verificata rispetto a ciò che hai scritto, quindi non compaiono più dettagli che non hai mai scritto. Nelle altre lingue vedi la tua citazione con una riga fissa scelta in base al tuo umore.
+• L'apertura delle riflessioni ora alterna «Hai scritto:» e «In precedenza hai scritto:» così non iniziano tutte allo stesso modo.
+• La prima voce dell'introduzione ora conta correttamente le parole in giapponese e cinese.
+• Su un nuovo dispositivo, l'aggiornamento del conteggio parole in giapponese e cinese attende che le tue voci abbiano finito di sincronizzarsi da iCloud.
+• Le etichette Basso, Medio e Alto nei grafici dell'umore sono ora tradotte.

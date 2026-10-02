@@ -1,13 +1,7 @@
-Reflexionen nach dem Schreiben – und was sie gelesen haben
+Klarere Reflexionen und eine Korrektur für Japanisch und Chinesisch
 
-• Schreibst du abends, bekommst du jetzt noch am selben Tag eine Reflexion. Handelte die heutige Reflexion von früheren Tagen und du schreibst danach heute, kann eine zweite über heute erscheinen. Eine Reflexion über einen früheren Tag sagt, von welchem Tag sie ist.
-• Reflexionen warten jetzt auf die genaue Minute, die du eingestellt hast, nicht nur auf die Stunde.
-• Auf iPhones ohne Apple Intelligence besteht die Reflexion aus einem Zitat aus deinem Eintrag und einem schlichten Satz dazu, wie es dir zu gehen scheint. Nur an schwereren Tagen kommt ein kurzer, fester Vorschlag dazu. Das allgemeine „Atme ein paar Mal tief durch“ ist weg.
-• Auf diesen iPhones zitiert die Anschlussfrage, die beim Schreiben erscheint, jetzt deine eigenen Worte und kann nichts hinzuerfinden.
-• Bei jeder Reflexion kannst du genau sehen, was für sie gelesen wurde.
-• Auf iPhones ohne Apple Intelligence: Wurde deine neueste wöchentliche Zusammenfassung oder dein neuester Monatsbericht von einer früheren Version geschrieben, wird er womöglich einmal neu erstellt. Ältere bleiben unverändert.
-• Fragen unter „Fragen“ dürfen bis zu 500 Zeichen lang sein.
-• Kann mirror dein Tagebuch nicht öffnen, sagt es das jetzt mit einer Schaltfläche „Erneut versuchen“, statt abzustürzen. Nichts wird gelöscht.
-• Japanische und chinesische Einträge werden jetzt richtig gezählt, damit Summen, Tagesziele und XP stimmen.
-
-Wenn eine Reflexion einmal etwas falsch wiedergibt, sag mir bitte Bescheid: Einstellungen → Über → Feedback senden.
+• Auf iPhones mit Apple Intelligence zitiert deine tägliche Reflexion jetzt deine eigenen Worte und fügt eine kurze Zeile hinzu. Auf Englisch wird diese Zeile mit dem abgeglichen, was du geschrieben hast, sodass keine Details mehr auftauchen, die du nie geschrieben hast. In anderen Sprachen siehst du dein Zitat mit einer festen Zeile passend zu deiner Stimmung.
+• Die Einleitung der Reflexionen wechselt jetzt zwischen „Du hast geschrieben:“ und „Früher hast du geschrieben:“, damit nicht alle gleich beginnen.
+• Der erste Eintrag im Onboarding zählt japanische und chinesische Wörter jetzt korrekt.
+• Auf einem neuen Gerät wartet die Aktualisierung der Wortzahl für Japanisch und Chinesisch jetzt, bis deine Einträge vollständig aus iCloud synchronisiert sind.
+• Die Beschriftungen Niedrig, Mittel und Hoch in den Stimmungsdiagrammen sind jetzt übersetzt.

@@ -1,13 +1,7 @@
-Reflections after you write, and what they read
+Clearer reflections, and a fix for Japanese and Chinese
 
-• Write in the evening and you now get a reflection that day. If today's reflection was about earlier days and you then write today, a second one about today can appear. A reflection about an earlier day says which day it's from.
-• Reflections now wait for the exact minute you set, not just the hour.
-• On iPhones without Apple Intelligence, the reflection is a quote from your entry plus one plain sentence about how you seem. Only on harder days does it add one short, fixed suggestion. The generic "take a few deep breaths" is gone.
-• On those iPhones, the follow-up question that appears while you write now quotes your own words, so it can't bring in things you didn't write.
-• On any reflection, you can see exactly what was read to write it.
-• On iPhones without Apple Intelligence, if your latest weekly digest or monthly report was written by an earlier version, it may be rewritten once. Older ones aren't changed.
-• Questions in Ask can be up to 500 characters.
-• If mirror can't open your journal, it now says so, with a Try Again button, instead of crashing. Nothing is deleted.
-• Japanese and Chinese entries now have proper word counts, so totals, daily goals and XP make sense.
-
-If a reflection gets something wrong, please tell me: Settings → About → Send feedback.
+• On iPhones with Apple Intelligence, your daily reflection now quotes your own words, then adds one short line. In English that line is checked against what you wrote, so details you never wrote no longer appear. Other languages show your quote with a fixed line chosen by your mood.
+• Reflection openings now alternate between "You wrote," and "Earlier you wrote," so they don't all start the same way.
+• The first entry in onboarding now counts Japanese and Chinese words correctly.
+• On a new device, the Japanese and Chinese word-count update now waits until your entries have finished syncing from iCloud.
+• The Low, Mid and High labels on the mood charts are now translated.

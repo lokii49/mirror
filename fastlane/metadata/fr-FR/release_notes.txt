@@ -1,13 +1,7 @@
-Des réflexions après avoir écrit, et ce qu'elles ont lu
+Des réflexions plus claires et une correction pour le japonais et le chinois
 
-• Si vous écrivez le soir, vous recevez désormais une réflexion le jour même. Si la réflexion du jour portait sur des jours précédents et que vous écrivez ensuite aujourd'hui, une seconde sur aujourd'hui peut apparaître. Une réflexion sur un jour précédent indique de quel jour il s'agit.
-• Les réflexions attendent maintenant la minute exacte que vous avez choisie, et pas seulement l'heure.
-• Sur les iPhone sans Apple Intelligence, la réflexion est une citation de votre entrée suivie d'une phrase simple sur ce que vous semblez ressentir. Uniquement les jours plus difficiles, elle ajoute une courte suggestion fixe. Le « respirez profondément » générique a disparu.
-• Sur ces iPhone, la question de suivi qui apparaît pendant que vous écrivez cite désormais vos propres mots : elle ne peut plus rien ajouter que vous n'avez pas écrit.
-• Sur chaque réflexion, vous pouvez voir exactement ce qui a été lu pour l'écrire.
-• Sur les iPhone sans Apple Intelligence, si votre dernier résumé hebdomadaire ou rapport mensuel a été écrit par une version précédente, il peut être réécrit une fois. Les plus anciens ne changent pas.
-• Les questions de « Demander » peuvent compter jusqu'à 500 caractères.
-• Si mirror ne peut pas ouvrir votre journal, il le dit maintenant, avec un bouton « Réessayer », au lieu de se fermer. Rien n'est supprimé.
-• Les entrées en japonais et en chinois comptent enfin correctement les mots, pour que les totaux, les objectifs quotidiens et les XP aient du sens.
-
-Si une réflexion se trompe, dites-le-moi : Réglages → À propos → Envoyer des commentaires.
+• Sur les iPhone avec Apple Intelligence, ta réflexion quotidienne cite maintenant tes propres mots, puis ajoute une courte ligne. En anglais, cette ligne est vérifiée par rapport à ce que tu as écrit : les détails que tu n'as jamais écrits n'apparaissent plus. Dans les autres langues, tu vois ta citation avec une ligne fixe choisie selon ton humeur.
+• L'introduction des réflexions alterne maintenant entre « Tu as écrit : » et « Plus tôt, tu as écrit : » pour qu'elles ne commencent pas toutes pareil.
+• La première entrée de l'accueil compte désormais correctement les mots en japonais et en chinois.
+• Sur un nouvel appareil, la mise à jour du nombre de mots en japonais et en chinois attend que tes entrées aient fini de se synchroniser depuis iCloud.
+• Les libellés Bas, Moyen et Haut des graphiques d'humeur sont maintenant traduits.
