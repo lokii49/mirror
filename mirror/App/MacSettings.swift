@@ -133,7 +133,11 @@ struct MacSettingsRoot: View {
         case .privacy:
             scrolling {
                 VStack(spacing: 0) {
+                    // Each screen pads itself 16 pt all round plus 24 pt at the bottom, so stacking
+                    // them left a 56 pt gap. Pull the first up so the cards sit 14 pt apart, like
+                    // the sections inside General.
                     ArchiveSettingsView()
+                        .padding(.bottom, -42)
                     ManualSettingsView()
                 }
             }
