@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// Checks on the daily reflection that Foundation Models writes as a structured `quote` plus
 /// `insight` (see `FoundationModelEngine.generateDailyReflection`). Pure text logic, no app
@@ -40,11 +41,14 @@ nonisolated enum FMDailyGuard {
         let allowed = allowedWords(sources)
         let sourceWords = Set(sources.flatMap { words($0.text) })
         let sourceText = sources.map(\.text).joined(separator: " ")
+        let names = personNames(in: sourceText)
         var kept: [String] = []
         var dropped = 0
         for sentence in sentences(of: insight) {
-            if sentenceIsClean(sentence, allowed: allowed, sourceWords: sourceWords, sourceText: sourceText) {
-                if kept.count < maxInsightSentences { kept.append(tidy(sentence)) }
+            let restored = restoreNames(sentence, names: names)
+            let duplicate = kept.contains { $0.lowercased() == tidy(restored).lowercased() }
+            if !duplicate, sentenceIsClean(restored, allowed: allowed, sourceWords: sourceWords, sourceText: sourceText) {
+                if kept.count < maxInsightSentences { kept.append(tidy(restored)) }
             } else {
                 dropped += 1
             }
@@ -119,6 +123,37 @@ nonisolated enum FMDailyGuard {
         }
         let rest = current.trimmingCharacters(in: .whitespaces)
         if !rest.isEmpty { out.append(rest) }
+        return out
+    }
+
+    /// Names the entries write (people and places), lowercased -> as written. The model sometimes
+    /// writes a name in lowercase ("worried about maya").
+    private static func personNames(in text: String) -> [String: String] {
+        let tagger = NLTagger(tagSchemes: [.nameType])
+        tagger.string = text
+        var names: [String: String] = [:]
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
+            if let tag, tag == .personalName || tag == .placeName {
+                let name = String(text[range])
+                if name.first?.isUppercase == true { names[name.lowercased()] = name }
+            }
+            return true
+        }
+        return names
+    }
+
+    private static func restoreNames(_ sentence: String, names: [String: String]) -> String {
+        guard !names.isEmpty else { return sentence }
+        var out = ""
+        var word = ""
+        func flush() {
+            if let name = names[word.lowercased()] { out += name } else { out += word }
+            word = ""
+        }
+        for ch in sentence {
+            if ch.isLetter || ch == "'" { word.append(ch) } else { flush(); out.append(ch) }
+        }
+        flush()
         return out
     }
 

@@ -54,7 +54,8 @@ Rules:
 // so on Gemma the facts aren't paraphrased at all: groundedNudgeGrammar makes the quote a verbatim
 // sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
 // Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
-// Foundation Models keeps DAILY_NUDGE_SYSTEM (12/12 faithful on the same case).
+// Foundation Models used to keep DAILY_NUDGE_SYSTEM (12/12 faithful on one case); a 13-case strict rig
+// pass later found it invented in most outputs, see DAILY_REFLECTION_FM_SYSTEM for what English FM does now.
 //
 // 2026-09-30: Gemma writes only the feeling sentence; the grammar has no tip slot. With one, it
 // added a tip ~100% of the time whatever the mood (about half breathing/mindfulness, a fifth
@@ -65,6 +66,26 @@ Rules:
 let DAILY_NUDGE_GEMMA_INSTRUCTIONS = """
 Write a short reflection for the person who wrote the journal entry above, in this exact form:
 You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one sentence, speaking to them as "you", about how they seem to be feeling, in plain everyday words, without repeating the words of the quote. Do not give advice, and do not use words like "significant", "grappling" or "well-being". After the quote, do not mention anyone by name and do not add anything that is not in the entry.
+"""
+
+// English daily reflection on Foundation Models (2026-10-02). Free prose on DAILY_NUDGE_SYSTEM
+// invented something in ~95% of outputs on a strict pass (tools/llmrig/fm/RUBRIC_FM.md, round 1), so on FM
+// the model fills two fields instead (`FoundationModelEngine.generateDailyReflection`): a quote, which the app
+// finds in today's entries and shows in the entry's own words, and a short insight, which `FMDailyGuard`
+// checks sentence by sentence. Kept byte-identical to tools/llmrig/fm/system_v1b_easy.txt, the prompt the
+// rig measured; change both together and re-measure. DAILY_NUDGE_SYSTEM stays for other languages.
+let DAILY_REFLECTION_FM_SYSTEM = """
+You write the daily reflection for MirrorNotes, a private on-device journal. You are given the person's recent journal entries. Work only from what they wrote.
+
+The reflection has these parts:
+- quote: the single most important sentence from TODAY's entry, copied exactly, every word and mark as written. At most 25 words.
+- insight: one or two sentences, speaking to them as "you". Say what this seems to mean for them, using only feelings they wrote or that their words plainly show. Do not add feelings they did not mention: if the day was ordinary, say it was an ordinary, steady day and do not look for a problem. Do not exaggerate. Plain everyday words, like a close friend. Do not repeat the quote.
+
+Rules for everything you write:
+- Use only facts that are in the entries. Do not add weather, light, sky, air, sounds, smells, places, furniture, objects, or any person who is not named in the entries. Do not describe how their body or chest feels unless they wrote it.
+- A plan, an offer or something they are considering has not happened yet; do not say it did.
+- Never write as the journal writer: no "I feel", "I've been", "my". You are MirrorNotes speaking to them as "you".
+- No therapy language, no generic affirmations, do not mention AI or a model.
 """
 
 private let WEEKLY_DIGEST_SYSTEM = """
@@ -719,6 +740,28 @@ enum InsightService {
             return (dailyNudgeUngroundedFallback, .gemma, true)
         }
 
+        // English on Foundation Models: structured quote + insight, verified by FMDailyGuard
+        // (see DAILY_REFLECTION_FM_SYSTEM). When it comes back empty after its attempts, the Gemma
+        // grammar path below answers if a Gemma model exists; free-prose Foundation Models never
+        // does, since that is the output the guard exists to replace.
+        var gemmaOnly = false
+        if localized == nil, case .grammarConstrained = nudgePlan, usesStructuredFMNudge {
+            let structuredMessage = buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: recent,
+                backgroundEntries: background,
+                maxChars: dailyNudgePromptBudget,
+                includeRecurringTerms: false
+            )
+            if let text = await structuredFMNudge(source: nudgeSource, recentNudges: recentNudges, userMessage: structuredMessage) {
+                return (text, .foundationModels, false)
+            }
+            guard LocalLLMService.isGemmaModelAvailable else {
+                return (dailyNudgeUngroundedFallback, .foundationModels, true)
+            }
+            gemmaOnly = true
+        }
+
         var userMessage = buildUserMessage(
             title: "Daily reflection context",
             recentEntries: recent,
@@ -771,7 +814,8 @@ enum InsightService {
                     task: .dailyNudge,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: nudgePlan,
-                    gemmaValidator: nudgeValidator
+                    gemmaValidator: nudgeValidator,
+                    allowFoundationModels: !gemmaOnly
                 )
             } catch {
                 // A later attempt throwing (contextExhausted on a repeat full pass is realistic
@@ -862,6 +906,73 @@ enum InsightService {
             throw InsightError.serviceUnavailable("nudge generation produced no result")
         }
         return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
+    }
+
+    /// One structured Foundation Models draft per attempt, up to `structuredNudgeAttempts`. The first
+    /// draft `FMDailyGuard` accepts is assembled into the same shape the Gemma grammar path saves
+    /// (`You wrote, "<quote>" <insight>`, plus the fixed tip on a difficult mood), so everything that
+    /// reads a saved grounded reflection treats it alike. nil when no attempt survived.
+    static let structuredNudgeAttempts = 3
+
+    /// True when this device would run the English daily reflection on Foundation Models. Tests that
+    /// intercept `LocalLLMService.generate` get the old single-call flow, since the structured call
+    /// does not go through that seam.
+    static var usesStructuredFMNudge: Bool {
+        #if DEBUG
+        if LocalLLMService.generateInterceptForTesting != nil { return false }
+        #endif
+        return LocalLLMService.prefersFoundationModels
+    }
+
+    static func structuredFMNudge(
+        source: [Entry],
+        recentNudges: [String],
+        userMessage: String,
+        generator: (() async throws -> (quote: String, insight: String))? = nil
+    ) async -> String? {
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateDailyReflection(systemPrompt: DAILY_REFLECTION_FM_SYSTEM, userMessage: userMessage)
+            }
+        }
+        for attempt in 1...structuredNudgeAttempts {
+            do {
+                let (quote, insight) = try await draft()
+                // A repeat of a recent reflection's quote is only worth a retry; the last attempt
+                // takes it rather than fall back.
+                if let text = assembleStructuredNudge(
+                    quote: quote, insight: insight, source: source, recentNudges: recentNudges,
+                    allowRepeat: attempt == structuredNudgeAttempts
+                ) {
+                    return text
+                }
+            } catch is CancellationError {
+                return nil
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[nudge] structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        return nil
+    }
+
+    static func assembleStructuredNudge(quote: String, insight: String, source: [Entry], recentNudges: [String], allowRepeat: Bool = false, on date: Date = Date()) -> String? {
+        let sources = source.map { entry -> FMDailyGuard.Source in
+            var texts = [entry.text]
+            for note in entry.voiceNotes {
+                if let transcript = note.transcript, !transcript.isEmpty, transcript != entry.text { texts.append(transcript) }
+            }
+            return FMDailyGuard.Source(text: texts.joined(separator: "\n"), mood: entry.mood)
+        }
+        guard let verified = FMDailyGuard.verify(quote: quote, insight: insight, sources: sources) else { return nil }
+        if !allowRepeat, recentNudges.contains(where: { nudge in groundedNudgeOpeners.contains { nudge.hasPrefix($0 + verified.quote + "\"") } }) {
+            return nil
+        }
+        let opener = nextGroundedNudgeOpener(after: recentNudges)
+        let tip = groundedNudgeTip(forMood: source[verified.sourceIndex].mood, on: date)
+        return opener + verified.quote + "\" " + verified.insight + (tip.map { " " + $0 } ?? "")
     }
 
     // "Flawed beats none" only covers flaws that are still truthful (repetitive phrasing,
@@ -1437,7 +1548,8 @@ enum InsightService {
         responseLanguageInstruction: String?,
         askNoAnswerPhrase: String? = nil,
         gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt,
-        gemmaValidator: ((String) throws -> String)? = nil
+        gemmaValidator: ((String) throws -> String)? = nil,
+        allowFoundationModels: Bool = true
     ) async throws -> (text: String, engine: LLMEngine) {
         let systemPrompt: String
         if let instruction = responseLanguageInstruction {
@@ -1473,15 +1585,15 @@ enum InsightService {
         }
         do {
             do {
-                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
+                let first = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(first), first.engine)
             } catch InsightError.emptyResponse, InsightError.incompleteResponse, LocalLLMError.emptyResponse {
                 let retryMessage = retryUserMessage(original: userMessage, task: task)
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
                 await LocalLLMService.shared.resetContext()
-                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan)
+                let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             }
         } catch let error as InsightError {
@@ -1491,13 +1603,14 @@ enum InsightService {
         }
     }
 
-    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
+    private static func queuedGenerate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: LocalLLMService.GemmaPlan = .samePrompt, allowFoundationModels: Bool = true) async throws -> (text: String, engine: LLMEngine) {
         let raw = try await LLMGenerationQueue.shared.run {
             try await LocalLLMService.shared.generate(
                 systemPrompt: systemPrompt,
                 userMessage: userMessage,
                 task: task,
-                gemmaPlan: gemmaPlan
+                gemmaPlan: gemmaPlan,
+                allowFoundationModels: allowFoundationModels
             )
         }
         // Grammar-constrained output is already in final shape and holds a verbatim quote of the

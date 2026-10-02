@@ -139,7 +139,7 @@ actor LocalLLMService {
         service = nil
     }
 
-    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
+    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: GemmaPlan = .samePrompt, allowFoundationModels: Bool = true) async throws -> (text: String, engine: LLMEngine) {
         // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
         // no bundled weights, no download, better instruction-following than Gemma 3 1B.
         // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
@@ -150,7 +150,7 @@ actor LocalLLMService {
             return try intercept(systemPrompt, userMessage, task, gemmaPlan)
         }
         #endif
-        if Self.prefersFoundationModels {
+        if allowFoundationModels, Self.prefersFoundationModels {
             do {
                 let text = try await FoundationModelEngine.generate(
                     systemPrompt: systemPrompt,

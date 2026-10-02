@@ -181,3 +181,11 @@ Verdict: ship rule met (shown PASS 98.3%, fresh held-out 98.3%, fallback 3.6% / 
 100% verbatim). Ship as the English FM daily reflection. Known limits, not fixed: swapped attributions
 inside the word list (quiet/wired/tired said of someone else), lowercase names, repeated sentences.
 Cheap follow-ups worth doing in the app: drop a repeated sentence; capitalise a name the entry capitalises.
+
+### Shipped (2026-10-02)
+App: `FMDailyGuard` (shared with the rig), `FoundationModelEngine.generateDailyReflection`, `InsightService.structuredFMNudge`
+(3 attempts) wired into `generateNudge` for English on FM; on failure Gemma's grammar path if a model exists, else the honest
+card. Two cosmetic guard fixes landed after round 6 and were not re-measured: a repeated sentence is dropped, and a name
+the entry writes capitalised is restored ("maya" -> "Maya"); each only removes a defect seen in rounds 5-6.
+End to end on the simulator's real Foundation Models: 5/5 grounded, assembled, tip appended on Drained
+(`RealFMNudgeTests`, set TEST_RUNNER_HARNESS_REAL_FM=1). Unit suite 501/501.

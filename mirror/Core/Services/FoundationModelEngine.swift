@@ -67,6 +67,36 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// The two fields Foundation Models fills for the English daily reflection. The app does not
+    /// show them as written: `FMDailyGuard` finds the quote in today's entries and checks the insight.
+    /// Field descriptions are part of the prompt the rig measured (tools/llmrig/fm/fmrig.swift,
+    /// DailyV1bEasy); change them there too.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct DailyReflectionDraft {
+        @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+        var quote: String
+        @Guide(description: "One or two sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+        var insight: String
+    }
+    #endif
+
+    /// One structured draft. Temperature only, as measured: a token cap can cut a structured
+    /// response off. Throws on a guardrail refusal or any model error; the caller counts that as a
+    /// failed attempt.
+    nonisolated static func generateDailyReflection(systemPrompt: String, userMessage: String) async throws -> (quote: String, insight: String) {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let draft = try await session.respond(to: userMessage, generating: DailyReflectionDraft.self, options: options).content
+        return (draft.quote, draft.insight)
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
     // LocalLLMTask.maxOutputChars was tuned as a hard character cutoff for Gemma's
     // streaming loop. GenerationOptions wants a token budget instead, and FM's stricter
     // instruction-following tends to run more verbose than Gemma at the same task — so this
