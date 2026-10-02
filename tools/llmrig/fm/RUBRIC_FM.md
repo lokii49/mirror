@@ -168,3 +168,16 @@ Same guard plus the state words above. 6 FRESH held-out synthetic cases written 
 (hold2_*: deadline, bday, lonely, gym, cough, cooking) + the 19 earlier cases re-run, N = 10 each.
 Same blind scoring and ship rule; the held-out gate is evaluated on the 6 fresh cases alone (>= 57/60), the
 overall gate on all 25 cases. One round only: if it misses, the structured path does not ship.
+
+### Round 6 result (V1e with state words, 25 cases x 10, blind sheet of the 241 shown outputs, scored 2026-10-02)
+Shown 241/250, FALLBACK 9/250 (3.6%; worst case hold_plain 3/10 = 30%, rl_neutral 2, rl_missing 2, rl_lowwork 1,
+hold2_cooking 1), errors 0, shown quotes 241/241 verbatim.
+Shown PASS 237/241 (98.3%). The 6 FRESH held-out cases: 58/59 (98.3%, gate >= 95%). No case has more than 1
+shown failure. Failures: hold_argue "You feel quiet after the conversation with Vikram" (Vikram's quiet given to
+the writer: a SWAP the word check cannot see), rl_sickfriend lowercase name ("maya", 2nd time in two rounds),
+lunch one insight sentence repeated twice, hold2_cooking "a sense of care for what you made" (inferred motive).
+INSIGHT (beyond restating the quote): still under 10%; not gated, not improved. Single scorer, case labels visible.
+Verdict: ship rule met (shown PASS 98.3%, fresh held-out 98.3%, fallback 3.6% / worst case 30%, errors 0, quotes
+100% verbatim). Ship as the English FM daily reflection. Known limits, not fixed: swapped attributions
+inside the word list (quiet/wired/tired said of someone else), lowercase names, repeated sentences.
+Cheap follow-ups worth doing in the app: drop a repeated sentence; capitalise a name the entry capitalises.
