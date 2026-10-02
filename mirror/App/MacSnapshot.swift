@@ -359,6 +359,9 @@ enum MacSnapshot {
         RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // Let activation land before the window-server capture, or the first capture of a run shows
+        // inactive (grey) traffic lights.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         window?.displayIfNeeded()
         guard let window, let view = window.contentView?.superview ?? window.contentView else {
             NSLog("MacSnapshot: no window for %@", name)
@@ -594,6 +597,12 @@ enum MacSnapshot {
                 capture(mainWindow(), name: "6-brain-2d")
             }
         }
+
+        // The first capture of a run (1-write) is taken before macOS lets the app become the active app, so its
+        // traffic lights are grey. Write again now that the app is active: this is the one for store screenshots.
+        go("write")
+        try? await Task.sleep(for: .seconds(2))
+        capture(mainWindow(), name: "9-write-active")
 
         // Go > Log Mood… presents the check-in sheet. Opt-in (--macSnapshotMood): it pops a modal
         // over the window, which is disruptive when the capture run is watched.

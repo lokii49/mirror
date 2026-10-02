@@ -590,12 +590,24 @@ enum SampleData {
 
         for sample in todayReflectionEntrySamples {
             let entry = Entry(text: sample.text, mood: sample.mood, source: .typed)
-            entry.createdAt = Date().addingTimeInterval(-3600 * sample.hoursAgo)
+            entry.createdAt = Self.todayReflectionSampleDate(hoursAgo: sample.hoursAgo)
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
             entry.tags = [sampleTag]
             context.insert(entry)
         }
         try? context.save()
+    }
+
+    /// When a sample entry was written. "20 hours ago" lands on yesterday whenever the harness runs
+    /// before ~8 PM, which turned the Today card's label into "From what you wrote on Thursday" and made
+    /// store screenshots depend on the clock. The newest sample is therefore always earlier today (clamped
+    /// to just before now, so a run just after midnight still works); the older ones keep their offsets.
+    static func todayReflectionSampleDate(hoursAgo: Double, now: Date = Date(), calendar: Calendar = .current) -> Date {
+        let offset = now.addingTimeInterval(-3600 * hoursAgo)
+        guard hoursAgo < 24 else { return offset }
+        let startOfToday = calendar.startOfDay(for: now)
+        let earlierToday = min(startOfToday.addingTimeInterval(8 * 3600), now.addingTimeInterval(-300))
+        return max(earlierToday, startOfToday.addingTimeInterval(1))
     }
 
     static func clearTodayReflectionSample(from context: ModelContext) {
