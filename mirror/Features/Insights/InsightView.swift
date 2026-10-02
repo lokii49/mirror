@@ -1697,7 +1697,7 @@ private struct MoodWeekChartView: View {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
-                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                            Text(v == 1 ? LocalizedStringKey("Low") : v == 3 ? LocalizedStringKey("Mid") : LocalizedStringKey("High"))
                                 .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }

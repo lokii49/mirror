@@ -56,6 +56,11 @@ private struct MacSettingsTabButton: View {
                 MacIcon(name: item.icon, size: 20)
                 Text(item.title)
                     .font(.system(size: 11.5, weight: selected ? .semibold : .regular))
+                    // Long translations ("Erscheinungsbild", サブスクリプション) shrink to fit the tab
+                    // instead of breaking mid-word or wrapping; English is unchanged.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 6)
             }
             .frame(width: item.width, height: 52)
             .foregroundStyle(selected ? MacTokens.accentInk : MacTokens.controlInk)

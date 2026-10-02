@@ -38,7 +38,7 @@ extension WriteView {
 
             Button { showDatePicker = true } label: {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(entry == nil ? "New entry" : "Edit entry")
+                    Text(entry == nil ? LocalizedStringKey("New entry") : LocalizedStringKey("Edit entry"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(MacTokens.ink)
                         .lineLimit(1)
