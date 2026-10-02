@@ -604,6 +604,21 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(2))
         capture(mainWindow(), name: "9-write-active")
 
+        // Entries as a store screenshot: the seed also holds French voice-note samples (language tests) and
+        // entries tagged with the sample marker, which would show as "#__sample__". Drop both, then show the
+        // list with the newest entry open in the reader.
+        let seeded = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+        for entry in seeded {
+            if entry.tags.contains("french") { context.delete(entry); continue }
+            entry.tags.removeAll { $0 == SampleData.sampleTag }
+        }
+        try? context.save()
+        go("entries")
+        try? await Task.sleep(for: .seconds(2.5))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(2.5))
+        capture(mainWindow(), name: "10-entries-store")
+
         // Go > Log Mood… presents the check-in sheet. Opt-in (--macSnapshotMood): it pops a modal
         // over the window, which is disruptive when the capture run is watched.
         if CommandLine.arguments.contains("--macSnapshotMood") {
