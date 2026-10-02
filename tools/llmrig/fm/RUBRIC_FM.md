@@ -200,3 +200,53 @@ Scoring: 3 of 70 shown lines gave one person's feeling to another ("a mix of tir
 "tired" is Mom's), the swap the word check cannot see; 0 invented events. "steady" was taken out of the guard's feeling
 list after this replay (it is the prompt's own sanctioned wording for an ordinary day, and without a mood it made every
 neutral day fall back).
+
+### Round 8: the daily reflection in the other FM languages (plan fixed BEFORE running, 2026-10-02)
+Question: can one prompt, `DAILY_REFLECTION_FM_SYSTEM` unchanged plus the app's existing "respond in <language>" line, make
+Foundation Models pick the quote for de, es, fr, it, pt, ja, ko and zh, so Gemma is not needed on a device that has FM?
+Russian is not on Apple's language list (`supportsLocale` false on the dev Mac), so it stays on Gemma.
+What the app shows outside English: the model's quote only if it matches one of the entry's own quotable sentences
+(`FMDailyGuard.matchOption`, characters not words, so ja/zh work), then the app's fixed translated line for the entry's
+mood (`groundedLocales`). The model-written insight is NOT shown (FMDailyGuard is English-only), so it is not scored.
+Cases: 3 synthetic entries per language (a hard day with mood Drained, an ordinary day with mood Content, a single
+run-on sentence with mood Anxious), 24 cases, N = 10 each, temperature 0.45. Synthetic text only. Run:
+`GroundingSampleHarness.test_rig8_localizedStructuredQuote` (HARNESS_RIG8=1, FM on the simulator).
+Per run it does what the app does: up to 3 attempts, first one that matches an option wins.
+- SHOWN: a run ends with a matched option. Gate: >= 95% over all runs and >= 90% in every language.
+- ATTEMPT1: the first attempt already matches (not gated).
+- ERRORS: attempts that throw (guardrail, unsupported language, other). Gate: <= 5% of attempts.
+- MAIN: the shown option contains the case's main-event sentence (not gated; says whether FM picks a good quote).
+A language under the gate is taken off the FM list (`supports` false) so it stays on Gemma, as before this change.
+AMENDED 2026-10-02 (after the round 8 run, before round 9; the gate itself is unchanged): the owner's rule is no Gemma on a device that has
+Foundation Models, so a language under the gate stays on FM and its fallback-card rate is reported instead.
+Everything shown is the person's own sentence plus fixed text, so there is nothing to score for invention.
+
+### Round 8 result (2026-10-02, N=10 x 24 cases, mechanical, `rig8.tsv`): FAILED the gate
+SHOWN 171/240 (71.2%, gate >= 95%). By language: es 100%, ja 100%, pt 97%, de 67%, it 67%, zh 67%, fr 40%, ko 33% (gate >= 90%).
+Errors 0/389 attempts. Failures were systematic, not random: 9 cases were 0/10 and 2 more near zero. Every rejected attempt
+returned the WHOLE ENTRY as its "quote" (3 sentences, the short entries of this rig); no sentence is 60% of it, so
+`matchOption` rejected it. The same copy-the-whole-entry draft is what the English guard's `cut` already turns into the
+entry's own start. Not a prompt or language problem; ja/es/pt passed because those entries ended up matching a sentence.
+
+### Round 9: matcher v2 (plan fixed BEFORE running, 2026-10-02)
+Change, one thing only: `FMDailyGuard.matchOption`, after the existing rules fail, takes the option that appears EARLIEST inside
+the model's quote (so a quote that is the whole entry becomes its first sentence, like the English cut). Prompt, cases, N,
+temperature, attempts and gates are exactly round 8's (SHOWN >= 95% overall and >= 90% per language, errors <= 5%).
+MAIN stays informational; expect it to drop for entries whose main event is not the first sentence, which is the cost of this rule.
+
+### Round 9 result (2026-10-02, N=10 x 24 cases, mechanical, matcher v2): PASSED the gate
+SHOWN 240/240 (100%, gate >= 95%); every language 30/30 (gate >= 90%); errors 0/241 attempts (gate <= 5%); first attempt
+already matched 239/240. Verdict: ship. In de, es, fr, it, pt, ja, ko and zh the daily reflection on Foundation Models is the
+person's own sentence plus the app's fixed translated mood line (`groundedLocales`); the model-written insight is not shown.
+MAIN (informational): 160/240. Hard-mood and run-on cases 80/80 and 80/80; the ordinary-day case 0/80, because those entries
+open with a breakfast sentence and the main sentence is the second one, and the shown quote is the first sentence the model's
+quote holds. Grounded and harmless, but not the most telling sentence on ordinary days; not gated, not fixed.
+Known limits: synthetic entries, one scorer-free mechanical metric; Russian is not on Apple's list and stays on Gemma;
+other Apple-supported languages (nl, sv, da, tr, vi, nb) have no translated line, so they get the honest card.
+
+### Shipped with round 9 (2026-10-02)
+`DAILY_REFLECTION_FM_SYSTEM` is the one Foundation Models daily-reflection prompt for every language it supports (English adds
+the model's checked insight; the others the quote + fixed line). On a device that has Foundation Models, Gemma does not
+answer: `LocalLLMService.generate` rethrows a Foundation Models failure except `unsupportedLanguageOrLocale` (Russian today).
+A language outside English and the nine gets the honest card. `DAILY_NUDGE_SYSTEM` is retired as a prompt and kept only as
+`DAILY_NUDGE_LEGACY_SYSTEM` for the "How this was generated" sheet on older rows.
