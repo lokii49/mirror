@@ -125,3 +125,46 @@ is not above baseline-style richness. The rule is missed narrowly on PASS and cl
 What the data does show: structured output with app-verified quotes removes the baseline's invention
 (5% -> 94% PASS) and the guardrail refusals; the richer-content goal is not met by any variant. Asking the
 model for more (V1c) makes it invent.
+
+## Round 5: V1e = V1d + app-side guards (fixed BEFORE running, 2026-10-02)
+Decision recorded: on 2026-10-02 the owner chose to ship V1d with app-side guards ("go with option 1"). That
+knowingly drops the "INSIGHT clearly above baseline" criterion; the richer-content goal is NOT met and is not
+claimed. What ships, if it passes, is the same short reflection with the invention removed.
+
+Guards: `mirror/Core/Services/FMDailyGuard.swift`, compiled into the rig and into the app (same file, no copy).
+Per insight sentence, a sentence that fails is dropped and the rest kept; the attempt is rejected when no
+sentence survives. Checks: no quote marks; no first person; feeling words must come from the entry, a
+today-entry mood label or its small synonym list; "before/ever/never/always/anymore/again/finally/first time..."
+only when the entry has them; no scenery words or names the entry lacks; no "feel + -ing" ("feel missing him").
+Quote: must be found in TODAY's entries (case-insensitive, whitespace and curly quotes normalised), shown with
+the entry's own casing, cut to 25 words / 200 characters, at least 4 words.
+The rig runs the app's loop: up to 3 attempts, the first that survives is what would be shown; when all 3
+are rejected the run is a FALLBACK (the app then uses Gemma's grammar path if present, else the existing
+honest card; not scored here).
+
+Cases: the 13 original + 6 held-out synthetic cases written after the guards (hold_*), N = 10 each.
+The guards were built from round 4's failures, so the held-out cases are the generalisation test.
+Scoring: shuffled blind sheet (`score_tools.py sheet`), rubric above, plus FORMAT now also fails
+ungrammatical feeling phrases ("You feel missing him").
+
+Ship rule (all must hold): shown-output PASS >= 95% overall and >= 95% on the held-out cases alone; no case with
+more than 2 shown failures out of 10; FALLBACK rate <= 10% overall and <= 30% in any case; shown quotes 100%
+verbatim; errors/guardrail refusals <= 5%. INSIGHT is reported, not gated.
+
+### Round 5 result (V1e, 19 cases x 10, blind sheet of the 185 shown outputs, scored 2026-10-02)
+Shown 185/190, FALLBACK 4/190 (2.1%: lunch, runon, checklist, rl_lowwork 1 each), 1 error (FM guardrail
+"May contain sensitive content" on sickday; the app treats it as a failed attempt), shown quotes 185/185 verbatim.
+Shown PASS 180/185 (97.3%): original 13 cases 124/125 (99%), the 6 held-out cases 56/60 (93.3%).
+Failures: hold_argue "to feel active" (invented motive) and "did something to feel like you had to do
+something" (nonsense); hold_plain "quiet moments", "You are quiet and focused" (states the entry lacks);
+rl_sickfriend a lowercase name ("maya"). No case has more than 2 shown failures.
+Verdict: all gates hold EXCEPT the held-out PASS (93.3% < 95%, one output short; two of the four are
+borderline wording). Not shipping on this alone. Generalisable fix: "quiet / focused / productive / active /
+busy / relaxed / wired / alert / steady / determined" now count as feeling words that need support in the
+entry or mood. The lowercase-name case is left unfixed (1/185, cosmetic).
+
+## Round 6 (fixed BEFORE running)
+Same guard plus the state words above. 6 FRESH held-out synthetic cases written before the run
+(hold2_*: deadline, bday, lonely, gym, cough, cooking) + the 19 earlier cases re-run, N = 10 each.
+Same blind scoring and ship rule; the held-out gate is evaluated on the 6 fresh cases alone (>= 57/60), the
+overall gate on all 25 cases. One round only: if it misses, the structured path does not ship.

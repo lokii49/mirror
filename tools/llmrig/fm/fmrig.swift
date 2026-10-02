@@ -76,6 +76,28 @@ func norm(_ s: String) -> String {
      .split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
 }
 
+
+/// Today's entries (the first entry's date) from a dumped "Daily reflection context" prompt, the
+/// same set the app's `groundedNudgeSourceEntries` gives the guard.
+func todaySources(_ user: String) -> [FMDailyGuard.Source] {
+    let head = user.components(separatedBy: "Long-term context:")[0]
+    guard let r = head.range(of: "Recent entries:\n") else { return [] }
+    let blocks = String(head[r.upperBound...]).components(separatedBy: "\n---\n")
+    var date: String?
+    var out: [FMDailyGuard.Source] = []
+    for b in blocks {
+        var lines = b.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.count >= 3, lines[0].hasPrefix("Entry ") else { continue }
+        let d = lines[0].components(separatedBy: " - ").dropFirst().joined(separator: " - ")
+        if date == nil { date = d }
+        guard d == date else { continue }
+        let mood = lines[1].replacingOccurrences(of: "Mood: ", with: "").components(separatedBy: ".")[0]
+        lines.removeFirst(2)
+        out.append(FMDailyGuard.Source(text: lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), mood: mood))
+    }
+    return out
+}
+
 func emit(_ obj: [String: Any]) {
     if let d = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]), let s = String(data: d, encoding: .utf8) { print(s) }
 }
@@ -136,6 +158,29 @@ func emit(_ obj: [String: Any]) {
                     rec["text"] = "You wrote, \"\(r.quote)\" \(tidyAll(r.insight))"
                     rec["quoteVerbatim"] = source.contains(norm(r.quote))
                     rec["fields"] = ["quote": r.quote, "insight": r.insight]
+                case "v1e":
+                    // V1d plus the app's guards and retry loop (up to 3 attempts). Shown text = first
+                    // attempt that survives; none -> fallback (the app would use Gemma / the honest card).
+                    let sources = todaySources(user)
+                    var raws: [[String: String]] = []
+                    var shown: FMDailyGuard.Verified?
+                    var attempts = 0
+                    for _ in 1...3 {
+                        attempts += 1
+                        let r = try await session.respond(to: user, generating: DailyV1bEasy.self, options: opts).content
+                        raws.append(["quote": r.quote, "insight": r.insight])
+                        if let v = FMDailyGuard.verify(quote: r.quote, insight: r.insight, sources: sources) { shown = v; break }
+                    }
+                    rec["attempts"] = attempts
+                    rec["raws"] = raws
+                    if let v = shown {
+                        rec["text"] = "You wrote, \"\(v.quote)\" \(v.insight)"
+                        rec["quoteVerbatim"] = source.contains(norm(v.quote))
+                        rec["fields"] = ["quote": v.quote, "insight": v.insight]
+                        rec["dropped"] = v.droppedSentences
+                    } else {
+                        rec["fallback"] = true
+                    }
                 default:
                     rec["error"] = "unknown variant"
                 }
