@@ -115,6 +115,54 @@ struct FMDailyGuardTests {
     }
 }
 
+// The option matcher the reflections outside English use (script-neutral, measured in characters).
+@Suite("FM quote option matcher")
+struct FMQuoteOptionMatcherTests {
+    private let german = [
+        "Heute war ein langer Tag im Büro.",
+        "Ich bin am Abend völlig erschöpft nach Hause gekommen.",
+    ]
+
+    @Test func sameSentenceIgnoringCaseAndMarksMatches() {
+        #expect(FMDailyGuard.matchOption(quote: "heute war ein langer tag im büro", in: german) == german[0])
+        #expect(FMDailyGuard.matchOption(quote: "\u{201C}Heute war ein langer Tag im Büro.\u{201D}", in: german) == german[0])
+    }
+
+    @Test func aCutLongSentenceStillFindsItsOption() {
+        // More than half of the option: the model cut the sentence short.
+        #expect(FMDailyGuard.matchOption(quote: "Ich bin am Abend völlig erschöpft", in: german) == german[1])
+    }
+
+    @Test func aTinyFragmentIsRejected() {
+        #expect(FMDailyGuard.matchOption(quote: "Ich bin am", in: german) == nil)
+    }
+
+    @Test func twoSentencesPickTheOptionThatMostOfTheQuoteIs() {
+        let both = "Heute war ein langer Tag im Büro. Ich bin am Abend völlig erschöpft nach Hause gekommen."
+        #expect(FMDailyGuard.matchOption(quote: both, in: german) != nil)
+    }
+
+    @Test func aQuoteThatIsTheWholeEntryBecomesItsFirstSentence() {
+        let entry = "Heute hat mein Chef meine Arbeit kritisiert. Ich habe kaum etwas gesagt. Am Abend war ich völlig erschöpft."
+        let options = ["Heute hat mein Chef meine Arbeit kritisiert.", "Ich habe kaum etwas gesagt.", "Am Abend war ich völlig erschöpft."]
+        #expect(FMDailyGuard.matchOption(quote: entry, in: options) == options[0])
+        // Not at the start: the first option the quote holds wins.
+        #expect(FMDailyGuard.matchOption(quote: "Ich habe kaum etwas gesagt. Am Abend war ich völlig erschöpft.", in: options) == options[1])
+    }
+
+    @Test func aSentenceNotInTheEntryIsRejected() {
+        #expect(FMDailyGuard.matchOption(quote: "Der Regen draußen machte mich traurig und still.", in: german) == nil)
+    }
+
+    @Test func japaneseAndChineseAreMeasuredInCharacters() {
+        let ja = ["今日は仕事が長引いて、とても疲れた。", "夜は早く寝るつもりだ。"]
+        #expect(FMDailyGuard.matchOption(quote: "今日は仕事が長引いて、とても疲れた", in: ja) == ja[0])
+        let zh = ["今天加班到很晚，我觉得特别累。", "明天想早点睡。"]
+        #expect(FMDailyGuard.matchOption(quote: "今天加班到很晚，我觉得特别累。", in: zh) == zh[0])
+        #expect(FMDailyGuard.matchOption(quote: "窗外下着雨，让人心情低落。", in: zh) == nil)
+    }
+}
+
 // How the app assembles a verified reflection and what it does when attempts fail.
 extension SharedLLMState {
     @Suite(.serialized)
@@ -220,6 +268,90 @@ extension SharedLLMState {
             #expect(InsightService.entryQuoting("Rohan left for Bangalore this morning for the new job. The flat feels too quiet without him.", in: [other, sad]) === sad)
             #expect(InsightService.entryQuoting("Missing him a lot tonight.", in: [other, sad]) === sad)
             #expect(InsightService.entryQuoting("Not in any entry at all.", in: [other, sad]) == nil)
+        }
+
+        // MARK: Other languages on Foundation Models
+
+        private func germanDay() -> (entries: [Entry], plan: InsightService.LocalizedGrounded) {
+            let entry = Entry(text: "Heute war ein langer Tag im Büro. Ich bin am Abend völlig erschöpft nach Hause gekommen.", mood: "Drained")
+            let plan = InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: [])
+            return ([entry], plan ?? InsightService.LocalizedGrounded(plan: .unsuitable, validator: nil))
+        }
+
+        @Test func aMatchedQuoteGetsTheFixedTranslatedLine() async throws {
+            let (_, grounded) = germanDay()
+            let validator = try #require(grounded.validator)
+            #expect(!grounded.quoteOptions.isEmpty)
+            let text = try #require(try await InsightService.structuredFMLocalizedNudge(
+                options: grounded.quoteOptions, validator: validator, systemPrompt: "", userMessage: ""
+            ) { (quote: "ich bin am abend völlig erschöpft nach hause gekommen", insight: "ignored, never shown") })
+            let loc = try #require(InsightService.groundedLocales["de"])
+            #expect(text.hasPrefix(loc.youWrote + loc.open + "Ich bin am Abend völlig erschöpft nach Hause gekommen." + loc.close))
+            #expect(!text.contains("ignored"))
+        }
+
+        @Test func aQuoteThatIsNotTheirsRetriesThenGivesNothing() async throws {
+            let (_, grounded) = germanDay()
+            let validator = try #require(grounded.validator)
+            var calls = 0
+            let text = try await InsightService.structuredFMLocalizedNudge(
+                options: grounded.quoteOptions, validator: validator, systemPrompt: "", userMessage: ""
+            ) { calls += 1; return (quote: "Der Regen draußen machte mich traurig und still.", insight: "x") }
+            #expect(text == nil)
+            #expect(calls == InsightService.structuredNudgeAttempts)
+        }
+
+        @Test func theSheetShowsThePromptThatWasSentForAFoundationModelsRow() async throws {
+            // English: written by the structured prompt, so not Gemma's instructions.
+            let english = try #require(InsightService.assembleStructuredNudge(
+                quote: "missing him a lot tonight.", insight: "You feel sad.", source: [sad], recentNudges: []
+            ))
+            let fm = InsightService.systemPrompt(for: .dailyNudge, content: english, engine: LLMEngine.foundationModels.rawValue)
+            #expect(fm.ref.contains("DAILY_REFLECTION_FM_SYSTEM"))
+            #expect(fm.body == DAILY_REFLECTION_FM_SYSTEM)
+            let gemma = InsightService.systemPrompt(for: .dailyNudge, content: english, engine: LLMEngine.gemma.rawValue)
+            #expect(gemma.ref.contains("DAILY_NUDGE_GEMMA_INSTRUCTIONS"))
+            // German written by Foundation Models: the same prompt plus the "respond in German" line.
+            let (_, grounded) = germanDay()
+            let deValidator = try #require(grounded.validator)
+            let german = try #require(try await InsightService.structuredFMLocalizedNudge(
+                options: grounded.quoteOptions, validator: deValidator, systemPrompt: "", userMessage: ""
+            ) { (quote: "Heute war ein langer Tag im Büro.", insight: "x") })
+            let de = InsightService.systemPrompt(for: .dailyNudge, content: german, engine: LLMEngine.foundationModels.rawValue)
+            #expect(de.ref.contains("DAILY_REFLECTION_FM_SYSTEM"))
+            #expect(de.body.hasPrefix(DAILY_REFLECTION_FM_SYSTEM) && de.body != DAILY_REFLECTION_FM_SYSTEM)
+            // The same German row from Gemma still shows Gemma's pick prompt.
+            #expect(InsightService.systemPrompt(for: .dailyNudge, content: german, engine: LLMEngine.gemma.rawValue).ref.contains("pickNudge"))
+        }
+
+        @Test func aLanguageWithNoGroundedReflectionGetsTheHonestCardWithoutAModel() async throws {
+            var calls = 0
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .foundationModels) }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+            // Dutch: not English and not one of the nine languages the app writes grounded reflections in.
+            let dutch = Entry(text: "Vandaag was een lange dag op kantoor. Ik ben vanavond doodmoe thuisgekomen na het overleg met mijn baas.", mood: "Drained")
+            let (text, _, degraded) = try await InsightService.generateNudge(entries: [dutch])
+            #expect(text == InsightService.dailyNudgeUnsupportedLanguageNotice)
+            #expect(InsightService.isUngroundedFallback(text))
+            #expect(InsightService.isUnsupportedLanguageNotice(text))
+            #expect(!text.contains("Try"))
+            #expect(degraded)
+            #expect(calls == 0)
+        }
+
+        @Test func aFailedAttemptIsRetried() async throws {
+            let (_, grounded) = germanDay()
+            let validator = try #require(grounded.validator)
+            var calls = 0
+            let text = try await InsightService.structuredFMLocalizedNudge(
+                options: grounded.quoteOptions, validator: validator, systemPrompt: "", userMessage: ""
+            ) {
+                calls += 1
+                if calls == 1 { throw LocalLLMError.emptyResponse }
+                return (quote: "Heute war ein langer Tag im Büro.", insight: "x")
+            }
+            #expect(text != nil)
+            #expect(calls == 2)
         }
     }
 }

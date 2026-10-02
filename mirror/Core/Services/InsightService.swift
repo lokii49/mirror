@@ -24,7 +24,11 @@ enum InsightError: LocalizedError {
 // needs this exact prompt string, not just the localGenerate function it's passed to.
 // GROUNDING_VERIFY_SYSTEM below stays private on purpose — GroundingSampleHarness only ever
 // reaches it indirectly through verifyGroundingSemantic, never needs the string itself.
-let DAILY_NUDGE_SYSTEM = """
+/// RETIRED as a prompt (2026-10-02): no daily reflection sends it to a model any more. English and the other
+/// Foundation Models languages use `DAILY_REFLECTION_FM_SYSTEM`; Gemma uses `DAILY_NUDGE_GEMMA_INSTRUCTIONS` and
+/// `groundedLocales`; a language outside those gets the honest card. The text stays so "How this was generated"
+/// can show it for older reflections that were written with it, and for the rig's V0 baseline.
+let DAILY_NUDGE_LEGACY_SYSTEM = """
 You are MirrorNotes, a private on-device journaling companion.
 Read the user's local journal context and offer ONE specific, personal reflection — warm and familiar, the way a close friend who knows them well would talk.
 Rules:
@@ -46,7 +50,7 @@ Rules:
 - Be specific. Be warm. Be honest. Do not over-explain.
 """
 
-// Gemma-only daily nudge (2026-09-26 root-cause fix). DAILY_NUDGE_SYSTEM's creative framing ("warm
+// Gemma-only daily nudge (2026-09-26 root-cause fix). DAILY_NUDGE_LEGACY_SYSTEM's creative framing ("warm
 // and familiar", "open by naming something concrete — an image…") puts Gemma 3 1B in creative-
 // writing mode: measured ~0/40 faithful across four synthetic cases, nearly every output opening on
 // an invented sensory scene ("The rain outside…", "The scent of sandalwood…"). Rewording the rules
@@ -54,7 +58,7 @@ Rules:
 // so on Gemma the facts aren't paraphrased at all: groundedNudgeGrammar makes the quote a verbatim
 // sentence from the entry, and the model only writes the feeling/suggestion after it (~39/40).
 // Sent as the user turn, after the entry. Numbers and method: tools/llmrig/README.md.
-// Foundation Models used to keep DAILY_NUDGE_SYSTEM (12/12 faithful on one case); a 13-case strict rig
+// Foundation Models used to keep DAILY_NUDGE_LEGACY_SYSTEM (12/12 faithful on one case); a 13-case strict rig
 // pass later found it invented in most outputs, see DAILY_REFLECTION_FM_SYSTEM for what English FM does now.
 //
 // 2026-09-30: Gemma writes only the feeling sentence; the grammar has no tip slot. With one, it
@@ -68,12 +72,12 @@ Write a short reflection for the person who wrote the journal entry above, in th
 You wrote, "<copy the one sentence from the entry that shows the biggest thing that happened to them today or how they felt>" Then one sentence, speaking to them as "you", about how they seem to be feeling, in plain everyday words, without repeating the words of the quote. Do not give advice, and do not use words like "significant", "grappling" or "well-being". After the quote, do not mention anyone by name and do not add anything that is not in the entry.
 """
 
-// English daily reflection on Foundation Models (2026-10-02). Free prose on DAILY_NUDGE_SYSTEM
+// English daily reflection on Foundation Models (2026-10-02). Free prose on DAILY_NUDGE_LEGACY_SYSTEM
 // invented something in ~95% of outputs on a strict pass (tools/llmrig/fm/RUBRIC_FM.md, round 1), so on FM
 // the model fills two fields instead (`FoundationModelEngine.generateDailyReflection`): a quote, which the app
 // finds in today's entries and shows in the entry's own words, and a short insight, which `FMDailyGuard`
 // checks sentence by sentence. Kept byte-identical to tools/llmrig/fm/system_v1b_easy.txt, the prompt the
-// rig measured; change both together and re-measure. DAILY_NUDGE_SYSTEM stays for other languages.
+// rig measured; change both together and re-measure. DAILY_NUDGE_LEGACY_SYSTEM stays for other languages.
 let DAILY_REFLECTION_FM_SYSTEM = """
 You write the daily reflection for MirrorNotes, a private on-device journal. You are given the person's recent journal entries. Work only from what they wrote.
 
@@ -226,7 +230,7 @@ No explanation. No punctuation. One word only.
 // actually supported.
 //
 // Deliberately checked against RECENT entries only, never background — same scope
-// `openingIsUngrounded` already uses, for the same reason: DAILY_NUDGE_SYSTEM itself requires
+// `openingIsUngrounded` already uses, for the same reason: DAILY_NUDGE_LEGACY_SYSTEM itself requires
 // the reflection to ground in Recent entries and never lift phrasing from Long-term context, so
 // verifying against background too would let the judge rationalize "supported" off the same
 // large, coincidence-prone pool that lets the word-overlap checks miss at scale (see
@@ -236,7 +240,7 @@ No explanation. No punctuation. One word only.
 // confusion-matrix test, which bypasses InsightService.localGenerate entirely (that path's
 // single internal retry injects a GROUNDED/FABRICATED vocabulary constraint on any validation
 // failure, which contaminated the earlier — now corrected — confusion-matrix measurement) and
-// so needs this exact prompt string directly, the same reasoning as DAILY_NUDGE_SYSTEM's own
+// so needs this exact prompt string directly, the same reasoning as DAILY_NUDGE_LEGACY_SYSTEM's own
 // bump above.
 let GROUNDING_VERIFY_SYSTEM = """
 You are a strict fact-checker reviewing a reflection written about someone's recent journal entries.
@@ -434,7 +438,7 @@ enum InsightService {
 
     /// True when `text` shares no real vocabulary at all with `sourceEntries` — a strong signal
     /// the model invented the reflection rather than reading what was actually written.
-    /// DAILY_NUDGE_SYSTEM explicitly requires this ("Reference actual words, moods, dates, or
+    /// DAILY_NUDGE_LEGACY_SYSTEM explicitly requires this ("Reference actual words, moods, dates, or
     /// concrete events, not generic advice" / "Open by naming something concrete from a
     /// specific entry"), so a genuinely grounded nudge — even heavily paraphrased — should still
     /// land on at least one shared non-filler word with its source. Observed failure this
@@ -470,7 +474,7 @@ enum InsightService {
     /// response. `isUngrounded` counts shared vocabulary anywhere in the text, so a response that
     /// invents its lead sentence entirely but echoes 2-3 real nouns afterward can clear the
     /// combined-pool threshold untouched — the aggregate count says "grounded" while the one
-    /// sentence a reader actually takes as the reflection is invented. DAILY_NUDGE_SYSTEM
+    /// sentence a reader actually takes as the reflection is invented. DAILY_NUDGE_LEGACY_SYSTEM
     /// requires the opening specifically name something concrete from an entry ("Open by naming
     /// something concrete from a specific entry"); this checks that requirement directly instead
     /// of trusting the aggregate count to imply it.
@@ -485,7 +489,7 @@ enum InsightService {
     /// (hundreds of words), a fabricated opening has decent odds of coincidentally sharing one
     /// common-ish word ("outside", "quiet") with *something* in that much text, which is exactly
     /// the false-negative this check exists to close. `isUngrounded` already covers "is this
-    /// grounded in background themes"; this checks a narrower, stricter thing DAILY_NUDGE_SYSTEM
+    /// grounded in background themes"; this checks a narrower, stricter thing DAILY_NUDGE_LEGACY_SYSTEM
     /// actually requires — "open by naming something concrete from a specific [recent] entry" —
     /// so it must be checked against exactly the entries that requirement names, same scope
     /// `sharesNoWordWithRecent` already uses for its own flat/unscaled bar. Unlike
@@ -741,11 +745,18 @@ enum InsightService {
             return (dailyNudgeUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
 
+        // A language the app has no grounded reflection for (anything outside English and the nine in
+        // `groundedLocales`; Russian is in that list, it runs on Gemma). The free-prose prompt that used
+        // to answer here invented in most Foundation Models outputs, and no translated opener or mood
+        // line exists to compose a grounded one, so no model runs: the honest card, like the case above.
+        if localized == nil, let code = responseLanguageTarget(from: recent + background)?.code, code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
+        }
+
         // English on Foundation Models: structured quote + insight, verified by FMDailyGuard
-        // (see DAILY_REFLECTION_FM_SYSTEM). When it comes back empty after its attempts, the Gemma
-        // grammar path below answers if a Gemma model exists; free-prose Foundation Models never
-        // does, since that is the output the guard exists to replace.
-        var gemmaOnly = false
+        // (see DAILY_REFLECTION_FM_SYSTEM). When it comes back empty after its attempts, a fixed
+        // mood line after the verified quote answers, else the honest card. Neither Gemma nor
+        // free-prose Foundation Models runs on a device that has Foundation Models.
         if localized == nil, case .grammarConstrained = nudgePlan, usesStructuredFMNudge {
             let structuredMessage = buildUserMessage(
                 title: "Daily reflection context",
@@ -760,15 +771,38 @@ enum InsightService {
             }
             // A cancelled run (background task expiring) is not a failed reflection: nothing is saved.
             try Task.checkCancellation()
-            if LocalLLMService.isGemmaModelAvailable {
-                gemmaOnly = true
-            } else if let safe = structured.safeQuote,
-                      let text = fixedLineNudge(quote: safe.quote, sourceIndex: safe.sourceIndex, source: nudgeSource, recentNudges: recentNudges) {
+            if let safe = structured.safeQuote,
+               let text = fixedLineNudge(quote: safe.quote, sourceIndex: safe.sourceIndex, source: nudgeSource, recentNudges: recentNudges) {
                 return (text, .foundationModels, false)
             } else {
                 return (dailyNudgeUngroundedFallback, .foundationModels, true)
             }
         }
+
+        // Other languages Foundation Models can work in: the same prompt asks for a quote, and the
+        // app keeps it only if it is one of the entry's own quotable sentences. What follows is the
+        // fixed translated line for the entry's mood, as on the Gemma path. The model-written insight
+        // is not shown: the English checks (FMDailyGuard) cannot vouch for it in another language.
+        let nudgeLanguageCode = groundedLocaleCode(for: recent + background)
+        if let localized, !localized.quoteOptions.isEmpty, let validator = localized.validator,
+           case .grammarConstrained = nudgePlan, usesStructuredFMNudge,
+           let code = nudgeLanguageCode, FoundationModelEngine.supports(languageCode: code) {
+            let structuredMessage = buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: recent,
+                backgroundEntries: background,
+                maxChars: dailyNudgePromptBudget,
+                includeRecurringTerms: false
+            )
+            let system = structuredNudgeSystemPrompt(for: recent + background)
+            if let text = try await structuredFMLocalizedNudge(options: localized.quoteOptions, validator: validator, systemPrompt: system, userMessage: structuredMessage) {
+                return (text, .foundationModels, false)
+            }
+            try Task.checkCancellation()
+            return (dailyNudgeUngroundedFallback, .foundationModels, true)
+        }
+        // A language Foundation Models cannot work in (Russian) goes to Gemma without a doomed first call.
+        let fmHandlesNudgeLanguage = nudgeLanguageCode.map { FoundationModelEngine.supports(languageCode: $0) } ?? true
 
         var userMessage = buildUserMessage(
             title: "Daily reflection context",
@@ -817,13 +851,13 @@ enum InsightService {
             let result: (text: String, engine: LLMEngine)
             do {
                 result = try await localGenerate(
-                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    systemPrompt: DAILY_NUDGE_LEGACY_SYSTEM,
                     userMessage: currentUserMessage,
                     task: .dailyNudge,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: nudgePlan,
                     gemmaValidator: nudgeValidator,
-                    allowFoundationModels: !gemmaOnly
+                    allowFoundationModels: fmHandlesNudgeLanguage
                 )
             } catch {
                 // A later attempt throwing (contextExhausted on a repeat full pass is realistic
@@ -979,6 +1013,47 @@ enum InsightService {
         return result
     }
 
+    /// The system prompt the structured daily reflection sends: the one prompt for every language, plus
+    /// the existing "respond in <language>" line for entries that are not in English.
+    static func structuredNudgeSystemPrompt(for entries: [Entry]) -> String {
+        let instruction = responseLanguageInstruction(for: responseLanguageTarget(from: entries), task: .dailyNudge)
+        return DAILY_REFLECTION_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? "")
+    }
+
+    /// The daily reflection outside English on Foundation Models: up to `structuredNudgeAttempts` tries
+    /// for a quote that is one of `options`; the first that is gets the app's fixed translated line
+    /// (`validator` composes it). nil when no attempt produced one. `generator` is for tests.
+    static func structuredFMLocalizedNudge(
+        options: [String],
+        validator: (String) throws -> String,
+        systemPrompt: String,
+        userMessage: String,
+        generator: (() async throws -> (quote: String, insight: String))? = nil
+    ) async throws -> String? {
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateDailyReflection(systemPrompt: systemPrompt, userMessage: userMessage)
+            }
+        }
+        for attempt in 1...structuredNudgeAttempts {
+            try Task.checkCancellation()
+            do {
+                let (quote, _) = try await draft()
+                if let option = FMDailyGuard.matchOption(quote: quote, in: options), let text = try? validator(option) {
+                    return text
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[nudge] localized structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        return nil
+    }
+
     private static func guardSources(from source: [Entry]) -> [FMDailyGuard.Source] {
         source.map { entry in
             var texts = [entry.text]
@@ -1045,6 +1120,16 @@ enum InsightService {
         localized: "MirrorNotes couldn't find today's reflection clearly grounded in what you wrote. Add a bit more to today's entry and it'll try again."
     )
 
+    /// For an entry in a language the app writes no reflection for. Not "add more": more writing can't help,
+    /// so the card says which languages work and offers no retry (`GroundingFallbackCard`, `isUnsupportedLanguageNotice`).
+    static let dailyNudgeUnsupportedLanguageNotice = String(
+        localized: "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese."
+    )
+
+    static func isUnsupportedLanguageNotice(_ content: String) -> Bool {
+        content == dailyNudgeUnsupportedLanguageNotice
+    }
+
     /// Advisor-suggested detection: a fallback insight needs no schema change (no new field on
     /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
     /// one) — plain content equality against these three constants is the whole mechanism, and
@@ -1062,6 +1147,7 @@ enum InsightService {
     /// the more durable fix if this set grows unwieldy.
     static func isUngroundedFallback(_ content: String) -> Bool {
         content == dailyNudgeUngroundedFallback
+            || content == dailyNudgeUnsupportedLanguageNotice
             || content == weeklyDigestUngroundedFallback
             || content == monthlyReportUngroundedFallback
             || legacyUngroundedFallbacks.contains(content)
@@ -1716,7 +1802,7 @@ enum InsightService {
 
         switch task {
         case .dailyNudge:
-            // DAILY_NUDGE_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice
+            // DAILY_NUDGE_LEGACY_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice
             // ("never the journal writer's voice") — .strictExceptMirrorNoticed blocks every
             // other journal-writer-shaped "I ..."/"my ..." construction but tolerates that one,
             // matching the prompt's own carve-out instead of a blanket ban or a blanket pass.
@@ -1918,7 +2004,7 @@ enum InsightService {
     }
 
     // allowMirrorNoticed: true removes "notice|noticed" from the blocked-verb group — the one
-    // "I ..." construction DAILY_NUDGE_SYSTEM sanctions as Mirror's own voice. Every other
+    // "I ..." construction DAILY_NUDGE_LEGACY_SYSTEM sanctions as Mirror's own voice. Every other
     // caller (ask, weeklyDigest, monthlyReport) uses the default false — their prompts grant
     // no such exception.
     private static func containsJournalWriterFirstPerson(_ text: String, allowMirrorNoticed: Bool = false) -> Bool {
@@ -2524,7 +2610,7 @@ extension String {
             .replacingOccurrences(of: "this suggests", with: "it sounds like", options: .caseInsensitive)
             .replacingOccurrences(of: "emotional weariness", with: "tiredness", options: .caseInsensitive)
             .replacingOccurrences(of: "mental health", with: "well-being", options: .caseInsensitive)
-            // "significant"/"patterns indicate" are banned explicitly in DAILY_NUDGE_SYSTEM
+            // "significant"/"patterns indicate" are banned explicitly in DAILY_NUDGE_LEGACY_SYSTEM
             // and WEEKLY_DIGEST_SYSTEM but were unguarded here — another gap
             // InsightValidationTests found (no repair, no validator check, either prompt).
             // "significant" alone is NOT rewritten unconditionally — unlike the other phrases
@@ -2674,7 +2760,7 @@ extension InsightService {
 
     /// The Gemma plan for a daily nudge, with the quote options its validator needs.
     /// English only: the grammar's fixed phrases and lowercase-only character class are English.
-    /// Other languages keep DAILY_NUDGE_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
+    /// Other languages keep DAILY_NUDGE_LEGACY_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
     static func groundedNudgePlan(recent: [Entry], background: [Entry], recentNudges: [String]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
         let target = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
         guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
@@ -3679,6 +3765,9 @@ extension InsightService {
     struct LocalizedGrounded {
         let plan: LocalLLMService.GemmaPlan
         let validator: ((String) throws -> String)?
+        /// The quotable sentences the validator accepts (daily reflection only; empty elsewhere).
+        /// Foundation Models picks one of them instead of Gemma.
+        var quoteOptions: [String] = []
     }
 
     private static func groundedLocaleCode(for entries: [Entry], extraText: String? = nil) -> String? {
@@ -3870,7 +3959,8 @@ extension InsightService {
                 let quotedBucket = GroundedMoodBucket(mood: moodOfEntry(quoting: quote, source: source))
                 let feel = loc.feel[quotedBucket]?[variant] ?? loc.feel[.neutral]?[variant] ?? ""
                 return loc.youWrote + loc.open + quote + loc.close + loc.joiner + feel
-            }
+            },
+            quoteOptions: options
         )
     }
 
@@ -4134,16 +4224,25 @@ extension InsightService {
     /// never a paraphrase that can drift.
     /// `content` picks the Gemma variant for a grounded daily nudge — the "You wrote, \"…" shape
     /// only the grammar path produces — so the sheet never shows a prompt that wasn't sent.
-    static func systemPrompt(for type: InsightType, content: String? = nil) -> (ref: String, body: String) {
+    /// `engine` (`Insight.generatedByEngine`) says which engine wrote it: a grounded reflection that
+    /// Foundation Models wrote came from the structured prompt, not from Gemma's instructions.
+    static func systemPrompt(for type: InsightType, content: String? = nil, engine: String? = nil) -> (ref: String, body: String) {
         switch type {
         case .dailyNudge:
+            if engine == LLMEngine.foundationModels.rawValue, let content, isGrammarGrounded(content) {
+                // English and the other Foundation Models languages share one prompt; outside English it
+                // also carries the "respond in <language>" line, found from the saved text's opener.
+                let code = groundedLocales.first { content.hasPrefix($0.value.youWrote + $0.value.open) }?.key
+                let instruction = code.flatMap { responseLanguageTarget(forCode: $0) }.flatMap { responseLanguageInstruction(for: $0, task: .dailyNudge) }
+                return ("InsightService.swift · DAILY_REFLECTION_FM_SYSTEM", DAILY_REFLECTION_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? ""))
+            }
             if let content, let opener = groundedNudgeOpener(of: content) {
                 return ("InsightService.swift · DAILY_NUDGE_GEMMA_INSTRUCTIONS", groundedNudgeInstructions(opener: opener))
             }
             if let content, let loc = groundedLocales.values.first(where: { content.hasPrefix($0.youWrote + $0.open) }) {
                 return ("InsightService.swift · groundedLocales.pickNudge", loc.pickNudge)
             }
-            return ("InsightService.swift:22 · DAILY_NUDGE_SYSTEM", DAILY_NUDGE_SYSTEM)
+            return ("InsightService.swift:22 · DAILY_NUDGE_LEGACY_SYSTEM", DAILY_NUDGE_LEGACY_SYSTEM)
         case .weeklyDigest:
             if let content, content.contains("WHAT'S BUILDING: You wrote, \"") {
                 return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)

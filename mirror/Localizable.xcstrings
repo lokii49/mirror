@@ -5027,6 +5027,122 @@
         }
       }
     },
+    "Reflections aren't available in this language yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexionen sind in dieser Sprache noch nicht verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las reflexiones aún no están disponibles en este idioma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les réflexions ne sont pas encore disponibles dans cette langue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le riflessioni non sono ancora disponibili in questa lingua"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この言語ではリフレクションをまだ利用できません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 언어에서는 아직 리플렉션을 사용할 수 없습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As reflexões ainda não estão disponíveis neste idioma"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рефлексии пока недоступны на этом языке"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此语言暂不支持反思"
+          }
+        }
+      }
+    },
+    "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexionen unterstützen derzeit Englisch, Deutsch, Spanisch, Französisch, Italienisch, Portugiesisch, Russisch, Japanisch, Koreanisch und Chinesisch."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las reflexiones admiten por ahora inglés, alemán, español, francés, italiano, portugués, ruso, japonés, coreano y chino."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les réflexions prennent actuellement en charge l'anglais, l'allemand, l'espagnol, le français, l'italien, le portugais, le russe, le japonais, le coréen et le chinois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le riflessioni supportano al momento inglese, tedesco, spagnolo, francese, italiano, portoghese, russo, giapponese, coreano e cinese."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リフレクションは現在、英語、ドイツ語、スペイン語、フランス語、イタリア語、ポルトガル語、ロシア語、日本語、韓国語、中国語に対応しています。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리플렉션은 현재 영어, 독일어, 스페인어, 프랑스어, 이탈리아어, 포르투갈어, 러시아어, 일본어, 한국어, 중국어를 지원합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No momento, as reflexões oferecem suporte a inglês, alemão, espanhol, francês, italiano, português, russo, japonês, coreano e chinês."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сейчас рефлексии поддерживают английский, немецкий, испанский, французский, итальянский, португальский, русский, японский, корейский и китайский языки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "反思目前支持英语、德语、西班牙语、法语、意大利语、葡萄牙语、俄语、日语、韩语和中文。"
+          }
+        }
+      }
+    },
     "Remove photo" : {
       "localizations" : {
         "de" : {

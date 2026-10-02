@@ -81,6 +81,41 @@ nonisolated enum FMDailyGuard {
         return nil
     }
 
+    /// The option a model-written quote stands for, for languages the English checks above do not cover.
+    /// Same sentence ignoring case, whitespace, curly quotes and edge marks; or the one option it is
+    /// at least half of (the model cut a long sentence); or the one it contains with at least
+    /// 60% of its length; or else the first of the options it contains (the model quoted several
+    /// sentences, often the whole entry). Measured in characters, never in words,
+    /// so it works for Japanese and Chinese. nil when no option fits: the caller retries.
+    static func matchOption(quote: String, in options: [String]) -> String? {
+        func key(_ text: String) -> String {
+            straighten(collapse(text)).trimmingCharacters(in: CharacterSet(charactersIn: "\" '.,;:!?…。！？、，「」『』 ")).lowercased()
+        }
+        let needle = key(quote)
+        guard needle.count >= 4 else { return nil }
+        var best: (option: String, overlap: Int)?
+        var earliest: (option: String, offset: Int)?
+        for option in options {
+            let candidate = key(option)
+            guard !candidate.isEmpty else { continue }
+            if candidate == needle { return option }
+            var overlap = 0
+            if candidate.contains(needle), needle.count * 2 >= candidate.count {
+                overlap = needle.count
+            } else if needle.contains(candidate), candidate.count * 10 >= needle.count * 6 {
+                overlap = candidate.count
+            }
+            if overlap > (best?.overlap ?? 0) { best = (option, overlap) }
+            // A quote that holds several of the entry's sentences (often all of a short entry): remember
+            // the one that comes first, as the English `cut` keeps the start of a long quote.
+            if let range = needle.range(of: candidate) {
+                let offset = needle.distance(from: needle.startIndex, to: range.lowerBound)
+                if offset < (earliest?.offset ?? Int.max) { earliest = (option, offset) }
+            }
+        }
+        return best?.option ?? earliest?.option
+    }
+
     /// Keeps the longest start of `quote` that fits the limits and ends a sentence; failing that, one
     /// that ends a clause (at least 8 words in); failing that, a plain word cut. Always a verbatim start.
     private static func cut(_ quote: String) -> String {

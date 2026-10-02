@@ -578,8 +578,13 @@ struct InsightView: View {
         case .modelNotInstalled:
             ModelNotInstalledCard()
         case .groundingFallback(let insight):
-            GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
-                Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
+            if InsightService.isUnsupportedLanguageNotice(insight.content) {
+                // Retrying can't help: say which languages work, with no "Try Again".
+                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: insight.content)
+            } else {
+                GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
+                    Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
+                }
             }
         case .error(let message):
             ErrorCard(message: message) {
@@ -1346,7 +1351,8 @@ private struct GroundingFallbackCard: View {
     // String, and no key ever appeared for the new "Couldn't confirm this reflection" title.
     var title: LocalizedStringKey = "Couldn't confirm this digest"
     let message: String
-    let onRetry: () -> Void
+    /// nil: nothing a retry could change (a language with no reflections), so no button.
+    var onRetry: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1356,9 +1362,11 @@ private struct GroundingFallbackCard: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
-            Button("Try Again", action: onRetry)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
+            if let onRetry {
+                Button("Try Again", action: onRetry)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary)
+            }
         }
         .padding(20)
         .inkSurface(cornerRadius: 22)

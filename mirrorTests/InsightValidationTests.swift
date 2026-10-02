@@ -98,7 +98,7 @@ struct InsightValidationTests {
         expectRejected(text.cleanedInsightOutput(), .dailyNudge)
     }
 
-    // DAILY_NUDGE_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice — this is
+    // DAILY_NUDGE_LEGACY_SYSTEM explicitly sanctions "I noticed ..." as Mirror's own voice — this is
     // the regression test proving that carve-out (FirstPersonPolicy.strictExceptMirrorNoticed)
     // actually works, not just that first-person is blocked in general.
     @Test func dailyNudge_mirrorVoiceINoticed_stillPasses() {

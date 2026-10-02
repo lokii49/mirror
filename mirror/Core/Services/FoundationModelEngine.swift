@@ -50,6 +50,31 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// Whether Foundation Models can work in this language ("de", "pt", "zh", ...). Russian is not on
+    /// Apple's list; asked on a Mac with Apple Intelligence: de, es, fr, it, pt, ja, ko, zh yes, ru no.
+    nonisolated static func supports(languageCode: String) -> Bool {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { return false }
+        return SystemLanguageModel.default.supportsLocale(Locale(identifier: languageCode))
+        #else
+        return false
+        #endif
+    }
+
+    /// True when Foundation Models turned the request down only because it cannot work in the text's
+    /// language (Russian today; `supportsLocale` is the API's own list). On a device that has Apple
+    /// Intelligence this is the one failure where Gemma is still the right engine.
+    nonisolated static func isUnsupportedLanguageError(_ error: Error) -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *),
+           let failure = error as? LanguageModelSession.GenerationError,
+           case .unsupportedLanguageOrLocale = failure {
+            return true
+        }
+        #endif
+        return false
+    }
+
     nonisolated static func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         #if canImport(FoundationModels)
         guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }

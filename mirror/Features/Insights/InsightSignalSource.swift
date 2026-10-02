@@ -23,7 +23,7 @@ struct InsightSourceSheet: View {
             .background(MirrorTheme.inkBase)
             .navigationTitle("How this was generated")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: InsightType.self) { SystemPromptDetail(type: $0, content: insight.content) }
+            .navigationDestination(for: InsightType.self) { SystemPromptDetail(type: $0, content: insight.content, engine: insight.generatedByEngine) }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -206,7 +206,7 @@ struct InsightSignalSource: View {
 
     var body: some View {
         let r = resolve()
-        let symbol = InsightService.systemPrompt(for: insight.type, content: insight.content).ref
+        let symbol = InsightService.systemPrompt(for: insight.type, content: insight.content, engine: insight.generatedByEngine).ref
             .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
             ?? "system prompt"
 
@@ -302,9 +302,10 @@ struct InsightSignalSource: View {
 struct SystemPromptDetail: View {
     let type: InsightType
     var content: String? = nil
+    var engine: String? = nil
 
     var body: some View {
-        let p = InsightService.systemPrompt(for: type, content: content)
+        let p = InsightService.systemPrompt(for: type, content: content, engine: engine)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.ref)
