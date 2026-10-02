@@ -106,3 +106,22 @@ quote + insight only, `tidyAll` applied by the app. On hard moods the app append
 tip, which this rig does not score. Same cases, N, temperature, blind scoring, ship rule
 (PASS >= 95%, no case < 8/10, quotes 100% verbatim, errors <= 5%, INSIGHT above baseline).
 Expected from the V1b data (not a measurement): about 96%.
+
+## Round 4 result (V1d, N=10 x 13 cases, scored 2026-10-02)
+Scoring note: outputs were near-identical within a case, so the scorer read the unique texts per case with
+counts (not the shuffled blind sheet). Single scorer. Treat the numbers as +-3 outputs.
+
+Errors 0/130. Quotes verbatim 130/130. Median ~1.4 s.
+PASS about 122/130 (94%). Failures: sickday 1 ("uneasy"), lunch 2 ("relief", "calm" not in entry),
+walk 3 ("a lightness you haven't felt before" overclaims "first time this week"), sameday 1 ("tired" from
+heavy legs), neutral 1 ("everything felt quiet"). Per case: walk 7/10, lunch 8/10, sickday 9/10, sameday 9/10,
+neutral 9/10, all other cases 10/10.
+Not in PASS but a quality defect: `rl_missing` 8/10 are ungrammatical ("You feel sad and missing him",
+"You feel missing him a lot"), and the insight restates the quote's feeling in nearly every output.
+INSIGHT (says something beyond the quote): under 10%, lower than V1b's 14%.
+
+Verdict against the pre-registered rule: NOT shipped as is. PASS 94% (< 95%), walk is below 8/10, INSIGHT
+is not above baseline-style richness. The rule is missed narrowly on PASS and clearly on INSIGHT.
+What the data does show: structured output with app-verified quotes removes the baseline's invention
+(5% -> 94% PASS) and the guardrail refusals; the richer-content goal is not met by any variant. Asking the
+model for more (V1c) makes it invent.
