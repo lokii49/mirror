@@ -7,3 +7,6 @@ build/
 
 # Per-user Xcode state
 xcuserdata/
+
+# Coverage output from test runs
+*.profraw
