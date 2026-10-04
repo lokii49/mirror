@@ -327,4 +327,6 @@ No prompt can fix a decline on the input itself, so the fix is app-side and mode
 model): when all 3 structured attempts are declined, `InsightService.refusedDayNudge` shows the day's first quotable
 sentence and the fixed mood line, with no tip (a breathing/walk tip next to an ICU or funeral entry reads as tone-deaf);
 no mood line for the mood -> the honest card as before. Real FM end to end: `RealFMNudgeTests.realFoundationModelsRefusedHospitalDayGetsTheFixedLine`.
-Digest, monthly report and Ask on FM still end at their honest cards when declined: not addressed here.
+Follow-up probe (real FM, a four-entry hospital week, 3 runs each): weekly digest 3/3, monthly report 3/3 and Ask 3/3
+answered, none declined. The decline is specific to the structured (`@Generable`) daily reflection, so the other three
+need no fallback. A declined Ask saves nothing, so it never counts against Core's 15 questions a month.
