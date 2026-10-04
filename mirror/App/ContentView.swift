@@ -211,6 +211,7 @@ struct ContentView: View {
         }
         .environment(\.appDisplayMode, displayMode)
         .onAppear {
+            PerfSignpost.endLaunchIfNeeded()
             applyColorScheme(appearanceMode)
             syncWidgetDisplayMode()
         }

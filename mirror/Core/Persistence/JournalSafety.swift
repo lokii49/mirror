@@ -144,7 +144,7 @@ final class JournalSafety {
     private func refreshAccountStatus() {
         #if DEBUG
         // Unsigned screenshot builds have no iCloud container; CKContainer.default() throws an ObjC exception.
-        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") { return }
+        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") || PerfSeed.isRequested { return }
         #endif
         Task {
             let status = try? await CKContainer.default().accountStatus()

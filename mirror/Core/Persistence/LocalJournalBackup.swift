@@ -70,7 +70,11 @@ enum LocalJournalBackup {
     /// The live store's file, or nil when there's nothing on disk to protect (in-memory
     /// configurations: tests, the Mac snapshot harness).
     static func liveStoreURL(_ configuration: ModelConfiguration = MirrorModelContainer.defaultConfiguration) -> URL? {
-        configuration.isStoredInMemoryOnly ? nil : configuration.url
+        #if DEBUG
+        // The perf seed's scratch store must never be snapshotted over (or freeze) the real backup.
+        if PerfSeed.isRequested { return nil }
+        #endif
+        return configuration.isStoredInMemoryOnly ? nil : configuration.url
     }
 
     // MARK: - State

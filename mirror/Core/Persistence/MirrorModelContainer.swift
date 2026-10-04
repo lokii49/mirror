@@ -26,6 +26,12 @@ enum MirrorModelContainer {
             return ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         }
         #endif
+        #if DEBUG
+        // Performance baseline: synthetic on-disk scratch store, never the real one, no CloudKit.
+        if PerfSeed.isRequested {
+            return ModelConfiguration(schema: schema, url: PerfSeed.storeURL, cloudKitDatabase: .none)
+        }
+        #endif
         return ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
     }
 
