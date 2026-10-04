@@ -1081,7 +1081,7 @@ enum InsightService {
     }
 
     /// A second quotable sentence from `source` for the display-time line after the reflection
-    /// (3.0.9, `reflectionWithAlsoQuote`): at least
+    /// (since iOS 3.0.8 / Mac 1.0.1, `reflectionWithAlsoQuote`): at least
     /// `FMDailyGuard.minQuoteWords` words, ending in sentence punctuation (never a cut-down chunk),
     /// no double quote, not overlapping the main quote. The longest such sentence, earliest on a tie, so the same
     /// entry always gives the same line. nil when the entry has nothing else to quote.

@@ -35,7 +35,7 @@ struct InsightView: View {
     @State private var cachedPastNudges: [Insight] = []
     /// The day each real reflection is about (InsightService.reflectedDay), for Past rows' labels.
     @State private var cachedReflectedDays: [PersistentIdentifier: Date] = [:]
-    /// Today's reflection as shown in the app, with the 3.0.9 second quote (built off the main render
+    /// Today's reflection as shown in the app, with the second quote (since 3.0.8) (built off the main render
     /// path: it decrypts the reflected day's entries). Keyed by the insight and its content.
     @State private var cachedNudgeDisplay: (key: String, text: String)? = nil
     @State private var cachedPastDigests: [Insight] = []
@@ -2057,7 +2057,7 @@ extension InsightView {
 
     private func recomputeMacToday() {
         guard let insight = macLoadedNudge else { macToday = nil; return }
-        // 3.0.9: shown with the second quote (display-time only; see reflectionWithAlsoQuote).
+        // Shown with the second quote (display-time only; see reflectionWithAlsoQuote).
         let shown = InsightService.reflectionWithAlsoQuote(insight.content, entries: entries, generatedAt: insight.generatedAt)
         let content = shown.text
         let parts = shown.parts

@@ -3,7 +3,7 @@ import os
 
 /// Timed intervals for Instruments (os_signpost) and `log stream --signpost`, subsystem
 /// `com.lokesh.mirror`, category `perf`. Interval names are static strings: never journal text.
-/// Used by the Mac performance baseline (`tools/perf/mac_baseline.sh`, 3.0.9 roadmap Track 1).
+/// Used by the Mac performance baseline (`tools/perf/mac_baseline.sh`, Mac performance roadmap, Track 1).
 enum PerfSignpost {
     static let signposter = OSSignposter(subsystem: "com.lokesh.mirror", category: "perf")
 

@@ -15,15 +15,15 @@ extension InsightService {
         /// The quote marks the text uses around `quote` (a straight pair in English).
         var open: String
         var close: String
-        /// The second sentence from the same entry shown after the reflection (3.0.9). Never stored in
+        /// The second sentence from the same entry shown after the reflection (since iOS 3.0.8 / Mac 1.0.1). Never stored in
         /// `Insight.content`: set by `reflectionWithAlsoQuote` where this version renders it, so older
-        /// app versions reading a synced reflection see the 3.0.8 shape.
+        /// app versions reading a synced reflection see the shape they already parse.
         var alsoQuote: String? = nil
     }
 
-    /// 3.0.9: the reflection as this version shows it in the app: an English grounded reflection gets
+    /// Since iOS 3.0.8 / Mac 1.0.1: the reflection as this version shows it in the app: an English grounded reflection gets
     /// `You also wrote, "<sentence>"` with another sentence from the same day's entry, before the
-    /// hard-day tip. Built at display time, never saved: reflections sync, and 3.0.8 / Mac 1.0.1 would
+    /// hard-day tip. Built at display time, never saved: reflections sync, and 3.0.7 / Mac 1.0 and earlier would
     /// read a stored second quote with their old parsers (leaking it to the widget and lock screen).
     /// `parts.alsoQuote` is set when a line was added. `entries` should cover the reflected day.
     static func reflectionWithAlsoQuote(_ content: String, entries: [Entry], generatedAt: Date) -> (text: String, parts: GroundedNudgeParts?) {

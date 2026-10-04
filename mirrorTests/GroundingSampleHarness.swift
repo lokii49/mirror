@@ -1171,7 +1171,7 @@ final class GroundingSampleHarness: XCTestCase {
         }
     }
 
-    /// 3.0.9: what `secondGroundedQuote` picks for every English rig case, beside the main quote the
+    /// What `secondGroundedQuote` picks for every English rig case, beside the main quote the
     /// Gemma path would most likely use (its first quote option), to read by eye. No model runs.
     func test_dumpSecondQuotesForReview() throws {
         guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {

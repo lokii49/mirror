@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import mirror
 
-/// 3.0.9: English daily reflections are SHOWN with a second sentence of the person's own, picked by
+/// Since iOS 3.0.8 / Mac 1.0.1: English daily reflections are SHOWN with a second sentence of the person's own, picked by
 /// the app (`You also wrote, "…"`). It is built at display time and never stored: reflections sync,
-/// and 3.0.8 / Mac 1.0.1 read them with the old parsers. Synthetic text only.
+/// and 3.0.7 / Mac 1.0 and earlier read them with the old parsers. Synthetic text only.
 @Suite("Second quote")
 struct SecondQuoteTests {
     private let exam = "Exam is on Friday and I've only covered half the syllabus. Studied in the library till nine. My roommate offered to quiz me tomorrow night."
@@ -27,7 +27,7 @@ struct SecondQuoteTests {
         #expect(InsightService.secondGroundedQuote(excluding: main, source: [runOn]) == nil)
     }
 
-    @Test @MainActor func storedReflectionKeepsThe308Shape() throws {
+    @Test @MainActor func storedReflectionKeepsTheShapeOlderVersionsParse() throws {
         let entry = Entry(text: exam, mood: "Anxious")
         let stored = try #require(InsightService.assembleStructuredNudge(quote: mainQuote, insight: "You seem anxious about the exam.", source: [entry], recentNudges: []))
         #expect(!stored.contains("also wrote"))
