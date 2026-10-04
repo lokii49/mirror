@@ -736,8 +736,7 @@ enum InsightService {
         let nudgeValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             let validated = try validateGroundedNudge(text, quoteOptions: grounded.quoteOptions)
             let tip = groundedNudgeTip(forMood: moodOfQuotedEntry(validated, source: nudgeSource))
-            let also = groundedNudgeParts(of: validated).map { groundedAlsoLine(excluding: $0.quote, source: nudgeSource) } ?? ""
-            return validated + also + (tip.map { " " + $0 } ?? "")
+            return tip.map { validated + " " + $0 } ?? validated
         })
         if case .unsuitable = nudgePlan {
             // Today's writing has no quotable sentence (a one- or two-word entry). Honest fallback
@@ -1072,30 +1071,39 @@ enum InsightService {
         }
         let opener = nextGroundedNudgeOpener(after: recentNudges)
         let tip = groundedNudgeTip(forMood: source[verified.sourceIndex].mood, on: date)
-        let also = groundedAlsoLine(excluding: verified.quote, source: source)
-        return opener + verified.quote + "\" " + verified.insight + also + (tip.map { " " + $0 } ?? "")
+        return opener + verified.quote + "\" " + verified.insight + (tip.map { " " + $0 } ?? "")
     }
 
-    /// `You also wrote, "<sentence>"` with another sentence from the same day's writing, or "" when
-    /// there isn't a suitable one. English reflections only; app-chosen, the person's own words.
-    static func groundedAlsoLine(excluding quote: String, source: [Entry]) -> String {
-        guard let also = secondGroundedQuote(excluding: quote, source: source) else { return "" }
-        return groundedAlsoMarker + also + "\""
-    }
-
-    /// A second quotable sentence from `source` for the line after the reflection (3.0.9): at least
-    /// `FMDailyGuard.minQuoteWords` words, no double quote (the reflection's parsers rely on that),
-    /// not overlapping the main quote. The longest such sentence, earliest on a tie, so the same
+    /// A second quotable sentence from `source` for the display-time line after the reflection
+    /// (3.0.9, `reflectionWithAlsoQuote`): at least
+    /// `FMDailyGuard.minQuoteWords` words, ending in sentence punctuation (never a cut-down chunk),
+    /// no double quote, not overlapping the main quote. The longest such sentence, earliest on a tie, so the same
     /// entry always gives the same line. nil when the entry has nothing else to quote.
     static func secondGroundedQuote(excluding quote: String, source: [Entry]) -> String? {
         // Overlap is judged without end punctuation: "Long day." sits inside "Long day and more."
         func bare(_ s: String) -> String { s.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".!?…,;: ")) }
         let main = bare(quote)
+        // Whole sentences only. Quote candidates cut a long sentence into chunks at commas or word
+        // windows ("because the manager moved…"); as a second quote a chunk reads as broken, so an
+        // entry with no other full sentence gets no line.
+        var whole = Set<String>()
+        for entry in source {
+            for text in [entry.text] + entry.voiceNotes.compactMap(\.transcript) {
+                for rawLine in text.components(separatedBy: .newlines) {
+                    let line = rawLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                        .replacing(/^(?:[-*•◦▪·☐☑✓✔]|\d{1,3}[.)]|\[[ xX]\])\s+/, with: "")
+                    for sentence in splitAfter(line, boundaries: ".!?…", immediate: "。！？") {
+                        whole.insert(sentence.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:—–-")))
+                    }
+                }
+            }
+        }
         var best: (text: String, words: Int)?
         var seen = Set<String>()
         for candidate in source.flatMap(groundedQuoteCandidates(of:)) where seen.insert(candidate).inserted {
             let lower = bare(candidate)
-            guard !candidate.contains("\""), !candidate.contains("\u{201C}"), !candidate.contains("\u{201D}"),
+            guard whole.contains(candidate), let last = candidate.last, ".!?…".contains(last),
+                  !candidate.contains("\""), !candidate.contains("\u{201C}"), !candidate.contains("\u{201D}"),
                   !lower.contains(main), !main.contains(lower) else { continue }
             let words = candidate.split(separator: " ").count
             guard words >= FMDailyGuard.minQuoteWords else { continue }
@@ -1119,8 +1127,7 @@ enum InsightService {
         guard source.indices.contains(sourceIndex), let mood = source[sourceIndex].mood,
               let line = groundedNudgeMoodLines[GroundedMoodBucket(mood: mood)] else { return nil }
         let tip = groundedNudgeTip(forMood: mood, on: date)
-        let also = groundedAlsoLine(excluding: quote, source: source)
-        return nextGroundedNudgeOpener(after: recentNudges) + quote + "\" " + line + also + (tip.map { " " + $0 } ?? "")
+        return nextGroundedNudgeOpener(after: recentNudges) + quote + "\" " + line + (tip.map { " " + $0 } ?? "")
     }
 
     // "Flawed beats none" only covers flaws that are still truthful (repetitive phrasing,
@@ -3024,9 +3031,6 @@ extension InsightService {
     /// a double quote (the grammar's character class excludes it), so the quote ends at the last
     /// `" `. Any other nudge is returned unchanged.
     static func nudgeTextForOutsideApp(_ text: String) -> String {
-        // The app-added second quote is journal text too: never outside the app.
-        let split = splittingAlsoQuote(text)
-        let text = split.also == nil ? text : (split.tail.isEmpty ? split.main : split.main + " " + split.tail)
         // (opening, closer) for English and every localized grounded nudge. Neither the English
         // line after the quote nor the fixed localized lines contain their language's closing mark.
         let shapes = groundedNudgeOpeners.map { ($0, "\" ") } + groundedLocales.values.map { ($0.youWrote + $0.open, $0.close + $0.joiner) }

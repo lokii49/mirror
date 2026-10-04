@@ -198,12 +198,8 @@ extension SharedLLMState {
                 defer { LocalLLMService.generateInterceptForTesting = nil }
                 let (text, _, _) = try await InsightService.generateNudge(entries: [evening, morning])
                 #expect(text.hasPrefix(reply))
-                // 3.0.9: the other entry's sentence follows as the app-picked second quote; the tip, if
-                // any, comes last.
-                let tips = InsightService.groundedNudgeTips.values.joined()
-                #expect(tips.contains { text.hasSuffix($0) } == expectsTip, "\(text)")
+                #expect((text != reply) == expectsTip, "\(text)")
                 if expectsTip { #expect(text.hasSuffix(try #require(InsightService.groundedNudgeTip(forMood: "Frustrated")))) }
-                #expect(InsightService.groundedNudgeParts(of: text)?.alsoQuote != nil, "\(text)")
             }
         }
 

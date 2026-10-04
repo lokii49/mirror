@@ -180,8 +180,9 @@ struct InsightSignalSource: View {
                     : endsWithFixedTip
                     ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
                     : quotedNote
-                // 3.0.9: an English reflection may end with a second sentence of theirs the app picked.
-                let hasAlso = InsightService.groundedNudgeParts(of: insight.content)?.alsoQuote != nil
+                // 3.0.9: in the app, an English reflection is shown with a second sentence of theirs the
+                // app picked (display-time; see reflectionWithAlsoQuote).
+                let hasAlso = InsightService.reflectionWithAlsoQuote(insight.content, entries: source, generatedAt: insight.generatedAt).parts?.alsoQuote != nil
                 let note = hasAlso
                     ? base + " The sentence after \u{201C}You also wrote\u{201D} is another one of yours, copied word for word; the app picked it, not the model."
                     : base

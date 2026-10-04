@@ -1171,6 +1171,25 @@ final class GroundingSampleHarness: XCTestCase {
         }
     }
 
+    /// 3.0.9: what `secondGroundedQuote` picks for every English rig case, beside the main quote the
+    /// Gemma path would most likely use (its first quote option), to read by eye. No model runs.
+    func test_dumpSecondQuotesForReview() throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        var lines: [String] = []
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 {
+            let (recent, _) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
+            let source = InsightService.groundedNudgeSourceEntries(recent)
+            for main in InsightService.groundedNudgeQuoteOptions(from: source) {
+                let also = InsightService.secondGroundedQuote(excluding: main, source: source) ?? "(none)"
+                lines.append("\(c.label)\tMAIN: \(main)\tALSO: \(also)")
+            }
+        }
+        try lines.joined(separator: "\n").write(toFile: "\(dir)/second_quotes.tsv", atomically: true, encoding: .utf8)
+    }
+
     /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
     /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
     /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.

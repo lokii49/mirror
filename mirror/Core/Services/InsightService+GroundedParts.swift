@@ -15,36 +15,35 @@ extension InsightService {
         /// The quote marks the text uses around `quote` (a straight pair in English).
         var open: String
         var close: String
-        /// A second sentence from the same entry the app added after the reflection
-        /// (`You also wrote, "…"`, English only, since 3.0.9). Not part of `rest`.
+        /// The second sentence from the same entry shown after the reflection (3.0.9). Never stored in
+        /// `Insight.content`: set by `reflectionWithAlsoQuote` where this version renders it, so older
+        /// app versions reading a synced reflection see the 3.0.8 shape.
         var alsoQuote: String? = nil
     }
 
-    /// Marks the app-added second quote in an English reflection: `… You also wrote, "<sentence>"`.
-    static let groundedAlsoMarker = " You also wrote, \""
-
-    /// Splits off the app-added second quote. `main` is the reflection as it was before it was added
-    /// (quote + line after it), `tail` is whatever follows the second quote (the fixed tip on hard days).
-    /// The second quote never contains a double quote (`secondGroundedQuote` skips those sentences), so
-    /// the first `"` after the marker closes it.
-    static func splittingAlsoQuote(_ text: String) -> (main: String, also: String?, tail: String) {
-        guard let marker = text.range(of: groundedAlsoMarker, options: .backwards) else { return (text, nil, "") }
-        let after = text[marker.upperBound...]
-        guard let close = after.firstIndex(of: "\"") else { return (text, nil, "") }
-        let also = String(after[..<close])
-        guard !also.isEmpty else { return (text, nil, "") }
-        let tail = after[after.index(after: close)...].trimmingCharacters(in: .whitespaces)
-        return (String(text[..<marker.lowerBound]), also, tail)
+    /// 3.0.9: the reflection as this version shows it in the app: an English grounded reflection gets
+    /// `You also wrote, "<sentence>"` with another sentence from the same day's entry, before the
+    /// hard-day tip. Built at display time, never saved: reflections sync, and 3.0.8 / Mac 1.0.1 would
+    /// read a stored second quote with their old parsers (leaking it to the widget and lock screen).
+    /// `parts.alsoQuote` is set when a line was added. `entries` should cover the reflected day.
+    static func reflectionWithAlsoQuote(_ content: String, entries: [Entry], generatedAt: Date) -> (text: String, parts: GroundedNudgeParts?) {
+        guard var parts = groundedNudgeParts(of: content) else { return (content, nil) }
+        guard parts.languageCode == "en" else { return (content, parts) }
+        let earliest = generatedAt.addingTimeInterval(-14 * 86_400)
+        let window = entries.filter { $0.createdAt <= generatedAt && $0.createdAt >= earliest }
+        guard let source = entryQuoting(parts.quote, in: window) else { return (content, parts) }
+        let sameDay = window.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: source.createdAt) }
+        guard let also = secondGroundedQuote(excluding: parts.quote, source: sameDay) else { return (content, parts) }
+        parts.alsoQuote = also
+        let line = "You also wrote, \"" + also + "\""
+        if let tip = groundedNudgeTips.values.joined().first(where: { content.hasSuffix($0) }) {
+            let head = String(content.dropLast(tip.count)).trimmingCharacters(in: .whitespaces)
+            return (head + " " + line + " " + tip, parts)
+        }
+        return (content + " " + line, parts)
     }
 
     static func groundedNudgeParts(of text: String) -> GroundedNudgeParts? {
-        let split = splittingAlsoQuote(text)
-        if let also = split.also {
-            let rejoined = split.tail.isEmpty ? split.main : split.main + " " + split.tail
-            guard var parts = groundedNudgeParts(of: rejoined), parts.languageCode == "en" else { return nil }
-            parts.alsoQuote = also
-            return parts
-        }
         var shapes: [(opening: String, closer: String, code: String, open: String, close: String)] =
             groundedNudgeOpeners.map { ($0, "\" ", "en", "\"", "\"") }
         shapes += groundedLocales.map { ($0.value.youWrote + $0.value.open, $0.value.close + $0.value.joiner, $0.key, $0.value.open, $0.value.close) }
