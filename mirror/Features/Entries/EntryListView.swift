@@ -13,6 +13,7 @@ struct EntriesTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -29,6 +30,16 @@ struct EntriesTabView: View {
     // in .task, a separate transaction from the toggle site) animates only that
     // interaction — not every search keystroke, sort change, or tag edit.
     @State private var animatePinChange = false
+    // Bumped (only while some entries are unreadable) so the snapshot re-decrypts: a content
+    // key can arrive via iCloud Keychain — on a fresh install, or after the user turns it on
+    // in Settings — without any entry changing, and the cached row previews would otherwise
+    // stay "unavailable". Gated on unreadableCount so a healthy journal is never re-decrypted.
+    @State private var foregroundRefresh = 0
+    @AppStorage(UnreadableEntriesBanner.dismissedCountKey) private var unreadableBannerDismissedCount = 0
+    // Ticks every 30s only while iCloud has pending changes, so the "not backed up" banner
+    // appears once a normal upload would have finished (JournalSafety.showsNotBackedUp).
+    @State private var backupStatusNow = Date()
+    private var journalSafety: JournalSafety { JournalSafety.shared }
     #if os(macOS)
     @State private var macShowCalendar = false
     @FocusState private var macSearchFocused: Bool
@@ -84,6 +95,7 @@ struct EntriesTabView: View {
         let pinnedEntries: [Entry]
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
+        let unreadableCount: Int
     }
 
     private struct SnapshotDeps: Equatable {
@@ -96,6 +108,7 @@ struct EntriesTabView: View {
         let tagsHash: Int
         let pinnedHash: Int
         let sort: String
+        let foregroundRefresh: Int
     }
 
     private var snapshotDeps: SnapshotDeps {
@@ -108,7 +121,8 @@ struct EntriesTabView: View {
             moodHash: entries.map(\.encryptedMood).hashValue,
             tagsHash: entries.map(\.encryptedTagsStorage).hashValue,
             pinnedHash: entries.map(\.isPinned).hashValue,
-            sort: sortOrder.rawValue
+            sort: sortOrder.rawValue,
+            foregroundRefresh: foregroundRefresh
         )
     }
 
@@ -186,7 +200,8 @@ struct EntriesTabView: View {
             )
         }
 
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
+        let unreadableCount = rowPreviews.values.filter(\.textDecryptionFailed).count
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount)
     }
 
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
@@ -305,6 +320,27 @@ struct EntriesTabView: View {
             }
             #endif
             #endif
+            .task(id: journalSafety.hasPendingChanges) {
+                backupStatusNow = Date()
+                while journalSafety.hasPendingChanges, !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(30))
+                    backupStatusNow = Date()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active, (snapshotCache?.unreadableCount ?? 0) > 0 { foregroundRefresh &+= 1 }
+            }
+            // On a fresh install CloudKit often delivers entries before iCloud Keychain delivers
+            // the key. Re-check for a couple of minutes so the rows (and the banner) clear on
+            // their own instead of waiting for the next foreground.
+            .task(id: (snapshotCache?.unreadableCount ?? 0) > 0) {
+                guard (snapshotCache?.unreadableCount ?? 0) > 0 else { return }
+                for _ in 0..<12 {
+                    try? await Task.sleep(for: .seconds(10))
+                    if Task.isCancelled { return }
+                    foregroundRefresh &+= 1
+                }
+            }
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
                 selectedEntry = nil
@@ -316,6 +352,12 @@ struct EntriesTabView: View {
                 open(match)
                 deepLinkEntryID.wrappedValue = nil
             }
+        }
+    }
+
+    private func unreadableBanner(_ snapshot: EntryListSnapshot) -> some View {
+        UnreadableEntriesBanner(unreadableCount: snapshot.unreadableCount) {
+            unreadableBannerDismissedCount = snapshot.unreadableCount
         }
     }
 
@@ -587,6 +629,33 @@ struct EntriesTabView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            }
+
+            if journalSafety.restoreOffer != nil {
+                Section {
+                    RestoreFromDeviceBanner()
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if journalSafety.showsNotBackedUp(now: backupStatusNow) {
+                Section {
+                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if UnreadableEntriesBanner.shouldShow(unreadableCount: snapshot.unreadableCount, dismissedCount: unreadableBannerDismissedCount) {
+                Section {
+                    unreadableBanner(snapshot)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             }
 
             // Active filters row
@@ -967,6 +1036,20 @@ extension EntriesTabView {
                 }
                 .padding(.bottom, 8)
             }
+
+            Group {
+                if journalSafety.restoreOffer != nil {
+                    RestoreFromDeviceBanner()
+                }
+                if journalSafety.showsNotBackedUp(now: backupStatusNow) {
+                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                }
+                if UnreadableEntriesBanner.shouldShow(unreadableCount: snapshot.unreadableCount, dismissedCount: unreadableBannerDismissedCount) {
+                    unreadableBanner(snapshot)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
 
             ScrollViewReader { proxy in
             ScrollView {

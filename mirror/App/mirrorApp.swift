@@ -34,6 +34,9 @@ struct mirrorApp: App {
         NotificationService.registerCategories()
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
+        if MirrorModelContainer.isStoreAvailable {
+            JournalSafety.shared.start(container: sharedModelContainer)
+        }
         #if DEBUG
         // See SampleData.seedPastNudges — InsightView's "Past reflections" section only
         // renders once real usage has accumulated a few days of history, so there was no way
@@ -217,6 +220,9 @@ struct mirrorApp: App {
                 Task { @MainActor in
                     MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
                 }
+                // iCloud status, restore-from-device offer, and cleanup of restored copies
+                // whose originals CloudKit has since delivered.
+                JournalSafety.shared.appDidBecomeActive()
                 // One-time: re-clean daily reflections cached before the
                 // announce-line / "friend" vocative strip landed (076b9f5).
                 Task { @MainActor in
@@ -259,6 +265,9 @@ struct mirrorApp: App {
                 // which needs a real "this is a later session" signal, not just another .active
                 // call within the same cold launch).
                 UngroundedInsightCleanup.recordBackgrounding()
+                // Refresh the on-device journal backup — if the user now turns iCloud off
+                // for the app, this copy is what survives the purge (LocalJournalBackup).
+                JournalSafety.shared.appDidEnterBackground()
                 // Give any remaining in-flight generation (BGProcessingTask path) ~30s grace.
                 extendBackgroundForPendingGeneration()
             default:

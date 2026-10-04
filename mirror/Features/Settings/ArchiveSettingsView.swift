@@ -175,12 +175,15 @@ struct ArchiveSettingsView: View {
 
     private func deleteAllData() {
         if let all = try? modelContext.fetch(FetchDescriptor<Entry>()) {
+            // Synced marker so other devices' on-device backups never offer these back.
+            modelContext.insert(JournalErasure(erasedEntryIDs: all.map(\.id)))
             all.forEach { modelContext.delete($0) }
         }
         if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
             all.forEach { modelContext.delete($0) }
         }
         try? modelContext.save()
+        JournalSafety.shared.journalWasErased()
     }
 
     private func checkiCloudStatus() async {

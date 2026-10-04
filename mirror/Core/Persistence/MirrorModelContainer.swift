@@ -16,6 +16,7 @@ enum MirrorModelContainer {
         Insight.self,
         UserProfile.self,
         MoodCheckIn.self,
+        JournalErasure.self,
     ])
 
     static var defaultConfiguration: ModelConfiguration {
@@ -40,7 +41,12 @@ enum MirrorModelContainer {
         }
     }
 
-    private static let outcome = open()
+    private static let outcome: Outcome = {
+        // Count-only check (no copy) so a purge that emptied the store last session freezes
+        // the device backup before anything can overwrite it. See LocalJournalBackup.
+        LocalJournalBackup.evaluateBeforeOpen(storeURL: LocalJournalBackup.liveStoreURL(defaultConfiguration))
+        return open()
+    }()
 
     static var shared: ModelContainer { outcome.container }
     static var openError: Error? { outcome.openError }
