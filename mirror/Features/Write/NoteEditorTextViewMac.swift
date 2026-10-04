@@ -314,6 +314,10 @@ struct NoteEditorTextView: NSViewRepresentable {
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
     private static let minHeight: CGFloat = 60
+    /// The laid-out text height, set by the coordinator after every edit. SwiftUI kept an old
+    /// sizeThatFits answer while the vertically resizable NSTextView grew its own frame, so new
+    /// lines drew under the mood and tag chips; a state change forces a new measurement.
+    @State private var contentHeight: CGFloat = 0
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -390,7 +394,7 @@ struct NoteEditorTextView: NSViewRepresentable {
         container.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         layout.ensureLayout(for: container)
         let height = layout.usedRect(for: container).height + nsView.textContainerInset.height * 2
-        return CGSize(width: width, height: max(Self.minHeight, ceil(height)))
+        return CGSize(width: width, height: max(Self.minHeight, ceil(height), contentHeight))
     }
 
     // MARK: - Coordinator
@@ -457,6 +461,8 @@ struct NoteEditorTextView: NSViewRepresentable {
         /// After a character edit, every paragraph it touched takes the model of its first
         /// character (a merged paragraph keeps the preceding paragraph's style) and is restyled.
         func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
+            // Any edit (typing, a load, a command) re-measures; see `contentHeight`.
+            scheduleRemeasure()
             guard !isApplying, editedMask.contains(.editedCharacters), textStorage.length > 0 else { return }
             let text = textStorage.string as NSString
             let probe = NSRange(location: min(editedRange.location, text.length), length: min(editedRange.length, max(0, text.length - editedRange.location)))
@@ -473,6 +479,18 @@ struct NoteEditorTextView: NSViewRepresentable {
                 textStorage.addAttributes(model.attributes, range: one)
                 MacEditorStyle.restyle(textStorage, in: one, entryFont: entryFont, displayMode: displayMode)
                 cursor = max(NSMaxRange(one), cursor + 1)
+            }
+        }
+
+        /// Publishes the text's laid-out height once layout has caught up with the edit.
+        private func scheduleRemeasure() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let textView = self.textView,
+                      let container = textView.textContainer, let layout = textView.layoutManager,
+                      container.containerSize.width > 0 else { return }
+                layout.ensureLayout(for: container)
+                let height = ceil(layout.usedRect(for: container).height + textView.textContainerInset.height * 2)
+                if abs(height - self.parent.contentHeight) > 0.5 { self.parent.contentHeight = height }
             }
         }
 
