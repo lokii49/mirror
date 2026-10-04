@@ -294,3 +294,23 @@ an unsent email, a numb day, a running milestone, two moods the same day, a hosp
   what was asked, so it does not ship.)
 One round only. If it misses, the shipped V1e stays.
 Scoring: shuffled blind sheet of V1f's shown outputs (`score_tools.py sheet`), single scorer.
+
+### Round 10 result (2026-10-04, 23 cases x 2 variants x 10, mechanical): FAILED the gate; V1e stays
+| | runs | shown | fallback | errors | quotes verbatim | shown with >= 2 insight sentences |
+|---|---|---|---|---|---|---|
+| prod (V1e) | 230 | 220 | 0 | 10 | 220/220 | 109/220 (49.5%) |
+| V1f | 230 | 214 | 6 (2.6%) | 10 | 214/214 | 210/214 (98.1%) |
+
+- **Fails the per-case fallback gate**: hold3_vet fell back 6/10 (60% > 30%). Under the longer guide the model rewrote
+  the quote ("He slept on my feet" became "Biscuit slept on my feet"), so no attempt had a verbatim quote. prod quoted
+  that case correctly 10/10. Per the plan (one round only), V1f does not ship and was not blind-scored.
+- LENGTH gate would have passed (98.1% vs 49.5%).
+- Indicative only (single scorer, case labels visible, 30 random shown V1f outputs, not the blind protocol): about 9/30
+  would fail: nonsense ("You feel no steady feeling"), ungrammatical ("You feel the flat feels too quiet"), invented
+  meaning ("which shows you are moving forward slowly"). Most of the rest lengthened the reflection by listing entry
+  facts ("You worked from home. You made soup for lunch."). More sentences from this model mostly add recitation.
+- **Production finding (not caused by V1f)**: hold3_hospital (a day at the hospital with Grandma) was refused by the
+  FM guardrail 10/10 in BOTH variants ("May contain sensitive/unsafe content"), so on FM devices such a day gets the
+  fixed-line fallback or the honest card. Follow-up for the 3.0.9 roadmap.
+- Decision: lengthen the English reflection with the app-picked second quote instead (`secondGroundedQuote`), which
+  adds the person's own words and no model text.
