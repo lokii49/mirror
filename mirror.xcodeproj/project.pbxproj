@@ -75,7 +75,7 @@
 		343CCF1F3C7AC186F44DC6A2 /* MirrorNotificationContentExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MirrorNotificationContentExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		42E941F173668728DBD25370 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		45D674E52CEF446BAED78D9A /* MirrorNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MirrorNotifications.swift; path = mirror/Core/Services/MirrorNotifications.swift; sourceTree = SOURCE_ROOT; };
-		471287F62F9CF11200812160 /* mirror.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mirror.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		471287F62F9CF11200812160 /* MirrorNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MirrorNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		471288052F9CF11300812160 /* mirrorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4712880F2F9CF11300812160 /* mirrorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mirrorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MirrorWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -230,7 +230,7 @@
 		471287F72F9CF11200812160 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				471287F62F9CF11200812160 /* mirror.app */,
+				471287F62F9CF11200812160 /* MirrorNotes.app */,
 				471288052F9CF11300812160 /* mirrorTests.xctest */,
 				4712880F2F9CF11300812160 /* mirrorUITests.xctest */,
 				47E752812FB44FE800C6362E /* MirrorWidgetExtensionExtension.appex */,
@@ -308,7 +308,7 @@
 				47E752A92FB47F4F00C6362E /* RevenueCatUI */,
 			);
 			productName = mirror;
-			productReference = 471287F62F9CF11200812160 /* mirror.app */;
+			productReference = 471287F62F9CF11200812160 /* MirrorNotes.app */;
 			productType = "com.apple.product-type.application";
 		};
 		471288042F9CF11300812160 /* mirrorTests */ = {
@@ -723,9 +723,9 @@
 				MARKETING_VERSION = 3.0.8;
 				"MARKETING_VERSION[sdk=macosx*]" = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
+				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"PRODUCT_NAME[sdk=macosx*]" = MirrorNotes;
-				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -782,9 +782,9 @@
 				MARKETING_VERSION = 3.0.8;
 				"MARKETING_VERSION[sdk=macosx*]" = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
+				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"PRODUCT_NAME[sdk=macosx*]" = MirrorNotes;
-				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
