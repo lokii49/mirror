@@ -9,6 +9,8 @@ import SwiftUI
 /// those live here too.
 struct MacNotesFormatPopover: View {
     @Bindable var state: FormattingPanelState
+    /// Closes the popover (the link editor opens as its own sheet, so the popover goes first).
+    var dismiss: (() -> Void)? = nil
     @Environment(\.appDisplayMode) private var displayMode
 
     private func send(_ command: NoteTextCommand) { state.onCommand?(command) }
@@ -232,7 +234,10 @@ struct MacNotesFormatPopover: View {
             .fixedSize()
             .help("Font")
             Spacer(minLength: 0)
-            Button { state.onRequestLinkEditor?() } label: {
+            Button {
+                dismiss?()
+                DispatchQueue.main.async { state.onRequestLinkEditor?() }
+            } label: {
                 Image(systemName: "link").font(.system(size: 12))
             }
             .help(state.activeLinkURL == nil ? "Add Link" : "Edit Link")
