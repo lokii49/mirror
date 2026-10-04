@@ -2,6 +2,13 @@ import SwiftUI
 import SceneKit
 import Combine
 
+/// `SCNVector3` holds `Float` on iOS and `CGFloat` on macOS.
+#if os(iOS)
+private typealias SCNFloat = Float
+#else
+private typealias SCNFloat = CGFloat
+#endif
+
 /// Bridges the +/- zoom buttons (SwiftUI) to the manual camera rig inside
 /// the SceneKit coordinator, which owns yaw/pitch/distance directly.
 final class BrainCameraController: ObservableObject {
@@ -51,7 +58,13 @@ struct Brain3DView: View {
     }
 }
 
-private struct BrainSceneView: UIViewRepresentable {
+#if os(iOS)
+private typealias BrainRepresentable = UIViewRepresentable
+#else
+private typealias BrainRepresentable = NSViewRepresentable
+#endif
+
+private struct BrainSceneView: BrainRepresentable {
     let graph: BrainGraph
     let cameraController: BrainCameraController
     let onNodeTap: (BrainNode) -> Void
@@ -60,9 +73,7 @@ private struct BrainSceneView: UIViewRepresentable {
         Coordinator(graph: graph, onNodeTap: onNodeTap)
     }
 
-    func makeUIView(context: Context) -> SCNView {
-        let view = SCNView()
-        let coordinator = context.coordinator
+    private func configure(_ view: SCNView, _ coordinator: Coordinator) {
         view.scene = coordinator.scene
         view.pointOfView = coordinator.cameraNode
         view.backgroundColor = Coordinator.background
@@ -70,6 +81,42 @@ private struct BrainSceneView: UIViewRepresentable {
         view.allowsCameraControl = false
         view.rendersContinuously = true
         view.delegate = coordinator
+        coordinator.view = view
+        coordinator.subscribe(to: cameraController)
+    }
+
+    #if os(macOS)
+    func makeNSView(context: Context) -> SCNView {
+        let view = BrainSCNView()
+        let coordinator = context.coordinator
+        configure(view, coordinator)
+        // Drag orbits; two-finger scroll pans; wheel and pinch zoom toward the pointer; click picks
+        // a node; double-click resets. The same set of moves as the iOS gestures.
+        view.onOrbit = { [weak coordinator] dx, dy in coordinator?.orbit(dx: dx, dy: dy) }
+        view.onPan = { [weak coordinator] dx, dy in coordinator?.shiftTarget(dx: dx, dy: dy) }
+        view.onZoom = { [weak coordinator, weak view] scale, location in
+            guard let coordinator, let view else { return }
+            let b = view.bounds
+            if let location, b.width > 0, b.height > 0 {
+                coordinator.zoom(by: scale, dx: Double((location.x - b.midX) / (b.width / 2)), dy: Double(-(location.y - b.midY) / (b.height / 2)))
+            } else {
+                coordinator.zoom(by: scale, dx: nil, dy: nil)
+            }
+        }
+        view.onClick = { [weak coordinator, weak view] location in
+            guard let coordinator, let view else { return }
+            coordinator.selectNode(at: location, in: view)
+        }
+        view.onReset = { [weak coordinator] in coordinator?.resetCamera() }
+        return view
+    }
+
+    func updateNSView(_ nsView: SCNView, context: Context) {}
+    #else
+    func makeUIView(context: Context) -> SCNView {
+        let view = SCNView()
+        let coordinator = context.coordinator
+        configure(view, coordinator)
 
         let pan = UIPanGestureRecognizer(target: coordinator, action: #selector(Coordinator.handlePan(_:)))
         pan.maximumNumberOfTouches = 1
@@ -93,16 +140,15 @@ private struct BrainSceneView: UIViewRepresentable {
         tap.require(toFail: doubleTap)
         view.addGestureRecognizer(tap)
 
-        coordinator.view = view
-        coordinator.subscribe(to: cameraController)
         return view
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {}
+    #endif
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject, SCNSceneRendererDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, SCNSceneRendererDelegate {
         let scene = SCNScene()
         let cameraNode = SCNNode()
         private let graph: BrainGraph
@@ -174,7 +220,7 @@ private struct BrainSceneView: UIViewRepresentable {
             key.light?.type = .directional
             key.light?.intensity = 420
             key.light?.color = UIColor.white
-            key.eulerAngles = SCNVector3(-Float.pi / 3.4, Float.pi / 5, 0)
+            key.eulerAngles = SCNVector3(-SCNFloat.pi / 3.4, SCNFloat.pi / 5, 0)
             scene.rootNode.addChildNode(key)
 
             let ambient = SCNNode()
@@ -197,7 +243,7 @@ private struct BrainSceneView: UIViewRepresentable {
 
             var positionByID: [String: SCNVector3] = [:]
             for node in graph.nodes {
-                positionByID[node.id] = SCNVector3(Float(node.position3.x), Float(node.position3.y), Float(node.position3.z))
+                positionByID[node.id] = SCNVector3(SCNFloat(node.position3.x), SCNFloat(node.position3.y), SCNFloat(node.position3.z))
             }
 
             // Spokes hub → node, faint.
@@ -303,7 +349,7 @@ private struct BrainSceneView: UIViewRepresentable {
             let container = SCNNode()
             container.name = "__label__"
             container.addChildNode(textNode)
-            container.position = SCNVector3(0, Float(sceneRadius) + 0.09, 0)
+            container.position = SCNVector3(0, SCNFloat(sceneRadius) + 0.09, 0)
             container.constraints = [SCNBillboardConstraint()]
             container.opacity = alwaysVisible ? 1 : 0
             container.scale = SCNVector3(0.001, 0.001, 0.001)
@@ -334,9 +380,9 @@ private struct BrainSceneView: UIViewRepresentable {
         // MARK: Camera rig
 
         private func updateCameraPosition() {
-            let x = Float(distance * cos(pitch) * sin(yaw)) + targetOffset.x
-            let y = Float(distance * sin(pitch)) + targetOffset.y
-            let z = Float(distance * cos(pitch) * cos(yaw)) + targetOffset.z
+            let x = SCNFloat(distance * cos(pitch) * sin(yaw)) + targetOffset.x
+            let y = SCNFloat(distance * sin(pitch)) + targetOffset.y
+            let z = SCNFloat(distance * cos(pitch) * cos(yaw)) + targetOffset.z
             cameraNode.position = SCNVector3(x, y, z)
             cameraNode.look(at: targetOffset, up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 0, -1))
         }
@@ -346,9 +392,9 @@ private struct BrainSceneView: UIViewRepresentable {
         /// shift regardless of which way the camera is currently facing.
         private func cameraBasis() -> (right: SCNVector3, up: SCNVector3) {
             let forward = SCNVector3(
-                Float(-cos(pitch) * sin(yaw)),
-                Float(-sin(pitch)),
-                Float(-cos(pitch) * cos(yaw))
+                SCNFloat(-cos(pitch) * sin(yaw)),
+                SCNFloat(-sin(pitch)),
+                SCNFloat(-cos(pitch) * cos(yaw))
             )
             let worldUp = SCNVector3(0, 1, 0)
             var right = Self.cross(forward, worldUp)
@@ -361,8 +407,8 @@ private struct BrainSceneView: UIViewRepresentable {
         private static func cross(_ a: SCNVector3, _ b: SCNVector3) -> SCNVector3 {
             SCNVector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
         }
-        private static func length(_ v: SCNVector3) -> Float { (v.x * v.x + v.y * v.y + v.z * v.z).squareRoot() }
-        private static func scale(_ v: SCNVector3, _ s: Float) -> SCNVector3 { SCNVector3(v.x * s, v.y * s, v.z * s) }
+        private static func length(_ v: SCNVector3) -> SCNFloat { (v.x * v.x + v.y * v.y + v.z * v.z).squareRoot() }
+        private static func scale(_ v: SCNVector3, _ s: SCNFloat) -> SCNVector3 { SCNVector3(v.x * s, v.y * s, v.z * s) }
         private static func add(_ a: SCNVector3, _ b: SCNVector3) -> SCNVector3 { SCNVector3(a.x + b.x, a.y + b.y, a.z + b.z) }
 
         private func animatedZoom(factor: Double) {
@@ -373,55 +419,45 @@ private struct BrainSceneView: UIViewRepresentable {
             SCNTransaction.commit()
         }
 
-        @objc func handleTwoFingerPan(_ gr: UIPanGestureRecognizer) {
-            guard let view else { return }
-            let translation = gr.translation(in: view)
+        // MARK: Camera moves (shared by the iOS gestures and the Mac mouse/trackpad events)
+
+        /// Drag by (dx, dy) points, y down.
+        func orbit(dx: Double, dy: Double) {
+            yaw -= dx * 0.0055
+            pitch = max(-1.4, min(1.4, pitch + dy * 0.0055))
+            updateCameraPosition()
+        }
+
+        /// Shifts the look-at target by a (dx, dy) point drag, y down.
+        func shiftTarget(dx: Double, dy: Double) {
             let (right, up) = cameraBasis()
-            let panScale = Float(distance) * 0.0022
-            targetOffset = Self.add(targetOffset, Self.scale(right, -Float(translation.x) * panScale))
-            targetOffset = Self.add(targetOffset, Self.scale(up, Float(translation.y) * panScale))
-            gr.setTranslation(.zero, in: view)
+            let panScale = SCNFloat(distance) * 0.0022
+            targetOffset = Self.add(targetOffset, Self.scale(right, -SCNFloat(dx) * panScale))
+            targetOffset = Self.add(targetOffset, Self.scale(up, SCNFloat(dy) * panScale))
             updateCameraPosition()
         }
 
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            true
-        }
-
-        @objc func handlePan(_ gr: UIPanGestureRecognizer) {
-            guard let view else { return }
-            let translation = gr.translation(in: view)
-            yaw -= Double(translation.x) * 0.0055
-            pitch = max(-1.4, min(1.4, pitch + Double(translation.y) * 0.0055))
-            gr.setTranslation(.zero, in: view)
-            updateCameraPosition()
-        }
-
-        @objc func handlePinch(_ gr: UIPinchGestureRecognizer) {
-            guard let view else { return }
+        /// `scale` above 1 zooms in. `dx`/`dy` is the pinch point as -1...1 from the view's center
+        /// (y down), if there is one.
+        func zoom(by scale: Double, dx: Double?, dy: Double?) {
             let oldDistance = distance
-            let newDistance = max(minDistance, min(maxDistance, distance / Double(gr.scale)))
+            let newDistance = max(minDistance, min(maxDistance, distance / scale))
             // A pure dolly (camera distance change) only zooms toward the
             // lookAt target — anything off-center in the pinch appears to
             // drift instead of zooming toward where you actually pinched.
             // Nudge the target toward the pinch point, proportional to how
             // much we're zooming, so it approximates a real zoom-to-cursor.
-            let location = gr.location(in: view)
-            let bounds = view.bounds
-            if bounds.width > 0, bounds.height > 0 {
-                let dx = Double((location.x - bounds.midX) / (bounds.width / 2))
-                let dy = Double((location.y - bounds.midY) / (bounds.height / 2))
+            if let dx, let dy {
                 let (right, up) = cameraBasis()
-                let pull = Float((oldDistance - newDistance) * 0.5)
-                targetOffset = Self.add(targetOffset, Self.scale(right, Float(dx) * pull))
-                targetOffset = Self.add(targetOffset, Self.scale(up, Float(-dy) * pull))
+                let pull = SCNFloat((oldDistance - newDistance) * 0.5)
+                targetOffset = Self.add(targetOffset, Self.scale(right, SCNFloat(dx) * pull))
+                targetOffset = Self.add(targetOffset, Self.scale(up, SCNFloat(-dy) * pull))
             }
             distance = newDistance
-            gr.scale = 1
             updateCameraPosition()
         }
 
-        @objc func handleDoubleTap(_ gr: UITapGestureRecognizer) {
+        func resetCamera() {
             SCNTransaction.begin()
             SCNTransaction.animationDuration = 0.35
             yaw = defaultYaw
@@ -432,9 +468,7 @@ private struct BrainSceneView: UIViewRepresentable {
             SCNTransaction.commit()
         }
 
-        @objc func handleTap(_ gr: UITapGestureRecognizer) {
-            guard let view else { return }
-            let location = gr.location(in: view)
+        func selectNode(at location: CGPoint, in view: SCNView) {
             let hits = view.hitTest(location, options: [
                 SCNHitTestOption.searchMode: SCNHitTestSearchMode.closest.rawValue,
                 SCNHitTestOption.categoryBitMask: 1,
@@ -447,6 +481,45 @@ private struct BrainSceneView: UIViewRepresentable {
             highlightLines(for: id)
             onNodeTap(node)
         }
+
+        #if os(iOS)
+        @objc func handleTwoFingerPan(_ gr: UIPanGestureRecognizer) {
+            guard let view else { return }
+            let translation = gr.translation(in: view)
+            shiftTarget(dx: Double(translation.x), dy: Double(translation.y))
+            gr.setTranslation(.zero, in: view)
+        }
+
+        @objc func handlePan(_ gr: UIPanGestureRecognizer) {
+            guard let view else { return }
+            let translation = gr.translation(in: view)
+            orbit(dx: Double(translation.x), dy: Double(translation.y))
+            gr.setTranslation(.zero, in: view)
+        }
+
+        @objc func handlePinch(_ gr: UIPinchGestureRecognizer) {
+            guard let view else { return }
+            let location = gr.location(in: view)
+            let bounds = view.bounds
+            if bounds.width > 0, bounds.height > 0 {
+                zoom(by: Double(gr.scale),
+                     dx: Double((location.x - bounds.midX) / (bounds.width / 2)),
+                     dy: Double((location.y - bounds.midY) / (bounds.height / 2)))
+            } else {
+                zoom(by: Double(gr.scale), dx: nil, dy: nil)
+            }
+            gr.scale = 1
+        }
+
+        @objc func handleDoubleTap(_ gr: UITapGestureRecognizer) {
+            resetCamera()
+        }
+
+        @objc func handleTap(_ gr: UITapGestureRecognizer) {
+            guard let view else { return }
+            selectNode(at: gr.location(in: view), in: view)
+        }
+        #endif
 
         /// Hit-test resolves to the sphere/text child geometry, not the
         /// named container — walk up, but a "__label__" ancestor isn't a
@@ -473,7 +546,7 @@ private struct BrainSceneView: UIViewRepresentable {
                 let p = info.container.worldPosition
                 let dx = Double(p.x - camPos.x), dy = Double(p.y - camPos.y), dz = Double(p.z - camPos.z)
                 let d = (dx * dx + dy * dy + dz * dz).squareRoot()
-                let scale = Float(max(0.012, min(0.05, 0.028 * d)))
+                let scale = SCNFloat(max(0.012, min(0.05, 0.028 * d)))
                 info.container.scale = SCNVector3(scale, scale, scale)
                 if !info.alwaysVisible {
                     let revealNear = info.sceneRadius * 11
@@ -487,3 +560,63 @@ private struct BrainSceneView: UIViewRepresentable {
         }
     }
 }
+
+#if os(iOS)
+extension BrainSceneView.Coordinator: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
+    }
+}
+#else
+/// The SceneKit view with mouse and trackpad input forwarded to the camera rig.
+private final class BrainSCNView: SCNView {
+    var onOrbit: ((Double, Double) -> Void)?
+    var onPan: ((Double, Double) -> Void)?
+    var onZoom: ((Double, CGPoint?) -> Void)?
+    var onClick: ((CGPoint) -> Void)?
+    var onReset: (() -> Void)?
+
+    private var dragStart = CGPoint.zero
+    private var lastDrag = CGPoint.zero
+    private var didDrag = false
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        dragStart = event.locationInWindow
+        lastDrag = dragStart
+        didDrag = false
+        if event.clickCount == 2 { onReset?() }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        let here = event.locationInWindow
+        if !didDrag, hypot(here.x - dragStart.x, here.y - dragStart.y) < 4 { return }
+        didDrag = true
+        // From successive positions, not NSEvent.deltaX/Y, so it is the same for every input source.
+        // Window y points up; the camera rig takes y down.
+        onOrbit?(Double(here.x - lastDrag.x), Double(lastDrag.y - here.y))
+        lastDrag = here
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if !didDrag, event.clickCount == 1 {
+            onClick?(convert(event.locationInWindow, from: nil))
+        }
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        if event.hasPreciseScrollingDeltas {
+            // Two-finger trackpad scroll moves the view, like the two-finger pan on iPhone.
+            onPan?(Double(event.scrollingDeltaX), Double(event.scrollingDeltaY))
+        } else {
+            let scale = max(0.6, min(1.6, 1 + Double(event.scrollingDeltaY) * 0.08))
+            onZoom?(scale, convert(event.locationInWindow, from: nil))
+        }
+    }
+
+    override func magnify(with event: NSEvent) {
+        onZoom?(max(0.5, 1 + Double(event.magnification)), convert(event.locationInWindow, from: nil))
+    }
+}
+#endif

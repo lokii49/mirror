@@ -35,31 +35,42 @@ struct SubscriptionView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var showPaywall = false
+    /// Shown as a tab of the Mac Settings window: no navigation bar or Done, and no own scroll view.
+    var embedded = false
+
+    private var statusSections: some View {
+        VStack(spacing: 24) {
+            statusCard
+
+            if SubscriptionService.allFeaturesFree {
+                earlyAccessSection
+            } else if !subscriptionService.isSubscribed {
+                upgradeSection
+            } else {
+                manageSection
+            }
+        }
+        .padding(16)
+        .padding(.bottom, 32)
+    }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    statusCard
-
-                    if SubscriptionService.allFeaturesFree {
-                        earlyAccessSection
-                    } else if !subscriptionService.isSubscribed {
-                        upgradeSection
-                    } else {
-                        manageSection
+        Group {
+            if embedded {
+                statusSections
+            } else {
+                NavigationStack {
+                    ScrollView { statusSections }
+                    .navigationTitle(displayMode == .sentinel ? "Clearance" : "Subscription")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .background(MirrorTheme.bgBase)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { dismiss() }
+                        .cancelActionOnMac()
+                                .font(.system(size: 16, weight: .medium))
+                        }
                     }
-                }
-                .padding(16)
-                .padding(.bottom, 32)
-            }
-            .navigationTitle(displayMode == .sentinel ? "Clearance" : "Subscription")
-            .navigationBarTitleDisplayMode(.inline)
-            .background(MirrorTheme.bgBase)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .medium))
                 }
             }
         }

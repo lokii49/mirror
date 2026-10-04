@@ -63,6 +63,7 @@ struct TranscriptionLanguagePickerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
+                        .cancelActionOnMac()
                 }
             }
         }

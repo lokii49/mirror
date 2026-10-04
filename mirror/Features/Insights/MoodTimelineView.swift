@@ -213,9 +213,14 @@ struct MoodTimelineView: View {
             }
         }
         .background(MirrorTheme.bgBase)
+        #if os(macOS)
+        .macPage("Mood timeline")
+        #endif
         .navigationTitle(displayMode == .sentinel ? "Vitals" : "Mood Timeline")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
     }
 
@@ -913,14 +918,20 @@ private struct MoodChartCard: View {
                 .symbolSize(80)
             }
             .chartYScale(domain: 0...6)
+            #if os(macOS)
+            // Days with several entries give the smoothed area fill duplicate x values, which
+            // overshoots; on Mac the spikes were drawn outside the card. Keep it in the plot.
+            .chartPlotStyle { $0.clipped() }
+            #endif
             .chartYAxis {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
-                            let label = displayMode == .sentinel
-                                ? (v == 1 ? "LOW" : v == 3 ? "MID" : "HIGH")
-                                : (v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                            // A LocalizedStringKey, not a String, so the axis follows the app language;
+                            // Sentinel shows the same word in capitals.
+                            let label: LocalizedStringKey = v == 1 ? "Low" : v == 3 ? "Mid" : "High"
                             Text(label)
+                                .textCase(displayMode == .sentinel ? .uppercase : nil)
                                 .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .medium) : .system(size: 10))
                                 .foregroundStyle(Color.secondary)
                         }

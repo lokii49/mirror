@@ -41,7 +41,7 @@ struct ArchiveSettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
+        SettingsScroll {
             VStack(spacing: 14) {
                 SettingsGroup(title: "Your Data") {
                     ShareLink(
@@ -184,6 +184,14 @@ struct ArchiveSettingsView: View {
     }
 
     private func checkiCloudStatus() async {
+        #if DEBUG
+        // The screenshot harness runs an unsigned build with no iCloud container, where
+        // CKContainer.default() raises an Objective-C exception.
+        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") {
+            iCloudStatus = .unknown
+            return
+        }
+        #endif
         do {
             let status = try await CKContainer.default().accountStatus()
             await MainActor.run {

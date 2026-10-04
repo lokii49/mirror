@@ -3,7 +3,11 @@ import SwiftData
 import Combine
 import Photos
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -32,7 +36,35 @@ struct WriteView: View {
     /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
     /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
     /// class reports `.compact` on iPad, which sent it down the iPhone path.
-    var usesPopoverPanel: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    /// There is no keyboard to appear on Mac, and the row must stay put while a button is clicked.
+    var toolRowAlwaysVisible: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    /// The text the editor shows and edits. On Mac the photo tokens at the end of the stored text
+    /// are kept out of the editor (the photos show as thumbnails under it) and put back on save.
+    var editorTextBinding: Binding<String> {
+        #if os(macOS)
+        Binding(
+            get: { NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body },
+            set: { viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: $0, count: photoDataArray.count) }
+        )
+        #else
+        $viewModel.text
+        #endif
+    }
+
+    var usesPopoverPanel: Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        true
+        #endif
+    }
 
     var entry: Entry? = nil
     var autoFocus: Bool = false
@@ -111,6 +143,8 @@ struct WriteView: View {
     @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    /// True while the selected mood came from "Mirror suggests" rather than a manual pick.
+    @State var moodWasSuggested = false
     @State var recPulse = false
     @State var showSignalPanel = false
     @State var pendingTextCommand: NoteTextCommand?
@@ -136,6 +170,10 @@ struct WriteView: View {
     let recElapsedTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var noteDate: Date { entryDate }
+    #if os(macOS)
+    @Environment(\.macStandaloneWindow) var macStandaloneWindow
+    #endif
+
     var hasDraftContent: Bool {
         viewModel.hasContent || !photoDataArray.isEmpty || !draftVoiceNotes.isEmpty
     }
@@ -175,7 +213,11 @@ struct WriteView: View {
                 MirrorTheme.inkBase.ignoresSafeArea()
                 SentinelGridBackground().ignoresSafeArea()
             } else {
+                #if os(macOS)
+                MacTokens.windowBackground.ignoresSafeArea()
+                #else
                 MirrorTheme.inkMid.ignoresSafeArea()
+                #endif
             }
 
             // Date/word-count/mood and tags are a fixed header, not scroll content —
@@ -184,6 +226,10 @@ struct WriteView: View {
             // floats the header over the scroll content and lets it bleed through
             // underneath, which is exactly the ghosting this replaced.
             VStack(spacing: 0) {
+                #if os(macOS)
+                // The Mac screen has its own toolbar and puts the date and chips in the column.
+                Color.clear.frame(height: 0)
+                #else
                 if !focusMode {
                     dateHeader
                     tagsBar
@@ -193,9 +239,13 @@ struct WriteView: View {
                     // same bleed-through dateHeader/tagsBar exist to prevent above.
                     Color.clear.frame(height: 8)
                 }
+                #endif
 
                 ScrollView {
                     VStack(spacing: 0) {
+                        #if os(macOS)
+                        macDateLine
+                        #endif
                         if !draftVoiceNotes.isEmpty {
                             VStack(spacing: 8) {
                                 ForEach(draftVoiceNotes.indices, id: \.self) { index in
@@ -254,7 +304,7 @@ struct WriteView: View {
                         }
 
                         NoteEditorTextView(
-                            text: $viewModel.text,
+                            text: editorTextBinding,
                             textStyleData: $viewModel.textStyleData,
                             inlineStyleData: $inlineStyleData,
                             photoDataArray: $photoDataArray,
@@ -277,10 +327,22 @@ struct WriteView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 4)
                         .frame(maxWidth: .infinity)
+
+                        #if os(macOS)
+                        macChipsRow
+                        macPhotosRow
+                        #endif
                     }
+                    #if os(macOS)
+                    .modifier(MacEditorColumn())
+                    #endif
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .scrollBounceBehavior(.basedOnSize)
+                #if os(macOS)
+                .modifier(MacNoScrollEdgeEffect())
+                #endif
+
             }
 
             if showSaved {
@@ -394,14 +456,48 @@ struct WriteView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        #if os(macOS)
+        // Hidden title bar, but the Window menu shows the title.
+        .navigationTitle(macStandaloneWindow ? String(localized: "New Entry") : (entry == nil ? String(localized: "Write") : String(localized: "Entries")))
+        #else
         .navigationTitle("")
+        #endif
         .navigationBarTitleDisplayMode(.inline)
+        #if os(macOS)
+        .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
+        .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
+        // Escape leaves the editor of an existing entry without saving (the design has no back button).
+        .onExitCommand { if entry != nil { dismiss() } }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenFormatPanel)) { _ in showFormattingPanel = true }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugWrite)) { note in
+            switch note.userInfo?["action"] as? String {
+            case "openDate": showDatePicker = true
+            case "openPhoto": if !photoDataArray.isEmpty { fullscreenPhotoIndex = 0 }
+            case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
+            case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
+            default: break
+            }
+        }
+        #endif
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacPasteImage)) { note in
+            if let data = note.userInfo?["data"] as? Data { macAttachPhoto(data: data) }
+        }
+        .focusedSceneValue(\.macEditorActions, MacEditorActions(
+            canSave: hasDraftContent,
+            save: { if entry == nil { saveDraft() } else { saveAndDismiss() } },
+            apply: { applyTextCommand($0) },
+            inline: activeInlineStyles,
+            paragraph: activeParagraphStyle
+        ))
+        #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if (isKeyboardVisible || editorFocused) && !focusMode {
+            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
                 toolRow
             }
         }
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardVisible = true
         }
@@ -428,7 +524,31 @@ struct WriteView: View {
             }
             entryDate = entry?.createdAt ?? Date()
             entryTags = entry?.tags ?? []
+            #if os(macOS)
+            // The Mac design sets body text in a serif face; new entries start there.
+            // New entries start in the font chosen in Settings (Serif unless changed).
+            entryFontChoiceRaw = entry?.fontChoice ?? MacPrefs.writingFont.rawValue
+            #else
             entryFontChoiceRaw = entry?.fontChoice ?? WritingFontChoice.system.rawValue
+            #endif
+            #if DEBUG && os(macOS)
+            if MacSnapshot.isRequested, entry == nil, viewModel.text.isEmpty, initialText.isEmpty {
+                // Snapshot mode only: the board's sample entry, so the screen can be compared.
+                viewModel.text = "Slow morning. I made coffee and sat on the balcony without my phone for the first hour, which I haven't done in weeks. The street was quiet except for a delivery van and someone watering plants two floors down.\nI keep circling back to the conversation from yesterday. I said I was fine with the new schedule, and I'm not sure that's true. Writing it here makes it easier to see: I'm tired more than I'm upset."
+                viewModel.selectedMood = "Drained"
+                moodWasSuggested = true
+                entryTags = ["morning", "work"]
+                let size = NSSize(width: 480, height: 340)
+                let sample = NSImage(size: size, flipped: false) { rect in
+                    NSGradient(colors: [NSColor(srgbRed: 0.42, green: 0.55, blue: 0.78, alpha: 1), NSColor(srgbRed: 0.93, green: 0.78, blue: 0.62, alpha: 1)])?.draw(in: rect, angle: 60)
+                    return true
+                }
+                if let tiff = sample.tiffRepresentation, let jpeg = NSBitmapImageRep(data: tiff)?.representation(using: .jpeg, properties: [:]) {
+                    photoDataArray = [jpeg]
+                    viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: viewModel.text, count: 1)
+                }
+            }
+            #endif
             if entry == nil {
                 // Real bug, found on-device (0.1's widget prompt, 0.2's templates, and Tier 2's
                 // "Talk it out" all hit this): restoring an unrelated leftover autosaved draft
@@ -581,6 +701,7 @@ struct WriteView: View {
             // finalize the note we have.
             if !recording && isRecordingInline { finishInlineRecording() }
         }
+        #if os(iOS)
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
                 VStack(spacing: 0) {
@@ -599,7 +720,7 @@ struct WriteView: View {
                         in: ...Date(),
                         displayedComponents: .hourAndMinute
                     )
-                    .datePickerStyle(.wheel)
+                    .platformWheelDatePicker()
                     .labelsHidden()
                     .padding(.horizontal)
                 }
@@ -613,6 +734,7 @@ struct WriteView: View {
             }
             .presentationDetents([.large])
         }
+        #endif
         .onChange(of: viewModel.text) { _, _ in
             if entry == nil { scheduleDraftSave() }
             scheduleFollowUpCheck()

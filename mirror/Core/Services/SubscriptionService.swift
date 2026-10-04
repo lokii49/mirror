@@ -21,6 +21,11 @@ final class SubscriptionService {
     private(set) var isPurchasing = false
     private(set) var purchaseError: String?
 
+    #if DEBUG
+    /// Snapshot mode only: lets the Mac UI be checked in each plan without a purchase.
+    func debugSetTier(_ newTier: SubscriptionTier) { tier = newTier }
+    #endif
+
     var isSubscribed: Bool { tier != .free }
     var isDeep: Bool { tier == .deep }
 

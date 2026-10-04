@@ -260,6 +260,7 @@ extension SettingsView {
                 .opacity(displayMode == .sentinel ? 0.4 : 1)
             }
 
+            #if os(iOS)
             SettingsDivider()
 
             VStack(alignment: .leading, spacing: 10) {
@@ -270,6 +271,7 @@ extension SettingsView {
                 }
             }
             .padding(.vertical, 4)
+            #endif
         }
     }
 

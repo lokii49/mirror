@@ -33,6 +33,7 @@ struct WhatsNewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
+                        .cancelActionOnMac()
                         .fontWeight(.semibold)
                 }
             }

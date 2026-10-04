@@ -13,7 +13,7 @@ struct DiagnosticsSettingsView: View {
     @State private var groundingAuditReport: String?
 
     var body: some View {
-        ScrollView {
+        SettingsScroll {
             VStack(spacing: 14) {
                 SettingsGroup(title: "Developer") {
                     Button {

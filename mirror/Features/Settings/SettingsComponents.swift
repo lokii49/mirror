@@ -146,3 +146,37 @@ struct SettingsCategoryRow: View {
         .themedCard(cornerRadius: 18)
     }
 }
+
+// MARK: - Embedding in the Mac Settings window
+
+private struct SettingsEmbeddedKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// True when a settings screen is shown inside the Mac Settings window's own scroll view.
+    var settingsEmbedded: Bool {
+        get { self[SettingsEmbeddedKey.self] }
+        set { self[SettingsEmbeddedKey.self] = newValue }
+    }
+}
+
+/// The root scroll view of a settings screen. Embedded in a tab of the Mac Settings window, the
+/// window supplies the scroll view (so two screens can share one tab) and this is just the content.
+struct SettingsScroll<Content: View>: View {
+    @Environment(\.settingsEmbedded) private var embedded
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if embedded { content } else { ScrollView { content } }
+    }
+}
+
+extension View {
+    /// Esc closes a sheet on Mac (there is no swipe down); no effect on iPhone and iPad.
+    func cancelActionOnMac() -> some View {
+        #if os(macOS)
+        keyboardShortcut(.cancelAction)
+        #else
+        self
+        #endif
+    }
+}

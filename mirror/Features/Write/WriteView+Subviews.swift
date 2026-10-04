@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 private let moodLabels = MirrorTheme.moodOptions
 
@@ -366,6 +370,9 @@ extension WriteView {
                 // Save anyway while a voice note is still transcribing (1.4) —
                 // continueTranscriptionAfterSaveAnyway hands the in-flight pass
                 // off to write straight into the saved entry once it finishes.
+                #if os(macOS)
+                .keyboardShortcut(.return, modifiers: .command)
+                #endif
                 .accessibilityLabel("Save entry")
             }
         } else {
@@ -404,6 +411,9 @@ extension WriteView {
                 // continueTranscriptionAfterSaveAnyway hands the in-flight pass
                 // off to write straight into the saved entry once it finishes.
                 .disabled(!hasDraftContent)
+                #if os(macOS)
+                .keyboardShortcut(.return, modifiers: .command)
+                #endif
                 .accessibilityLabel("Save entry")
             }
         }
@@ -427,6 +437,89 @@ extension WriteView {
         }
     }
 
+    #if os(macOS)
+    private func macParagraphLabel(_ style: NoteParagraphTextStyle) -> LocalizedStringKey {
+        switch style {
+        case .body: return "Body"
+        case .title: return "Title"
+        case .heading: return "Heading"
+        case .subheading: return "Subheading"
+        case .monospaced: return "Monospaced"
+        case .blockQuote: return "Quote"
+        case .checklistUnchecked, .checklistChecked: return "Checklist"
+        case .bulletedList: return "Bulleted list"
+        case .dashedList: return "Dashed list"
+        case .numberedList: return "Numbered list"
+        }
+    }
+
+    private func macToggle(_ systemImage: String, label: LocalizedStringKey, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+                .frame(width: 30, height: 28)
+                .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+
+    /// The Mac formatting row. Every control sends the same `NoteTextCommand` the iOS panel does,
+    /// so both editors write the same stored documents.
+    var macFormattingControls: some View {
+        HStack(spacing: 2) {
+            Menu {
+                Button("Body") { applyTextCommand(.body) }
+                Button("Title") { applyTextCommand(.title) }
+                Button("Heading") { applyTextCommand(.heading) }
+                Button("Subheading") { applyTextCommand(.subheading) }
+                Button("Monospaced") { applyTextCommand(.monospaced) }
+                Button("Quote") { applyTextCommand(.blockQuote) }
+            } label: {
+                Text(macParagraphLabel(activeParagraphStyle))
+                    .font(.system(size: 13))
+                    .frame(minWidth: 84, alignment: .leading)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Divider().frame(height: 18).padding(.horizontal, 4)
+
+            macToggle("bold", label: "Bold", isOn: activeInlineStyles.bold) { applyTextCommand(.bold) }
+                .keyboardShortcut("b", modifiers: .command)
+            macToggle("italic", label: "Italic", isOn: activeInlineStyles.italic) { applyTextCommand(.italic) }
+                .keyboardShortcut("i", modifiers: .command)
+            macToggle("underline", label: "Underline", isOn: activeInlineStyles.underline) { applyTextCommand(.underline) }
+                .keyboardShortcut("u", modifiers: .command)
+            macToggle("strikethrough", label: "Strikethrough", isOn: activeInlineStyles.strikethrough) { applyTextCommand(.strikethrough) }
+
+            Divider().frame(height: 18).padding(.horizontal, 4)
+
+            macToggle("list.bullet", label: "Bulleted list", isOn: activeParagraphStyle == .bulletedList) { applyTextCommand(.bulletedList) }
+            macToggle("list.number", label: "Numbered list", isOn: activeParagraphStyle == .numberedList) { applyTextCommand(.numberedList) }
+            macToggle("checklist", label: "Checklist", isOn: activeParagraphStyle == .checklistUnchecked || activeParagraphStyle == .checklistChecked) { applyTextCommand(.checklist) }
+
+            Divider().frame(height: 18).padding(.horizontal, 4)
+
+            Menu {
+                ForEach(WritingFontChoice.allCases) { choice in
+                    Button { applyTextCommand(.fontFamily(choice)) } label: { Text(choice.label) }
+                }
+            } label: {
+                Image(systemName: "textformat")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 30, height: 28)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .accessibilityLabel("Font")
+        }
+        .padding(.horizontal, 8)
+    }
+    #endif
+
     var toolRow: some View {
         VStack(spacing: 0) {
             if dailyWordGoal > 0 && viewModel.wordCount > 0 {
@@ -446,9 +539,10 @@ extension WriteView {
             }
             Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.inkBorder)
             HStack(spacing: 0) {
+                #if os(iOS)
                 // Keyboard dismiss
                 Button {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    dismissKeyboard()
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
                         .font(.system(size: 20))
@@ -456,6 +550,7 @@ extension WriteView {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+                #endif
 
                 // Undo
                 Button {
@@ -483,6 +578,11 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
+                // iOS opens the Aa panel; Mac shows formatting controls right in the row.
+                #if os(macOS)
+                macFormattingControls
+                #endif
+                #if os(iOS)
                 // Formatting panel — popover off this button on iPad, overlay
                 // above the keyboard on iPhone (see WriteView.safeAreaInset).
                 FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
@@ -498,6 +598,7 @@ extension WriteView {
                         .presentationCompactAdaptation(.popover)
                         .environment(\.appDisplayMode, displayMode)
                 }
+                #endif
 
                 Spacer(minLength: 0)
 
@@ -529,13 +630,16 @@ extension WriteView {
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
 
+                // Photos are written into the rich-text editor as inline tokens, which the Mac
+                // plain-text editor cannot do yet; attaching from Mac would desync them.
+                #if os(iOS)
                 // Photo button
                 Menu {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    if CameraPickerController.isAvailable {
                         Button {
                             editorFocused = false
                             isKeyboardVisible = false
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            dismissKeyboard()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showCameraPicker = true }
                         } label: {
                             Label("Camera", systemImage: "camera")
@@ -544,7 +648,7 @@ extension WriteView {
                     Button {
                         editorFocused = false
                         isKeyboardVisible = false
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        dismissKeyboard()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showPhotoPicker = true }
                     } label: {
                         Label("Photo Library", systemImage: "photo.on.rectangle")
@@ -553,7 +657,7 @@ extension WriteView {
                         Button {
                             editorFocused = false
                             isKeyboardVisible = false
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            dismissKeyboard()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showDocumentScanner = true }
                         } label: {
                             Label("Scan Text", systemImage: "text.viewfinder")
@@ -581,6 +685,7 @@ extension WriteView {
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
+                #endif
 
                 // Voice button — records inline; keyboard and caret stay put.
                 // Plain view + explicit tap/long-press gestures, not a Button:

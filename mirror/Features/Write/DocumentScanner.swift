@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(iOS)
 import VisionKit
+#endif
 import Vision
 
 /// Writing-roadmap.md 1.1 — "scan a page" quick capture. VisionKit's document scanner does the
@@ -8,6 +10,7 @@ import Vision
 /// guarantee as everything else in CLAUDE.md. Returns raw pages; recognizedText(from:) is a
 /// separate step so WriteView (not this picker) owns the isScanningText loading state, matching
 /// how WriteView+Photos.swift owns isAttachingPhoto around NativePhotoPicker/CameraPickerController.
+#if os(iOS)
 struct DocumentScannerController: UIViewControllerRepresentable {
     let onScanned: (Result<[UIImage], Error>) -> Void
 
@@ -50,6 +53,15 @@ struct DocumentScannerController: UIViewControllerRepresentable {
         }
     }
 }
+#else
+/// Macs have no document camera. The entry point is hidden (`isSupported` is false) and this
+/// stub only keeps the shared sheet code compiling.
+struct DocumentScannerController: View {
+    let onScanned: (Result<[UIImage], Error>) -> Void
+    static var isSupported: Bool { false }
+    var body: some View { EmptyView() }
+}
+#endif
 
 enum TextScanError: LocalizedError {
     case noPages

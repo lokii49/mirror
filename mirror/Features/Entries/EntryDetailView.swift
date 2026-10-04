@@ -15,6 +15,9 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+    #if os(macOS)
+    @AppStorage(MacPrefs.widthKey) private var lineWidthPreference = MacPrefs.LineWidth.comfortable.rawValue
+    #endif
     private var writingFontDesign: Font.Design {
         WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
@@ -39,6 +42,17 @@ struct EntryDetailView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+            .focusedSceneValue(\.macEntryActions, MacEntryActions(
+                isPinned: entry.isPinned,
+                togglePin: { entry.isPinned.toggle(); try? modelContext.save() },
+                share: { shareText() },
+                exportPDF: { MacEntryExport.exportPDF(entry) },
+                delete: { showDeleteConfirm = true }
+            ))
+            .textSelection(.enabled)
+        #else
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 // Main entry card
@@ -189,13 +203,26 @@ struct EntryDetailView: View {
             displayedWordCount = strippedWordCount(text)
         }
         .navigationBarTitleDisplayMode(.inline)
+        #if DEBUG && os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
+        #endif
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacEditEntry)) { _ in
+            if macCanEditPlainText, !entry.textDecryptionFailed { showEditor = true }
+        }
+        #endif
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
-                    Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-                        .disabled(entry.textDecryptionFailed)
+                    #if os(macOS)
+                    // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
+                    // stay read-only here so an edit cannot change what iPhone and iPad read back.
+                    if macCanEditPlainText {
+                        editButton
+                    }
+                    #else
+                    editButton
+                    #endif
 
                     Menu {
                         Button(
@@ -207,7 +234,9 @@ struct EntryDetailView: View {
                             try? modelContext.save()
                         }
                         Button("Share as text") { shareText() }
+                        #if os(iOS)
                         Button("Export as PDF") { sharePDF() }
+                        #endif
                         Button("Delete Entry", systemImage: "trash", role: .destructive) {
                             showDeleteConfirm = true
                         }
@@ -230,25 +259,235 @@ struct EntryDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        #endif
     }
+
+    private var editButton: some View {
+        Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
+            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+            .disabled(entry.textDecryptionFailed)
+    }
+
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+
+    // MARK: Mac reader (the design's Entries board)
+
+    private var macBody: some View {
+        VStack(spacing: 0) {
+            macToolbar
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(macDateLine)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(MacTokens.secondaryInk)
+                        .padding(.bottom, 10)
+
+                    macChips
+                        .padding(.bottom, 26)
+
+                    if entry.textDecryptionFailed {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Encrypted entry unavailable")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                            Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
+                                .font(.system(size: 15))
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                        }
+                    } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
+                    } else {
+                        Text("No text")
+                            .font(.system(size: 18, design: writingFontDesign))
+                            .foregroundStyle(MirrorTheme.textTertiary)
+                    }
+
+                    // Parts of an entry the board does not show; they follow the text.
+                    if !entry.voiceNotes.isEmpty {
+                        VStack(spacing: 8) {
+                            ForEach(entry.voiceNotes.indices, id: \.self) { index in
+                                let note = entry.voiceNotes[index]
+                                VoiceNoteAttachmentView(
+                                    data: note.data,
+                                    duration: note.duration,
+                                    title: String(localized: "Voice note \(index + 1)"),
+                                    transcript: note.transcript,
+                                    languageName: note.languageName,
+                                    transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
+                                )
+                            }
+                        }
+                        .padding(.top, 30)
+                    }
+                    if let insight = relatedInsight {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("mirror noticed", systemImage: "sparkles")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(MirrorTheme.violetLight)
+                                .tracking(0.8)
+                            Text(insight.content)
+                                .font(.system(size: 15, design: .serif))
+                                .lineSpacing(5)
+                                .foregroundStyle(MirrorTheme.textPrimary)
+                                .italic()
+                        }
+                        .padding(18)
+                        .themedCard(cornerRadius: 18, classicBase: .elevated)
+                        .padding(.top, 30)
+                    }
+                    if !onThisDayEntries.isEmpty {
+                        OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
+                            .padding(.top, 30)
+                    }
+                }
+                .frame(maxWidth: MacPrefs.lineWidth(lineWidthPreference).readerColumn, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 52)
+                .padding(.bottom, 40)
+                .frame(maxWidth: .infinity)
+            }
+            .modifier(MacNoScrollEdgeEffect())
+        }
+        .background(MirrorTheme.bgBase)
+        .task(id: entry.id) {
+            let text = entry.text
+            let prefix = text
+                .components(separatedBy: .whitespacesAndNewlines)
+                .prefix(6)
+                .joined(separator: " ")
+            relatedInsight = insights.first { insight in
+                insight.content.localizedCaseInsensitiveContains(prefix)
+            }
+            displayedWordCount = strippedWordCount(text)
+        }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
+        #endif
+        .navigationDestination(isPresented: $showEditor) {
+            WriteView(entry: entry, autoFocus: true, showsBackButton: true)
+        }
+        .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { macDeleteEntry() }
+            Button("Cancel", role: .cancel) {}
+        }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugConfirmDelete)) { _ in macDeleteEntry() }
+        #endif
+    }
+
+    /// Leave the reader first, then delete: SwiftUI must not render a deleted entry.
+    private func macDeleteEntry() {
+        onDone?()
+        let doomed = entry
+        DispatchQueue.main.async {
+            modelContext.delete(doomed)
+            try? modelContext.save()
+        }
+    }
+
+    /// "WEDNESDAY · 30 SEPTEMBER 2026 · 9:42 AM"
+    private var macDateLine: String {
+        let weekday = entry.createdAt.formatted(.dateTime.weekday(.wide))
+        let date = entry.createdAt.formatted(.dateTime.day().month(.wide).year())
+        let time = entry.createdAt.formatted(.dateTime.hour().minute())
+        return "\(weekday) · \(date) · \(time)".uppercased()
+    }
+
+    private var macChips: some View {
+        HStack(spacing: 8) {
+            if let mood = entry.mood, !mood.isEmpty {
+                HStack(spacing: 6) {
+                    Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
+                    Text(MirrorTheme.localizedMoodName(for: mood))
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MacTokens.selectedRowInk)
+                .padding(.horizontal, 11)
+                .frame(height: 24)
+                .background(MacTokens.selectedRowFill, in: Capsule())
+            }
+            ForEach(entry.tags, id: \.self) { tag in
+                Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(MacTokens.controlInk)
+                    .padding(.horizontal, 11)
+                    .frame(height: 24)
+                    .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+            }
+        }
+    }
+
+    /// Pin, open in its own window, delete and Edit: the board's 52 pt reader toolbar.
+    private var macToolbar: some View {
+        HStack(spacing: 6) {
+            Spacer(minLength: 0)
+            macToolbarButton("pin", label: entry.isPinned ? "Unpin entry" : "Pin entry", active: entry.isPinned) {
+                entry.isPinned.toggle()
+                try? modelContext.save()
+            }
+            macToolbarButton("external", label: "Open in new window") {
+                openWindow(id: "entry", value: entry.id)
+            }
+            macToolbarButton("trash", label: "Delete entry") {
+                showDeleteConfirm = true
+            }
+            Button { showEditor = true } label: {
+                Text("Edit")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(MacTokens.ink)
+                    .padding(.horizontal, 14)
+                    .frame(height: 28)
+                    .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+                    .opacity(macEditAllowed ? 1 : 0.4)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 6)
+            .disabled(!macEditAllowed)
+            .help(macEditAllowed ? "Edit entry" : "This entry has formatting or photos the Mac editor can't keep exactly. Edit it on iPhone or iPad.")
+        }
+        .padding(.horizontal, 16)
+        .frame(height: MacTokens.chromeHeight)
+        .background(MirrorTheme.bgBase)
+        .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
+    }
+
+    private var macEditAllowed: Bool { !entry.textDecryptionFailed && macCanEditPlainText }
+
+    private func macToolbarButton(_ icon: String, label: LocalizedStringKey, active: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            MacIcon(name: icon, size: 17)
+                .frame(width: 30, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(active ? MacTokens.accent : MacTokens.controlInk)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+
+    private var macCanEditPlainText: Bool {
+        NoteEditorCodec.canEditOnMac(
+            text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData,
+            entryFont: WritingFontChoice(rawValue: entry.fontChoice ?? "") ?? .system,
+            photoCount: entry.photoDataArray.count
+        )
+    }
+    #endif
 
     private func shareText() {
         let dateStr = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
         let shareText = "\(dateStr)\n\n\(entry.text)"
-        let av = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.rootViewController?
-            .present(av, animated: true)
+        presentShareSheet(items: [shareText])
     }
 
+    #if os(iOS)
     private func sharePDF() {
         guard let url = makePDF() else { return }
-        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.rootViewController?
-            .present(av, animated: true)
+        presentShareSheet(items: [url])
     }
 
     private func makePDF() -> URL? {
@@ -284,6 +523,7 @@ struct EntryDetailView: View {
         try? (data as Data).write(to: url)
         return url
     }
+    #endif
 }
 
 // MARK: - On This Day
@@ -358,6 +598,23 @@ private struct InlineEntryContent: View {
     let inlineStyleData: Data?
     let photoDataArray: [Data]
     let fontChoice: String?
+
+    #if os(macOS)
+    // Settings > Appearance > Text size; the board's reader is 18 pt on a 1.78 line.
+    @AppStorage(MacPrefs.sizeKey) private var textSizePreference = MacPrefs.defaultSize
+    private var bodySize: CGFloat { CGFloat(min(max(textSizePreference, MacPrefs.sizeRange.lowerBound), MacPrefs.sizeRange.upperBound)) }
+    private var bodyLineSpacing: CGFloat { 10 * bodySize / 18 }
+    // Same proportions as the Mac editor, so a paragraph does not change size between the two.
+    private var titleSize: CGFloat { bodySize + 10 }
+    private var headingSize: CGFloat { bodySize + 4 }
+    private var monospacedSize: CGFloat { bodySize - 2 }
+    #else
+    private var bodySize: CGFloat { 17 }
+    private var bodyLineSpacing: CGFloat { 6 }
+    private var titleSize: CGFloat { 30 }
+    private var headingSize: CGFloat { 22 }
+    private var monospacedSize: CGFloat { 16 }
+    #endif
     @Environment(\.appDisplayMode) private var displayMode
 
     private var paragraphStyles: [NoteParagraphTextStyle] {
@@ -446,7 +703,11 @@ private struct InlineEntryContent: View {
     private func designedFont(size: CGFloat, weight: UIFont.Weight, design: UIFontDescriptor.SystemDesign) -> UIFont {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
+        #if os(iOS)
         return UIFont(descriptor: descriptor, size: size)
+        #else
+        return UIFont(descriptor: descriptor, size: size) ?? base
+        #endif
     }
 
     /// Bridges to `AttributedString` so `Text` renders bold/italic/underline/
@@ -542,26 +803,26 @@ private struct InlineEntryContent: View {
         let dropCount = line.count - displayLine.count
         let paragraphStart = paragraphStartOffset(at: index)
         if style == .title {
-            let font = designedFont(size: 30, weight: .bold, design: .default)
+            let font = designedFont(size: titleSize, weight: .bold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .heading {
-            let font = designedFont(size: 22, weight: .bold, design: .default)
+            let font = designedFont(size: headingSize, weight: .bold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .subheading {
-            let font = designedFont(size: 17, weight: .semibold, design: .default)
+            let font = designedFont(size: bodySize, weight: .semibold, design: .default)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
         } else if style == .monospaced {
-            let font = designedFont(size: 16, weight: .regular, design: .monospaced)
+            let font = designedFont(size: monospacedSize, weight: .regular, design: .monospaced)
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .blockQuote {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
-                .lineSpacing(6)
+                .lineSpacing(bodyLineSpacing)
                 .padding(.leading, 16)
         } else if style == .checklistUnchecked || style == .checklistChecked {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
                     .font(.system(size: 24, weight: .regular))
@@ -577,7 +838,7 @@ private struct InlineEntryContent: View {
             // here even though the editor shows glyphs/numbers and indent for
             // them. Markers/indent match NoteEditorTextView's; numbering uses
             // the same per-level-restart rule as `numberedOrdinal(at:)`.
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             let level = indentLevels.indices.contains(index) ? indentLevels[index] : 0
             let marker = listMarker(for: style, level: level, index: index)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -590,10 +851,10 @@ private struct InlineEntryContent: View {
             }
             .padding(.leading, CGFloat(level) * 20)
         } else {
-            let font = designedFont(size: 17, weight: .regular, design: writingFontUIDesign(at: index))
+            let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font))
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .lineSpacing(6)
+                .lineSpacing(bodyLineSpacing)
         }
     }
 

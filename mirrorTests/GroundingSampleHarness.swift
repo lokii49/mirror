@@ -194,7 +194,7 @@ final class GroundingSampleHarness: XCTestCase {
             let result: (text: String, engine: LLMEngine)
             do {
                 result = try await InsightService.localGenerate(
-                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    systemPrompt: DAILY_NUDGE_LEGACY_SYSTEM,
                     userMessage: userMessage,
                     task: .dailyNudge,
                     responseLanguageInstruction: nil
@@ -264,7 +264,7 @@ final class GroundingSampleHarness: XCTestCase {
             let result: (text: String, engine: LLMEngine)
             do {
                 result = try await InsightService.localGenerate(
-                    systemPrompt: DAILY_NUDGE_SYSTEM,
+                    systemPrompt: DAILY_NUDGE_LEGACY_SYSTEM,
                     userMessage: userMessage,
                     task: .dailyNudge,
                     responseLanguageInstruction: nil
@@ -1002,7 +1002,7 @@ final class GroundingSampleHarness: XCTestCase {
             let result: (text: String, engine: LLMEngine)
             do {
                 result = try await InsightService.localGenerate(
-                    systemPrompt: DAILY_NUDGE_SYSTEM, userMessage: userMessage,
+                    systemPrompt: DAILY_NUDGE_LEGACY_SYSTEM, userMessage: userMessage,
                     task: .dailyNudge, responseLanguageInstruction: nil)
             } catch {
                 print("[conflation][\(i)] THREW: \(error)")
@@ -1627,6 +1627,94 @@ final class GroundingSampleHarness: XCTestCase {
             started = Date()
             let (monthly, _) = try await InsightService.generateMonthlyReport(monthEntries: [sick, calm], allEntries: [sick, calm])
             print("[loc][\(code)][monthly] seconds=\(Int(Date().timeIntervalSince(started))) fallback=\(InsightService.isUngroundedFallback(monthly)) TEXT: \(monthly.replacingOccurrences(of: "\n", with: " ⏎ "))")
+        }
+    }
+
+    // MARK: Round 8 (tools/llmrig/fm/RUBRIC_FM.md): the daily reflection in the other FM languages
+
+    private struct Rig8Case { let lang: String; let label: String; let text: String; let mood: String; let key: String }
+
+    /// Synthetic text only. Per language: a hard day, an ordinary day, one run-on sentence.
+    private static let rig8Cases: [Rig8Case] = {
+        let rows: [(String, [(String, String, String)])] = [
+            ("de", [("hard", "Heute hat mein Chef vor allen anderen meine Arbeit kritisiert. Ich habe den Rest des Tages kaum etwas gesagt. Am Abend bin ich völlig erschöpft nach Hause gekommen.", "mein Chef vor allen anderen meine Arbeit kritisiert"),
+                    ("plain", "Zum Frühstück gab es Brot und Kaffee. Danach habe ich zwei Stunden am Projekt gearbeitet und am Abend kurz eingekauft. Ein ganz normaler Tag.", "zwei Stunden am Projekt"),
+                    ("runon", "Ich weiß nicht genau warum, aber seit dem Gespräch mit meiner Schwester gestern Abend gehen mir ihre Worte nicht aus dem Kopf und ich habe das Gefühl, dass ich etwas sagen wollte, das ich nicht gesagt habe, und jetzt überlege ich, ob ich sie anrufen soll oder lieber bis zum Wochenende warte.", "Gespräch mit meiner Schwester")]),
+            ("es", [("hard", "Hoy mi jefe criticó mi trabajo delante de todo el equipo. Casi no hablé el resto del día. Llegué a casa agotado por la noche.", "criticó mi trabajo"),
+                    ("plain", "Desayuné pan con café. Después trabajé dos horas en el proyecto y por la tarde hice la compra. Fue un día normal.", "dos horas en el proyecto"),
+                    ("runon", "No sé muy bien por qué, pero desde la conversación con mi hermana anoche no puedo dejar de pensar en sus palabras y siento que quería decirle algo que no dije, y ahora estoy aquí dudando si llamarla o esperar hasta el fin de semana.", "conversación con mi hermana")]),
+            ("fr", [("hard", "Aujourd'hui mon chef a critiqué mon travail devant toute l'équipe. Je n'ai presque rien dit le reste de la journée. Je suis rentré à la maison complètement épuisé le soir.", "critiqué mon travail"),
+                    ("plain", "J'ai pris du pain et du café au petit-déjeuner. Ensuite j'ai travaillé deux heures sur le projet et fait quelques courses le soir. Une journée tout à fait normale.", "deux heures sur le projet"),
+                    ("runon", "Je ne sais pas trop pourquoi, mais depuis la conversation avec ma sœur hier soir, ses mots ne me quittent plus et j'ai l'impression d'avoir voulu dire quelque chose que je n'ai pas dit, et maintenant je me demande si je dois l'appeler ou attendre le week-end.", "conversation avec ma sœur")]),
+            ("it", [("hard", "Oggi il mio capo ha criticato il mio lavoro davanti a tutti. Per il resto della giornata ho parlato pochissimo. La sera sono tornato a casa completamente esausto.", "criticato il mio lavoro"),
+                    ("plain", "A colazione ho mangiato pane e caffè. Poi ho lavorato due ore al progetto e la sera ho fatto un po' di spesa. Una giornata del tutto normale.", "due ore al progetto"),
+                    ("runon", "Non so bene perché, ma da quando ho parlato con mia sorella ieri sera le sue parole non mi escono dalla testa e ho la sensazione di voler dire qualcosa che non ho detto, e adesso mi chiedo se chiamarla o aspettare il fine settimana.", "parlato con mia sorella")]),
+            ("pt", [("hard", "Hoje meu chefe criticou meu trabalho na frente de todo mundo. Quase não falei pelo resto do dia. À noite cheguei em casa completamente exausto.", "criticou meu trabalho"),
+                    ("plain", "No café da manhã comi pão com café. Depois trabalhei duas horas no projeto e à noite fiz umas compras rápidas. Foi um dia bem normal.", "duas horas no projeto"),
+                    ("runon", "Não sei bem por quê, mas desde a conversa com minha irmã ontem à noite as palavras dela não saem da minha cabeça e sinto que queria dizer algo que não disse, e agora estou aqui pensando se ligo para ela ou espero até o fim de semana.", "conversa com minha irmã")]),
+            ("ja", [("hard", "今日は上司にみんなの前で仕事を批判された。その後はほとんど何も話せなかった。夜は疲れ果てて家に帰った。", "上司にみんなの前で仕事を批判された"),
+                    ("plain", "朝食にパンとコーヒーを食べた。そのあと二時間ほどプロジェクトの作業をして、夜に少しだけ買い物に行った。ごく普通の一日だった。", "二時間ほどプロジェクトの作業"),
+                    ("runon", "理由はよく分からないけれど、昨夜妹と話してから彼女の言葉が頭から離れなくて、言いたかったことを言えなかった気がして、今は電話をかけるべきか週末まで待つべきかずっと考えている。", "妹と話してから")]),
+            ("ko", [("hard", "오늘 상사가 모두 앞에서 내 일을 비판했다. 그 뒤로는 거의 말을 하지 못했다. 저녁에 완전히 지쳐서 집에 돌아왔다.", "상사가 모두 앞에서 내 일을 비판했다"),
+                    ("plain", "아침으로 빵과 커피를 먹었다. 그다음 두 시간 동안 프로젝트 작업을 했고 저녁에 잠깐 장을 봤다. 아주 평범한 하루였다.", "두 시간 동안 프로젝트 작업"),
+                    ("runon", "왜 그런지 잘 모르겠지만 어젯밤 동생과 이야기한 뒤로 동생의 말이 머릿속에서 떠나지 않고 하고 싶은 말을 하지 못한 것 같아서 지금은 전화를 할지 주말까지 기다릴지 계속 고민하고 있다.", "동생과 이야기한")]),
+            ("zh", [("hard", "今天上司当着所有人的面批评了我的工作。之后一整天我几乎没怎么说话。晚上我筋疲力尽地回到了家。", "上司当着所有人的面批评了我的工作"),
+                    ("plain", "早饭吃了面包和咖啡。然后我花了两个小时做项目，晚上去超市买了点东西。就是很普通的一天。", "花了两个小时做项目"),
+                    ("runon", "我也说不清为什么，但是自从昨晚和妹妹聊过之后她的话一直在我脑子里转，我觉得有些话想说却没说出口，现在我在犹豫是现在就给她打电话还是等到周末。", "和妹妹聊过之后")]),
+        ]
+        let moods = ["hard": "Drained", "plain": "Content", "runon": "Anxious"]
+        return rows.flatMap { lang, cases in cases.map { Rig8Case(lang: lang, label: "\(lang)_\($0.0)", text: $0.1, mood: moods[$0.0]!, key: $0.2) } }
+    }()
+
+    /// Real Foundation Models, the app's own loop (up to 3 attempts, first quote that matches one of the
+    /// entry's sentences wins). Needs Apple Intelligence on the host. Output: HARNESS_DUMP_DIR/rig8.tsv.
+    func test_rig8_localizedStructuredQuote() async throws {
+        guard ProcessInfo.processInfo.environment["HARNESS_RIG8"] != nil else { throw XCTSkip("Set HARNESS_RIG8=1 (real Foundation Models)") }
+        guard FoundationModelEngine.isAvailable else { throw XCTSkip("Foundation Models unavailable on this host") }
+        let runs = Int(ProcessInfo.processInfo.environment["HARNESS_RIG8_N"] ?? "") ?? 10
+        var rows = ["case\trun\tattempt\toutcome\tquote"]
+        var perCase: [String: (shown: Int, first: Int, main: Int, attempts: Int, errors: Int)] = [:]
+        for c in Self.rig8Cases {
+            XCTAssertTrue(FoundationModelEngine.supports(languageCode: c.lang), "\(c.lang) should be supported")
+            let entry = Entry(text: c.text, mood: c.mood)
+            let grounded = try XCTUnwrap(InsightService.localizedGroundedNudge(recent: [entry], background: [], recentNudges: []), "no grounded plan for \(c.label)")
+            let validator = try XCTUnwrap(grounded.validator)
+            let system = InsightService.structuredNudgeSystemPrompt(for: [entry])
+            let user = InsightService.buildUserMessage(title: "Daily reflection context", recentEntries: [entry], backgroundEntries: [], maxChars: InsightService.dailyNudgePromptBudget, includeRecurringTerms: false)
+            var tally = (shown: 0, first: 0, main: 0, attempts: 0, errors: 0)
+            for run in 1...runs {
+                var shownText: String?
+                for attempt in 1...InsightService.structuredNudgeAttempts {
+                    tally.attempts += 1
+                    do {
+                        let draft = try await FoundationModelEngine.generateDailyReflection(systemPrompt: system, userMessage: user)
+                        if let option = FMDailyGuard.matchOption(quote: draft.quote, in: grounded.quoteOptions), let text = try? validator(option) {
+                            if attempt == 1 { tally.first += 1 }
+                            if option.contains(c.key) { tally.main += 1 }
+                            shownText = text
+                            rows.append("\(c.label)\t\(run)\t\(attempt)\tMATCH\t\(option)")
+                            break
+                        }
+                        rows.append("\(c.label)\t\(run)\t\(attempt)\tNOMATCH\t\(draft.quote.replacingOccurrences(of: "\n", with: " "))")
+                    } catch {
+                        tally.errors += 1
+                        rows.append("\(c.label)\t\(run)\t\(attempt)\tERROR\t\(type(of: error))")
+                    }
+                }
+                if shownText != nil { tally.shown += 1 }
+            }
+            perCase[c.label] = tally
+            print("[rig8] \(c.label) shown=\(tally.shown)/\(runs) first=\(tally.first) main=\(tally.main) errors=\(tally.errors)/\(tally.attempts)")
+        }
+        let total = perCase.values.reduce((0, 0, 0, 0, 0)) { ($0.0 + $1.shown, $0.1 + $1.first, $0.2 + $1.main, $0.3 + $1.attempts, $0.4 + $1.errors) }
+        print("[rig8] TOTAL shown=\(total.0)/\(perCase.count * runs) first=\(total.1) main=\(total.2) errors=\(total.4)/\(total.3)")
+        for lang in Set(Self.rig8Cases.map(\.lang)).sorted() {
+            let mine = Self.rig8Cases.filter { $0.lang == lang }.compactMap { perCase[$0.label]?.shown }.reduce(0, +)
+            print("[rig8] LANG \(lang) shown=\(mine)/\(3 * runs)")
+        }
+        if let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] {
+            try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try rows.joined(separator: "\n").write(toFile: "\(dir)/rig8.tsv", atomically: true, encoding: .utf8)
         }
     }
 }

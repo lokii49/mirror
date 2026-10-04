@@ -1,6 +1,10 @@
 import SwiftUI
 import StoreKit
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Publishes when a rate-us moment is ready. `ReviewRequestManager` sets
 /// `isPending`; `ContentView` observes it and presents `RateUsPromptSheet`.
@@ -148,10 +152,14 @@ struct RateUsPromptSheet: View {
         // Let the sheet's own dismiss animation finish before the system
         // prompt appears.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            #if os(iOS)
             guard let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .first(where: { $0.activationState == .foregroundActive }) else { return }
             AppStore.requestReview(in: scene)
+            #else
+            SKStoreReviewController.requestReview()
+            #endif
             #if DEBUG
             // `AppStore.requestReview` renders nothing in an Xcode-installed
             // build — Apple only shows it from TestFlight / the App Store. Open

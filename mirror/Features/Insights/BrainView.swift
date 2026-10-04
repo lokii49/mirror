@@ -27,16 +27,33 @@ struct BrainView: View {
         .background(MirrorTheme.bgBase)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         // Default nav bar hairline/background assumes a light backdrop —
         // against this view's always-dark canvas it just reads as a stray
         // line. Not load-bearing, safe to drop.
+        #if os(iOS)
         .toolbarBackground(.hidden, for: .navigationBar)
+        #endif
         // Panning the graph starts drags from anywhere, including near the
         // left edge — the system's edge-swipe-to-pop gesture would hijack
         // those as "go back." Disabling it here (X button replaces back)
         // so a left-swipe inside the graph is just a pan, not a pop.
         .background(InteractivePopGestureDisabler())
+        #if DEBUG && os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugBrainDimension)) { note in
+            is3D = note.userInfo?["is3D"] as? Bool ?? true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugBrainSheet)) { note in
+            if note.userInfo?["kind"] as? String == "ask" {
+                askPrefill = AskPrefill(question: "What keeps coming up around work?")
+            } else if case .ready(let graph) = brainModel.state, let node = graph.nodes.first(where: { $0.id != "__hub__" }) {
+                selectedNode = node
+            }
+        }
+        #endif
+        #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -55,6 +72,15 @@ struct BrainView: View {
                 }
             }
         }
+        #else
+        // On Mac Brain View is a sidebar page, so there is no X to dismiss it; the 3D/2D switch
+        // sits in the title bar.
+        .macPage("Brain View", dark: true) {
+            if subscriptionService.isDeep, case .ready = brainModel.state {
+                dimensionToggle
+            }
+        }
+        #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .sheet(item: $selectedNode) { node in
             BrainNodeDetailSheet(
@@ -69,9 +95,12 @@ struct BrainView: View {
         }
         .sheet(item: $askPrefill) { prefill in
             NavigationStack {
-                AskView(viewModel: viewModel, initialQuestion: prefill.question)
+                AskView(viewModel: viewModel, initialQuestion: prefill.question, onClose: { askPrefill = nil })
             }
             .environment(\.appDisplayMode, displayMode)
+            #if os(macOS)
+            .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 640)
+            #endif
         }
     }
 
@@ -357,6 +386,7 @@ private struct BrainNodeDetailSheet: View {
     let entries: [Entry]
     let onAsk: (String) -> Void
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -370,8 +400,19 @@ private struct BrainNodeDetailSheet: View {
             }
             .background(MirrorTheme.bgBase)
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            // No swipe-down on Mac: a visible Done, and Esc.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
+                }
+            }
+            #endif
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 460, idealWidth: 520, minHeight: 480, idealHeight: 560)
+        #endif
     }
 
     private var typeIcon: String {
@@ -495,6 +536,7 @@ private struct BrainNodeDetailSheet: View {
 /// pop gesture. This finds it via the view controller hierarchy and turns
 /// it off while installed, back on when removed, so panning the graph from
 /// near the left edge isn't swallowed by the system as "go back."
+#if os(iOS)
 private struct InteractivePopGestureDisabler: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         let controller = UIViewController()
@@ -511,3 +553,9 @@ private struct InteractivePopGestureDisabler: UIViewControllerRepresentable {
         uiViewController.navigationController?.interactivePopGestureRecognizer?.isEnabled = true
     }
 }
+#else
+/// macOS has no edge-swipe-to-pop gesture to disable.
+private struct InteractivePopGestureDisabler: View {
+    var body: some View { Color.clear }
+}
+#endif

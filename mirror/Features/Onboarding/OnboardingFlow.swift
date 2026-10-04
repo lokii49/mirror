@@ -139,6 +139,15 @@ struct OnboardingFlow: View {
                     .padding(.bottom, 32)
             }
         }
+        #if os(macOS)
+        // Shown in a Mac sheet, which has no size of its own: without one the steps collapse.
+        .frame(minWidth: 560, idealWidth: 640, maxWidth: 760, minHeight: 640, idealHeight: 720, maxHeight: 860)
+        #endif
+        #if DEBUG && os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOnboardingStep)) { note in
+            if let value = note.userInfo?["step"] as? Int { step = value }
+        }
+        #endif
     }
 
     // MARK: - Progress
@@ -201,11 +210,20 @@ struct OnboardingFlow: View {
             .frame(width: 22, height: 1)
     }
 
+    /// Mac has only the default theme for now, so its flow ends before the "Choose your view" step.
+    private var lastStep: Int {
+        #if os(macOS)
+        return 3
+        #else
+        return 4
+        #endif
+    }
+
     private var progressIndicator: some View {
         HStack(spacing: 0) {
-            ForEach(0..<5) { i in
+            ForEach(0...lastStep, id: \.self) { i in
                 threadNode(i)
-                if i < 4 {
+                if i < lastStep {
                     threadSegment(i)
                 }
             }
@@ -381,7 +399,7 @@ struct OnboardingFlow: View {
 
                 if nudgePreset == .custom {
                     DatePicker("", selection: $customNudgeTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
+                        .platformWheelDatePicker()
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -808,7 +826,7 @@ struct OnboardingFlow: View {
                         Text(step == 4 ? "INITIATE" : "CONTINUE")
                             .font(MirrorTheme.mono(15, weight: .bold))
                     } else {
-                        Text(step == 4 ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
+                        Text(step == lastStep ? "Start journaling" : (step == 0 ? "Get started" : "Continue"))
                             .font(.system(size: 17, weight: .semibold))
                     }
                 }
@@ -849,7 +867,7 @@ struct OnboardingFlow: View {
             // Pre-select suggested preset based on reason
             nudgePreset = suggestedPreset
         }
-        if step < 4 {
+        if step < lastStep {
             withAnimation {
                 step += 1
             }

@@ -1,13 +1,7 @@
-Reflexões depois que você escreve, e o que elas leram
+Reflexões mais claras e uma correção para japonês e chinês
 
-• Se você escreve à noite, agora recebe uma reflexão no mesmo dia. Se a reflexão de hoje era sobre dias anteriores e depois você escreve hoje, uma segunda sobre hoje pode aparecer. Uma reflexão sobre um dia anterior diz de qual dia é.
-• As reflexões agora esperam o minuto exato que você definiu, não só a hora.
-• Em iPhones sem Apple Intelligence, a reflexão é uma citação da sua entrada mais uma frase simples sobre como você parece estar. Só em dias mais difíceis ela acrescenta uma sugestão curta e fixa. O genérico “respire fundo algumas vezes” saiu.
-• Nesses iPhones, a pergunta de acompanhamento que aparece enquanto você escreve agora cita as suas próprias palavras, então ela não consegue trazer coisas que você não escreveu.
-• Em qualquer reflexão, você pode ver exatamente o que foi lido para escrevê-la.
-• Em iPhones sem Apple Intelligence, se o seu último resumo semanal ou relatório mensal foi escrito por uma versão anterior, ele pode ser reescrito uma vez. Os mais antigos não mudam.
-• As perguntas do “Perguntar” podem ter até 500 caracteres.
-• Se o mirror não conseguir abrir o seu diário, agora ele avisa, com um botão “Tentar novamente”, em vez de fechar. Nada é apagado.
-• Entradas em japonês e chinês agora contam as palavras direito, para que totais, metas diárias e XP façam sentido.
-
-Se uma reflexão errar alguma coisa, me conte: Ajustes → Sobre → Enviar feedback.
+• Em iPhones com Apple Intelligence, sua reflexão diária agora cita suas próprias palavras e acrescenta uma linha curta. Em inglês, essa linha é conferida com o que você escreveu, então detalhes que você nunca escreveu não aparecem mais. Em outros idiomas, você vê sua citação com uma linha fixa escolhida pelo seu humor.
+• O início das reflexões agora alterna entre "Você escreveu:" e "Antes você escreveu:" para que nem todas comecem igual.
+• A primeira entrada da apresentação agora conta corretamente as palavras em japonês e chinês.
+• Em um dispositivo novo, a atualização da contagem de palavras em japonês e chinês espera suas entradas terminarem de sincronizar pelo iCloud.
+• Os rótulos Baixo, Médio e Alto nos gráficos de humor agora estão traduzidos.

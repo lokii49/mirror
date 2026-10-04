@@ -1,10 +1,15 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import Photos
 import PhotosUI
 import ImageIO
 import UniformTypeIdentifiers
 
+#if os(iOS)
 struct NoteEditorTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var textStyleData: Data?
@@ -2898,6 +2903,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 }
 
+#endif
+
+#if os(iOS)
 extension UIFont {
     func bolded() -> UIFont {
         return withTrait(.traitBold, add: true)
@@ -2910,6 +2918,7 @@ extension UIFont {
         return UIFont(descriptor: descriptor, size: pointSize)
     }
 }
+#endif
 
 nonisolated func preparedInlinePhotoData(from data: Data) -> Data {
     guard let source = CGImageSourceCreateWithData(data as CFData, [

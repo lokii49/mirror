@@ -24,6 +24,14 @@ enum MirrorEncryption {
     private static let fallbackFailureWindow: TimeInterval = 2
     private static let keyQueue = DispatchQueue(label: "com.mirror.encryption.key")
 
+    #if DEBUG && os(macOS)
+    /// Mac UI snapshot mode (`--macSnapshot`, see MacSnapshot.swift) runs against an in-memory
+    /// store with a throwaway key, so it never reads or writes the Keychain — a stray content
+    /// key synced to iCloud Keychain could be mistaken for the real one on another device.
+    static let debugEphemeralKey: SymmetricKey? =
+        CommandLine.arguments.contains("--macSnapshot") ? SymmetricKey(size: .bits256) : nil
+    #endif
+
     static func encryptString(_ value: String) -> String {
         guard !value.isEmpty, !isEncryptedString(value) else { return value }
         guard let encrypted = try? encryptData(Data(value.utf8)) else { return value }
@@ -120,7 +128,10 @@ enum MirrorEncryption {
     // MARK: - Key archive
 
     private static func fallbackKeys(maxAge: TimeInterval) -> [Data] {
-        keyQueue.sync {
+        #if DEBUG && os(macOS)
+        if debugEphemeralKey != nil { return [] }
+        #endif
+        return keyQueue.sync {
             if let cache = _fallbackCache, Date().timeIntervalSince(cache.loadedAt) < maxAge {
                 return cache.keys
             }
@@ -200,7 +211,10 @@ enum MirrorEncryption {
     }
 
     private static func key(creatingIfNeeded: Bool) throws -> SymmetricKey {
-        try keyQueue.sync {
+        #if DEBUG && os(macOS)
+        if let debugEphemeralKey { return debugEphemeralKey }
+        #endif
+        return try keyQueue.sync {
             if let cached = _cachedKey { return cached }
 
             let localSlot = KeychainManager.read(account: keyAccount)

@@ -65,7 +65,7 @@ extension WriteView {
 
                     if !filteredTagSuggestions.isEmpty {
                         Rectangle()
-                            .fill(Color(.separator))
+                            .fill(Color.platformSeparator)
                             .frame(width: 1, height: 16)
                             .padding(.horizontal, 2)
 

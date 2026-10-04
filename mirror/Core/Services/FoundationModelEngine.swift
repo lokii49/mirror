@@ -32,7 +32,7 @@ enum FoundationModelEngine {
 
     nonisolated static var unavailableReason: UnavailableReason? {
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *) else { return .unsupportedOS }
+        guard #available(iOS 26.0, macOS 26.0, *) else { return .unsupportedOS }
         switch SystemLanguageModel.default.availability {
         case .available:
             return nil
@@ -50,9 +50,34 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// Whether Foundation Models can work in this language ("de", "pt", "zh", ...). Russian is not on
+    /// Apple's list; asked on a Mac with Apple Intelligence: de, es, fr, it, pt, ja, ko, zh yes, ru no.
+    nonisolated static func supports(languageCode: String) -> Bool {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { return false }
+        return SystemLanguageModel.default.supportsLocale(Locale(identifier: languageCode))
+        #else
+        return false
+        #endif
+    }
+
+    /// True when Foundation Models turned the request down only because it cannot work in the text's
+    /// language (Russian today; `supportsLocale` is the API's own list). On a device that has Apple
+    /// Intelligence this is the one failure where Gemma is still the right engine.
+    nonisolated static func isUnsupportedLanguageError(_ error: Error) -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *),
+           let failure = error as? LanguageModelSession.GenerationError,
+           case .unsupportedLanguageOrLocale = failure {
+            return true
+        }
+        #endif
+        return false
+    }
+
     nonisolated static func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask) async throws -> String {
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
         let session = LanguageModelSession(instructions: systemPrompt)
         let options = GenerationOptions(
             temperature: Double(task.temperature),
@@ -62,6 +87,36 @@ enum FoundationModelEngine {
         let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw LocalLLMError.emptyResponse }
         return text
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
+    /// The two fields Foundation Models fills for the English daily reflection. The app does not
+    /// show them as written: `FMDailyGuard` finds the quote in today's entries and checks the insight.
+    /// Field descriptions are part of the prompt the rig measured (tools/llmrig/fm/fmrig.swift,
+    /// DailyV1bEasy); change them there too.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct DailyReflectionDraft {
+        @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+        var quote: String
+        @Guide(description: "One or two sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+        var insight: String
+    }
+    #endif
+
+    /// One structured draft. Temperature only, as measured: a token cap can cut a structured
+    /// response off. Throws on a guardrail refusal or any model error; the caller counts that as a
+    /// failed attempt.
+    nonisolated static func generateDailyReflection(systemPrompt: String, userMessage: String) async throws -> (quote: String, insight: String) {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let draft = try await session.respond(to: userMessage, generating: DailyReflectionDraft.self, options: options).content
+        return (draft.quote, draft.insight)
         #else
         throw LocalLLMError.emptyResponse
         #endif

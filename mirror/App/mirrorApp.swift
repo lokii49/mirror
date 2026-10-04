@@ -1,7 +1,11 @@
 import SwiftUI
 import SwiftData
 import BackgroundTasks
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import UserNotifications
 import WidgetKit
 import RevenueCat
@@ -9,7 +13,9 @@ import RevenueCat
 @main
 struct mirrorApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
 
     // Foreground proactive generation task — cancelled immediately when app backgrounds
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
@@ -158,16 +164,18 @@ struct mirrorApp: App {
     }
 
     private func configureNavigationBarAppearance() {
+        #if os(iOS)
         let appearance = UINavigationBarAppearance()
         appearance.configureWithDefaultBackground()
         appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
+        #endif
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             if MirrorModelContainer.isStoreAvailable {
                 ContentView()
             } else {
@@ -175,10 +183,19 @@ struct mirrorApp: App {
             }
         }
         .modelContainer(sharedModelContainer)
+        #if os(macOS)
+        .commands { MirrorMacCommands() }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1280, height: 800)
+        #endif
         .onChange(of: scenePhase) { _, phase in
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }
+            #if DEBUG && os(macOS)
+            // Snapshot mode renders sample data only: no generation, cleanup passes or permission prompts.
+            if MacSnapshot.isRequested { return }
+            #endif
             switch phase {
             case .active:
                 // Request notification permission for users who completed onboarding before
@@ -250,6 +267,7 @@ struct mirrorApp: App {
         }
         // Keep BGAppRefreshTask as a lightweight fallback for weekly digest on devices
         // that don't charge overnight (power requirement not met for nightly task).
+        #if os(iOS)
         .backgroundTask(.appRefresh("com.lokesh.mirror.weeklyDigest")) {
             await runWeeklyDigestFallback()
         }
@@ -259,11 +277,42 @@ struct mirrorApp: App {
         .backgroundTask(.appRefresh("com.lokesh.mirror.monthlyReport")) {
             await runMonthlyReportFallback()
         }
+        #endif
+
+        #if os(macOS)
+        MenuBarExtra {
+            MacQuickCaptureView()
+                .modelContainer(sharedModelContainer)
+        } label: {
+            Image("mac-pen").renderingMode(.template)
+        }
+        .menuBarExtraStyle(.window)
+
+        WindowGroup("New Entry", id: "new-entry") {
+            MacNewEntryWindow()
+        }
+        .modelContainer(sharedModelContainer)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 800)
+
+        WindowGroup("Entry", id: "entry", for: UUID.self) { $entryID in
+            MacEntryWindow(entryID: entryID)
+        }
+        .modelContainer(sharedModelContainer)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 800)
+
+        Settings {
+            MacSettingsRoot()
+                .modelContainer(sharedModelContainer)
+        }
+        #endif
     }
 
     // MARK: - BGProcessingTask: nightly at ~3AM while charging
 
     private func registerNightlyInsightsTask() {
+        #if os(iOS)
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: "com.lokesh.mirror.nightlyInsights",
             using: nil
@@ -292,9 +341,49 @@ struct mirrorApp: App {
                 completion.run { processingTask.setTaskCompleted(success: true) }
             }
         }
+        #elseif os(macOS)
+        // Mac has no BGTaskScheduler. A Mac left open overnight gets the same pass from a
+        // background activity that checks hourly and runs once in the small hours; a Mac that
+        // is asleep or closed catches up through the app-active path on the next launch.
+        let scheduler = NSBackgroundActivityScheduler(identifier: "com.lokesh.mirror.nightlyInsights")
+        scheduler.repeats = true
+        scheduler.interval = 60 * 60
+        scheduler.tolerance = 15 * 60
+        scheduler.qualityOfService = .utility
+        let container = sharedModelContainer
+        scheduler.schedule { completion in
+            guard MirrorModelContainer.isStoreAvailable,
+                  Self.macNightlyIsDue(now: Date(), lastRun: UserDefaults.standard.object(forKey: Self.macNightlyLastRunKey) as? Date) else {
+                completion(.finished)
+                return
+            }
+            Task { @MainActor in
+                UserDefaults.standard.set(Date(), forKey: Self.macNightlyLastRunKey)
+                await mirrorApp.runNightlyInsights(container: container)
+                completion(.finished)
+            }
+        }
+        Self.macNightlyScheduler = scheduler
+        #endif
     }
 
+    #if os(macOS)
+    private static var macNightlyScheduler: NSBackgroundActivityScheduler?
+    private static let macNightlyLastRunKey = "macNightlyInsightsLastRun"
+
+    /// True from 3 AM to 6 AM local time when the pass has not run since the last 3 AM, matching
+    /// the iPhone task's "around 3 AM, once a night".
+    static func macNightlyIsDue(now: Date, lastRun: Date?, calendar: Calendar = .current) -> Bool {
+        let hour = calendar.component(.hour, from: now)
+        guard (3..<6).contains(hour) else { return false }
+        let threeAM = calendar.date(bySettingHour: 3, minute: 0, second: 0, of: now) ?? now
+        guard let lastRun else { return true }
+        return lastRun < threeAM
+    }
+    #endif
+
     private func scheduleNightlyInsights() {
+        #if os(iOS)
         let request = BGProcessingTaskRequest(identifier: "com.lokesh.mirror.nightlyInsights")
         // Only run while charging → no thermal impact on the user.
         request.requiresExternalPower = true
@@ -302,6 +391,7 @@ struct mirrorApp: App {
         // Target ~3AM local time; iOS fires it opportunistically after that.
         request.earliestBeginDate = next3AM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func next3AM() -> Date {
@@ -893,9 +983,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleDailyNudgeFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.dailyNudge")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 10 * 60)
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func generateDailyNudgeInBackgroundIfNeeded() {
@@ -933,9 +1025,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleWeeklyDigestFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
         request.earliestBeginDate = nextSunday7AM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     // MARK: - Monthly report BGAppRefreshTask (fallback for 1st of month)
@@ -950,9 +1044,11 @@ struct mirrorApp: App {
     }
 
     private func scheduleMonthlyReportFallback() {
+        #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
         request.earliestBeginDate = lastDayOfCurrentMonth9PM()
         try? BGTaskScheduler.shared.submit(request)
+        #endif
     }
 
     private func lastDayOfCurrentMonth9PM() -> Date {

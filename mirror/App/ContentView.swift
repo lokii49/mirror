@@ -52,6 +52,13 @@ struct ContentView: View {
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var deepLinkEntryID: UUID? = nil
+    #if os(macOS)
+    @State private var macSelectedEntry: Entry? = nil
+    @State private var macWriteID = UUID()
+    @State private var macWriteInitialText = ""
+    @State private var macDestination: MacDestination = .write
+    @State private var macSidebarVisible = true
+    #endif
     @State private var showWriteFromWidgetPrompt = false
     @State private var widgetPromptText: String = ""
     private let featureCardService = FeatureCardService.shared
@@ -75,6 +82,14 @@ struct ContentView: View {
     /// the stored Appearance setting itself in sync so Settings never
     /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
+        #if os(macOS)
+        // Sentinel is not offered on Mac yet, so only the stored Appearance choice applies.
+        switch mode {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark":  NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:      NSApp.appearance = nil
+        }
+        #else
         let style: UIUserInterfaceStyle
         if displayMode == .sentinel {
             style = .dark
@@ -88,6 +103,7 @@ struct ContentView: View {
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
+        #endif
     }
 
     private var isUITesting: Bool {
@@ -129,7 +145,12 @@ struct ContentView: View {
     }
 
     private var displayMode: DisplayMode {
-        profiles.first?.displayMode ?? .classic
+        #if os(macOS)
+        // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
+        return .classic
+        #else
+        return profiles.first?.displayMode ?? .classic
+        #endif
     }
 
     /// Runs on every foreground. Sets `MoodCheckInPresenter.pending` — which the
@@ -137,6 +158,12 @@ struct ContentView: View {
     /// past their preferred time today and no mood (check-in or entry) is on the
     /// books for today yet.
     private func maybeAutoPromptMoodCheckIn() {
+        #if os(macOS)
+        // Off on Mac for now: "active" fires on every switch back to the app, so the sheet would
+        // pop up unprompted. Log Mood stays in Go > Log Mood… (⌥⌘M). Later: present it at the
+        // scheduled check-in time, like iPhone (see .claude/platform-roadmap.md).
+        return
+        #else
         guard onboardingComplete, moodCheckInEnabled, !isUITesting else { return }
         // Don't race the What's New sheet: SwiftUI drops the second concurrent sheet.
         guard !featureCardService.shouldShowWhatsNew else { return }
@@ -167,15 +194,20 @@ struct ContentView: View {
 
             moodCheckInPresenter.pending = true
         }
+        #endif
     }
 
     var body: some View {
         Group {
+            #if os(macOS)
+            macLayout
+            #else
             if sizeClass == .regular {
                 ipadLayout
             } else {
                 phoneLayout
             }
+            #endif
         }
         .environment(\.appDisplayMode, displayMode)
         .onAppear {
@@ -283,6 +315,9 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "mirror" else { return }
+            #if os(macOS)
+            if macHandleWidgetURL(url) { return }
+            #endif
             switch url.host {
             case "write":
                 if let indexString = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -334,10 +369,152 @@ struct ContentView: View {
                 .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
                 .tag(2)
         }
+        #if os(iOS)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        #endif
         .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
     }
+
+    // MARK: - Mac layout (sidebar + detail, list and reader side by side for Entries)
+
+    #if os(macOS)
+    /// Widget and deep links on Mac. True when handled here; the rest follow the shared routing.
+    private func macHandleWidgetURL(_ url: URL) -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+        switch url.host {
+        case "write":
+            // A prompt tile seeds a new entry in the main window (no sheet on Mac).
+            if let indexString = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "promptIndex" })?.value,
+               let index = Int(indexString), WritingPrompts.all.indices.contains(index) {
+                macWriteInitialText = WritingPrompts.all[index] + "\n\n"
+                macWriteID = UUID()
+                macDestination = .write
+                return true
+            }
+            return false
+        case "entry":
+            guard let idString = url.pathComponents.dropFirst().first, let id = UUID(uuidString: idString) else { return true }
+            NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
+            return true
+        case "monthly-report":
+            macDestination = .report
+            return true
+        case "mood-timeline":
+            macDestination = .mood
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var macLayout: some View {
+        MacRootView(selection: $macDestination, sidebarVisible: $macSidebarVisible) {
+            macDetailView
+        }
+        .frame(minWidth: 980, minHeight: 600)
+        // The title bar is hidden, but the Window menu and Mission Control still show the title.
+        .navigationTitle(macDestination.windowTitle)
+        .onChange(of: selectedSidebarItem) { _, item in
+            // Widget and URL deep links still set the shared selection.
+            switch item {
+            case .entries: macDestination = .entries
+            case .write: macDestination = .write
+            case .insights: macDestination = .today
+            default: break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNavigate)) { note in
+            if let raw = note.userInfo?["destination"] as? String, let destination = MacDestination(rawValue: raw) {
+                macDestination = destination
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntry)) { _ in
+            macWriteInitialText = ""
+            macWriteID = UUID()
+            macDestination = .write
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacNewEntrySeeded)) { note in
+            macWriteInitialText = note.userInfo?["text"] as? String ?? ""
+            macWriteID = UUID()
+            macDestination = .write
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacOpenEntry)) { note in
+            // Set the selection here: the Entries view may not exist yet, and a binding that is
+            // already set when a view appears never fires its onChange.
+            if let id = note.userInfo?["id"] as? UUID {
+                var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+                descriptor.fetchLimit = 1
+                if let entry = try? modelContext.fetch(descriptor).first {
+                    macDestination = .entries
+                    macSelectedEntry = entry
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacToggleSidebar)) { _ in
+            macSidebarVisible.toggle()
+        }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugSelectFirstEntry)) { _ in
+            var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            descriptor.fetchLimit = 1
+            macSelectedEntry = try? modelContext.fetch(descriptor).first
+        }
+        .task {
+            if MacSnapshot.isRequested { await MacSnapshot.run(context: modelContext) }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var macDetailView: some View {
+        switch macDestination {
+        case .entries:
+            HSplitView {
+                EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID, macSelection: $macSelectedEntry)
+                    .frame(minWidth: 300, idealWidth: 340, maxWidth: 420, maxHeight: .infinity)
+                    .ignoresSafeArea(.container, edges: .top)
+                Group {
+                    if let macSelectedEntry {
+                        NavigationStack {
+                            EntryDetailView(entry: macSelectedEntry) {
+                                self.macSelectedEntry = nil
+                            }
+                        }
+                        .ignoresSafeArea(.container, edges: .top)
+                        .id(macSelectedEntry.id)
+                        // An entry deleted elsewhere (sync, another window) closes the reader and editor.
+                        .background(MacSelectionGuard(entryID: macSelectedEntry.id) { self.macSelectedEntry = nil })
+                    } else {
+                        ContentUnavailableView("Select an entry", systemImage: "book.closed")
+                    }
+                }
+                .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+            }
+            // Without this the split view sizes itself to its content and floats in the middle.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .write:
+            WriteTabView(initialText: macWriteInitialText, onSave: {
+                macDestination = .entries
+                entriesNavResetID = UUID()
+            })
+            .id(macWriteID)
+        case .today:
+            InsightView(viewModel: insightViewModel, macPage: .today)
+        case .digest:
+            InsightView(viewModel: insightViewModel, macPage: .digest)
+        case .report:
+            NavigationStack { MonthlyReportView(viewModel: insightViewModel) }
+        case .mood:
+            NavigationStack { MoodTimelineView() }
+        case .ask:
+            NavigationStack { AskView(viewModel: insightViewModel) }
+        case .brain:
+            NavigationStack { BrainView(viewModel: insightViewModel) }
+        }
+    }
+    #endif
 
     // MARK: - iPad layout (NavigationSplitView)
 
@@ -373,14 +550,22 @@ struct ContentView: View {
 
 // Write tab wraps WriteView in a NavigationStack for its toolbar + sheets.
 private struct WriteTabView: View {
+    var initialText: String = ""
     var onSave: (() -> Void)? = nil
 
     var body: some View {
+        #if os(macOS)
+        // The Mac Write screen draws its own toolbar, so it needs no navigation bar.
+        WriteView(autoFocus: true, initialText: initialText) {
+            onSave?()
+        }
+        #else
         NavigationStack {
             WriteView(autoFocus: true) {
                 onSave?()
             }
         }
+        #endif
     }
 }
 

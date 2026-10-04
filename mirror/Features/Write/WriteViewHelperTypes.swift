@@ -1,9 +1,14 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import Photos
 import PhotosUI
 import UniformTypeIdentifiers
 
+#if os(iOS)
 struct NativePhotoPicker: UIViewControllerRepresentable {
     let onPicked: (Result<URL, Error>) -> Void
 
@@ -69,6 +74,7 @@ struct NativePhotoPicker: UIViewControllerRepresentable {
 }
 
 struct CameraPickerController: UIViewControllerRepresentable {
+    static var isAvailable: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
     let onPicked: (Result<URL, Error>) -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -113,6 +119,49 @@ struct CameraPickerController: UIViewControllerRepresentable {
         }
     }
 }
+#else
+/// macOS: an open panel instead of the photo-library sheet. Hands back a temp copy of the chosen
+/// image, the same contract as the iOS picker, then closes its sheet.
+struct NativePhotoPicker: View {
+    let onPicked: (Result<URL, Error>) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var opened = false
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .onAppear {
+                guard !opened else { return }
+                opened = true
+                DispatchQueue.main.async {
+                    let panel = NSOpenPanel()
+                    panel.allowedContentTypes = [.image]
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    if panel.runModal() == .OK, let url = panel.url {
+                        do {
+                            let tempURL = FileManager.default.temporaryDirectory
+                                .appendingPathComponent(UUID().uuidString)
+                                .appendingPathExtension(url.pathExtension.isEmpty ? "image" : url.pathExtension)
+                            try FileManager.default.copyItem(at: url, to: tempURL)
+                            onPicked(.success(tempURL))
+                        } catch {
+                            onPicked(.failure(error))
+                        }
+                    }
+                    dismiss()
+                }
+            }
+    }
+}
+
+/// macOS has no camera sheet; the entry point is hidden (`isAvailable` is false).
+struct CameraPickerController: View {
+    let onPicked: (Result<URL, Error>) -> Void
+    static var isAvailable: Bool { false }
+    var body: some View { EmptyView() }
+}
+#endif
 
 struct IdentifiableIndex: Identifiable {
     let id: Int

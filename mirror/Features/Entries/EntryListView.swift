@@ -6,6 +6,9 @@ private let moodLabels = MirrorTheme.moodOptions
 struct EntriesTabView: View {
     var navResetID: UUID = UUID()
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
+    /// macOS shows the reader beside the list instead of pushing it. When set, opening an
+    /// entry writes it here and the list never navigates.
+    var macSelection: Binding<Entry?>? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
@@ -26,6 +29,13 @@ struct EntriesTabView: View {
     // in .task, a separate transaction from the toggle site) animates only that
     // interaction — not every search keystroke, sort change, or tag edit.
     @State private var animatePinChange = false
+    #if os(macOS)
+    @State private var macShowCalendar = false
+    @FocusState private var macSearchFocused: Bool
+    @FocusState private var macListFocused: Bool
+    @State private var macPendingDelete: Entry?
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     private enum EntrySortOrder: String, CaseIterable {
         case newestFirst = "Newest First"
@@ -118,7 +128,17 @@ struct EntriesTabView: View {
             result = result.filter { $0.tags.contains(tag) }
         }
         if !query.isEmpty {
+            #if os(macOS)
+            // The Mac search box also matches #tags and mood names.
+            let bare = query.hasPrefix("#") ? String(query.dropFirst()) : query
+            result = result.filter {
+                $0.insightContext.localizedCaseInsensitiveContains(query)
+                    || $0.tags.contains { $0.localizedCaseInsensitiveContains(bare) }
+                    || ($0.mood.map { MirrorTheme.localizedMoodName(for: $0).localizedCaseInsensitiveContains(query) } ?? false)
+            }
+            #else
             result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
+            #endif
         }
 
         switch sortOrder {
@@ -212,17 +232,22 @@ struct EntriesTabView: View {
 
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
-        NavigationStack {
+        PlatformNavigationStack {
             Group {
                 if entries.isEmpty {
                     emptyState
                 } else {
                     // Always show the list (heatmap stays visible even when filters produce 0 results)
+                    #if os(macOS)
+                    macColumn(snapshot)
+                    #else
                     entryList(snapshot)
+                    #endif
                 }
             }
             .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
+            #if os(iOS)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     trailingToolbar
@@ -235,6 +260,7 @@ struct EntriesTabView: View {
                     if !snapshot.usedTags.isEmpty { tagFilterBar(snapshot.usedTags) }
                 }
             }
+            #endif
             .onChange(of: searchText) { _, newValue in
                 Task {
                     try? await Task.sleep(for: .milliseconds(250))
@@ -243,6 +269,8 @@ struct EntriesTabView: View {
                     }
                 }
             }
+            #if os(iOS)
+            // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
             .navigationDestination(isPresented: $showEntryDetail) {
                 if let selectedEntry {
                     EntryDetailView(entry: selectedEntry) {
@@ -251,10 +279,10 @@ struct EntriesTabView: View {
                     }
                 }
             }
+            #endif
             .sheet(isPresented: $showOnThisDay) {
                 OnThisDayView(entries: onThisDayMatches) { entry in
-                    selectedEntry = entry
-                    showEntryDetail = true
+                    open(entry)
                 }
             }
             .task(id: snapshotDeps) {
@@ -268,15 +296,24 @@ struct EntriesTabView: View {
                 }
                 animatePinChange = false
             }
+            #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorMacFocusSearch)) { _ in macSearchFocused = true }
+            #if DEBUG
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugEntriesState)) { note in
+                if let open = note.userInfo?["calendar"] as? Bool { macShowCalendar = open }
+                if let query = note.userInfo?["search"] as? String { searchText = query; debouncedSearchText = query }
+            }
+            #endif
+            #endif
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
                 selectedEntry = nil
+                macSelection?.wrappedValue = nil
             }
             .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
                 guard let id = newID,
                       let match = entries.first(where: { $0.id == id }) else { return }
-                selectedEntry = match
-                showEntryDetail = true
+                open(match)
                 deepLinkEntryID.wrappedValue = nil
             }
         }
@@ -493,18 +530,26 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
+    private func open(_ entry: Entry) {
+        if let macSelection {
+            macSelection.wrappedValue = entry
+        } else {
+            selectedEntry = entry
+            showEntryDetail = true
+        }
+    }
+
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
         EntryRow(entry: entry, rowPreview: preview)
             .contentShape(Rectangle())
             .onTapGesture {
-                selectedEntry = entry
-                showEntryDetail = true
+                open(entry)
             }
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     modelContext.delete(entry)
@@ -627,7 +672,9 @@ struct EntriesTabView: View {
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .contentMargins(.bottom, 96, for: .scrollContent)
+        #if os(iOS)
         .listSectionSpacing(4)
+        #endif
         .environment(\.defaultMinListHeaderHeight, 0)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
@@ -885,3 +932,344 @@ private struct EntryRow: View {
         return (Text("Untitled entry"), wordCount, hasReadablePreview, false)
     }
 }
+
+#if os(macOS)
+// MARK: - Mac list (the design's Entries column)
+
+extension Notification.Name {
+    /// Snapshot mode only: userInfo "calendar" (Bool) and "search" (String).
+    static let mirrorMacDebugEntriesState = Notification.Name("mirror.mac.debug.entriesState")
+    /// Go > Find in Entries: show Entries and focus the search field.
+    static let mirrorMacFocusSearch = Notification.Name("mirror.mac.focusSearch")
+}
+
+extension EntriesTabView {
+    private func macColumn(_ snapshot: EntryListSnapshot) -> some View {
+        VStack(spacing: 0) {
+            macHeader
+            macSearchField
+            macCalendarDisclosure
+            if macShowCalendar {
+                VStack(spacing: 8) {
+                    CalendarHeatmap(
+                        entries: entries,
+                        selectedDate: selectedDateFilter,
+                        onDaySelected: { date in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedDateFilter = date
+                                if date != nil { selectedMoodFilter = nil; selectedTagFilter = nil }
+                            }
+                        }
+                    )
+                    if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
+                        activeFiltersRow.padding(.horizontal, 16)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+
+            ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    if !snapshot.pinnedEntries.isEmpty {
+                        macSectionLabel("PINNED", icon: "pin", topPadding: 6)
+                        ForEach(snapshot.pinnedEntries) { entry in
+                            macRow(entry, snapshot: snapshot)
+                        }
+                    }
+                    if snapshot.filteredEntries.isEmpty {
+                        Text(emptyFilteredMessage)
+                            .font(.system(size: 13))
+                            .foregroundStyle(MacTokens.secondaryInk)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 32)
+                    }
+                    ForEach(snapshot.groupedByMonth, id: \.date) { group in
+                        macSectionLabel(monthTitle(for: group.date).uppercased(), icon: nil, topPadding: 14)
+                        ForEach(group.entries) { entry in
+                            macRow(entry, snapshot: snapshot)
+                        }
+                    }
+                }
+                .padding(.bottom, 16)
+            }
+            .modifier(MacNoScrollEdgeEffect())
+            // Keyboard: arrows move through the list, Return edits, Delete asks first.
+            .focusable()
+            .focusEffectDisabled()
+            .focused($macListFocused)
+            .onKeyPress(.upArrow) { macMoveSelection(-1, snapshot); return .handled }
+            .onKeyPress(.downArrow) { macMoveSelection(1, snapshot); return .handled }
+            .onKeyPress(.return) {
+                #if DEBUG
+                NSLog("EntryList return key")
+                #endif
+                guard macSelection?.wrappedValue != nil else { return .ignored }
+                NotificationCenter.default.post(name: .mirrorMacEditEntry, object: nil)
+                return .handled
+            }
+            .onDeleteCommand { _ = macAskToDeleteSelection() }
+            .onChange(of: macSelection?.wrappedValue?.id) { _, id in
+                if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
+            }
+            }
+            .confirmationDialog("Delete this entry?", isPresented: Binding(get: { macPendingDelete != nil }, set: { if !$0 { macPendingDelete = nil } }), titleVisibility: .visible) {
+                Button("Delete", role: .destructive) { macDeletePending(snapshot) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("It will be removed from this Mac and your other devices.")
+            }
+        }
+        .background(MirrorTheme.inkMid)
+        .overlay(alignment: .trailing) { Rectangle().fill(MacTokens.divider).frame(width: 1) }
+        // Arrow keys work as soon as the list is on screen.
+        .onAppear { macListFocused = true }
+    }
+
+    /// The rows in the order they are drawn: pinned first, then each month.
+    private func macOrderedEntries(_ snapshot: EntryListSnapshot) -> [Entry] {
+        var seen = Set<UUID>()
+        return (snapshot.pinnedEntries + snapshot.groupedByMonth.flatMap(\.entries)).filter { seen.insert($0.id).inserted }
+    }
+
+    private func macMoveSelection(_ step: Int, _ snapshot: EntryListSnapshot) {
+        let ordered = macOrderedEntries(snapshot)
+        guard !ordered.isEmpty else { return }
+        let current = macSelection?.wrappedValue.flatMap { selected in ordered.firstIndex { $0.id == selected.id } }
+        let next = current.map { min(max($0 + step, 0), ordered.count - 1) } ?? (step > 0 ? 0 : ordered.count - 1)
+        #if DEBUG
+        NSLog("EntryList key move: %@ -> %d of %d", current.map(String.init) ?? "none", next, ordered.count)
+        #endif
+        macSelection?.wrappedValue = ordered[next]
+    }
+
+    private func macAskToDeleteSelection() -> KeyPress.Result {
+        #if DEBUG
+        NSLog("EntryList delete key: selection %@", macSelection?.wrappedValue == nil ? "none" : "set")
+        #endif
+        guard let selected = macSelection?.wrappedValue else { return .ignored }
+        macPendingDelete = selected
+        return .handled
+    }
+
+    /// Deletes, then selects the neighbouring entry, the way Notes does.
+    private func macDeletePending(_ snapshot: EntryListSnapshot) {
+        guard let entry = macPendingDelete else { return }
+        let ordered = macOrderedEntries(snapshot)
+        let index = ordered.firstIndex { $0.id == entry.id }
+        let neighbour = index.flatMap { i in ordered.indices.contains(i + 1) ? ordered[i + 1] : (i > 0 ? ordered[i - 1] : nil) }
+        macSelection?.wrappedValue = neighbour
+        modelContext.delete(entry)
+        try? modelContext.save()
+        macPendingDelete = nil
+    }
+
+    fileprivate var macHeader: some View {
+        HStack(spacing: 8) {
+            Text("Entries")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(MacTokens.ink)
+            Text("\(entries.count)")
+                .font(.system(size: 12))
+                .foregroundStyle(MacTokens.secondaryInk)
+            Spacer(minLength: 0)
+            Button {
+                NotificationCenter.default.post(name: .mirrorMacNewEntry, object: nil)
+            } label: {
+                MacIcon(name: "pen", size: 17)
+                    .frame(width: 30, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(MacTokens.controlInk)
+            .accessibilityLabel("New entry")
+            .help("New entry")
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 14)
+        .frame(height: MacTokens.chromeHeight)
+        // The board has only the pen here; sort, filters and On This Day live in this menu.
+        .contextMenu {
+            Menu("Sort by") {
+                ForEach(EntrySortOrder.allCases, id: \.self) { order in
+                    Button {
+                        withAnimation { sortOrder = order }
+                    } label: {
+                        Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                    }
+                }
+            }
+            if !onThisDayMatches.isEmpty {
+                Button("On This Day") { showOnThisDay = true }
+            }
+            let moods = usedMoods(in: entries)
+            if !moods.isEmpty {
+                Menu("Show only mood") {
+                    ForEach(moods, id: \.self) { mood in
+                        Button(MirrorTheme.localizedMoodName(for: mood)) { selectedMoodFilter = mood; selectedTagFilter = nil }
+                    }
+                }
+            }
+            let tags = usedTags(in: entries)
+            if !tags.isEmpty {
+                Menu("Show only tag") {
+                    ForEach(tags, id: \.self) { tag in
+                        Button("#\(MirrorTheme.localizedTagName(for: tag))") { selectedTagFilter = tag; selectedMoodFilter = nil }
+                    }
+                }
+            }
+            if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
+                Button("Clear filters") {
+                    selectedDateFilter = nil; selectedMoodFilter = nil; selectedTagFilter = nil
+                }
+            }
+        }
+    }
+
+    fileprivate var macSearchField: some View {
+        HStack(spacing: 8) {
+            MacIcon(name: "search", size: 14)
+            TextField("Search entries", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(MacTokens.ink)
+                .focused($macSearchFocused)
+                .accessibilityLabel("Search entries")
+            Text("⌘F").font(.system(size: 11))
+        }
+        .foregroundStyle(MacTokens.secondaryInk)
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1) }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+    }
+
+    fileprivate var macCalendarDisclosure: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { macShowCalendar.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                MacIcon(name: "chevron", size: 11)
+                    .rotationEffect(.degrees(macShowCalendar ? 90 : 0))
+                Text("Calendar").font(.system(size: 12))
+            }
+            .foregroundStyle(MacTokens.secondaryInk)
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Calendar")
+        .accessibilityValue(macShowCalendar ? "Expanded" : "Collapsed")
+    }
+
+    fileprivate func macSectionLabel(_ title: String, icon: String?, topPadding: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            if let icon { MacIcon(name: icon, size: 11) }
+            Text(title)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .tracking(0.66)
+        .foregroundStyle(MacTokens.secondaryInk)
+        .padding(.horizontal, 16)
+        .padding(.top, topPadding)
+        .padding(.bottom, 6)
+    }
+
+    private func macRow(_ entry: Entry, snapshot: EntryListSnapshot) -> some View {
+        let isSelected = macSelection?.wrappedValue?.id == entry.id
+        return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: isSelected)
+            .padding(.horizontal, 8)
+            .onTapGesture { open(entry); macListFocused = true }
+            .contextMenu {
+                Button("Edit") {
+                    open(entry)
+                    DispatchQueue.main.async { NotificationCenter.default.post(name: .mirrorMacEditEntry, object: nil) }
+                }
+                Button("Open in New Window") { openWindow(id: "entry", value: entry.id) }
+                Divider()
+                Button(entry.isPinned ? "Unpin" : "Pin") {
+                    animatePinChange = true
+                    entry.isPinned.toggle()
+                    try? modelContext.save()
+                }
+                if let mood = entry.mood, !mood.isEmpty {
+                    Button("Show only \(MirrorTheme.localizedMoodName(for: mood))") { selectedMoodFilter = mood; selectedTagFilter = nil }
+                }
+                Divider()
+                Button("Share as text") {
+                    let day = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+                    presentShareSheet(items: ["\(day)\n\n\(entry.text)"])
+                }
+                Divider()
+                Button("Delete", role: .destructive) {
+                    // Clear the selection first so the reader never renders a deleted entry.
+                    if isSelected { macSelection?.wrappedValue = nil }
+                    modelContext.delete(entry)
+                    try? modelContext.save()
+                }
+            }
+    }
+}
+
+/// One row of the Mac list: date and word count, the first line, then mood and tags.
+private struct MacEntryRow: View {
+    let entry: Entry
+    let preview: EntriesTabView.EntryRowPreview?
+    let isSelected: Bool
+
+    private var mood: String? { preview?.moodLabel ?? entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
+    private var secondary: Color { isSelected ? MacTokens.selectedRowInk : MacTokens.secondaryInk }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(entry.createdAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                Spacer(minLength: 8)
+                if let count = preview?.wordCount, count > 0 {
+                    Text(count == 1 ? "1 word" : "\(count) words")
+                }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(secondary)
+
+            (preview?.preview ?? Text("Untitled entry"))
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(MacTokens.ink)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            if mood != nil || !entry.tags.isEmpty {
+                HStack(spacing: 6) {
+                    if let mood {
+                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
+                        Text(MirrorTheme.localizedMoodName(for: mood))
+                    }
+                    if let firstTag = entry.tags.first {
+                        Text("· #\(MirrorTheme.localizedTagName(for: firstTag))")
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(secondary)
+                .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isSelected ? MacTokens.selectedRowFill : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(MacTokens.selectedRowBorder, lineWidth: 1)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+#endif

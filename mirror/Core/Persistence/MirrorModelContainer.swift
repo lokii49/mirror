@@ -19,7 +19,13 @@ enum MirrorModelContainer {
     ])
 
     static var defaultConfiguration: ModelConfiguration {
-        ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+        #if DEBUG && os(macOS)
+        // Mac UI snapshot mode: throwaway in-memory store, no CloudKit.
+        if CommandLine.arguments.contains("--macSnapshot") {
+            return ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        }
+        #endif
+        return ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
     }
 
     static func open(_ configuration: ModelConfiguration = defaultConfiguration) -> Outcome {

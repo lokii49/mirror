@@ -1,6 +1,10 @@
 import Foundation
 import SwiftLlama
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 enum LocalLLMError: LocalizedError {
     case modelMissing(URL)
@@ -135,18 +139,19 @@ actor LocalLLMService {
         service = nil
     }
 
-    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: GemmaPlan = .samePrompt) async throws -> (text: String, engine: LLMEngine) {
-        // Prefer Apple's on-device Foundation Models (iOS 26+, Apple Intelligence devices):
-        // no bundled weights, no download, better instruction-following than Gemma 3 1B.
-        // Only fall through to Gemma on failure (guardrail rejection, model not ready, etc.)
-        // when a Gemma model actually exists locally — otherwise the fallback itself throws
-        // LocalLLMError.modelMissing, turning one real failure into a guaranteed second one.
+    func generate(systemPrompt: String, userMessage: String, task: LocalLLMTask, gemmaPlan: GemmaPlan = .samePrompt, allowFoundationModels: Bool = true) async throws -> (text: String, engine: LLMEngine) {
+        // A device with Apple Intelligence uses Apple's on-device Foundation Models (iOS 26+): no
+        // bundled weights, better instruction-following than Gemma 3 1B. Gemma does not answer
+        // there: a Foundation Models failure (guardrail refusal, exhausted context, any model
+        // error) is thrown to the caller, which shows its own honest fallback. The one exception
+        // is a language Foundation Models cannot work in (Russian today), where Gemma still runs
+        // if its model is installed. Devices without Apple Intelligence go straight to Gemma.
         #if DEBUG
         if let intercept = Self.generateInterceptForTesting {
             return try intercept(systemPrompt, userMessage, task, gemmaPlan)
         }
         #endif
-        if Self.prefersFoundationModels {
+        if allowFoundationModels, Self.prefersFoundationModels {
             do {
                 let text = try await FoundationModelEngine.generate(
                     systemPrompt: systemPrompt,
@@ -155,10 +160,10 @@ actor LocalLLMService {
                 )
                 return (text, .foundationModels)
             } catch {
-                guard Self.isGemmaModelAvailable else { throw error }
+                guard FoundationModelEngine.isUnsupportedLanguageError(error), Self.isGemmaModelAvailable else { throw error }
                 #if DEBUG
                 // Error type only — never prompt or entry content.
-                print("[llm] foundationModels failed (\(type(of: error))), falling back to gemma")
+                print("[llm] foundationModels cannot handle this language (\(type(of: error))), using gemma")
                 #endif
                 // Fall through to Gemma.
             }

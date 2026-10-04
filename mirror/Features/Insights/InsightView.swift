@@ -16,6 +16,13 @@ struct InsightView: View {
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
     @State private var pastDigestsExpanded = false
+    #if os(macOS)
+    /// Which of the two pages this view backs on Mac (the iOS Insights tab shows both).
+    var macPage: MacInsightPage = .today
+    @State private var macInspectorOpen = false
+    @State private var macToday: MacTodayContent? = nil
+    @State private var macPastRows: [MacPastRow] = []
+    #endif
 
     // weekMoodEvents/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
     // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
@@ -66,7 +73,7 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    var body: some View {
+    private var iosContent: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -139,6 +146,22 @@ struct InsightView: View {
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
         }
+    }
+
+    @ViewBuilder
+    private var platformContent: some View {
+        #if os(macOS)
+        switch macPage {
+        case .today: macTodayScreen
+        case .digest: macDigestScreen
+        }
+        #else
+        iosContent
+        #endif
+    }
+
+    var body: some View {
+        platformContent
         .onChange(of: showPaywall || showPaywallAfterFirstNudge || showSettings) { _, up in
             // These sheets live on this view, so ContentView (which owns the
             // mood check-in sheet) can't see them. Report up so a queued
@@ -555,8 +578,13 @@ struct InsightView: View {
         case .modelNotInstalled:
             ModelNotInstalledCard()
         case .groundingFallback(let insight):
-            GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
-                Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
+            if InsightService.isUnsupportedLanguageNotice(insight.content) {
+                // Retrying can't help: say which languages work, with no "Try Again".
+                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: insight.content)
+            } else {
+                GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
+                    Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
+                }
             }
         case .error(let message):
             ErrorCard(message: message) {
@@ -1323,7 +1351,8 @@ private struct GroundingFallbackCard: View {
     // String, and no key ever appeared for the new "Couldn't confirm this reflection" title.
     var title: LocalizedStringKey = "Couldn't confirm this digest"
     let message: String
-    let onRetry: () -> Void
+    /// nil: nothing a retry could change (a language with no reflections), so no button.
+    var onRetry: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1333,9 +1362,11 @@ private struct GroundingFallbackCard: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
-            Button("Try Again", action: onRetry)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
+            if let onRetry {
+                Button("Try Again", action: onRetry)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.primary)
+            }
         }
         .padding(20)
         .inkSurface(cornerRadius: 22)
@@ -1674,7 +1705,7 @@ private struct MoodWeekChartView: View {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
-                            Text(v == 1 ? "Low" : v == 3 ? "Mid" : "High")
+                            Text(v == 1 ? LocalizedStringKey("Low") : v == 3 ? LocalizedStringKey("Mid") : LocalizedStringKey("High"))
                                 .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
@@ -1724,3 +1755,500 @@ private struct ReflectedDayLabel: View {
             .foregroundStyle(MirrorTheme.textTertiary)
     }
 }
+
+#if os(macOS)
+// MARK: - Mac Today (the design's Insights board)
+
+enum MacInsightPage { case today, digest }
+
+/// The loaded daily reflection, decrypted and parsed once (not in `body`).
+private struct MacTodayContent: Equatable {
+    var id: PersistentIdentifier
+    var content: String
+    var parts: InsightService.GroundedNudgeParts?
+    var followUp: String?
+    var generatedAt: Date
+    /// True when the reflection came from the grammar-constrained Gemma path (its sentence is
+    /// a verbatim quote and the app's own fixed text follows it).
+    var isGrounded: Bool
+}
+
+private struct MacPastRow: Identifiable {
+    var id: PersistentIdentifier
+    var madeOn: Date
+    var aboutDay: Date?
+    var text: String
+}
+
+extension InsightView {
+    private var macLoadedNudge: Insight? {
+        if case .loaded(let insight) = viewModel.nudgeState { return insight }
+        return nil
+    }
+
+    fileprivate var macTodayScreen: some View {
+        GeometryReader { geo in
+            // Beside the column when the window is wide enough, over it when it is not.
+            let inspectorBesideColumn = geo.size.width >= 960
+            ZStack(alignment: .trailing) {
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        macTodayToolbar
+                        ScrollView {
+                            macTodayColumn
+                                .frame(maxWidth: 640, alignment: .leading)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 44)
+                                .padding(.bottom, 40)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .modifier(MacNoScrollEdgeEffect())
+                    }
+                    if macInspectorOpen, inspectorBesideColumn, let today = macToday {
+                        MacInsightInspector(today: today, entries: entries, onClose: nil)
+                            .frame(width: 300)
+                    }
+                }
+                if macInspectorOpen, !inspectorBesideColumn, let today = macToday {
+                    MacInsightInspector(today: today, entries: entries) {
+                        withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen = false }
+                    }
+                        .frame(width: 300)
+                        .shadow(color: .black.opacity(0.18), radius: 14, x: -4, y: 0)
+                        .transition(.move(edge: .trailing))
+                }
+            }
+        }
+        .background(MirrorTheme.bgBase)
+        .task(id: macLoadedNudge?.persistentModelID) { recomputeMacToday() }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugToggleInspector)) { note in
+            macInspectorOpen = note.userInfo?["open"] as? Bool ?? !macInspectorOpen
+        }
+        #endif
+        .task(id: insightCacheKey) { recomputeMacPast() }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
+        .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
+    }
+
+    private var macTodayToolbar: some View {
+        MacPageBar(title: "Today") {
+            MacBarToggle(icon: "panel-right", isOn: macInspectorOpen, label: "How this was generated", isDisabled: macToday == nil) {
+                withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen.toggle() }
+            }
+        }
+    }
+
+    // MARK: Weekly digest page
+
+    /// Weekly digest: this week's digest in every state the iOS tab has (loading, not enough
+    /// entries, upgrade, pending, fallback…) in the Today column, then earlier weeks.
+    fileprivate var macDigestScreen: some View {
+        VStack(spacing: 0) {
+            MacPageBar(title: "Weekly digest") {}
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    digestStatusContent
+                    if !pastDigests.isEmpty { pastDigestsSection }
+                }
+                .frame(maxWidth: 640, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 44)
+                .padding(.bottom, 40)
+                .frame(maxWidth: .infinity)
+            }
+            .modifier(MacNoScrollEdgeEffect())
+        }
+        .background(MirrorTheme.bgBase)
+        .onAppear {
+            // On its own page the digest opens in full and the archive is listed.
+            digestExpanded = true
+            pastDigestsExpanded = true
+        }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
+    }
+
+    @ViewBuilder
+    private var macTodayColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let today = macToday, case .loaded(let insight) = viewModel.nudgeState {
+                if let day = todayCardAboutDay(insight) {
+                    Text("From what you wrote on \(Self.macDayName(day))")
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .foregroundStyle(MacTokens.secondaryInk)
+                        .padding(.bottom, 14)
+                }
+                macTodayCard(today)
+            } else {
+                // Loading, needs more entries, upgrade, pending, no model, fallback and error
+                // states use the existing cards.
+                nudgeStatusContent
+            }
+
+            if !macPastRows.isEmpty, SubscriptionService.shared.isSubscribed {
+                Text("PAST REFLECTIONS")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .tracking(0.8)
+                    .foregroundStyle(MacTokens.secondaryInk)
+                    .padding(.top, 36)
+                    .padding(.bottom, 10)
+                VStack(spacing: 0) {
+                    ForEach(Array(macPastRows.enumerated()), id: \.element.id) { index, row in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(macPastLabel(row))
+                                .font(.system(size: 12))
+                                .foregroundStyle(MacTokens.secondaryInk)
+                            Text(Self.macCurlyQuotes(row.text))
+                                .font(.system(size: 15, design: .serif))
+                                .lineSpacing(3)
+                                .foregroundStyle(MacTokens.ink)
+                                .lineLimit(3)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 13)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if index < macPastRows.count - 1 {
+                            Rectangle().fill(MacTokens.divider).frame(height: 1)
+                        }
+                    }
+                }
+                .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+    }
+
+    /// Display only: the stored text keeps its straight quotes, the board shows curly ones.
+    fileprivate static func macCurlyQuotes(_ text: String) -> String {
+        guard let parts = InsightService.groundedNudgeParts(of: text),
+              let range = text.range(of: "\"" + parts.quote + "\"") else { return text }
+        return text.replacingCharacters(in: range, with: "\u{201C}" + parts.quote + "\u{201D}")
+    }
+
+    /// "Wed 30 Sep", without the locale's comma.
+    fileprivate static func macShortDate(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated)) + " " + date.formatted(.dateTime.day().month(.abbreviated))
+    }
+
+    /// The weekday for the last six days, the date beyond that.
+    fileprivate static func macDayName(_ day: Date) -> String {
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: day), to: Calendar.current.startOfDay(for: Date())).day ?? 99
+        return (0...6).contains(days) ? day.formatted(.dateTime.weekday(.wide)) : day.formatted(.dateTime.day().month(.abbreviated))
+    }
+
+    private func macPastLabel(_ row: MacPastRow) -> String {
+        let made = Self.macShortDate(row.madeOn)
+        if let about = row.aboutDay, !Calendar.current.isDate(about, inSameDayAs: row.madeOn) {
+            return String(localized: "Made \(made) · about \(Self.macShortDate(about))")
+        }
+        return String(localized: "Made \(made)")
+    }
+
+    private func macTodayCard(_ today: MacTodayContent) -> some View {
+        VStack(alignment: .leading, spacing: 22) {
+            macReflectionText(today)
+                .font(.system(size: 21, design: .serif))
+                .lineSpacing(8)
+                .foregroundStyle(MacTokens.ink)
+                .textSelection(.enabled)
+
+            if let question = today.followUp {
+                Button {
+                    NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": question + "\n"])
+                } label: {
+                    Text(question)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MacTokens.accentInk)
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .background(MirrorTheme.inkRaised, in: Capsule())
+                        .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Starts a new entry with this question")
+            }
+
+            VStack(spacing: 0) {
+                Rectangle().fill(MacTokens.divider).frame(height: 1)
+                HStack(spacing: 14) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen = true }
+                    } label: {
+                        Text("How this was generated")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(MacTokens.accentInk)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                    Text("Made at \(today.generatedAt.formatted(.dateTime.hour().minute()))")
+                        .font(.system(size: 12))
+                        .foregroundStyle(MacTokens.secondaryInk)
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, 14)
+            }
+        }
+        .padding(.horizontal, 30)
+        .padding(.vertical, 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+    }
+
+    /// The reflection with the user's own sentence highlighted. A reflection that isn't a
+    /// grounded quote (Foundation Models output, older text) is shown as plain text.
+    private func macReflectionText(_ today: MacTodayContent) -> Text {
+        guard today.isGrounded, let parts = today.parts, let range = today.content.range(of: parts.quote) else {
+            return Text(today.content)
+        }
+        let before = String(today.content[..<range.lowerBound])
+        let after = String(today.content[range.upperBound...])
+        guard before.hasSuffix(parts.open), after.hasPrefix(parts.close) else { return Text(today.content) }
+        let straight = parts.open == "\"" && parts.close == "\""
+        var text = AttributedString(String(before.dropLast(parts.open.count)))
+        var highlighted = AttributedString((straight ? "\u{201C}" : parts.open) + parts.quote + (straight ? "\u{201D}" : parts.close))
+        highlighted.backgroundColor = MacTokens.quoteHighlightUIColor
+        text += highlighted
+        text += AttributedString(String(after.dropFirst(parts.close.count)))
+        return Text(text)
+    }
+
+    // MARK: Caches
+
+    private func recomputeMacToday() {
+        guard let insight = macLoadedNudge else { macToday = nil; return }
+        let content = insight.content
+        let parts = InsightService.groundedNudgeParts(of: content)
+        let grounded = InsightService.isGrammarGrounded(content)
+        // The chip asks about another part of the entry the reflection quoted, not the quote again.
+        var followUp: String?
+        if grounded, let parts {
+            let window = entries.filter { $0.createdAt <= insight.generatedAt && $0.createdAt >= insight.generatedAt.addingTimeInterval(-14 * 86_400) }
+            if let source = InsightService.entryQuoting(parts.quote, in: window) {
+                followUp = InsightService.followUpQuestion(for: parts, sourceText: source.text)
+            }
+        }
+        macToday = MacTodayContent(
+            id: insight.persistentModelID,
+            content: content,
+            parts: parts,
+            followUp: followUp,
+            generatedAt: insight.generatedAt,
+            isGrounded: grounded && parts != nil
+        )
+    }
+
+    private func recomputeMacPast() {
+        // Not read from `pastNudges`: that cache is filled by a sibling task that may not have run yet.
+        let past = Self.pastDailyReflections(from: insights, entriesNewestFirst: entries)
+        let todayID = DateHelpers.dayIdentifier(for: Date())
+        var onCard = Set<PersistentIdentifier>()
+        if let loaded = macLoadedNudge { onCard.insert(loaded.persistentModelID) }
+        if let newestToday = past.rows.first(where: { $0.periodIdentifier == todayID }) { onCard.insert(newestToday.persistentModelID) }
+        macPastRows = past.rows.filter { !onCard.contains($0.persistentModelID) }.prefix(14).map { insight in
+            MacPastRow(
+                id: insight.persistentModelID,
+                madeOn: insight.generatedAt,
+                aboutDay: past.reflectedDays[insight.persistentModelID],
+                text: insight.content
+            )
+        }
+    }
+}
+
+extension MacTokens {
+    static var quoteHighlightUIColor: Color { quoteHighlight }
+}
+
+/// The right-hand panel: how today's reflection was made, in the board's three blocks. It names
+/// no engine (the app never shows which model ran) and says what the app, not the model, wrote.
+private struct MacInsightInspector: View {
+    let today: MacTodayContent
+    let entries: [Entry]
+    /// Set when the panel floats over the column and so covers the toolbar's toggle.
+    let onClose: (() -> Void)?
+    @State private var basedOn: BasedOn?
+
+    struct BasedOn {
+        var label: String
+        var entryCount: Int
+        var wordCount: Int
+        var entryID: UUID?
+    }
+
+    private var authorship: InsightService.GroundedRestAuthorship? {
+        guard today.isGrounded, let parts = today.parts else { return nil }
+        return InsightService.groundedRestAuthorship(parts)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("How this was generated")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(MacTokens.ink)
+                Spacer()
+                if let onClose {
+                    Button(action: onClose) {
+                        MacIcon(name: "panel-right", size: 17)
+                            .frame(width: 34, height: 28)
+                            .background(MacTokens.toggleActiveFill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(MacTokens.accentInk)
+                    .accessibilityLabel("Close")
+                }
+            }
+            .padding(.horizontal, 18)
+            .frame(height: MacTokens.chromeHeight)
+            .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if today.isGrounded, let parts = today.parts {
+                        block(title: "YOUR SENTENCE") {
+                            Text("\u{201C}\(parts.quote)\u{201D}")
+                                .font(.system(size: 15, design: .serif))
+                                .lineSpacing(3)
+                                .foregroundStyle(MacTokens.ink)
+                                .padding(.horizontal, 14).padding(.vertical, 12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(MacTokens.quoteHighlight, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            caption("Copied word for word from your entry. The app never rewrites it.")
+                        }
+                        if let authorship {
+                            if let model = authorship.modelText {
+                                block(title: "WHAT THE MODEL WROTE") {
+                                    card(model)
+                                    caption("One feeling sentence from the on-device model, written after reading your sentence.")
+                                }
+                            }
+                            if let app = authorship.appText {
+                                block(title: "ADDED BY THE APP") {
+                                    card(app)
+                                    caption(authorship.modelText == nil
+                                            ? "Fixed text MirrorNotes picks by mood. The model only chose your sentence."
+                                            : "A fixed line MirrorNotes adds on difficult days. The model didn't write it.")
+                                }
+                            }
+                        }
+                    } else {
+                        block(title: "WRITTEN BY") {
+                            card(String(localized: "The on-device model"))
+                            caption("Written from your recent entries. Nothing was sent anywhere.")
+                        }
+                    }
+
+                    if let basedOn {
+                        block(title: "BASED ON") {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(basedOn.label)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(MacTokens.ink)
+                                    Text(basedOn.entryCount == 1
+                                         ? String(localized: "1 entry · \(basedOn.wordCount) words")
+                                         : String(localized: "\(basedOn.entryCount) entries · \(basedOn.wordCount) words"))
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(MacTokens.secondaryInk)
+                                }
+                                Spacer(minLength: 8)
+                                if let id = basedOn.entryID {
+                                    Button {
+                                        NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
+                                    } label: {
+                                        Text("Open")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(MacTokens.accentInk)
+                                            .padding(.horizontal, 12)
+                                            .frame(height: 26)
+                                            .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                            .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 12)
+                            .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+                        }
+                    }
+
+                    HStack(alignment: .top, spacing: 8) {
+                        MacIcon(name: "lock", size: 14).padding(.top, 2)
+                        Text("This ran on your Mac. Your entry text did not leave it.")
+                            .font(.system(size: 12))
+                            .lineSpacing(2)
+                    }
+                    .foregroundStyle(MacTokens.secondaryInk)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 20)
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .background(MirrorTheme.inkRaised)
+        .overlay(alignment: .leading) { Rectangle().fill(MacTokens.divider).frame(width: 1) }
+        .task(id: today.id) { basedOn = resolveBasedOn() }
+    }
+
+    private func block<Content: View>(title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.66)
+                .foregroundStyle(MacTokens.secondaryInk)
+            content()
+        }
+    }
+
+    private func card(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .lineSpacing(2)
+            .foregroundStyle(MacTokens.ink)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+    }
+
+    private func caption(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 12.5))
+            .lineSpacing(2)
+            .foregroundStyle(MacTokens.controlInk)
+    }
+
+    /// The entries the reflection was made from: the same recent set `dailyNudgeContext` hands the
+    /// generator (the newest few within 14 days of when it was made). Only that window is read,
+    /// never the whole library.
+    private func resolveBasedOn() -> BasedOn? {
+        let asOf = today.generatedAt
+        let floor = asOf.addingTimeInterval(-14 * 86_400)
+        let readable = entries
+            .filter { $0.createdAt <= asOf && $0.createdAt >= floor }
+            .sorted { $0.createdAt > $1.createdAt }
+            .lazy.filter(InsightService.hasReadableContext)
+        let recent = InsightService.dailyNudgeContext(from: Array(readable.prefix(3)), asOf: asOf).recent
+        guard let newest = recent.first else { return nil }
+        let quoted = today.parts.flatMap { parts in InsightService.entryQuoting(parts.quote, in: recent) }
+        let oldest = recent.last ?? newest
+        let from = Calendar.current.startOfDay(for: oldest.createdAt)
+        let to = Calendar.current.startOfDay(for: (quoted ?? newest).createdAt)
+        let label = Calendar.current.isDate(from, inSameDayAs: newest.createdAt)
+            ? InsightView.macShortDate(to)
+            : InsightView.macShortDate(from) + " – " + InsightView.macShortDate(newest.createdAt)
+        return BasedOn(
+            label: label,
+            entryCount: recent.count,
+            wordCount: recent.reduce(0) { $0 + $1.wordCount },
+            entryID: (quoted ?? newest).id
+        )
+    }
+}
+#endif

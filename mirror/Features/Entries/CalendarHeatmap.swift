@@ -579,7 +579,7 @@ struct CalendarHeatmap: View {
                 .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
 
             Rectangle()
-                .fill(Color(.separator).opacity(0.35))
+                .fill(Color.platformSeparator.opacity(0.35))
                 .frame(width: 1, height: 44)
         }
         .padding(.horizontal, 7)
@@ -658,6 +658,9 @@ struct CalendarHeatmap: View {
                 .padding(.top, 2)
                 .padding(.bottom, 2)
             }
+            // A horizontal ScrollView takes all the height it is offered; the grid is the month
+            // label row plus seven rows of cells, so that is the height it gets.
+            .frame(height: 14 + CGFloat(7) * (cellSize + cellGap) + 8)
             .onAppear {
                 if let last = weeks.last {
                     proxy.scrollTo(last.id, anchor: .trailing)
@@ -723,12 +726,25 @@ struct CalendarHeatmap: View {
 
     // MARK: - Individual day cell (Year view)
 
+    /// A day with no entries still shows as a faint box. On Mac the list column behind the grid is
+    /// the same colour as `inkMid`, which would make those boxes vanish, so they get their own fill;
+    /// the padding cells before the first day stay empty.
+    private func yearFill(for date: Date?) -> Color {
+        #if os(macOS)
+        guard let date else { return .clear }
+        if dayCache[date] == nil {
+            return MacTokens.controlBorder.opacity(date > today ? 0.5 : 1)
+        }
+        #endif
+        return color(for: date)
+    }
+
     private func cell(for date: Date?) -> some View {
         let isSelected = date.map { cal.isDate($0, inSameDayAs: selectedDate ?? .distantPast) } ?? false
         let isToday = date.map { cal.isDateInToday($0) } ?? false
 
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(color(for: date))
+            .fill(yearFill(for: date))
             .frame(width: cellSize, height: cellSize)
             .overlay {
                 if isToday || isSelected {

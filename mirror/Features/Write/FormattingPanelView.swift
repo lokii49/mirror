@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Highlight swatches for the formatting panel and the editor's rendered
 /// highlight attribute. Each entry is a light/dark-adaptive `Color`
