@@ -17,9 +17,9 @@ struct NotBackedUpBanner: View {
 
     private var message: LocalizedStringKey {
         #if os(macOS)
-        "Your latest changes are only on this Mac. Keep mirror open while online until this clears, and don't turn off iCloud for mirror or sign out of iCloud before then: that erases this Mac's copy."
+        "Your latest changes are only on this Mac. Keep MirrorNotes open while online until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy."
         #else
-        "Your latest changes are only on this device. Keep mirror open on Wi-Fi until this clears, and don't turn off iCloud for mirror or sign out of iCloud before then: that erases this device's copy."
+        "Your latest changes are only on this device. Keep MirrorNotes open on Wi-Fi until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy."
         #endif
     }
 }

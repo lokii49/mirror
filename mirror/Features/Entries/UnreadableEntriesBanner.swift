@@ -106,9 +106,9 @@ struct UnreadableEntriesBanner: View {
 
     private var guidance: LocalizedStringKey {
         #if os(macOS)
-        "If you just installed mirror, they may still be syncing. If this doesn't clear in a few minutes, turn on Passwords & Keychain in System Settings → your name → iCloud on this Mac and on the device where you wrote them."
+        "If you just installed MirrorNotes, they may still be syncing. If this doesn't clear in a few minutes, turn on Passwords & Keychain in System Settings → your name → iCloud on this Mac and on the device where you wrote them."
         #else
-        "If you just installed mirror, they may still be syncing. If this doesn't clear in a few minutes, turn on Passwords & Keychain in Settings → your name → iCloud on this device and on the one where you wrote them."
+        "If you just installed MirrorNotes, they may still be syncing. If this doesn't clear in a few minutes, turn on Passwords & Keychain in Settings → your name → iCloud on this device and on the one where you wrote them."
         #endif
     }
 }
