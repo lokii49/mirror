@@ -774,6 +774,9 @@ enum InsightService {
             if let safe = structured.safeQuote,
                let text = fixedLineNudge(quote: safe.quote, sourceIndex: safe.sourceIndex, source: nudgeSource, recentNudges: recentNudges) {
                 return (text, .foundationModels, false)
+            } else if structured.refusals == structuredNudgeAttempts,
+                      let text = refusedDayNudge(source: nudgeSource, recentNudges: recentNudges) {
+                return (text, .foundationModels, false)
             } else {
                 return (dailyNudgeUngroundedFallback, .foundationModels, true)
             }
@@ -971,6 +974,8 @@ enum InsightService {
         var text: String?
         /// A quote an attempt did find in today's entries, for `fixedLineNudge` when no insight passed.
         var safeQuote: (quote: String, sourceIndex: Int)?
+        /// Attempts Foundation Models refused for safety (see `refusedDayNudge`).
+        var refusals = 0
     }
 
     static func structuredFMNudge(
@@ -1004,6 +1009,7 @@ enum InsightService {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                if FoundationModelEngine.isSafetyRefusal(error) { result.refusals += 1 }
                 #if DEBUG
                 // Error type only, never prompt or entry content.
                 print("[nudge] structured attempt \(attempt) failed (\(type(of: error)))")
@@ -1123,10 +1129,20 @@ enum InsightService {
         .good: "You seem to be in a good place today.",
     ]
 
-    static func fixedLineNudge(quote: String, sourceIndex: Int, source: [Entry], recentNudges: [String], on date: Date = Date()) -> String? {
+    /// When Foundation Models refused every attempt for safety (a hospital, clinic or funeral day:
+    /// round 11), no model text exists. The app shows the day's first quotable sentence and the
+    /// fixed mood line, and no tip: a breathing or walk suggestion next to an ICU or funeral entry
+    /// reads as tone-deaf. nil (honest card) when there's no mood line for the entry's mood.
+    static func refusedDayNudge(source: [Entry], recentNudges: [String]) -> String? {
+        guard let quote = groundedNudgeQuoteOptions(from: source, excludingQuotesIn: recentNudges).first,
+              let index = source.firstIndex(where: { groundedQuoteCandidates(of: $0).contains(quote) }) else { return nil }
+        return fixedLineNudge(quote: quote, sourceIndex: index, source: source, recentNudges: recentNudges, includeTip: false)
+    }
+
+    static func fixedLineNudge(quote: String, sourceIndex: Int, source: [Entry], recentNudges: [String], on date: Date = Date(), includeTip: Bool = true) -> String? {
         guard source.indices.contains(sourceIndex), let mood = source[sourceIndex].mood,
               let line = groundedNudgeMoodLines[GroundedMoodBucket(mood: mood)] else { return nil }
-        let tip = groundedNudgeTip(forMood: mood, on: date)
+        let tip = includeTip ? groundedNudgeTip(forMood: mood, on: date) : nil
         return nextGroundedNudgeOpener(after: recentNudges) + quote + "\" " + line + (tip.map { " " + $0 } ?? "")
     }
 

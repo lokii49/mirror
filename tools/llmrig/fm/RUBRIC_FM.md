@@ -314,3 +314,17 @@ Scoring: shuffled blind sheet of V1f's shown outputs (`score_tools.py sheet`), s
   fixed-line fallback or the honest card. Follow-up for the 3.0.9 roadmap.
 - Decision: lengthen the English reflection with the app-picked second quote instead (`secondGroundedQuote`), which
   adds the person's own words and no model text.
+
+## Round 11: why a hospital day gets no reflection (diagnostic, 2026-10-04) + app-side fallback
+Probe (`hold3_hospital` prompt, shipped V1e guide, N = 4-6 per variant, macOS CLI and the iOS app path on the simulator):
+- Swapping only the place word: "hospital", "clinic", "doctor's office", "ICU", "cancer ward", "funeral home",
+  "therapist's office", "police station", "court", "rehab center" were declined 4/4 each; "office", "ER", "vet",
+  "dentist" went through 4/4. Removing "Grandma" or "couldn't eat" changed nothing. The setting, not the person, triggers it.
+- `SystemLanguageModel(guardrails: .permissiveContentTransformations)` did not help with guided generation (6/6 declined).
+- In the app the decline arrives as `LanguageModelError.refusal` ("May contain sensitive content", code 3 on iOS 27), not
+  `.guardrailViolation`; both now count (`FoundationModelEngine.isSafetyRefusal`).
+No prompt can fix a decline on the input itself, so the fix is app-side and model-free (no ship gate applies to the
+model): when all 3 structured attempts are declined, `InsightService.refusedDayNudge` shows the day's first quotable
+sentence and the fixed mood line, with no tip (a breathing/walk tip next to an ICU or funeral entry reads as tone-deaf);
+no mood line for the mood -> the honest card as before. Real FM end to end: `RealFMNudgeTests.realFoundationModelsRefusedHospitalDayGetsTheFixedLine`.
+Digest, monthly report and Ask on FM still end at their honest cards when declined: not addressed here.
