@@ -175,8 +175,11 @@ struct ArchiveSettingsView: View {
 
     private func deleteAllData() {
         if let all = try? modelContext.fetch(FetchDescriptor<Entry>()) {
-            // Synced marker so other devices' on-device backups never offer these back.
+            // Synced marker so other devices' on-device backups never offer these back. Saved
+            // on its own, before the deletes: exports follow save order, so another device
+            // gets the marker before (or with) the deletes and never offers them back.
             modelContext.insert(JournalErasure(erasedEntryIDs: all.map(\.id)))
+            try? modelContext.save()
             all.forEach { modelContext.delete($0) }
         }
         if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {

@@ -36,12 +36,17 @@ final class JournalSafety {
     private(set) var lastLocalSave: Date? = UserDefaults.standard.object(forKey: JournalSafety.lastLocalSaveKey) as? Date
     private(set) var lastExportSucceededStart: Date? = UserDefaults.standard.object(forKey: JournalSafety.lastExportKey) as? Date
     private(set) var lastExportFailed = false
+    /// Set the first time any CloudKit event arrives, ever. Until then the "not backed up"
+    /// banner stays silent: if the event stream never fires under SwiftData, the banner
+    /// must never show rather than always show.
+    private(set) var hasSeenCloudKitEvent = UserDefaults.standard.bool(forKey: JournalSafety.seenEventKey)
     private(set) var importSucceededThisLaunch = false
     private(set) var restoreOffer: RestoreOffer? = nil
     private(set) var isRestoring = false
 
     private static let lastLocalSaveKey = "mirror.journalSafety.lastLocalSave"
     private static let lastExportKey = "mirror.journalSafety.lastExportSucceededStart"
+    private static let seenEventKey = "mirror.journalSafety.hasSeenCloudKitEvent"
     /// Restore waits this long for a successful import before offering anyway (an import
     /// that never succeeds — offline, quota, schema — must not hide the offer forever).
     private static let importGrace: TimeInterval = 180
@@ -65,7 +70,7 @@ final class JournalSafety {
     /// either the last upload failed or they've waited long enough not to be a normal
     /// in-flight upload. `now` comes from the view's TimelineView.
     func showsNotBackedUp(now: Date) -> Bool {
-        guard accountAvailable == true, hasPendingChanges, let lastLocalSave else { return false }
+        guard hasSeenCloudKitEvent, accountAvailable == true, hasPendingChanges, let lastLocalSave else { return false }
         return lastExportFailed || now.timeIntervalSince(lastLocalSave) > 120
     }
 
@@ -154,6 +159,10 @@ final class JournalSafety {
     }
 
     private func handleEvent(type: NSPersistentCloudKitContainer.EventType, succeeded: Bool, startDate: Date, ended: Bool) {
+        if !hasSeenCloudKitEvent {
+            hasSeenCloudKitEvent = true
+            UserDefaults.standard.set(true, forKey: Self.seenEventKey)
+        }
         guard ended else { return }
         switch type {
         case .export:

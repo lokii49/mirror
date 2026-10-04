@@ -97,6 +97,30 @@ struct LocalJournalBackupTests {
         #expect(LocalJournalBackup.loadState(defaults) == LocalJournalBackup.State())
     }
 
+    /// Restored rows are tracked by PersistentIdentifier saved as JSON in UserDefaults; the
+    /// decoded ID must still match the row after a relaunch (a new container on the same
+    /// file), or reconcileRestoredCopies would treat every restored row as user-deleted.
+    @Test @MainActor func persistentIdentifierSurvivesJSONAndRelaunch() throws {
+        let dir = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let storeURL = dir.appendingPathComponent("journal.store")
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, url: storeURL, cloudKitDatabase: .none)
+
+        let encoded: Data = try {
+            let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+            let entry = Entry(text: "")
+            container.mainContext.insert(entry)
+            try container.mainContext.save()
+            return try JSONEncoder().encode([entry.persistentModelID])
+        }()
+
+        let decoded = try JSONDecoder().decode([PersistentIdentifier].self, from: encoded)
+        let relaunched = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let live = try relaunched.mainContext.fetch(FetchDescriptor<Entry>()).map(\.persistentModelID)
+        #expect(decoded.count == 1)
+        #expect(live.contains(decoded[0]))
+    }
+
     // MARK: - Restore copies every stored property
 
     @Test func entryCopyCoversEveryStoredProperty() throws {
