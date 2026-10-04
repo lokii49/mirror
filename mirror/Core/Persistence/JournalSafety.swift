@@ -21,8 +21,9 @@ import UIKit
 /// "missing" means "not in iCloud either" and re-downloads rarely collide with restores.
 /// Rows it inserts are remembered; if CloudKit later delivers an original with the same `id`,
 /// only this device removes only its own copy (`reconcileRestoredCopies`). Removing
-/// duplicates on every device could delete both copies. Entries listed in a synced
-/// `JournalErasure` ("Delete Everything" on any device) are never offered or restored.
+/// duplicates on every device could delete both copies. Entries and check-ins
+/// listed in a synced `JournalErasure` ("Delete Everything" on any device) are never
+/// offered or restored.
 @MainActor @Observable
 final class JournalSafety {
     static let shared = JournalSafety()
@@ -220,7 +221,8 @@ final class JournalSafety {
         // Entries a "Delete Everything" (on any device) erased are never offered back.
         let erased = JournalErasure.allErasedEntryIDs(in: container.mainContext)
         let entries = backupIDs.entries.subtracting(journalEntryIDs).subtracting(erased).count
-        let checkIns = backupIDs.checkIns.subtracting(journalCheckInIDs).count
+        let checkIns = backupIDs.checkIns.subtracting(journalCheckInIDs)
+            .subtracting(JournalErasure.allErasedCheckInIDs(in: container.mainContext)).count
         if entries == 0 && checkIns == 0 {
             // Everything came back (re-download finished): nothing to offer, resume snapshots.
             LocalJournalBackup.unfreeze()
@@ -388,6 +390,7 @@ final class JournalSafety {
         let entryIDs = try Self.ids(of: Entry.self, \.id, in: context)
             .union(JournalErasure.allErasedEntryIDs(in: context))
         let checkInIDs = try Self.ids(of: MoodCheckIn.self, \.id, in: context)
+            .union(JournalErasure.allErasedCheckInIDs(in: context))
         let entries = try backup.fetch(FetchDescriptor<Entry>()).filter { !entryIDs.contains($0.id) }
         let checkIns = try backup.fetch(FetchDescriptor<MoodCheckIn>()).filter { !checkInIDs.contains($0.id) }
         return (entries, checkIns)

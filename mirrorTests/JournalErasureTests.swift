@@ -12,6 +12,16 @@ struct JournalErasureTests {
         #expect(erasure.erasedEntryIDs == Set(ids))
     }
 
+    @Test @MainActor func checkInIDsAreRecordedSeparately() throws {
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let entry = UUID(), checkIn = UUID()
+        container.mainContext.insert(JournalErasure(erasedEntryIDs: [entry], erasedCheckInIDs: [checkIn]))
+        try container.mainContext.save()
+        #expect(JournalErasure.allErasedEntryIDs(in: container.mainContext) == [entry])
+        #expect(JournalErasure.allErasedCheckInIDs(in: container.mainContext) == [checkIn])
+    }
+
     @Test func emptyOrTruncatedStorageDecodesSafely() {
         #expect(JournalErasure.decode(nil).isEmpty)
         #expect(JournalErasure.decode(Data(repeating: 1, count: 15)).isEmpty)

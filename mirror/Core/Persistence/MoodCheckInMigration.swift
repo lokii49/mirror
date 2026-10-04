@@ -48,6 +48,13 @@ enum MoodCheckInMigration {
         }
     }
 
+    /// "Delete Everything": drop the pre-2.0.9 blob too, and keep the flag set so it can't be
+    /// re-imported. The blob is otherwise never deleted (see the type's doc comment).
+    static func eraseLegacyRecords() {
+        UserDefaults.standard.removeObject(forKey: legacyKey)
+        UserDefaults.standard.set(true, forKey: flag)
+    }
+
     private static func legacyRecords() -> [LegacyRecord] {
         guard let encrypted = UserDefaults.standard.string(forKey: legacyKey),
               let json = MirrorEncryption.decryptOptionalStringValue(encrypted),

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// Synced record of a "Delete Everything": which entries were erased, so no device's
+/// Synced record of a "Delete Everything": which entries and mood check-ins were erased, so no device's
 /// on-device backup (`LocalJournalBackup`) offers them back.
 ///
 /// Without it, the deletes sync to the other devices, their stores collapse, their backups
@@ -9,7 +9,7 @@ import SwiftData
 /// deleted. Erased IDs rather than a timestamp: entries can be backdated, and device clocks
 /// differ, so "created before the erase" would misjudge both ways.
 ///
-/// Holds entry UUIDs only (already plaintext in CloudKit as `Entry.id`), never content.
+/// Holds UUIDs only (already plaintext in CloudKit as `Entry.id` / `MoodCheckIn.id`), never content.
 /// Synced via CloudKit — a new record type (`CD_JournalErasure`) that must be deployed to
 /// the Production schema before any build that writes it ships.
 @Model final class JournalErasure {
@@ -17,14 +17,20 @@ import SwiftData
     var erasedAt: Date = Date()
     /// Concatenated 16-byte UUIDs; ~160 KB for 10,000 entries (CKRecord limit is 1 MB).
     var erasedEntryIDsStorage: Data? = nil
+    var erasedCheckInIDsStorage: Data? = nil
 
-    init(erasedAt: Date = Date(), erasedEntryIDs: [UUID]) {
+    init(erasedAt: Date = Date(), erasedEntryIDs: [UUID], erasedCheckInIDs: [UUID] = []) {
         self.erasedAt = erasedAt
         self.erasedEntryIDsStorage = Self.encode(erasedEntryIDs)
+        self.erasedCheckInIDsStorage = Self.encode(erasedCheckInIDs)
     }
 
     var erasedEntryIDs: Set<UUID> {
         Self.decode(erasedEntryIDsStorage)
+    }
+
+    var erasedCheckInIDs: Set<UUID> {
+        Self.decode(erasedCheckInIDsStorage)
     }
 
     static func encode(_ ids: [UUID]) -> Data {
@@ -48,5 +54,12 @@ import SwiftData
     static func allErasedEntryIDs(in context: ModelContext) -> Set<UUID> {
         let erasures = (try? context.fetch(FetchDescriptor<JournalErasure>())) ?? []
         return erasures.reduce(into: Set<UUID>()) { $0.formUnion($1.erasedEntryIDs) }
+    }
+
+    /// Every mood check-in ID erased by any "Delete Everything" on any device.
+    @MainActor
+    static func allErasedCheckInIDs(in context: ModelContext) -> Set<UUID> {
+        let erasures = (try? context.fetch(FetchDescriptor<JournalErasure>())) ?? []
+        return erasures.reduce(into: Set<UUID>()) { $0.formUnion($1.erasedCheckInIDs) }
     }
 }
