@@ -175,11 +175,16 @@ struct InsightSignalSource: View {
                 let endsWithLocalizedLine = InsightService.groundedLocales.values.contains { loc in
                     loc.feel.values.joined().contains { insight.content.hasSuffix($0) }
                 }
-                let note = endsWithLocalizedLine
+                let base = endsWithLocalizedLine
                     ? quotedNote + " Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote."
                     : endsWithFixedTip
                     ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
                     : quotedNote
+                // 3.0.9: an English reflection may end with a second sentence of theirs the app picked.
+                let hasAlso = InsightService.groundedNudgeParts(of: insight.content)?.alsoQuote != nil
+                let note = hasAlso
+                    ? base + " The sentence after \u{201C}You also wrote\u{201D} is another one of yours, copied word for word; the app picked it, not the model."
+                    : base
                 return Resolved(rows: rows, reading: Self.readingList(source), note: note)
             }
             let background = backgroundEntries.count

@@ -15,9 +15,36 @@ extension InsightService {
         /// The quote marks the text uses around `quote` (a straight pair in English).
         var open: String
         var close: String
+        /// A second sentence from the same entry the app added after the reflection
+        /// (`You also wrote, "…"`, English only, since 3.0.9). Not part of `rest`.
+        var alsoQuote: String? = nil
+    }
+
+    /// Marks the app-added second quote in an English reflection: `… You also wrote, "<sentence>"`.
+    static let groundedAlsoMarker = " You also wrote, \""
+
+    /// Splits off the app-added second quote. `main` is the reflection as it was before it was added
+    /// (quote + line after it), `tail` is whatever follows the second quote (the fixed tip on hard days).
+    /// The second quote never contains a double quote (`secondGroundedQuote` skips those sentences), so
+    /// the first `"` after the marker closes it.
+    static func splittingAlsoQuote(_ text: String) -> (main: String, also: String?, tail: String) {
+        guard let marker = text.range(of: groundedAlsoMarker, options: .backwards) else { return (text, nil, "") }
+        let after = text[marker.upperBound...]
+        guard let close = after.firstIndex(of: "\"") else { return (text, nil, "") }
+        let also = String(after[..<close])
+        guard !also.isEmpty else { return (text, nil, "") }
+        let tail = after[after.index(after: close)...].trimmingCharacters(in: .whitespaces)
+        return (String(text[..<marker.lowerBound]), also, tail)
     }
 
     static func groundedNudgeParts(of text: String) -> GroundedNudgeParts? {
+        let split = splittingAlsoQuote(text)
+        if let also = split.also {
+            let rejoined = split.tail.isEmpty ? split.main : split.main + " " + split.tail
+            guard var parts = groundedNudgeParts(of: rejoined), parts.languageCode == "en" else { return nil }
+            parts.alsoQuote = also
+            return parts
+        }
         var shapes: [(opening: String, closer: String, code: String, open: String, close: String)] =
             groundedNudgeOpeners.map { ($0, "\" ", "en", "\"", "\"") }
         shapes += groundedLocales.map { ($0.value.youWrote + $0.value.open, $0.value.close + $0.value.joiner, $0.key, $0.value.open, $0.value.close) }
@@ -65,8 +92,9 @@ extension InsightService {
     /// that is not the quote itself, in the quote's own language. No model call. nil when the
     /// entry has nothing else quotable.
     static func followUpQuestion(for parts: GroundedNudgeParts, sourceText: String) -> String? {
+        let quoted = [parts.quote] + (parts.alsoQuote.map { [$0] } ?? [])
         let others = followUpPhraseCandidates(in: sourceText).filter { phrase in
-            !phrase.contains(parts.quote) && !parts.quote.contains(phrase)
+            quoted.allSatisfy { !phrase.contains($0) && !$0.contains(phrase) }
         }
         guard let phrase = others.last else { return nil }
         if parts.languageCode == "en" {

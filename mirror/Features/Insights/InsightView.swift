@@ -1925,7 +1925,11 @@ extension InsightView {
     fileprivate static func macCurlyQuotes(_ text: String) -> String {
         guard let parts = InsightService.groundedNudgeParts(of: text),
               let range = text.range(of: "\"" + parts.quote + "\"") else { return text }
-        return text.replacingCharacters(in: range, with: "\u{201C}" + parts.quote + "\u{201D}")
+        var curled = text.replacingCharacters(in: range, with: "\u{201C}" + parts.quote + "\u{201D}")
+        if let also = parts.alsoQuote, let alsoRange = curled.range(of: "\"" + also + "\"", options: .backwards) {
+            curled.replaceSubrange(alsoRange, with: "\u{201C}" + also + "\u{201D}")
+        }
+        return curled
     }
 
     /// "Wed 30 Sep", without the locale's comma.
@@ -2119,6 +2123,12 @@ private struct MacInsightInspector: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(MacTokens.quoteHighlight, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             caption("Copied word for word from your entry. The app never rewrites it.")
+                        }
+                        if let also = parts.alsoQuote {
+                            block(title: "ALSO FROM YOUR ENTRY") {
+                                card("\u{201C}\(also)\u{201D}")
+                                caption("Another sentence from the same entry, word for word. The app picked it; the model didn't.")
+                            }
                         }
                         if let authorship {
                             if let model = authorship.modelText {

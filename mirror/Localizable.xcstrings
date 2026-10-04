@@ -1406,6 +1406,122 @@
         }
       }
     },
+    "ALSO FROM YOUR ENTRY" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AUCH AUS DEINEM EINTRAG"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TAMBIÉN DE TU ENTRADA"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ÉGALEMENT DE VOTRE ENTRÉE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ANCHE DALLA TUA VOCE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エントリーからもう一文"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "항목의 다른 문장"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TAMBÉM DA SUA ENTRADA"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЕЩЁ ИЗ ВАШЕЙ ЗАПИСИ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "也来自你的条目"
+          }
+        }
+      }
+    },
+    "Another sentence from the same entry, word for word. The app picked it; the model didn't." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein weiterer Satz aus demselben Eintrag, Wort für Wort. Die App hat ihn ausgewählt, nicht das Modell."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otra frase de la misma entrada, palabra por palabra. La eligió la app, no el modelo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une autre phrase de la même entrée, mot pour mot. C'est l'app qui l'a choisie, pas le modèle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un'altra frase della stessa voce, parola per parola. L'ha scelta l'app, non il modello."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同じエントリーの別の一文をそのまま引用しています。選んだのはアプリで、モデルではありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "같은 항목의 다른 문장을 그대로 옮겼습니다. 모델이 아니라 앱이 골랐습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outra frase da mesma entrada, palavra por palavra. Quem escolheu foi o app, não o modelo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ещё одно предложение из той же записи, слово в слово. Его выбрало приложение, а не модель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一条目中的另一句话，逐字引用。由 App 挑选，而非模型。"
+          }
+        }
+      }
+    },
     "Appearance:" : {
       "localizations" : {
         "de" : {
