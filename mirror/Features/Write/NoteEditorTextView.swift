@@ -2872,7 +2872,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 refreshActiveInlineStyles(in: textView)
                 if formattingPanelHost == nil {
                     let hc = UIHostingController(rootView: AnyView(
-                        FormattingPanelView(state: parent.panelState, presentation: .sheet)
+                        FormattingPanelView(state: parent.panelState, presentation: .sheet,
+                                            onClose: { [weak self] in self?.parent.showFormattingPanel = false })
                             .environment(\.appDisplayMode, parent.displayMode)
                     ))
                     hc.view.backgroundColor = .clear
