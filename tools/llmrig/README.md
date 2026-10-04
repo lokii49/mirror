@@ -367,3 +367,26 @@ Where it is off, always within a bucket (informational):
 Limits: hand-written synthetic entries (2-4 sentences), one clear feeling each; the hard set is
 24 English entries only; nothing measured on long real entries, mixed-language text, or ja/zh/fr/it/
 pt/ru/ko. A bucket score of 100% on 108 outputs is compatible with a true rate in the low 90s.
+
+## Reflection opener rotation (2026-10-01)
+
+Every English Gemma reflection opened `You wrote, "`. The app can pick the opener itself (Gemma never
+writes it), so the question was whether a different opener changes what Gemma writes after the quote.
+Rubric written before the run (RUBRIC.md, "Reflection opener rotation"). Production-built prompts and
+grammars for 13 synthetic cases (rig + edge + reflection-line), opener substituted the way
+`groundedNudgeGrammar/Instructions(opener:)` do, N=10 per case, temp 0.45, `tools/llmrig/opener/run.py`.
+
+| Opener | SHAPE (app validator) | CLINICAL | FACT (read by hand) |
+|---|---|---|---|
+| `You wrote, "` (baseline) | 130/130 | 0 | ~2 mild |
+| `Earlier you wrote, "` | **130/130** | 0 | ~3 mild, within +1 |
+| `You put it this way: "` | 130/130 | 0 | ~6: "busy day" and "start of the day" on a plain Tuesday, "food and warmth" on the sick-friend case, plus fillers ("honestly", "actually") |
+| `In your words, "` | 124/130 | 0 | not read: fails shape |
+| `Something you wrote: "` | 127/130 | 0 | not read: fails shape |
+| `You said, "` | 124/130 | 0 | not read: fails shape |
+
+The shape failures are Gemma slipping into the writer's voice after the quote ("...settling in my
+chest"), on short quotes ("Sun was out for once."). The app's validator rejects those, so they would
+cost a retry, not a wrong card, but the bar was 100%. **Shipped: `You wrote, "` and `Earlier you wrote, "`,
+alternating.** Limits: one rater for FACT, 13 cases, English only (other languages keep their fixed
+text), temp 0.45, no Foundation Models (it writes free prose).

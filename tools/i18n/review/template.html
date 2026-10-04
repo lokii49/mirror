@@ -179,6 +179,7 @@ legend { padding: 0 6px; font-weight: 600; }
     digest: "Once a week, in six short sections. Three of them quote the writer.",
     monthly: "Once a month, in six short sections.",
     ask: "The writer asks a question about their journal. The app shows the closest sentences they wrote.",
+    followup: "While the writer is still typing, the app can show one question under their draft, built around one phrase cut from their own words. There are two versions and the app alternates.",
     proposed: "Not in the app yet. We may add this line under every Ask answer, because the on-device AI can't tell for sure whether a question is covered.",
     model: "These tell the on-device AI which sentence to pick. Flag a line only if its meaning is wrong or confusing. Please don't polish the style: any change here has to be re-tested."
   };
@@ -292,6 +293,9 @@ legend { padding: 0 6px; font-weight: 600; }
     }
     box.appendChild(sections("Weekly digest (section titles shown in English here; the app translates them)", ex.digest));
     box.appendChild(sections("Monthly report", ex.monthly));
+    var fu = el("div", { cls: "body serif" });
+    ex.followup.forEach(function (line) { fu.appendChild(el("div", null, [segs(line, code)])); });
+    box.appendChild(el("div", { cls: "card ex" }, [el("h4", { text: "Follow-up question (two versions)" }), fu]));
     var ask = el("div", { cls: "body serif" });
     ex.ask.forEach(function (line) { ask.appendChild(el("div", null, [segs(line, code)])); });
     box.appendChild(el("div", { cls: "card ex" }, [

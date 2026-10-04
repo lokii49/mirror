@@ -33,8 +33,13 @@ struct SegmentedWordCountTests {
 struct CJKWordCountRecountTests {
     @MainActor
     @Test func recountsOnlyCJKEntries() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
         UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
-        defer { UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag) }
+        defer {
+            UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         let context = container.mainContext
@@ -50,5 +55,28 @@ struct CJKWordCountRecountTests {
         #expect(ja.wordCount > 1)
         #expect(en.wordCount == 99)
         #expect(UserDefaults.standard.bool(forKey: CJKWordCountRecount.flag))
+    }
+
+    @MainActor
+    @Test func waitsForFirstBackgrounding() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
+        UserDefaults.standard.set(0, forKey: countKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let ja = Entry(text: "今日は天気がいいので散歩に行きました")
+        ja.wordCount = 1
+        container.mainContext.insert(ja)
+        try container.mainContext.save()
+
+        CJKWordCountRecount.runIfNeeded(context: container.mainContext)
+
+        #expect(ja.wordCount == 1)
+        #expect(!UserDefaults.standard.bool(forKey: CJKWordCountRecount.flag))
     }
 }

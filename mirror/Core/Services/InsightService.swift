@@ -2489,6 +2489,27 @@ extension Entry {
 
 extension InsightService {
     static let groundedNudgePrefix = "You wrote, \""
+    /// The fixed openers an English grounded nudge can start with. The app picks one (Gemma never
+    /// writes it), rotating so reflections don't all open the same way. Only openers that held
+    /// 130/130 valid, fact-clean reflections on the rig are listed (tools/llmrig/README.md, "Reflection
+    /// opener rotation"); "In your words", "Something you wrote", "You said" and "You put it this way"
+    /// did not. Every place that
+    /// recognises a grounded nudge checks all of them, and the first (the original) must stay
+    /// listed: reflections saved by 3.0.5 and 3.0.6 start with it.
+    static let groundedNudgeOpeners = [groundedNudgePrefix, "Earlier you wrote, \""]
+
+    /// The opener a grounded nudge starts with, if any.
+    static func groundedNudgeOpener(of text: String) -> String? {
+        groundedNudgeOpeners.first { text.hasPrefix($0) }
+    }
+
+    /// The next opener in the rotation after the newest recent nudge's (the first opener when
+    /// that nudge isn't a grounded one or there is none).
+    static func nextGroundedNudgeOpener(after recentNudges: [String]) -> String {
+        let last = recentNudges.first.flatMap(groundedNudgeOpener(of:))
+        let index = last.flatMap { groundedNudgeOpeners.firstIndex(of: $0) } ?? -1
+        return groundedNudgeOpeners[(index + 1) % groundedNudgeOpeners.count]
+    }
     static let groundedNudgeMaxQuoteChars = 200
     static let groundedNudgeMinQuoteWords = 4
     // Bounds the grammar's size. Entries rarely have more quotable sentences than this; a long
@@ -2505,7 +2526,8 @@ extension InsightService {
         let source = groundedNudgeSourceEntries(recent)
         let options = groundedNudgeQuoteOptions(from: source, excludingQuotesIn: recentNudges)
         guard !options.isEmpty else { return (.unsuitable, []) }
-        return (.grammarConstrained(userMessage: groundedNudgeUserMessage(source), grammar: groundedNudgeGrammar(quotes: options)), options)
+        let opener = nextGroundedNudgeOpener(after: recentNudges)
+        return (.grammarConstrained(userMessage: groundedNudgeUserMessage(source, opener: opener), grammar: groundedNudgeGrammar(quotes: options, opener: opener)), options)
     }
 
     /// The most recent entry plus any others written the same day. Only these are quoted: with
@@ -2516,7 +2538,7 @@ extension InsightService {
         return recent.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: newest.createdAt) }
     }
 
-    static func groundedNudgeUserMessage(_ source: [Entry]) -> String {
+    static func groundedNudgeUserMessage(_ source: [Entry], opener: String = groundedNudgePrefix) -> String {
         let isToday = source.first.map { Calendar.current.isDateInToday($0.createdAt) } ?? true
         let heading: String
         switch (isToday, source.count) {
@@ -2525,7 +2547,7 @@ extension InsightService {
         case (false, 1): heading = "Most recent journal entry:"
         case (false, _): heading = "Most recent journal entries:"
         }
-        return "\(heading)\n\(formatEntries(source, maxChars: 3_000))\n\n\(DAILY_NUDGE_GEMMA_INSTRUCTIONS)"
+        return "\(heading)\n\(formatEntries(source, maxChars: 3_000))\n\n\(groundedNudgeInstructions(opener: opener))"
     }
 
     /// Verbatim sentences (or clause/word-window chunks of over-long ones) from the entries,
@@ -2540,7 +2562,7 @@ extension InsightService {
             }
         }
         let fresh = options.filter { option in
-            !recentNudges.contains { $0.hasPrefix(groundedNudgePrefix + option + "\"") }
+            !recentNudges.contains { nudge in groundedNudgeOpeners.contains { nudge.hasPrefix($0 + option + "\"") } }
         }
         return Array((fresh.isEmpty ? options : fresh).prefix(groundedNudgeMaxQuoteOptions))
     }
@@ -2641,10 +2663,17 @@ extension InsightService {
         return chunks
     }
 
-    static func groundedNudgeGrammar(quotes: [String]) -> String {
+    /// The Gemma instructions with the form's opener set to `opener` (the constant shows the original).
+    static func groundedNudgeInstructions(opener: String = groundedNudgePrefix) -> String {
+        DAILY_NUDGE_GEMMA_INSTRUCTIONS.replacingOccurrences(of: groundedNudgePrefix, with: opener)
+    }
+
+    static func groundedNudgeGrammar(quotes: [String], opener: String = groundedNudgePrefix) -> String {
         let alternatives = quotes.map(gbnfLiteral).joined(separator: " | ")
+        // The opener ends in the opening quote mark, which the grammar literal escapes.
+        let literal = String(opener.dropLast()) + "\\\""
         return """
-        root ::= "You wrote, \\"" quote "\\" " feel
+        root ::= "\(literal)" quote "\\" " feel
         quote ::= \(alternatives)
         feel ::= ("That sounds " | "You seem ") words "."
         words ::= [a-z0-9 ,;:'’()-]{6,150}
@@ -2667,7 +2696,7 @@ extension InsightService {
     /// when the quote can't be matched.
     static func moodOfQuotedEntry(_ nudge: String, source: [Entry]) -> String? {
         let quoted = source.first { entry in
-            groundedQuoteCandidates(of: entry).contains { nudge.hasPrefix(groundedNudgePrefix + $0 + "\" ") }
+            groundedQuoteCandidates(of: entry).contains { quote in groundedNudgeOpeners.contains { nudge.hasPrefix($0 + quote + "\" ") } }
         }
         return (quoted ?? source.first)?.mood
     }
@@ -2695,7 +2724,7 @@ extension InsightService {
     /// audits flag correct Chinese/Japanese output (no spaces to split words on). Those passes run
     /// once per device, so a new or restored device runs them over content synced from another.
     static func isGrammarGrounded(_ content: String) -> Bool {
-        if content.hasPrefix(groundedNudgePrefix) || content.hasPrefix(groundedAskPrefix)
+        if groundedNudgeOpener(of: content) != nil || content.hasPrefix(groundedAskPrefix)
             || content.contains("WHAT'S BUILDING: You wrote, \"")
             || content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
             return true
@@ -2715,7 +2744,7 @@ extension InsightService {
     static func nudgeTextForOutsideApp(_ text: String) -> String {
         // (opening, closer) for English and every localized grounded nudge. Neither the English
         // line after the quote nor the fixed localized lines contain their language's closing mark.
-        let shapes = [(groundedNudgePrefix, "\" ")] + groundedLocales.values.map { ($0.youWrote + $0.open, $0.close + $0.joiner) }
+        let shapes = groundedNudgeOpeners.map { ($0, "\" ") } + groundedLocales.values.map { ($0.youWrote + $0.open, $0.close + $0.joiner) }
         for (opening, closer) in shapes where text.hasPrefix(opening) {
             guard let close = text.range(of: closer, options: .backwards),
                   close.lowerBound > text.index(text.startIndex, offsetBy: opening.count)
@@ -2732,10 +2761,11 @@ extension InsightService {
     /// options and what follows must have the grammar's shape and no journal-writer first person.
     static func validateGroundedNudge(_ text: String, quoteOptions: [String]) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let quote = quoteOptions.first(where: { trimmed.hasPrefix(groundedNudgePrefix + $0 + "\" ") }) else {
+        guard let opener = groundedNudgeOpener(of: trimmed),
+              let quote = quoteOptions.first(where: { trimmed.hasPrefix(opener + $0 + "\" ") }) else {
             throw InsightError.incompleteResponse
         }
-        let afterQuote = String(trimmed.dropFirst(groundedNudgePrefix.count + quote.count + 2))
+        let afterQuote = String(trimmed.dropFirst(opener.count + quote.count + 2))
         // After the quote Mirror is talking to "you", so any first person there is the model
         // slipping into the writer's voice ("…and my stomach still hurts"). Stricter than
         // containsJournalWriterFirstPerson, whose "my" patterns only cover a fixed noun list.
@@ -3942,8 +3972,8 @@ extension InsightService {
     static func systemPrompt(for type: InsightType, content: String? = nil) -> (ref: String, body: String) {
         switch type {
         case .dailyNudge:
-            if let content, content.hasPrefix(groundedNudgePrefix) {
-                return ("InsightService.swift · DAILY_NUDGE_GEMMA_INSTRUCTIONS", DAILY_NUDGE_GEMMA_INSTRUCTIONS)
+            if let content, let opener = groundedNudgeOpener(of: content) {
+                return ("InsightService.swift · DAILY_NUDGE_GEMMA_INSTRUCTIONS", groundedNudgeInstructions(opener: opener))
             }
             if let content, let loc = groundedLocales.values.first(where: { content.hasPrefix($0.youWrote + $0.open) }) {
                 return ("InsightService.swift · groundedLocales.pickNudge", loc.pickNudge)

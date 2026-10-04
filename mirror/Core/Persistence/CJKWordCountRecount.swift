@@ -12,6 +12,9 @@ enum CJKWordCountRecount {
     @MainActor
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        // Same wait-for-CloudKit deferral as UngroundedInsightCleanup: on a new device, entries
+        // can still be arriving on first launch, and marking done early would skip them.
+        guard UserDefaults.standard.integer(forKey: UngroundedInsightCleanup.backgroundingCountKey) >= 1 else { return }
         let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
         // An empty store may just not have synced yet: retry next foreground instead of
         // marking done.

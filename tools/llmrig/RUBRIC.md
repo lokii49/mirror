@@ -149,3 +149,21 @@ is an upper bound; this file and its gold labels were fixed BEFORE the hard-set 
 ("not sad"), a bad word inside a good day, a good word inside a bad day, understated hard days, mixed
 days with one dominant feeling, very short entries, a long entry whose feeling comes last. Same
 scoring and bar as above; report it separately (n is small, so read counts, not percentages).
+
+---
+Reflection opener rotation (fixed BEFORE any run, 2026-10-01). Only the fixed opener before the quote
+changes (`You wrote, "` / `In your words, "` / `Something you wrote: "`); the quote and the grammar
+after it don't. Question: does the opener change what Gemma writes after the quote? Cases: the
+production-built rig + edge + reflection-line cases (`test_dumpNudgePromptsForRig`), grammar and
+prompt with the opener substituted the way `groundedNudgeGrammar/Instructions(opener:)` do. N=10 per
+case per opener, temp 0.45, production grammar.
+Per output:
+SHAPE: passes `validateGroundedNudge` (quote is an option, "That sounds"/"You seem", complete
+  sentence, no first person). Bar: 100% for every opener.
+FACT (any = fail, same definition as "Daily reflection: the line after the quote"): INVENT, SWAP, TENSE.
+CLINICAL: significant, grappling, well-being, navigating, processing, emotional toll/weight/state,
+  "it's understandable", "valid".
+Adopt an alternate opener only if, versus `You wrote, "` on the same cases: SHAPE = 100%,
+FACT failures <= baseline + 1, CLINICAL <= baseline + 1. Otherwise that opener stays out.
+Read the unique feeling lines per case and opener (they repeat heavily at this temperature); count
+each unique line once per output that produced it.
