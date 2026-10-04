@@ -44,6 +44,11 @@ struct mirrorApp: App {
             JournalSafety.shared.start(container: sharedModelContainer)
         }
         #if DEBUG
+        if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
+            CloudKitSchemaSeed.run(context: sharedModelContainer.mainContext)
+        }
+        #endif
+        #if DEBUG
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
