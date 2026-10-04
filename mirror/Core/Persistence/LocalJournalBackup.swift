@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import os
 import SwiftData
 
 /// An on-device copy of the journal store, kept so a CloudKit purge doesn't lose writing
@@ -163,6 +164,8 @@ enum LocalJournalBackup {
             updateState(defaults) { $0.frozen = true }
             return .freeze
         case .refresh:
+            let signpost = PerfSignpost.signposter.beginInterval("backup.snapshot")
+            defer { PerfSignpost.signposter.endInterval("backup.snapshot", signpost) }
             let startedAt = Date()
             let dir = backupURL.deletingLastPathComponent()
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

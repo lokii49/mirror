@@ -5,6 +5,8 @@ import Observation
 import SwiftData
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 /// iCloud upload status plus the restore-from-device flow, for the entry list's banners.
@@ -106,6 +108,15 @@ final class JournalSafety {
         observers.append(center.addObserver(forName: .CKAccountChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshAccountStatus() }
         })
+        #if os(macOS)
+        // A Mac app rarely reaches `.background`, so the device backup refreshes when the app loses
+        // focus instead: the user has to leave the app to turn iCloud off in System Settings. A
+        // full copy of a 2,000-entry store takes ~45 ms off the main thread, and an unchanged store
+        // is skipped by the modification-date check.
+        observers.append(center.addObserver(forName: NSApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.appDidEnterBackground() }
+        })
+        #endif
         refreshAccountStatus()
     }
 
