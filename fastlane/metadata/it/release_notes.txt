@@ -1,7 +1,9 @@
-Riflessioni più chiare e una correzione per giapponese e cinese
+Diari più sicuri e una riflessione quotidiana più completa
 
-• Sugli iPhone con Apple Intelligence, la tua riflessione quotidiana ora cita le tue parole e aggiunge una breve riga. In inglese quella riga viene verificata rispetto a ciò che hai scritto, quindi non compaiono più dettagli che non hai mai scritto. Nelle altre lingue vedi la tua citazione con una riga fissa scelta in base al tuo umore.
-• L'apertura delle riflessioni ora alterna «Hai scritto:» e «In precedenza hai scritto:» così non iniziano tutte allo stesso modo.
-• La prima voce dell'introduzione ora conta correttamente le parole in giapponese e cinese.
-• Su un nuovo dispositivo, l'aggiornamento del conteggio parole in giapponese e cinese attende che le tue voci abbiano finito di sincronizzarsi da iCloud.
-• Le etichette Basso, Medio e Alto nei grafici dell'umore sono ora tradotte.
+• Se disattivi iCloud per MirrorNotes o esci da iCloud, ora il tuo iPhone conserva una copia privata del diario e ti propone di ripristinare le voci che scompaiono.
+• Un avviso ti segnala quando le ultime modifiche non sono ancora arrivate su iCloud, così sai che non devi disattivare iCloud prima del backup.
+• Se alcune voci non sono leggibili su un nuovo dispositivo, MirrorNotes ora ti spiega perché e come risolvere (attiva il portachiavi iCloud).
+• «Elimina tutto» ora rimuove anche i check-in dell'umore, e gli altri dispositivi non riproporranno le voci eliminate.
+• La riflessione quotidiana ora mostra anche una seconda frase della tua voce, con le tue parole (inglese).
+• Sugli iPhone con Apple Intelligence, le giornate in ospedale, in clinica o simili ora ricevono una riflessione invece di nessuna.
+• Un nuovo pannello Formato, come in Note: stili, grassetto/corsivo/sottolineato/barrato, elenchi, rientri e colori in un unico posto.

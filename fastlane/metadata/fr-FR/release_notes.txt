@@ -1,7 +1,9 @@
-Des réflexions plus claires et une correction pour le japonais et le chinois
+Des journaux mieux protégés et une réflexion quotidienne plus complète
 
-• Sur les iPhone avec Apple Intelligence, ta réflexion quotidienne cite maintenant tes propres mots, puis ajoute une courte ligne. En anglais, cette ligne est vérifiée par rapport à ce que tu as écrit : les détails que tu n'as jamais écrits n'apparaissent plus. Dans les autres langues, tu vois ta citation avec une ligne fixe choisie selon ton humeur.
-• L'introduction des réflexions alterne maintenant entre « Tu as écrit : » et « Plus tôt, tu as écrit : » pour qu'elles ne commencent pas toutes pareil.
-• La première entrée de l'accueil compte désormais correctement les mots en japonais et en chinois.
-• Sur un nouvel appareil, la mise à jour du nombre de mots en japonais et en chinois attend que tes entrées aient fini de se synchroniser depuis iCloud.
-• Les libellés Bas, Moyen et Haut des graphiques d'humeur sont maintenant traduits.
+• Si tu désactives iCloud pour MirrorNotes ou te déconnectes d'iCloud, ton iPhone garde maintenant une copie privée de ton journal et te propose de restaurer les entrées qui disparaissent.
+• Un avis t'indique quand tes dernières modifications ne sont pas encore dans iCloud, pour que tu saches qu'il ne faut pas désactiver iCloud avant leur sauvegarde.
+• Si certaines entrées sont illisibles sur un nouvel appareil, MirrorNotes t'explique maintenant pourquoi et comment corriger ça (active le trousseau iCloud).
+• « Tout supprimer » efface maintenant aussi les points humeur, et tes autres appareils ne te reproposeront pas les entrées supprimées.
+• Ta réflexion quotidienne affiche maintenant aussi une deuxième phrase de ton entrée, avec tes propres mots (anglais).
+• Sur les iPhone avec Apple Intelligence, les journées passées à l'hôpital, en clinique ou ailleurs du même genre ont maintenant une réflexion au lieu de rien.
+• Un nouveau panneau Format, comme dans Notes : styles, gras/italique/souligné/barré, listes, retraits et couleurs au même endroit.

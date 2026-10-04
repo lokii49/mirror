@@ -1,7 +1,9 @@
-Clearer reflections, and a fix for Japanese and Chinese
+Safer journals, and a fuller daily reflection
 
-• On iPhones with Apple Intelligence, your daily reflection now quotes your own words, then adds one short line. In English that line is checked against what you wrote, so details you never wrote no longer appear. Other languages show your quote with a fixed line chosen by your mood.
-• Reflection openings now alternate between "You wrote," and "Earlier you wrote," so they don't all start the same way.
-• The first entry in onboarding now counts Japanese and Chinese words correctly.
-• On a new device, the Japanese and Chinese word-count update now waits until your entries have finished syncing from iCloud.
-• The Low, Mid and High labels on the mood charts are now translated.
+• If you turn off iCloud for MirrorNotes or sign out of iCloud, your iPhone now keeps a private copy of your journal and offers to restore any entries that disappear.
+• A notice tells you when your latest changes haven't reached iCloud yet, so you know not to turn iCloud off before they're backed up.
+• If some entries can't be read on a new device, MirrorNotes now tells you why and how to fix it (turn on iCloud Keychain).
+• Delete Everything now also removes mood check-ins, and your other devices won't offer the deleted entries back.
+• Your daily reflection now also shows a second sentence from your entry, in your own words (English).
+• On iPhones with Apple Intelligence, days spent at a hospital, clinic or similar now get a reflection instead of none.
+• A new Format panel, laid out like Notes: styles, bold/italic/underline/strikethrough, lists, indents and colours in one place.

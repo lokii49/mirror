@@ -1,7 +1,10 @@
-MirrorNotes gibt es jetzt für den Mac.
+Eine Symbolleiste wie in Notizen und besserer Schutz für dein Journal
 
-• Schreibe in einem Rich-Text-Editor mit Fotos und Stimmungs-Labels, mit den Menüs und Tastaturkürzeln, die du vom Mac kennst.
-• Schnellerfassung über die Menüleiste.
-• Durchsuche deine Einträge als Liste oder Kalender und finde alles, was du geschrieben hast.
-• Tägliche Reflexionen, Wochenrückblicke, Stimmungsverlauf, Monatsberichte und Denkkarte, mit privater KI, die auf deinem Mac läuft.
-• Stelle Fragen zu den Mustern in deinem Tagebuch.
+• Ein neues Aa-Menü zum Formatieren wie in Notizen und eine aufgeräumtere Symbolleiste.
+• Flüssigerer Wechsel zwischen den Einstellungs-Tabs, eine Taste zum Löschen der Suche und Hover-Feedback überall.
+• Fotos und Tags scrollen im Editor seitlich, und die Stimmungs-Heatmap zeigt beim Darüberfahren Details.
+• Zoomen und Verschieben in der Brain View per Scrollrad oder Trackpad sowie Tastenkürzel zum Wechseln der Monate in Berichten.
+• Derselbe Journal-Schutz wie auf dem iPhone: eine private Kopie mit Wiederherstellung, wenn iCloud ausgeschaltet wird, und ein Hinweis, wenn Änderungen noch nicht gesichert sind.
+• Deine tägliche Reflexion zeigt jetzt einen zweiten Satz aus deinem Eintrag.
+• Schnellere Suche und Filter in Einträgen.
+• Die App heißt im Finder jetzt MirrorNotes.

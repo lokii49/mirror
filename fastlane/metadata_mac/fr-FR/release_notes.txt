@@ -1,7 +1,10 @@
-MirrorNotes arrive sur Mac.
+Une barre d'outils comme dans Notes et ton journal mieux protégé
 
-• Écris dans un éditeur de texte enrichi avec des photos et des étiquettes d'humeur, avec les menus et raccourcis clavier habituels du Mac.
-• Saisie rapide depuis la barre des menus.
-• Parcours tes entrées en liste ou en calendrier et recherche tout ce que tu as écrit.
-• Réflexions quotidiennes, résumés hebdomadaires, chronologie de l'humeur, rapports mensuels et Carte mentale, avec une IA privée qui s'exécute sur ton Mac.
-• Pose des questions sur les schémas de ton journal.
+• Un nouveau panneau Aa pour mettre en forme le texte, comme dans Notes, et une barre d'outils épurée.
+• Passage plus fluide entre les onglets des Réglages, un bouton pour effacer la recherche et un retour visuel au survol.
+• Les photos et les tags défilent horizontalement dans l'éditeur, et la carte de chaleur des humeurs affiche des détails au survol.
+• Zoom et déplacement dans Brain View à la molette ou au trackpad, et raccourcis clavier pour changer de mois dans les rapports.
+• La même protection que sur iPhone : une copie privée et une restauration si iCloud est désactivé, et un avis quand les modifications ne sont pas encore sauvegardées.
+• Ta réflexion quotidienne affiche maintenant une deuxième phrase de ton entrée.
+• Recherche et filtres plus rapides dans les Entrées.
+• L'app s'appelle maintenant MirrorNotes dans le Finder.
