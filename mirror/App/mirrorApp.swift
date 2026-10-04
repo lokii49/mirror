@@ -27,6 +27,11 @@ struct mirrorApp: App {
 
     init() {
         PerfSignpost.beginLaunch()
+        #if os(macOS) && DEBUG
+        if let dir = MacFormatPopoverRender.requestedDirectory {
+            DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }
+        }
+        #endif
         #if DEBUG
         Purchases.logLevel = .debug
         #endif
