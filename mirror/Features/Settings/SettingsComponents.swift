@@ -9,19 +9,20 @@ struct SettingsGroup<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder var content: Content
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.settingsEmbedded) private var embedded
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: embedded ? 11 : 12, weight: .semibold))
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
                 .tracking(displayMode == .sentinel ? 0.6 : 1.0)
-                .padding(.bottom, 14)
+                .padding(.bottom, embedded ? 10 : 14)
             VStack(spacing: 0) { content }
         }
-        .padding(18)
-        .themedCard(cornerRadius: 24)
+        .padding(embedded ? 16 : 18)
+        .themedCard(cornerRadius: embedded ? 14 : 24)
     }
 }
 
@@ -30,15 +31,16 @@ struct SettingsRowLabel: View {
     let systemImage: String
     let iconColor: Color
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.settingsEmbedded) private var embedded
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 8, style: .continuous)
                     .fill(iconColor.opacity(0.12))
-                    .frame(width: 32, height: 32)
+                    .frame(width: embedded ? 26 : 32, height: embedded ? 26 : 32)
                 Image(systemName: systemImage)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: embedded ? 12 : 14, weight: .medium))
                     .foregroundStyle(iconColor)
             }
             .overlay {
@@ -48,7 +50,7 @@ struct SettingsRowLabel: View {
                 }
             }
             Text(title)
-                .font(.system(size: 15))
+                .font(.system(size: embedded ? 13 : 15))
                 .foregroundStyle(MirrorTheme.textPrimary)
             Spacer(minLength: 0)
         }
@@ -171,6 +173,12 @@ struct SettingsScroll<Content: View>: View {
 }
 
 extension View {
+    /// Embedded panes share the Settings window's title. Publishing their own titles
+    /// makes SwiftUI and the AppKit window-title observer repeatedly overwrite each other.
+    func settingsNavigationTitle(_ title: LocalizedStringKey) -> some View {
+        modifier(SettingsNavigationTitle(title: title))
+    }
+
     /// Esc closes a sheet on Mac (there is no swipe down); no effect on iPhone and iPad.
     func cancelActionOnMac() -> some View {
         #if os(macOS)
@@ -178,5 +186,14 @@ extension View {
         #else
         self
         #endif
+    }
+}
+
+private struct SettingsNavigationTitle: ViewModifier {
+    @Environment(\.settingsEmbedded) private var embedded
+    let title: LocalizedStringKey
+
+    func body(content: Content) -> some View {
+        if embedded { content } else { content.navigationTitle(title) }
     }
 }

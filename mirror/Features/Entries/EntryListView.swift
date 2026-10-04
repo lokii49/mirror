@@ -1218,7 +1218,25 @@ extension EntriesTabView {
                 .foregroundStyle(MacTokens.ink)
                 .focused($macSearchFocused)
                 .accessibilityLabel("Search entries")
-            Text("⌘F").font(.system(size: 11))
+                .onKeyPress(.escape) {
+                    searchText = ""
+                    macListFocused = true
+                    return .handled
+                }
+            if searchText.isEmpty {
+                Text("⌘F").font(.system(size: 11))
+            } else {
+                Button {
+                    searchText = ""
+                    macSearchFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .frame(width: 20, height: 22)
+                }
+                .buttonStyle(MacHoverButtonStyle())
+                .accessibilityLabel("Clear search")
+                .help("Clear search")
+            }
         }
         .foregroundStyle(MacTokens.secondaryInk)
         .padding(.horizontal, 10)
@@ -1304,6 +1322,7 @@ private struct MacEntryRow: View {
     let entry: Entry
     let preview: EntriesTabView.EntryRowPreview?
     let isSelected: Bool
+    @State private var hovered = false
 
     private var mood: String? { preview?.moodLabel ?? entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
     private var secondary: Color { isSelected ? MacTokens.selectedRowInk : MacTokens.secondaryInk }
@@ -1344,13 +1363,14 @@ private struct MacEntryRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isSelected ? MacTokens.selectedRowFill : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(isSelected ? MacTokens.selectedRowFill : hovered ? MacTokens.controlInk.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(MacTokens.selectedRowBorder, lineWidth: 1)
             }
         }
         .contentShape(Rectangle())
+        .onHover { hovered = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }

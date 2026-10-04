@@ -319,6 +319,28 @@ enum MacSnapshot {
         }
         NSLog("MacSnapshot: settings window title = %@", settingsWindow()?.title ?? "none")
 
+        // Rapid switching exercises hosting-view updates that settled screenshots miss.
+        // The window and traffic-light positions must remain fixed throughout every tab.
+        if let window = settingsWindow() {
+            let frame = window.frame
+            let closeFrame = window.standardWindowButton(.closeButton)?.frame
+            var stable = true
+            var samples = 0
+            for _ in 0..<3 {
+                for tab in MacSettingsTab.visible {
+                    UserDefaults.standard.set(tab.rawValue, forKey: "macSettingsTab")
+                    for _ in 0..<3 {
+                        try? await Task.sleep(for: .milliseconds(30))
+                        samples += 1
+                        stable = stable && window.frame == frame
+                            && window.standardWindowButton(.closeButton)?.frame == closeFrame
+                            && window.title == String(localized: "Settings")
+                    }
+                }
+            }
+            NSLog("MacSnapshot: rapid settings switching geometry/title = %@ (%d samples)", stable ? "PASS" : "FAIL", samples)
+        }
+
         // A sheet opened from a settings row (General > Voice transcription language), closed by Escape.
         UserDefaults.standard.set("general", forKey: "macSettingsTab")
         try? await Task.sleep(for: .seconds(1.5))
@@ -471,6 +493,31 @@ enum MacSnapshot {
             return
         }
         if CommandLine.arguments.contains("--macSnapshotSettingsOnly") {
+            await settingsPass(mainWindow: mainWindow)
+            NSApp.terminate(nil)
+            return
+        }
+        if CommandLine.arguments.contains("--macSnapshotUIPolishOnly") {
+            for page in ["report", "mood"] {
+                go(page)
+                try? await Task.sleep(for: .seconds(2))
+                capture(mainWindow(), name: "6-\(page)")
+                if page == "report", let window = mainWindow() {
+                    window.makeKeyAndOrderFront(nil)
+                    for (key, code) in [("\u{f702}", UInt16(123)), ("\u{f703}", UInt16(124))] {
+                        if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                                       timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                                       context: nil, characters: key, charactersIgnoringModifiers: key,
+                                                       isARepeat: false, keyCode: code) {
+                            // Use the application's normal dispatch path, like the Entries
+                            // keyboard checks; calling NSWindow directly bypasses shortcuts.
+                            NSApp.sendEvent(event)
+                            try? await Task.sleep(for: .milliseconds(300))
+                            capture(window, name: "6-report-key-\(code)")
+                        }
+                    }
+                }
+            }
             await settingsPass(mainWindow: mainWindow)
             NSApp.terminate(nil)
             return

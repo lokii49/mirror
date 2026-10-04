@@ -67,8 +67,9 @@ private struct MacSettingsTabButton: View {
             .background(selected ? MacTokens.tabSelectedFill : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .help(item.title)
     }
 }
 
@@ -86,6 +87,10 @@ struct MacSettingsRoot: View {
         VStack(spacing: 0) {
             header
             pane
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // Tab changes replace the pane in place; inherited animations must not fade
+                // or resize the window while AppKit is updating its hosting view.
+                .transaction { $0.animation = nil; $0.disablesAnimations = true }
         }
         // Drawn 560 pt tall from the top edge, but laid out `inset` shorter: the window adds the
         // title bar zone back, so it comes out at the board's 560.
@@ -100,7 +105,11 @@ struct MacSettingsRoot: View {
     // MARK: Title row and tabs
 
     private var header: some View {
-        VStack(spacing: 0) {
+        // Capture the value, rather than making ForEach's stored row builder read a
+        // computed property through self. The row builder must depend on this selection
+        // so its existing buttons update without recreating the whole tab strip.
+        let selectedTab = tab
+        return VStack(spacing: 0) {
             Text(tab.title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(MacTokens.ink)
@@ -108,20 +117,17 @@ struct MacSettingsRoot: View {
                 .frame(height: 38)
             HStack(spacing: 4) {
                 ForEach(MacSettingsTab.visible) { item in
-                    tabButton(item)
+                    MacSettingsTabButton(item: item, selected: item == selectedTab) {
+                        tabRaw = item.rawValue
+                    }
                 }
             }
-            .id(tabRaw)
             .padding(.horizontal, 12)
             .padding(.top, 2)
             .padding(.bottom, 8)
         }
         .background(MacTokens.sidebarBackground)
         .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.sidebarBorder).frame(height: 1) }
-    }
-
-    private func tabButton(_ item: MacSettingsTab) -> some View {
-        MacSettingsTabButton(item: item, selected: item == tab) { tabRaw = item.rawValue }
     }
 
     // MARK: Panes
@@ -138,11 +144,9 @@ struct MacSettingsRoot: View {
         case .privacy:
             scrolling {
                 VStack(spacing: 0) {
-                    // Each screen pads itself 16 pt all round plus 24 pt at the bottom, so stacking
-                    // them left a 56 pt gap. Pull the first up so the cards sit 14 pt apart, like
-                    // the sections inside General.
+                    // Keep each pane's padding: overlapping their backgrounds clips the
+                    // preceding card's rounded corners and shadow.
                     ArchiveSettingsView()
-                        .padding(.bottom, -42)
                     ManualSettingsView()
                 }
             }
@@ -165,6 +169,7 @@ struct MacSettingsRoot: View {
                 .frame(maxWidth: .infinity)
         }
         .frame(maxHeight: .infinity)
+        .modifier(MacNoScrollEdgeEffect())
     }
 }
 
@@ -218,9 +223,10 @@ struct MacAppearanceSettings: View {
                     .foregroundStyle(MacTokens.ink)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .frame(width: 400, alignment: .leading)
+                    .frame(width: MacPrefs.lineWidth(width) == .narrow ? 300 : MacPrefs.lineWidth(width) == .wide ? 400 : 350, alignment: .leading)
                     .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+                    .frame(width: 400, alignment: .leading)
             }
             .padding(.top, 6)
 
@@ -296,9 +302,10 @@ struct MacSegmented: View {
     let options: [(value: String, title: LocalizedStringKey, width: CGFloat)]
 
     var body: some View {
-        HStack(spacing: 0) {
+        let currentSelection = selection
+        return HStack(spacing: 0) {
             ForEach(Array(options.enumerated()), id: \.element.value) { index, option in
-                let selected = option.value == selection
+                let selected = option.value == currentSelection
                 Button {
                     selection = option.value
                 } label: {
@@ -349,6 +356,10 @@ struct MacSettingsWindowConfigurator: NSViewRepresentable {
 
     fileprivate static func configure(_ window: NSWindow?) {
         guard let window else { return }
+        // SwiftUI updates this representable when the selected tab changes. Reapplying
+        // fullSizeContentView and the title-bar geometry then invalidates window layout.
+        guard objc_getAssociatedObject(window, &Self.configuredKey) == nil else { return }
+        objc_setAssociatedObject(window, &Self.configuredKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.title = String(localized: "Settings")
@@ -362,8 +373,6 @@ struct MacSettingsWindowConfigurator: NSViewRepresentable {
         MacWindowConfigurator.positionTrafficLights(in: window, rowHeight: 38)
         // AppKit moves the buttons back on some events; observe once per window.
         // Marked on the window itself: an address-keyed set could skip a recreated window.
-        guard objc_getAssociatedObject(window, &Self.configuredKey) == nil else { return }
-        objc_setAssociatedObject(window, &Self.configuredKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         // The Settings scene re-applies its own title bar style; keep the board's.
         let observations = [
             window.observe(\.titlebarAppearsTransparent, options: [.new]) { window, _ in

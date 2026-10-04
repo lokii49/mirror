@@ -576,6 +576,11 @@ struct MoodTimelineView: View {
                                       ? MirrorTheme.moodColor(for: mood!).opacity(0.85)
                                       : Color.secondary.opacity(0.12))
                                 .frame(width: cell, height: cell)
+                                #if os(macOS)
+                                .help(date.formatted(.dateTime.day().month(.wide).year()) + (mood.map { " · " + MirrorTheme.localizedMoodName(for: $0) } ?? ""))
+                                .accessibilityLabel(date.formatted(.dateTime.day().month(.wide).year()))
+                                .accessibilityValue(mood.map { MirrorTheme.localizedMoodName(for: $0) } ?? "")
+                                #endif
                         } else {
                             Color.clear.frame(width: cell, height: cell)
                         }
@@ -883,6 +888,7 @@ private struct MoodChartCard: View {
             .foregroundStyle(.secondary)
 
             Chart(points) { point in
+                #if !os(macOS)
                 AreaMark(
                     x: .value("Day", point.date, unit: .day),
                     y: .value("Mood", point.score)
@@ -895,6 +901,7 @@ private struct MoodChartCard: View {
                     )
                 )
                 .interpolationMethod(.catmullRom)
+                #endif
 
                 LineMark(
                     x: .value("Day", point.date, unit: .day),
@@ -907,7 +914,13 @@ private struct MoodChartCard: View {
                         endPoint: .trailing
                     )
                 )
+                #if os(macOS)
+                // Multiple moods can share a day. Avoid smoothing overshoot and the area
+                // renderer's duplicate-day wedges; show the recorded points and line.
+                .interpolationMethod(.linear)
+                #else
                 .interpolationMethod(.catmullRom)
+                #endif
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
 
                 PointMark(

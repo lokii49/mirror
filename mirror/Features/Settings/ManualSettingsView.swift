@@ -124,7 +124,7 @@ struct ManualSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle(displayMode == .sentinel ? "Manual" : "About")
+        .settingsNavigationTitle(displayMode == .sentinel ? "Manual" : "About")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
         .sheet(isPresented: $showAcknowledgments) { acknowledgmentsSheet }

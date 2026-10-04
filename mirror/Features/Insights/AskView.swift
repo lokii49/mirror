@@ -98,6 +98,12 @@ struct AskView: View {
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .buttonStyle(MacHoverButtonStyle())
+        .accessibilityLabel("Suggested questions")
+        .accessibilityAddTraits(showSuggestions ? .isSelected : [])
+        .help("Suggested questions")
+        #endif
     }
 
     var body: some View {

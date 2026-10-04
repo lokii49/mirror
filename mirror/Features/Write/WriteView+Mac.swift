@@ -66,24 +66,28 @@ extension WriteView {
                     Text("B").font(.system(size: 13, weight: .bold))
                 } isOn: { activeInlineStyles.bold } action: { applyTextCommand(.bold) }
                 .accessibilityLabel("Bold")
+                .help("Bold")
 
                 formatDivider
                 formatCell(width: 32) {
                     Text("I").font(.custom("Georgia", size: 13).italic())
                 } isOn: { activeInlineStyles.italic } action: { applyTextCommand(.italic) }
                 .accessibilityLabel("Italic")
+                .help("Italic")
 
                 formatDivider
                 formatCell(width: 32) {
                     Text("U").font(.system(size: 13)).underline()
                 } isOn: { activeInlineStyles.underline } action: { applyTextCommand(.underline) }
                 .accessibilityLabel("Underline")
+                .help("Underline")
 
                 formatDivider
                 formatCell(width: 40) {
                     Text("Aa").font(.system(size: 12))
                 } isOn: { showFormattingPanel } action: { showFormattingPanel.toggle() }
                 .accessibilityLabel("Text formatting")
+                .help("Text formatting")
                 .popover(isPresented: $showFormattingPanel, arrowEdge: .bottom) {
                     FormattingPanelView(state: panelState, presentation: .popover)
                         .frame(width: 600, height: 350)
@@ -108,6 +112,7 @@ extension WriteView {
             .menuIndicator(.hidden)
             .foregroundStyle(MacTokens.controlInk)
             .accessibilityLabel("Mood")
+            .help("Mood")
 
             macIconButton("tag", label: "Add tag") {
                 showTagInput = true
@@ -131,6 +136,7 @@ extension WriteView {
             .buttonStyle(.plain)
             .padding(.leading, 6)
             .fixedSize()
+            .help("Talk it out")
         }
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)
@@ -144,7 +150,7 @@ extension WriteView {
                 .frame(width: 30, height: 28)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .foregroundStyle(MacTokens.controlInk)
         .accessibilityLabel(label)
         .help(label)
@@ -161,7 +167,8 @@ extension WriteView {
                 .frame(width: width, height: 26)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
+        .accessibilityAddTraits(isOn() ? .isSelected : [])
     }
 
     @ViewBuilder
@@ -209,6 +216,18 @@ extension WriteView {
 
     /// Mood chip, tag chips and the suggestion hint, under the text.
     var macChipsRow: some View {
+        ViewThatFits(in: .horizontal) {
+            macChips
+            ScrollView(.horizontal) { macChips }
+                .scrollIndicators(.hidden)
+                .frame(height: 26)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 34)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var macChips: some View {
         HStack(spacing: 10) {
             if let mood = viewModel.selectedMood {
                 Text(MirrorTheme.localizedMoodName(for: mood))
@@ -258,28 +277,28 @@ extension WriteView {
                     .font(.system(size: 12))
                     .foregroundStyle(MacTokens.secondaryInk)
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 34)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: - Photos
 
     /// Thumbnails of the attached photos and the drop zone, under the chips.
     var macPhotosRow: some View {
-        HStack(spacing: 12) {
-            ForEach(photoDataArray.indices, id: \.self) { index in
-                MacPhotoTile(
-                    data: photoDataArray[index],
-                    onOpen: { fullscreenPhotoIndex = index },
-                    onRemove: { macRemovePhoto(at: index) }
-                )
+        ScrollView(.horizontal) {
+            HStack(spacing: 12) {
+                ForEach(photoDataArray.indices, id: \.self) { index in
+                    MacPhotoTile(
+                        data: photoDataArray[index],
+                        onOpen: { fullscreenPhotoIndex = index },
+                        onRemove: { macRemovePhoto(at: index) }
+                    )
+                }
+                MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
             }
-            MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
-            Spacer(minLength: 0)
         }
+        .scrollIndicators(.hidden)
+        .frame(height: 92)
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 24)

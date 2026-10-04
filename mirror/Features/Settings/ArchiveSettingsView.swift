@@ -122,7 +122,7 @@ struct ArchiveSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle(displayMode == .sentinel ? "Archive" : "Your Data")
+        .settingsNavigationTitle(displayMode == .sentinel ? "Archive" : "Your Data")
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(
             isPresented: $showImportPicker,
