@@ -1,0 +1,21 @@
+MirrorNotes is a private journal for your Mac. Write, reflect, and see your patterns over time, in a calm window that stays out of your way.
+
+Write in a rich-text editor with photos, mood labels, and the menus and keyboard shortcuts you expect on a Mac. Press ⌘N for a new entry, or open quick capture from the menu bar to jot something down without switching apps. Browse your history as a list or a calendar, with the entry open beside it, and search everything you have written.
+
+MirrorNotes also helps you reflect with private, on-device AI: daily reflections, weekly digests, mood timelines, monthly reports, and Brain View, a constellation of the themes that keep coming back. The AI runs on your Mac, so your journal text is not sent to a server.
+
+Features:
+  • Rich-text writing with photos, mood labels, Mac menus and shortcuts
+  • Quick capture from the menu bar
+  • Browse entries as a list or a calendar, with search
+  • Daily reflections and weekly digests
+  • Mood timeline and monthly reports
+  • Brain View: explore recurring themes in 3D
+  • Ask questions about your journal patterns
+  • Private sync with iCloud
+  • Reading preferences in a native Settings window
+
+Writing and reading your journal is free, forever. Core and Deep add the AI layer.
+
+MirrorNotes is built for people who want a calm, private place to think without an audience.
+https://mirrornotes.org/terms.html

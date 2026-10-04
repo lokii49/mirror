@@ -1,0 +1,21 @@
+MirrorNotes es un diario privado para tu Mac. Escribe, reflexiona y descubre tus patrones con el tiempo, en una ventana tranquila que no se interpone.
+
+Escribe en un editor de texto enriquecido con fotos, etiquetas de ánimo y los menús y atajos de teclado que esperas en un Mac. Pulsa ⌘N para una nueva entrada, o abre la captura rápida desde la barra de menús para apuntar algo sin cambiar de app. Explora tu historial como lista o calendario, con la entrada abierta al lado, y busca todo lo que has escrito.
+
+MirrorNotes también te ayuda a reflexionar con IA privada en el dispositivo: reflexiones diarias, resúmenes semanales, cronologías del estado de ánimo, informes mensuales y el Mapa mental, una constelación de los temas que vuelven una y otra vez. La IA se ejecuta en tu Mac, así que el texto de tu diario no se envía a ningún servidor.
+
+Funciones:
+  • Escritura en texto enriquecido con fotos, etiquetas de ánimo, menús y atajos de Mac
+  • Captura rápida desde la barra de menús
+  • Entradas en lista o calendario, con búsqueda
+  • Reflexiones diarias y resúmenes semanales
+  • Cronología del estado de ánimo e informes mensuales
+  • Mapa mental: explora los temas recurrentes en 3D
+  • Haz preguntas sobre los patrones de tu diario
+  • Sincronización privada con iCloud
+  • Preferencias de lectura en una ventana de Ajustes nativa
+
+Escribir y leer tu diario es gratis, para siempre. Core y Deep añaden la capa de IA.
+
+MirrorNotes está hecho para quienes quieren un lugar tranquilo y privado para pensar, sin público.
+https://mirrornotes.org/terms.html
