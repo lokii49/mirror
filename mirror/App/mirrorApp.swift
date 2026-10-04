@@ -47,6 +47,7 @@ struct mirrorApp: App {
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
+            Task { @MainActor in await PerfSeed.runEntriesScenario() }
         }
         #endif
         #if DEBUG

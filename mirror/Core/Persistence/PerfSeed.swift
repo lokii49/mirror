@@ -36,6 +36,20 @@ enum PerfSeed {
         "Spent the evening fixing the bike.", "Grateful for a quiet morning.",
     ]
 
+    /// After launch: open Entries and run a few searches, so the entry-list signposts
+    /// (entries.snapshot / entries.deps) measure the list without anyone clicking.
+    @MainActor
+    static func runEntriesScenario() async {
+        #if os(macOS)
+        try? await Task.sleep(for: .seconds(3))
+        NotificationCenter.default.post(name: .mirrorMacNavigate, object: nil, userInfo: ["destination": "entries"])
+        for query in ["", "coffee", "", "river", "", "run", ""] {
+            try? await Task.sleep(for: .seconds(2))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": query])
+        }
+        #endif
+    }
+
     @MainActor
     static func seedIfNeeded(into context: ModelContext) {
         guard let count = requestedCount, count > 0 else { return }
