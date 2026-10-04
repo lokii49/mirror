@@ -231,6 +231,10 @@ struct BrainConstellationView: View {
                 .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(systemName == "plus" ? "Zoom in" : "Zoom out")
+        #if os(macOS)
+        .help(systemName == "plus" ? "Zoom in" : "Zoom out")
+        #endif
     }
 }
 
@@ -320,6 +324,17 @@ private struct PanPinchTapOverlay: NSViewRepresentable {
 
     final class FlippedView: NSView {
         override var isFlipped: Bool { true }
+        var onScrollPan: ((CGSize) -> Void)?
+        var onScrollZoom: ((CGFloat, CGPoint) -> Void)?
+
+        override func scrollWheel(with event: NSEvent) {
+            if event.hasPreciseScrollingDeltas {
+                onScrollPan?(CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY))
+            } else {
+                let factor = max(0.6, min(1.6, 1 + event.scrollingDeltaY * 0.08))
+                onScrollZoom?(factor, convert(event.locationInWindow, from: nil))
+            }
+        }
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -332,6 +347,8 @@ private struct PanPinchTapOverlay: NSViewRepresentable {
         view.addGestureRecognizer(pinch)
         view.addGestureRecognizer(click)
         coordinator.view = view
+        view.onScrollPan = { [weak coordinator] in coordinator?.onPan($0) }
+        view.onScrollZoom = { [weak coordinator] in coordinator?.onPinch($0, $1) }
         return view
     }
 

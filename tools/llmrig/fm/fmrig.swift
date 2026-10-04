@@ -36,6 +36,15 @@ import Foundation
     var suggestion: String
 }
 
+// Round 10 (RUBRIC_FM.md): the shipped guide asking for two or three sentences. If it passes, this exact text
+// replaces FoundationModelEngine.DailyReflectionDraft's.
+@Generable struct DailyV1f {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "Two or three sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. Each sentence says something new. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+    var insight: String
+}
+
 @Generable struct DailyV1bEasy {
     @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
     var quote: String
@@ -170,6 +179,37 @@ func emit(_ obj: [String: Any]) {
                         let r = try await session.respond(to: user, generating: DailyV1bEasy.self, options: opts).content
                         raws.append(["quote": r.quote, "insight": r.insight])
                         if let v = FMDailyGuard.verify(quote: r.quote, insight: r.insight, sources: sources) { shown = v; break }
+                    }
+                    rec["attempts"] = attempts
+                    rec["raws"] = raws
+                    if let v = shown {
+                        rec["text"] = "You wrote, \"\(v.quote)\" \(v.insight)"
+                        rec["quoteVerbatim"] = source.contains(norm(v.quote))
+                        rec["fields"] = ["quote": v.quote, "insight": v.insight]
+                        rec["dropped"] = v.droppedSentences
+                    } else {
+                        rec["fallback"] = true
+                    }
+                case "prod", "v1f":
+                    // Round 10. prod = the shipped reflection (V1e: guide, guard at 2 sentences, 3 attempts);
+                    // v1f = two-or-three-sentence guide, guard keeps up to 3. The system prompt comes from argv.
+                    let sources = todaySources(user)
+                    let cap = variant == "v1f" ? 3 : FMDailyGuard.maxInsightSentences
+                    var raws: [[String: String]] = []
+                    var shown: FMDailyGuard.Verified?
+                    var attempts = 0
+                    for _ in 1...3 {
+                        attempts += 1
+                        let (quote, insight): (String, String)
+                        if variant == "v1f" {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyV1f.self, options: opts).content
+                            (quote, insight) = (r.quote, r.insight)
+                        } else {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyV1bEasy.self, options: opts).content
+                            (quote, insight) = (r.quote, r.insight)
+                        }
+                        raws.append(["quote": quote, "insight": insight])
+                        if let v = FMDailyGuard.verify(quote: quote, insight: insight, sources: sources, maxSentences: cap) { shown = v; break }
                     }
                     rec["attempts"] = attempts
                     rec["raws"] = raws

@@ -122,6 +122,32 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// Marks a test error as a guardrail refusal (a real `GenerationError` can't be built in tests).
+    protocol GuardrailRefusalForTesting: Error {}
+
+    /// True when Foundation Models declined for safety: a guardrail violation, or a refusal ("May
+    /// contain sensitive content", `LanguageModelError` code 3 on iOS 27). It declines ordinary
+    /// journal days set at a hospital, clinic, ICU, funeral home, therapist, court or police station
+    /// (tools/llmrig round 11); `permissiveContentTransformations` does not lift it for guided generation.
+    nonisolated static func isSafetyRefusal(_ error: Error) -> Bool {
+        if error is GuardrailRefusalForTesting { return true }
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *), let generation = error as? LanguageModelSession.GenerationError {
+            switch generation {
+            case .guardrailViolation, .refusal: return true
+            default: break
+            }
+        }
+        if #available(iOS 27.0, macOS 27.0, *), let modelError = error as? LanguageModelError {
+            switch modelError {
+            case .guardrailViolation, .refusal: return true
+            default: break
+            }
+        }
+        #endif
+        return false
+    }
+
     // LocalLLMTask.maxOutputChars was tuned as a hard character cutoff for Gemma's
     // streaming loop. GenerationOptions wants a token budget instead, and FM's stricter
     // instruction-following tends to run more verbose than Gemma at the same task — so this

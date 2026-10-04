@@ -15,6 +15,32 @@ extension InsightService {
         /// The quote marks the text uses around `quote` (a straight pair in English).
         var open: String
         var close: String
+        /// The second sentence from the same entry shown after the reflection (since iOS 3.0.8 / Mac 1.0.1). Never stored in
+        /// `Insight.content`: set by `reflectionWithAlsoQuote` where this version renders it, so older
+        /// app versions reading a synced reflection see the shape they already parse.
+        var alsoQuote: String? = nil
+    }
+
+    /// Since iOS 3.0.8 / Mac 1.0.1: the reflection as this version shows it in the app: an English grounded reflection gets
+    /// `You also wrote, "<sentence>"` with another sentence from the same day's entry, before the
+    /// hard-day tip. Built at display time, never saved: reflections sync, and 3.0.7 / Mac 1.0 and earlier would
+    /// read a stored second quote with their old parsers (leaking it to the widget and lock screen).
+    /// `parts.alsoQuote` is set when a line was added. `entries` should cover the reflected day.
+    static func reflectionWithAlsoQuote(_ content: String, entries: [Entry], generatedAt: Date) -> (text: String, parts: GroundedNudgeParts?) {
+        guard var parts = groundedNudgeParts(of: content) else { return (content, nil) }
+        guard parts.languageCode == "en" else { return (content, parts) }
+        let earliest = generatedAt.addingTimeInterval(-14 * 86_400)
+        let window = entries.filter { $0.createdAt <= generatedAt && $0.createdAt >= earliest }
+        guard let source = entryQuoting(parts.quote, in: window) else { return (content, parts) }
+        let sameDay = window.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: source.createdAt) }
+        guard let also = secondGroundedQuote(excluding: parts.quote, source: sameDay) else { return (content, parts) }
+        parts.alsoQuote = also
+        let line = "You also wrote, \"" + also + "\""
+        if let tip = groundedNudgeTips.values.joined().first(where: { content.hasSuffix($0) }) {
+            let head = String(content.dropLast(tip.count)).trimmingCharacters(in: .whitespaces)
+            return (head + " " + line + " " + tip, parts)
+        }
+        return (content + " " + line, parts)
     }
 
     static func groundedNudgeParts(of text: String) -> GroundedNudgeParts? {
@@ -65,8 +91,9 @@ extension InsightService {
     /// that is not the quote itself, in the quote's own language. No model call. nil when the
     /// entry has nothing else quotable.
     static func followUpQuestion(for parts: GroundedNudgeParts, sourceText: String) -> String? {
+        let quoted = [parts.quote] + (parts.alsoQuote.map { [$0] } ?? [])
         let others = followUpPhraseCandidates(in: sourceText).filter { phrase in
-            !phrase.contains(parts.quote) && !parts.quote.contains(phrase)
+            quoted.allSatisfy { !phrase.contains($0) && !$0.contains(phrase) }
         }
         guard let phrase = others.last else { return nil }
         if parts.languageCode == "en" {

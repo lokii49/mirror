@@ -1,0 +1,10 @@
+A Notes-style toolbar, and your journal better protected
+
+• A new Aa panel for formatting text, like in Notes, and a cleaner toolbar.
+• Smoother switching between Settings tabs, a button to clear your search, and hover feedback throughout.
+• Photos and tags scroll sideways in the editor, and the mood heatmap shows details on hover.
+• Zoom and pan in Brain View with the scroll wheel or trackpad, and keyboard shortcuts to move between months in reports.
+• The same journal protection as iPhone: a private copy and restore if iCloud is turned off, plus a notice when changes haven't been backed up yet.
+• Your daily reflection now shows a second sentence from your entry.
+• Faster search and filtering in Entries.
+• The app is now called MirrorNotes in Finder.

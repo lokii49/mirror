@@ -1,0 +1,10 @@
+Uma barra de ferramentas como no Notas e seu diário mais protegido
+
+• Um novo painel Aa para formatar texto, como no Notas, e uma barra de ferramentas mais limpa.
+• Troca mais suave entre as abas de Ajustes, um botão para limpar a busca e resposta visual ao passar o ponteiro.
+• Fotos e tags rolam na horizontal no editor, e o mapa de calor do humor mostra detalhes ao passar o ponteiro.
+• Zoom e movimento no Brain View com a roda ou o trackpad, e atalhos de teclado para trocar de mês nos relatórios.
+• A mesma proteção do iPhone: uma cópia privada e restauração se o iCloud for desativado, e um aviso quando as alterações ainda não têm backup.
+• Sua reflexão diária agora mostra uma segunda frase da sua entrada.
+• Busca e filtros mais rápidos em Entradas.
+• O app agora se chama MirrorNotes no Finder.

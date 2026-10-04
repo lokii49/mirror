@@ -65,6 +65,9 @@ enum UngroundedInsightCleanup {
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
         guard UserDefaults.standard.integer(forKey: backgroundingCountKey) >= minBackgroundings else { return }
+        // Nothing cached yet: retry later without loading every entry (52 ms of main-thread work per
+        // activation at 2,000 entries, every activation, on a store with no insights; Mac baseline).
+        guard ((try? context.fetchCount(FetchDescriptor<Insight>())) ?? 0) > 0 else { return }
 
         let allInsights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         let allEntries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []

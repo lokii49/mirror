@@ -774,6 +774,9 @@ enum InsightService {
             if let safe = structured.safeQuote,
                let text = fixedLineNudge(quote: safe.quote, sourceIndex: safe.sourceIndex, source: nudgeSource, recentNudges: recentNudges) {
                 return (text, .foundationModels, false)
+            } else if structured.refusals == structuredNudgeAttempts,
+                      let text = refusedDayNudge(source: nudgeSource, recentNudges: recentNudges) {
+                return (text, .foundationModels, false)
             } else {
                 return (dailyNudgeUngroundedFallback, .foundationModels, true)
             }
@@ -971,6 +974,8 @@ enum InsightService {
         var text: String?
         /// A quote an attempt did find in today's entries, for `fixedLineNudge` when no insight passed.
         var safeQuote: (quote: String, sourceIndex: Int)?
+        /// Attempts Foundation Models refused for safety (see `refusedDayNudge`).
+        var refusals = 0
     }
 
     static func structuredFMNudge(
@@ -1004,6 +1009,7 @@ enum InsightService {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                if FoundationModelEngine.isSafetyRefusal(error) { result.refusals += 1 }
                 #if DEBUG
                 // Error type only, never prompt or entry content.
                 print("[nudge] structured attempt \(attempt) failed (\(type(of: error)))")
@@ -1074,6 +1080,44 @@ enum InsightService {
         return opener + verified.quote + "\" " + verified.insight + (tip.map { " " + $0 } ?? "")
     }
 
+    /// A second quotable sentence from `source` for the display-time line after the reflection
+    /// (since iOS 3.0.8 / Mac 1.0.1, `reflectionWithAlsoQuote`): at least
+    /// `FMDailyGuard.minQuoteWords` words, ending in sentence punctuation (never a cut-down chunk),
+    /// no double quote, not overlapping the main quote. The longest such sentence, earliest on a tie, so the same
+    /// entry always gives the same line. nil when the entry has nothing else to quote.
+    static func secondGroundedQuote(excluding quote: String, source: [Entry]) -> String? {
+        // Overlap is judged without end punctuation: "Long day." sits inside "Long day and more."
+        func bare(_ s: String) -> String { s.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".!?…,;: ")) }
+        let main = bare(quote)
+        // Whole sentences only. Quote candidates cut a long sentence into chunks at commas or word
+        // windows ("because the manager moved…"); as a second quote a chunk reads as broken, so an
+        // entry with no other full sentence gets no line.
+        var whole = Set<String>()
+        for entry in source {
+            for text in [entry.text] + entry.voiceNotes.compactMap(\.transcript) {
+                for rawLine in text.components(separatedBy: .newlines) {
+                    let line = rawLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                        .replacing(/^(?:[-*•◦▪·☐☑✓✔]|\d{1,3}[.)]|\[[ xX]\])\s+/, with: "")
+                    for sentence in splitAfter(line, boundaries: ".!?…", immediate: "。！？") {
+                        whole.insert(sentence.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:—–-")))
+                    }
+                }
+            }
+        }
+        var best: (text: String, words: Int)?
+        var seen = Set<String>()
+        for candidate in source.flatMap(groundedQuoteCandidates(of:)) where seen.insert(candidate).inserted {
+            let lower = bare(candidate)
+            guard whole.contains(candidate), let last = candidate.last, ".!?…".contains(last),
+                  !candidate.contains("\""), !candidate.contains("\u{201C}"), !candidate.contains("\u{201D}"),
+                  !lower.contains(main), !main.contains(lower) else { continue }
+            let words = candidate.split(separator: " ").count
+            guard words >= FMDailyGuard.minQuoteWords else { continue }
+            if words > (best?.words ?? 0) { best = (candidate, words) }
+        }
+        return best?.text
+    }
+
     /// What follows a verified quote when no model-written insight passed the checks and Gemma is not
     /// installed: one fixed line chosen by the mood the person gave the entry, the way the other
     /// languages' reflections are composed. Nothing for an entry without a mood (the quote alone would
@@ -1085,10 +1129,20 @@ enum InsightService {
         .good: "You seem to be in a good place today.",
     ]
 
-    static func fixedLineNudge(quote: String, sourceIndex: Int, source: [Entry], recentNudges: [String], on date: Date = Date()) -> String? {
+    /// When Foundation Models refused every attempt for safety (a hospital, clinic or funeral day:
+    /// round 11), no model text exists. The app shows the day's first quotable sentence and the
+    /// fixed mood line, and no tip: a breathing or walk suggestion next to an ICU or funeral entry
+    /// reads as tone-deaf. nil (honest card) when there's no mood line for the entry's mood.
+    static func refusedDayNudge(source: [Entry], recentNudges: [String]) -> String? {
+        guard let quote = groundedNudgeQuoteOptions(from: source, excludingQuotesIn: recentNudges).first,
+              let index = source.firstIndex(where: { groundedQuoteCandidates(of: $0).contains(quote) }) else { return nil }
+        return fixedLineNudge(quote: quote, sourceIndex: index, source: source, recentNudges: recentNudges, includeTip: false)
+    }
+
+    static func fixedLineNudge(quote: String, sourceIndex: Int, source: [Entry], recentNudges: [String], on date: Date = Date(), includeTip: Bool = true) -> String? {
         guard source.indices.contains(sourceIndex), let mood = source[sourceIndex].mood,
               let line = groundedNudgeMoodLines[GroundedMoodBucket(mood: mood)] else { return nil }
-        let tip = groundedNudgeTip(forMood: mood, on: date)
+        let tip = includeTip ? groundedNudgeTip(forMood: mood, on: date) : nil
         return nextGroundedNudgeOpener(after: recentNudges) + quote + "\" " + line + (tip.map { " " + $0 } ?? "")
     }
 

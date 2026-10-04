@@ -463,7 +463,7 @@ struct EntryDetailView: View {
                 .frame(width: 30, height: 28)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .foregroundStyle(active ? MacTokens.accent : MacTokens.controlInk)
         .accessibilityLabel(label)
         .help(label)

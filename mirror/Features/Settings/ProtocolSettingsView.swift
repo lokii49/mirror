@@ -317,7 +317,7 @@ struct ProtocolSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle(displayMode == .sentinel ? "Protocol" : "Journal")
+        .settingsNavigationTitle(displayMode == .sentinel ? "Protocol" : "Journal")
         .navigationBarTitleDisplayMode(.large)
         .task { await checkNotificationPermission() }
     }

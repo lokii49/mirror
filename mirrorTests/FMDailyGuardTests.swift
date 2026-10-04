@@ -378,5 +378,48 @@ extension SharedLLMState {
             }
             print("[realfm] " + results.joined(separator: "\n[realfm] "))
         }
+
+        /// Round 11: Foundation Models refuses a hospital day for safety on every attempt. The app's
+        /// own fallback (first sentence + fixed mood line, no tip) answers instead of the honest card.
+        @Test func realFoundationModelsRefusedHospitalDayGetsTheFixedLine() async throws {
+            guard ProcessInfo.processInfo.environment["HARNESS_REAL_FM"] != nil, LocalLLMService.prefersFoundationModels else { return }
+            let hospital = Entry(text: "Spent the whole day at the hospital with Grandma. The nurses were kind but the waiting was endless. Got home at midnight and couldn't eat.", mood: "Drained")
+            let (text, engine, degraded) = try await InsightService.generateNudge(entries: [hospital], recentNudges: [])
+            print("[realfm] hospital: " + text)
+            #expect(engine == .foundationModels)
+            #expect(!degraded)
+            #expect(text != InsightService.dailyNudgeUngroundedFallback)
+            let parts = try #require(InsightService.groundedNudgeParts(of: text))
+            #expect(hospital.text.contains(parts.quote))
+        }
+    }
+}
+
+/// Round 11 (app side): every structured attempt refused for safety -> the day's first sentence and
+/// the fixed mood line, with no tip. Synthetic text only.
+@Suite("Refused day fallback")
+struct RefusedDayNudgeTests {
+    struct Refused: FoundationModelEngine.GuardrailRefusalForTesting {}
+    struct OtherFailure: Error {}
+
+    @Test @MainActor func allRefusedCountsAsRefusals() async throws {
+        let entry = Entry(text: "Spent the whole day at the clinic with Grandma. The waiting was endless.", mood: "Drained")
+        let result = try await InsightService.structuredFMNudge(source: [entry], recentNudges: [], userMessage: "", generator: { throw Refused() })
+        #expect(result.text == nil)
+        #expect(result.refusals == InsightService.structuredNudgeAttempts)
+        let other = try await InsightService.structuredFMNudge(source: [entry], recentNudges: [], userMessage: "", generator: { throw OtherFailure() })
+        #expect(other.refusals == 0)
+    }
+
+    @Test @MainActor func fallbackIsFirstSentencePlusMoodLineWithoutTip() throws {
+        let entry = Entry(text: "Spent the whole day at the clinic with Grandma. The waiting was endless.", mood: "Drained")
+        let text = try #require(InsightService.refusedDayNudge(source: [entry], recentNudges: []))
+        #expect(text == "You wrote, \"Spent the whole day at the clinic with Grandma.\" That sounds like a draining day.")
+        #expect(!InsightService.groundedNudgeTips.values.joined().contains { text.hasSuffix($0) })
+    }
+
+    @Test @MainActor func noMoodLineMeansHonestCard() {
+        let neutral = Entry(text: "Spent the whole day at the clinic with Grandma.", mood: nil)
+        #expect(InsightService.refusedDayNudge(source: [neutral], recentNudges: []) == nil)
     }
 }

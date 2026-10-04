@@ -13,6 +13,7 @@ struct EntriesTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
@@ -24,11 +25,24 @@ struct EntriesTabView: View {
     @State private var showEntryDetail = false
     @State private var showOnThisDay = false
     @State private var snapshotCache: EntryListSnapshot? = nil
+    /// Decrypted mood / tags / search text / row preview per entry, so a snapshot rebuild only
+    /// decrypts what changed (memory only; see EntryDecryptCache).
+    @State private var decryptCache = EntryDecryptCache()
     @State private var sortOrder: EntrySortOrder = .newestFirst
     // Set right before a pin/unpin toggle so the snapshot recompute (which lands
     // in .task, a separate transaction from the toggle site) animates only that
     // interaction — not every search keystroke, sort change, or tag edit.
     @State private var animatePinChange = false
+    // Bumped (only while some entries are unreadable) so the snapshot re-decrypts: a content
+    // key can arrive via iCloud Keychain — on a fresh install, or after the user turns it on
+    // in Settings — without any entry changing, and the cached row previews would otherwise
+    // stay "unavailable". Gated on unreadableCount so a healthy journal is never re-decrypted.
+    @State private var foregroundRefresh = 0
+    @AppStorage(UnreadableEntriesBanner.dismissedCountKey) private var unreadableBannerDismissedCount = 0
+    // Ticks every 30s only while iCloud has pending changes, so the "not backed up" banner
+    // appears once a normal upload would have finished (JournalSafety.showsNotBackedUp).
+    @State private var backupStatusNow = Date()
+    private var journalSafety: JournalSafety { JournalSafety.shared }
     #if os(macOS)
     @State private var macShowCalendar = false
     @FocusState private var macSearchFocused: Bool
@@ -84,6 +98,7 @@ struct EntriesTabView: View {
         let pinnedEntries: [Entry]
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
+        let unreadableCount: Int
     }
 
     private struct SnapshotDeps: Equatable {
@@ -96,9 +111,14 @@ struct EntriesTabView: View {
         let tagsHash: Int
         let pinnedHash: Int
         let sort: String
+        let foregroundRefresh: Int
     }
 
     private var snapshotDeps: SnapshotDeps {
+        PerfSignpost.interval("entries.deps") { snapshotDepsValue }
+    }
+
+    private var snapshotDepsValue: SnapshotDeps {
         SnapshotDeps(
             search: debouncedSearchText,
             mood: selectedMoodFilter,
@@ -108,13 +128,16 @@ struct EntriesTabView: View {
             moodHash: entries.map(\.encryptedMood).hashValue,
             tagsHash: entries.map(\.encryptedTagsStorage).hashValue,
             pinnedHash: entries.map(\.isPinned).hashValue,
-            sort: sortOrder.rawValue
+            sort: sortOrder.rawValue,
+            foregroundRefresh: foregroundRefresh
         )
     }
 
     private var listSnapshot: EntryListSnapshot {
         let query = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = entries
+        let cache = decryptCache
+        cache.prune(keeping: entries)
         let usedMoods = usedMoods(in: entries)
         let usedTags = usedTags(in: entries)
 
@@ -122,22 +145,23 @@ struct EntriesTabView: View {
             result = result.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: date) }
         }
         if let mood = selectedMoodFilter {
-            result = result.filter { $0.mood == mood }
+            result = result.filter { cache.item(for: $0).mood == mood }
         }
         if let tag = selectedTagFilter {
-            result = result.filter { $0.tags.contains(tag) }
+            result = result.filter { cache.item(for: $0).tags.contains(tag) }
         }
         if !query.isEmpty {
             #if os(macOS)
             // The Mac search box also matches #tags and mood names.
             let bare = query.hasPrefix("#") ? String(query.dropFirst()) : query
             result = result.filter {
-                $0.insightContext.localizedCaseInsensitiveContains(query)
-                    || $0.tags.contains { $0.localizedCaseInsensitiveContains(bare) }
-                    || ($0.mood.map { MirrorTheme.localizedMoodName(for: $0).localizedCaseInsensitiveContains(query) } ?? false)
+                let item = cache.item(for: $0)
+                return item.searchText.localizedCaseInsensitiveContains(query)
+                    || item.tags.contains { $0.localizedCaseInsensitiveContains(bare) }
+                    || (item.mood.map { MirrorTheme.localizedMoodName(for: $0).localizedCaseInsensitiveContains(query) } ?? false)
             }
             #else
-            result = result.filter { $0.insightContext.localizedCaseInsensitiveContains(query) }
+            result = result.filter { cache.item(for: $0).searchText.localizedCaseInsensitiveContains(query) }
             #endif
         }
 
@@ -145,7 +169,7 @@ struct EntriesTabView: View {
         case .newestFirst: break  // already sorted by @Query
         case .oldestFirst: result = result.sorted { $0.createdAt < $1.createdAt }
         case .mostWords:   result = result.sorted { $0.wordCount > $1.wordCount }
-        case .byMood:      result = result.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
+        case .byMood:      result = result.sorted { (cache.item(for: $0).mood ?? "") < (cache.item(for: $1).mood ?? "") }
         }
 
         // Pinned entries surface in their own section above the month groups
@@ -167,7 +191,7 @@ struct EntriesTabView: View {
             case .newestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt > $1.createdAt }
             case .oldestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt < $1.createdAt }
             case .mostWords:   sortedMonthEntries = monthEntries.sorted { $0.wordCount > $1.wordCount }
-            case .byMood:      sortedMonthEntries = monthEntries.sorted { ($0.mood ?? "") < ($1.mood ?? "") }
+            case .byMood:      sortedMonthEntries = monthEntries.sorted { (cache.item(for: $0).mood ?? "") < (cache.item(for: $1).mood ?? "") }
             }
             return EntryMonthGroup(date: month, entries: sortedMonthEntries)
         }
@@ -175,18 +199,11 @@ struct EntriesTabView: View {
         // Precompute all row display data (mood + text decrypts) so EntryRow.init does zero decrypts
         var rowPreviews: [UUID: EntryRowPreview] = [:]
         for entry in entries {
-            let p = EntryRow.makePreview(for: entry)
-            rowPreviews[entry.id] = EntryRowPreview(
-                moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
-                preview: p.preview,
-                wordCount: p.wordCount,
-                hasReadablePreview: p.hasReadablePreview,
-                hasVoiceNotes: p.hasVoiceNotes,
-                textDecryptionFailed: entry.textDecryptionFailed
-            )
+            rowPreviews[entry.id] = cache.item(for: entry).preview
         }
 
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews)
+        let unreadableCount = rowPreviews.values.filter(\.textDecryptionFailed).count
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount)
     }
 
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
@@ -286,7 +303,7 @@ struct EntriesTabView: View {
                 }
             }
             .task(id: snapshotDeps) {
-                let newSnapshot = listSnapshot
+                let newSnapshot = PerfSignpost.interval("entries.snapshot") { listSnapshot }
                 if animatePinChange && !reduceMotion {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
                         snapshotCache = newSnapshot
@@ -305,6 +322,27 @@ struct EntriesTabView: View {
             }
             #endif
             #endif
+            .task(id: journalSafety.hasPendingChanges) {
+                backupStatusNow = Date()
+                while journalSafety.hasPendingChanges, !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(30))
+                    backupStatusNow = Date()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active, (snapshotCache?.unreadableCount ?? 0) > 0 { foregroundRefresh &+= 1 }
+            }
+            // On a fresh install CloudKit often delivers entries before iCloud Keychain delivers
+            // the key. Re-check for a couple of minutes so the rows (and the banner) clear on
+            // their own instead of waiting for the next foreground.
+            .task(id: (snapshotCache?.unreadableCount ?? 0) > 0) {
+                guard (snapshotCache?.unreadableCount ?? 0) > 0 else { return }
+                for _ in 0..<12 {
+                    try? await Task.sleep(for: .seconds(10))
+                    if Task.isCancelled { return }
+                    foregroundRefresh &+= 1
+                }
+            }
             .onChange(of: navResetID) { _, _ in
                 showEntryDetail = false
                 selectedEntry = nil
@@ -316,6 +354,12 @@ struct EntriesTabView: View {
                 open(match)
                 deepLinkEntryID.wrappedValue = nil
             }
+        }
+    }
+
+    private func unreadableBanner(_ snapshot: EntryListSnapshot) -> some View {
+        UnreadableEntriesBanner(unreadableCount: snapshot.unreadableCount) {
+            unreadableBannerDismissedCount = snapshot.unreadableCount
         }
     }
 
@@ -399,7 +443,7 @@ struct EntriesTabView: View {
     }
 
     private func usedMoods(in entries: [Entry]) -> [String] {
-        let all = entries.compactMap(\.mood).filter { !$0.isEmpty }
+        let all = entries.compactMap { decryptCache.item(for: $0).mood }.filter { !$0.isEmpty }
         var seen = Set<String>()
         return all.filter { seen.insert($0).inserted }
     }
@@ -408,7 +452,7 @@ struct EntriesTabView: View {
         var seen = Set<String>()
         var result: [String] = []
         for entry in entries {
-            for tag in entry.tags where seen.insert(tag).inserted {
+            for tag in decryptCache.item(for: entry).tags where seen.insert(tag).inserted {
                 result.append(tag)
             }
         }
@@ -587,6 +631,33 @@ struct EntriesTabView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            }
+
+            if journalSafety.restoreOffer != nil {
+                Section {
+                    RestoreFromDeviceBanner()
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if journalSafety.showsNotBackedUp(now: backupStatusNow) {
+                Section {
+                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if UnreadableEntriesBanner.shouldShow(unreadableCount: snapshot.unreadableCount, dismissedCount: unreadableBannerDismissedCount) {
+                Section {
+                    unreadableBanner(snapshot)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             }
 
             // Active filters row
@@ -968,6 +1039,20 @@ extension EntriesTabView {
                 .padding(.bottom, 8)
             }
 
+            Group {
+                if journalSafety.restoreOffer != nil {
+                    RestoreFromDeviceBanner()
+                }
+                if journalSafety.showsNotBackedUp(now: backupStatusNow) {
+                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                }
+                if UnreadableEntriesBanner.shouldShow(unreadableCount: snapshot.unreadableCount, dismissedCount: unreadableBannerDismissedCount) {
+                    unreadableBanner(snapshot)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -1135,7 +1220,25 @@ extension EntriesTabView {
                 .foregroundStyle(MacTokens.ink)
                 .focused($macSearchFocused)
                 .accessibilityLabel("Search entries")
-            Text("⌘F").font(.system(size: 11))
+                .onKeyPress(.escape) {
+                    searchText = ""
+                    macListFocused = true
+                    return .handled
+                }
+            if searchText.isEmpty {
+                Text("⌘F").font(.system(size: 11))
+            } else {
+                Button {
+                    searchText = ""
+                    macSearchFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .frame(width: 20, height: 22)
+                }
+                .buttonStyle(MacHoverButtonStyle())
+                .accessibilityLabel("Clear search")
+                .help("Clear search")
+            }
         }
         .foregroundStyle(MacTokens.secondaryInk)
         .padding(.horizontal, 10)
@@ -1221,6 +1324,7 @@ private struct MacEntryRow: View {
     let entry: Entry
     let preview: EntriesTabView.EntryRowPreview?
     let isSelected: Bool
+    @State private var hovered = false
 
     private var mood: String? { preview?.moodLabel ?? entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
     private var secondary: Color { isSelected ? MacTokens.selectedRowInk : MacTokens.secondaryInk }
@@ -1261,15 +1365,80 @@ private struct MacEntryRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isSelected ? MacTokens.selectedRowFill : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(isSelected ? MacTokens.selectedRowFill : hovered ? MacTokens.controlInk.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(MacTokens.selectedRowBorder, lineWidth: 1)
             }
         }
         .contentShape(Rectangle())
+        .onHover { hovered = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 #endif
+
+/// Per-entry decrypted values for the entry list (mood, tags, the text search matches against, and the
+/// row preview), so rebuilding the list after a search keystroke or filter change decrypts only entries
+/// that are new or changed. Memory only: never written to disk or logged (decrypted journal text).
+/// A failed text decrypt is never cached, so an entry whose key arrives later (iCloud Keychain) is
+/// decrypted again on the next rebuild and the unreadable-entries banner can clear.
+final class EntryDecryptCache {
+    struct Item {
+        let signature: Int
+        let mood: String?
+        let tags: [String]
+        let searchText: String
+        let preview: EntriesTabView.EntryRowPreview
+    }
+
+    private var items: [UUID: Item] = [:]
+
+    /// Changes to any encrypted field the list reads change the signature.
+    private static func signature(of entry: Entry) -> Int {
+        var h = Hasher()
+        h.combine(entry.encryptedText)
+        h.combine(entry.encryptedMood)
+        h.combine(entry.encryptedTagsStorage)
+        h.combine(entry.encryptedVoiceNoteTranscript)
+        h.combine(entry.encryptedAdditionalVoiceNoteTranscriptsStorage)
+        h.combine(entry.voiceNoteDuration)
+        h.combine(entry.encryptedPhotoData?.count)
+        return h.finalize()
+    }
+
+    func item(for entry: Entry) -> Item {
+        let sig = Self.signature(of: entry)
+        if let cached = items[entry.id], cached.signature == sig { return cached }
+        let preview = EntryRow.makePreview(for: entry)
+        let failed = entry.textDecryptionFailed
+        let item = Item(
+            signature: sig,
+            mood: entry.mood,
+            tags: entry.tags,
+            searchText: entry.insightContext,
+            preview: EntriesTabView.EntryRowPreview(
+                moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
+                preview: preview.preview,
+                wordCount: preview.wordCount,
+                hasReadablePreview: preview.hasReadablePreview,
+                hasVoiceNotes: preview.hasVoiceNotes,
+                textDecryptionFailed: failed
+            )
+        )
+        if !failed { items[entry.id] = item } else { items[entry.id] = nil }
+        return item
+    }
+
+    /// How many entries are cached (tests).
+    var cachedCount: Int { items.count }
+
+    /// Drops deleted entries.
+    func prune(keeping entries: [Entry]) {
+        guard items.count > entries.count else { return }
+        let live = Set(entries.map(\.id))
+        items = items.filter { live.contains($0.key) }
+    }
+}
+

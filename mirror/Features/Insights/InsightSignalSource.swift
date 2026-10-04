@@ -175,11 +175,17 @@ struct InsightSignalSource: View {
                 let endsWithLocalizedLine = InsightService.groundedLocales.values.contains { loc in
                     loc.feel.values.joined().contains { insight.content.hasSuffix($0) }
                 }
-                let note = endsWithLocalizedLine
+                let base = endsWithLocalizedLine
                     ? quotedNote + " Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote."
                     : endsWithFixedTip
                     ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
                     : quotedNote
+                // Since 3.0.8: in the app, an English reflection is shown with a second sentence of theirs the
+                // app picked (display-time; see reflectionWithAlsoQuote).
+                let hasAlso = InsightService.reflectionWithAlsoQuote(insight.content, entries: source, generatedAt: insight.generatedAt).parts?.alsoQuote != nil
+                let note = hasAlso
+                    ? base + " The sentence after \u{201C}You also wrote\u{201D} is another one of yours, copied word for word; the app picked it, not the model."
+                    : base
                 return Resolved(rows: rows, reading: Self.readingList(source), note: note)
             }
             let background = backgroundEntries.count

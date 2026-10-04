@@ -10,6 +10,9 @@ struct MonthlyReportView: View {
 
     @State private var showPaywall = false
     @State private var selectedMonth: Date = Calendar.current.startOfMonth(Date())
+    #if os(macOS)
+    @FocusState private var macReportFocused: Bool
+    #endif
     var viewModel: InsightViewModel
 
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
@@ -70,6 +73,20 @@ struct MonthlyReportView: View {
         .background(MirrorTheme.bgBase)
         #if os(macOS)
         .macPage("Monthly report")
+        .focusable()
+        .focusEffectDisabled()
+        .focused($macReportFocused)
+        .onAppear { macReportFocused = true }
+        .onKeyPress(.leftArrow) {
+            guard canGoBack else { return .ignored }
+            selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            guard canGoForward else { return .ignored }
+            selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+            return .handled
+        }
         #endif
         .navigationTitle(displayMode == .sentinel ? "Debrief" : "Monthly Report")
         .navigationBarTitleDisplayMode(.inline)

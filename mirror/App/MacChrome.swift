@@ -61,6 +61,29 @@ struct MacIcon: View {
     }
 }
 
+/// Pointer feedback without changing the size or selected state of a control.
+struct MacHoverButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        HoverLabel(label: configuration.label, pressed: configuration.isPressed, enabled: isEnabled)
+    }
+
+    private struct HoverLabel: View {
+        let label: ButtonStyleConfiguration.Label
+        let pressed: Bool
+        let enabled: Bool
+        @State private var hovered = false
+
+        var body: some View {
+            label
+                .background(MacTokens.controlInk.opacity(enabled ? (pressed ? 0.16 : hovered ? 0.08 : 0) : 0),
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .onHover { hovered = $0 }
+        }
+    }
+}
+
 // MARK: - Destinations
 
 /// Every place the sidebar can go. The sidebar lists them in this order.
@@ -214,8 +237,9 @@ struct MacSidebar: View {
             .background(isSelected ? MacTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .help(destination.title)
     }
 }
 
@@ -326,12 +350,13 @@ struct MacBarToggle: View {
                 .background(isOn ? MacTokens.toggleActiveFill : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .foregroundStyle(isOn ? MacTokens.accentInk : MacTokens.controlInk)
         .disabled(isDisabled)
         .opacity(isDisabled ? 0.4 : 1)
         .accessibilityLabel(label)
         .help(label)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 
@@ -353,6 +378,7 @@ private struct MacPageModifier<Trailing: View>: ViewModifier {
                     content
                 }
             }
+            .modifier(MacNoScrollEdgeEffect())
             .frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
         }
     }
@@ -371,6 +397,7 @@ struct MacRootView<Detail: View>: View {
     @Binding var selection: MacDestination
     @Binding var sidebarVisible: Bool
     @ViewBuilder var detail: () -> Detail
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
@@ -385,7 +412,7 @@ struct MacRootView<Detail: View>: View {
         .background(MacTokens.windowBackground)
         .background(MacWindowConfigurator())
         .ignoresSafeArea(.container, edges: .top)
-        .animation(.easeInOut(duration: 0.18), value: sidebarVisible)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: sidebarVisible)
     }
 }
 #endif

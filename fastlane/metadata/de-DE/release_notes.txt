@@ -1,7 +1,9 @@
-Klarere Reflexionen und eine Korrektur für Japanisch und Chinesisch
+Sicherere Journale und eine vollständigere tägliche Reflexion
 
-• Auf iPhones mit Apple Intelligence zitiert deine tägliche Reflexion jetzt deine eigenen Worte und fügt eine kurze Zeile hinzu. Auf Englisch wird diese Zeile mit dem abgeglichen, was du geschrieben hast, sodass keine Details mehr auftauchen, die du nie geschrieben hast. In anderen Sprachen siehst du dein Zitat mit einer festen Zeile passend zu deiner Stimmung.
-• Die Einleitung der Reflexionen wechselt jetzt zwischen „Du hast geschrieben:“ und „Früher hast du geschrieben:“, damit nicht alle gleich beginnen.
-• Der erste Eintrag im Onboarding zählt japanische und chinesische Wörter jetzt korrekt.
-• Auf einem neuen Gerät wartet die Aktualisierung der Wortzahl für Japanisch und Chinesisch jetzt, bis deine Einträge vollständig aus iCloud synchronisiert sind.
-• Die Beschriftungen Niedrig, Mittel und Hoch in den Stimmungsdiagrammen sind jetzt übersetzt.
+• Wenn du iCloud für MirrorNotes ausschaltest oder dich von iCloud abmeldest, behält dein iPhone jetzt eine private Kopie deines Journals und bietet an, verschwundene Einträge wiederherzustellen.
+• Ein Hinweis zeigt dir, wenn deine letzten Änderungen noch nicht in iCloud sind – so weißt du, dass du iCloud bis dahin nicht ausschalten solltest.
+• Wenn einige Einträge auf einem neuen Gerät nicht lesbar sind, sagt dir MirrorNotes jetzt, warum und wie du es behebst (iCloud-Schlüsselbund aktivieren).
+• „Alles löschen“ entfernt jetzt auch Stimmungs-Check-ins, und deine anderen Geräte bieten die gelöschten Einträge nicht erneut an.
+• Deine tägliche Reflexion zeigt jetzt zusätzlich einen zweiten Satz aus deinem Eintrag, in deinen eigenen Worten (Englisch).
+• Auf iPhones mit Apple Intelligence bekommen Tage im Krankenhaus, in einer Praxis oder Ähnlichem jetzt eine Reflexion statt keiner.
+• Ein neues Format-Menü wie in Notizen: Stile, fett/kursiv/unterstrichen/durchgestrichen, Listen, Einzüge und Farben an einem Ort.

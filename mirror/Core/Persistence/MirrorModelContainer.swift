@@ -16,6 +16,7 @@ enum MirrorModelContainer {
         Insight.self,
         UserProfile.self,
         MoodCheckIn.self,
+        JournalErasure.self,
     ])
 
     static var defaultConfiguration: ModelConfiguration {
@@ -23,6 +24,12 @@ enum MirrorModelContainer {
         // Mac UI snapshot mode: throwaway in-memory store, no CloudKit.
         if CommandLine.arguments.contains("--macSnapshot") {
             return ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        }
+        #endif
+        #if DEBUG
+        // Performance baseline: synthetic on-disk scratch store, never the real one, no CloudKit.
+        if PerfSeed.isRequested {
+            return ModelConfiguration(schema: schema, url: PerfSeed.storeURL, cloudKitDatabase: .none)
         }
         #endif
         return ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
@@ -40,7 +47,12 @@ enum MirrorModelContainer {
         }
     }
 
-    private static let outcome = open()
+    private static let outcome: Outcome = {
+        // Count-only check (no copy) so a purge that emptied the store last session freezes
+        // the device backup before anything can overwrite it. See LocalJournalBackup.
+        LocalJournalBackup.evaluateBeforeOpen(storeURL: LocalJournalBackup.liveStoreURL(defaultConfiguration))
+        return open()
+    }()
 
     static var shared: ModelContainer { outcome.container }
     static var openError: Error? { outcome.openError }

@@ -28,8 +28,10 @@ enum MirrorEncryption {
     /// Mac UI snapshot mode (`--macSnapshot`, see MacSnapshot.swift) runs against an in-memory
     /// store with a throwaway key, so it never reads or writes the Keychain — a stray content
     /// key synced to iCloud Keychain could be mistaken for the real one on another device.
+    /// `--perfSeed=N` (PerfSeed.swift) gets a fixed debug key for the same reason, stable across launches.
     static let debugEphemeralKey: SymmetricKey? =
-        CommandLine.arguments.contains("--macSnapshot") ? SymmetricKey(size: .bits256) : nil
+        CommandLine.arguments.contains("--macSnapshot") ? SymmetricKey(size: .bits256)
+            : PerfSeed.isRequested ? PerfSeed.key : nil
     #endif
 
     static func encryptString(_ value: String) -> String {

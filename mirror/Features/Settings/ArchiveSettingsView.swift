@@ -114,7 +114,7 @@ struct ArchiveSettingsView: View {
                         Button("Delete Everything", role: .destructive) { deleteAllData() }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("Permanently deletes all entries and insights from this device and iCloud. Cannot be undone.")
+                        Text("Permanently deletes all entries, mood check-ins and insights from this device and iCloud. Cannot be undone.")
                     }
                 }
             }
@@ -122,7 +122,7 @@ struct ArchiveSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle(displayMode == .sentinel ? "Archive" : "Your Data")
+        .settingsNavigationTitle(displayMode == .sentinel ? "Archive" : "Your Data")
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(
             isPresented: $showImportPicker,
@@ -174,13 +174,23 @@ struct ArchiveSettingsView: View {
     }
 
     private func deleteAllData() {
-        if let all = try? modelContext.fetch(FetchDescriptor<Entry>()) {
-            all.forEach { modelContext.delete($0) }
+        let entries = (try? modelContext.fetch(FetchDescriptor<Entry>())) ?? []
+        let checkIns = (try? modelContext.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
+        // Synced marker so other devices' on-device backups never offer these back. Saved
+        // on its own, before the deletes: exports follow save order, so another device
+        // gets the marker before (or with) the deletes and never offers them back.
+        if !entries.isEmpty || !checkIns.isEmpty {
+            modelContext.insert(JournalErasure(erasedEntryIDs: entries.map(\.id), erasedCheckInIDs: checkIns.map(\.id)))
+            try? modelContext.save()
         }
+        entries.forEach { modelContext.delete($0) }
+        checkIns.forEach { modelContext.delete($0) }
         if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
             all.forEach { modelContext.delete($0) }
         }
         try? modelContext.save()
+        MoodCheckInMigration.eraseLegacyRecords()
+        JournalSafety.shared.journalWasErased()
     }
 
     private func checkiCloudStatus() async {

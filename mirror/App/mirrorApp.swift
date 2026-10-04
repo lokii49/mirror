@@ -26,6 +26,12 @@ struct mirrorApp: App {
     var sharedModelContainer: ModelContainer = MirrorModelContainer.shared
 
     init() {
+        PerfSignpost.beginLaunch()
+        #if os(macOS) && DEBUG
+        if let dir = MacFormatPopoverRender.requestedDirectory {
+            DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }
+        }
+        #endif
         #if DEBUG
         Purchases.logLevel = .debug
         #endif
@@ -34,6 +40,21 @@ struct mirrorApp: App {
         NotificationService.registerCategories()
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
+        if MirrorModelContainer.isStoreAvailable {
+            JournalSafety.shared.start(container: sharedModelContainer)
+        }
+        #if DEBUG
+        if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
+            CloudKitSchemaSeed.run(context: sharedModelContainer.mainContext)
+        }
+        #endif
+        #if DEBUG
+        // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
+        if PerfSeed.isRequested {
+            PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
+            Task { @MainActor in await PerfSeed.runEntriesScenario() }
+        }
+        #endif
         #if DEBUG
         // See SampleData.seedPastNudges — InsightView's "Past reflections" section only
         // renders once real usage has accumulated a few days of history, so there was no way
@@ -196,41 +217,65 @@ struct mirrorApp: App {
             // Snapshot mode renders sample data only: no generation, cleanup passes or permission prompts.
             if MacSnapshot.isRequested { return }
             #endif
+            #if DEBUG
+            // Perf baseline runs an unsigned copy with the real bundle id: it shares the system's
+            // notification center with the installed app, so it must not touch reminders, and it
+            // skips the background branch (which schedules notifications) entirely.
+            let perfRun = PerfSeed.isRequested
+            if perfRun && phase == .background { return }
+            #else
+            let perfRun = false
+            #endif
             switch phase {
             case .active:
                 // Request notification permission for users who completed onboarding before
                 // the permission prompt was added (status .notDetermined = never asked).
-                Task {
-                    await requestNotificationPermissionIfNeeded()
-                    migrateToUnifiedDailyReminder()
-                    await reArmUserReminders()
+                if !perfRun {
+                    Task {
+                        await requestNotificationPermissionIfNeeded()
+                        migrateToUnifiedDailyReminder()
+                        await reArmUserReminders()
+                    }
                 }
                 // Backfill the rate-us gate for users already past 5 entries
                 // (including anyone who only saw Apple's raw prompt on an older
                 // build). Idempotent — one-shot flag, self-guards on count.
                 Task { @MainActor in
-                    ReviewRequestManager.requestIfEntryMilestoneReached(context: sharedModelContainer.mainContext)
+                    PerfSignpost.interval("active.reviewPrompt") {
+                        ReviewRequestManager.requestIfEntryMilestoneReached(context: sharedModelContainer.mainContext)
+                    }
                 }
                 // One-time move of daily mood check-ins from the legacy encrypted
                 // UserDefaults blob into SwiftData (so they sync via CloudKit).
                 // Idempotent, one-directional, keeps the blob intact.
                 Task { @MainActor in
-                    MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
+                    PerfSignpost.interval("active.moodCheckInMigration") {
+                        MoodCheckInMigration.runIfNeeded(context: sharedModelContainer.mainContext)
+                    }
                 }
+                // iCloud status, restore-from-device offer, and cleanup of restored copies
+                // whose originals CloudKit has since delivered.
+                PerfSignpost.interval("active.journalSafety") { JournalSafety.shared.appDidBecomeActive() }
                 // One-time: re-clean daily reflections cached before the
                 // announce-line / "friend" vocative strip landed (076b9f5).
                 Task { @MainActor in
-                    CachedInsightRepair.runIfNeeded(context: sharedModelContainer.mainContext)
+                    PerfSignpost.interval("active.cachedInsightRepair") {
+                        CachedInsightRepair.runIfNeeded(context: sharedModelContainer.mainContext)
+                    }
                 }
                 // One-time: retroactively flag already-cached nudges/digests/reports that
                 // fabricated content slipped past the pre-fix grounding check (see
                 // UngroundedInsightCleanup's doc comment).
                 Task { @MainActor in
-                    UngroundedInsightCleanup.runIfNeeded(context: sharedModelContainer.mainContext)
+                    PerfSignpost.interval("active.ungroundedCleanup") {
+                        UngroundedInsightCleanup.runIfNeeded(context: sharedModelContainer.mainContext)
+                    }
                 }
                 // One-time: recount word totals for Japanese/Chinese entries (see CJKWordCountRecount).
                 Task { @MainActor in
-                    CJKWordCountRecount.runIfNeeded(context: sharedModelContainer.mainContext)
+                    PerfSignpost.interval("active.cjkRecount") {
+                        CJKWordCountRecount.runIfNeeded(context: sharedModelContainer.mainContext)
+                    }
                 }
                 // One-time: rewrite the latest digest/report if the pre-grammar Gemma path wrote it.
                 mirrorApp.regradeTask?.cancel()
@@ -240,8 +285,11 @@ struct mirrorApp: App {
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
                 mirrorApp.activeGenerationTask?.cancel()
-                mirrorApp.activeGenerationTask = Task(priority: .background) {
-                    await preGenerateInsightsIfNeeded()
+                // Not in perf runs: it loads the model and can post a "reflection ready" notification.
+                if !perfRun {
+                    mirrorApp.activeGenerationTask = Task(priority: .background) {
+                        await PerfSignpost.interval("active.preGenerateInsights") { await preGenerateInsightsIfNeeded() }
+                    }
                 }
             case .background:
                 // Cancel any foreground GPU generation immediately — LocalLLMService will
@@ -259,6 +307,9 @@ struct mirrorApp: App {
                 // which needs a real "this is a later session" signal, not just another .active
                 // call within the same cold launch).
                 UngroundedInsightCleanup.recordBackgrounding()
+                // Refresh the on-device journal backup — if the user now turns iCloud off
+                // for the app, this copy is what survives the purge (LocalJournalBackup).
+                JournalSafety.shared.appDidEnterBackground()
                 // Give any remaining in-flight generation (BGProcessingTask path) ~30s grace.
                 extendBackgroundForPendingGeneration()
             default:

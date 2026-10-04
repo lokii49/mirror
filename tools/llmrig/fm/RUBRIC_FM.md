@@ -250,3 +250,83 @@ the model's checked insight; the others the quote + fixed line). On a device tha
 answer: `LocalLLMService.generate` rethrows a Foundation Models failure except `unsupportedLanguageOrLocale` (Russian today).
 A language outside English and the nine gets the honest card. `DAILY_NUDGE_SYSTEM` is retired as a prompt and kept only as
 `DAILY_NUDGE_LEGACY_SYSTEM` for the "How this was generated" sheet on older rows.
+
+---
+## Round 10: V1f, a longer English reflection (plan fixed BEFORE running, 2026-10-04)
+
+Question (owner, 2026-10-04): can the English FM daily reflection be longer than one or two sentences without
+inventing? Owner chose to try it alongside app-built lines (3.0.9 roadmap, Track 2).
+
+**Variant V1f** = shipped V1e with three changes, nothing else:
+- `DAILY_REFLECTION_FM_SYSTEM`, insight line: "two or three sentences" instead of "one or two", plus
+  "Each sentence adds something new: do not repeat the quote or say the same thing twice." (file `system_v1f.txt`)
+- `@Guide` on `insight`: "Two or three sentences ... Each sentence says something new. ..." (`DailyV1f` in fmrig.swift;
+  the app's `DailyReflectionDraft` gets the identical text only if this round passes)
+- `FMDailyGuard.verify(maxSentences: 3)` instead of 2. Every sentence is still checked; failing ones are dropped.
+
+**Baseline** `prod` = the shipped prompt, guide and guard (V1e), run on the same cases for the mechanical length and
+fallback comparison only (not blind-scored).
+
+**Inputs**: byte-identical to the app: `InsightService.structuredNudgeSystemPrompt` + `buildUserMessage(title: "Daily
+reflection context", ...)` from `dailyNudgeContext`, dumped by `GroundingSampleHarness.test_dumpStructuredNudgePromptsForRig`.
+The prompt files dumped for V1f differ from `prod` only in the insight line of the system prompt.
+
+**Cases**: the 13 committed cases (rigCases, groundedEdgeCases, reflectionLineCases) + 10 FRESH held-out synthetic
+cases written before this run and committed in the harness (`heldOutRound10`, labels `hold3_*`): good news with a
+worry, a sick pet, an exam with an offer not yet taken up, a birthday where another person is in pain, a plain day,
+an unsent email, a numb day, a running milestone, two moods the same day, a hospital day.
+(Rounds 5-6's `hold_*` / `hold2_*` inputs were never committed and cannot be re-run.) N = 10 each, temperature 0.45.
+
+**Per shown output, 0/1, PASS needs 1-5:**
+1. MAIN, 2. INVENT, 3. SWAP, 4. TENSE as in round 5, applied to EVERY insight sentence. SWAP is checked sentence by
+   sentence for who felt or did what (round 7: the word guard cannot see one person's feeling given to another).
+5. FORMAT (redefined for this round): `You wrote, "<quote>"` + 1-3 insight sentences; "you" register; no first person,
+   no meta text; grammatical; **no padding**: a sentence that only restates the quote or another sentence in other
+   words fails FORMAT.
+
+**Recorded by script**: shown insight sentence count, dropped sentences, attempts, fallback, quote verbatim, errors.
+
+**Ship rule (all must hold)**:
+- shown PASS >= 95% over all 23 cases AND >= 95% on the 10 hold3 cases alone; no case with more than 2 shown failures;
+- FALLBACK <= 10% overall and <= 30% in any case; shown quotes 100% verbatim; errors / guardrail refusals <= 5%;
+- **LENGTH**: >= 60% of V1f's shown outputs have at least 2 insight sentences after the guard, and that share is at least
+  20 points above `prod`'s. (A variant that passes every check but still shows one sentence most days does not fix
+  what was asked, so it does not ship.)
+One round only. If it misses, the shipped V1e stays.
+Scoring: shuffled blind sheet of V1f's shown outputs (`score_tools.py sheet`), single scorer.
+
+### Round 10 result (2026-10-04, 23 cases x 2 variants x 10, mechanical): FAILED the gate; V1e stays
+| | runs | shown | fallback | errors | quotes verbatim | shown with >= 2 insight sentences |
+|---|---|---|---|---|---|---|
+| prod (V1e) | 230 | 220 | 0 | 10 | 220/220 | 109/220 (49.5%) |
+| V1f | 230 | 214 | 6 (2.6%) | 10 | 214/214 | 210/214 (98.1%) |
+
+- **Fails the per-case fallback gate**: hold3_vet fell back 6/10 (60% > 30%). Under the longer guide the model rewrote
+  the quote ("He slept on my feet" became "Biscuit slept on my feet"), so no attempt had a verbatim quote. prod quoted
+  that case correctly 10/10. Per the plan (one round only), V1f does not ship and was not blind-scored.
+- LENGTH gate would have passed (98.1% vs 49.5%).
+- Indicative only (single scorer, case labels visible, 30 random shown V1f outputs, not the blind protocol): about 9/30
+  would fail: nonsense ("You feel no steady feeling"), ungrammatical ("You feel the flat feels too quiet"), invented
+  meaning ("which shows you are moving forward slowly"). Most of the rest lengthened the reflection by listing entry
+  facts ("You worked from home. You made soup for lunch."). More sentences from this model mostly add recitation.
+- **Production finding (not caused by V1f)**: hold3_hospital (a day at the hospital with Grandma) was refused by the
+  FM guardrail 10/10 in BOTH variants ("May contain sensitive/unsafe content"), so on FM devices such a day gets the
+  fixed-line fallback or the honest card. Follow-up for the 3.0.9 roadmap.
+- Decision: lengthen the English reflection with the app-picked second quote instead (`secondGroundedQuote`), which
+  adds the person's own words and no model text.
+
+## Round 11: why a hospital day gets no reflection (diagnostic, 2026-10-04) + app-side fallback
+Probe (`hold3_hospital` prompt, shipped V1e guide, N = 4-6 per variant, macOS CLI and the iOS app path on the simulator):
+- Swapping only the place word: "hospital", "clinic", "doctor's office", "ICU", "cancer ward", "funeral home",
+  "therapist's office", "police station", "court", "rehab center" were declined 4/4 each; "office", "ER", "vet",
+  "dentist" went through 4/4. Removing "Grandma" or "couldn't eat" changed nothing. The setting, not the person, triggers it.
+- `SystemLanguageModel(guardrails: .permissiveContentTransformations)` did not help with guided generation (6/6 declined).
+- In the app the decline arrives as `LanguageModelError.refusal` ("May contain sensitive content", code 3 on iOS 27), not
+  `.guardrailViolation`; both now count (`FoundationModelEngine.isSafetyRefusal`).
+No prompt can fix a decline on the input itself, so the fix is app-side and model-free (no ship gate applies to the
+model): when all 3 structured attempts are declined, `InsightService.refusedDayNudge` shows the day's first quotable
+sentence and the fixed mood line, with no tip (a breathing/walk tip next to an ICU or funeral entry reads as tone-deaf);
+no mood line for the mood -> the honest card as before. Real FM end to end: `RealFMNudgeTests.realFoundationModelsRefusedHospitalDayGetsTheFixedLine`.
+Follow-up probe (real FM, a four-entry hospital week, 3 runs each): weekly digest 3/3, monthly report 3/3 and Ask 3/3
+answered, none declined. The decline is specific to the structured (`@Generable`) daily reflection, so the other three
+need no fallback. A declined Ask saves nothing, so it never counts against Core's 15 questions a month.

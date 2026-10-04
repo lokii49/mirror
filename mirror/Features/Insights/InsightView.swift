@@ -35,6 +35,9 @@ struct InsightView: View {
     @State private var cachedPastNudges: [Insight] = []
     /// The day each real reflection is about (InsightService.reflectedDay), for Past rows' labels.
     @State private var cachedReflectedDays: [PersistentIdentifier: Date] = [:]
+    /// Today's reflection as shown in the app, with the second quote (since 3.0.8) (built off the main render
+    /// path: it decrypts the reflected day's entries). Keyed by the insight and its content.
+    @State private var cachedNudgeDisplay: (key: String, text: String)? = nil
     @State private var cachedPastDigests: [Insight] = []
 
     // Standalone daily mood check-ins — merged with entry moods via `MoodLog`
@@ -178,6 +181,9 @@ struct InsightView: View {
         }
         .task(id: insightCacheKey) {
             recomputeInsightCaches()
+        }
+        .task(id: nudgeDisplayKey) {
+            recomputeNudgeDisplay()
         }
         .onChange(of: entries.count) { _, _ in
             nudgeExpanded = false
@@ -353,6 +359,30 @@ struct InsightView: View {
             .compactMap { _, rows in rows.max { $0.generatedAt < $1.generatedAt } }
             .filter { !InsightService.isUngroundedFallback($0.content) }
             .sorted { $0.generatedAt > $1.generatedAt }
+    }
+
+    private var loadedNudge: Insight? {
+        if case .loaded(let insight) = viewModel.nudgeState { return insight }
+        return nil
+    }
+
+    private func nudgeDisplayKey(for insight: Insight?) -> String {
+        guard let insight else { return "" }
+        return "\(insight.persistentModelID.hashValue)|\(insight.content.hashValue)|\(entries.count)"
+    }
+
+    private var nudgeDisplayKey: String { nudgeDisplayKey(for: loadedNudge) }
+
+    private func recomputeNudgeDisplay() {
+        guard let insight = loadedNudge else { cachedNudgeDisplay = nil; return }
+        let shown = InsightService.reflectionWithAlsoQuote(insight.content, entries: entries, generatedAt: insight.generatedAt)
+        cachedNudgeDisplay = (nudgeDisplayKey(for: insight), shown.text)
+    }
+
+    /// The stored text until the display cache has today's version (never decrypts in `body`).
+    private func displayedNudgeText(_ insight: Insight) -> String {
+        guard let cached = cachedNudgeDisplay, cached.key == nudgeDisplayKey(for: insight) else { return insight.content }
+        return cached.text
     }
 
     private func recomputeInsightCaches() {
@@ -551,6 +581,7 @@ struct InsightView: View {
         case .loaded(let insight):
             InsightTextView(
                 insight: insight,
+                displayText: displayedNudgeText(insight),
                 label: "Daily Reflection",
                 icon: "sparkles",
                 aboutDay: todayCardAboutDay(insight),
@@ -1513,6 +1544,8 @@ struct ModelDownloadStateControl: View {
 
 private struct InsightTextView: View {
     let insight: Insight
+    /// What to show instead of `insight.content` (today's reflection with its second quote).
+    var displayText: String? = nil
     let label: LocalizedStringKey
     let icon: String
     /// The day the reflection is about, shown under the header when set.
@@ -1552,7 +1585,7 @@ private struct InsightTextView: View {
                     )
                 )
                 .frame(height: 1)
-            Text(insight.content)
+            Text(displayText ?? insight.content)
                 .font(.system(size: 18, weight: .regular, design: .serif))
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
@@ -1925,7 +1958,11 @@ extension InsightView {
     fileprivate static func macCurlyQuotes(_ text: String) -> String {
         guard let parts = InsightService.groundedNudgeParts(of: text),
               let range = text.range(of: "\"" + parts.quote + "\"") else { return text }
-        return text.replacingCharacters(in: range, with: "\u{201C}" + parts.quote + "\u{201D}")
+        var curled = text.replacingCharacters(in: range, with: "\u{201C}" + parts.quote + "\u{201D}")
+        if let also = parts.alsoQuote, let alsoRange = curled.range(of: "\"" + also + "\"", options: .backwards) {
+            curled.replaceSubrange(alsoRange, with: "\u{201C}" + also + "\u{201D}")
+        }
+        return curled
     }
 
     /// "Wed 30 Sep", without the locale's comma.
@@ -2020,9 +2057,11 @@ extension InsightView {
 
     private func recomputeMacToday() {
         guard let insight = macLoadedNudge else { macToday = nil; return }
-        let content = insight.content
-        let parts = InsightService.groundedNudgeParts(of: content)
-        let grounded = InsightService.isGrammarGrounded(content)
+        // Shown with the second quote (display-time only; see reflectionWithAlsoQuote).
+        let shown = InsightService.reflectionWithAlsoQuote(insight.content, entries: entries, generatedAt: insight.generatedAt)
+        let content = shown.text
+        let parts = shown.parts
+        let grounded = InsightService.isGrammarGrounded(insight.content)
         // The chip asks about another part of the entry the reflection quoted, not the quote again.
         var followUp: String?
         if grounded, let parts {
@@ -2119,6 +2158,12 @@ private struct MacInsightInspector: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(MacTokens.quoteHighlight, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             caption("Copied word for word from your entry. The app never rewrites it.")
+                        }
+                        if let also = parts.alsoQuote {
+                            block(title: "ALSO FROM YOUR ENTRY") {
+                                card("\u{201C}\(also)\u{201D}")
+                                caption("Another sentence from the same entry, word for word. The app picked it; the model didn't.")
+                            }
                         }
                         if let authorship {
                             if let model = authorship.modelText {

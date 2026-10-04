@@ -1126,6 +1126,70 @@ final class GroundingSampleHarness: XCTestCase {
         ("rl_neutral", [Entry(text: "Normal Tuesday. Gym at seven, office till six, cooked pasta and watched two episodes of the show. Went to bed early.", mood: "Content")]),
     ]
 
+    /// Round 10 held-out cases (tools/llmrig/fm/RUBRIC_FM.md), written before the run, all synthetic.
+    /// Shapes the longer reflection could get wrong: another person's feeling given to the writer,
+    /// an offer or an unsent email stated as done, two moods the same day.
+    static let heldOutRound10: [(label: String, entries: [Entry])] = {
+        let morning = Entry(text: "Three deadlines moved up to this week and the client wants changes by Wednesday.", mood: "Overwhelmed")
+        let evening = Entry(text: "Called Nina after dinner and we laughed about nothing for an hour. Feels lighter now.", mood: "Peaceful")
+        morning.createdAt = Date().addingTimeInterval(-60)
+        return [
+            ("hold3_promo", [Entry(text: "Heard back about the team lead role and I got it. Told Priya at lunch and she hugged me. Still nervous about managing people I used to sit next to.", mood: "Hopeful")]),
+            ("hold3_vet", [Entry(text: "Took Biscuit to the vet this morning, they want to run more tests on his kidneys. He slept on my feet all evening. I keep looking up what the results might mean.", mood: "Sad")]),
+            ("hold3_exam", [Entry(text: "Exam is on Friday and I've only covered half the syllabus. Studied in the library till nine. My roommate offered to quiz me tomorrow night.", mood: "Anxious")]),
+            ("hold3_bday", [Entry(text: "Dad cooked biryani for my birthday even though his back has been hurting. My sister drove four hours to be here. We stayed up talking until one.", mood: "Grateful")]),
+            ("hold3_plain", [Entry(text: "Worked from home. Answered emails, fixed two bugs, made soup for lunch. Read a few chapters before bed.", mood: "Content")]),
+            ("hold3_credit", [Entry(text: "Arjun took credit for my slides in the review again. I didn't say anything in the meeting. Drafted an email to my manager but haven't sent it.", mood: "Frustrated")]),
+            ("hold3_numb", [Entry(text: "Didn't really feel anything today. Went to work, came home, scrolled until late. Mum called and I let it ring.", mood: "Numb")]),
+            ("hold3_run", [Entry(text: "First 10k without stopping! Legs are sore but I feel amazing. Signed up for the half marathon in March.", mood: "Energized")]),
+            ("hold3_twomoods", [morning, evening]),
+            ("hold3_hospital", [Entry(text: "Spent the whole day at the hospital with Grandma. The nurses were kind but the waiting was endless. Got home at midnight and couldn't eat.", mood: "Drained")]),
+        ]
+    }()
+
+    /// Round 10: the exact (system, user) pair the English structured daily reflection sends
+    /// (`structuredNudgeSystemPrompt` + `buildUserMessage` from `dailyNudgeContext`), one pair per case,
+    /// for tools/llmrig/fm `fmrig prod|v1f`. No model runs. Output dir from HARNESS_DUMP_DIR.
+    func test_dumpStructuredNudgePromptsForRig() throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 {
+            let (recent, background) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
+            let system = InsightService.structuredNudgeSystemPrompt(for: recent + background)
+            let user = InsightService.buildUserMessage(
+                title: "Daily reflection context",
+                recentEntries: recent,
+                backgroundEntries: background,
+                maxChars: InsightService.dailyNudgePromptBudget,
+                includeRecurringTerms: false
+            )
+            XCTAssertEqual(system, DAILY_REFLECTION_FM_SYSTEM, "\(c.label) should be English")
+            try system.write(toFile: "\(dir)/\(c.label)_fm_system.txt", atomically: true, encoding: .utf8)
+            try user.write(toFile: "\(dir)/\(c.label)_fm_user.txt", atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// What `secondGroundedQuote` picks for every English rig case, beside the main quote the
+    /// Gemma path would most likely use (its first quote option), to read by eye. No model runs.
+    func test_dumpSecondQuotesForReview() throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        var lines: [String] = []
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 {
+            let (recent, _) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
+            let source = InsightService.groundedNudgeSourceEntries(recent)
+            for main in InsightService.groundedNudgeQuoteOptions(from: source) {
+                let also = InsightService.secondGroundedQuote(excluding: main, source: source) ?? "(none)"
+                lines.append("\(c.label)\tMAIN: \(main)\tALSO: \(also)")
+            }
+        }
+        try lines.joined(separator: "\n").write(toFile: "\(dir)/second_quotes.tsv", atomically: true, encoding: .utf8)
+    }
+
     /// Writes the exact final (system, user) prompt pairs generateNudge sends for each rig case —
     /// attempt 1 plus both retry-note attempts — by forcing every attempt to fail grounding with
     /// a fixed fabricated reply. No model runs. Output dir from HARNESS_DUMP_DIR.

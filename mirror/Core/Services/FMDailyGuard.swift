@@ -36,7 +36,9 @@ nonisolated enum FMDailyGuard {
     static let minQuoteWords = 4
     static let maxInsightSentences = 2
 
-    static func verify(quote: String, insight: String, sources: [Source]) -> Verified? {
+    /// `maxSentences` is how many clean insight sentences are kept (the app ships 2; rig round 10
+    /// measures 3, tools/llmrig/fm/RUBRIC_FM.md).
+    static func verify(quote: String, insight: String, sources: [Source], maxSentences: Int = maxInsightSentences) -> Verified? {
         guard let (shownQuote, index) = locate(quote: quote, in: sources.map(\.text)) else { return nil }
         let allowed = allowedWords(sources)
         let sourceWords = Set(sources.flatMap { words($0.text) })
@@ -48,7 +50,7 @@ nonisolated enum FMDailyGuard {
             let restored = restoreNames(sentence, names: names)
             let duplicate = kept.contains { $0.lowercased() == tidy(restored).lowercased() }
             if !duplicate, sentenceIsClean(restored, allowed: allowed, sourceWords: sourceWords, sourceText: sourceText) {
-                if kept.count < maxInsightSentences { kept.append(tidy(restored)) }
+                if kept.count < maxSentences { kept.append(tidy(restored)) }
             } else {
                 dropped += 1
             }

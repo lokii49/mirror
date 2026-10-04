@@ -152,7 +152,7 @@ struct DiagnosticsSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .navigationTitle(displayMode == .sentinel ? "Diagnostics" : "Developer")
+        .settingsNavigationTitle(displayMode == .sentinel ? "Diagnostics" : "Developer")
         .navigationBarTitleDisplayMode(.large)
     }
 }

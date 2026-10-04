@@ -60,77 +60,66 @@ extension WriteView {
 
             Spacer(minLength: 4)
 
-            // B / I / U / Aa
-            HStack(spacing: 0) {
-                formatCell(width: 32) {
-                    Text("B").font(.system(size: 13, weight: .bold))
-                } isOn: { activeInlineStyles.bold } action: { applyTextCommand(.bold) }
-                .accessibilityLabel("Bold")
-
-                formatDivider
-                formatCell(width: 32) {
-                    Text("I").font(.custom("Georgia", size: 13).italic())
-                } isOn: { activeInlineStyles.italic } action: { applyTextCommand(.italic) }
-                .accessibilityLabel("Italic")
-
-                formatDivider
-                formatCell(width: 32) {
-                    Text("U").font(.system(size: 13)).underline()
-                } isOn: { activeInlineStyles.underline } action: { applyTextCommand(.underline) }
-                .accessibilityLabel("Underline")
-
-                formatDivider
-                formatCell(width: 40) {
-                    Text("Aa").font(.system(size: 12))
-                } isOn: { showFormattingPanel } action: { showFormattingPanel.toggle() }
-                .accessibilityLabel("Text formatting")
+            // Notes-style capsule groups. B / I / U live in the Aa popover, as in Notes; ⌘B / ⌘I / ⌘U and
+            // the Format menu still apply them directly.
+            HStack(spacing: 2) {
+                macToolbarButton(label: "Text formatting", isOn: showFormattingPanel) {
+                    showFormattingPanel.toggle()
+                } content: {
+                    Text("Aa").font(.system(size: 15, weight: .medium))
+                }
                 .popover(isPresented: $showFormattingPanel, arrowEdge: .bottom) {
-                    FormattingPanelView(state: panelState, presentation: .popover)
-                        .frame(width: 600, height: 350)
+                    MacNotesFormatPopover(state: panelState, dismiss: { showFormattingPanel = false })
                         .environment(\.appDisplayMode, displayMode)
                 }
+                macToolbarButton(label: "Checklist", isOn: panelState.activeParagraphStyle == .checklistUnchecked
+                                 || panelState.activeParagraphStyle == .checklistChecked) {
+                    applyTextCommand(.checklist)
+                } content: {
+                    Image(systemName: "checklist").font(.system(size: 15))
+                }
+                macToolbarButton(label: "Add photo", isOn: false) { macChoosePhoto() } content: {
+                    MacIcon(name: "image", size: 17)
+                }
+                macToolbarButton(label: "Record voice note", isOn: isRecordingInline) { toggleInlineRecording() } content: {
+                    MacIcon(name: "mic", size: 17)
+                }
             }
-            .background(MacTokens.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+            .modifier(MacToolbarCapsule())
 
-            Rectangle().fill(MacTokens.controlBorder).frame(width: 1, height: 20).padding(.horizontal, 6)
-
-            Menu {
-                macMoodMenuItems
-            } label: {
-                MacIcon(name: "smile", size: 17)
-                    .frame(width: 30, height: 28)
-                    .contentShape(Rectangle())
+            HStack(spacing: 2) {
+                Menu {
+                    macMoodMenuItems
+                } label: {
+                    MacIcon(name: "smile", size: 17)
+                        .frame(width: 34, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .foregroundStyle(viewModel.selectedMood == nil ? MacTokens.controlInk : MacTokens.accent)
+                .accessibilityLabel("Mood")
+                .help("Mood")
+                macToolbarButton(label: "Add tag", isOn: false) { showTagInput = true } content: {
+                    MacIcon(name: "tag", size: 17)
+                }
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .foregroundStyle(MacTokens.controlInk)
-            .accessibilityLabel("Mood")
-
-            macIconButton("tag", label: "Add tag") {
-                showTagInput = true
-            }
-            macIconButton("image", label: "Add photo") {
-                macChoosePhoto()
-            }
-            macIconButton("mic", label: "Record voice note") {
-                toggleInlineRecording()
-            }
+            .modifier(MacToolbarCapsule())
 
             Button { presentTalkItOut() } label: {
                 Text("Talk it out")
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(MacTokens.accentInk)
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
-                    .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(MacTokens.controlBorder, lineWidth: 1) }
+                    .padding(.horizontal, 14)
+                    .frame(height: 30)
+                    .background(MacTokens.surface, in: Capsule())
+                    .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
             }
             .buttonStyle(.plain)
             .padding(.leading, 6)
             .fixedSize()
+            .help("Talk it out")
         }
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)
@@ -144,24 +133,25 @@ extension WriteView {
                 .frame(width: 30, height: 28)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
         .foregroundStyle(MacTokens.controlInk)
         .accessibilityLabel(label)
         .help(label)
     }
 
-    private var formatDivider: some View {
-        Rectangle().fill(MacTokens.segmentDivider).frame(width: 1, height: 26)
-    }
-
-    private func formatCell<Label: View>(width: CGFloat, @ViewBuilder label: () -> Label, isOn: () -> Bool, action: @escaping () -> Void) -> some View {
+    /// A button inside one of the Notes-style capsule groups.
+    private func macToolbarButton<Content: View>(label: LocalizedStringKey, isOn: Bool, action: @escaping () -> Void,
+                                                @ViewBuilder content: () -> Content) -> some View {
         Button(action: action) {
-            label()
-                .foregroundStyle(isOn() ? MacTokens.accent : MacTokens.ink)
-                .frame(width: width, height: 26)
+            content()
+                .foregroundStyle(isOn ? MacTokens.accent : MacTokens.controlInk)
+                .frame(width: 34, height: 30)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacHoverButtonStyle())
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .help(label)
     }
 
     @ViewBuilder
@@ -209,6 +199,18 @@ extension WriteView {
 
     /// Mood chip, tag chips and the suggestion hint, under the text.
     var macChipsRow: some View {
+        ViewThatFits(in: .horizontal) {
+            macChips
+            ScrollView(.horizontal) { macChips }
+                .scrollIndicators(.hidden)
+                .frame(height: 26)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 34)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var macChips: some View {
         HStack(spacing: 10) {
             if let mood = viewModel.selectedMood {
                 Text(MirrorTheme.localizedMoodName(for: mood))
@@ -258,28 +260,28 @@ extension WriteView {
                     .font(.system(size: 12))
                     .foregroundStyle(MacTokens.secondaryInk)
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 34)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: - Photos
 
     /// Thumbnails of the attached photos and the drop zone, under the chips.
     var macPhotosRow: some View {
-        HStack(spacing: 12) {
-            ForEach(photoDataArray.indices, id: \.self) { index in
-                MacPhotoTile(
-                    data: photoDataArray[index],
-                    onOpen: { fullscreenPhotoIndex = index },
-                    onRemove: { macRemovePhoto(at: index) }
-                )
+        ScrollView(.horizontal) {
+            HStack(spacing: 12) {
+                ForEach(photoDataArray.indices, id: \.self) { index in
+                    MacPhotoTile(
+                        data: photoDataArray[index],
+                        onOpen: { fullscreenPhotoIndex = index },
+                        onRemove: { macRemovePhoto(at: index) }
+                    )
+                }
+                MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
             }
-            MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
-            Spacer(minLength: 0)
         }
+        .scrollIndicators(.hidden)
+        .frame(height: 92)
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 24)
@@ -711,6 +713,22 @@ struct MacEntryDatePopover: View {
     private func pick(_ day: Date) {
         date = Self.combining(day: day, time: date)
         month = Self.startOfMonth(day)
+    }
+}
+/// The rounded group around related toolbar buttons, as in Notes on the Mac: Liquid Glass on macOS 26,
+/// a plain bordered capsule before that (the Mac target supports macOS 14).
+struct MacToolbarCapsule: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .padding(.horizontal, 4)
+                .glassEffect(.regular, in: Capsule())
+        } else {
+            content
+                .padding(.horizontal, 4)
+                .background(MacTokens.surface, in: Capsule())
+                .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+        }
     }
 }
 #endif
