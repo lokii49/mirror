@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "471287F52F9CF11200812160"
-               BuildableName = "mirror.app"
+               BuildableName = "MirrorNotes.app"
                BlueprintName = "mirror"
                ReferencedContainer = "container:mirror.xcodeproj">
             </BuildableReference>
@@ -70,7 +70,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "471287F52F9CF11200812160"
-            BuildableName = "mirror.app"
+            BuildableName = "MirrorNotes.app"
             BlueprintName = "mirror"
             ReferencedContainer = "container:mirror.xcodeproj">
          </BuildableReference>
@@ -87,7 +87,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "471287F52F9CF11200812160"
-            BuildableName = "mirror.app"
+            BuildableName = "MirrorNotes.app"
             BlueprintName = "mirror"
             ReferencedContainer = "container:mirror.xcodeproj">
          </BuildableReference>
