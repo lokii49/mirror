@@ -44,9 +44,13 @@ enum DraftAttachmentStore {
                 for: .applicationSupportDirectory, in: .userDomainMask,
                 appropriateFor: nil, create: true
             ) else { return nil }
+            var name = "mirror-draft-attachments"
+            #if DEBUG
+            if CommandLine.arguments.contains("--scratchDraftStorage") { name = "scratch-" + name }
+            #endif
             return Location(
-                file: dir.appendingPathComponent("mirror-draft-attachments.json"),
-                preserved: dir.appendingPathComponent("mirror-draft-attachments.unreadable.json")
+                file: dir.appendingPathComponent(name + ".json"),
+                preserved: dir.appendingPathComponent(name + ".unreadable.json")
             )
         }
     }

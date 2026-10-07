@@ -82,6 +82,17 @@ enum WriteDraftStore {
         )
     }
 
+    /// Where drafts live. DEBUG `--scratchDraftStorage` (synthetic perf-seed runs)
+    /// uses its own suite so a restart check never touches the real draft.
+    static var storage: UserDefaults {
+        #if DEBUG
+        if CommandLine.arguments.contains("--scratchDraftStorage") {
+            return UserDefaults(suiteName: "mirror.scratchDrafts") ?? .standard
+        }
+        #endif
+        return .standard
+    }
+
     // Pre-3.0.9 keys. Only read for migration and always removed by `clear`.
     static let legacyTextKey = "mirror.writeDraft.text"
     static let legacyTextStyleKey = "mirror.writeDraft.textStyleData"
@@ -98,7 +109,7 @@ enum WriteDraftStore {
     static func save(
         _ payload: Payload,
         slot: Slot = .newEntry,
-        defaults: UserDefaults = .standard,
+        defaults: UserDefaults = WriteDraftStore.storage,
         crypto: Crypto = .live
     ) -> Bool {
         // An emptied *existing* entry is a real edit; only a new-entry draft with
@@ -118,7 +129,7 @@ enum WriteDraftStore {
 
     static func load(
         slot: Slot = .newEntry,
-        defaults: UserDefaults = .standard,
+        defaults: UserDefaults = WriteDraftStore.storage,
         crypto: Crypto = .live
     ) -> LoadResult {
         if let sealed = defaults.data(forKey: slot.key) {
@@ -153,21 +164,21 @@ enum WriteDraftStore {
     /// preserved blob, or legacy keys whose key hasn't arrived) is kept:
     /// discarding the draft on screen is not a decision about a different draft
     /// the user has not seen yet.
-    static func clear(slot: Slot = .newEntry, defaults: UserDefaults = .standard, crypto: Crypto = .live) {
+    static func clear(slot: Slot = .newEntry, defaults: UserDefaults = WriteDraftStore.storage, crypto: Crypto = .live) {
         defaults.removeObject(forKey: slot.key)
         if slot == .newEntry { removeLegacyKeysIfReadable(defaults, crypto: crypto) }
     }
 
     /// Delete Everything and test-state reset: removes every draft for the slot,
     /// readable or not.
-    static func clearIncludingPreserved(slot: Slot = .newEntry, defaults: UserDefaults = .standard) {
+    static func clearIncludingPreserved(slot: Slot = .newEntry, defaults: UserDefaults = WriteDraftStore.storage) {
         defaults.removeObject(forKey: slot.key)
         defaults.removeObject(forKey: slot.preservedKey)
         if slot == .newEntry { removeLegacyKeys(defaults) }
     }
 
     /// Delete Everything: every edit draft, readable or not.
-    static func clearAllEntryDrafts(defaults: UserDefaults = .standard) {
+    static func clearAllEntryDrafts(defaults: UserDefaults = WriteDraftStore.storage) {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(Slot.entryKeyPrefix) {
             defaults.removeObject(forKey: key)
         }

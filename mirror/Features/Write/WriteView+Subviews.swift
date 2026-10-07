@@ -75,6 +75,8 @@ extension WriteView {
                 // is gone.
             }
 
+            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
+
             if displayMode == .sentinel {
                 HStack(spacing: 5) {
                     Circle()

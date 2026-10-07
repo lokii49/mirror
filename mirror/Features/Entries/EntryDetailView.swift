@@ -291,6 +291,7 @@ struct EntryDetailView: View {
         }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
+                WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                 modelContext.delete(entry)
                 try? modelContext.save()
                 onDone?()
@@ -423,6 +424,7 @@ struct EntryDetailView: View {
     private func macDeleteEntry() {
         onDone?()
         let doomed = entry
+        WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
         DispatchQueue.main.async {
             modelContext.delete(doomed)
             try? modelContext.save()

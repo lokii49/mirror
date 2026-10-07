@@ -91,6 +91,16 @@ struct WriteView: View {
     /// Hash of an existing entry's content as loaded, so saveAndDismiss can skip
     /// the write (and CloudKit modification) when the entry was only opened to read.
     @State var loadedContentHash: Int = 0
+    /// What the draft store actually holds for this editor (shown as a status label).
+    @State var draftSaveState: DraftSaveState = .idle
+    @State var attachmentsSaved = true
+    /// Existing entry as it was saved when editing started (see WriteDraftStore.fingerprint).
+    @State var editBaseFingerprint: String? = nil
+    /// Unsaved edits found for this entry from an earlier session, awaiting Restore/Discard.
+    @State var pendingEditDraft: WriteDraftStore.Payload? = nil
+    /// Saved or deleted: stop writing edit drafts for this editor.
+    @State var editCommitted = false
+    @State var entrySaveFailed = false
     @State var voiceRecorder = VoiceInputManager()
     @State var isRecordingInline = false
     @State var recordingPermissionDenied = false
@@ -479,6 +489,9 @@ struct WriteView: View {
             case "openPhoto": if !photoDataArray.isEmpty { fullscreenPhotoIndex = 0 }
             case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
             case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
+            case "appendText": if let text = note.userInfo?["text"] as? String { viewModel.text += text }
+            case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
+            case "discardDraft": discardEditDraft()
             default: break
             }
         }
@@ -580,6 +593,7 @@ struct WriteView: View {
                 markPendingNotesForRetry()
             }
             loadedContentHash = currentContentHash()
+            checkForEditDraft()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
             panelState.onRequestLinkEditor = {
                 linkEditorURLText = panelState.activeLinkURL ?? ""
@@ -739,7 +753,7 @@ struct WriteView: View {
         }
         #endif
         .onChange(of: viewModel.text) { _, _ in
-            if entry == nil { scheduleDraftSave() }
+            scheduleDraftSave()
             scheduleFollowUpCheck()
         }
         .onChange(of: showTagInput) { _, open in
@@ -751,16 +765,26 @@ struct WriteView: View {
             if !focused { showFormattingPanel = false }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
-            if entry == nil { flushDraftSave() }
+            flushDraftSave()
         }
         .onChange(of: photoDataArray) { _, _ in
             if entry == nil { saveDraftAttachments() }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background, entry == nil { flushDraftSave() }
+            if phase == .background { flushDraftSave() }
         }
         .modifier(OnDraftsErased(perform: handleDraftsErased))
+        .modifier(DraftRecoveryAlerts(
+            pendingEditDraft: $pendingEditDraft,
+            entryChangedSinceDraft: pendingEditDraft.map { $0.baseFingerprint != editBaseFingerprint } ?? false,
+            entrySaveFailed: $entrySaveFailed,
+            restore: restoreEditDraft,
+            discard: discardEditDraft
+        ))
         .onDisappear {
+            // Unsaved edits to an existing entry are kept for next time; a new-entry
+            // draft was already flushed by the paths that change it.
+            if entry != nil { flushDraftSave() }
             cancelDraftSave()
             followUpTask?.cancel()
             followUpTask = nil

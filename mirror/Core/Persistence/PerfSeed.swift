@@ -2,6 +2,9 @@
 import Foundation
 import SwiftData
 import CryptoKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// DEBUG-only synthetic journal for performance baselines: `--perfSeed=<N>` opens an on-disk scratch
 /// store (never the real one, no CloudKit) and fills it once with N synthetic entries, one per day,
@@ -50,11 +53,53 @@ enum PerfSeed {
         #endif
     }
 
+    /// `--draftRecoveryCheck=edit` edits the newest entry without saving and quits
+    /// abruptly; `=restore` reopens it and captures the editor (expects the
+    /// Restore prompt). Use with `--scratchDraftStorage` and `--macSnapshotDir=`.
+    static var draftRecoveryPhase: String? {
+        CommandLine.arguments.first { $0.hasPrefix("--draftRecoveryCheck=") }
+            .map { String($0.dropFirst("--draftRecoveryCheck=".count)) }
+    }
+
+    @MainActor
+    static func runDraftRecoveryCheck() async {
+        #if os(macOS)
+        try? await Task.sleep(for: .seconds(3))
+        NotificationCenter.default.post(name: .mirrorMacNavigate, object: nil, userInfo: ["destination": "entries"])
+        try? await Task.sleep(for: .seconds(1))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(1))
+        NotificationCenter.default.post(name: .mirrorMacDebugOpenEditor, object: nil)
+        try? await Task.sleep(for: .seconds(2))
+        let window = NSApp.windows.first { $0.isVisible && !($0 is NSPanel) }
+        if draftRecoveryPhase == "edit" {
+            NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil,
+                                            userInfo: ["action": "appendText", "text": " Synthetic unsaved edit."])
+            try? await Task.sleep(for: .seconds(2.5))   // past the debounced draft save
+            MacSnapshot.capture(window, name: "draft-edit-before-quit")
+            exit(0)   // no clean teardown, like a crash or force quit
+        }
+        MacSnapshot.capture(window?.sheets.first ?? window, name: "draft-\(draftRecoveryPhase ?? "")-prompt")
+        let action = draftRecoveryPhase == "discard" ? "discardDraft" : "restoreDraft"
+        NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": action])
+        try? await Task.sleep(for: .seconds(1.5))
+        MacSnapshot.capture(window, name: "draft-\(draftRecoveryPhase ?? "")-after")
+        NSApp.terminate(nil)
+        #endif
+    }
+
     @MainActor
     static func seedIfNeeded(into context: ModelContext) {
         guard let count = requestedCount, count > 0 else { return }
         defer {
             if CommandLine.arguments.contains("--entryFilterFixture") { seedFilterFixture(into: context) }
+            // The draft recovery check drives the main window; onboarding would cover it.
+            if draftRecoveryPhase != nil, ((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) == 0 {
+                let profile = UserProfile()
+                profile.onboardingComplete = true
+                context.insert(profile)
+                try? context.save()
+            }
         }
         let existing = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
         guard existing < count else { return }

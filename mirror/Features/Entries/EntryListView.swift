@@ -756,6 +756,7 @@ struct EntriesTabView: View {
             .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
+                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                     modelContext.delete(entry)
                 } label: {
                     Label("Delete", systemImage: "trash")
@@ -1356,6 +1357,7 @@ extension EntriesTabView {
         let index = ordered.firstIndex { $0.id == entry.id }
         let neighbour = index.flatMap { i in ordered.indices.contains(i + 1) ? ordered[i + 1] : (i > 0 ? ordered[i - 1] : nil) }
         macSelection?.wrappedValue = neighbour
+        WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
         modelContext.delete(entry)
         try? modelContext.save()
         macPendingDelete = nil
@@ -1526,6 +1528,7 @@ extension EntriesTabView {
                 Button("Delete", role: .destructive) {
                     // Clear the selection first so the reader never renders a deleted entry.
                     if isSelected { macSelection?.wrappedValue = nil }
+                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                     modelContext.delete(entry)
                     try? modelContext.save()
                 }

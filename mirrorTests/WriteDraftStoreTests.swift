@@ -224,6 +224,41 @@ struct WriteDraftStoreTests {
         }
     }
 
+    @Test func editDraftsAreSeparatePerEntryAndKeepEmptiedText() {
+        let defaults = Self.defaults()
+        let first = UUID(), second = UUID()
+        var emptied = WriteDraftStore.Payload()
+        emptied.entryDate = Date(timeIntervalSinceReferenceDate: 1_000)
+        emptied.baseFingerprint = "base"
+        // Emptying an existing entry is an edit, not "no draft".
+        #expect(WriteDraftStore.save(emptied, slot: .entry(first), defaults: defaults, crypto: Self.crypto()))
+        WriteDraftStore.save(Self.sample, defaults: defaults, crypto: Self.crypto())
+        WriteDraftStore.save(Self.sample, slot: .entry(second), defaults: defaults, crypto: Self.crypto())
+        #expect(WriteDraftStore.load(slot: .entry(first), defaults: defaults, crypto: Self.crypto()) == .payload(emptied))
+
+        WriteDraftStore.clear(slot: .entry(second), defaults: defaults, crypto: Self.crypto())
+        #expect(WriteDraftStore.load(slot: .entry(second), defaults: defaults, crypto: Self.crypto()) == .none)
+        #expect(WriteDraftStore.load(defaults: defaults, crypto: Self.crypto()) == .payload(Self.sample))
+
+        WriteDraftStore.clearAllEntryDrafts(defaults: defaults)
+        #expect(WriteDraftStore.load(slot: .entry(first), defaults: defaults, crypto: Self.crypto()) == .none)
+        #expect(WriteDraftStore.load(defaults: defaults, crypto: Self.crypto()) == .payload(Self.sample))
+    }
+
+    @Test func fingerprintIsStableAndSensitiveToEveryField() {
+        let date = Date(timeIntervalSinceReferenceDate: 5_000)
+        func print(_ text: String = "Synthetic.", mood: String? = "Calm", tags: [String] = ["a"],
+                   style: Data? = nil, inline: Data? = nil, at: Date? = nil) -> String {
+            WriteDraftStore.fingerprint(text: text, mood: mood, tags: tags, textStyleData: style,
+                                        inlineStyleData: inline, createdAt: at ?? date)
+        }
+        #expect(print() == print())
+        #expect(print().count == 64)
+        let variants = [print("Other."), print(mood: nil), print(tags: ["a", "b"]), print(tags: ["ab"]),
+                        print(style: Data([1])), print(inline: Data([1])), print(at: date.addingTimeInterval(1))]
+        #expect(Set(variants + [print()]).count == variants.count + 1)
+    }
+
     @Test func attachmentsRoundTripWithLanguageMetadataEncrypted() throws {
         let note = DraftAttachmentStore.VoiceNote(
             data: Data([1, 2, 3, 4]), duration: 3,

@@ -67,6 +67,8 @@ struct mirrorApp: App {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
             if GemmaMemoryProbe.isRequested {
                 Task { @MainActor in await GemmaMemoryProbe.run() }
+            } else if PerfSeed.draftRecoveryPhase != nil {
+                Task { @MainActor in await PerfSeed.runDraftRecoveryCheck() }
             } else {
                 Task { @MainActor in await PerfSeed.runEntriesScenario() }
             }

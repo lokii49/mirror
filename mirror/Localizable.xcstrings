@@ -74461,6 +74461,591 @@
           }
         }
       }
+    },
+    "Saving…" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wird gesichert …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Guardando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enregistrement…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvataggio…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "保存中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "저장 중…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvando…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Сохранение…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "正在保存…"
+          }
+        }
+      }
+    },
+    "Not saved · Retry" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nicht gesichert · Erneut versuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not saved · Retry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "No guardado · Reintentar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Non enregistré · Réessayer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Non salvato · Riprova"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "未保存 · 再試行"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "저장 안 됨 · 다시 시도"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Não salvo · Tentar de novo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не сохранено · Повторить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "未保存 · 重试"
+          }
+        }
+      }
+    },
+    "Restore unsaved changes?" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nicht gesicherte Änderungen wiederherstellen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore unsaved changes?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "¿Restaurar los cambios sin guardar?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Restaurer les modifications non enregistrées ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ripristinare le modifiche non salvate?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "保存されていない変更を復元しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "저장하지 않은 변경 사항을 복원할까요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Restaurar alterações não salvas?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Восстановить несохранённые изменения?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "恢复未保存的更改？"
+          }
+        }
+      }
+    },
+    "You edited this entry earlier and didn't save. It has changed since then, for example on another device. Restoring puts your earlier edits in the editor; saving would replace the newer version." : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Du hast diesen Eintrag früher bearbeitet und nicht gesichert. Er hat sich seitdem geändert, zum Beispiel auf einem anderen Gerät. Beim Wiederherstellen kommen deine früheren Änderungen in den Editor; beim Sichern würde die neuere Version ersetzt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You edited this entry earlier and didn't save. It has changed since then, for example on another device. Restoring puts your earlier edits in the editor; saving would replace the newer version."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Editaste esta entrada antes y no la guardaste. Ha cambiado desde entonces, por ejemplo en otro dispositivo. Al restaurar, tus cambios anteriores vuelven al editor; al guardar se reemplazaría la versión más reciente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vous avez modifié cette entrée sans l’enregistrer. Elle a changé depuis, par exemple sur un autre appareil. La restauration remet vos modifications dans l’éditeur ; l’enregistrement remplacerait la version plus récente."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hai modificato questa voce senza salvarla. Da allora è cambiata, per esempio su un altro dispositivo. Il ripristino rimette le tue modifiche nell’editor; salvando sostituiresti la versione più recente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "このエントリーを以前編集し、保存していません。その後、別のデバイスなどで変更されています。復元すると以前の編集がエディタに戻り、保存すると新しいバージョンが置き換えられます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이 항목을 이전에 편집하고 저장하지 않았습니다. 그 후 다른 기기 등에서 변경되었습니다. 복원하면 이전 편집 내용이 편집기에 들어가며, 저장하면 최신 버전이 대체됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Você editou esta entrada antes e não salvou. Ela mudou desde então, por exemplo em outro dispositivo. Restaurar coloca suas edições anteriores no editor; salvar substituiria a versão mais recente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Вы редактировали эту запись и не сохранили. С тех пор она изменилась, например на другом устройстве. При восстановлении прежние правки вернутся в редактор; сохранение заменит более новую версию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你之前编辑过此条目但未保存。此后它已更改（例如在另一台设备上）。恢复会将之前的编辑放回编辑器；保存将替换较新的版本。"
+          }
+        }
+      }
+    },
+    "You edited this entry on %@ and didn't save. Restore those edits?" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Du hast diesen Eintrag am %@ bearbeitet und nicht gesichert. Diese Änderungen wiederherstellen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You edited this entry on %@ and didn't save. Restore those edits?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Editaste esta entrada el %@ y no la guardaste. ¿Restaurar esos cambios?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vous avez modifié cette entrée le %@ sans l’enregistrer. Restaurer ces modifications ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hai modificato questa voce il %@ senza salvarla. Ripristinare quelle modifiche?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%@ にこのエントリーを編集し、保存していません。その編集を復元しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%@에 이 항목을 편집하고 저장하지 않았습니다. 편집 내용을 복원할까요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Você editou esta entrada em %@ e não salvou. Restaurar essas edições?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Вы редактировали эту запись %@ и не сохранили. Восстановить эти правки?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你在 %@ 编辑过此条目但未保存。要恢复这些编辑吗？"
+          }
+        }
+      }
+    },
+    "You edited this entry earlier and didn't save. Restore those edits?" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Du hast diesen Eintrag früher bearbeitet und nicht gesichert. Diese Änderungen wiederherstellen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You edited this entry earlier and didn't save. Restore those edits?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Editaste esta entrada antes y no la guardaste. ¿Restaurar esos cambios?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vous avez modifié cette entrée sans l’enregistrer. Restaurer ces modifications ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hai modificato questa voce senza salvarla. Ripristinare quelle modifiche?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "以前このエントリーを編集し、保存していません。その編集を復元しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이전에 이 항목을 편집하고 저장하지 않았습니다. 편집 내용을 복원할까요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Você editou esta entrada antes e não salvou. Restaurar essas edições?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Вы редактировали эту запись и не сохранили. Восстановить эти правки?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你之前编辑过此条目但未保存。要恢复这些编辑吗？"
+          }
+        }
+      }
+    },
+    "Couldn't save this entry" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Eintrag konnte nicht gesichert werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save this entry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "No se pudo guardar esta entrada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Impossible d’enregistrer cette entrée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Impossibile salvare questa voce"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "このエントリーを保存できませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이 항목을 저장할 수 없습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Não foi possível salvar esta entrada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не удалось сохранить запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "无法保存此条目"
+          }
+        }
+      }
+    },
+    "Your writing is still here and kept as a draft on this device. Try saving again." : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dein Text ist noch da und als Entwurf auf diesem Gerät gesichert. Versuche erneut zu sichern."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your writing is still here and kept as a draft on this device. Try saving again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tu texto sigue aquí y se conserva como borrador en este dispositivo. Intenta guardar de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Votre texte est toujours là, conservé comme brouillon sur cet appareil. Réessayez d’enregistrer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Il tuo testo è ancora qui ed è conservato come bozza su questo dispositivo. Prova a salvare di nuovo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "書いた内容はそのまま残っており、このデバイスに下書きとして保存されています。もう一度保存してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "작성한 내용은 그대로 있으며 이 기기에 초안으로 보관됩니다. 다시 저장해 보세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Seu texto continua aqui e está guardado como rascunho neste dispositivo. Tente salvar de novo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Текст на месте и сохранён как черновик на этом устройстве. Попробуйте сохранить ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你写的内容仍在这里，并作为草稿保存在此设备上。请再试一次保存。"
+          }
+        }
+      }
+    },
+    "Draft kept on this device" : {
+      "comment" : "Write draft save status and recovery. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Entwurf auf diesem Gerät gesichert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draft kept on this device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Borrador guardado en este dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Brouillon conservé sur cet appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bozza conservata su questo dispositivo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "下書きをこのデバイスに保存済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "초안이 이 기기에 보관됨"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Rascunho guardado neste dispositivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Черновик сохранён на этом устройстве"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "草稿已保存在此设备上"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
