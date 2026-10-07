@@ -25,6 +25,13 @@ nonisolated struct EntrySearchDocument: Sendable {
     let isPinned: Bool
     let isReadable: Bool
     var collectionID: UUID? = nil
+
+    func resolvingCollection(_ known: Set<UUID>?) -> EntrySearchDocument {
+        guard let known, let id = collectionID, !known.contains(id) else { return self }
+        var copy = self
+        copy.collectionID = nil
+        return copy
+    }
 }
 
 nonisolated struct EntrySearchQuery: Sendable {
@@ -151,13 +158,17 @@ nonisolated enum EntrySearch {
         var matchesWithoutFilters: Int?
     }
 
+    /// `knownCollections`: an entry whose collection isn't known here (deleted on
+    /// another device, entries' update not synced yet) counts as Unfiled rather
+    /// than disappearing from every view.
     static func evaluate(_ documents: [(UUID, EntrySearchDocument)], query: EntrySearchQuery,
                          filters: EntryFilterCriteria = EntryFilterCriteria(), now: Date = Date(),
-                         calendar: Calendar = .current) -> Results {
+                         calendar: Calendar = .current, knownCollections: Set<UUID>? = nil) -> Results {
         var results = Results()
         let ranks = query.hasTextTerms
-        for (id, document) in documents {
+        for (id, original) in documents {
             guard !Task.isCancelled else { return Results() }
+            let document = original.resolvingCollection(knownCollections)
             guard filters.matches(document, now: now, calendar: calendar), matches(document, query: query) else { continue }
             results.ids.insert(id)
             results.excerpts[id] = excerpt(document, query: query)

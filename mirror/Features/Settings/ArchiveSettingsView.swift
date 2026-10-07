@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 /// everything else.
 struct ArchiveSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Query private var collections: [JournalCollection]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -222,9 +223,10 @@ struct ArchiveSettingsView: View {
     private func startArchiveExport() {
         exportProgress = 0
         let snapshot = entries
+        let collectionSnapshot = collections
         exportTask = Task {
             do {
-                let result = try await ArchiveTransfer.exportArchive(entries: snapshot) { value in
+                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot) { value in
                     exportProgress = value
                 }
                 exportProgress = nil
@@ -261,6 +263,8 @@ struct ArchiveSettingsView: View {
             do {
                 importChangedAsCopies = false
                 importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing)
+            } catch ArchivePackage.PackageError.tooLarge {
+                archiveMessage = String(localized: "This archive is too large to import on this device in one go (over 750 MB of photos and recordings). Nothing was imported.")
             } catch {
                 archiveMessage = String(localized: "This folder isn't a MirrorNotes archive, or it is damaged. Nothing was imported.")
             }

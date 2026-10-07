@@ -41,7 +41,7 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
+    @State private var selectedTab = ContentView.launchTab  // 0=Entries, 1=Write, 2=Insights
     @State private var selectedSidebarItem: AppSidebarItem? = .write
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
@@ -109,6 +109,15 @@ struct ContentView: View {
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
+    }
+
+    /// Write, except DEBUG `--initialTab=entries` (headless simulator screenshots,
+    /// where a mirror:// link would stop at the system's open confirmation).
+    private static var launchTab: Int {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
+        #endif
+        return 1
     }
 
     /// Widgets run in a separate process with no SwiftUI environment of their
@@ -267,7 +276,8 @@ struct ContentView: View {
             .environment(\.appDisplayMode, displayMode)
         }
         .onChange(of: canPresentRatePrompt) { _, canPresent in
-            guard canPresent else { return }
+            // UI tests and synthetic runs must not consume the once-per-install prompt.
+            guard canPresent, !isUITesting else { return }
             reviewPromptCoordinator.isPending = false
             ReviewRequestManager.markEntryMilestonePromptShown()
             showRatePrompt = true

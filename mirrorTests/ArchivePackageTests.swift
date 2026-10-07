@@ -173,7 +173,7 @@ struct ArchivePackageTests {
         unreadable.encryptedText = "mirror:v1:" + Data(repeating: 9, count: 40).base64EncodedString()
         context.insert(unreadable)
         #expect(unreadable.archiveSnapshot() == nil)
-        let result = try await ArchiveTransfer.exportArchive(entries: [unreadable, richEntry(in: context)]) { _ in }
+        let result = try await ArchiveTransfer.exportArchive(entries: [unreadable, richEntry(in: context)], collections: []) { _ in }
         defer { ArchiveTransfer.discardExport(result.zipURL) }
         #expect(result.exported == 1 && result.unreadable == 1)
         #expect(FileManager.default.fileExists(atPath: result.zipURL.path))

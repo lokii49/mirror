@@ -20,6 +20,11 @@ struct EntriesTabView: View {
     @State private var showOrganizer = false
     @State private var newCollectionFor: Entry?
     @State private var savingView = false
+    /// Query a saved view just applied: its own sort wins over the Best Match switch.
+    @State private var savedViewQuery: String?
+    /// Decrypted collection names, rebuilt only when a collection record changes
+    /// (no decryption while scrolling).
+    @State private var collectionLookupCache = CollectionLookup([])
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showSearch = false
@@ -123,6 +128,7 @@ struct EntriesTabView: View {
         let contentHash: Int
         let sort: String
         let foregroundRefresh: Int
+        let collections: Int
     }
 
     private var snapshotDeps: SnapshotDeps {
@@ -137,7 +143,8 @@ struct EntriesTabView: View {
             entryCount: entries.count,
             contentHash: EntryDecryptCache.contentSignature(for: entries),
             sort: sortOrder.rawValue,
-            foregroundRefresh: foregroundRefresh
+            foregroundRefresh: foregroundRefresh,
+            collections: collectionSignature
         )
     }
 
@@ -155,7 +162,8 @@ struct EntriesTabView: View {
             result = result.filter { searchResults.ids.contains($0.id) }
         } else {
             if filters.isActive {
-                result = result.filter { filters.matches(cache.item(for: $0).document, now: filterNow) }
+                let known = Set(collectionModels.map(\.id))
+                result = result.filter { filters.matches(cache.item(for: $0).document.resolvingCollection(known), now: filterNow) }
             }
             if !query.isEmpty {
                 result = result.filter { EntrySearch.matches(cache.item(for: $0).document, query: query) }
@@ -243,13 +251,24 @@ struct EntriesTabView: View {
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters)
     }
 
-    private var collectionLookup: CollectionLookup { CollectionLookup(collectionModels) }
+    private var collectionLookup: CollectionLookup { collectionLookupCache }
+
+    private var collectionSignature: Int {
+        var hasher = Hasher()
+        for collection in collectionModels {
+            hasher.combine(collection.id)
+            hasher.combine(collection.sortIndex)
+            hasher.combine(collection.encryptedPayload)
+        }
+        return hasher.finalize()
+    }
 
     private var canSaveCurrentView: Bool { filters.isActive || !debouncedSearchText.isEmpty }
 
     /// Opens a saved view: its search, filters (relative dates recomputed now) and sort.
     private func applySavedView(_ payload: SavedEntryView.Payload) {
         withAnimation(.easeInOut(duration: 0.2)) {
+            savedViewQuery = payload.query == debouncedSearchText ? nil : payload.query
             filters = payload.criteria.criteria()
             filterNow = Date()
             searchText = payload.query
@@ -381,7 +400,14 @@ struct EntriesTabView: View {
                 guard !Task.isCancelled else { return }
                 debouncedSearchText = value
             }
-            .onChange(of: debouncedSearchText) { old, new in updateSortForSearch(from: old, to: new) }
+            .onChange(of: debouncedSearchText) { old, new in
+                if let applied = savedViewQuery, applied == new {
+                    savedViewQuery = nil
+                    return
+                }
+                updateSortForSearch(from: old, to: new)
+            }
+            .task(id: collectionSignature) { collectionLookupCache = CollectionLookup(collectionModels) }
             #if os(iOS)
             // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
             .navigationDestination(isPresented: $showEntryDetail) {
@@ -427,8 +453,10 @@ struct EntriesTabView: View {
                     let criteria = filters
                     let now = filterNow
                     let calendar = Calendar.current
+                    let known = Set(collectionModels.map(\.id))
                     let worker = Task.detached(priority: .userInitiated) {
-                        EntrySearch.evaluate(documents, query: query, filters: criteria, now: now, calendar: calendar)
+                        EntrySearch.evaluate(documents, query: query, filters: criteria, now: now, calendar: calendar,
+                                             knownCollections: known)
                     }
                     searchResults = await PerfSignpost.interval("entries.search") {
                         await withTaskCancellationHandler {
@@ -457,6 +485,10 @@ struct EntriesTabView: View {
                 if let moods = note.userInfo?["filterMoods"] as? [String] { filters.moods = Set(moods) }
                 if let id = note.userInfo?["collection"] as? UUID { filters.collection = .collection(id) }
                 if let open = note.userInfo?["organizer"] as? Bool { showOrganizer = open }
+                if let name = note.userInfo?["applySavedViewNamed"] as? String,
+                   let payload = savedViewModels.compactMap(\.payload).first(where: { $0.name == name }) {
+                    applySavedView(payload)
+                }
                 if note.userInfo?["selectFirstResult"] as? Bool == true, let snapshotCache {
                     macSelection?.wrappedValue = macOrderedEntries(snapshotCache).first
                 }

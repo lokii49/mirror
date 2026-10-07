@@ -506,6 +506,15 @@ enum MacSnapshot {
                 NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": true])
                 try? await Task.sleep(for: .seconds(1.5))
                 capture(mainWindow()?.sheets.first ?? mainWindow(), name: "collections-organizer")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": false])
+                // A saved word search with Newest First must open in Newest First (month
+                // sections), not switch to Best Match.
+                _ = try? JournalOrganizationStore.saveView(.init(name: "Coffee newest", query: "coffee",
+                                                                  criteria: SavedCriteria(EntryFilterCriteria()), sort: "Newest First"), in: context)
+                try? await Task.sleep(for: .seconds(1))
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["applySavedViewNamed": "Coffee newest"])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow(), name: "saved-view-keeps-sort")
             }
             NSApp.terminate(nil)
             return

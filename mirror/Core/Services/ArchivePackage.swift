@@ -262,7 +262,9 @@ nonisolated enum ArchivePackage {
 
     struct Limits: Sendable {
         var maxEntries = 50_000
-        var maxTotalBytes: Int64 = 4 * 1024 * 1024 * 1024
+        /// Import reads every attachment into memory and encrypts a second copy;
+        /// above this an iPhone can run out of memory. Streaming import would lift it.
+        var maxTotalBytes: Int64 = 750 * 1024 * 1024
         var maxManifestBytes = 512 * 1024 * 1024
         static let standard = Limits()
     }

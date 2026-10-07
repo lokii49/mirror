@@ -21,8 +21,32 @@ enum ArchiveTransfer {
 
     enum TransferError: Error { case zipFailed }
 
-    static func exportArchive(entries: [Entry], collections: [JournalCollection] = [],
+    struct StagedArchive {
+        var root: URL
+        var exported: Int
+        var unreadable: Int
+    }
+
+    static func exportArchive(entries: [Entry], collections: [JournalCollection],
                               progress: @escaping (Double) -> Void) async throws -> ExportResult {
+        let staged = try await stageArchive(entries: entries, collections: collections) { progress($0 * 0.9) }
+        do {
+            let root = staged.root
+            let name = root.lastPathComponent
+            let zip = try await Task.detached(priority: .userInitiated) { try zipped(root, named: name) }.value
+            try? FileManager.default.removeItem(at: root)
+            progress(1)
+            return ExportResult(zipURL: zip, exported: staged.exported, unreadable: staged.unreadable)
+        } catch {
+            try? FileManager.default.removeItem(at: staged.root.deletingLastPathComponent())
+            throw error
+        }
+    }
+
+    /// Writes the package folder (the part the zip wraps). Separate so tests can
+    /// import exactly what export wrote.
+    static func stageArchive(entries: [Entry], collections: [JournalCollection],
+                             progress: @escaping (Double) -> Void) async throws -> StagedArchive {
         // Names are decrypted here once; an unreadable collection name is left out
         // (its entries still carry the id).
         var collectionRecords: [ArchivePackage.Manifest.CollectionRecord] = []
@@ -36,7 +60,6 @@ enum ArchiveTransfer {
         let timeZone = TimeZone.current
         let name = "MirrorNotes Export \(ArchivePackage.iso(now).prefix(10))"
         let root = try ArchivePackage.makeStagingDirectory(named: name)
-        let container = root.deletingLastPathComponent()
         do {
             var records: [ArchivePackage.Manifest.EntryRecord] = []
             var unreadable: [ArchivePackage.Unreadable] = []
@@ -51,19 +74,16 @@ enum ArchiveTransfer {
                 } else {
                     unreadable.append(.init(id: entry.id, createdAt: entry.createdAt))
                 }
-                progress(Double(index + 1) / Double(max(entries.count, 1)) * 0.9)
+                progress(Double(index + 1) / Double(max(entries.count, 1)))
             }
             try Task.checkCancellation()
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             try ArchivePackage.writeManifest(records: records, unreadable: unreadable, to: root,
                                              appVersion: version, exportedAt: now, timeZone: timeZone,
                                              collections: collectionRecords)
-            let zip = try await Task.detached(priority: .userInitiated) { try zipped(root, named: name) }.value
-            try? FileManager.default.removeItem(at: root)
-            progress(1)
-            return ExportResult(zipURL: zip, exported: records.count, unreadable: unreadable.count)
+            return StagedArchive(root: root, exported: records.count, unreadable: unreadable.count)
         } catch {
-            try? FileManager.default.removeItem(at: container)
+            try? FileManager.default.removeItem(at: root.deletingLastPathComponent())
             throw error
         }
     }

@@ -39,6 +39,19 @@ struct JournalOrganizationTests {
         #expect(!criteria.isActive)
     }
 
+    @Test func entriesInAnUnknownCollectionShowAsUnfiled() {
+        let gone = UUID()
+        var unfiled = EntryFilterCriteria()
+        unfiled.collection = .unfiled
+        let results = EntrySearch.evaluate([(UUID(), document(collection: gone))], query: .parse(""),
+                                           filters: unfiled, knownCollections: [])
+        #expect(results.ids.count == 1)
+        var missing = EntryFilterCriteria()
+        missing.collection = .collection(gone)
+        #expect(EntrySearch.evaluate([(UUID(), document(collection: gone))], query: .parse(""),
+                                     filters: missing, knownCollections: []).ids.isEmpty)
+    }
+
     @Test func savedDatesStayOnTheSameCalendarDaysAcrossTimeZones() throws {
         var losAngeles = Calendar(identifier: .gregorian)
         losAngeles.timeZone = TimeZone(identifier: "America/Los_Angeles")!
@@ -121,18 +134,12 @@ struct JournalOrganizationTests {
         entry.collectionID = collection.id
         source.insert(entry)
         try source.save()
-        let result = try await ArchiveTransfer.exportArchive(entries: [entry], collections: [collection]) { _ in }
-        defer { ArchiveTransfer.discardExport(result.zipURL) }
-
-        // Re-read the staged folder through the package writer used by export.
-        let root = try ArchivePackage.makeStagingDirectory(named: "Collections")
+        // The same staging the Settings export zips.
+        let staged = try await ArchiveTransfer.stageArchive(entries: [entry], collections: [collection]) { _ in }
+        let root = staged.root
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
-        let snapshot = try #require(entry.archiveSnapshot())
-        let record = try ArchivePackage.write(snapshot, to: root, exportTimeZone: .current, collectionName: "Synthetic trips")
-        try ArchivePackage.writeManifest(records: [record], unreadable: [], to: root, appVersion: "test", exportedAt: Date(),
-                                         timeZone: .current, collections: [.init(id: collection.id, name: "Synthetic trips", icon: "airplane", colorIndex: 0)])
-        let markdown = try String(contentsOf: root.appendingPathComponent(record.markdown.path), encoding: .utf8)
-        #expect(markdown.contains("collection: \"Synthetic trips\""))
+        let path = root.appendingPathComponent("entries/\(ArchivePackage.fileName(for: try #require(entry.archiveSnapshot())))")
+        #expect(try String(contentsOf: path, encoding: .utf8).contains("collection: \"Synthetic trips\""))
 
         let target = try context()
         let plan = try await ArchiveTransfer.planImport(folder: root, existing: [])
