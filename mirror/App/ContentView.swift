@@ -51,6 +51,7 @@ struct ContentView: View {
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
+    @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
     #if os(macOS)
     @State private var macSelectedEntry: Entry? = nil
@@ -210,6 +211,17 @@ struct ContentView: View {
             #endif
         }
         .environment(\.appDisplayMode, displayMode)
+        // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
+        // which also covers sheets. This one only guarantees the first frame never shows the journal.
+        .overlay {
+            if appLock.hidesContent {
+                AppLockScreen(interactive: false)
+                    .environment(\.appDisplayMode, displayMode)
+            }
+        }
+        #if os(iOS)
+        .background(AppLockWindowInstaller())
+        #endif
         .onAppear {
             PerfSignpost.endLaunchIfNeeded()
             applyColorScheme(appearanceMode)

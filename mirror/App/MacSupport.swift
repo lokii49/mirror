@@ -81,89 +81,103 @@ struct MirrorMacCommands: Commands {
 
     var body: some Commands {
         let _ = MacMainWindow.openWindow = openWindow
+        // App Lock: nothing in the menus acts on the journal behind the cover.
+        let locked = AppLock.shared.isLocked
         CommandGroup(replacing: .newItem) {
-            Button("New Entry") {
-                NotificationCenter.default.post(name: .mirrorMacNewEntry, object: nil)
+            Group {
+                Button("New Entry") {
+                    NotificationCenter.default.post(name: .mirrorMacNewEntry, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+                Button("New Entry in New Window") { openWindow(id: "new-entry") }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
+                Button("Save Entry") { editor?.save() }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(!(editor?.canSave ?? false))
+                Button(entry?.isPinned == true ? "Unpin Entry" : "Pin Entry") { entry?.togglePin() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                    .disabled(entry == nil)
+                Button("Share Entry…") { entry?.share() }
+                    .disabled(entry == nil)
+                Button("Export as PDF…") { entry?.exportPDF() }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .disabled(entry == nil)
+                Button("Delete Entry…") { entry?.delete() }
+                    .keyboardShortcut(.delete, modifiers: .command)
+                    .disabled(entry == nil)
             }
-            .keyboardShortcut("n", modifiers: .command)
-            Button("New Entry in New Window") { openWindow(id: "new-entry") }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-            Divider()
-            Button("Save Entry") { editor?.save() }
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!(editor?.canSave ?? false))
-            Button(entry?.isPinned == true ? "Unpin Entry" : "Pin Entry") { entry?.togglePin() }
-                .keyboardShortcut("p", modifiers: [.command, .shift])
-                .disabled(entry == nil)
-            Button("Share Entry…") { entry?.share() }
-                .disabled(entry == nil)
-            Button("Export as PDF…") { entry?.exportPDF() }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(entry == nil)
-            Button("Delete Entry…") { entry?.delete() }
-                .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(entry == nil)
+            .disabled(locked)
         }
         CommandGroup(after: .sidebar) {
-            Button("Hide Sidebar") {
-                NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
+            Group {
+                Button("Hide Sidebar") {
+                    NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
             }
-            .keyboardShortcut("s", modifiers: [.command, .control])
+            .disabled(locked)
         }
         CommandMenu("Format") {
-            paragraphItem("Title", .title, key: "t")
-            paragraphItem("Heading", .heading, key: "h")
-            paragraphItem("Subheading", .subheading, key: "j")
-            paragraphItem("Body", .body, key: "b")
-            paragraphItem("Monospaced", .monospaced, key: "m")
-            paragraphItem("Block Quote", .blockQuote, key: nil)
-            Divider()
-            paragraphItem("Checklist", .checklistUnchecked, command: .checklist, key: "l")
-            paragraphItem("Bulleted List", .bulletedList, key: "8")
-            paragraphItem("Dashed List", .dashedList, key: "7")
-            paragraphItem("Numbered List", .numberedList, key: "9")
-            Divider()
-            Toggle("Bold", isOn: styleBinding(.bold, editor?.inline.bold))
-                .keyboardShortcut("b", modifiers: .command)
-                .disabled(editor == nil)
-            Toggle("Italic", isOn: styleBinding(.italic, editor?.inline.italic))
-                .keyboardShortcut("i", modifiers: .command)
-                .disabled(editor == nil)
-            Toggle("Underline", isOn: styleBinding(.underline, editor?.inline.underline))
-                .keyboardShortcut("u", modifiers: .command)
-                .disabled(editor == nil)
-            Toggle("Strikethrough", isOn: styleBinding(.strikethrough, editor?.inline.strikethrough))
-                .keyboardShortcut("x", modifiers: [.command, .shift])
-                .disabled(editor == nil)
-            Divider()
-            Button("Increase Indent") { editor?.apply(.indentMore) }
-                .disabled(editor == nil)
-                .keyboardShortcut("]", modifiers: .command)
-            Button("Decrease Indent") { editor?.apply(.indentLess) }
-                .disabled(editor == nil)
-                .keyboardShortcut("[", modifiers: .command)
-            Button("Clear Formatting") { editor?.apply(.clearFormatting) }
-                .disabled(editor == nil)
+            Group {
+                paragraphItem("Title", .title, key: "t")
+                paragraphItem("Heading", .heading, key: "h")
+                paragraphItem("Subheading", .subheading, key: "j")
+                paragraphItem("Body", .body, key: "b")
+                paragraphItem("Monospaced", .monospaced, key: "m")
+                paragraphItem("Block Quote", .blockQuote, key: nil)
+                Divider()
+                paragraphItem("Checklist", .checklistUnchecked, command: .checklist, key: "l")
+                paragraphItem("Bulleted List", .bulletedList, key: "8")
+                paragraphItem("Dashed List", .dashedList, key: "7")
+                paragraphItem("Numbered List", .numberedList, key: "9")
+                Divider()
+                Toggle("Bold", isOn: styleBinding(.bold, editor?.inline.bold))
+                    .keyboardShortcut("b", modifiers: .command)
+                    .disabled(editor == nil)
+                Toggle("Italic", isOn: styleBinding(.italic, editor?.inline.italic))
+                    .keyboardShortcut("i", modifiers: .command)
+                    .disabled(editor == nil)
+                Toggle("Underline", isOn: styleBinding(.underline, editor?.inline.underline))
+                    .keyboardShortcut("u", modifiers: .command)
+                    .disabled(editor == nil)
+                Toggle("Strikethrough", isOn: styleBinding(.strikethrough, editor?.inline.strikethrough))
+                    .keyboardShortcut("x", modifiers: [.command, .shift])
+                    .disabled(editor == nil)
+                Divider()
+                Button("Increase Indent") { editor?.apply(.indentMore) }
+                    .disabled(editor == nil)
+                    .keyboardShortcut("]", modifiers: .command)
+                Button("Decrease Indent") { editor?.apply(.indentLess) }
+                    .disabled(editor == nil)
+                    .keyboardShortcut("[", modifiers: .command)
+                Button("Clear Formatting") { editor?.apply(.clearFormatting) }
+                    .disabled(editor == nil)
+            }
+            .disabled(locked)
         }
         CommandMenu("Go") {
-            Button("Write") { navigate("write") }
-                .keyboardShortcut("1", modifiers: .command)
-            Button("Entries") { navigate("entries") }
-                .keyboardShortcut("2", modifiers: .command)
-            Button("Insights") { navigate("today") }
-                .keyboardShortcut("3", modifiers: .command)
-            Divider()
-            Button("Find in Entries") {
-                navigate("entries")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NotificationCenter.default.post(name: .mirrorMacFocusSearch, object: nil)
+            Group {
+                Button("Write") { navigate("write") }
+                    .keyboardShortcut("1", modifiers: .command)
+                Button("Entries") { navigate("entries") }
+                    .keyboardShortcut("2", modifiers: .command)
+                Button("Insights") { navigate("today") }
+                    .keyboardShortcut("3", modifiers: .command)
+                Divider()
+                Button("Find in Entries") {
+                    navigate("entries")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        NotificationCenter.default.post(name: .mirrorMacFocusSearch, object: nil)
+                    }
                 }
+                .keyboardShortcut("f", modifiers: .command)
+                Button("Log Mood…") { MoodCheckInPresenter.shared.pending = true }
+                    .keyboardShortcut("m", modifiers: [.command, .option])
+                // ⌘, belongs to the system Settings item in the app menu.
+                SettingsLink { Text("Settings…") }
             }
-            .keyboardShortcut("f", modifiers: .command)
-            Button("Log Mood…") { MoodCheckInPresenter.shared.pending = true }
-                .keyboardShortcut("m", modifiers: [.command, .option])
-            // ⌘, belongs to the system Settings item in the app menu.
-            SettingsLink { Text("Settings…") }
+            .disabled(locked)
         }
     }
 

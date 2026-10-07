@@ -51,7 +51,10 @@ struct mirrorApp: App {
         #else
         let harnessRun = false
         #endif
-        if !harnessRun { MacGlobalHotKey.shared.start(container: sharedModelContainer) }
+        if !harnessRun {
+            MacGlobalHotKey.shared.start(container: sharedModelContainer)
+            AppLockMacCovers.start()
+        }
         #endif
         #if DEBUG
         if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
@@ -224,6 +227,22 @@ struct mirrorApp: App {
         .defaultSize(width: 1280, height: 800)
         #endif
         .onChange(of: scenePhase) { _, phase in
+            #if os(iOS)
+            // App Lock: away starts in the background only (the Face ID prompt itself makes the
+            // app inactive); inactive and background hide the content from the app switcher.
+            switch phase {
+            case .background:
+                AppLock.shared.didLeave()
+                AppLock.shared.setPrivacyCover(true)
+            case .inactive:
+                AppLock.shared.setPrivacyCover(true)
+            case .active:
+                AppLock.shared.setPrivacyCover(false)
+                AppLock.shared.didReturn()
+            @unknown default:
+                break
+            }
+            #endif
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }

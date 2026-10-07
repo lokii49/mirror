@@ -69963,6 +69963,1514 @@
     },
     "%lld pt" : {
       "shouldTranslate" : false
+    },
+    "Quick capture shortcut" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzbefehl für Schnellerfassung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atajo de captura rápida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raccourci de saisie rapide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorciatoia per acquisizione rapida"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クイックキャプチャのショートカット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 기록 단축키"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atalho de captura rápida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сочетание клавиш для быстрого ввода"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速记录快捷键"
+          }
+        }
+      }
+    },
+    "Type a shortcut…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzbefehl drücken …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulsa un atajo…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tapez un raccourci…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premi una scorciatoia…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカットを入力…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키를 누르세요…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressione um atalho…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите сочетание…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请按下快捷键…"
+          }
+        }
+      }
+    },
+    "Click, then press the new shortcut. Esc cancels." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicke und drücke dann den neuen Kurzbefehl. Esc bricht ab."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz clic y pulsa el nuevo atajo. Esc cancela."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez, puis tapez le nouveau raccourci. Échap pour annuler."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fai clic, poi premi la nuova scorciatoia. Esc annulla."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリックしてから新しいショートカットを押してください。Escでキャンセルします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클릭한 다음 새 단축키를 누르세요. Esc를 누르면 취소됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clique e pressione o novo atalho. Esc cancela."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите, затем введите новое сочетание. Esc — отмена."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按后按下新的快捷键。按 Esc 取消。"
+          }
+        }
+      }
+    },
+    "Use ⌘, ⌥ or ⌃ with a key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwende ⌘, ⌥ oder ⌃ mit einer Taste."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa ⌘, ⌥ o ⌃ con una tecla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez ⌘, ⌥ ou ⌃ avec une touche."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa ⌘, ⌥ o ⌃ con un tasto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘、⌥、⌃のいずれかとキーを組み合わせてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘, ⌥ 또는 ⌃를 키와 함께 사용하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use ⌘, ⌥ ou ⌃ com uma tecla."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используйте ⌘, ⌥ или ⌃ вместе с клавишей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请将 ⌘、⌥ 或 ⌃ 与一个按键组合使用。"
+          }
+        }
+      }
+    },
+    "Another app is using %@. Choose a different shortcut." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine andere App verwendet %@. Wähle einen anderen Kurzbefehl."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otra app está usando %@. Elige otro atajo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une autre app utilise %@. Choisissez un autre raccourci."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un'altra app sta usando %@. Scegli un'altra scorciatoia."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリが%@を使用しています。別のショートカットを選んでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 앱에서 %@을(를) 사용 중입니다. 다른 단축키를 선택하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outro app está usando %@. Escolha outro atalho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ уже использует другое приложение. Выберите другое сочетание."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另一个 App 正在使用 %@。请选择其他快捷键。"
+          }
+        }
+      }
+    },
+    "Opens quick capture from any app." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet die Schnellerfassung aus jeder App."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la captura rápida desde cualquier app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la saisie rapide depuis n'importe quelle app."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apre l'acquisizione rapida da qualsiasi app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "どのアプリからでもクイックキャプチャを開きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "어떤 앱에서든 빠른 기록을 엽니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre a captura rápida de qualquer app."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открывает быстрый ввод из любого приложения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在任何 App 中打开快速记录。"
+          }
+        }
+      }
+    },
+    "Space" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leertaste"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espacio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スペース"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스페이스"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espaço"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пробел"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空格"
+          }
+        }
+      }
+    },
+    "Turn on App Lock for your journal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App-Sperre für dein Journal einschalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar el bloqueo de la app para tu diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer le verrouillage de l'app pour votre journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva il blocco app per il tuo diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャーナルのアプリロックをオンにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일기에 앱 잠금을 켭니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ativar o bloqueio do app para o seu diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включить блокировку приложения для дневника."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为你的日记开启 App 锁定。"
+          }
+        }
+      }
+    },
+    "Turn off App Lock for your journal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App-Sperre für dein Journal ausschalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar el bloqueo de la app para tu diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver le verrouillage de l'app pour votre journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva il blocco app per il tuo diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャーナルのアプリロックをオフにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일기의 앱 잠금을 끕니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativar o bloqueio do app para o seu diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить блокировку приложения для дневника."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为你的日记关闭 App 锁定。"
+          }
+        }
+      }
+    },
+    "Unlock your journal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entsperre dein Journal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquea tu diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouillez votre journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca il tuo diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャーナルのロックを解除します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일기 잠금을 해제합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloqueie o seu diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокируйте дневник."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁你的日记。"
+          }
+        }
+      }
+    },
+    "Set a login password for this Mac to use App Lock." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lege ein Anmeldepasswort für diesen Mac fest, um die App-Sperre zu verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura una contraseña de inicio de sesión en este Mac para usar el bloqueo de la app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définissez un mot de passe de session sur ce Mac pour utiliser le verrouillage de l'app."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta una password di accesso per questo Mac per usare il blocco app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリロックを使うには、このMacにログインパスワードを設定してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 잠금을 사용하려면 이 Mac에 로그인 암호를 설정하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Defina uma senha de início de sessão neste Mac para usar o bloqueio do app."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы использовать блокировку приложения, задайте пароль входа на этом Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请为这台 Mac 设置登录密码以使用 App 锁定。"
+          }
+        }
+      }
+    },
+    "Set a passcode for this device to use App Lock." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lege einen Code für dieses Gerät fest, um die App-Sperre zu verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura un código en este dispositivo para usar el bloqueo de la app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définissez un code sur cet appareil pour utiliser le verrouillage de l'app."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta un codice per questo dispositivo per usare il blocco app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリロックを使うには、このデバイスにパスコードを設定してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 잠금을 사용하려면 이 기기에 암호를 설정하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Defina um código neste dispositivo para usar o bloqueio do app."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы использовать блокировку приложения, задайте код-пароль на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请为此设备设置密码以使用 App 锁定。"
+          }
+        }
+      }
+    },
+    "MirrorNotes is locked" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes ist gesperrt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes está bloqueada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes est verrouillée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes è bloccata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesはロックされています"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes가 잠겨 있습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O MirrorNotes está bloqueado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes заблокирован"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 已锁定"
+          }
+        }
+      }
+    },
+    "Unlock with Face ID" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Face ID entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear con Face ID"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller avec Face ID"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca con Face ID"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face IDでロック解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID로 잠금 해제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear com Face ID"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокировать с Face ID"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用面容 ID 解锁"
+          }
+        }
+      }
+    },
+    "Unlock with Touch ID" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Touch ID entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear con Touch ID"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller avec Touch ID"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca con Touch ID"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touch IDでロック解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touch ID로 잠금 해제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear com Touch ID"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокировать с Touch ID"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用触控 ID 解锁"
+          }
+        }
+      }
+    },
+    "Unlock with Optic ID" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Optic ID entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear con Optic ID"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller avec Optic ID"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca con Optic ID"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optic IDでロック解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optic ID로 잠금 해제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear com Optic ID"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокировать с Optic ID"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Optic ID 解锁"
+          }
+        }
+      }
+    },
+    "Unlock with Password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Passwort entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear con contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller avec le mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca con password"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスワードでロック解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "암호로 잠금 해제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear com senha"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокировать паролем"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用密码解锁"
+          }
+        }
+      }
+    },
+    "Unlock with Passcode" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Code entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear con código"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller avec le code"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca con codice"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスコードでロック解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "암호로 잠금 해제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear com código"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разблокировать код-паролем"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用密码解锁"
+          }
+        }
+      }
+    },
+    "Privacy" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confidentialité"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보 보호"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacidade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Конфиденциальность"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私"
+          }
+        }
+      }
+    },
+    "App Lock" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App-Sperre"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloqueo de la app"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouillage de l'app"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocco app"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリロック"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 잠금"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloqueio do app"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Блокировка приложения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App 锁定"
+          }
+        }
+      }
+    },
+    "Asks for Face ID when you open MirrorNotes and after 5 minutes away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragt nach Face ID, wenn du MirrorNotes öffnest und nach 5 Minuten Abwesenheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide Face ID al abrir MirrorNotes y tras 5 minutos fuera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande Face ID à l'ouverture de MirrorNotes et après 5 minutes d'absence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiede Face ID quando apri MirrorNotes e dopo 5 minuti di assenza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesを開いたときと、5分間離れた後にFace IDを求めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes를 열 때와 5분 동안 자리를 비운 후에 Face ID를 요청합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede Face ID ao abrir o MirrorNotes e após 5 minutos fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запрашивает Face ID при открытии MirrorNotes и после 5 минут отсутствия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MirrorNotes 时以及离开 5 分钟后，需要面容 ID。"
+          }
+        }
+      }
+    },
+    "Asks for Touch ID when you open MirrorNotes and after 5 minutes away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragt nach Touch ID, wenn du MirrorNotes öffnest und nach 5 Minuten Abwesenheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide Touch ID al abrir MirrorNotes y tras 5 minutos fuera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande Touch ID à l'ouverture de MirrorNotes et après 5 minutes d'absence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiede Touch ID quando apri MirrorNotes e dopo 5 minuti di assenza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesを開いたときと、5分間離れた後にTouch IDを求めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes를 열 때와 5분 동안 자리를 비운 후에 Touch ID를 요청합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede Touch ID ao abrir o MirrorNotes e após 5 minutos fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запрашивает Touch ID при открытии MirrorNotes и после 5 минут отсутствия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MirrorNotes 时以及离开 5 分钟后，需要触控 ID。"
+          }
+        }
+      }
+    },
+    "Asks for Optic ID when you open MirrorNotes and after 5 minutes away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragt nach Optic ID, wenn du MirrorNotes öffnest und nach 5 Minuten Abwesenheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide Optic ID al abrir MirrorNotes y tras 5 minutos fuera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande Optic ID à l'ouverture de MirrorNotes et après 5 minutes d'absence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiede Optic ID quando apri MirrorNotes e dopo 5 minuti di assenza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesを開いたときと、5分間離れた後にOptic IDを求めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes를 열 때와 5분 동안 자리를 비운 후에 Optic ID를 요청합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede Optic ID ao abrir o MirrorNotes e após 5 minutos fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запрашивает Optic ID при открытии MirrorNotes и после 5 минут отсутствия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MirrorNotes 时以及离开 5 分钟后，需要 Optic ID。"
+          }
+        }
+      }
+    },
+    "Asks for your Mac password when you open MirrorNotes and after 5 minutes away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragt nach deinem Mac-Passwort, wenn du MirrorNotes öffnest und nach 5 Minuten Abwesenheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide la contraseña de tu Mac al abrir MirrorNotes y tras 5 minutos fuera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande le mot de passe de votre Mac à l'ouverture de MirrorNotes et après 5 minutes d'absence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiede la password del tuo Mac quando apri MirrorNotes e dopo 5 minuti di assenza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesを開いたときと、5分間離れた後にMacのパスワードを求めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes를 열 때와 5분 동안 자리를 비운 후에 Mac 암호를 요청합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede a senha do seu Mac ao abrir o MirrorNotes e após 5 minutos fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запрашивает пароль Mac при открытии MirrorNotes и после 5 минут отсутствия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MirrorNotes 时以及离开 5 分钟后，需要 Mac 密码。"
+          }
+        }
+      }
+    },
+    "Asks for your passcode when you open MirrorNotes and after 5 minutes away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragt nach deinem Code, wenn du MirrorNotes öffnest und nach 5 Minuten Abwesenheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide tu código al abrir MirrorNotes y tras 5 minutos fuera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande votre code à l'ouverture de MirrorNotes et après 5 minutes d'absence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiede il tuo codice quando apri MirrorNotes e dopo 5 minuti di assenza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesを開いたときと、5分間離れた後にパスコードを求めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes를 열 때와 5분 동안 자리를 비운 후에 암호를 요청합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede o seu código ao abrir o MirrorNotes e após 5 minutos fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запрашивает код-пароль при открытии MirrorNotes и после 5 минут отсутствия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 MirrorNotes 时以及离开 5 分钟后，需要设备密码。"
+          }
+        }
+      }
+    },
+    "Widgets and notifications can still show lines from your reflections." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets und Mitteilungen können weiterhin Zeilen aus deinen Reflexionen zeigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los widgets y las notificaciones aún pueden mostrar frases de tus reflexiones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les widgets et les notifications peuvent toujours afficher des lignes de vos réflexions."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget e notifiche possono comunque mostrare frasi delle tue riflessioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウィジェットと通知には、引き続きリフレクションの一部が表示されることがあります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "위젯과 알림에는 여전히 리플렉션의 문장이 표시될 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets e notificações ainda podem mostrar trechos das suas reflexões."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виджеты и уведомления по-прежнему могут показывать строки из ваших рефлексий."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小组件和通知仍可能显示你反思中的句子。"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

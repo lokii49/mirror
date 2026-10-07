@@ -43,6 +43,8 @@ struct ArchiveSettingsView: View {
     var body: some View {
         SettingsScroll {
             VStack(spacing: 14) {
+                AppLockSettingsGroup()
+
                 SettingsGroup(title: "Your Data") {
                     ShareLink(
                         item: cachedExportedText,

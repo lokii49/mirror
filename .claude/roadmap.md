@@ -31,12 +31,13 @@ The owner submitted 3.0.8 / Mac 1.0.1 without device checks. It is live now, so 
 ### Engineering
 - **Gemma memory on Mac: DONE 2026-10-07** [checked]. `--perfSeed=50 --gemmaMemoryProbe` (DEBUG): 56 MiB before load, peak 278–317 MiB while generating, 142 MiB after. Flat across calls, no leak. `generate` already releases the model after every call, so there's nothing to unload on idle.
 - **Gemma output quality on Mac: DONE** [checked]. The llmrig rig already runs on this Mac (Metal), so its numbers are Mac numbers. The app's own path on Mac passed 5/5 synthetic grounded nudges (`validateGroundedNudge`), ~1 s each warm. One soft feeling-line miss ("weary" after a good interview), the known class.
-- **Mac gaps** (`platform-roadmap.md` Status):
-  - global hotkey for quick capture
-  - app lock
-  - time-triggered check-in popup
-  - Sentinel theme on Mac
-  - widget rendering checked on hardware
+- **Mac gaps** (`platform-roadmap.md` Status), branch `3.0.9-next`:
+  - **Global quick-capture shortcut: BUILT** (`4c582c4`). ⌥⌘J opens quick capture in a non-activating floating panel (the MenuBarExtra popover can't be opened from code). Changeable in Settings > General > Input. Checked on this Mac: opens from Finder, typing works, ⌘↩ saves, Esc closes, Finder stays frontmost. ⌥⌘J is also Chrome's JavaScript Console shortcut; while MirrorNotes holds it, Chrome won't get it.
+  - **Check-in reminder on Mac: BUILT** (`5604d76`). The notification shows even while the app is frontmost, and clicking it reopens a closed main window, then shows Log Mood. Not yet seen with a real notification click on a signed build.
+  - **App Lock (iOS + Mac): BUILT**, see below.
+  - Sentinel on Mac: deferred (owner, 2026-10-07).
+  - Widget rendering on hardware: needs a signed build; owner check.
+- **App Lock** (Settings > Your Data / Archive / iCloud & Privacy > Privacy). Off by default. Face ID / Touch ID with passcode or password fallback. Locks on launch and after 5 minutes away, and hides content in the app switcher. iOS covers each scene with a window above alert level (sheets included). Mac covers every app window and disables the menus. Quick capture stays usable because it only writes. Widgets and notifications still show reflection lines (the Settings caption says so). Checked: Mac cover/uncover and the away rule at runtime; iOS lock screen and the automatic passcode prompt on the simulator. Not checked: Face ID on a device, Sentinel's dark background on the iOS cover after the style fix, Touch ID on a real unlock.
 - **Mac backup cadence.** The snapshot on resign-active shipped (`7f59c08`). Confirm on hardware that it actually refreshes.
 - **Deferred, owner's call:** FM daily reflection with today-only context, no background brief. Revisit only if reflections start leaking earlier days or quality complaints come in. It needs an llmrig round first: the rig has never tested the background brief.
 
