@@ -1,9 +1,9 @@
-Safer journals, and a fuller daily reflection
+Lock your journal, find anything, keep it organised
 
-• If you turn off iCloud for MirrorNotes or sign out of iCloud, your iPhone now keeps a private copy of your journal and offers to restore any entries that disappear.
-• A notice tells you when your latest changes haven't reached iCloud yet, so you know not to turn iCloud off before they're backed up.
-• If some entries can't be read on a new device, MirrorNotes now tells you why and how to fix it (turn on iCloud Keychain).
-• Delete Everything now also removes mood check-ins, and your other devices won't offer the deleted entries back.
-• Your daily reflection now also shows a second sentence from your entry, in your own words (English).
-• On iPhones with Apple Intelligence, days spent at a hospital, clinic or similar now get a reflection instead of none.
-• A new Format panel, laid out like Notes: styles, bold/italic/underline/strikethrough, lists, indents and colours in one place.
+• App Lock: protect MirrorNotes with Face ID, Touch ID or your passcode. It locks when the app opens and after 5 minutes away, and hides your journal in the app switcher. Turn it on in Settings.
+• Better search: put words in "quotes" for an exact phrase, type tag:work to search a tag, or -word to leave a word out. Matching words are highlighted, and results can be sorted by best match.
+• Filters: combine several moods, any or all of your tags, date ranges (including This week and This month), photos, voice notes and pinned entries.
+• Collections: group entries into collections and switch between them in Entries. Each entry can be in one collection.
+• Saved views: save a search with its filters and sort, and open it again with one tap.
+• Safer drafts: your unsaved draft is fully encrypted on your iPhone, the editor shows whether it's been kept, and unsaved changes to an entry can be restored next time you open it.
+• Export your whole journal as a ZIP of Markdown files with your photos and voice recordings. You can import an unzipped archive back; existing entries are never overwritten.
