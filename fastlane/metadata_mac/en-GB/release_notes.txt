@@ -1,10 +1,11 @@
-A Notes-style toolbar, and your journal better protected
+Lock your journal, capture from anywhere, find anything
 
-• A new Aa panel for formatting text, like in Notes, and a cleaner toolbar.
-• Smoother switching between Settings tabs, a button to clear your search, and hover feedback throughout.
-• Photos and tags scroll sideways in the editor, and the mood heatmap shows details on hover.
-• Zoom and pan in Brain View with the scroll wheel or trackpad, and keyboard shortcuts to move between months in reports.
-• The same journal protection as iPhone: a private copy and restore if iCloud is turned off, plus a notice when changes haven't been backed up yet.
-• Your daily reflection now shows a second sentence from your entry.
-• Faster search and filtering in Entries.
-• The app is now called MirrorNotes in Finder.
+• App Lock: protect MirrorNotes with Touch ID or your Mac password. It locks when the app opens and after 5 minutes away, and covers your journal while locked. Turn it on in Settings.
+• Quick capture from any app: press Option-Command-J to jot something down without leaving what you're doing. Change the shortcut or turn it off in Settings.
+• Your daily check-in reminder now shows even while MirrorNotes is open, and clicking it takes you straight to Log Mood.
+• Better search: put words in "quotes" for an exact phrase, type tag:work to search a tag, or -word to leave a word out. Matching words are highlighted, and results can be sorted by best match.
+• Filters: combine several moods, any or all of your tags, date ranges (including This week and This month), photos and pinned entries.
+• Collections: group entries into collections and switch between them in Entries. Each entry can be in one collection.
+• Saved views: save a search with its filters and sort, and open it again in one click.
+• Safer drafts: the editor shows whether your draft has been kept, and unsaved changes to an entry, even ones closed with Esc, can be restored next time you open it.
+• Export your whole journal as a ZIP of Markdown files with your photos. You can import an unzipped archive back; existing entries are never overwritten.

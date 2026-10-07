@@ -1,10 +1,11 @@
-Une barre d'outils comme dans Notes et ton journal mieux protégé
+Verrouille ton journal, note depuis n'importe où, retrouve tout
 
-• Un nouveau panneau Aa pour mettre en forme le texte, comme dans Notes, et une barre d'outils épurée.
-• Passage plus fluide entre les onglets des Réglages, un bouton pour effacer la recherche et un retour visuel au survol.
-• Les photos et les tags défilent horizontalement dans l'éditeur, et la carte de chaleur des humeurs affiche des détails au survol.
-• Zoom et déplacement dans Brain View à la molette ou au trackpad, et raccourcis clavier pour changer de mois dans les rapports.
-• La même protection que sur iPhone : une copie privée et une restauration si iCloud est désactivé, et un avis quand les modifications ne sont pas encore sauvegardées.
-• Ta réflexion quotidienne affiche maintenant une deuxième phrase de ton entrée.
-• Recherche et filtres plus rapides dans les Entrées.
-• L'app s'appelle maintenant MirrorNotes dans le Finder.
+• Verrouillage de l'app : protège MirrorNotes avec Touch ID ou le mot de passe de ton Mac. L'app se verrouille à l'ouverture et après 5 minutes d'absence, et masque ton journal tant qu'elle est verrouillée. Active-le dans Réglages.
+• Saisie rapide depuis n'importe quelle app : appuie sur Option-Commande-J pour noter quelque chose sans quitter ce que tu fais. Change le raccourci ou désactive-le dans Réglages.
+• Ton rappel quotidien de check-in s'affiche maintenant même quand MirrorNotes est ouverte, et un clic t'amène directement à l'enregistrement de ton humeur.
+• Recherche améliorée : mets des mots entre « guillemets » pour une expression exacte, tape tag:travail pour chercher un tag, ou -mot pour exclure un mot. Les mots trouvés sont surlignés et les résultats peuvent être triés par pertinence.
+• Filtres : combine plusieurs humeurs, certains ou tous tes tags, des périodes (dont Cette semaine et Ce mois-ci), photos et entrées épinglées.
+• Collections : regroupe tes entrées en collections et passe de l'une à l'autre dans Entrées. Chaque entrée peut appartenir à une collection.
+• Vues enregistrées : enregistre une recherche avec ses filtres et son tri, et rouvre-la d'un clic.
+• Brouillons plus sûrs : l'éditeur indique si ton brouillon a été conservé, et les modifications non enregistrées d'une entrée, même fermée avec Échap, peuvent être restaurées à sa prochaine ouverture.
+• Exporte tout ton journal en ZIP avec des fichiers Markdown et tes photos. Tu peux réimporter une archive décompressée ; les entrées existantes ne sont jamais écrasées.

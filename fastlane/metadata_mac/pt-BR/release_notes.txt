@@ -1,10 +1,11 @@
-Uma barra de ferramentas como no Notas e seu diário mais protegido
+Bloqueie seu diário, anote de qualquer lugar e encontre tudo
 
-• Um novo painel Aa para formatar texto, como no Notas, e uma barra de ferramentas mais limpa.
-• Troca mais suave entre as abas de Ajustes, um botão para limpar a busca e resposta visual ao passar o ponteiro.
-• Fotos e tags rolam na horizontal no editor, e o mapa de calor do humor mostra detalhes ao passar o ponteiro.
-• Zoom e movimento no Brain View com a roda ou o trackpad, e atalhos de teclado para trocar de mês nos relatórios.
-• A mesma proteção do iPhone: uma cópia privada e restauração se o iCloud for desativado, e um aviso quando as alterações ainda não têm backup.
-• Sua reflexão diária agora mostra uma segunda frase da sua entrada.
-• Busca e filtros mais rápidos em Entradas.
-• O app agora se chama MirrorNotes no Finder.
+• Bloqueio do app: proteja o MirrorNotes com Touch ID ou a senha do seu Mac. Ele bloqueia ao abrir o app e após 5 minutos fora, e cobre seu diário enquanto estiver bloqueado. Ative em Ajustes.
+• Captura rápida em qualquer app: pressione Option-Command-J para anotar algo sem sair do que está fazendo. Altere o atalho ou desative em Ajustes.
+• Seu lembrete diário de check-in agora aparece mesmo com o MirrorNotes aberto, e clicar nele leva direto ao registro de humor.
+• Busca melhorada: coloque palavras entre "aspas" para uma frase exata, digite tag:trabalho para buscar uma tag ou -palavra para excluir uma palavra. As palavras encontradas ficam destacadas, e os resultados podem ser ordenados por relevância.
+• Filtros: combine vários humores, algumas ou todas as suas tags, períodos (incluindo Esta semana e Este mês), fotos e entradas fixadas.
+• Coleções: agrupe entradas em coleções e alterne entre elas em Entradas. Cada entrada pode estar em uma coleção.
+• Visualizações salvas: salve uma busca com seus filtros e ordem e abra de novo com um clique.
+• Rascunhos mais seguros: o editor mostra se seu rascunho foi mantido, e alterações não salvas em uma entrada, mesmo fechada com Esc, podem ser restauradas na próxima vez que você abri-la.
+• Exporte todo o seu diário como um ZIP com arquivos Markdown e suas fotos. Você pode importar de volta um arquivo descompactado; entradas existentes nunca são substituídas.
