@@ -62,6 +62,9 @@ struct mirrorApp: App {
         if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
             CloudKitSchemaSeed.run(context: sharedModelContainer.mainContext)
         }
+        if CloudKitSchemaSeed.isRemovalRequested, MirrorModelContainer.isStoreAvailable {
+            CloudKitSchemaSeed.removeSeed(context: sharedModelContainer.mainContext)
+        }
         #endif
         #if DEBUG
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
