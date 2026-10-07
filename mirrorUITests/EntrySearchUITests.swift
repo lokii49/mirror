@@ -27,6 +27,9 @@ final class EntrySearchUITests: XCTestCase {
         search.typeText("\"made coffee\" -noodles")
         let result = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "made coffee")).firstMatch
         XCTAssertTrue(result.waitForExistence(timeout: 5))
+        // A word search switches the list to one ranked section.
+        let ranked = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "best matches")).firstMatch
+        XCTAssertTrue(ranked.waitForExistence(timeout: 5))
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Archive search \(mode)"
         attachment.lifetime = .keepAlways

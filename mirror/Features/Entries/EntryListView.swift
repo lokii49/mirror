@@ -54,6 +54,7 @@ struct EntriesTabView: View {
     #endif
 
     private enum EntrySortOrder: String, CaseIterable {
+        case bestMatch   = "Best Match"
         case newestFirst = "Newest First"
         case oldestFirst = "Oldest First"
         case mostWords   = "Most Words"
@@ -61,6 +62,7 @@ struct EntriesTabView: View {
 
         var icon: String {
             switch self {
+            case .bestMatch:   return "text.magnifyingglass"
             case .newestFirst: return "arrow.down.circle"
             case .oldestFirst: return "arrow.up.circle"
             case .mostWords:   return "text.word.spacing"
@@ -70,6 +72,7 @@ struct EntriesTabView: View {
 
         var displayName: LocalizedStringKey {
             switch self {
+            case .bestMatch:   return "Best Match"
             case .newestFirst: return "Newest First"
             case .oldestFirst: return "Oldest First"
             case .mostWords:   return "Most Words"
@@ -102,6 +105,9 @@ struct EntriesTabView: View {
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
         let unreadableCount: Int
+        /// Results are one ranked list (Best Match), not month sections.
+        var isRanked = false
+        var matchesWithoutFilters: Int?
     }
 
     private struct SnapshotDeps: Equatable {
@@ -151,7 +157,18 @@ struct EntriesTabView: View {
             }
         }
 
-        switch sortOrder {
+        let ranked = effectiveSortOrder(for: query) == .bestMatch
+        switch effectiveSortOrder(for: query) {
+        case .bestMatch:
+            var scores = searchResults?.scores ?? [:]
+            if searchResults == nil {
+                for entry in result { scores[entry.id] = EntrySearch.relevance(cache.item(for: entry).document, query: query) }
+            }
+            // Stable: @Query order is newest first, so equal scores stay newest first.
+            result = result.enumerated().sorted { lhs, rhs in
+                let l = scores[lhs.element.id] ?? 0, r = scores[rhs.element.id] ?? 0
+                return l != r ? l > r : lhs.offset < rhs.offset
+            }.map(\.element)
         case .newestFirst: break  // already sorted by @Query
         case .oldestFirst: result = result.sorted { $0.createdAt < $1.createdAt }
         case .mostWords:   result = result.sorted { $0.wordCount > $1.wordCount }
@@ -170,11 +187,11 @@ struct EntriesTabView: View {
         }
 
         let monthSortAscending = sortOrder == .oldestFirst
-        let groupedByMonth = groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
+        let groupedByMonth = ranked ? [EntryMonthGroup(date: .distantPast, entries: result.filter { !$0.isPinned })].filter { !$0.entries.isEmpty } : groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
             let monthEntries = groups[month, default: []]
             let sortedMonthEntries: [Entry]
             switch sortOrder {
-            case .newestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+            case .bestMatch, .newestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt > $1.createdAt }
             case .oldestFirst: sortedMonthEntries = monthEntries.sorted { $0.createdAt < $1.createdAt }
             case .mostWords:   sortedMonthEntries = monthEntries.sorted { $0.wordCount > $1.wordCount }
             case .byMood:      sortedMonthEntries = monthEntries.sorted { (cache.item(for: $0).mood ?? "") < (cache.item(for: $1).mood ?? "") }
@@ -218,7 +235,32 @@ struct EntriesTabView: View {
         // A transcript or tag can arrive before its encryption key even when body
         // text is already readable. Keep the existing key-arrival retry active.
         let unreadableCount = entries.filter { !cache.item(for: $0).document.isReadable }.count
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount)
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters)
+    }
+
+    /// Best Match applies only while the search has words in it; otherwise the
+    /// list falls back to newest first.
+    private func effectiveSortOrder(for query: EntrySearchQuery) -> EntrySortOrder {
+        sortOrder == .bestMatch && !query.hasTextTerms ? .newestFirst : sortOrder
+    }
+
+    private var availableSortOrders: [EntrySortOrder] {
+        EntrySearchQuery.parse(debouncedSearchText).hasTextTerms
+            ? EntrySortOrder.allCases
+            : EntrySortOrder.allCases.filter { $0 != .bestMatch }
+    }
+
+    /// Starting a word search switches the default order to Best Match; clearing it
+    /// switches back. A sort the user picked themselves is left alone.
+    private func updateSortForSearch(from old: String, to new: String) {
+        let had = EntrySearchQuery.parse(old).hasTextTerms
+        let has = EntrySearchQuery.parse(new).hasTextTerms
+        if !had, has, sortOrder == .newestFirst { sortOrder = .bestMatch }
+        if had, !has, sortOrder == .bestMatch { sortOrder = .newestFirst }
+    }
+
+    private func sectionTitle(for group: EntryMonthGroup, ranked: Bool) -> String {
+        ranked ? String(localized: "Best matches") : monthTitle(for: group.date)
     }
 
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
@@ -241,7 +283,7 @@ struct EntriesTabView: View {
                 .accessibilityLabel("On This Day")
             }
             Menu {
-                ForEach(EntrySortOrder.allCases, id: \.self) { order in
+                ForEach(availableSortOrders, id: \.self) { order in
                     Button {
                         withAnimation { sortOrder = order }
                     } label: {
@@ -302,6 +344,7 @@ struct EntriesTabView: View {
                 guard !Task.isCancelled else { return }
                 debouncedSearchText = value
             }
+            .onChange(of: debouncedSearchText) { old, new in updateSortForSearch(from: old, to: new) }
             #if os(iOS)
             // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
             .navigationDestination(isPresented: $showEntryDetail) {
@@ -336,6 +379,8 @@ struct EntriesTabView: View {
             }
             .task(id: snapshotDeps) {
                 let query = EntrySearchQuery.parse(debouncedSearchText)
+                let readerTerms = query.problem == nil ? ReaderSearchHighlight.terms(for: query) : []
+                if ReaderSearchHighlight.shared.terms != readerTerms { ReaderSearchHighlight.shared.terms = readerTerms }
                 var searchResults: EntrySearch.Results?
                 if !query.isEmpty || filters.isActive {
                     decryptCache.prune(keeping: entries)
@@ -371,6 +416,9 @@ struct EntriesTabView: View {
                 if let query = note.userInfo?["search"] as? String { searchText = query; debouncedSearchText = query }
                 if let open = note.userInfo?["filters"] as? Bool { showFilters = open }
                 if let moods = note.userInfo?["filterMoods"] as? [String] { filters.moods = Set(moods) }
+                if note.userInfo?["selectFirstResult"] as? Bool == true, let snapshotCache {
+                    macSelection?.wrappedValue = macOrderedEntries(snapshotCache).first
+                }
             }
             #endif
             #endif
@@ -820,6 +868,13 @@ struct EntriesTabView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+                if let count = snapshot.matchesWithoutFilters, count > 0 {
+                    relaxFiltersButton(count)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             } else {
                 EmptyView()
             }
@@ -833,9 +888,9 @@ struct EntriesTabView: View {
                     HStack {
                         Group {
                             if displayMode == .sentinel {
-                                Text(monthTitle(for: group.date)).font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
                             } else {
-                                Text(monthTitle(for: group.date)).font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
                             }
                         }
                         Spacer()
@@ -863,6 +918,25 @@ struct EntriesTabView: View {
         .background(MirrorTheme.bgBase)
     }
 
+    /// The search matches entries the filters hide: offer to keep the search and
+    /// drop the filters, instead of leaving the user to guess which one to remove.
+    private func relaxFiltersButton(_ count: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { filters = EntryFilterCriteria() }
+        } label: {
+            Group {
+                if displayMode == .sentinel {
+                    Text("Search without filters (\(count))").font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
+                } else {
+                    Text("Search without filters (\(count))").font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("search.relaxFilters")
+    }
+
     private var emptyFilteredMessage: LocalizedStringKey {
         if let problem = EntrySearchQuery.parse(debouncedSearchText).problem {
             switch problem {
@@ -873,6 +947,7 @@ struct EntriesTabView: View {
             case .invalidValue: return "Unsupported filter value. Open Search help for examples."
             }
         }
+        if !debouncedSearchText.isEmpty && filters.isActive { return "No entries match your search with these filters." }
         if !debouncedSearchText.isEmpty { return "No entries match your search" }
         if filters.isActive { return "No entries match these filters. Remove a filter or clear all to see more entries." }
         return "No entries match your search"
@@ -1202,9 +1277,12 @@ extension EntriesTabView {
                             .foregroundStyle(MacTokens.secondaryInk)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 32)
+                        if let count = snapshot.matchesWithoutFilters, count > 0 {
+                            relaxFiltersButton(count).frame(maxWidth: .infinity).padding(.top, 8)
+                        }
                     }
                     ForEach(snapshot.groupedByMonth, id: \.date) { group in
-                        macSectionLabel(monthTitle(for: group.date).uppercased(), icon: nil, topPadding: 14)
+                        macSectionLabel(sectionTitle(for: group, ranked: snapshot.isRanked).uppercased(), icon: nil, topPadding: 14)
                         ForEach(group.entries) { entry in
                             macRow(entry, snapshot: snapshot)
                         }
@@ -1310,7 +1388,7 @@ extension EntriesTabView {
         // The board has only the pen here; sort, filters and On This Day live in this menu.
         .contextMenu {
             Menu("Sort by") {
-                ForEach(EntrySortOrder.allCases, id: \.self) { order in
+                ForEach(availableSortOrders, id: \.self) { order in
                     Button {
                         withAnimation { sortOrder = order }
                     } label: {

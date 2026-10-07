@@ -464,6 +464,12 @@ enum MacSnapshot {
                 try? await Task.sleep(for: .seconds(1))
                 capture(mainWindow(), name: name)
             }
+            // Reader opened from a word search: Best Match list, marked words and the match bar.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": "coffee"])
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["selectFirstResult": true])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-reader-matches")
             NSApp.terminate(nil)
             return
         }

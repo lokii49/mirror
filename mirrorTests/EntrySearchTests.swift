@@ -20,6 +20,39 @@ struct EntrySearchTests {
                             hasPhoto: true, hasAudio: true, isPinned: false, isReadable: readable)
     }
 
+    @Test func bestMatchRanksBodyAboveTranscriptAboveMetadata() {
+        let query = EntrySearchQuery.parse("river")
+        let body = document("Walked by the river.", tags: [])
+        let transcript = document(tags: [], passages: [.init("Quiet day.", source: .body), .init("The river was loud.", source: .transcript(1))])
+        let translation = document(tags: [], passages: [.init("Ruhiger Tag.", source: .body), .init("By the river.", source: .translation(1))])
+        let tagOnly = document("Quiet day.", tags: ["river"])
+        let scores = [body, transcript, translation, tagOnly].map { EntrySearch.relevance($0, query: query) }
+        #expect(scores == scores.sorted(by: >))
+        #expect(Set(scores).count == 4)
+        // Word start counts more than a match inside a word.
+        #expect(EntrySearch.relevance(document("river walk", tags: []), query: query)
+                > EntrySearch.relevance(document("riverriver", tags: []), query: .parse("verri")))
+    }
+
+    @Test func evaluateReportsScoresOnlyForWordSearches() {
+        let docs = [(UUID(), document()), (UUID(), document("Nothing related.", tags: []))]
+        #expect(!EntrySearch.evaluate(docs, query: .parse("river"), calendar: calendar).scores.isEmpty)
+        #expect(EntrySearch.evaluate(docs, query: .parse("tag:work"), calendar: calendar).scores.isEmpty)
+        #expect(!EntrySearchQuery.parse("-river tag:work").hasTextTerms)
+    }
+
+    @Test func emptyFilteredResultsCountSearchOnlyMatches() {
+        let docs = [(UUID(), document()), (UUID(), document("The river again.", tags: []))]
+        var filters = EntryFilterCriteria()
+        filters.moods = ["Anxious"]
+        let results = EntrySearch.evaluate(docs, query: .parse("river"), filters: filters, calendar: calendar)
+        #expect(results.ids.isEmpty)
+        #expect(results.matchesWithoutFilters == 2)
+        // Not computed when something matched, or when there is no search.
+        #expect(EntrySearch.evaluate(docs, query: .parse("river"), calendar: calendar).matchesWithoutFilters == nil)
+        #expect(EntrySearch.evaluate(docs, query: .parse(""), filters: filters, calendar: calendar).matchesWithoutFilters == nil)
+    }
+
     @Test func wordsAreConjunctiveAndPhraseIsContiguous() {
         #expect(EntrySearch.matches(document(), query: .parse("river coffee")))
         #expect(!EntrySearch.matches(document(), query: .parse("coffee library")))

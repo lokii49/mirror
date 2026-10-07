@@ -41,6 +41,13 @@ nonisolated struct EntrySearchQuery: Sendable {
     let terms: [Term]
     let problem: Problem?
     var isEmpty: Bool { terms.isEmpty && problem == nil }
+    /// True when the query searches for words (not only tag/mood/date/media filters).
+    var hasTextTerms: Bool {
+        terms.contains { term in
+            if !term.excluded, case .text = term.condition { return true }
+            return false
+        }
+    }
 
     /// Quotes can follow a field name (tag:"work trip"). A backslash escapes a
     /// quote or backslash inside quotes. Operators are literal ASCII in all locales.
@@ -136,19 +143,65 @@ nonisolated enum EntrySearch {
     struct Results: Sendable {
         var ids: Set<UUID> = []
         var excerpts: [UUID: Excerpt] = [:]
+        /// Best Match scores; only filled when the query has words to search for.
+        var scores: [UUID: Int] = [:]
+        /// When nothing matched both, how many entries match the search alone.
+        /// Lets the empty state offer to drop the filters. Nil when not computed.
+        var matchesWithoutFilters: Int?
     }
 
     static func evaluate(_ documents: [(UUID, EntrySearchDocument)], query: EntrySearchQuery,
                          filters: EntryFilterCriteria = EntryFilterCriteria(), now: Date = Date(),
                          calendar: Calendar = .current) -> Results {
         var results = Results()
+        let ranks = query.hasTextTerms
         for (id, document) in documents {
             guard !Task.isCancelled else { return Results() }
             guard filters.matches(document, now: now, calendar: calendar), matches(document, query: query) else { continue }
             results.ids.insert(id)
             results.excerpts[id] = excerpt(document, query: query)
+            if ranks { results.scores[id] = relevance(document, query: query) }
+        }
+        if results.ids.isEmpty, filters.isActive, !query.isEmpty, query.problem == nil {
+            var count = 0
+            for (_, document) in documents {
+                guard !Task.isCancelled else { return Results() }
+                if matches(document, query: query) { count += 1 }
+            }
+            results.matchesWithoutFilters = count
         }
         return results
+    }
+
+    /// Best Match: words in the entry's own text rank above voice transcripts,
+    /// then English translations, then tag/mood-only matches. A match at the
+    /// start of a word counts a little more than one inside a word. Callers
+    /// break ties newest first. Deterministic; no model involved.
+    static func relevance(_ document: EntrySearchDocument, query: EntrySearchQuery) -> Int {
+        var score = 0
+        for term in query.terms where !term.excluded {
+            guard case .text(let value) = term.condition else { continue }
+            var best = 0
+            for passage in document.passages {
+                guard let range = passage.folded.range(of: value) else { continue }
+                var weight: Int
+                switch passage.source {
+                case .body: weight = 6
+                case .transcript: weight = 4
+                case .translation: weight = 2
+                }
+                if range.lowerBound == passage.folded.startIndex
+                    || !passage.folded[passage.folded.index(before: range.lowerBound)].isLetter {
+                    weight += 1
+                }
+                best = max(best, weight)
+            }
+            if best == 0, document.tags.contains(where: { $0.contains(value) }) || document.moods.contains(where: { $0.contains(value) }) {
+                best = 1
+            }
+            score += best
+        }
+        return score
     }
 
     struct Excerpt: Sendable {
