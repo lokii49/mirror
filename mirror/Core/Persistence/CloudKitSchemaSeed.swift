@@ -20,8 +20,18 @@ enum CloudKitSchemaSeed {
         let large = JournalErasure(erasedEntryIDs: big, erasedCheckInIDs: big)
         context.insert(small)
         context.insert(large)
+        // 3.0.9: CD_JournalCollection, CD_SavedEntryView and Entry's CD_collectionID field.
+        // Synthetic names only; delete the seed entry afterwards (it is a normal entry).
+        let collection = JournalCollection(payload: .init(name: "Schema seed"), sortIndex: 0)
+        context.insert(collection)
+        context.insert(SavedEntryView(payload: .init(name: "Schema seed", query: "seed",
+                                                     criteria: SavedCriteria(EntryFilterCriteria()), sort: "Newest First"),
+                                      sortIndex: 0))
+        let entry = Entry(text: "CloudKit schema seed. Safe to delete.")
+        entry.collectionID = collection.id
+        context.insert(entry)
         try? context.save()
-        NSLog("CloudKitSchemaSeed: inserted 2 JournalErasure markers; keep the app open ~2 minutes so they export")
+        NSLog("CloudKitSchemaSeed: inserted erase markers, a collection, a saved view and one seed entry; keep the app open ~2 minutes so they export")
     }
 }
 #endif

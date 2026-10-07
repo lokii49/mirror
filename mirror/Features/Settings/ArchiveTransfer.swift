@@ -21,7 +21,17 @@ enum ArchiveTransfer {
 
     enum TransferError: Error { case zipFailed }
 
-    static func exportArchive(entries: [Entry], progress: @escaping (Double) -> Void) async throws -> ExportResult {
+    static func exportArchive(entries: [Entry], collections: [JournalCollection] = [],
+                              progress: @escaping (Double) -> Void) async throws -> ExportResult {
+        // Names are decrypted here once; an unreadable collection name is left out
+        // (its entries still carry the id).
+        var collectionRecords: [ArchivePackage.Manifest.CollectionRecord] = []
+        var names: [UUID: String] = [:]
+        for collection in collections {
+            guard let payload = collection.payload else { continue }
+            names[collection.id] = payload.name
+            collectionRecords.append(.init(id: collection.id, name: payload.name, icon: payload.icon, colorIndex: payload.colorIndex))
+        }
         let now = Date()
         let timeZone = TimeZone.current
         let name = "MirrorNotes Export \(ArchivePackage.iso(now).prefix(10))"
@@ -33,8 +43,9 @@ enum ArchiveTransfer {
             for (index, entry) in entries.enumerated() {
                 try Task.checkCancellation()
                 if let snapshot = entry.archiveSnapshot() {
+                    let collectionName = snapshot.collectionID.flatMap { names[$0] }
                     let record = try await Task.detached(priority: .userInitiated) {
-                        try ArchivePackage.write(snapshot, to: root, exportTimeZone: timeZone)
+                        try ArchivePackage.write(snapshot, to: root, exportTimeZone: timeZone, collectionName: collectionName)
                     }.value
                     records.append(record)
                 } else {
@@ -45,7 +56,8 @@ enum ArchiveTransfer {
             try Task.checkCancellation()
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             try ArchivePackage.writeManifest(records: records, unreadable: unreadable, to: root,
-                                             appVersion: version, exportedAt: now, timeZone: timeZone)
+                                             appVersion: version, exportedAt: now, timeZone: timeZone,
+                                             collections: collectionRecords)
             let zip = try await Task.detached(priority: .userInitiated) { try zipped(root, named: name) }.value
             try? FileManager.default.removeItem(at: root)
             progress(1)
@@ -79,6 +91,8 @@ enum ArchiveTransfer {
     // MARK: - Import
 
     struct ImportPlan {
+        /// Collections named in the package; missing ones are created on import.
+        var collections: [ArchivePackage.Manifest.CollectionRecord] = []
         var new: [ArchivePackage.ArchiveEntry]
         var changed: [ArchivePackage.ArchiveEntry]
         var identical: Int
@@ -88,6 +102,7 @@ enum ArchiveTransfer {
     /// What one import added, so it can be undone while the entries are untouched.
     struct ImportBatch {
         var digests: [UUID: String]
+        var createdCollections: [UUID] = []
     }
 
     /// Reads and validates the package (off the main actor), then compares it
@@ -98,7 +113,8 @@ enum ArchiveTransfer {
         let package = try await Task.detached(priority: .userInitiated) { try ArchivePackage.read(from: folder) }.value
         var byID: [UUID: Entry] = [:]
         for entry in existing { byID[entry.id] = entry }
-        var plan = ImportPlan(new: [], changed: [], identical: 0, unreadableInPackage: package.unreadable.count)
+        var plan = ImportPlan(collections: package.manifest.collections ?? [], new: [], changed: [], identical: 0,
+                              unreadableInPackage: package.unreadable.count)
         for archived in package.entries {
             guard let current = byID[archived.id] else {
                 plan.new.append(archived)
@@ -120,11 +136,25 @@ enum ArchiveTransfer {
     /// everything is added or nothing is.
     static func applyImport(_ plan: ImportPlan, importChangedAsCopies: Bool, context: ModelContext) throws -> ImportBatch {
         var batch = ImportBatch(digests: [:])
+        // Membership needs the collection: create the ones this journal lacks (same
+        // id, so a re-import lines up). Unknown ids without a record become Unfiled.
+        var known = Set(((try? context.fetch(FetchDescriptor<JournalCollection>())) ?? []).map(\.id))
+        var nextIndex = (((try? context.fetch(FetchDescriptor<JournalCollection>())) ?? []).map(\.sortIndex).max() ?? -1) + 1
+        for record in plan.collections where !known.contains(record.id) {
+            let collection = JournalCollection(id: record.id, payload: .init(name: record.name, icon: record.icon, colorIndex: record.colorIndex),
+                                               sortIndex: nextIndex)
+            guard collection.encryptedPayload != nil else { continue }
+            context.insert(collection)
+            known.insert(record.id)
+            batch.createdCollections.append(record.id)
+            nextIndex += 1
+        }
         let toInsert = plan.new.map { ($0, $0.id) } + (importChangedAsCopies ? plan.changed.map { ($0, UUID()) } : [])
         for (archived, id) in toInsert {
-            Entry.insert(archived, id: id, into: context)
             var stored = archived
             stored.id = id
+            if let collectionID = stored.collectionID, !known.contains(collectionID) { stored.collectionID = nil }
+            Entry.insert(stored, id: id, into: context)
             batch.digests[id] = stored.digest
         }
         do {
@@ -142,9 +172,19 @@ enum ArchiveTransfer {
         let ids = Set(batch.digests.keys)
         let entries = try context.fetch(FetchDescriptor<Entry>()).filter { ids.contains($0.id) }
         var removed = 0
+        var removedIDs = Set<UUID>()
         for entry in entries where entry.archiveSnapshot()?.digest == batch.digests[entry.id] {
+            removedIDs.insert(entry.id)
             context.delete(entry)
             removed += 1
+        }
+        // Collections the import created go too, unless an entry that stays uses them.
+        for id in batch.createdCollections {
+            let members = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.collectionID == id }))) ?? []
+            guard members.allSatisfy({ removedIDs.contains($0.id) }),
+                  let collection = try? context.fetch(FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })).first
+            else { continue }
+            context.delete(collection)
         }
         try context.save()
         return (removed, batch.digests.count - removed)

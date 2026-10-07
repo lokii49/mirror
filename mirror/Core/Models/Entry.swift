@@ -38,6 +38,9 @@ enum EntrySource: String, Codable {
     /// Keeps this entry pinned at the top of EntryListView, above the month
     /// groups. Not encrypted: a pin/unpin flag isn't journal content.
     var isPinned: Bool = false
+    /// `JournalCollection.id`, or nil for Unfiled. A plain id (no name), so the
+    /// list can filter without decrypting. Older app versions ignore it.
+    var collectionID: UUID? = nil
 
     var text: String {
         get { decryptedText ?? "" }

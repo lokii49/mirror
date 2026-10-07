@@ -285,6 +285,17 @@ final class JournalSafety {
         let checkIns = missing.checkIns.map { MoodCheckIn.restoredCopy(of: $0) }
         entries.forEach(context.insert)
         checkIns.forEach(context.insert)
+        // Collections and saved views by id; a later CloudKit delivery of the same
+        // record is collapsed by `JournalOrganizationStore.removeDuplicates`.
+        if let collections = try? Self.ids(of: JournalCollection.self, \.id, in: context),
+           let views = try? Self.ids(of: SavedEntryView.self, \.id, in: context) {
+            for collection in (try? backup.context.fetch(FetchDescriptor<JournalCollection>())) ?? [] where !collections.contains(collection.id) {
+                context.insert(JournalCollection.restoredCopy(of: collection))
+            }
+            for view in (try? backup.context.fetch(FetchDescriptor<SavedEntryView>())) ?? [] where !views.contains(view.id) {
+                context.insert(SavedEntryView.restoredCopy(of: view))
+            }
+        }
         do {
             try context.save()
         } catch {
@@ -324,6 +335,7 @@ final class JournalSafety {
     /// since delivered. Never touches rows this device didn't restore.
     func reconcileRestoredCopies() {
         guard let container else { return }
+        JournalOrganizationStore.removeDuplicates(in: container.mainContext)
         let state = LocalJournalBackup.loadState()
         guard !state.restoredEntryIDs.isEmpty || !state.restoredCheckInIDs.isEmpty else { return }
         if let at = state.restoredAt, Date().timeIntervalSince(at) > Self.restoredBookkeepingLifetime {

@@ -39,6 +39,7 @@ nonisolated enum ArchivePackage {
         var source: String
         var photos: [Data]
         var voiceNotes: [VoiceNote]
+        var collectionID: UUID? = nil
 
         /// Covers everything the package carries, so a re-import can tell an
         /// identical entry from a changed one.
@@ -54,6 +55,7 @@ nonisolated enum ArchivePackage {
             add(String(createdAt.timeIntervalSinceReferenceDate))
             add(text); add(textStyleData); add(inlineStyleData); add(mood)
             add(tags.joined(separator: "\u{1F}")); add(fontChoice); add(isPinned ? "1" : "0")
+            add(collectionID?.uuidString)
             photos.forEach { add($0) }
             add("|")
             for note in voiceNotes {
@@ -98,6 +100,13 @@ nonisolated enum ArchivePackage {
             var source: String
             var photos: [FileRef]
             var voiceNotes: [VoiceRef]
+            var collectionID: UUID?
+        }
+        struct CollectionRecord: Codable, Sendable, Equatable {
+            var id: UUID
+            var name: String
+            var icon: String
+            var colorIndex: Int
         }
         var format: String
         var version: Int
@@ -106,6 +115,8 @@ nonisolated enum ArchivePackage {
         var exportedTimeZone: String
         var entries: [EntryRecord]
         var unreadable: [Unreadable]
+        /// Absent in packages written before collections existed.
+        var collections: [CollectionRecord]?
     }
 
     enum PackageError: Error, Equatable {
@@ -144,7 +155,8 @@ nonisolated enum ArchivePackage {
 
     /// Writes one entry's Markdown and attachments under `root` and returns its
     /// manifest record. Call once per entry so only one entry is decrypted at a time.
-    static func write(_ entry: ArchiveEntry, to root: URL, exportTimeZone: TimeZone) throws -> Manifest.EntryRecord {
+    static func write(_ entry: ArchiveEntry, to root: URL, exportTimeZone: TimeZone,
+                      collectionName: String? = nil) throws -> Manifest.EntryRecord {
         let fm = FileManager.default
         let entriesDir = root.appendingPathComponent("entries", isDirectory: true)
         try fm.createDirectory(at: entriesDir, withIntermediateDirectories: true)
@@ -168,21 +180,23 @@ nonisolated enum ArchivePackage {
             }
         }
         let markdown = Data(markdownDocument(entry, photoPaths: photoRefs.map(\.path), voicePaths: voiceRefs.map(\.file.path),
-                                             exportTimeZone: exportTimeZone).utf8)
+                                             exportTimeZone: exportTimeZone, collectionName: collectionName).utf8)
         let mdPath = "entries/\(fileName(for: entry))"
         try markdown.write(to: root.appendingPathComponent(mdPath), options: .completeFileProtection)
         return Manifest.EntryRecord(
             id: entry.id, markdown: .init(path: mdPath, sha256: sha256(markdown)), createdAt: entry.createdAt,
             text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData,
             mood: entry.mood, tags: entry.tags, fontChoice: entry.fontChoice, isPinned: entry.isPinned,
-            source: entry.source, photos: photoRefs, voiceNotes: voiceRefs
+            source: entry.source, photos: photoRefs, voiceNotes: voiceRefs, collectionID: entry.collectionID
         )
     }
 
     static func writeManifest(records: [Manifest.EntryRecord], unreadable: [Unreadable], to root: URL,
-                              appVersion: String, exportedAt: Date, timeZone: TimeZone) throws {
+                              appVersion: String, exportedAt: Date, timeZone: TimeZone,
+                              collections: [Manifest.CollectionRecord] = []) throws {
         let manifest = Manifest(format: format, version: version, appVersion: appVersion, exportedAt: exportedAt,
-                                exportedTimeZone: timeZone.identifier, entries: records, unreadable: unreadable)
+                                exportedTimeZone: timeZone.identifier, entries: records, unreadable: unreadable,
+                                collections: collections)
         try encoder.encode(manifest).write(to: root.appendingPathComponent("manifest.json"), options: .completeFileProtection)
         let readme = """
         # MirrorNotes export
@@ -202,7 +216,7 @@ nonisolated enum ArchivePackage {
     /// as the plain Markdown export; text colour has no Markdown form and is not
     /// written (the manifest keeps it for our own import).
     static func markdownDocument(_ entry: ArchiveEntry, photoPaths: [String], voicePaths: [String],
-                                 exportTimeZone: TimeZone) -> String {
+                                 exportTimeZone: TimeZone, collectionName: String? = nil) -> String {
         var lines = ["---"]
         lines.append("id: \(yamlString(entry.id.uuidString.lowercased()))")
         lines.append("created: \(yamlString(iso(entry.createdAt)))")
@@ -210,6 +224,7 @@ nonisolated enum ArchivePackage {
         if let mood = entry.mood { lines.append("mood: \(yamlString(mood))") }
         lines.append("tags: [\(entry.tags.map(yamlString).joined(separator: ", "))]")
         if entry.isPinned { lines.append("pinned: true") }
+        if let collectionName { lines.append("collection: \(yamlString(collectionName))") }
         lines.append("---")
         lines.append("")
         var body = MarkdownExportService.markdownLines(text: entry.text, textStyleData: entry.textStyleData,
@@ -292,7 +307,8 @@ nonisolated enum ArchivePackage {
                     VoiceNote(data: try load(ref.file), duration: ref.duration, transcript: ref.transcript,
                               languageCode: ref.languageCode, languageName: ref.languageName,
                               englishTranslation: ref.englishTranslation)
-                }
+                },
+                collectionID: record.collectionID
             ))
         }
         return (entries, manifest.unreadable, manifest)

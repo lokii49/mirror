@@ -322,6 +322,9 @@ struct ArchiveSettingsView: View {
         if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
             all.forEach { modelContext.delete($0) }
         }
+        // Collection names and saved searches are journal data too.
+        (try? modelContext.fetch(FetchDescriptor<JournalCollection>()))?.forEach { modelContext.delete($0) }
+        (try? modelContext.fetch(FetchDescriptor<SavedEntryView>()))?.forEach { modelContext.delete($0) }
         try? modelContext.save()
         MoodCheckInMigration.eraseLegacyRecords()
         JournalSafety.shared.journalWasErased()

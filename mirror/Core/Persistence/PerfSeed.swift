@@ -93,6 +93,18 @@ enum PerfSeed {
         guard let count = requestedCount, count > 0 else { return }
         defer {
             if CommandLine.arguments.contains("--entryFilterFixture") { seedFilterFixture(into: context) }
+            if CommandLine.arguments.contains("--organizationFixture"),
+               ((try? context.fetchCount(FetchDescriptor<JournalCollection>())) ?? 0) == 0,
+               let trips = try? JournalOrganizationStore.createCollection(name: "Synthetic trips", icon: "airplane", in: context) {
+                _ = try? JournalOrganizationStore.createCollection(name: "Work notes", in: context)
+                var recent = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+                recent.fetchLimit = 3
+                try? JournalOrganizationStore.move((try? context.fetch(recent)) ?? [], to: trips.id, in: context)
+                var criteria = EntryFilterCriteria()
+                criteria.dateScope = .thisMonth
+                _ = try? JournalOrganizationStore.saveView(.init(name: "Coffee this month", query: "coffee",
+                                                                  criteria: SavedCriteria(criteria), sort: "Best Match"), in: context)
+            }
             // The draft recovery check drives the main window; onboarding would cover it.
             if draftRecoveryPhase != nil, ((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) == 0 {
                 let profile = UserProfile()

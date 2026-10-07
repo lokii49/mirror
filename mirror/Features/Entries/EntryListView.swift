@@ -15,6 +15,11 @@ struct EntriesTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Query private var collectionModels: [JournalCollection]
+    @Query private var savedViewModels: [SavedEntryView]
+    @State private var showOrganizer = false
+    @State private var newCollectionFor: Entry?
+    @State private var savingView = false
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showSearch = false
@@ -238,6 +243,28 @@ struct EntriesTabView: View {
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters)
     }
 
+    private var collectionLookup: CollectionLookup { CollectionLookup(collectionModels) }
+
+    private var canSaveCurrentView: Bool { filters.isActive || !debouncedSearchText.isEmpty }
+
+    /// Opens a saved view: its search, filters (relative dates recomputed now) and sort.
+    private func applySavedView(_ payload: SavedEntryView.Payload) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            filters = payload.criteria.criteria()
+            filterNow = Date()
+            searchText = payload.query
+            debouncedSearchText = payload.query
+            if !payload.query.isEmpty { showSearch = true }
+            sortOrder = EntrySortOrder(rawValue: payload.sort) ?? .newestFirst
+        }
+    }
+
+    private func saveCurrentView(named name: String) {
+        let payload = SavedEntryView.Payload(name: name, query: debouncedSearchText,
+                                             criteria: SavedCriteria(filters), sort: sortOrder.rawValue)
+        try? JournalOrganizationStore.saveView(payload, in: modelContext)
+    }
+
     /// Best Match applies only while the search has words in it; otherwise the
     /// list falls back to newest first.
     private func effectiveSortOrder(for query: EntrySearchQuery) -> EntrySortOrder {
@@ -282,6 +309,13 @@ struct EntriesTabView: View {
                 }
                 .accessibilityLabel("On This Day")
             }
+            SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
+                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                Image(systemName: "bookmark")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.primary)
+            }
+            .accessibilityLabel("Saved views")
             Menu {
                 ForEach(availableSortOrders, id: \.self) { order in
                     Button {
@@ -333,6 +367,9 @@ struct EntriesTabView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if showSearch { searchBar }
+                    if !collectionModels.isEmpty {
+                        CollectionsBar(lookup: collectionLookup, scope: $filters.collection) { showOrganizer = true }
+                    }
                     if !snapshot.usedMoods.isEmpty { moodFilterBar(snapshot.usedMoods) }
                     if !snapshot.usedTags.isEmpty { tagFilterBar(snapshot.usedTags) }
                 }
@@ -361,6 +398,8 @@ struct EntriesTabView: View {
                     open(entry)
                 }
             }
+            .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
+            .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
                 EntryFiltersView(criteria: filters, moods: snapshot.usedMoods, tags: snapshot.usedTags) {
                     filters = $0
@@ -416,6 +455,8 @@ struct EntriesTabView: View {
                 if let query = note.userInfo?["search"] as? String { searchText = query; debouncedSearchText = query }
                 if let open = note.userInfo?["filters"] as? Bool { showFilters = open }
                 if let moods = note.userInfo?["filterMoods"] as? [String] { filters.moods = Set(moods) }
+                if let id = note.userInfo?["collection"] as? UUID { filters.collection = .collection(id) }
+                if let open = note.userInfo?["organizer"] as? Bool { showOrganizer = open }
                 if note.userInfo?["selectFirstResult"] as? Bool == true, let snapshotCache {
                     macSelection?.wrappedValue = macOrderedEntries(snapshotCache).first
                 }
@@ -491,6 +532,9 @@ struct EntriesTabView: View {
 
     private var activeFilterChips: some View {
         HStack(spacing: 8) {
+            if filters.collection != .all {
+                filterChip(label: collectionLookup.label(for: filters.collection), systemImage: "folder") { filters.collection = .all }
+            }
             if filters.dateScope != .allTime {
                 filterChip(label: dateFilterLabel, systemImage: "calendar") { filters.selectDay(nil) }
             }
@@ -749,6 +793,9 @@ struct EntriesTabView: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 open(entry)
+            }
+            .contextMenu {
+                MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -1229,6 +1276,9 @@ extension EntriesTabView {
         VStack(spacing: 0) {
             macHeader
             macSearchField
+            if !collectionModels.isEmpty {
+                CollectionsBar(lookup: collectionLookup, scope: $filters.collection) { showOrganizer = true }
+            }
             macCalendarDisclosure
             if macShowCalendar {
                 VStack(spacing: 8) {
@@ -1372,6 +1422,17 @@ extension EntriesTabView {
                 .font(.system(size: 12))
                 .foregroundStyle(MacTokens.secondaryInk)
             Spacer(minLength: 0)
+            SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
+                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                Image(systemName: "bookmark")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 30, height: 28)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .foregroundStyle(MacTokens.controlInk)
+            .help("Saved views")
             Button {
                 NotificationCenter.default.post(name: .mirrorMacNewEntry, object: nil)
             } label: {
@@ -1519,6 +1580,7 @@ extension EntriesTabView {
                 if let mood = entry.mood, !mood.isEmpty {
                     Button("Show only \(MirrorTheme.localizedMoodName(for: mood))") { filters.moods = [mood] }
                 }
+                MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
                 Divider()
                 Button("Share as text") {
                     let day = entry.createdAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
@@ -1631,6 +1693,7 @@ final class EntryDecryptCache {
         h.combine(entry.wordCount)
         h.combine(entry.createdAt)
         h.combine(entry.isPinned)
+        h.combine(entry.collectionID)
         h.combine(entry.voiceNoteDuration)
         h.combine(entry.additionalVoiceNoteDurationsStorage)
         h.combine(entry.encryptedVoiceNoteData != nil)
@@ -1684,7 +1747,8 @@ final class EntryDecryptCache {
             moods: mood.map { [EntrySearch.fold($0), EntrySearch.fold(MirrorTheme.localizedMoodName(for: $0))] } ?? [],
             createdAt: entry.createdAt,
             hasPhoto: entry.hasPhoto || !additionalPhotos.isEmpty,
-            hasAudio: entry.hasVoiceNotes, isPinned: entry.isPinned, isReadable: searchReadable
+            hasAudio: entry.hasVoiceNotes, isPinned: entry.isPinned, isReadable: searchReadable,
+            collectionID: entry.collectionID
         )
         let item = Item(
             signature: sig,

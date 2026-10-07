@@ -17,6 +17,8 @@ enum MirrorModelContainer {
         UserProfile.self,
         MoodCheckIn.self,
         JournalErasure.self,
+        JournalCollection.self,
+        SavedEntryView.self,
     ])
 
     static var defaultConfiguration: ModelConfiguration {

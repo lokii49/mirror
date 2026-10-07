@@ -24,6 +24,7 @@ nonisolated struct EntrySearchDocument: Sendable {
     let hasAudio: Bool
     let isPinned: Bool
     let isReadable: Bool
+    var collectionID: UUID? = nil
 }
 
 nonisolated struct EntrySearchQuery: Sendable {

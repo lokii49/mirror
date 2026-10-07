@@ -66,7 +66,8 @@ extension Entry {
         return ArchivePackage.ArchiveEntry(
             id: id, createdAt: createdAt, text: text, textStyleData: textStyle,
             inlineStyleData: inlineStyle, mood: mood, tags: tags, fontChoice: fontChoice,
-            isPinned: isPinned, source: source.rawValue, photos: photos, voiceNotes: notes
+            isPinned: isPinned, source: source.rawValue, photos: photos, voiceNotes: notes,
+            collectionID: collectionID
         )
     }
 
@@ -99,6 +100,7 @@ extension Entry {
         entry.tags = archived.tags
         entry.fontChoice = archived.fontChoice
         entry.isPinned = archived.isPinned
+        entry.collectionID = archived.collectionID
         entry.photoDataArray = archived.photos
         if let first = archived.voiceNotes.first {
             entry.voiceNoteData = first.data

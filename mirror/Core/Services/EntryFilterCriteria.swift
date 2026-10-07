@@ -5,6 +5,10 @@ import Foundation
 nonisolated struct EntryFilterCriteria: Equatable, Sendable {
     enum TagMatch: String, CaseIterable, Sendable { case any, all }
     enum DateScope: String, CaseIterable, Sendable { case allTime, range, today, thisWeek, thisMonth }
+    enum CollectionScope: Codable, Hashable, Sendable {
+        case all, unfiled
+        case collection(UUID)
+    }
 
     var moods: Set<String> = []
     var tags: Set<String> = []
@@ -15,9 +19,10 @@ nonisolated struct EntryFilterCriteria: Equatable, Sendable {
     var photosOnly = false
     var audioOnly = false
     var pinnedOnly = false
+    var collection: CollectionScope = .all
 
     var isActive: Bool {
-        !moods.isEmpty || !tags.isEmpty || dateScope != .allTime || photosOnly || audioOnly || pinnedOnly
+        !moods.isEmpty || !tags.isEmpty || dateScope != .allTime || photosOnly || audioOnly || pinnedOnly || collection != .all
     }
     var isRelativeDate: Bool { [.today, .thisWeek, .thisMonth].contains(dateScope) }
     var selectedDay: Date? {
@@ -37,6 +42,16 @@ nonisolated struct EntryFilterCriteria: Equatable, Sendable {
 
     func matches(_ document: EntrySearchDocument, now: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard isActive else { return true }
+        // Membership is a plain id, readable without the key. A collection that no
+        // longer exists matches nothing; the UI shows it as missing.
+        switch collection {
+        case .all: break
+        case .unfiled: if document.collectionID != nil { return false }
+        case .collection(let id): if document.collectionID != id { return false }
+        }
+        // Collection alone: an entry this device can't decrypt still belongs there.
+        let filtersContent = !moods.isEmpty || !tags.isEmpty || dateScope != .allTime || photosOnly || audioOnly || pinnedOnly
+        guard filtersContent else { return true }
         guard document.isReadable, hasValidRange(calendar: calendar) else { return false }
         if !moods.isEmpty, !moods.contains(where: { document.moods.contains(EntrySearch.fold($0)) }) { return false }
         if !tags.isEmpty {

@@ -491,6 +491,22 @@ enum MacSnapshot {
             NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["filterMoods": ["Anxious"]])
             try? await Task.sleep(for: .seconds(1.5))
             capture(mainWindow(), name: "archive-relax-filters")
+            // Collections: bar, active chip, filtered list, organizer sheet.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil,
+                                            userInfo: ["search": "", "filterMoods": [String]()])
+            if let trips = try? JournalOrganizationStore.createCollection(name: "Synthetic trips", icon: "airplane", in: context) {
+                _ = try? JournalOrganizationStore.createCollection(name: "Work notes", in: context)
+                let sample = Array(((try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []).prefix(2))
+                try? JournalOrganizationStore.move(sample, to: trips.id, in: context)
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: "collections-bar")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["collection": trips.id])
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: "collections-filtered")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": true])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "collections-organizer")
+            }
             NSApp.terminate(nil)
             return
         }
