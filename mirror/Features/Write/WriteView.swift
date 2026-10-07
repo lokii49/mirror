@@ -759,6 +759,7 @@ struct WriteView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background, entry == nil { flushDraftSave() }
         }
+        .modifier(OnDraftsErased(perform: handleDraftsErased))
         .onDisappear {
             cancelDraftSave()
             followUpTask?.cancel()

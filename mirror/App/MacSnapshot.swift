@@ -470,6 +470,27 @@ enum MacSnapshot {
             NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["selectFirstResult": true])
             try? await Task.sleep(for: .seconds(1.5))
             capture(mainWindow(), name: "archive-reader-matches")
+            // Long synthetic entry whose first match is below the fold: the reader
+            // must scroll to it, then step to the second one.
+            let filler = (1...40).map { "Synthetic paragraph \($0) about an ordinary afternoon at home." }
+            let lines = Array(filler[0..<25]) + ["The lighthouse was closed for the season."]
+                + Array(filler[25...]) + ["Walked back past the lighthouse at dusk."]
+            let long = Entry(text: lines.joined(separator: "\n"), mood: "Calm")
+            long.createdAt = Date().addingTimeInterval(-30 * 86_400)
+            context.insert(long)
+            try? context.save()
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": "lighthouse"])
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["selectFirstResult": true])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-reader-scrolled")
+            NotificationCenter.default.post(name: .mirrorDebugReaderNextMatch, object: nil)
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow(), name: "archive-reader-next")
+            // Search matches, filters hide everything: offer to search without filters.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["filterMoods": ["Anxious"]])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-relax-filters")
             NSApp.terminate(nil)
             return
         }

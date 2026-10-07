@@ -500,11 +500,28 @@ extension WriteView {
         WriteDraftStore.clear()
     }
 
+    /// Delete Everything while this editor is open: drop what it holds, or the
+    /// next flush would write the erased draft back.
+    func handleDraftsErased() {
+        guard entry == nil else { return }
+        cancelDraftSave()
+        clearDraft()
+        entryTags = []
+    }
+
     /// Delete Everything: like `clearAllDraftStorage`, plus any draft held back
     /// because it couldn't be decrypted when found.
     static func eraseAllDraftStorage() {
         guard usesPersistentDraftStorage() else { return }
-        DraftAttachmentStore.clear()
+        DraftAttachmentStore.clearIncludingPreserved()
         WriteDraftStore.clearIncludingPreserved()
+        NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
+    }
+}
+
+struct OnDraftsErased: ViewModifier {
+    let perform: () -> Void
+    func body(content: Content) -> some View {
+        content.onReceive(NotificationCenter.default.publisher(for: .mirrorDraftsErased)) { _ in perform() }
     }
 }

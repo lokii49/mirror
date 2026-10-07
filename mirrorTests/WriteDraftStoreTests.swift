@@ -19,7 +19,8 @@ struct WriteDraftStoreTests {
             openLegacyString: { value in
                 guard value.hasPrefix("legacy:") else { return value }
                 return available ? String(value.dropFirst("legacy:".count)) : nil
-            }
+            },
+            sealString: { available ? "legacy:" + $0 : nil }
         )
     }
 
@@ -139,6 +140,88 @@ struct WriteDraftStoreTests {
         _ = WriteDraftStore.load(defaults: defaults, crypto: Self.crypto(available: false))
         WriteDraftStore.clearIncludingPreserved(defaults: defaults)
         #expect(WriteDraftStore.load(defaults: defaults, crypto: Self.crypto()) == .none)
+    }
+
+    @Test func unreadableLegacyDraftSurvivesClearAndNewSaves() {
+        let defaults = Self.defaults()
+        Self.writeLegacy(defaults)
+        #expect(WriteDraftStore.load(defaults: defaults, crypto: Self.crypto(available: false)) == .unavailable)
+        // Empty editor flush, explicit clear, then a new draft once encryption works
+        // again but the legacy text still won't decrypt (new key, archive not synced).
+        WriteDraftStore.save(WriteDraftStore.Payload(), defaults: defaults, crypto: Self.crypto(available: false))
+        WriteDraftStore.clear(defaults: defaults, crypto: Self.crypto(available: false))
+        var newer = Self.sample
+        newer.text = "A newer synthetic draft."
+        let unreadableLegacy = WriteDraftStore.Crypto(
+            seal: Self.crypto().seal, open: Self.crypto().open,
+            openLegacyString: { $0.hasPrefix("legacy:") ? nil : $0 }, sealString: Self.crypto().sealString
+        )
+        #expect(WriteDraftStore.save(newer, defaults: defaults, crypto: unreadableLegacy))
+        for key in WriteDraftStore.legacyKeys {
+            #expect(defaults.object(forKey: key) != nil)
+        }
+        // Once the newer draft is saved as an entry and the key arrives, the old one comes back.
+        WriteDraftStore.clear(defaults: defaults, crypto: unreadableLegacy)
+        guard case .payload(let restored) = WriteDraftStore.load(defaults: defaults, crypto: Self.crypto()) else {
+            Issue.record("legacy draft lost")
+            return
+        }
+        #expect(restored.text == "Synthetic legacy draft.")
+    }
+
+    @Test func liveEncryptionRoundTripsAndMigratesPlaintextLegacy() {
+        let defaults = Self.defaults()
+        #expect(WriteDraftStore.save(Self.sample, defaults: defaults))
+        #expect(WriteDraftStore.load(defaults: defaults) == .payload(Self.sample))
+        WriteDraftStore.clearIncludingPreserved(defaults: defaults)
+
+        // Pre-3.0.9 builds fell back to plaintext when encryption failed.
+        defaults.set("Plain synthetic legacy text.", forKey: WriteDraftStore.legacyTextKey)
+        defaults.set("Calm", forKey: WriteDraftStore.legacyMoodKey)
+        defaults.set(try! JSONEncoder().encode([MirrorEncryption.encryptString("walk")]), forKey: WriteDraftStore.legacyTagsKey)
+        guard case .payload(let draft) = WriteDraftStore.load(defaults: defaults) else {
+            Issue.record("live migration failed")
+            return
+        }
+        #expect(draft.text == "Plain synthetic legacy text.")
+        #expect(draft.tags == ["walk"])
+        #expect(defaults.object(forKey: WriteDraftStore.legacyTextKey) == nil)
+    }
+
+    private static func location() -> DraftAttachmentStore.Location {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("DraftAttachmentTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return DraftAttachmentStore.Location(file: dir.appendingPathComponent("a.json"), preserved: dir.appendingPathComponent("a.unreadable.json"))
+    }
+
+    @Test func unreadableAttachmentsSurviveClearAndNewSaves() {
+        let location = Self.location()
+        let photo = Data([7, 7, 7])
+        #expect(DraftAttachmentStore.save(photos: [photo], voiceNotes: [], at: location, crypto: Self.crypto()))
+        guard case .unavailable = DraftAttachmentStore.load(at: location, crypto: Self.crypto(available: false)) else {
+            Issue.record("expected unavailable")
+            return
+        }
+        DraftAttachmentStore.save(photos: [], voiceNotes: [], at: location, crypto: Self.crypto(available: false))
+        DraftAttachmentStore.clear(at: location, crypto: Self.crypto(available: false))
+        #expect(!DraftAttachmentStore.save(photos: [Data([1])], voiceNotes: [], at: location, crypto: Self.crypto(available: false)))
+        #expect(DraftAttachmentStore.save(photos: [Data([2])], voiceNotes: [], at: location, crypto: Self.crypto()))
+        guard case .attachments(let current) = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+            Issue.record("newer attachments not readable")
+            return
+        }
+        #expect(current.photos == [Data([2])])
+        DraftAttachmentStore.clear(at: location, crypto: Self.crypto())
+        guard case .attachments(let restored) = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+            Issue.record("held-back attachments lost")
+            return
+        }
+        #expect(restored.photos == [photo])
+        DraftAttachmentStore.clearIncludingPreserved(at: location)
+        guard case .none = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+            Issue.record("erase left attachments")
+            return
+        }
     }
 
     @Test func attachmentsRoundTripWithLanguageMetadataEncrypted() throws {

@@ -1,4 +1,11 @@
+import CryptoKit
 import Foundation
+
+extension Notification.Name {
+    /// Delete Everything removed stored drafts; open Write editors must drop what
+    /// they hold too, or the next flush writes it back.
+    static let mirrorDraftsErased = Notification.Name("mirror.draftsErased")
+}
 
 /// Encrypted, versioned storage for an unsaved Write draft's text and metadata.
 ///
@@ -20,6 +27,12 @@ enum WriteDraftStore {
         var inlineStyleData: Data?
         var mood: String?
         var tags: [String] = []
+        // Edit drafts only (nil for new-entry drafts).
+        var entryDate: Date?
+        /// `fingerprint` of the saved entry when editing started; a mismatch on
+        /// restore means the entry changed since (e.g. on another device).
+        var baseFingerprint: String?
+        var savedAt: Date?
 
         var isEmpty: Bool {
             text.isEmpty && mood == nil && tags.isEmpty
@@ -28,10 +41,15 @@ enum WriteDraftStore {
 
     enum Slot: Equatable {
         case newEntry
+        /// Unsaved edits to an existing entry. Never committed automatically.
+        case entry(UUID)
+
+        static let entryKeyPrefix = "mirror.writeDraft.v2.entry."
 
         var key: String {
             switch self {
             case .newEntry: return "mirror.writeDraft.v2.new"
+            case .entry(let id): return Self.entryKeyPrefix + id.uuidString
             }
         }
 
@@ -53,11 +71,14 @@ enum WriteDraftStore {
         var open: (Data) -> Data?
         /// Decrypts a legacy `mirror:v1:` string; plaintext passes through; nil when unreadable.
         var openLegacyString: (String) -> String?
+        /// Encrypts to a `mirror:v1:` string; nil when the key is unavailable.
+        var sealString: (String) -> String?
 
         static let live = Crypto(
             seal: { MirrorEncryption.sealData($0) },
             open: { MirrorEncryption.openData($0) },
-            openLegacyString: { MirrorEncryption.decryptOptionalStringValue($0) }
+            openLegacyString: { MirrorEncryption.decryptOptionalStringValue($0) },
+            sealString: { MirrorEncryption.encryptStringStrict($0) }
         )
     }
 
@@ -80,14 +101,16 @@ enum WriteDraftStore {
         defaults: UserDefaults = .standard,
         crypto: Crypto = .live
     ) -> Bool {
-        if payload.isEmpty {
-            clear(slot: slot, defaults: defaults)
+        // An emptied *existing* entry is a real edit; only a new-entry draft with
+        // nothing in it means "no draft".
+        if payload.isEmpty, slot == .newEntry {
+            clear(slot: slot, defaults: defaults, crypto: crypto)
             return true
         }
         guard let encoded = try? JSONEncoder().encode(payload),
               let sealed = crypto.seal(encoded) else { return false }
         defaults.set(sealed, forKey: slot.key)
-        if slot == .newEntry { removeLegacyKeys(defaults) }
+        if slot == .newEntry { removeLegacyKeysIfReadable(defaults, crypto: crypto) }
         return true
     }
 
@@ -104,8 +127,9 @@ enum WriteDraftStore {
                 return .unavailable
             }
             // A crash between writing the blob and deleting the legacy keys leaves
-            // both; the blob is newer, so it wins.
-            if slot == .newEntry { removeLegacyKeys(defaults) }
+            // both; the blob is newer, so it wins. Legacy keys that can't be read
+            // yet stay, and migrate once this draft is saved or cleared.
+            if slot == .newEntry { removeLegacyKeysIfReadable(defaults, crypto: crypto) }
             return .payload(payload)
         }
 
@@ -125,18 +149,45 @@ enum WriteDraftStore {
 
     // MARK: - Clear
 
-    /// Removes the slot's draft and, for new-entry drafts, every legacy key. A
-    /// preserved unreadable blob is kept: discarding today's draft is not a
-    /// decision about a different draft the user has not seen yet.
-    static func clear(slot: Slot = .newEntry, defaults: UserDefaults = .standard) {
+    /// Removes the slot's draft. Anything that can't be decrypted right now (a
+    /// preserved blob, or legacy keys whose key hasn't arrived) is kept:
+    /// discarding the draft on screen is not a decision about a different draft
+    /// the user has not seen yet.
+    static func clear(slot: Slot = .newEntry, defaults: UserDefaults = .standard, crypto: Crypto = .live) {
         defaults.removeObject(forKey: slot.key)
+        if slot == .newEntry { removeLegacyKeysIfReadable(defaults, crypto: crypto) }
+    }
+
+    /// Delete Everything and test-state reset: removes every draft for the slot,
+    /// readable or not.
+    static func clearIncludingPreserved(slot: Slot = .newEntry, defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: slot.key)
+        defaults.removeObject(forKey: slot.preservedKey)
         if slot == .newEntry { removeLegacyKeys(defaults) }
     }
 
-    /// Full reset (test-state reset only): also drops preserved blobs.
-    static func clearIncludingPreserved(slot: Slot = .newEntry, defaults: UserDefaults = .standard) {
-        clear(slot: slot, defaults: defaults)
-        defaults.removeObject(forKey: slot.preservedKey)
+    /// Delete Everything: every edit draft, readable or not.
+    static func clearAllEntryDrafts(defaults: UserDefaults = .standard) {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(Slot.entryKeyPrefix) {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    /// Stable across launches (unlike `Hasher`), so an edit draft can tell whether
+    /// the entry changed after editing started.
+    static func fingerprint(text: String, mood: String?, tags: [String], textStyleData: Data?,
+                            inlineStyleData: Data?, createdAt: Date) -> String {
+        var data = Data()
+        for part in [text, mood ?? "\u{0}", tags.joined(separator: "\u{1F}")] {
+            data.append(Data(part.utf8))
+            data.append(0x1E)
+        }
+        data.append(textStyleData ?? Data())
+        data.append(0x1E)
+        data.append(inlineStyleData ?? Data())
+        data.append(0x1E)
+        data.append(Data(String(createdAt.timeIntervalSinceReferenceDate).utf8))
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Private
@@ -159,6 +210,23 @@ enum WriteDraftStore {
 
     private static func removeLegacyKeys(_ defaults: UserDefaults) {
         for key in legacyKeys { defaults.removeObject(forKey: key) }
+    }
+
+    private static func removeLegacyKeysIfReadable(_ defaults: UserDefaults, crypto: Crypto) {
+        guard hasLegacyDraft(defaults), legacyIsReadable(defaults, crypto: crypto) else { return }
+        removeLegacyKeys(defaults)
+    }
+
+    private static func legacyIsReadable(_ defaults: UserDefaults, crypto: Crypto) -> Bool {
+        if let text = defaults.string(forKey: legacyTextKey), !text.isEmpty, crypto.openLegacyString(text) == nil {
+            return false
+        }
+        if let tagsData = defaults.data(forKey: legacyTagsKey),
+           let tags = try? JSONDecoder().decode([String].self, from: tagsData),
+           tags.contains(where: { crypto.openLegacyString($0) == nil }) {
+            return false
+        }
+        return true
     }
 
     private static func migrateLegacy(defaults: UserDefaults, crypto: Crypto) -> LoadResult {

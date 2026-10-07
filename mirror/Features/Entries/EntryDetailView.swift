@@ -37,7 +37,16 @@ struct EntryDetailView: View {
             matchIndex = 0
             return
         }
-        let transcripts = entry.voiceNotes.map { [$0.transcript, $0.englishTranslation].compactMap { $0 } }
+        // Transcript fields only: `entry.voiceNotes` would decrypt every recording too.
+        var transcripts: [[String]] = []
+        if entry.encryptedVoiceNoteData != nil {
+            transcripts.append([entry.voiceNoteTranscript, entry.voiceNoteEnglishTranslation].compactMap { $0 })
+        }
+        let extraTranscripts = entry.additionalVoiceNoteTranscripts
+        let extraTranslations = entry.additionalVoiceNoteEnglishTranslations
+        for index in entry.additionalVoiceNoteDurations.indices {
+            transcripts.append([extraTranscripts.indices.contains(index) ? extraTranscripts[index] : nil, extraTranslations.indices.contains(index) ? extraTranslations[index] : nil].compactMap { $0 })
+        }
         searchMatches = ReaderMatches.locate(terms: terms, text: entry.text, transcripts: transcripts)
         matchIndex = 0
     }

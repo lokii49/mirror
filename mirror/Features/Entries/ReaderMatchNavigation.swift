@@ -153,6 +153,12 @@ struct ReaderMatchScrolling: ViewModifier {
                         ReaderMatchBar(matches: matches, index: $index)
                     }
                 }
+                #if DEBUG
+                .onReceive(NotificationCenter.default.publisher(for: .mirrorDebugReaderNextMatch)) { _ in
+                    guard !matches.isEmpty else { return }
+                    index = (index + 1) % matches.count
+                }
+                #endif
                 .onChange(of: current) { _, match in
                     guard let match else { return }
                     let id: String
@@ -169,3 +175,10 @@ struct ReaderMatchScrolling: ViewModifier {
         }
     }
 }
+
+#if DEBUG
+extension Notification.Name {
+    /// Harness only: step the open reader to its next search match.
+    static let mirrorDebugReaderNextMatch = Notification.Name("mirror.debug.readerNextMatch")
+}
+#endif
