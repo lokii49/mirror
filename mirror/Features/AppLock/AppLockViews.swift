@@ -90,20 +90,24 @@ struct AppLockSettingsGroup: View {
 
     var body: some View {
         SettingsGroup(title: "Privacy") {
-            Toggle(isOn: Binding(
-                get: { lock.isEnabled },
-                set: { on in
-                    working = true
-                    Task {
-                        await lock.setEnabled(on)
-                        working = false
-                    }
-                }
-            )) {
+            HStack {
                 SettingsRowLabel(title: "App Lock", systemImage: "lock.fill", iconColor: .indigo)
+                Spacer()
+                Toggle("App Lock", isOn: Binding(
+                    get: { lock.isEnabled },
+                    set: { on in
+                        working = true
+                        Task {
+                            await lock.setEnabled(on)
+                            working = false
+                        }
+                    }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(MirrorTheme.primary)
+                .disabled(working || AppLock.method == .unavailable)
             }
-            .tint(MirrorTheme.primary)
-            .disabled(working || AppLock.method == .unavailable)
 
             Text(caption)
                 .font(.system(size: 12.5))
@@ -151,6 +155,7 @@ struct AppLockWindowInstaller: UIViewRepresentable {
 @MainActor
 enum AppLockCoverWindows {
     private static var windows: [ObjectIdentifier: UIWindow] = [:]
+    private static var observing = false
 
     static func install(in scene: UIWindowScene) {
         let key = ObjectIdentifier(scene)
@@ -158,55 +163,59 @@ enum AppLockCoverWindows {
         let window = UIWindow(windowScene: scene)
         window.windowLevel = .alert + 1
         window.backgroundColor = .clear
-        let root = UIHostingController(rootView: CoverRoot(window: window))
-        root.view.backgroundColor = .clear
-        window.rootViewController = root
-        matchStyle(window)
-        window.isHidden = !AppLock.shared.hidesContent
+        window.isHidden = true
         windows[key] = window
+        observe()
+        apply()
+    }
+
+    /// Show/hide is driven from here, not from a view inside the cover window: SwiftUI doesn't
+    /// update a hidden window's views, so a view-driven cover never came back after an unlock.
+    private static func observe() {
+        guard !observing else { return }
+        observing = true
+        withObservationTracking {
+            _ = AppLock.shared.hidesContent
+            _ = AppLock.shared.isLocked
+        } onChange: {
+            Task { @MainActor in
+                observing = false
+                observe()
+                apply()
+            }
+        }
+    }
+
+    private static func apply() {
+        let lock = AppLock.shared
+        for (key, window) in windows {
+            guard window.windowScene != nil else { windows[key] = nil; continue }
+            if lock.hidesContent {
+                if lock.isLocked {
+                    // Drop the keyboard: typing must not reach the hidden editor. The draft stays.
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                matchStyle(window)
+                // A fresh root each time, so what's shown matches the state now.
+                let root = UIHostingController(rootView: AppLockScreen(interactive: lock.isLocked)
+                    .environment(\.appDisplayMode, currentDisplayMode))
+                root.view.backgroundColor = .clear
+                window.rootViewController = root
+                window.isHidden = false
+                window.makeKey()
+            } else if !window.isHidden {
+                window.isHidden = true
+                window.rootViewController = nil
+                window.windowScene?.windows.first { $0 !== window && !$0.isHidden && $0.windowLevel == .normal }?.makeKey()
+            }
+        }
     }
 
     /// Light/dark as the app's own windows have it (Sentinel forces dark; ContentView sets it on the
     /// windows that exist at the time, which may be before this one).
-    fileprivate static func matchStyle(_ cover: UIWindow) {
+    private static func matchStyle(_ cover: UIWindow) {
         if let app = cover.windowScene?.windows.first(where: { $0 !== cover && $0.windowLevel == .normal }) {
             cover.overrideUserInterfaceStyle = app.overrideUserInterfaceStyle
-        }
-    }
-
-    private struct CoverRoot: View {
-        weak var window: UIWindow?
-        @State private var lock = AppLock.shared
-
-        var body: some View {
-            Group {
-                if lock.hidesContent {
-                    AppLockScreen(interactive: lock.isLocked)
-                        .environment(\.appDisplayMode, currentDisplayMode)
-                } else {
-                    Color.clear
-                }
-            }
-            .onChange(of: lock.hidesContent, initial: true) { _, hides in
-                guard let window else { return }
-                if hides {
-                    AppLockCoverWindows.matchStyle(window)
-                    if lock.isLocked {
-                        // Drop the keyboard: typing must not reach the hidden editor. The draft stays.
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
-                    window.isHidden = false
-                    window.makeKey()
-                } else {
-                    window.isHidden = true
-                    window.windowScene?.windows.first { $0 !== window && !$0.isHidden && $0.windowLevel == .normal }?.makeKey()
-                }
-            }
-            .onChange(of: lock.isLocked) { _, locked in
-                if locked {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
-            }
         }
     }
 }
