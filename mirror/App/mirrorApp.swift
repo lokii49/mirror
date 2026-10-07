@@ -43,6 +43,16 @@ struct mirrorApp: App {
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
         }
+        #if os(macOS)
+        // Global quick-capture shortcut. Not in harness runs: an unsigned copy shares the installed
+        // app's bundle id and would take the combination from it.
+        #if DEBUG
+        let harnessRun = MacSnapshot.isRequested || PerfSeed.isRequested
+        #else
+        let harnessRun = false
+        #endif
+        if !harnessRun { MacGlobalHotKey.shared.start(container: sharedModelContainer) }
+        #endif
         #if DEBUG
         if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
             CloudKitSchemaSeed.run(context: sharedModelContainer.mainContext)
