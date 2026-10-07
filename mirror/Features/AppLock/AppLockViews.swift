@@ -211,11 +211,13 @@ enum AppLockCoverWindows {
         }
     }
 
-    /// Light/dark as the app's own windows have it (Sentinel forces dark; ContentView sets it on the
-    /// windows that exist at the time, which may be before this one).
+    /// Light/dark and tint as the app's own windows have them (Sentinel forces dark; ContentView
+    /// sets it on the windows that exist at the time, which may be before this one). Without the
+    /// tint, Color.accentColor in the cover resolves to system blue on a device.
     private static func matchStyle(_ cover: UIWindow) {
         if let app = cover.windowScene?.windows.first(where: { $0 !== cover && $0.windowLevel == .normal }) {
             cover.overrideUserInterfaceStyle = app.overrideUserInterfaceStyle
+            cover.tintColor = UIColor(named: "AccentColor") ?? app.tintColor
         }
     }
 }
