@@ -38,6 +38,9 @@ enum EntrySource: String, Codable {
     /// Keeps this entry pinned at the top of EntryListView, above the month
     /// groups. Not encrypted: a pin/unpin flag isn't journal content.
     var isPinned: Bool = false
+    /// `JournalCollection.id`, or nil for Unfiled. A plain id (no name), so the
+    /// list can filter without decrypting. Older app versions ignore it.
+    var collectionID: UUID? = nil
 
     var text: String {
         get { decryptedText ?? "" }
@@ -253,17 +256,17 @@ enum EntrySource: String, Codable {
         try? JSONEncoder().encode(value)
     }
 
-    private static func decodedDataArray(from data: Data?) -> [Data] {
+    static func decodedDataArray(from data: Data?) -> [Data] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([Data].self, from: data)) ?? []
     }
 
-    private static func decodedDoubleArray(from data: Data?) -> [Double] {
+    static func decodedDoubleArray(from data: Data?) -> [Double] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([Double].self, from: data)) ?? []
     }
 
-    private static func decodedStringArray(from data: Data?) -> [String] {
+    static func decodedStringArray(from data: Data?) -> [String] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([String].self, from: data)) ?? []
     }

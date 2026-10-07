@@ -15,6 +15,41 @@ struct EntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
+    @State private var searchMatches: [ReaderMatches.Location] = []
+    @State private var matchIndex = 0
+    private var searchHighlight: ReaderSearchHighlight { .shared }
+    private var activeMatch: ReaderMatches.Location? {
+        searchMatches.indices.contains(matchIndex) ? searchMatches[matchIndex] : nil
+    }
+    private var highlightTerms: [String] { searchMatches.isEmpty ? [] : searchHighlight.terms }
+
+    private struct MatchKey: Equatable {
+        let entryID: UUID
+        let terms: [String]
+        let text: String
+    }
+
+    /// Find the archive search's words in this entry; the reader opens on the first.
+    private func locateMatches() {
+        let terms = searchHighlight.terms
+        guard !terms.isEmpty, !entry.textDecryptionFailed else {
+            searchMatches = []
+            matchIndex = 0
+            return
+        }
+        // Transcript fields only: `entry.voiceNotes` would decrypt every recording too.
+        var transcripts: [[String]] = []
+        if entry.encryptedVoiceNoteData != nil {
+            transcripts.append([entry.voiceNoteTranscript, entry.voiceNoteEnglishTranslation].compactMap { $0 })
+        }
+        let extraTranscripts = entry.additionalVoiceNoteTranscripts
+        let extraTranslations = entry.additionalVoiceNoteEnglishTranslations
+        for index in entry.additionalVoiceNoteDurations.indices {
+            transcripts.append([extraTranscripts.indices.contains(index) ? extraTranscripts[index] : nil, extraTranslations.indices.contains(index) ? extraTranslations[index] : nil].compactMap { $0 })
+        }
+        searchMatches = ReaderMatches.locate(terms: terms, text: entry.text, transcripts: transcripts)
+        matchIndex = 0
+    }
     #if os(macOS)
     @AppStorage(MacPrefs.widthKey) private var lineWidthPreference = MacPrefs.LineWidth.comfortable.rawValue
     #endif
@@ -114,7 +149,7 @@ struct EntryDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice, highlightTerms: highlightTerms, activeMatch: activeMatch)
                     } else {
                         Text("No text")
                             .font(.system(size: 17, weight: .regular, design: writingFontDesign))
@@ -134,6 +169,7 @@ struct EntryDetailView: View {
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
+                                .id(ReaderMatches.voiceNoteID(index))
                             }
                         }
                     }
@@ -190,7 +226,9 @@ struct EntryDetailView: View {
             .padding(16)
             .padding(.bottom, 32)
         }
+        .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
         .background(MirrorTheme.bgBase)
+        .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
             let text = entry.text
             let prefix = text
@@ -253,6 +291,7 @@ struct EntryDetailView: View {
         }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
+                WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                 modelContext.delete(entry)
                 try? modelContext.save()
                 onDone?()
@@ -298,7 +337,7 @@ struct EntryDetailView: View {
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice)
+                        InlineEntryContent(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData, photoDataArray: entry.photoDataArray, fontChoice: entry.fontChoice, highlightTerms: highlightTerms, activeMatch: activeMatch)
                     } else {
                         Text("No text")
                             .font(.system(size: 18, design: writingFontDesign))
@@ -318,6 +357,7 @@ struct EntryDetailView: View {
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
+                                .id(ReaderMatches.voiceNoteID(index))
                             }
                         }
                         .padding(.top, 30)
@@ -350,8 +390,10 @@ struct EntryDetailView: View {
                 .frame(maxWidth: .infinity)
             }
             .modifier(MacNoScrollEdgeEffect())
+            .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
         }
         .background(MirrorTheme.bgBase)
+        .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
             let text = entry.text
             let prefix = text
@@ -382,6 +424,7 @@ struct EntryDetailView: View {
     private func macDeleteEntry() {
         onDone?()
         let doomed = entry
+        WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
         DispatchQueue.main.async {
             modelContext.delete(doomed)
             try? modelContext.save()
@@ -598,6 +641,9 @@ private struct InlineEntryContent: View {
     let inlineStyleData: Data?
     let photoDataArray: [Data]
     let fontChoice: String?
+    /// Archive search words to mark (folded); the active match is marked more strongly.
+    var highlightTerms: [String] = []
+    var activeMatch: ReaderMatches.Location? = nil
 
     #if os(macOS)
     // Settings > Appearance > Text size; the board's reader is 18 pt on a 1.78 line.
@@ -722,10 +768,11 @@ private struct InlineEntryContent: View {
     /// in `paragraphStartOffset`'s count for newer (non-legacy) entries. In
     /// practice legacy-prefixed entries predate inlineStyleData entirely, so
     /// this is defensive rather than a case that actually occurs.
-    private func styledLine(_ raw: String, paragraphStart: Int, baseFont: UIFont, dropPrefixCount: Int = 0) -> AttributedString {
+    private func styledLine(_ raw: String, lineIndex: Int, paragraphStart: Int, baseFont: UIFont, dropPrefixCount: Int = 0) -> AttributedString {
         let ns = raw as NSString
         let mutable = NSMutableAttributedString(string: raw, attributes: [.font: baseFont])
         guard !inlineRanges.isEmpty, ns.length > 0 else {
+            markSearchMatches(in: mutable, lineIndex: lineIndex)
             return trimmedPrefix(AttributedString(mutable), count: dropPrefixCount)
         }
 
@@ -762,7 +809,19 @@ private struct InlineEntryContent: View {
                 mutable.addAttribute(.link, value: url, range: localRange)
             }
         }
+        markSearchMatches(in: mutable, lineIndex: lineIndex)
         return trimmedPrefix(AttributedString(mutable), count: dropPrefixCount)
+    }
+
+    /// Search marks go on top of the writer's own highlight colours; the match the
+    /// reader is showing gets a stronger mark so it is easy to find after a jump.
+    private func markSearchMatches(in mutable: NSMutableAttributedString, lineIndex: Int) {
+        guard !highlightTerms.isEmpty else { return }
+        let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet
+        for range in ReaderMatches.ranges(of: highlightTerms, in: mutable.string) {
+            let isActive = activeMatch == ReaderMatches.Location(place: .line(lineIndex), range: range)
+            mutable.addAttribute(.backgroundColor, value: UIColor(accent.opacity(isActive ? 0.45 : 0.18)), range: range)
+        }
     }
 
     private func trimmedPrefix(_ attr: AttributedString, count: Int) -> AttributedString {
@@ -790,6 +849,7 @@ private struct InlineEntryContent: View {
                 } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     styledText(for: line, at: index)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .id(ReaderMatches.lineID(index))
                 }
             }
         }
@@ -804,20 +864,20 @@ private struct InlineEntryContent: View {
         let paragraphStart = paragraphStartOffset(at: index)
         if style == .title {
             let font = designedFont(size: titleSize, weight: .bold, design: .default)
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .heading {
             let font = designedFont(size: headingSize, weight: .bold, design: .default)
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .subheading {
             let font = designedFont(size: bodySize, weight: .semibold, design: .default)
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
         } else if style == .monospaced {
             let font = designedFont(size: monospacedSize, weight: .regular, design: .monospaced)
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
         } else if style == .blockQuote {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                 .foregroundStyle(.secondary)
                 .lineSpacing(bodyLineSpacing)
                 .padding(.leading, 16)
@@ -828,7 +888,7 @@ private struct InlineEntryContent: View {
                     .font(.system(size: 24, weight: .regular))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24, alignment: .center)
-                Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+                Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
             }
@@ -846,13 +906,13 @@ private struct InlineEntryContent: View {
                     .font(.system(size: style == .numberedList ? 17 : 20, weight: .regular))
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 22, alignment: style == .numberedList ? .trailing : .center)
-                Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
+                Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(MirrorTheme.textPrimary)
             }
             .padding(.leading, CGFloat(level) * 20)
         } else {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
-            Text(styledLine(line, paragraphStart: paragraphStart, baseFont: font))
+            Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font))
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineSpacing(bodyLineSpacing)
         }

@@ -1,9 +1,9 @@
-Diários mais seguros e uma reflexão diária mais completa
+Bloqueie seu diário, encontre tudo e mantenha tudo organizado
 
-• Se você desativar o iCloud para o MirrorNotes ou sair do iCloud, seu iPhone agora mantém uma cópia privada do diário e oferece restaurar as entradas que sumirem.
-• Um aviso mostra quando suas últimas alterações ainda não chegaram ao iCloud, para você saber que não deve desativar o iCloud antes do backup.
-• Se algumas entradas não puderem ser lidas em um novo dispositivo, o MirrorNotes agora explica o motivo e como resolver (ative as Chaves do iCloud).
-• "Excluir tudo" agora também remove os check-ins de humor, e seus outros dispositivos não vão oferecer de volta as entradas excluídas.
-• Sua reflexão diária agora também mostra uma segunda frase da sua entrada, com suas próprias palavras (inglês).
-• Em iPhones com Apple Intelligence, dias passados em hospital, clínica ou similar agora recebem uma reflexão em vez de nenhuma.
-• Um novo painel de formatação, como no Notas: estilos, negrito/itálico/sublinhado/tachado, listas, recuos e cores em um só lugar.
+• Bloqueio do app: proteja o MirrorNotes com Face ID, Touch ID ou seu código. Ele bloqueia ao abrir o app e após 5 minutos fora, e esconde seu diário no alternador de apps. Ative em Ajustes.
+• Busca melhorada: coloque palavras entre "aspas" para uma frase exata, digite tag:trabalho para buscar uma tag ou -palavra para excluir uma palavra. As palavras encontradas ficam destacadas, e os resultados podem ser ordenados por relevância.
+• Filtros: combine vários humores, algumas ou todas as suas tags, períodos (incluindo Esta semana e Este mês), fotos, notas de voz e entradas fixadas.
+• Coleções: agrupe entradas em coleções e alterne entre elas em Entradas. Cada entrada pode estar em uma coleção.
+• Visualizações salvas: salve uma busca com seus filtros e ordem e abra de novo com um toque.
+• Rascunhos mais seguros: seu rascunho não salvo fica totalmente criptografado no iPhone, o editor mostra se ele foi mantido, e alterações não salvas em uma entrada podem ser restauradas na próxima vez que você abri-la.
+• Exporte todo o seu diário como um ZIP com arquivos Markdown, suas fotos e gravações de voz. Você pode importar de volta um arquivo descompactado; entradas existentes nunca são substituídas.

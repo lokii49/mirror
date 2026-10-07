@@ -133,6 +133,13 @@ struct LocalJournalBackupTests {
         #expect(Set(entity.storedProperties.map(\.name)) == MoodCheckIn.copiedProperties)
     }
 
+    @Test func organizationCopiesCoverEveryStoredProperty() throws {
+        let collection = try #require(Schema([JournalCollection.self]).entitiesByName["JournalCollection"])
+        #expect(Set(collection.storedProperties.map(\.name)) == JournalCollection.copiedProperties)
+        let view = try #require(Schema([SavedEntryView.self]).entitiesByName["SavedEntryView"])
+        #expect(Set(view.storedProperties.map(\.name)) == SavedEntryView.copiedProperties)
+    }
+
     @Test @MainActor func restoredCopyKeepsCiphertextAndID() {
         let original = Entry(text: "")
         original.encryptedText = "mirror:v1:opaque-ciphertext"

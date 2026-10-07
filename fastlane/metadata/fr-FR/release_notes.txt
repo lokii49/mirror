@@ -1,9 +1,9 @@
-Des journaux mieux protégés et une réflexion quotidienne plus complète
+Verrouille ton journal, retrouve tout, reste organisé
 
-• Si tu désactives iCloud pour MirrorNotes ou te déconnectes d'iCloud, ton iPhone garde maintenant une copie privée de ton journal et te propose de restaurer les entrées qui disparaissent.
-• Un avis t'indique quand tes dernières modifications ne sont pas encore dans iCloud, pour que tu saches qu'il ne faut pas désactiver iCloud avant leur sauvegarde.
-• Si certaines entrées sont illisibles sur un nouvel appareil, MirrorNotes t'explique maintenant pourquoi et comment corriger ça (active le trousseau iCloud).
-• « Tout supprimer » efface maintenant aussi les points humeur, et tes autres appareils ne te reproposeront pas les entrées supprimées.
-• Ta réflexion quotidienne affiche maintenant aussi une deuxième phrase de ton entrée, avec tes propres mots (anglais).
-• Sur les iPhone avec Apple Intelligence, les journées passées à l'hôpital, en clinique ou ailleurs du même genre ont maintenant une réflexion au lieu de rien.
-• Un nouveau panneau Format, comme dans Notes : styles, gras/italique/souligné/barré, listes, retraits et couleurs au même endroit.
+• Verrouillage de l'app : protège MirrorNotes avec Face ID, Touch ID ou ton code. L'app se verrouille à l'ouverture et après 5 minutes d'absence, et masque ton journal dans le sélecteur d'apps. Active-le dans Réglages.
+• Recherche améliorée : mets des mots entre « guillemets » pour une expression exacte, tape tag:travail pour chercher un tag, ou -mot pour exclure un mot. Les mots trouvés sont surlignés et les résultats peuvent être triés par pertinence.
+• Filtres : combine plusieurs humeurs, certains ou tous tes tags, des périodes (dont Cette semaine et Ce mois-ci), photos, notes vocales et entrées épinglées.
+• Collections : regroupe tes entrées en collections et passe de l'une à l'autre dans Entrées. Chaque entrée peut appartenir à une collection.
+• Vues enregistrées : enregistre une recherche avec ses filtres et son tri, et rouvre-la d'un toucher.
+• Brouillons plus sûrs : ton brouillon non enregistré est entièrement chiffré sur ton iPhone, l'éditeur indique s'il a été conservé, et les modifications non enregistrées d'une entrée peuvent être restaurées à sa prochaine ouverture.
+• Exporte tout ton journal en ZIP avec des fichiers Markdown, tes photos et tes enregistrements vocaux. Tu peux réimporter une archive décompressée ; les entrées existantes ne sont jamais écrasées.

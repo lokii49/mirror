@@ -266,13 +266,8 @@ struct MacQuickCaptureView: View {
     /// Brings the main window forward, or opens a new one if it was closed.
     private func openMain() {
         NSApp.keyWindow?.close()
-        NSApp.activate(ignoringOtherApps: true)
-        let main = NSApp.windows.first { !($0 is NSPanel) && $0.contentView != nil && $0.frame.width > 800 }
-        if let main {
-            main.makeKeyAndOrderFront(nil)
-        } else {
-            openWindow(id: "main")
-        }
+        MacMainWindow.openWindow = MacMainWindow.openWindow ?? openWindow
+        MacMainWindow.bringForward()
     }
 }
 #endif

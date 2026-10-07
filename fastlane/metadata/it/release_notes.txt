@@ -1,9 +1,9 @@
-Diari più sicuri e una riflessione quotidiana più completa
+Blocca il tuo diario, trova tutto, tienilo in ordine
 
-• Se disattivi iCloud per MirrorNotes o esci da iCloud, ora il tuo iPhone conserva una copia privata del diario e ti propone di ripristinare le voci che scompaiono.
-• Un avviso ti segnala quando le ultime modifiche non sono ancora arrivate su iCloud, così sai che non devi disattivare iCloud prima del backup.
-• Se alcune voci non sono leggibili su un nuovo dispositivo, MirrorNotes ora ti spiega perché e come risolvere (attiva il portachiavi iCloud).
-• «Elimina tutto» ora rimuove anche i check-in dell'umore, e gli altri dispositivi non riproporranno le voci eliminate.
-• La riflessione quotidiana ora mostra anche una seconda frase della tua voce, con le tue parole (inglese).
-• Sugli iPhone con Apple Intelligence, le giornate in ospedale, in clinica o simili ora ricevono una riflessione invece di nessuna.
-• Un nuovo pannello Formato, come in Note: stili, grassetto/corsivo/sottolineato/barrato, elenchi, rientri e colori in un unico posto.
+• Blocco app: proteggi MirrorNotes con Face ID, Touch ID o il tuo codice. Si blocca all'apertura e dopo 5 minuti di assenza, e nasconde il diario nel selettore app. Attivalo in Impostazioni.
+• Ricerca migliorata: metti le parole tra "virgolette" per una frase esatta, scrivi tag:lavoro per cercare un tag o -parola per escludere una parola. Le corrispondenze sono evidenziate e i risultati si possono ordinare per pertinenza.
+• Filtri: combina più stati d'animo, alcuni o tutti i tuoi tag, intervalli di date (anche Questa settimana e Questo mese), foto, note vocali e voci fissate.
+• Raccolte: raggruppa le voci in raccolte e passa dall'una all'altra in Voci. Ogni voce può stare in una raccolta.
+• Viste salvate: salva una ricerca con filtri e ordinamento e riaprila con un tocco.
+• Bozze più sicure: la bozza non salvata è completamente cifrata sul tuo iPhone, l'editor mostra se è stata conservata e le modifiche non salvate a una voce si possono ripristinare alla successiva apertura.
+• Esporta tutto il diario come ZIP con file Markdown, foto e registrazioni vocali. Puoi reimportare un archivio decompresso; le voci esistenti non vengono mai sovrascritte.

@@ -443,6 +443,82 @@ enum MacSnapshot {
         // The board's window size, regardless of any saved frame.
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
+        if CommandLine.arguments.contains("--macSnapshotFiltersOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["filters": true])
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "archive-filter-controls")
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil,
+                                            userInfo: ["filters": false, "filterMoods": ["Content", "Anxious"]])
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow(), name: "archive-active-filters")
+            NSApp.terminate(nil)
+            return
+        }
+        if CommandLine.arguments.contains("--macSnapshotSearchOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            for (name, query) in [("archive-search", "coffee -zzzz"), ("archive-invalid-filter", "has:video")] {
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": query])
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: name)
+            }
+            // Reader opened from a word search: Best Match list, marked words and the match bar.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": "coffee"])
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["selectFirstResult": true])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-reader-matches")
+            // Long synthetic entry whose first match is below the fold: the reader
+            // must scroll to it, then step to the second one.
+            let filler = (1...40).map { "Synthetic paragraph \($0) about an ordinary afternoon at home." }
+            let lines = Array(filler[0..<25]) + ["The lighthouse was closed for the season."]
+                + Array(filler[25...]) + ["Walked back past the lighthouse at dusk."]
+            let long = Entry(text: lines.joined(separator: "\n"), mood: "Calm")
+            long.createdAt = Date().addingTimeInterval(-30 * 86_400)
+            context.insert(long)
+            try? context.save()
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": "lighthouse"])
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["selectFirstResult": true])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-reader-scrolled")
+            NotificationCenter.default.post(name: .mirrorDebugReaderNextMatch, object: nil)
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow(), name: "archive-reader-next")
+            // Search matches, filters hide everything: offer to search without filters.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["filterMoods": ["Anxious"]])
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow(), name: "archive-relax-filters")
+            // Collections: bar, active chip, filtered list, organizer sheet.
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil,
+                                            userInfo: ["search": "", "filterMoods": [String]()])
+            if let trips = try? JournalOrganizationStore.createCollection(name: "Synthetic trips", icon: "airplane", in: context) {
+                _ = try? JournalOrganizationStore.createCollection(name: "Work notes", in: context)
+                let sample = Array(((try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []).prefix(2))
+                try? JournalOrganizationStore.move(sample, to: trips.id, in: context)
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: "collections-bar")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["collection": trips.id])
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: "collections-filtered")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": true])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "collections-organizer")
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": false])
+                // A saved word search with Newest First must open in Newest First (month
+                // sections), not switch to Best Match.
+                _ = try? JournalOrganizationStore.saveView(.init(name: "Coffee newest", query: "coffee",
+                                                                  criteria: SavedCriteria(EntryFilterCriteria()), sort: "Newest First"), in: context)
+                try? await Task.sleep(for: .seconds(1))
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["applySavedViewNamed": "Coffee newest"])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow(), name: "saved-view-keeps-sort")
+            }
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotQuickCaptureOnly") {
             await quickCapturePass(context: context)
             NSApp.terminate(nil)

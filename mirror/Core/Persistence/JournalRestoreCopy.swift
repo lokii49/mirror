@@ -17,7 +17,7 @@ extension Entry {
         "additionalVoiceNoteDurationsStorage", "encryptedAdditionalVoiceNoteTranscriptsStorage",
         "encryptedAdditionalVoiceNoteLanguageCodesStorage", "encryptedAdditionalVoiceNoteLanguageNamesStorage",
         "encryptedAdditionalVoiceNoteEnglishTranslationsStorage", "weekIdentifier",
-        "voiceNoteTranscriptionFailed", "encryptedTagsStorage", "fontChoice", "isPinned",
+        "voiceNoteTranscriptionFailed", "encryptedTagsStorage", "fontChoice", "isPinned", "collectionID",
     ]
 
     static func restoredCopy(of other: Entry) -> Entry {
@@ -49,6 +49,30 @@ extension Entry {
         copy.encryptedTagsStorage = other.encryptedTagsStorage
         copy.fontChoice = other.fontChoice
         copy.isPinned = other.isPinned
+        copy.collectionID = other.collectionID
+        return copy
+    }
+}
+
+extension JournalCollection {
+    static let copiedProperties: Set<String> = ["id", "createdAt", "sortIndex", "encryptedPayload"]
+
+    static func restoredCopy(of other: JournalCollection) -> JournalCollection {
+        let copy = JournalCollection(id: other.id, payload: .init(name: ""), sortIndex: other.sortIndex)
+        copy.createdAt = other.createdAt
+        copy.encryptedPayload = other.encryptedPayload
+        return copy
+    }
+}
+
+extension SavedEntryView {
+    static let copiedProperties: Set<String> = ["id", "createdAt", "sortIndex", "encryptedPayload"]
+
+    static func restoredCopy(of other: SavedEntryView) -> SavedEntryView {
+        let copy = SavedEntryView(id: other.id, payload: .init(name: "", query: "", criteria: SavedCriteria(EntryFilterCriteria()), sort: ""),
+                                  sortIndex: other.sortIndex)
+        copy.createdAt = other.createdAt
+        copy.encryptedPayload = other.encryptedPayload
         return copy
     }
 }

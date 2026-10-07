@@ -93,6 +93,23 @@ enum MirrorEncryption {
         }
     }
 
+    /// Strict variants for drafts and other local recovery stores: nil on any failure.
+    /// Unlike the helpers above they never pass plaintext or ciphertext through, so a
+    /// caller can tell "the key is unavailable" apart from real content.
+    static func sealData(_ data: Data) -> Data? {
+        try? encryptData(data)
+    }
+
+    static func openData(_ data: Data) -> Data? {
+        try? decryptData(data)
+    }
+
+    static func encryptStringStrict(_ value: String) -> String? {
+        guard !value.isEmpty else { return value }
+        guard let encrypted = try? encryptData(Data(value.utf8)) else { return nil }
+        return textPrefix + encrypted.base64EncodedString()
+    }
+
     private static func isEncryptedString(_ value: String) -> Bool {
         value.hasPrefix(textPrefix)
     }

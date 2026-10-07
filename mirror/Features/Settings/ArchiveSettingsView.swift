@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 /// everything else.
 struct ArchiveSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @Query private var collections: [JournalCollection]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -17,6 +18,15 @@ struct ArchiveSettingsView: View {
     @State private var showImportPicker = false
     @State private var importResultMessage: String?
     @State private var showImportResult = false
+    /// The one file importer serves both plain-text and archive-folder imports.
+    @State private var importsArchiveFolder = false
+    @State private var exportProgress: Double?
+    @State private var exportTask: Task<Void, Never>?
+    @State private var exportedArchive: ArchiveTransfer.ExportResult?
+    @State private var archiveMessage: String?
+    @State private var importPlan: ArchiveTransfer.ImportPlan?
+    @State private var importChangedAsCopies = false
+    @State private var lastImportBatch: ArchiveTransfer.ImportBatch?
 
     // `exportedText` decrypts every entry's text on every body re-eval, but was
     // read directly in `body` via `ShareLink(item:)` — so every unrelated @State
@@ -43,6 +53,8 @@ struct ArchiveSettingsView: View {
     var body: some View {
         SettingsScroll {
             VStack(spacing: 14) {
+                AppLockSettingsGroup()
+
                 SettingsGroup(title: "Your Data") {
                     ShareLink(
                         item: cachedExportedText,
@@ -74,7 +86,29 @@ struct ArchiveSettingsView: View {
 
                     SettingsDivider()
 
-                    Button { showImportPicker = true } label: {
+                    Button { startArchiveExport() } label: {
+                        HStack {
+                            SettingsRowLabel(title: "Export complete archive", systemImage: "archivebox", iconColor: .orange)
+                            Spacer()
+                            if let exportProgress {
+                                ProgressView(value: exportProgress).frame(width: 60)
+                            } else {
+                                SettingsChevron()
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(exportProgress != nil)
+                    .accessibilityIdentifier("archive.export")
+                    if exportProgress != nil {
+                        Button("Cancel export", role: .cancel) { exportTask?.cancel() }
+                            .font(.system(size: 13, weight: .medium))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+
+                    SettingsDivider()
+
+                    Button { importsArchiveFolder = false; showImportPicker = true } label: {
                         HStack {
                             SettingsRowLabel(title: "Import entries", systemImage: "square.and.arrow.down", iconColor: .blue)
                             Spacer()
@@ -82,6 +116,18 @@ struct ArchiveSettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    SettingsDivider()
+
+                    Button { importsArchiveFolder = true; showImportPicker = true } label: {
+                        HStack {
+                            SettingsRowLabel(title: "Import archive folder", systemImage: "folder.badge.plus", iconColor: .blue)
+                            Spacer()
+                            SettingsChevron()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("archive.import")
 
                     SettingsDivider()
 
@@ -126,10 +172,12 @@ struct ArchiveSettingsView: View {
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(
             isPresented: $showImportPicker,
-            allowedContentTypes: [.plainText],
+            allowedContentTypes: importsArchiveFolder ? [.folder] : [.plainText],
             allowsMultipleSelection: false
         ) { result in
             switch result {
+            case .success(let urls) where importsArchiveFolder:
+                if let url = urls.first { planArchiveImport(url) }
             case .success(let urls):
                 guard let url = urls.first else { return }
                 let count = importEntries(from: url)
@@ -151,8 +199,98 @@ struct ArchiveSettingsView: View {
         } message: {
             Text(importResultMessage ?? "")
         }
+        .modifier(ArchiveTransferAlerts(
+            message: $archiveMessage,
+            plan: $importPlan,
+            importChangedAsCopies: $importChangedAsCopies,
+            canUndo: lastImportBatch != nil,
+            apply: applyArchiveImport,
+            undo: undoArchiveImport
+        ))
+        #if os(iOS)
+        .sheet(isPresented: Binding(get: { exportedArchive != nil }, set: { if !$0 { finishExport(saved: false) } })) {
+            if let exportedArchive {
+                ArchiveExportPicker(url: exportedArchive.zipURL) { saved in finishExport(saved: saved) }
+            }
+        }
+        #endif
         .task { await checkiCloudStatus() }
         .task(id: exportCacheKey) { recomputeExportedText() }
+    }
+
+    // MARK: - Complete archive
+
+    private func startArchiveExport() {
+        exportProgress = 0
+        let snapshot = entries
+        let collectionSnapshot = collections
+        exportTask = Task {
+            do {
+                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot) { value in
+                    exportProgress = value
+                }
+                exportProgress = nil
+                #if os(macOS)
+                exportedArchive = result
+                finishExport(saved: ArchiveExportPicker.save(result.zipURL))
+                #else
+                exportedArchive = result
+                #endif
+            } catch is CancellationError {
+                exportProgress = nil
+            } catch {
+                exportProgress = nil
+                archiveMessage = String(localized: "The archive could not be created. Nothing was exported.")
+            }
+        }
+    }
+
+    private func finishExport(saved: Bool) {
+        guard let result = exportedArchive else { return }
+        exportedArchive = nil
+        ArchiveTransfer.discardExport(result.zipURL)
+        guard saved else { return }
+        if result.unreadable > 0 {
+            archiveMessage = String(localized: "Exported \(result.exported) entries. \(result.unreadable) entries can't be read on this device yet and were not included; export again once they open.")
+        } else {
+            archiveMessage = String(localized: "Exported \(result.exported) entries with their photos and voice notes.")
+        }
+    }
+
+    private func planArchiveImport(_ folder: URL) {
+        let existing = entries
+        Task {
+            do {
+                importChangedAsCopies = false
+                importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing)
+            } catch ArchivePackage.PackageError.tooLarge {
+                archiveMessage = String(localized: "This archive is too large to import on this device in one go (over 750 MB of photos and recordings). Nothing was imported.")
+            } catch {
+                archiveMessage = String(localized: "This folder isn't a MirrorNotes archive, or it is damaged. Nothing was imported.")
+            }
+        }
+    }
+
+    private func applyArchiveImport() {
+        guard let plan = importPlan else { return }
+        importPlan = nil
+        do {
+            lastImportBatch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: importChangedAsCopies, context: modelContext)
+            let added = lastImportBatch?.digests.count ?? 0
+            archiveMessage = String(localized: "Imported \(added) entries.")
+        } catch {
+            archiveMessage = String(localized: "The import failed and nothing was added.")
+        }
+    }
+
+    private func undoArchiveImport() {
+        guard let batch = lastImportBatch else { return }
+        lastImportBatch = nil
+        if let result = try? ArchiveTransfer.undoImport(batch, context: modelContext) {
+            archiveMessage = result.kept > 0
+                ? String(localized: "Removed \(result.removed) imported entries. \(result.kept) edited since the import were kept.")
+                : String(localized: "Removed \(result.removed) imported entries.")
+        }
     }
 
     private func recomputeExportedText() {
@@ -188,16 +326,21 @@ struct ArchiveSettingsView: View {
         if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
             all.forEach { modelContext.delete($0) }
         }
+        // Collection names and saved searches are journal data too.
+        (try? modelContext.fetch(FetchDescriptor<JournalCollection>()))?.forEach { modelContext.delete($0) }
+        (try? modelContext.fetch(FetchDescriptor<SavedEntryView>()))?.forEach { modelContext.delete($0) }
         try? modelContext.save()
         MoodCheckInMigration.eraseLegacyRecords()
         JournalSafety.shared.journalWasErased()
+        // An unsaved Write draft is journal text too.
+        WriteView.eraseAllDraftStorage()
     }
 
     private func checkiCloudStatus() async {
         #if DEBUG
-        // The screenshot harness runs an unsigned build with no iCloud container, where
-        // CKContainer.default() raises an Objective-C exception.
-        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") {
+        // The screenshot harness and perf/test runs (scratch journal) may run a build with no
+        // iCloud container, where CKContainer.default() raises an Objective-C exception.
+        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") || PerfSeed.isRequested {
             iCloudStatus = .unknown
             return
         }

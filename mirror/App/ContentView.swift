@@ -41,7 +41,7 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab = 1  // 0=Entries, 1=Write, 2=Insights
+    @State private var selectedTab = ContentView.launchTab  // 0=Entries, 1=Write, 2=Insights
     @State private var selectedSidebarItem: AppSidebarItem? = .write
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
@@ -51,6 +51,7 @@ struct ContentView: View {
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
+    @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
     #if os(macOS)
     @State private var macSelectedEntry: Entry? = nil
@@ -110,6 +111,15 @@ struct ContentView: View {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
     }
 
+    /// Write, except DEBUG `--initialTab=entries` (headless simulator screenshots,
+    /// where a mirror:// link would stop at the system's open confirmation).
+    private static var launchTab: Int {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
+        #endif
+        return 1
+    }
+
     /// Widgets run in a separate process with no SwiftUI environment of their
     /// own, so appDisplayMode never reaches them directly — mirrors the
     /// existing widget.tier pattern (SubscriptionService writes, widgets read)
@@ -159,9 +169,9 @@ struct ContentView: View {
     /// books for today yet.
     private func maybeAutoPromptMoodCheckIn() {
         #if os(macOS)
-        // Off on Mac for now: "active" fires on every switch back to the app, so the sheet would
-        // pop up unprompted. Log Mood stays in Go > Log Mood… (⌥⌘M). Later: present it at the
-        // scheduled check-in time, like iPhone (see .claude/platform-roadmap.md).
+        // Off on Mac: "active" fires on every switch back to the app, so the sheet would pop up
+        // unprompted. The Mac gets the check-in reminder as a notification instead (shown even
+        // while the app is frontmost; clicking it opens this sheet), plus Go > Log Mood… (⌥⌘M).
         return
         #else
         guard onboardingComplete, moodCheckInEnabled, !isUITesting else { return }
@@ -210,6 +220,17 @@ struct ContentView: View {
             #endif
         }
         .environment(\.appDisplayMode, displayMode)
+        // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
+        // which also covers sheets. This one only guarantees the first frame never shows the journal.
+        .overlay {
+            if appLock.hidesContent {
+                AppLockScreen(interactive: false)
+                    .environment(\.appDisplayMode, displayMode)
+            }
+        }
+        #if os(iOS)
+        .background(AppLockWindowInstaller())
+        #endif
         .onAppear {
             PerfSignpost.endLaunchIfNeeded()
             applyColorScheme(appearanceMode)
@@ -255,7 +276,8 @@ struct ContentView: View {
             .environment(\.appDisplayMode, displayMode)
         }
         .onChange(of: canPresentRatePrompt) { _, canPresent in
-            guard canPresent else { return }
+            // UI tests and synthetic runs must not consume the once-per-install prompt.
+            guard canPresent, !isUITesting else { return }
             reviewPromptCoordinator.isPending = false
             ReviewRequestManager.markEntryMilestonePromptShown()
             showRatePrompt = true

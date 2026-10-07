@@ -27,6 +27,8 @@ struct mirrorApp: App {
 
     init() {
         PerfSignpost.beginLaunch()
+        // Plaintext left by an archive export/import that was interrupted (crash, force quit).
+        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging() }
         #if os(macOS) && DEBUG
         if let dir = MacFormatPopoverRender.requestedDirectory {
             DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }
@@ -43,16 +45,38 @@ struct mirrorApp: App {
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
         }
+        #if os(macOS)
+        // Global quick-capture shortcut. Not in harness runs: an unsigned copy shares the installed
+        // app's bundle id and would take the combination from it.
+        #if DEBUG
+        let harnessRun = MacSnapshot.isRequested || PerfSeed.isRequested
+        #else
+        let harnessRun = false
+        #endif
+        if !harnessRun {
+            MacGlobalHotKey.shared.start(container: sharedModelContainer)
+            AppLockMacCovers.start()
+        }
+        #endif
         #if DEBUG
         if CloudKitSchemaSeed.isRequested, MirrorModelContainer.isStoreAvailable {
             CloudKitSchemaSeed.run(context: sharedModelContainer.mainContext)
+        }
+        if CloudKitSchemaSeed.isRemovalRequested, MirrorModelContainer.isStoreAvailable {
+            CloudKitSchemaSeed.removeSeed(context: sharedModelContainer.mainContext)
         }
         #endif
         #if DEBUG
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
-            Task { @MainActor in await PerfSeed.runEntriesScenario() }
+            if GemmaMemoryProbe.isRequested {
+                Task { @MainActor in await GemmaMemoryProbe.run() }
+            } else if PerfSeed.draftRecoveryPhase != nil {
+                Task { @MainActor in await PerfSeed.runDraftRecoveryCheck() }
+            } else {
+                Task { @MainActor in await PerfSeed.runEntriesScenario() }
+            }
         }
         #endif
         #if DEBUG
@@ -210,6 +234,22 @@ struct mirrorApp: App {
         .defaultSize(width: 1280, height: 800)
         #endif
         .onChange(of: scenePhase) { _, phase in
+            #if os(iOS)
+            // App Lock: away starts in the background only (the Face ID prompt itself makes the
+            // app inactive); inactive and background hide the content from the app switcher.
+            switch phase {
+            case .background:
+                AppLock.shared.didLeave()
+                AppLock.shared.setPrivacyCover(true)
+            case .inactive:
+                AppLock.shared.setPrivacyCover(true)
+            case .active:
+                AppLock.shared.setPrivacyCover(false)
+                AppLock.shared.didReturn()
+            @unknown default:
+                break
+            }
+            #endif
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }

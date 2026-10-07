@@ -273,6 +273,12 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
 
+                    #if os(macOS)
+                    SettingsDivider()
+
+                    MacQuickCaptureHotKeyRow()
+                    #endif
+
                     SettingsDivider()
 
                     Button { showLanguagePicker = true } label: {

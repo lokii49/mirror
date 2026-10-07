@@ -333,11 +333,7 @@ extension WriteView {
             Text("\(viewModel.wordCount) words")
                 .font(.system(size: 12))
                 .foregroundStyle(MacTokens.secondaryInk)
-            if entry == nil, hasDraftContent {
-                Text("Draft saved")
-                    .font(.system(size: 12))
-                    .foregroundStyle(MacTokens.secondaryInk)
-            }
+            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
             Spacer(minLength: 0)
             Text("⌘↩ to save")
                 .font(.system(size: 12))

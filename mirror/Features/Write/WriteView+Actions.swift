@@ -67,6 +67,9 @@ extension WriteView {
                 DispatchQueue.main.async { onSaveComplete?() }
                 return
             }
+            // Keep the edits recoverable until the save below has actually landed.
+            flushDraftSave()
+            editCommitted = true
             update(entry)
             entry.createdAt = entryDate
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
@@ -92,8 +95,14 @@ extension WriteView {
             // empty here.
             // Defer write past dismiss so SQLite/CloudKit flush doesn't block navigation animation
             let ctx = modelContext
+            let editSlot = WriteDraftStore.Slot.entry(entry.id)
             Task { @MainActor in
-                try? ctx.save()
+                do {
+                    try ctx.save()
+                    WriteDraftStore.clear(slot: editSlot)
+                } catch {
+                    // The edit draft stays; reopening the entry offers it back.
+                }
                 // The reflection and the alert check both read this entry's mood.
                 _ = await moodDetection?.value
                 await mirrorApp.runDailyNudgeIfNeeded(context: ctx)
@@ -124,8 +133,7 @@ extension WriteView {
                 entry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
                 entry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
                 entry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
-                modelContext.insert(entry)
-                try? modelContext.save()
+                guard insertAndSave(entry) else { return }
                 let moodDetection = autoDetectMoodIfNeeded(for: entry)
                 if isTranscribingVoiceNotes {
                     continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
@@ -185,8 +193,7 @@ extension WriteView {
         savedEntry.additionalVoiceNoteLanguageNames = additionalVoiceNoteLanguageNames
         savedEntry.additionalVoiceNoteEnglishTranslations = additionalVoiceNoteEnglishTranslations
         savedEntry.voiceNoteTranscriptionFailed = voiceNoteData != nil && (voiceNoteTranscript?.isEmpty ?? true) && failedTranscriptionIndexes.contains(0)
-        modelContext.insert(savedEntry)
-        try? modelContext.save()
+        guard insertAndSave(savedEntry) else { return }
         let moodDetection = autoDetectMoodIfNeeded(for: savedEntry)
         if isTranscribingVoiceNotes {
             continueTranscriptionAfterSaveAnyway(for: savedEntry, in: modelContext)
@@ -298,7 +305,11 @@ extension WriteView {
     }
 
     func deleteAndDismiss() {
-        if let entry { modelContext.delete(entry) }
+        editCommitted = true
+        if let entry {
+            WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
+            modelContext.delete(entry)
+        }
         try? modelContext.save()
         dismiss()
         DispatchQueue.main.async {
@@ -311,13 +322,19 @@ extension WriteView {
         clearDraftStorage()
     }
 
-    // MARK: - Draft persistence (new entries only, text + style + mood)
+    // MARK: - Draft persistence (new entries only; sealed in WriteDraftStore)
 
-    static let draftTextKey = "mirror.writeDraft.text"
-    static let draftTextStyleKey = "mirror.writeDraft.textStyleData"
-    static let draftInlineStyleKey = "mirror.writeDraft.inlineStyleData"
-    static let draftMoodKey = "mirror.writeDraft.mood"
-    static let draftTagsKey = "mirror.writeDraft.tags"
+    /// Scratch journals use a different encryption key and must never read,
+    /// replace or clear the user's normal draft (preferences are shared on Mac).
+    static func usesPersistentDraftStorage(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        #if DEBUG
+        // Opt-in scratch storage (separate suite and file, see WriteDraftStore.storage).
+        if arguments.contains("--scratchDraftStorage") { return true }
+        return !arguments.contains("--macSnapshot") && !arguments.contains { $0.hasPrefix("--perfSeed=") }
+        #else
+        return true
+        #endif
+    }
 
     /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
     /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
@@ -325,7 +342,10 @@ extension WriteView {
     /// latency. Coalesce to one write ~1s after typing stops; background and
     /// mood changes still flush immediately.
     func scheduleDraftSave() {
-        guard entry == nil else { return }
+        guard Self.usesPersistentDraftStorage(), !pendingDelete, !editCommitted else { return }
+        // No content comparison here: it hashes attachments, too slow per keystroke.
+        // saveEditDraft compares once the debounce settles.
+        if draftSaveState != .saving { draftSaveState = .saving }
         draftSaveTask?.cancel()
         draftSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(900))
@@ -395,7 +415,6 @@ extension WriteView {
     }
 
     func flushDraftSave() {
-        guard entry == nil else { return }
         draftSaveTask?.cancel()
         draftSaveTask = nil
         saveDraftToStorage()
@@ -409,43 +428,136 @@ extension WriteView {
     }
 
     func saveDraftToStorage() {
-        guard entry == nil else { return }
+        guard Self.usesPersistentDraftStorage() else { return }
+        if let entry {
+            saveEditDraft(for: entry)
+            return
+        }
         // A debounced write can land just after clearDraft() emptied everything
         // (the empty-text onChange schedules one more pass). Don't leave a blank
         // ciphertext blob behind that restoreDraftFromStorage would rehydrate.
         guard hasDraftContent || !entryTags.isEmpty || viewModel.selectedMood != nil else {
             clearDraftStorage()
+            draftSaveState = .idle
             return
         }
-        let ud = UserDefaults.standard
-        ud.set(MirrorEncryption.encryptString(viewModel.text), forKey: Self.draftTextKey)
-        ud.set(viewModel.textStyleData, forKey: Self.draftTextStyleKey)
-        ud.set(inlineStyleData, forKey: Self.draftInlineStyleKey)
-        ud.set(viewModel.selectedMood, forKey: Self.draftMoodKey)
-        let encryptedTags = entryTags.map { MirrorEncryption.encryptString($0) }
-        ud.set(try? JSONEncoder().encode(encryptedTags), forKey: Self.draftTagsKey)
+        // On failure (key unavailable) the previous stored draft stays as it was.
+        let saved = WriteDraftStore.save(WriteDraftStore.Payload(
+            text: viewModel.text,
+            textStyleData: viewModel.textStyleData,
+            inlineStyleData: inlineStyleData,
+            mood: viewModel.selectedMood,
+            tags: entryTags
+        ))
+        draftSaveState = saved && attachmentsSaved ? .saved : .failed
+    }
+
+    // MARK: - Edit drafts (existing entries)
+
+    func entryFingerprint(_ entry: Entry) -> String {
+        WriteDraftStore.fingerprint(text: entry.text, mood: entry.mood, tags: entry.tags,
+                                    textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData,
+                                    createdAt: entry.createdAt)
+    }
+
+    /// Unsaved edits to an existing entry go to their own encrypted slot. They are
+    /// never written into the entry by themselves; the user restores or discards
+    /// them the next time the entry is opened. Text, formatting, mood, tags and
+    /// date only: photo and voice-note edits are not kept.
+    func saveEditDraft(for entry: Entry) {
+        guard !pendingDelete, !editCommitted, !entry.textDecryptionFailed,
+              let base = editBaseFingerprint else { return }
+        let slot = WriteDraftStore.Slot.entry(entry.id)
+        guard currentContentHash() != loadedContentHash else {
+            WriteDraftStore.clear(slot: slot)
+            draftSaveState = .idle
+            return
+        }
+        let saved = WriteDraftStore.save(WriteDraftStore.Payload(
+            text: viewModel.text,
+            textStyleData: viewModel.textStyleData,
+            inlineStyleData: inlineStyleData,
+            mood: viewModel.selectedMood,
+            tags: entryTags,
+            entryDate: entryDate,
+            baseFingerprint: base,
+            savedAt: Date()
+        ), slot: slot)
+        draftSaveState = saved ? .saved : .failed
+    }
+
+    func checkForEditDraft() {
+        guard let entry, Self.usesPersistentDraftStorage(), !entry.textDecryptionFailed else { return }
+        editBaseFingerprint = entryFingerprint(entry)
+        let slot = WriteDraftStore.Slot.entry(entry.id)
+        guard case .payload(let draft) = WriteDraftStore.load(slot: slot) else { return }
+        let unchanged = draft.text == viewModel.text
+            && draft.mood == viewModel.selectedMood
+            && draft.tags == entryTags
+            && draft.textStyleData == viewModel.textStyleData
+            && draft.inlineStyleData == inlineStyleData
+            && (draft.entryDate ?? entryDate) == entryDate
+        if unchanged {
+            WriteDraftStore.clear(slot: slot)
+        } else {
+            pendingEditDraft = draft
+        }
+    }
+
+    /// Puts the unsaved edits back in the editor. Nothing is written to the entry
+    /// until the user saves.
+    func restoreEditDraft(_ draft: WriteDraftStore.Payload) {
+        pendingEditDraft = nil
+        viewModel.text = draft.text
+        viewModel.textStyleData = draft.textStyleData
+        inlineStyleData = draft.inlineStyleData
+        viewModel.selectedMood = draft.mood
+        entryTags = draft.tags
+        if let date = draft.entryDate { entryDate = date }
+        draftSaveState = .saved
+    }
+
+    func discardEditDraft() {
+        pendingEditDraft = nil
+        if let entry { WriteDraftStore.clear(slot: .entry(entry.id)) }
+    }
+
+    /// Inserts and saves a new entry. On failure the insert is rolled back and the
+    /// draft stays in the editor and in storage.
+    func insertAndSave(_ newEntry: Entry) -> Bool {
+        modelContext.insert(newEntry)
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            modelContext.rollback()
+            flushDraftSave()
+            entrySaveFailed = true
+            return false
+        }
     }
 
     /// Voice-note / photo blobs for a new-entry draft. Kept out of
     /// saveDraftToStorage (which runs on the debounced text path) — attachments
     /// change rarely and a voice note can be megabytes.
     func saveDraftAttachments() {
-        guard entry == nil else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage() else { return }
         let notes = draftVoiceNotes.map {
             DraftAttachmentStore.VoiceNote(
                 data: $0.data,
                 duration: $0.duration,
                 transcript: $0.transcript,
-                languageCode: nil,
+                languageCode: $0.languageCode,
                 languageName: $0.languageName,
                 englishTranslation: $0.englishTranslation
             )
         }
-        DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
+        attachmentsSaved = DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
+        if !attachmentsSaved { draftSaveState = .failed }
     }
 
     func restoreDraftAttachments() {
-        guard entry == nil, let restored = DraftAttachmentStore.load() else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage(), let restored = DraftAttachmentStore.load() else { return }
         if photoDataArray.isEmpty, !restored.photos.isEmpty {
             photoDataArray = restored.photos
         }
@@ -468,40 +580,141 @@ extension WriteView {
     }
 
     func restoreDraftFromStorage() {
+        guard Self.usesPersistentDraftStorage() else { return }
         restoreDraftAttachments()
-        let ud = UserDefaults.standard
-        let saved = ud.string(forKey: Self.draftTextKey) ?? ""
-        guard !saved.isEmpty else { return }
-        // Key may be transiently unreadable (e.g. before first unlock). Leave the
-        // stored ciphertext untouched and retry on a later launch rather than
-        // surfacing the fallback sentinel as real text and re-encrypting it over
-        // the original draft.
-        guard let decrypted = MirrorEncryption.decryptOptionalStringValue(saved) else { return }
-        viewModel.text = decrypted
-        viewModel.textStyleData = ud.data(forKey: Self.draftTextStyleKey)
-        inlineStyleData = ud.data(forKey: Self.draftInlineStyleKey)
-        viewModel.selectedMood = ud.string(forKey: Self.draftMoodKey)
-        if let tagsData = ud.data(forKey: Self.draftTagsKey) {
-            let encrypted = (try? JSONDecoder().decode([String].self, from: tagsData)) ?? []
-            entryTags = encrypted.map { MirrorEncryption.decryptString($0) }
-        }
+        // A draft that can't be read yet (key not available, e.g. before first
+        // unlock) stays in storage for a later launch; never show the fallback
+        // sentinel as text or re-encrypt it over the original.
+        guard case .payload(let draft) = WriteDraftStore.load() else { return }
+        viewModel.text = draft.text
+        viewModel.textStyleData = draft.textStyleData
+        inlineStyleData = draft.inlineStyleData
+        viewModel.selectedMood = draft.mood
+        entryTags = draft.tags
     }
 
     func clearDraftStorage() {
         cancelDraftSave()
         Self.clearAllDraftStorage()
+        draftSaveState = .idle
+        attachmentsSaved = true
+    }
+
+    func retryDraftSave() {
+        if entry == nil { saveDraftAttachments() }
+        flushDraftSave()
     }
 
     /// Static counterpart of `clearDraftStorage()` for call sites with no live
     /// `WriteView` instance (app-launch test-state reset) — same keys, no
     /// in-flight debounced-save task to cancel.
     static func clearAllDraftStorage() {
+        guard usesPersistentDraftStorage() else { return }
         DraftAttachmentStore.clear()
-        let ud = UserDefaults.standard
-        ud.removeObject(forKey: Self.draftTextKey)
-        ud.removeObject(forKey: Self.draftTextStyleKey)
-        ud.removeObject(forKey: Self.draftInlineStyleKey)
-        ud.removeObject(forKey: Self.draftMoodKey)
-        ud.removeObject(forKey: Self.draftTagsKey)
+        WriteDraftStore.clear()
+    }
+
+    /// Delete Everything while this editor is open: drop what it holds, or the
+    /// next flush would write the erased draft back.
+    func handleDraftsErased() {
+        guard entry == nil else { return }
+        cancelDraftSave()
+        clearDraft()
+        entryTags = []
+    }
+
+    /// Delete Everything: like `clearAllDraftStorage`, plus any draft held back
+    /// because it couldn't be decrypted when found.
+    static func eraseAllDraftStorage() {
+        guard usesPersistentDraftStorage() else { return }
+        DraftAttachmentStore.clearIncludingPreserved()
+        WriteDraftStore.clearIncludingPreserved()
+        WriteDraftStore.clearAllEntryDrafts()
+        NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
+    }
+}
+
+struct OnDraftsErased: ViewModifier {
+    let perform: () -> Void
+    func body(content: Content) -> some View {
+        content.onReceive(NotificationCenter.default.publisher(for: .mirrorDraftsErased)) { _ in perform() }
+    }
+}
+
+enum DraftSaveState: Equatable {
+    case idle, saving, saved, failed
+}
+
+/// Restore/Discard for unsaved edits from an earlier session, and the alert for a
+/// new entry that could not be saved. Kept out of WriteView's body so it type-checks.
+struct DraftRecoveryAlerts: ViewModifier {
+    @Binding var pendingEditDraft: WriteDraftStore.Payload?
+    let entryChangedSinceDraft: Bool
+    @Binding var entrySaveFailed: Bool
+    let restore: (WriteDraftStore.Payload) -> Void
+    let discard: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Restore unsaved changes?", isPresented: Binding(
+                get: { pendingEditDraft != nil },
+                // Cancel (Mac) or dismissal: decide later; the draft stays stored and
+                // is offered again the next time this entry is opened.
+                set: { if !$0 { pendingEditDraft = nil } }
+            ), presenting: pendingEditDraft) { draft in
+                Button("Restore") { restore(draft) }
+                Button("Discard", role: .destructive) { discard() }
+            } message: { draft in
+                if entryChangedSinceDraft {
+                    Text("You edited this entry earlier and didn't save. It has changed since then, for example on another device. Restoring puts your earlier edits in the editor; saving would replace the newer version.")
+                } else if let savedAt = draft.savedAt {
+                    Text("You edited this entry on \(savedAt.formatted(date: .abbreviated, time: .shortened)) and didn't save. Restore those edits?")
+                } else {
+                    Text("You edited this entry earlier and didn't save. Restore those edits?")
+                }
+            }
+            .alert("Couldn't save this entry", isPresented: $entrySaveFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your writing is still here and kept as a draft on this device. Try saving again.")
+            }
+    }
+}
+
+/// "Saving…", "Saved on this device" or "Not saved" with Retry. About local draft
+/// storage only; it never claims iCloud sync.
+struct DraftSaveStatusLabel: View {
+    let state: DraftSaveState
+    let retry: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyView()
+        case .saving:
+            label("Saving…")
+        case .saved:
+            // A draft, not the entry: Save is still needed (and nothing here is iCloud).
+            label("Draft kept on this device")
+        case .failed:
+            Button(action: retry) {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("Not saved · Retry")
+                }
+                .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 12, weight: .semibold))
+                .foregroundStyle(.orange)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("draft.saveRetry")
+        }
+    }
+
+    private func label(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
+            .foregroundStyle(.tertiary)
+            .accessibilityIdentifier("draft.saveStatus")
     }
 }
