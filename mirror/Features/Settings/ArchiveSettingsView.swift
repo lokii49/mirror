@@ -193,6 +193,8 @@ struct ArchiveSettingsView: View {
         try? modelContext.save()
         MoodCheckInMigration.eraseLegacyRecords()
         JournalSafety.shared.journalWasErased()
+        // An unsaved Write draft is journal text too.
+        WriteView.eraseAllDraftStorage()
     }
 
     private func checkiCloudStatus() async {

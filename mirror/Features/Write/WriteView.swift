@@ -180,15 +180,16 @@ struct WriteView: View {
     var isTranscribingVoiceNotes: Bool {
         !transcribingVoiceNoteIndexes.isEmpty
     }
-    var draftVoiceNotes: [(data: Data, duration: TimeInterval, transcript: String?, languageName: String?, englishTranslation: String?)] {
-        var notes: [(Data, TimeInterval, String?, String?, String?)] = []
+    var draftVoiceNotes: [(data: Data, duration: TimeInterval, transcript: String?, languageName: String?, englishTranslation: String?, languageCode: String?)] {
+        var notes: [(Data, TimeInterval, String?, String?, String?, String?)] = []
         if let voiceNoteData {
             notes.append((
                 voiceNoteData,
                 voiceNoteDuration,
                 voiceNoteTranscript,
                 voiceNoteLanguageName,
-                voiceNoteEnglishTranslation
+                voiceNoteEnglishTranslation,
+                voiceNoteLanguageCode
             ))
         }
         for (index, data) in additionalVoiceNoteData.enumerated() {
@@ -196,12 +197,14 @@ struct WriteView: View {
             let transcript = index < additionalVoiceNoteTranscripts.count ? additionalVoiceNoteTranscripts[index] : nil
             let languageName = index < additionalVoiceNoteLanguageNames.count ? additionalVoiceNoteLanguageNames[index] : nil
             let translation = index < additionalVoiceNoteEnglishTranslations.count ? additionalVoiceNoteEnglishTranslations[index] : nil
+            let languageCode = index < additionalVoiceNoteLanguageCodes.count ? additionalVoiceNoteLanguageCodes[index] : nil
             notes.append((
                 data,
                 duration,
                 transcript,
                 languageName,
-                translation
+                translation,
+                languageCode
             ))
         }
         return notes

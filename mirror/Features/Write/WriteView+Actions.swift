@@ -311,13 +311,7 @@ extension WriteView {
         clearDraftStorage()
     }
 
-    // MARK: - Draft persistence (new entries only, text + style + mood)
-
-    static let draftTextKey = "mirror.writeDraft.text"
-    static let draftTextStyleKey = "mirror.writeDraft.textStyleData"
-    static let draftInlineStyleKey = "mirror.writeDraft.inlineStyleData"
-    static let draftMoodKey = "mirror.writeDraft.mood"
-    static let draftTagsKey = "mirror.writeDraft.tags"
+    // MARK: - Draft persistence (new entries only; sealed in WriteDraftStore)
 
     /// Scratch journals use a different encryption key and must never read,
     /// replace or clear the user's normal draft (preferences are shared on Mac).
@@ -427,13 +421,14 @@ extension WriteView {
             clearDraftStorage()
             return
         }
-        let ud = UserDefaults.standard
-        ud.set(MirrorEncryption.encryptString(viewModel.text), forKey: Self.draftTextKey)
-        ud.set(viewModel.textStyleData, forKey: Self.draftTextStyleKey)
-        ud.set(inlineStyleData, forKey: Self.draftInlineStyleKey)
-        ud.set(viewModel.selectedMood, forKey: Self.draftMoodKey)
-        let encryptedTags = entryTags.map { MirrorEncryption.encryptString($0) }
-        ud.set(try? JSONEncoder().encode(encryptedTags), forKey: Self.draftTagsKey)
+        // On failure (key unavailable) the previous stored draft stays as it was.
+        WriteDraftStore.save(WriteDraftStore.Payload(
+            text: viewModel.text,
+            textStyleData: viewModel.textStyleData,
+            inlineStyleData: inlineStyleData,
+            mood: viewModel.selectedMood,
+            tags: entryTags
+        ))
     }
 
     /// Voice-note / photo blobs for a new-entry draft. Kept out of
@@ -446,7 +441,7 @@ extension WriteView {
                 data: $0.data,
                 duration: $0.duration,
                 transcript: $0.transcript,
-                languageCode: nil,
+                languageCode: $0.languageCode,
                 languageName: $0.languageName,
                 englishTranslation: $0.englishTranslation
             )
@@ -480,22 +475,15 @@ extension WriteView {
     func restoreDraftFromStorage() {
         guard Self.usesPersistentDraftStorage() else { return }
         restoreDraftAttachments()
-        let ud = UserDefaults.standard
-        let saved = ud.string(forKey: Self.draftTextKey) ?? ""
-        guard !saved.isEmpty else { return }
-        // Key may be transiently unreadable (e.g. before first unlock). Leave the
-        // stored ciphertext untouched and retry on a later launch rather than
-        // surfacing the fallback sentinel as real text and re-encrypting it over
-        // the original draft.
-        guard let decrypted = MirrorEncryption.decryptOptionalStringValue(saved) else { return }
-        viewModel.text = decrypted
-        viewModel.textStyleData = ud.data(forKey: Self.draftTextStyleKey)
-        inlineStyleData = ud.data(forKey: Self.draftInlineStyleKey)
-        viewModel.selectedMood = ud.string(forKey: Self.draftMoodKey)
-        if let tagsData = ud.data(forKey: Self.draftTagsKey) {
-            let encrypted = (try? JSONDecoder().decode([String].self, from: tagsData)) ?? []
-            entryTags = encrypted.map { MirrorEncryption.decryptString($0) }
-        }
+        // A draft that can't be read yet (key not available, e.g. before first
+        // unlock) stays in storage for a later launch; never show the fallback
+        // sentinel as text or re-encrypt it over the original.
+        guard case .payload(let draft) = WriteDraftStore.load() else { return }
+        viewModel.text = draft.text
+        viewModel.textStyleData = draft.textStyleData
+        inlineStyleData = draft.inlineStyleData
+        viewModel.selectedMood = draft.mood
+        entryTags = draft.tags
     }
 
     func clearDraftStorage() {
@@ -509,11 +497,14 @@ extension WriteView {
     static func clearAllDraftStorage() {
         guard usesPersistentDraftStorage() else { return }
         DraftAttachmentStore.clear()
-        let ud = UserDefaults.standard
-        ud.removeObject(forKey: Self.draftTextKey)
-        ud.removeObject(forKey: Self.draftTextStyleKey)
-        ud.removeObject(forKey: Self.draftInlineStyleKey)
-        ud.removeObject(forKey: Self.draftMoodKey)
-        ud.removeObject(forKey: Self.draftTagsKey)
+        WriteDraftStore.clear()
+    }
+
+    /// Delete Everything: like `clearAllDraftStorage`, plus any draft held back
+    /// because it couldn't be decrypted when found.
+    static func eraseAllDraftStorage() {
+        guard usesPersistentDraftStorage() else { return }
+        DraftAttachmentStore.clear()
+        WriteDraftStore.clearIncludingPreserved()
     }
 }
