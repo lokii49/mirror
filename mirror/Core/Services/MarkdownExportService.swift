@@ -24,12 +24,19 @@ enum MarkdownExportService {
 
     static func markdownBody(for entry: Entry) -> String {
         if entry.textDecryptionFailed { return "*Encrypted entry unavailable*" }
-        let text = entry.text
+        return textWithPhotoTokensReplaced(
+            markdownLines(text: entry.text, textStyleData: entry.textStyleData, inlineStyleData: entry.inlineStyleData)
+        )
+    }
+
+    /// Formatted Markdown with photo tokens left in place, so a caller can turn
+    /// them into links (the archive package) or placeholders.
+    nonisolated static func markdownLines(text: String, textStyleData: Data?, inlineStyleData: Data?) -> String {
         guard !text.isEmpty else { return "" }
 
-        let paragraphStyles = decodedParagraphStyles(entry.textStyleData)
-        let indentLevels = decodedIndentLevels(entry.textStyleData)
-        let inlineRanges = decodedInlineRanges(entry.inlineStyleData)
+        let paragraphStyles = decodedParagraphStyles(textStyleData)
+        let indentLevels = decodedIndentLevels(textStyleData)
+        let inlineRanges = decodedInlineRanges(inlineStyleData)
 
         let nsText = text as NSString
         var lines: [String] = []
@@ -58,22 +65,22 @@ enum MarkdownExportService {
             paragraphIndex += 1
         }
 
-        return textWithPhotoTokensReplaced(lines.joined(separator: "\n"))
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Decoding
 
-    private static func decodedParagraphStyles(_ data: Data?) -> [NoteParagraphTextStyle] {
+    nonisolated private static func decodedParagraphStyles(_ data: Data?) -> [NoteParagraphTextStyle] {
         guard let data, let doc = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data) else { return [] }
         return doc.paragraphStyles
     }
 
-    private static func decodedIndentLevels(_ data: Data?) -> [Int] {
+    nonisolated private static func decodedIndentLevels(_ data: Data?) -> [Int] {
         guard let data, let doc = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data), let levels = doc.indentLevels else { return [] }
         return levels
     }
 
-    private static func decodedInlineRanges(_ data: Data?) -> [InlineStyleRange] {
+    nonisolated private static func decodedInlineRanges(_ data: Data?) -> [InlineStyleRange] {
         guard let data, let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: data) else { return [] }
         return doc.ranges.sorted { $0.location < $1.location }
     }
@@ -83,7 +90,7 @@ enum MarkdownExportService {
     /// `ranges` come from `NSAttributedString.enumerateAttributes`, so they're
     /// already non-overlapping — this only clips each one to the paragraph's
     /// span and wraps the covered substring, no interval-merging needed.
-    private static func applyingInlineStyles(raw: String, paragraphStart: Int, ranges: [InlineStyleRange]) -> String {
+    nonisolated private static func applyingInlineStyles(raw: String, paragraphStart: Int, ranges: [InlineStyleRange]) -> String {
         guard !ranges.isEmpty else { return raw }
         let ns = raw as NSString
         let paragraphEnd = paragraphStart + ns.length
@@ -112,7 +119,7 @@ enum MarkdownExportService {
         return result
     }
 
-    private static func wrapped(_ text: String, style: InlineStyleRange) -> String {
+    nonisolated private static func wrapped(_ text: String, style: InlineStyleRange) -> String {
         guard !text.isEmpty else { return text }
         var result = text
         if style.underline { result = "<u>\(result)</u>" }
@@ -133,7 +140,7 @@ enum MarkdownExportService {
 
     // MARK: - Paragraph markers
 
-    private static func markdownLine(for text: String, style: NoteParagraphTextStyle, level: Int, number: Int) -> String {
+    nonisolated private static func markdownLine(for text: String, style: NoteParagraphTextStyle, level: Int, number: Int) -> String {
         let indent = String(repeating: "  ", count: max(0, level))
         switch style {
         case .body:              return text

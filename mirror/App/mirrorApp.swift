@@ -27,6 +27,8 @@ struct mirrorApp: App {
 
     init() {
         PerfSignpost.beginLaunch()
+        // Plaintext left by an archive export/import that was interrupted (crash, force quit).
+        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging() }
         #if os(macOS) && DEBUG
         if let dir = MacFormatPopoverRender.requestedDirectory {
             DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }

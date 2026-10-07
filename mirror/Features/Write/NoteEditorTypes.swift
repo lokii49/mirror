@@ -42,7 +42,7 @@ enum NoteTextCommand: Equatable {
 
 // MARK: - Paragraph styles
 
-enum NoteParagraphTextStyle: String, Codable {
+nonisolated enum NoteParagraphTextStyle: String, Codable, Sendable {
     case body
     case title
     case heading
@@ -56,7 +56,7 @@ enum NoteParagraphTextStyle: String, Codable {
     case numberedList
 }
 
-struct NoteTextStyleDocument: Codable {
+nonisolated struct NoteTextStyleDocument: Codable, Sendable {
     var paragraphStyles: [NoteParagraphTextStyle]
     var indentLevels: [Int]?   // nil means all zero; only stored when at least one paragraph has level > 0
     // WritingFontChoice.rawValue per paragraph. nil, or an index past the end of this
@@ -99,7 +99,7 @@ struct InlineStyleSet: Equatable {
     }
 }
 
-struct InlineStyleRange: Codable, Equatable {
+nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
     var location: Int   // logical text coordinate
     var length: Int
     var bold: Bool
@@ -115,7 +115,7 @@ struct InlineStyleRange: Codable, Equatable {
     var textColorIndex: Int? = nil
 }
 
-struct InlineStyleDocument: Codable {
+nonisolated struct InlineStyleDocument: Codable, Sendable {
     var ranges: [InlineStyleRange]
 }
 

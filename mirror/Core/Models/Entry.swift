@@ -253,17 +253,17 @@ enum EntrySource: String, Codable {
         try? JSONEncoder().encode(value)
     }
 
-    private static func decodedDataArray(from data: Data?) -> [Data] {
+    static func decodedDataArray(from data: Data?) -> [Data] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([Data].self, from: data)) ?? []
     }
 
-    private static func decodedDoubleArray(from data: Data?) -> [Double] {
+    static func decodedDoubleArray(from data: Data?) -> [Double] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([Double].self, from: data)) ?? []
     }
 
-    private static func decodedStringArray(from data: Data?) -> [String] {
+    static func decodedStringArray(from data: Data?) -> [String] {
         guard let data else { return [] }
         return (try? JSONDecoder().decode([String].self, from: data)) ?? []
     }
