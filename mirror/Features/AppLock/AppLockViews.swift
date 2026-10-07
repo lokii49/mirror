@@ -228,6 +228,7 @@ enum AppLockCoverWindows {
 enum AppLockMacCovers {
     private static var covers: [ObjectIdentifier: (window: NSWindow, cover: NSView, responder: NSResponder?)] = [:]
     private static var observers: [NSObjectProtocol] = []
+    private static var keyMonitor: Any?
 
     /// Starts the away tracking and the covers. Called once at launch (not in harness runs).
     static func start() {
@@ -254,6 +255,22 @@ enum AppLockMacCovers {
         observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { if NSApp.isActive { AppLock.shared.didReturn() } }
         })
+        // Keys: SwiftUI shortcuts inside a covered window (⌘↩ Save, ⌘B, Done) still fire through the
+        // window's key equivalents, so while locked a covered window takes no keys at all except
+        // Return (unlock) and Quit / Hide / cycle windows. Quick capture's panel isn't covered.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            MainActor.assumeIsolated {
+                guard AppLock.shared.isLocked, let window = event.window, covers[ObjectIdentifier(window)] != nil else { return event }
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if flags.contains(.command), ["q", "h", "`"].contains(event.charactersIgnoringModifiers?.lowercased() ?? "") {
+                    return event
+                }
+                if flags.subtracting(.numericPad).isEmpty, event.keyCode == 36 || event.keyCode == 76 { // Return, Enter
+                    Task { await AppLock.shared.unlock() }
+                }
+                return nil
+            }
+        }
         // New windows (and sheets) while locked get a cover as soon as AppKit shows them.
         observers.append(center.addObserver(forName: NSApplication.didUpdateNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { sync() }
