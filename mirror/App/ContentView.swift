@@ -159,9 +159,9 @@ struct ContentView: View {
     /// books for today yet.
     private func maybeAutoPromptMoodCheckIn() {
         #if os(macOS)
-        // Off on Mac for now: "active" fires on every switch back to the app, so the sheet would
-        // pop up unprompted. Log Mood stays in Go > Log Mood… (⌥⌘M). Later: present it at the
-        // scheduled check-in time, like iPhone (see .claude/platform-roadmap.md).
+        // Off on Mac: "active" fires on every switch back to the app, so the sheet would pop up
+        // unprompted. The Mac gets the check-in reminder as a notification instead (shown even
+        // while the app is frontmost; clicking it opens this sheet), plus Go > Log Mood… (⌥⌘M).
         return
         #else
         guard onboardingComplete, moodCheckInEnabled, !isUITesting else { return }

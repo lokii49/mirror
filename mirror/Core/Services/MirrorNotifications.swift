@@ -16,7 +16,14 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        if notification.request.identifier == "mirror.moodAlert" {
+        #if os(macOS)
+        // A Mac has no foreground auto-prompt for the check-in (ContentView), so the reminder
+        // must show even while MirrorNotes is the frontmost app.
+        let showsInForeground: Set = ["mirror.moodAlert", "mirror.moodCheckIn"]
+        #else
+        let showsInForeground: Set = ["mirror.moodAlert"]
+        #endif
+        if showsInForeground.contains(notification.request.identifier) {
             completionHandler([.banner, .sound])
         } else {
             completionHandler([])
@@ -32,6 +39,10 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
            response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             Task { @MainActor in
                 MoodCheckInPresenter.shared.pending = true
+                #if os(macOS)
+                // The sheet lives in the main window; reopen it if it was closed.
+                MacMainWindow.bringForward()
+                #endif
             }
         }
         if response.notification.request.identifier == NotificationService.moodAlertID,

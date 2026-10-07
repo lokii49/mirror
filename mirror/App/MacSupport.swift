@@ -80,6 +80,7 @@ struct MirrorMacCommands: Commands {
     @FocusedValue(\.macEntryActions) private var entry
 
     var body: some Commands {
+        let _ = MacMainWindow.openWindow = openWindow
         CommandGroup(replacing: .newItem) {
             Button("New Entry") {
                 NotificationCenter.default.post(name: .mirrorMacNewEntry, object: nil)
@@ -203,6 +204,29 @@ struct MirrorMacCommands: Commands {
             object: nil,
             userInfo: ["destination": destination]
         )
+    }
+}
+
+/// Brings the main window forward from code that has no view (the notification delegate, the global
+/// hotkey). `openWindow` is captured from the menu commands, which live as long as the app does, so
+/// a closed main window can still be reopened.
+@MainActor
+enum MacMainWindow {
+    static var openWindow: OpenWindowAction?
+
+    /// The main window: SwiftUI names WindowGroup(id: "main") windows "main-AppWindow-N".
+    static var existing: NSWindow? {
+        NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("main") == true }
+    }
+
+    static func bringForward() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = existing {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openWindow?(id: "main")
+        }
     }
 }
 
