@@ -197,9 +197,9 @@ struct ArchiveSettingsView: View {
 
     private func checkiCloudStatus() async {
         #if DEBUG
-        // The screenshot harness runs an unsigned build with no iCloud container, where
-        // CKContainer.default() raises an Objective-C exception.
-        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") {
+        // The screenshot harness and perf/test runs (scratch journal) may run a build with no
+        // iCloud container, where CKContainer.default() raises an Objective-C exception.
+        if ProcessInfo.processInfo.arguments.contains("--macSnapshot") || PerfSeed.isRequested {
             iCloudStatus = .unknown
             return
         }
