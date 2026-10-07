@@ -319,13 +319,23 @@ extension WriteView {
     static let draftMoodKey = "mirror.writeDraft.mood"
     static let draftTagsKey = "mirror.writeDraft.tags"
 
+    /// Scratch journals use a different encryption key and must never read,
+    /// replace or clear the user's normal draft (preferences are shared on Mac).
+    static func usesPersistentDraftStorage(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        #if DEBUG
+        return !arguments.contains("--macSnapshot") && !arguments.contains { $0.hasPrefix("--perfSeed=") }
+        #else
+        return true
+        #endif
+    }
+
     /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
     /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
     /// array each call, so writing synchronously per character is real input
     /// latency. Coalesce to one write ~1s after typing stops; background and
     /// mood changes still flush immediately.
     func scheduleDraftSave() {
-        guard entry == nil else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage() else { return }
         draftSaveTask?.cancel()
         draftSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(900))
@@ -409,7 +419,7 @@ extension WriteView {
     }
 
     func saveDraftToStorage() {
-        guard entry == nil else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage() else { return }
         // A debounced write can land just after clearDraft() emptied everything
         // (the empty-text onChange schedules one more pass). Don't leave a blank
         // ciphertext blob behind that restoreDraftFromStorage would rehydrate.
@@ -430,7 +440,7 @@ extension WriteView {
     /// saveDraftToStorage (which runs on the debounced text path) — attachments
     /// change rarely and a voice note can be megabytes.
     func saveDraftAttachments() {
-        guard entry == nil else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage() else { return }
         let notes = draftVoiceNotes.map {
             DraftAttachmentStore.VoiceNote(
                 data: $0.data,
@@ -445,7 +455,7 @@ extension WriteView {
     }
 
     func restoreDraftAttachments() {
-        guard entry == nil, let restored = DraftAttachmentStore.load() else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage(), let restored = DraftAttachmentStore.load() else { return }
         if photoDataArray.isEmpty, !restored.photos.isEmpty {
             photoDataArray = restored.photos
         }
@@ -468,6 +478,7 @@ extension WriteView {
     }
 
     func restoreDraftFromStorage() {
+        guard Self.usesPersistentDraftStorage() else { return }
         restoreDraftAttachments()
         let ud = UserDefaults.standard
         let saved = ud.string(forKey: Self.draftTextKey) ?? ""
@@ -496,6 +507,7 @@ extension WriteView {
     /// `WriteView` instance (app-launch test-state reset) — same keys, no
     /// in-flight debounced-save task to cancel.
     static func clearAllDraftStorage() {
+        guard usesPersistentDraftStorage() else { return }
         DraftAttachmentStore.clear()
         let ud = UserDefaults.standard
         ud.removeObject(forKey: Self.draftTextKey)

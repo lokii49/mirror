@@ -53,6 +53,9 @@ enum PerfSeed {
     @MainActor
     static func seedIfNeeded(into context: ModelContext) {
         guard let count = requestedCount, count > 0 else { return }
+        defer {
+            if CommandLine.arguments.contains("--entryFilterFixture") { seedFilterFixture(into: context) }
+        }
         let existing = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
         guard existing < count else { return }
         let moods = MirrorTheme.moodOptions
@@ -65,6 +68,24 @@ enum PerfSeed {
             if i % 10 == 0 { entry.photoData = photo }
             context.insert(entry)
             if i % 200 == 199 { try? context.save() }
+        }
+        try? context.save()
+    }
+
+    /// Explicitly requested synthetic rows for archive filter UI checks only.
+    @MainActor
+    private static func seedFilterFixture(into context: ModelContext) {
+        for index in 0..<3 {
+            let id = UUID(uuidString: "F1700000-0000-0000-0000-00000000000\(index)")!
+            let descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+            guard (try? context.fetchCount(descriptor)) == 0 else { continue }
+            let names = ["Alpha", "Beta", "Gamma"]
+            let entry = Entry(text: "Filter fixture \(names[index]): coffee by the river.", mood: index == 0 ? "Content" : "Anxious")
+            entry.id = id
+            entry.tags = index == 0 ? ["work", "travel"] : (index == 1 ? ["work"] : ["travel"])
+            entry.isPinned = index == 0
+            if index == 0 { entry.photoData = Data([0]); entry.voiceNoteData = Data([0]) }
+            context.insert(entry)
         }
         try? context.save()
     }

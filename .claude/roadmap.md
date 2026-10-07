@@ -16,8 +16,8 @@ Date: 2026-10-07. Covers the whole product (iOS, Mac, growth). Release-specific 
 
 The owner submitted 3.0.8 / Mac 1.0.1 without device checks. It is live now, so these are checks on production, not new work.
 
-1. **CloudKit Production schema for `CD_JournalErasure`** (owner, CloudKit Console). Commit `5a8f08b` seeds only Development. If Production lacks the record type, "Delete Everything" erasure records may not sync to other devices. Confirm it was deployed, and deploy if not. [unverified either way]
-2. **Device checks on an App Store install:**
+1. **CloudKit Production schema for `CD_JournalErasure`: CONFIRMED** (owner, 2026-10-07). Production contains the record type. The schema deployment check is complete; cross-device "Delete Everything" behavior has not been verified by this confirmation.
+2. **Device checks on an App Store install:** Use the network-connected **iPhone 14 Pro** for iPhone testing (owner preference, 2026-10-07); see `tools/testing/README.md` for device identification and isolated development checks.
    - Restore offer and local backup (`LocalJournalBackup`, `JournalRestoreCopy`).
    - The widget and lock screen must NOT show the second quote ("You also wrote…" is display-time only).
    - Hospital-day fallback on an Apple Intelligence device (`refusedDayNudge`).
@@ -27,6 +27,8 @@ The owner submitted 3.0.8 / Mac 1.0.1 without device checks. It is live now, so 
 4. **Native review of the 10-locale release notes and new strings.** They were model-translated. Low risk, cheap.
 
 ## Next (3.0.9 / Mac 1.0.2, ~2–4 weeks)
+
+**Expanded product plan (owner direction, 2026-10-07):** make 3.0.9 a substantial journaling release and prepare for IAP in November as the user base approaches 1,000. Detailed scope, implementation order and acceptance gates are in [`3.0.9-product-plan.md`](3.0.9-product-plan.md). Implementation started: shared archive search, query filters, highlighted excerpts, cache correctness and visual advanced filters are built. Advanced filters include multiple moods, Any/All tags, inclusive/open-ended date ranges, relative dates, media/pins, cancellable editing and Clear All. Targeted checks passed on the network-connected iPhone 14 Pro (29 search/cache/filter/draft tests, one performance test, four Classic/Sentinel search/filter UI flows across the final run and a corrected Sentinel assertion rerun); simulator checks and Mac build/runtime previews also passed. Encrypted synced saved views, writing reliability, collections and complete export/import remain; links and related moments are stretch work, model-written reflection styles require rig evidence. The expanded core scope is provisionally 4–6 engineering weeks; the previous 2–4 week estimate applies to the earlier narrower scope.
 
 ### Engineering
 - **Gemma memory on Mac: DONE 2026-10-07** [checked]. `--perfSeed=50 --gemmaMemoryProbe` (DEBUG): 56 MiB before load, peak 278–317 MiB while generating, 142 MiB after. Flat across calls, no leak. `generate` already releases the model after every call, so there's nothing to unload on idle.
@@ -68,8 +70,8 @@ Measure after each step (App Analytics impressions → page views → installs �
 
 ## Later (Phase 2–3, per CLAUDE.md)
 
-- **Phase 2:** export to Notion / Obsidian, multiple journals / folders.
-- **Phase 3:** custom AI personas.
+- **Export and collections:** promoted into the proposed 3.0.9 scope; see `3.0.9-product-plan.md`. Basic Markdown export already exists; the new work is a portable package with metadata/media and safe import.
+- **Custom AI personas:** specified as reflection styles in the product plan; model-written variants remain conditional on grounding evaluations and can ship after 3.0.9.
 - **visionOS:** start with the "Designed for iPad" availability toggle (no code). Then a native target that shares the Mac abstractions. Brain View is the spatial candidate (`platform-roadmap.md`).
 
 **Never:** Android, web, social features.

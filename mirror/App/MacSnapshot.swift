@@ -443,6 +443,30 @@ enum MacSnapshot {
         // The board's window size, regardless of any saved frame.
         mainWindow()?.setContentSize(NSSize(width: 1280, height: 800))
         try? await Task.sleep(for: .seconds(1))
+        if CommandLine.arguments.contains("--macSnapshotFiltersOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["filters": true])
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "archive-filter-controls")
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil,
+                                            userInfo: ["filters": false, "filterMoods": ["Content", "Anxious"]])
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow(), name: "archive-active-filters")
+            NSApp.terminate(nil)
+            return
+        }
+        if CommandLine.arguments.contains("--macSnapshotSearchOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            for (name, query) in [("archive-search", "coffee -zzzz"), ("archive-invalid-filter", "has:video")] {
+                NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["search": query])
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow(), name: name)
+            }
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotQuickCaptureOnly") {
             await quickCapturePass(context: context)
             NSApp.terminate(nil)

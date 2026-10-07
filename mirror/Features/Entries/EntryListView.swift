@@ -18,9 +18,11 @@ struct EntriesTabView: View {
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showSearch = false
-    @State private var selectedMoodFilter: String? = nil
-    @State private var selectedTagFilter: String? = nil
-    @State private var selectedDateFilter: Date? = nil
+    @State private var showSearchHelp = false
+    @FocusState private var searchFocused: Bool
+    @State private var filters = EntryFilterCriteria()
+    @State private var showFilters = false
+    @State private var filterNow = Date()
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
     @State private var showOnThisDay = false
@@ -89,6 +91,7 @@ struct EntriesTabView: View {
         let hasReadablePreview: Bool
         let hasVoiceNotes: Bool
         let textDecryptionFailed: Bool
+        var isSearchMatch = false
     }
 
     private struct EntryListSnapshot {
@@ -103,13 +106,10 @@ struct EntriesTabView: View {
 
     private struct SnapshotDeps: Equatable {
         let search: String
-        let mood: String?
-        let tag: String?
-        let date: Date?
+        let filters: EntryFilterCriteria
+        let day: Date
         let entryCount: Int
-        let moodHash: Int
-        let tagsHash: Int
-        let pinnedHash: Int
+        let contentHash: Int
         let sort: String
         let foregroundRefresh: Int
     }
@@ -121,48 +121,34 @@ struct EntriesTabView: View {
     private var snapshotDepsValue: SnapshotDeps {
         SnapshotDeps(
             search: debouncedSearchText,
-            mood: selectedMoodFilter,
-            tag: selectedTagFilter,
-            date: selectedDateFilter,
+            filters: filters,
+            day: Calendar.current.startOfDay(for: filterNow),
             entryCount: entries.count,
-            moodHash: entries.map(\.encryptedMood).hashValue,
-            tagsHash: entries.map(\.encryptedTagsStorage).hashValue,
-            pinnedHash: entries.map(\.isPinned).hashValue,
+            contentHash: EntryDecryptCache.contentSignature(for: entries),
             sort: sortOrder.rawValue,
             foregroundRefresh: foregroundRefresh
         )
     }
 
-    private var listSnapshot: EntryListSnapshot {
-        let query = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var listSnapshot: EntryListSnapshot { makeListSnapshot() }
+
+    private func makeListSnapshot(searchResults: EntrySearch.Results? = nil) -> EntryListSnapshot {
+        let query = EntrySearchQuery.parse(debouncedSearchText)
         var result = entries
         let cache = decryptCache
         cache.prune(keeping: entries)
         let usedMoods = usedMoods(in: entries)
         let usedTags = usedTags(in: entries)
 
-        if let date = selectedDateFilter {
-            result = result.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: date) }
-        }
-        if let mood = selectedMoodFilter {
-            result = result.filter { cache.item(for: $0).mood == mood }
-        }
-        if let tag = selectedTagFilter {
-            result = result.filter { cache.item(for: $0).tags.contains(tag) }
-        }
-        if !query.isEmpty {
-            #if os(macOS)
-            // The Mac search box also matches #tags and mood names.
-            let bare = query.hasPrefix("#") ? String(query.dropFirst()) : query
-            result = result.filter {
-                let item = cache.item(for: $0)
-                return item.searchText.localizedCaseInsensitiveContains(query)
-                    || item.tags.contains { $0.localizedCaseInsensitiveContains(bare) }
-                    || (item.mood.map { MirrorTheme.localizedMoodName(for: $0).localizedCaseInsensitiveContains(query) } ?? false)
+        if let searchResults {
+            result = result.filter { searchResults.ids.contains($0.id) }
+        } else {
+            if filters.isActive {
+                result = result.filter { filters.matches(cache.item(for: $0).document, now: filterNow) }
             }
-            #else
-            result = result.filter { cache.item(for: $0).searchText.localizedCaseInsensitiveContains(query) }
-            #endif
+            if !query.isEmpty {
+                result = result.filter { EntrySearch.matches(cache.item(for: $0).document, query: query) }
+            }
         }
 
         switch sortOrder {
@@ -201,8 +187,37 @@ struct EntriesTabView: View {
         for entry in entries {
             rowPreviews[entry.id] = cache.item(for: entry).preview
         }
+        for entry in result where !query.isEmpty {
+            let item = cache.item(for: entry)
+            let match = searchResults.map { $0.excerpts[entry.id] }
+                ?? EntrySearch.excerpt(item.document, query: query)
+            guard let excerpt = match else { continue }
+            var attributed = AttributedString(excerpt.text)
+            for range in excerpt.highlights {
+                guard let stringRange = Range(range, in: excerpt.text),
+                      let start = AttributedString.Index(stringRange.lowerBound, within: attributed),
+                      let end = AttributedString.Index(stringRange.upperBound, within: attributed) else { continue }
+                attributed[start..<end].inlinePresentationIntent = .stronglyEmphasized
+                attributed[start..<end].foregroundColor = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet
+            }
+            let label: Text
+            switch excerpt.source {
+            case .body: label = Text("")
+            case .transcript(let index): label = Text("Voice note \(index): ")
+            case .translation(let index): label = Text("Voice note \(index), English translation: ")
+            }
+            let preview = item.preview
+            rowPreviews[entry.id] = EntryRowPreview(
+                moodLabel: preview.moodLabel, preview: label + Text(attributed),
+                wordCount: preview.wordCount, hasReadablePreview: true,
+                hasVoiceNotes: preview.hasVoiceNotes, textDecryptionFailed: preview.textDecryptionFailed,
+                isSearchMatch: true
+            )
+        }
 
-        let unreadableCount = rowPreviews.values.filter(\.textDecryptionFailed).count
+        // A transcript or tag can arrive before its encryption key even when body
+        // text is already readable. Keep the existing key-arrival retry active.
+        let unreadableCount = entries.filter { !cache.item(for: $0).document.isReadable }.count
         return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount)
     }
 
@@ -214,6 +229,7 @@ struct EntriesTabView: View {
 
     private var trailingToolbar: some View {
         HStack(spacing: 16) {
+            filtersButton
             if !onThisDayMatches.isEmpty {
                 Button {
                     showOnThisDay = true
@@ -233,10 +249,11 @@ struct EntriesTabView: View {
                     }
                 }
             } label: {
-                Image(systemName: sortOrder == .newestFirst ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
             }
+            .accessibilityLabel("Sort by")
             Button {
                 withAnimation { showSearch.toggle() }
             } label: {
@@ -244,6 +261,7 @@ struct EntriesTabView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
             }
+            .accessibilityLabel("Search entries")
         }
     }
 
@@ -278,13 +296,11 @@ struct EntriesTabView: View {
                 }
             }
             #endif
-            .onChange(of: searchText) { _, newValue in
-                Task {
-                    try? await Task.sleep(for: .milliseconds(250))
-                    if newValue == searchText {
-                        debouncedSearchText = newValue
-                    }
-                }
+            .task(id: searchText) {
+                let value = searchText
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = value
             }
             #if os(iOS)
             // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
@@ -302,8 +318,42 @@ struct EntriesTabView: View {
                     open(entry)
                 }
             }
+            .sheet(isPresented: $showFilters) {
+                EntryFiltersView(criteria: filters, moods: snapshot.usedMoods, tags: snapshot.usedTags) {
+                    filters = $0
+                    filterNow = Date()
+                }
+            }
+            .task(id: filters.dateScope) {
+                guard filters.isRelativeDate else { return }
+                while !Task.isCancelled {
+                    let now = Date()
+                    filterNow = now
+                    guard let tomorrow = Calendar.current.dateInterval(of: .day, for: now)?.end else { return }
+                    do { try await Task.sleep(for: .seconds(max(1, tomorrow.timeIntervalSince(now)))) }
+                    catch { return }
+                }
+            }
             .task(id: snapshotDeps) {
-                let newSnapshot = PerfSignpost.interval("entries.snapshot") { listSnapshot }
+                let query = EntrySearchQuery.parse(debouncedSearchText)
+                var searchResults: EntrySearch.Results?
+                if !query.isEmpty || filters.isActive {
+                    decryptCache.prune(keeping: entries)
+                    let documents = entries.map { ($0.id, decryptCache.item(for: $0).document) }
+                    let criteria = filters
+                    let now = filterNow
+                    let calendar = Calendar.current
+                    let worker = Task.detached(priority: .userInitiated) {
+                        EntrySearch.evaluate(documents, query: query, filters: criteria, now: now, calendar: calendar)
+                    }
+                    searchResults = await PerfSignpost.interval("entries.search") {
+                        await withTaskCancellationHandler {
+                            await worker.value
+                        } onCancel: { worker.cancel() }
+                    }
+                }
+                guard !Task.isCancelled else { return }
+                let newSnapshot = PerfSignpost.interval("entries.snapshot") { makeListSnapshot(searchResults: searchResults) }
                 if animatePinChange && !reduceMotion {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
                         snapshotCache = newSnapshot
@@ -319,6 +369,8 @@ struct EntriesTabView: View {
             .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugEntriesState)) { note in
                 if let open = note.userInfo?["calendar"] as? Bool { macShowCalendar = open }
                 if let query = note.userInfo?["search"] as? String { searchText = query; debouncedSearchText = query }
+                if let open = note.userInfo?["filters"] as? Bool { showFilters = open }
+                if let moods = note.userInfo?["filterMoods"] as? [String] { filters.moods = Set(moods) }
             }
             #endif
             #endif
@@ -330,6 +382,7 @@ struct EntriesTabView: View {
                 }
             }
             .onChange(of: scenePhase) { _, phase in
+                if phase == .active { filterNow = Date() }
                 if phase == .active, (snapshotCache?.unreadableCount ?? 0) > 0 { foregroundRefresh &+= 1 }
             }
             // On a fresh install CloudKit often delivers entries before iCloud Keychain delivers
@@ -366,50 +419,107 @@ struct EntriesTabView: View {
     @ViewBuilder
     private var activeFiltersRow: some View {
         HStack(spacing: 8) {
-            if let date = selectedDateFilter {
-                filterChip(
-                    label: date.formatted(.dateTime.month(.abbreviated).day().year()),
-                    systemImage: "calendar"
-                ) { selectedDateFilter = nil }
+            ScrollView(.horizontal, showsIndicators: false) {
+                activeFilterChips
             }
-            if let mood = selectedMoodFilter {
-                filterChip(
-                    label: MirrorTheme.localizedMoodName(for: mood),
-                    systemImage: "circle.fill",
-                    color: MirrorTheme.moodColor(for: mood)
-                ) { selectedMoodFilter = nil }
-            }
-            if let tag = selectedTagFilter {
-                filterChip(label: "#\(MirrorTheme.localizedTagName(for: tag))", systemImage: "tag") { selectedTagFilter = nil }
-            }
-            Spacer()
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    selectedDateFilter = nil
-                    selectedMoodFilter = nil
-                    selectedTagFilter = nil
+                    clearFiltersAndSearch()
                 }
             } label: {
                 Group {
                     if displayMode == .sentinel {
-                        Text("CLEAR").font(MirrorTheme.mono(11, weight: .medium))
+                        Text("Clear All").textCase(.uppercase).font(MirrorTheme.mono(11, weight: .medium))
                     } else {
-                        Text("Clear").font(.system(size: 12, weight: .medium))
+                        Text("Clear All").font(.system(size: 12, weight: .medium))
                     }
                 }
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("filter.clearAll")
         }
+    }
+
+    private var activeFilterChips: some View {
+        HStack(spacing: 8) {
+            if filters.dateScope != .allTime {
+                filterChip(label: dateFilterLabel, systemImage: "calendar") { filters.selectDay(nil) }
+            }
+            ForEach(filters.moods.sorted(), id: \.self) { mood in
+                filterChip(
+                    label: MirrorTheme.localizedMoodName(for: mood),
+                    systemImage: "circle.fill",
+                    color: MirrorTheme.moodColor(for: mood)
+                ) { filters.moods.remove(mood) }
+            }
+            if !filters.tags.isEmpty {
+                let names = filters.tags.sorted().map { "#\(MirrorTheme.localizedTagName(for: $0))" }.joined(separator: ", ")
+                let mode = filters.tagMatch == .any ? String(localized: "Any selected tag") : String(localized: "All selected tags")
+                filterChip(label: "\(mode): \(names)", systemImage: "tag") { filters.tags = [] }
+            }
+            if filters.photosOnly {
+                filterChip(label: String(localized: "With photos"), systemImage: "photo") { filters.photosOnly = false }
+            }
+            if filters.audioOnly {
+                filterChip(label: String(localized: "With voice notes"), systemImage: "waveform") { filters.audioOnly = false }
+            }
+            if filters.pinnedOnly {
+                filterChip(label: String(localized: "Pinned only"), systemImage: "pin") { filters.pinnedOnly = false }
+            }
+            if !searchText.isEmpty {
+                filterChip(label: searchText, systemImage: "magnifyingglass") { searchText = ""; debouncedSearchText = "" }
+            }
+        }
+    }
+
+    private func clearFiltersAndSearch() {
+        filters = EntryFilterCriteria()
+        searchText = ""
+        debouncedSearchText = ""
+        searchFocused = false
+    }
+
+    private var dateFilterLabel: String {
+        switch filters.dateScope {
+        case .allTime: return String(localized: "All time")
+        case .today: return String(localized: "Today")
+        case .thisWeek: return String(localized: "This week")
+        case .thisMonth: return String(localized: "This month")
+        case .range:
+            let start = filters.startDate?.formatted(.dateTime.month(.abbreviated).day().year())
+            let end = filters.endDate?.formatted(.dateTime.month(.abbreviated).day().year())
+            if let start, let end { return "\(start) – \(end)" }
+            if let start { return String(localized: "From \(start)") }
+            if let end { return String(localized: "Through \(end)") }
+            return String(localized: "Date range")
+        }
+    }
+
+    private var filtersButton: some View {
+        Button {
+            searchFocused = false
+            #if os(macOS)
+            macSearchFocused = false
+            #endif
+            showFilters = true
+        } label: {
+            Image(systemName: filters.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .foregroundStyle(filters.isActive ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet) : Color.primary)
+        }
+        .accessibilityLabel("Filter entries")
+        .accessibilityIdentifier("filter.open")
+        .help("Filter entries")
     }
 
     private func filterChip(
         label: String,
         systemImage: String,
-        color: Color = MirrorTheme.primary,
+        color: Color? = nil,
         onRemove: @escaping () -> Void
     ) -> some View {
-        Button(action: onRemove) {
+        let color = color ?? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+        return Button(action: onRemove) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
                     .font(.system(size: 9, weight: .semibold))
@@ -463,11 +573,10 @@ struct EntriesTabView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(usedTags, id: \.self) { tag in
-                    let isSelected = selectedTagFilter == tag
+                    let isSelected = filters.tags.contains(tag)
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedTagFilter = isSelected ? nil : tag
-                            if !isSelected { selectedMoodFilter = nil; selectedDateFilter = nil }
+                            if isSelected { filters.tags.remove(tag) } else { filters.tags.insert(tag) }
                         }
                     } label: {
                         Group {
@@ -508,11 +617,10 @@ struct EntriesTabView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(usedMoods, id: \.self) { mood in
-                    let isSelected = selectedMoodFilter == mood
+                    let isSelected = filters.moods.contains(mood)
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedMoodFilter = isSelected ? nil : mood
-                            if !isSelected { selectedTagFilter = nil }
+                            if isSelected { filters.moods.remove(mood) } else { filters.moods.insert(mood) }
                         }
                     } label: {
                         HStack(spacing: 5) {
@@ -558,7 +666,10 @@ struct EntriesTabView: View {
                 }
             }
             .textFieldStyle(.plain)
+            .focused($searchFocused)
             .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            searchHelpButton
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -572,6 +683,7 @@ struct EntriesTabView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(MirrorTheme.bgBase)
+        .onAppear { searchFocused = true }
     }
 
     private func open(_ entry: Entry) {
@@ -620,11 +732,10 @@ struct EntriesTabView: View {
             Section {
                 CalendarHeatmap(
                     entries: entries,
-                    selectedDate: selectedDateFilter,
+                    selectedDate: filters.selectedDay,
                     onDaySelected: { date in
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedDateFilter = date
-                            if date != nil { selectedMoodFilter = nil; selectedTagFilter = nil }
+                            filters.selectDay(date)
                         }
                     }
                 )
@@ -661,7 +772,7 @@ struct EntriesTabView: View {
             }
 
             // Active filters row
-            if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
+            if filters.isActive || !searchText.isEmpty {
                 Section {
                     activeFiltersRow
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
@@ -753,16 +864,39 @@ struct EntriesTabView: View {
     }
 
     private var emptyFilteredMessage: LocalizedStringKey {
-        if let date = selectedDateFilter {
-            return "No entries on \(date.formatted(.dateTime.month(.wide).day()))"
+        if let problem = EntrySearchQuery.parse(debouncedSearchText).problem {
+            switch problem {
+            case .unfinishedQuote: return "Close the quotation marks to search."
+            case .missingValue: return "Add a value after the search filter."
+            case .unknownFilter: return "Unknown search filter. Open Search help for supported filters."
+            case .invalidDate: return "Use a valid date in YYYY-MM-DD format."
+            case .invalidValue: return "Unsupported filter value. Open Search help for examples."
+            }
         }
-        if let mood = selectedMoodFilter {
-            return "No \(MirrorTheme.localizedMoodName(for: mood).lowercased()) entries"
-        }
-        if let tag = selectedTagFilter {
-            return "No entries tagged #\(MirrorTheme.localizedTagName(for: tag))"
-        }
+        if !debouncedSearchText.isEmpty { return "No entries match your search" }
+        if filters.isActive { return "No entries match these filters. Remove a filter or clear all to see more entries." }
         return "No entries match your search"
+    }
+
+    private var searchHelpButton: some View {
+        Button { showSearchHelp = true } label: {
+            Image(systemName: "questionmark.circle")
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Search help")
+        .popover(isPresented: $showSearchHelp) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Search help").font(.headline)
+                Text("All words must match. Use quotes for a phrase and a minus sign to exclude a word.")
+                Text(verbatim: "coffee river\n\"work trip\" -meeting\ntag:work mood:Content\nhas:photo has:audio is:pinned\nafter:2026-09-01 before:2026-10-01")
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                Text("Date filters exclude the named day. Tags and moods must match the full name. You can also use mood names in your language.")
+                Button("Done") { showSearchHelp = false }
+            }
+            .padding(20)
+            .frame(idealWidth: 320, maxWidth: 360)
+        }
     }
 
     private var emptyState: some View {
@@ -1024,19 +1158,19 @@ extension EntriesTabView {
                 VStack(spacing: 8) {
                     CalendarHeatmap(
                         entries: entries,
-                        selectedDate: selectedDateFilter,
+                        selectedDate: filters.selectedDay,
                         onDaySelected: { date in
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedDateFilter = date
-                                if date != nil { selectedMoodFilter = nil; selectedTagFilter = nil }
+                                filters.selectDay(date)
                             }
                         }
                     )
-                    if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
-                        activeFiltersRow.padding(.horizontal, 16)
-                    }
                 }
                 .padding(.bottom, 8)
+            }
+
+            if filters.isActive || !searchText.isEmpty {
+                activeFiltersRow.padding(.horizontal, 12).padding(.vertical, 8)
             }
 
             Group {
@@ -1191,7 +1325,7 @@ extension EntriesTabView {
             if !moods.isEmpty {
                 Menu("Show only mood") {
                     ForEach(moods, id: \.self) { mood in
-                        Button(MirrorTheme.localizedMoodName(for: mood)) { selectedMoodFilter = mood; selectedTagFilter = nil }
+                        Button(MirrorTheme.localizedMoodName(for: mood)) { filters.moods = [mood] }
                     }
                 }
             }
@@ -1199,13 +1333,13 @@ extension EntriesTabView {
             if !tags.isEmpty {
                 Menu("Show only tag") {
                     ForEach(tags, id: \.self) { tag in
-                        Button("#\(MirrorTheme.localizedTagName(for: tag))") { selectedTagFilter = tag; selectedMoodFilter = nil }
+                        Button("#\(MirrorTheme.localizedTagName(for: tag))") { filters.tags = [tag] }
                     }
                 }
             }
-            if selectedDateFilter != nil || selectedMoodFilter != nil || selectedTagFilter != nil {
+            if filters.isActive || !searchText.isEmpty {
                 Button("Clear filters") {
-                    selectedDateFilter = nil; selectedMoodFilter = nil; selectedTagFilter = nil
+                    clearFiltersAndSearch()
                 }
             }
         }
@@ -1225,6 +1359,7 @@ extension EntriesTabView {
                     macListFocused = true
                     return .handled
                 }
+            filtersButton.buttonStyle(.plain)
             if searchText.isEmpty {
                 Text("⌘F").font(.system(size: 11))
             } else {
@@ -1239,6 +1374,7 @@ extension EntriesTabView {
                 .accessibilityLabel("Clear search")
                 .help("Clear search")
             }
+            searchHelpButton
         }
         .foregroundStyle(MacTokens.secondaryInk)
         .padding(.horizontal, 10)
@@ -1301,7 +1437,7 @@ extension EntriesTabView {
                     try? modelContext.save()
                 }
                 if let mood = entry.mood, !mood.isEmpty {
-                    Button("Show only \(MirrorTheme.localizedMoodName(for: mood))") { selectedMoodFilter = mood; selectedTagFilter = nil }
+                    Button("Show only \(MirrorTheme.localizedMoodName(for: mood))") { filters.moods = [mood] }
                 }
                 Divider()
                 Button("Share as text") {
@@ -1344,7 +1480,7 @@ private struct MacEntryRow: View {
             (preview?.preview ?? Text("Untitled entry"))
                 .font(.system(size: 13.5, weight: .semibold))
                 .foregroundStyle(MacTokens.ink)
-                .lineLimit(1)
+                .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
                 .truncationMode(.tail)
 
             if mood != nil || !entry.tags.isEmpty {
@@ -1390,22 +1526,46 @@ final class EntryDecryptCache {
         let mood: String?
         let tags: [String]
         let searchText: String
+        let document: EntrySearchDocument
         let preview: EntriesTabView.EntryRowPreview
     }
 
     private var items: [UUID: Item] = [:]
 
     /// Changes to any encrypted field the list reads change the signature.
-    private static func signature(of entry: Entry) -> Int {
+    static func signature(of entry: Entry) -> Int {
         var h = Hasher()
         h.combine(entry.encryptedText)
         h.combine(entry.encryptedMood)
         h.combine(entry.encryptedTagsStorage)
         h.combine(entry.encryptedVoiceNoteTranscript)
         h.combine(entry.encryptedAdditionalVoiceNoteTranscriptsStorage)
+        h.combine(entry.encryptedVoiceNoteEnglishTranslation)
+        h.combine(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage)
+        h.combine(entry.encryptedVoiceNoteLanguageName)
+        h.combine(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage)
+        h.combine(entry.encryptedTextStyleData)
+        h.combine(entry.encryptedInlineStyleData)
+        h.combine(entry.fontChoice)
+        h.combine(entry.wordCount)
+        h.combine(entry.createdAt)
+        h.combine(entry.isPinned)
         h.combine(entry.voiceNoteDuration)
+        h.combine(entry.additionalVoiceNoteDurationsStorage)
+        h.combine(entry.encryptedVoiceNoteData != nil)
+        h.combine(entry.encryptedAdditionalVoiceNoteDataStorage?.count)
         h.combine(entry.encryptedPhotoData?.count)
+        h.combine(entry.encryptedAdditionalPhotoDataStorage?.count)
         return h.finalize()
+    }
+
+    static func contentSignature(for entries: [Entry]) -> Int {
+        var hasher = Hasher()
+        for entry in entries {
+            hasher.combine(entry.id)
+            hasher.combine(signature(of: entry))
+        }
+        return hasher.finalize()
     }
 
     func item(for entry: Entry) -> Item {
@@ -1413,11 +1573,44 @@ final class EntryDecryptCache {
         if let cached = items[entry.id], cached.signature == sig { return cached }
         let preview = EntryRow.makePreview(for: entry)
         let failed = entry.textDecryptionFailed
+        let mood = entry.mood
+        let tags = entry.tags
+        var passages: [EntrySearchDocument.Passage] = []
+        let text = textWithPhotoTokensReplaced(entry.text)
+        if !text.isEmpty { passages.append(.init(text, source: .body)) }
+        let transcripts = [entry.voiceNoteTranscript ?? ""] + entry.additionalVoiceNoteTranscripts
+        let translations = [entry.voiceNoteEnglishTranslation ?? ""] + entry.additionalVoiceNoteEnglishTranslations
+        for (index, transcript) in transcripts.enumerated() where !transcript.isEmpty {
+            passages.append(.init(transcript, source: .transcript(index + 1)))
+        }
+        for (index, translation) in translations.enumerated() where !translation.isEmpty {
+            passages.append(.init(translation, source: .translation(index + 1)))
+        }
+        let encryptedSearchStrings = [entry.encryptedText, entry.encryptedMood,
+            entry.encryptedVoiceNoteTranscript, entry.encryptedVoiceNoteEnglishTranslation].compactMap { $0 }
+            + [entry.encryptedTagsStorage, entry.encryptedAdditionalVoiceNoteTranscriptsStorage,
+               entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage].compactMap { data -> [String]? in
+                guard let data else { return nil }
+                return try? JSONDecoder().decode([String].self, from: data)
+            }.flatMap { $0 }
+        let searchReadable = !encryptedSearchStrings.contains { MirrorEncryption.encryptedStringNeedsUnavailableKey($0) }
+        let additionalPhotos = entry.encryptedAdditionalPhotoDataStorage.flatMap {
+            try? JSONDecoder().decode([Data].self, from: $0)
+        } ?? []
+        let document = EntrySearchDocument(
+            passages: passages,
+            tags: tags.map(EntrySearch.fold),
+            moods: mood.map { [EntrySearch.fold($0), EntrySearch.fold(MirrorTheme.localizedMoodName(for: $0))] } ?? [],
+            createdAt: entry.createdAt,
+            hasPhoto: entry.hasPhoto || !additionalPhotos.isEmpty,
+            hasAudio: entry.hasVoiceNotes, isPinned: entry.isPinned, isReadable: searchReadable
+        )
         let item = Item(
             signature: sig,
-            mood: entry.mood,
-            tags: entry.tags,
-            searchText: entry.insightContext,
+            mood: mood,
+            tags: tags,
+            searchText: passages.map(\.text).joined(separator: "\n\n"),
+            document: document,
             preview: EntriesTabView.EntryRowPreview(
                 moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
                 preview: preview.preview,
@@ -1427,7 +1620,7 @@ final class EntryDecryptCache {
                 textDecryptionFailed: failed
             )
         )
-        if !failed { items[entry.id] = item } else { items[entry.id] = nil }
+        if !failed && searchReadable { items[entry.id] = item } else { items[entry.id] = nil }
         return item
     }
 
@@ -1436,9 +1629,7 @@ final class EntryDecryptCache {
 
     /// Drops deleted entries.
     func prune(keeping entries: [Entry]) {
-        guard items.count > entries.count else { return }
         let live = Set(entries.map(\.id))
         items = items.filter { live.contains($0.key) }
     }
 }
-
