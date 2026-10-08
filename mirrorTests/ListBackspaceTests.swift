@@ -326,3 +326,42 @@ struct PhotoParagraphStyleTests {
         #expect(styles(h.getStyleData()) == stored, "got \(String(describing: styles(h.getStyleData())))")
     }
 }
+
+/// A photo whose data is missing or won't decode used to render as nothing, so there was no
+/// attachment character to turn back into its token: the next keystroke saved the text without it,
+/// and every later photo was matched to the wrong token (audit item 5).
+@MainActor
+struct UnreadablePhotoTests {
+    private static let onePixelPNG: Data = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { ctx in
+        UIColor.black.setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+    }.pngData()!
+    private static let junk = Data("not an image".utf8)
+
+    @Test func anUndecodablePhotoKeepsItsTokenThroughAKeystroke() {
+        let text = "ab\n[[mirror-photo-0]]\nNotes"
+        let h = makeListHarness(text: text, photos: [Self.junk])
+        #expect(((h.textView.text ?? "") as NSString).range(of: "\u{FFFC}").location != NSNotFound, "a placeholder is drawn")
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == text, "got \(h.getText().debugDescription)")
+    }
+
+    @Test func aMissingPhotoKeepsItsTokenThroughAKeystroke() {
+        // The token points past the photo array (a photo that failed to save or sync).
+        let text = "ab\n[[mirror-photo-0]]\nNotes"
+        let h = makeListHarness(text: text, photos: [])
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == text, "got \(h.getText().debugDescription)")
+    }
+
+    @Test func deletingAPhotoAfterAnUnreadableOneDeletesTheRightPhoto() {
+        let h = makeListHarness(text: "a\n[[mirror-photo-0]]\nb\n[[mirror-photo-1]]\nc", photos: [Self.junk, Self.onePixelPNG])
+        let display = (h.textView.text ?? "") as NSString
+        let first = display.range(of: "\u{FFFC}").location
+        let second = display.range(of: "\u{FFFC}", range: NSRange(location: first + 1, length: display.length - first - 1)).location
+        #expect(second != NSNotFound, "both photos are drawn")
+        guard second != NSNotFound else { return }
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: second, length: 1), replacementText: "")
+        #expect(h.getText() == "a\n[[mirror-photo-0]]\nb\nc", "got \(h.getText().debugDescription)")
+    }
+}

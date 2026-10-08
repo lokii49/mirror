@@ -355,8 +355,8 @@ enum NoteEditorCodec {
     /// Stored inline ranges moved onto offsets in `text`, for surfaces that apply them to the raw
     /// text (reader, Markdown export). The editor counts a photo as one character; `text` holds its
     /// `[[mirror-photo-N]]` token, so every range after a mid-text photo is shifted by the token's
-    /// extra length. A photo that failed to decode counts as nothing in the editor; that case is
-    /// not knowable from the text and is left as one character.
+    /// extra length. A photo that can't be decoded is drawn as a placeholder, so it is one
+    /// character too (entries edited before 3.1.0 may have counted it as nothing).
     nonisolated static func inlineRangesInTextCoordinates(_ ranges: [InlineStyleRange], text: String) -> [InlineStyleRange] {
         let tokens = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
         guard !tokens.isEmpty, !ranges.isEmpty else { return ranges }

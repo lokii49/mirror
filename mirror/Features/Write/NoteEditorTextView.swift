@@ -217,7 +217,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
                 }
                 let sortedTokens = photoTokens.sorted { parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) < parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound) }
-                if attachCount < sortedTokens.count {
+                if attachCount < sortedTokens.count, isPhotoReadable(sortedTokens[attachCount].index) {
                     parent.onPhotoTapped?(sortedTokens[attachCount].index)
                 }
                 return
@@ -280,7 +280,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
             guard let textView = interaction.view as? UITextView,
                   let photoIndex = photoAttachmentIndex(at: location, in: textView),
-                  photoIndex < parent.photoDataArray.count else { return nil }
+                  isPhotoReadable(photoIndex) else { return nil }
             let data = parent.photoDataArray[photoIndex]
             return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
                 let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
@@ -1635,10 +1635,36 @@ struct NoteEditorTextView: UIViewRepresentable {
             return (attributed, paragraphIndex - startingParagraph)
         }
 
+        /// Whether photo `index` has data that decodes to an image (tap and context menu ignore the rest).
+        private func isPhotoReadable(_ index: Int) -> Bool {
+            index < parent.photoDataArray.count && UIImage(data: parent.photoDataArray[index]) != nil
+        }
+
+        /// Drawn for a token whose photo is missing or won't decode. It must be a real attachment
+        /// character: `logicalText` turns each one back into its token, and photo lookups count
+        /// them. Rendering nothing (as this used to) dropped the token on the next keystroke and
+        /// matched every later photo to the wrong token.
+        private func unreadablePhotoAttachmentString() -> NSAttributedString {
+            let config = UIImage.SymbolConfiguration(pointSize: 34, weight: .light)
+            let symbol = UIImage(systemName: "photo.badge.exclamationmark", withConfiguration: config)?
+                .withTintColor(.tertiaryLabel, renderingMode: .alwaysOriginal)
+            let attachment = NSTextAttachment()
+            attachment.image = symbol
+            attachment.accessibilityLabel = String(localized: "Photo unavailable")
+            if let size = symbol?.size { attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: size) }
+            let result = NSMutableAttributedString(attachment: attachment)
+            result.addAttributes([
+                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8),
+                .font: bodyFont(for: entryDefaultFontChoice),
+                .foregroundColor: UIColor.label
+            ], range: NSRange(location: 0, length: result.length))
+            return result
+        }
+
         private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
             guard photoIndex < parent.photoDataArray.count,
                   let image = UIImage(data: parent.photoDataArray[photoIndex]) else {
-                return NSAttributedString(string: "")
+                return unreadablePhotoAttachmentString()
             }
 
             let maxWidth = max(180, width - 8)
@@ -2165,8 +2191,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         /// The text in the coordinates inline ranges use: the displayed text without list markers
-        /// (same rule as `buildLogicalOffsetMap`). A photo is its one attachment character here, or
-        /// nothing when it could not be decoded, never its `[[mirror-photo-N]]` token, so these
+        /// (same rule as `buildLogicalOffsetMap`). A photo is its one attachment character here (a
+        /// placeholder when it can't be decoded), never its `[[mirror-photo-N]]` token, so these
         /// offsets differ from `parent.text` after a photo.
         func inlineCoordinateText(from attributed: NSAttributedString) -> String {
             let nsDisplay = attributed.string as NSString
