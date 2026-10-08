@@ -166,6 +166,7 @@ struct EntryDetailView: View {
                                     duration: note.duration,
                                     title: String(localized: "Voice note \(index + 1)"),
                                     transcript: note.transcript,
+                                    highlightTerms: highlightTerms,
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
@@ -354,6 +355,7 @@ struct EntryDetailView: View {
                                     duration: note.duration,
                                     title: String(localized: "Voice note \(index + 1)"),
                                     transcript: note.transcript,
+                                    highlightTerms: highlightTerms,
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )

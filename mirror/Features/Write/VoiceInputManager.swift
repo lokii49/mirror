@@ -270,6 +270,9 @@ struct VoiceNoteAttachmentView: View {
     let duration: TimeInterval
     var title: String = String(localized: "Voice note")
     var transcript: String? = nil
+    /// Archive-search words to mark in the transcript (reader only). While any are
+    /// set the transcript is shown in full, so a match is never cut off.
+    var highlightTerms: [String] = []
     var languageName: String? = nil
     var isTranscribing: Bool = false
     var transcriptionFailed: Bool = false
@@ -288,6 +291,16 @@ struct VoiceNoteAttachmentView: View {
     private var failureLine: String {
         let reason = transcriptionFailureMessage ?? String(localized: "Transcription failed.")
         return "\(reason) \(String(localized: "AI won't reflect on this note."))"
+    }
+
+    private func markedTranscript(_ text: String) -> AttributedString {
+        var marked = AttributedString(text)
+        for range in ReaderMatches.ranges(of: highlightTerms, in: text) {
+            if let stringRange = Range(range, in: text), let markedRange = Range(stringRange, in: marked) {
+                marked[markedRange].backgroundColor = accent.opacity(0.3)
+            }
+        }
+        return marked
     }
 
     var body: some View {
@@ -370,10 +383,10 @@ struct VoiceNoteAttachmentView: View {
 
             if let transcript, !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Divider().padding(.horizontal, 14)
-                Text(transcript)
+                Text(markedTranscript(transcript))
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                    .lineLimit(4)
+                    .lineLimit(highlightTerms.isEmpty ? 4 : nil)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
             } else if transcriptionFailed {
