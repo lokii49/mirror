@@ -29,6 +29,7 @@ struct ProtocolSettingsView: View {
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
+    @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw: String = ReflectionStyle.gentle.rawValue
     @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
     @State private var showSubscription = false
@@ -246,6 +247,35 @@ struct ProtocolSettingsView: View {
                     #endif
                 }
 
+                SettingsGroup(title: "Reflection") {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            SettingsRowLabel(title: "Reflection style", systemImage: "text.quote", iconColor: MirrorTheme.violet)
+                            Spacer()
+                            Picker("Reflection style", selection: $reflectionStyleRaw) {
+                                ForEach(ReflectionStyle.allCases) { style in
+                                    Text(style.title).tag(style.rawValue)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+                        Text(ReflectionStyle(storedValue: reflectionStyleRaw).summary)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .padding(.top, -4)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Only changes how a reflection reads in the app. The quote is always your own words. The widget and notifications stay as they are.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .padding(.top, 6)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 2)
+                }
+
                 SettingsGroup(title: "Input") {
                     // SettingsRowLabel centers its 32pt icon against the title (correct, and
                     // consistent with every other row in this file) — but that centering leaves
@@ -342,6 +372,24 @@ struct ProtocolSettingsView: View {
                 notificationPermission = granted ? .authorized : .denied
                 if !granted { notificationsEnabled = false }
             }
+        }
+    }
+}
+
+extension ReflectionStyle {
+    var title: LocalizedStringKey {
+        switch self {
+        case .gentle: "Gentle"
+        case .quiet: "Quiet"
+        case .curious: "Curious"
+        }
+    }
+
+    var summary: LocalizedStringKey {
+        switch self {
+        case .gentle: "Your quote, then a line about how it sounds."
+        case .quiet: "Just your quote."
+        case .curious: "Your quote, then a question about it."
         }
     }
 }

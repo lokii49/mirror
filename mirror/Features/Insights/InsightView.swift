@@ -7,6 +7,7 @@ struct InsightView: View {
     @Environment(\.appDisplayMode) private var displayMode
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
+    @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw = ReflectionStyle.gentle.rawValue
     let viewModel: InsightViewModel
     @State private var showPaywall = false
     @State private var showPaywallAfterFirstNudge = false
@@ -23,6 +24,8 @@ struct InsightView: View {
     @State private var macToday: MacTodayContent? = nil
     @State private var macPastRows: [MacPastRow] = []
     #endif
+
+    private var reflectionStyle: ReflectionStyle { ReflectionStyle(storedValue: reflectionStyleRaw) }
 
     // weekMoodEvents/thisMonthEntries/currentStreak scan the full-history `entries` @Query with
     // no date/range filter already applied; pastNudges filters+sorts the full `insights` @Query.
@@ -368,14 +371,14 @@ struct InsightView: View {
 
     private func nudgeDisplayKey(for insight: Insight?) -> String {
         guard let insight else { return "" }
-        return "\(insight.persistentModelID.hashValue)|\(insight.content.hashValue)|\(entries.count)"
+        return "\(insight.persistentModelID.hashValue)|\(insight.content.hashValue)|\(entries.count)|\(reflectionStyle.rawValue)"
     }
 
     private var nudgeDisplayKey: String { nudgeDisplayKey(for: loadedNudge) }
 
     private func recomputeNudgeDisplay() {
         guard let insight = loadedNudge else { cachedNudgeDisplay = nil; return }
-        let shown = InsightService.reflectionWithAlsoQuote(insight.content, entries: entries, generatedAt: insight.generatedAt)
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: entries, generatedAt: insight.generatedAt, style: reflectionStyle)
         cachedNudgeDisplay = (nudgeDisplayKey(for: insight), shown.text)
     }
 
@@ -1794,6 +1797,12 @@ private struct ReflectedDayLabel: View {
 
 enum MacInsightPage { case today, digest }
 
+/// What the Mac Today card is rebuilt for: another reflection or another style.
+private struct MacTodayKey: Equatable {
+    var id: PersistentIdentifier?
+    var style: ReflectionStyle
+}
+
 /// The loaded daily reflection, decrypted and parsed once (not in `body`).
 private struct MacTodayContent: Equatable {
     var id: PersistentIdentifier
@@ -1853,7 +1862,7 @@ extension InsightView {
             }
         }
         .background(MirrorTheme.bgBase)
-        .task(id: macLoadedNudge?.persistentModelID) { recomputeMacToday() }
+        .task(id: MacTodayKey(id: macLoadedNudge?.persistentModelID, style: reflectionStyle)) { recomputeMacToday() }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugToggleInspector)) { note in
             macInspectorOpen = note.userInfo?["open"] as? Bool ?? !macInspectorOpen
@@ -2057,8 +2066,8 @@ extension InsightView {
 
     private func recomputeMacToday() {
         guard let insight = macLoadedNudge else { macToday = nil; return }
-        // Shown with the second quote (display-time only; see reflectionWithAlsoQuote).
-        let shown = InsightService.reflectionWithAlsoQuote(insight.content, entries: entries, generatedAt: insight.generatedAt)
+        // Shown with the second quote and the chosen style (display-time only; see reflectionWithAlsoQuote).
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: entries, generatedAt: insight.generatedAt, style: reflectionStyle)
         let content = shown.text
         let parts = shown.parts
         let grounded = InsightService.isGrammarGrounded(insight.content)
