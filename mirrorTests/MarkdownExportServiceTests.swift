@@ -67,6 +67,15 @@ struct MarkdownExportServiceTests {
         #expect(MarkdownExportService.markdownBody(for: entry) == "`let x = 1`")
     }
 
+    @Test func boldAfterAMidTextPhotoLandsOnTheRightWord() throws {
+        // The editor stores ranges with a photo as one character: "Notes" is at 5, not 22.
+        let entry = Entry(text: "ab\n[[mirror-photo-0]]\nNotes here")
+        entry.inlineStyleData = try JSONEncoder().encode(InlineStyleDocument(ranges: [
+            InlineStyleRange(location: 5, length: 5, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        ]))
+        #expect(MarkdownExportService.markdownBody(for: entry).hasSuffix("**Notes** here"))
+    }
+
     @Test func photoTokenReplacedWithPlaceholder() {
         let entry = Entry(text: "before [[mirror-photo-0]] after")
         #expect(MarkdownExportService.markdownBody(for: entry) == "before 📷 after")

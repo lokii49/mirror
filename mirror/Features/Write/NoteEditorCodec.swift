@@ -352,6 +352,33 @@ enum NoteEditorCodec {
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
     }
 
+    /// Stored inline ranges moved onto offsets in `text`, for surfaces that apply them to the raw
+    /// text (reader, Markdown export). The editor counts a photo as one character; `text` holds its
+    /// `[[mirror-photo-N]]` token, so every range after a mid-text photo is shifted by the token's
+    /// extra length. A photo that failed to decode counts as nothing in the editor; that case is
+    /// not knowable from the text and is left as one character.
+    nonisolated static func inlineRangesInTextCoordinates(_ ranges: [InlineStyleRange], text: String) -> [InlineStyleRange] {
+        let tokens = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
+        guard !tokens.isEmpty, !ranges.isEmpty else { return ranges }
+        // Each photo's position in editor coordinates and how much longer its token is.
+        var photos: [(position: Int, extra: Int)] = []
+        var shift = 0
+        for token in tokens {
+            photos.append((token.location - shift, token.length - 1))
+            shift += token.length - 1
+        }
+        func textOffset(_ offset: Int) -> Int {
+            offset + photos.reduce(0) { offset > $1.position ? $0 + $1.extra : $0 }
+        }
+        return ranges.map { range in
+            var moved = range
+            let start = textOffset(range.location)
+            moved.location = start
+            moved.length = textOffset(range.location + range.length) - start
+            return moved
+        }
+    }
+
     /// Same rule as the iOS coordinator's `mergeInlineRanges`.
     static func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
         guard !ranges.isEmpty else { return [] }

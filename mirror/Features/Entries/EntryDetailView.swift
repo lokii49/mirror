@@ -688,7 +688,8 @@ private struct InlineEntryContent: View {
               let document = try? JSONDecoder().decode(InlineStyleDocument.self, from: inlineStyleData) else {
             return []
         }
-        return document.ranges
+        // Stored with a photo as one character; these lines hold the photo's token.
+        return NoteEditorCodec.inlineRangesInTextCoordinates(document.ranges, text: text)
     }
 
     private var indentLevels: [Int] {

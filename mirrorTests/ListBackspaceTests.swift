@@ -229,9 +229,8 @@ struct InlineOffsetsAfterListEditsTests {
 
     @Test func deleteDoneBelowAPhotoKeepsBoldInPlace() {
         // Rows: "ab", photo, "done" (checked), "milk" (bold). "milk" is at 10 in inline coordinates.
-        // A photo line takes two paragraph-style slots (audit item 2), hence five styles.
         let h = makeListHarness(text: "ab\n[[mirror-photo-0]]\ndone\nmilk",
-                                textStyleData: listStyle([.body, .body, .body, .checklistChecked, .checklistUnchecked]),
+                                textStyleData: listStyle([.body, .body, .checklistChecked, .checklistUnchecked]),
                                 inlineStyleData: inline([bold(10, 4)]), photos: [Self.onePixelPNG])
         h.coordinator.deleteCheckedChecklistItems(in: h.textView)
         #expect(h.getText() == "ab\n[[mirror-photo-0]]\nmilk")
@@ -253,5 +252,47 @@ struct InlineOffsetsAfterListEditsTests {
         h.coordinator.apply(.body, to: h.textView)
         #expect(inlineRanges(h.getInlineData()) == [bold(6, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
         #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(6, 5)], "the view shows \"alpha\" plain")
+    }
+}
+
+/// A photo line is one paragraph in the stored style document, as the encoder and the Mac codec
+/// count it. The renderer used to give it two slots, so styles below a mid-text photo read the
+/// next paragraph's entry and the next keystroke saved the shift (audit item 2).
+@MainActor
+struct PhotoParagraphStyleTests {
+    private static let onePixelPNG: Data = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { ctx in
+        UIColor.black.setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+    }.pngData()!
+
+    private func styles(_ data: Data?) -> [NoteParagraphTextStyle]? {
+        data.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?.paragraphStyles
+    }
+
+    @Test func aHeadingBelowAPhotoSurvivesAKeystroke() {
+        let text = "ab\n[[mirror-photo-0]]\nNotes"
+        let h = makeListHarness(text: text, textStyleData: listStyle([.body, .body, .heading]), photos: [Self.onePixelPNG])
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == text)
+        #expect(styles(h.getStyleData()) == [.body, .body, .heading], "got \(String(describing: styles(h.getStyleData())))")
+    }
+
+    @Test func aListBelowAPhotoKeepsItsMarkerOutOfTheText() {
+        // The paragraph after the list item is long enough that an offset inflated by the photo
+        // token lands inside it.
+        let text = "ab\n[[mirror-photo-0]]\nmilk\nsome longer body paragraph here"
+        let h = makeListHarness(text: text, textStyleData: listStyle([.body, .body, .bulletedList, .body]), photos: [Self.onePixelPNG])
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == text, "got \(h.getText().debugDescription)")
+        #expect(styles(h.getStyleData()) == [.body, .body, .bulletedList, .body], "got \(String(describing: styles(h.getStyleData())))")
+    }
+
+    @Test func twoPhotosAndStylesAroundThem() {
+        let text = "Title\n[[mirror-photo-0]]\nmiddle\n[[mirror-photo-1]]\nend"
+        let stored: [NoteParagraphTextStyle] = [.title, .body, .heading, .body, .blockQuote]
+        let h = makeListHarness(text: text, textStyleData: listStyle(stored), photos: [Self.onePixelPNG, Self.onePixelPNG])
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == text)
+        #expect(styles(h.getStyleData()) == stored, "got \(String(describing: styles(h.getStyleData())))")
     }
 }

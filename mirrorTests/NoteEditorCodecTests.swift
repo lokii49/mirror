@@ -304,4 +304,14 @@ struct NoteEditorCodecTests {
         #expect(NoteEditorCodec.clearingBold(try? JSONEncoder().encode(InlineStyleDocument(ranges: [range(0, 3, bold: true)])),
                                              in: NSRange(location: 0, length: 5)) == nil)
     }
+
+    @Test func inlineRangesMoveToTextOffsetsAfterPhotos() {
+        // Editor coordinates: "ab\n" + photo(1) + "\nNotes" + photo(1) + "\nend".
+        let text = "ab\n[[mirror-photo-0]]\nNotes\n[[mirror-photo-1]]\nend"
+        let ranges = [range(0, 2, bold: true), range(5, 5, italic: true), range(13, 3, underline: true)]
+        #expect(NoteEditorCodec.inlineRangesInTextCoordinates(ranges, text: text)
+                == [range(0, 2, bold: true), range(22, 5, italic: true), range(47, 3, underline: true)])
+        // No photos: unchanged.
+        #expect(NoteEditorCodec.inlineRangesInTextCoordinates(ranges, text: "plain") == ranges)
+    }
 }

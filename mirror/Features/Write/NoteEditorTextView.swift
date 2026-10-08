@@ -1238,42 +1238,31 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func logicalText(from textView: UITextView) -> String {
             let attributed = textView.attributedText ?? NSAttributedString()
-            // Replace each attachment char with the correct indexed photo token
-            var displayString = attributed.string
+            let nsDisplay = attributed.string as NSString
+            guard nsDisplay.length > 0 else { return "" }
+            // Each attachment character becomes its photo's token, in text order.
             let photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
                 parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
                 parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
             }
             var tokenIdx = 0
-            var rebuilt = ""
-            for ch in displayString {
-                if ch == "\u{fffc}" {
-                    let tok = tokenIdx < photoTokensSorted.count ? inlinePhotoToken(at: photoTokensSorted[tokenIdx].index) : inlinePhotoToken(at: tokenIdx)
-                    rebuilt += tok
-                    tokenIdx += 1
-                } else {
-                    rebuilt += String(ch)
-                }
-            }
-            displayString = rebuilt
-
-            let nsRendered = displayString as NSString
-            guard nsRendered.length > 0 else { return "" }
 
             var result = ""
-            // Use enclosingRange (3rd param) not substringRange (2nd param) — enclosingRange
-            // includes the paragraph separator (\n), substringRange does not.
-            nsRendered.enumerateSubstrings(in: NSRange(location: 0, length: nsRendered.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
-                let paragraph = nsRendered.substring(with: enclosingRange)
-                let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                let level = self.indentLevelValue(at: enclosingRange.location, in: attributed)
-                if let marker = self.staticListMarkerPrefix(for: style, level: level), paragraph.hasPrefix(marker) {
-                    result += String(paragraph.dropFirst(marker.count))
-                } else if style == .numberedList {
-                    let markerLen = self.numberedListMarkerLength(in: paragraph)
-                    result += markerLen > 0 ? String(paragraph.dropFirst(markerLen)) : paragraph
-                } else {
-                    result += paragraph
+            // Paragraphs and their attributes are read in display offsets. Swapping the tokens in
+            // first (as this used to) inflated every offset after a photo, so styles were read from
+            // the wrong paragraph and list markers were saved into the text.
+            // enclosingRange (3rd param) includes the paragraph separator (\n).
+            nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
+                let content = nsDisplay.substring(with: NSRange(location: enclosingRange.location + markerLen, length: enclosingRange.length - markerLen))
+                guard content.contains("\u{fffc}") else { result += content; return }
+                for ch in content {
+                    if ch == "\u{fffc}" {
+                        result += tokenIdx < photoTokensSorted.count ? inlinePhotoToken(at: photoTokensSorted[tokenIdx].index) : inlinePhotoToken(at: tokenIdx)
+                        tokenIdx += 1
+                    } else {
+                        result.append(ch)
+                    }
                 }
             }
             return result
@@ -1514,15 +1503,27 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsRaw = rawText as NSString
             let allMatches = regex?.matches(in: rawText, range: NSRange(rawText.startIndex..., in: rawText)) ?? []
 
+            // A segment's first paragraph index is the number of line breaks before it, so the
+            // text on either side of a photo token shares the photo line's one slot. Counting each
+            // segment's pieces gave a photo line two slots, while the encoder and the Mac codec
+            // store one: every style below a mid-text photo read the next paragraph's entry.
+            func paragraphIndex(at location: Int) -> Int {
+                var count = 0
+                var i = 0
+                while i < location {
+                    if nsRaw.character(at: i) == 10 { count += 1 }
+                    i += 1
+                }
+                return count
+            }
+
             var lastEnd = 0
-            var paragraphOffset = 0
 
             for match in allMatches {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
                 let textSegment = nsRaw.substring(with: textRange)
-                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphOffset)
+                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd))
                 attributed.append(rendered.value)
-                paragraphOffset += rendered.paragraphCount
 
                 let token = nsRaw.substring(with: match.range)
                 let photoIdx = inlinePhotoIndex(from: token) ?? 0
@@ -1531,7 +1532,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let tail = nsRaw.substring(from: lastEnd)
-            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphOffset).value)
+            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphIndex(at: lastEnd)).value)
             return attributed
         }
 
