@@ -1,14 +1,14 @@
 # MirrorNotes roadmap
 
-Date: 2026-10-07. Covers the whole product (iOS, Mac, growth). Release-specific detail stays in `3.0.9-roadmap.md` and `platform-roadmap.md`. This file orders the work.
+Date: 2026-10-07, refreshed 2026-10-08. Covers the whole product (iOS, Mac, growth). The active work list is `3.1.0-roadmap.md`; this file keeps the product-wide order. Detail on the 3.0.9 scope stays in `3.0.9-product-plan.md`.
 
 **Legend.** **[checked]** means it was verified this pass (App Store Connect, the repo or git). **[unverified]** means it comes from earlier notes and needs confirming.
 
 ## Where it stands
 
-- **iOS 3.0.8 (build 14): READY_FOR_SALE** [checked, ASC 2026-10-07].
-- **Mac 1.0.1 (build 15): IN_REVIEW** [checked]. Mac 1.0 is on sale.
-- Branch `3.0.9` at `9297864` [checked]. The release shipped from it, and it is merged to main through `b5c39f1`.
+- **iOS 3.0.9 (build 16): READY_FOR_SALE** since 2026-10-08, automatic release (release memory). It replaced 3.0.8 (14).
+- **Mac 1.0.1 (build 15): was IN_REVIEW on 2026-10-08** [unverified now]. Mac 1.0 is on sale. **Mac 1.0.2 (build 16)** is uploaded and VALID, not submitted: ASC refuses a 1.0.2 version while 1.0.1 is in review.
+- Branch `3.0.9` is merged to `main` (PR #48, then #49 and #50 for the 1.0.2 release notes, the roadmap cleanup and the Release launch scheme). Active dev branch: `3.1.0`, cut from `1bbbd12`.
 - Downloads and ratings: unknown. The July audit found ~0 traffic and ~0 downloads [unverified now]. Pull current numbers from App Analytics before planning growth spend.
 - The 24/7 marketing routine is disabled (2026-09-20). It never sent mail and never opened PRs.
 
@@ -26,7 +26,9 @@ The owner submitted 3.0.8 / Mac 1.0.1 without device checks. It is live now, so 
 3. **Watch Mac 1.0.1 review.** If it is rejected, use `deliver --reject_if_possible` and `--run_precheck_before_submit false` (see the release memory).
 4. **Native review of the 10-locale release notes and new strings.** They were model-translated. Low risk, cheap.
 
-## Next (3.0.9 / Mac 1.0.2, ~2–4 weeks)
+## 3.0.9 / Mac 1.0.2 (iOS shipped 2026-10-08; Mac 1.0.2 waiting on 1.0.1 review)
+
+The items below were built on `3.0.9-next` and shipped in iOS 3.0.9. What is still open from this scope moved to `3.1.0-roadmap.md`. The CloudKit schema for collections and saved views was seeded in Development and deployed to Production on 2026-10-07; the restore checks were skipped by the owner.
 
 **Expanded product plan (owner direction, 2026-10-07):** make 3.0.9 a substantial journaling release and prepare for IAP in November as the user base approaches 1,000. Detailed scope, implementation order and acceptance gates are in [`3.0.9-product-plan.md`](3.0.9-product-plan.md). Implementation started: shared archive search, query filters, highlighted excerpts, cache correctness and visual advanced filters are built. Advanced filters include multiple moods, Any/All tags, inclusive/open-ended date ranges, relative dates, media/pins, cancellable editing and Clear All. Targeted checks passed on the network-connected iPhone 14 Pro (29 search/cache/filter/draft tests, one performance test, four Classic/Sentinel search/filter UI flows across the final run and a corrected Sentinel assertion rerun); simulator checks and Mac build/runtime previews also passed. Encrypted synced saved views, writing reliability, collections and complete export/import remain; links and related moments are stretch work, model-written reflection styles require rig evidence. The expanded core scope is provisionally 4–6 engineering weeks; the previous 2–4 week estimate applies to the earlier narrower scope.
 
