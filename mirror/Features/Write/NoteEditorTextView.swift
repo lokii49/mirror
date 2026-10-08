@@ -464,6 +464,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return false
             }
 
+            if replacement.isEmpty, leavesListFromMarker(in: rendered, range: range, textView: textView) {
+                return false
+            }
+
             if replacement.isEmpty, mergesParagraphsOfDifferentStyle(in: rendered, range: range, textView: textView) {
                 return false
             }
@@ -650,6 +654,27 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastKnownCursorLocation = caret.location
             apply(.numberedList, to: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return true
+        }
+
+        /// Backspace at the start of a list item's text (the caret sits just after the marker)
+        /// turns the item into a body paragraph, as on Mac and in Notes. Without this the
+        /// delete ate one marker character, and the half-marker was then saved as text.
+        private func leavesListFromMarker(in rendered: String, range: NSRange, textView: UITextView) -> Bool {
+            let nsText = rendered as NSString
+            guard nsText.length > 0, range.location < nsText.length else { return false }
+            let paragraphRange = nsText.paragraphRange(for: NSRange(location: range.location, length: 0))
+            let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
+            guard isListStyle(style) else { return false }
+            let paragraph = nsText.substring(with: paragraphRange)
+            let markerLength = style == .numberedList
+                ? numberedListMarkerLength(in: paragraph)
+                : ((staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0)
+            let markerEnd = paragraphRange.location + markerLength
+            // Only a delete that starts inside the marker and stays inside it; a longer
+            // selection that reaches into the text keeps its normal behavior.
+            guard markerLength > 0, range.location < markerEnd, NSMaxRange(range) <= markerEnd else { return false }
+            stripListMarkerAndApply(.body, at: markerEnd, in: textView)
             return true
         }
 
@@ -1679,7 +1704,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 .replacingOccurrences(of: tokenStr + "\n", with: "")
                 .replacingOccurrences(of: tokenStr, with: "")
             // Renumber subsequent tokens (indices shift down by 1)
-            for i in (token.index + 1)..<(parent.photoDataArray.count) {
+            // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.
+            for i in stride(from: token.index + 1, to: parent.photoDataArray.count, by: 1) {
                 updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1))
             }
             parent.photoDataArray = photos
