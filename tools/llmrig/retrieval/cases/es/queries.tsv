@@ -1,0 +1,16 @@
+qid	class	lang	gold	query
+l1	lexical	es	ex1	¿Cuándo fui al gimnasio?
+l2	lexical	es	jb1,jb2,jb3	¿Qué pasó en la entrevista?
+l3	lexical	es	pt1	¿Qué dijo el veterinario?
+l4	lexical	es	mo1	¿Qué pasó con el alquiler?
+p1	paraphrase	es	ex1,ex2,ex3,ex4	¿Hago suficiente ejercicio?
+p2	paraphrase	es	sl1,sl2,sl3	¿Descanso bien por las noches?
+p3	paraphrase	es	mo1,mo2,mo3	¿Cómo van mis finanzas?
+p4	paraphrase	es	mm1,mm2,mm3	¿Qué tal con mi familia?
+p5	paraphrase	es	jb1,jb2,jb3	¿Estoy buscando otro empleo?
+p6	paraphrase	es	pt1,pt2	¿Cómo está mi mascota?
+p7	paraphrase	es	hl1,hl2	¿He estado enferma?
+a1	abstract	es	hp1,hp2,mo2,jb2,fr2	¿Cuándo fui más feliz?
+a2	abstract	es	ln1	¿Cuándo me sentí sola?
+a3	abstract	es	bo1,wk2,wk3	¿Estoy quemada?
+a4	abstract	es	wk1,sl1	¿Qué me pone nerviosa?

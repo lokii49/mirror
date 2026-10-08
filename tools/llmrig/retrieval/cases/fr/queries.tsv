@@ -1,0 +1,16 @@
+qid	class	lang	gold	query
+l1	lexical	fr	ex1	Quand suis-je allée à la salle de sport ?
+l2	lexical	fr	jb1,jb2,jb3	Comment s'est passé l'entretien ?
+l3	lexical	fr	pt1	Qu'a dit le vétérinaire ?
+l4	lexical	fr	mo1	Et le loyer ?
+p1	paraphrase	fr	ex1,ex2,ex3,ex4	Est-ce que je bouge assez ?
+p2	paraphrase	fr	sl1,sl2,sl3	Est-ce que je me repose bien la nuit ?
+p3	paraphrase	fr	mo1,mo2,mo3	Où en sont mes finances ?
+p4	paraphrase	fr	mm1,mm2,mm3	Comment ça va avec ma famille ?
+p5	paraphrase	fr	jb1,jb2,jb3	Est-ce que je cherche un nouveau poste ?
+p6	paraphrase	fr	pt1,pt2	Comment va mon animal ?
+p7	paraphrase	fr	hl1,hl2	Ai-je été malade ?
+a1	abstract	fr	hp1,hp2,mo2,jb2,fr2	Quand ai-je été la plus heureuse ?
+a2	abstract	fr	ln1	Quand me suis-je sentie seule ?
+a3	abstract	fr	bo1,wk2,wk3	Suis-je en train de m'épuiser ?
+a4	abstract	fr	wk1,sl1	Qu'est-ce qui me rend nerveuse ?

@@ -1374,8 +1374,15 @@ final class GroundingSampleHarness: XCTestCase {
             switch first.2 {
             case .samePrompt: gemmaSystem = first.0
             case .ownSystemPrompt(let own): gemmaSystem = own
-            default:
-                XCTFail("unexpected Gemma plan for \(label): \(first.2)")
+            case .grammarConstrained(let message, let grammar):
+                // The grounded follow-up chip (2026-09-28): same files as test_dumpNudgePromptsForRig.
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(label)_gemma.gbnf", atomically: true, encoding: .utf8)
+                return
+            case .unsuitable:
+                // Languages outside the grounded 10 get no chip on Gemma.
+                try "unsuitable".write(toFile: "\(dir)/\(label)_gemma.none", atomically: true, encoding: .utf8)
                 return
             }
             try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)

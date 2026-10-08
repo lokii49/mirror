@@ -1,0 +1,89 @@
+id	lang	tags	text
+ex1	en	gym	Went to the gym before work and did legs. My thighs are already sore but I feel strong.
+ex2	en		Jogged a slow 5k along the river this morning. Lungs burning by the end, but I didn't stop once.
+ex3	en		First yoga class at the community center. I couldn't touch my toes, the instructor said that's normal.
+ex4	en		Skipped the gym again this week. Third time. I keep telling myself tomorrow.
+ex5	en		Swam twenty laps at the pool after lunch, the water was freezing at first.
+ex6	en		Long day. The printer jammed twice, a client call ran over, and I ate lunch at my desk staring at a spreadsheet. On the way home the bus was packed and someone's umbrella dripped on my shoes the whole ride. At least I squeezed in a bike ride at sunset, forty minutes up the hill and back, and my head finally went quiet.
+sl1	en		Couldn't fall asleep until 3am. Kept replaying the meeting in my head.
+sl2	en		Slept nine hours straight for the first time in months. Woke up before the alarm.
+sl3	en		Woke up at 4:40 and just lay there staring at the ceiling until it got light.
+sl4	en		Tried no screens after ten. Drifted off by eleven, which never happens.
+mo1	en		Rent went up by 120 a month. I sat with the spreadsheet for an hour trying to make it work.
+mo2	en		Paid off the last of the credit card today. Zero balance. I actually cheered in the kitchen.
+mo3	en		Checked my bank account and winced. Too many takeaway orders this month.
+mo4	en	savings	Started putting 50 aside every payday into a separate pot.
+mm1	en		Called Mom for an hour. She sounded tired but laughed at my story about the bus.
+mm2	en		Mum and I argued about the holidays again. She wants everyone home, I can't afford the flight.
+mm3	en		My mother sent a parcel with homemade jam and a note in her handwriting. I cried a bit.
+mm4	en		Haven't spoken to mom in two weeks. I keep picking up the phone and putting it down.
+jb1	en		Had the second interview with the design studio. They asked about a project I'm proud of and my mind went blank for a moment.
+jb2	en		Got the offer! Starting salary is better than I hoped. Still deciding.
+jb3	en		Rejection email from the agency this morning. Polite and short. Stings more than I expected.
+jb4	en		Updated my CV and sent out four applications tonight.
+wk1	en		Presentation to the whole department tomorrow. My hands were shaking just rehearsing.
+wk2	en		The presentation went fine. Nobody noticed my voice wobble in the first minute.
+wk3	en		My manager scheduled a quick chat for Friday with no agenda. Can't stop guessing what it's about.
+wk4	en		Another twelve-hour day. I answered emails in bed. I don't remember the last weekend I didn't work.
+wk5	en		I'm so tired of this job. Every morning I dread opening my laptop.
+dg1	en	Biscuit	Took Biscuit to the vet, her ear infection is back. Drops twice a day for ten days.
+dg2	en		Biscuit learned to sit on command after three weeks of trying. Proud dog parent moment.
+dg3	en		Long walk with the dog through the park, she chased every single pigeon.
+fr1	en		Sam cancelled on me for the third time this month. Starting to wonder if it's me.
+fr2	en		Finally talked with Sam about the cancelled plans. Turns out they've been dealing with a lot at home. We hugged.
+fr3	en		Dinner with Priya and Leo. We laughed so hard about the camping disaster that the waiter came over.
+mv1	en		Packed up the kitchen into eleven boxes. The new flat gets the keys on Saturday.
+mv2	en		First night in the new apartment. It echoes. I slept on the mattress on the floor and loved it.
+mv3	en		Still living out of boxes two weeks after the move. Can't find the cheese grater.
+ck1	en		Made dal from scratch using my grandmother's method. The whole flat smells of cumin.
+ck2	en		Tried baking sourdough. It came out flat as a pancake but tasted great.
+ck3	en		Cooked dinner for four people for the first time. Nobody got food poisoning.
+rd1	en		Finished the novel about the lighthouse keeper. Stayed up past midnight for the last chapters.
+rd2	en		Started a book on stoicism. Underlined half of the first chapter.
+ln1	en		Weekend with no plans and nobody texted. The flat felt huge and quiet.
+ln2	en		Everyone at the party seemed to know each other. I stood by the snacks most of the night.
+hp1	en		Small perfect day: sun on the balcony, a long call with my sister. Nothing special and everything good.
+hp2	en		Got a handwritten thank-you card from a student I tutored last year. Made my whole week.
+hp3	en		Danced in the kitchen to old songs while dinner was on the stove. Felt like a kid again.
+hl1	en		Third migraine this week. Lay in the dark with a cold cloth for most of the afternoon.
+hl2	en		Doctor said my blood pressure is a little high. Need to cut back on salt.
+hl3	en		Throat is scratchy and I've got a fever, calling in sick tomorrow.
+pt1	en		Painted for two hours with watercolors. The sky came out muddy but the trees look alive.
+pt2	en		Signed up for the evening ceramics course. First class is Tuesday.
+tv1	en		Train to the coast. Ate chips on the pier while gulls circled. Salt in my hair all day.
+tv2	en		Booked flights to Lisbon for October. First proper holiday in two years.
+pc1	en		Spent the whole afternoon reorganizing my desk instead of writing the report. Classic.
+pc2	en		The tax form has been sitting on the table for a month. Tomorrow. Definitely tomorrow.
+bd1	en		Turned 30 today. Friends surprised me with a cake shaped like a cat.
+bd2	en		Forgot Dad's birthday until 9pm. Called him, he pretended not to mind.
+pr1	en	Jordan	Jordan and I fought about the dishes, which wasn't really about the dishes.
+pr2	en		Jordan surprised me with breakfast in bed. We stayed in our pajamas until noon.
+pr3	en		We talked about moving in together. I'm excited and terrified in equal amounts.
+gd1	en		The tomato plants on the balcony finally have flowers. Watering them is the best part of my morning.
+gd2	en		Repotted the monstera, soil everywhere. It already looks happier.
+gt1	en	guitar	Practiced for 30 minutes, my fingertips hurt. Finally got the F chord to ring clean.
+cf1	en		Five coffees by 3pm. Jittery and couldn't focus anyway.
+cf2	en		Day four without caffeine. The headache is finally fading.
+ph1	en		Screen time report says 6 hours a day. Mostly scrolling. That's horrifying.
+ph2	en		Left my phone at home all Sunday. Noticed so much more on my walk.
+bo1	en		I feel empty at the end of every day. Like there's nothing left for me after work.
+bo2	en		Took a mental health day. Did nothing and didn't feel guilty for once.
+de1	de		Heute war ich im Fitnessstudio und habe zum ersten Mal 60 Kilo gedrückt.
+de2	de		Ich habe schlecht geschlafen, schon wieder um vier Uhr wach.
+de3	de		Die Stromrechnung ist viel höher als erwartet. Ich muss diesen Monat sparen.
+dx1	de		Der Bus war heute wieder zu spät, ich stand zwanzig Minuten im Regen.
+dx2	de		Ich habe endlich das Bad geputzt und die Fenster gewaschen.
+es1	es		Anoche no pude dormir nada, me desperté cada hora.
+es2	es		Mi madre me llamó hoy, hablamos de la boda de mi prima.
+es3	es		Estoy preocupada por el dinero, el alquiler subió otra vez.
+sx1	es		Hoy llovió todo el día y me quedé en casa viendo series.
+fx1	fr		J'ai couru dix kilomètres ce matin, je suis épuisée mais fière.
+fx2	fr		Je me sens seule depuis que Clara est partie à Lyon. Les soirées sont longues.
+fx3	fr		Il a plu toute la journée, j'ai rangé les placards.
+ja1	ja		最近よく眠れない。夜中に何度も目が覚める。
+ja2	ja		母と電話で話した。元気そうで安心した。
+ja3	ja		京都で一人旅。お寺を三つ回って、抹茶を飲んだ。
+jx1	ja		今日は雨で、一日中家にいた。
+jx2	ja		スーパーで野菜と牛乳を買った。
+pt3	pt		Comecei a aprender violão. Os dedos doem, mas já consigo tocar duas músicas.
+px1	pt		Hoje choveu e fiquei em casa arrumando a cozinha.
