@@ -151,4 +151,47 @@ struct JournalOrganizationTests {
         _ = try ArchiveTransfer.undoImport(batch, context: target)
         #expect(try target.fetchCount(FetchDescriptor<JournalCollection>()) == 0)
     }
+    @Test func archiveRoundTripsSavedViewsOnceAndUndoRemovesThem() async throws {
+        let source = try context()
+        var criteria = EntryFilterCriteria()
+        criteria.moods = ["Anxious"]
+        criteria.tags = ["synthetic-work"]
+        criteria.dateScope = .range
+        criteria.startDate = CivilDate(year: 2026, month: 9, day: 1).date()
+        criteria.endDate = CivilDate(year: 2026, month: 9, day: 30).date()
+        let view = try JournalOrganizationStore.saveView(
+            .init(name: "Synthetic hard Septembers", query: "synthetic phrase", criteria: SavedCriteria(criteria), sort: "oldest"),
+            in: source)
+        let entry = Entry(text: "Synthetic entry.")
+        source.insert(entry)
+        try source.save()
+        let staged = try await ArchiveTransfer.stageArchive(entries: [entry], collections: [], savedViews: [view]) { _ in }
+        let root = staged.root
+        defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
+
+        let target = try context()
+        let plan = try await ArchiveTransfer.planImport(folder: root, existing: [])
+        #expect(plan.savedViews.count == 1)
+        let batch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: false, context: target)
+        let imported = try #require(JournalOrganizationStore.savedViews(in: target).first)
+        #expect(imported.id == view.id)
+        #expect(imported.payload == view.payload)
+
+        // Importing the same package again adds no second view.
+        let again = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: false, context: target)
+        #expect(again.createdSavedViews.isEmpty)
+        #expect(JournalOrganizationStore.savedViews(in: target).count == 1)
+
+        _ = try ArchiveTransfer.undoImport(batch, context: target)
+        #expect(try target.fetchCount(FetchDescriptor<SavedEntryView>()) == 0)
+    }
+
+    @Test func manifestWithoutSavedViewsStillDecodes() throws {
+        let json = """
+        {"format":"mirrornotes-archive","version":1,"appVersion":"3.0.8","exportedAt":"2026-10-01T00:00:00Z",
+         "exportedTimeZone":"UTC","entries":[],"unreadable":[]}
+        """
+        let manifest = try ArchivePackage.decoder.decode(ArchivePackage.Manifest.self, from: Data(json.utf8))
+        #expect(manifest.savedViews == nil)
+    }
 }

@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 struct ArchiveSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var collections: [JournalCollection]
+    @Query private var savedViews: [SavedEntryView]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -224,9 +225,10 @@ struct ArchiveSettingsView: View {
         exportProgress = 0
         let snapshot = entries
         let collectionSnapshot = collections
+        let viewSnapshot = savedViews
         exportTask = Task {
             do {
-                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot) { value in
+                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot, savedViews: viewSnapshot) { value in
                     exportProgress = value
                 }
                 exportProgress = nil

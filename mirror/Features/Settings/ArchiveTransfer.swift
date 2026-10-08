@@ -27,9 +27,9 @@ enum ArchiveTransfer {
         var unreadable: Int
     }
 
-    static func exportArchive(entries: [Entry], collections: [JournalCollection],
+    static func exportArchive(entries: [Entry], collections: [JournalCollection], savedViews: [SavedEntryView] = [],
                               progress: @escaping (Double) -> Void) async throws -> ExportResult {
-        let staged = try await stageArchive(entries: entries, collections: collections) { progress($0 * 0.9) }
+        let staged = try await stageArchive(entries: entries, collections: collections, savedViews: savedViews) { progress($0 * 0.9) }
         do {
             let root = staged.root
             let name = root.lastPathComponent
@@ -45,7 +45,7 @@ enum ArchiveTransfer {
 
     /// Writes the package folder (the part the zip wraps). Separate so tests can
     /// import exactly what export wrote.
-    static func stageArchive(entries: [Entry], collections: [JournalCollection],
+    static func stageArchive(entries: [Entry], collections: [JournalCollection], savedViews: [SavedEntryView] = [],
                              progress: @escaping (Double) -> Void) async throws -> StagedArchive {
         // Names are decrypted here once; an unreadable collection name is left out
         // (its entries still carry the id).
@@ -56,6 +56,13 @@ enum ArchiveTransfer {
             names[collection.id] = payload.name
             collectionRecords.append(.init(id: collection.id, name: payload.name, icon: payload.icon, colorIndex: payload.colorIndex))
         }
+        // Views the device can't decrypt are left out, like collections.
+        let viewRecords: [ArchivePackage.Manifest.SavedViewRecord] = savedViews
+            .sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
+            .compactMap { view in
+                guard let payload = view.payload else { return nil }
+                return .init(id: view.id, name: payload.name, query: payload.query, criteria: payload.criteria, sort: payload.sort)
+            }
         let now = Date()
         let timeZone = TimeZone.current
         let name = "MirrorNotes Export \(ArchivePackage.iso(now).prefix(10))"
@@ -80,7 +87,7 @@ enum ArchiveTransfer {
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             try ArchivePackage.writeManifest(records: records, unreadable: unreadable, to: root,
                                              appVersion: version, exportedAt: now, timeZone: timeZone,
-                                             collections: collectionRecords)
+                                             collections: collectionRecords, savedViews: viewRecords)
             return StagedArchive(root: root, exported: records.count, unreadable: unreadable.count)
         } catch {
             try? FileManager.default.removeItem(at: root.deletingLastPathComponent())
@@ -113,6 +120,8 @@ enum ArchiveTransfer {
     struct ImportPlan {
         /// Collections named in the package; missing ones are created on import.
         var collections: [ArchivePackage.Manifest.CollectionRecord] = []
+        /// Saved views named in the package; ones this journal lacks are created.
+        var savedViews: [ArchivePackage.Manifest.SavedViewRecord] = []
         var new: [ArchivePackage.ArchiveEntry]
         var changed: [ArchivePackage.ArchiveEntry]
         var identical: Int
@@ -123,6 +132,7 @@ enum ArchiveTransfer {
     struct ImportBatch {
         var digests: [UUID: String]
         var createdCollections: [UUID] = []
+        var createdSavedViews: [UUID] = []
     }
 
     /// Reads and validates the package (off the main actor), then compares it
@@ -133,7 +143,8 @@ enum ArchiveTransfer {
         let package = try await Task.detached(priority: .userInitiated) { try ArchivePackage.read(from: folder) }.value
         var byID: [UUID: Entry] = [:]
         for entry in existing { byID[entry.id] = entry }
-        var plan = ImportPlan(collections: package.manifest.collections ?? [], new: [], changed: [], identical: 0,
+        var plan = ImportPlan(collections: package.manifest.collections ?? [],
+                              savedViews: package.manifest.savedViews ?? [], new: [], changed: [], identical: 0,
                               unreadableInPackage: package.unreadable.count)
         for archived in package.entries {
             guard let current = byID[archived.id] else {
@@ -168,6 +179,21 @@ enum ArchiveTransfer {
             known.insert(record.id)
             batch.createdCollections.append(record.id)
             nextIndex += 1
+        }
+        // Saved views too: same id, so a re-import adds nothing and never overwrites a
+        // view the user has since edited.
+        let existingViews = (try? context.fetch(FetchDescriptor<SavedEntryView>())) ?? []
+        var knownViews = Set(existingViews.map(\.id))
+        var nextViewIndex = (existingViews.map(\.sortIndex).max() ?? -1) + 1
+        for record in plan.savedViews where !knownViews.contains(record.id) {
+            let view = SavedEntryView(id: record.id, payload: .init(name: record.name, query: record.query,
+                                                                    criteria: record.criteria, sort: record.sort),
+                                      sortIndex: nextViewIndex)
+            guard view.encryptedPayload != nil else { continue }
+            context.insert(view)
+            knownViews.insert(record.id)
+            batch.createdSavedViews.append(record.id)
+            nextViewIndex += 1
         }
         let toInsert = plan.new.map { ($0, $0.id) } + (importChangedAsCopies ? plan.changed.map { ($0, UUID()) } : [])
         for (archived, id) in toInsert {
@@ -205,6 +231,12 @@ enum ArchiveTransfer {
                   let collection = try? context.fetch(FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })).first
             else { continue }
             context.delete(collection)
+        }
+        // Views the import created go too (they hold no entries, only a search).
+        for id in batch.createdSavedViews {
+            if let view = try? context.fetch(FetchDescriptor<SavedEntryView>(predicate: #Predicate { $0.id == id })).first {
+                context.delete(view)
+            }
         }
         try context.save()
         return (removed, batch.digests.count - removed)
