@@ -35,4 +35,28 @@ struct SemanticAskRetrievalTests {
         #expect(SemanticSearchService.modelURL.lastPathComponent == SemanticSearchService.modelFileName)
         #expect(SemanticSearchService.modelURL.scheme == "https")
     }
+
+    /// The download is opt-in: without an explicit yes (Ask's offer card or Settings), asking does
+    /// nothing on the network.
+    @Test func noDownloadStartsWithoutConsent() async throws {
+        try #require(!SemanticSearchService.isModelOnDisk, "assumes no downloaded model on this simulator")
+        let saved = SemanticSearchService.consent
+        defer { SemanticSearchService.consent = saved }
+        for answer in [SemanticSearchService.Consent.undecided, .declined] {
+            SemanticSearchService.consent = answer
+            await SemanticSearchService.shared.ensureModelDownloadStarted()
+            #expect(await SemanticSearchService.shared.modelState == .absent, "\(answer)")
+        }
+    }
+
+    @Test func consentRoundTripsAndDefaultsToUndecided() {
+        let saved = UserDefaults.standard.string(forKey: SemanticSearchService.consentKey)
+        defer { UserDefaults.standard.set(saved, forKey: SemanticSearchService.consentKey) }
+        UserDefaults.standard.removeObject(forKey: SemanticSearchService.consentKey)
+        #expect(SemanticSearchService.consent == .undecided)
+        SemanticSearchService.consent = .declined
+        #expect(SemanticSearchService.consent == .declined)
+        SemanticSearchService.consent = .accepted
+        #expect(SemanticSearchService.consent == .accepted)
+    }
 }

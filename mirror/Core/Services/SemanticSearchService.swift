@@ -3,9 +3,10 @@ import Foundation
 import SwiftLlama
 
 /// Ask's semantic retrieval (2026-10-08): EmbeddingGemma v1 300M (Q8_0 GGUF) through SwiftLlama's
-/// `LlamaEmbedder`, measured in tools/llmrig/retrieval. On Core/Deep, the first Ask starts a one-time
-/// download of the model, on unmetered networks only. Until the model is installed and the index
-/// covers the journal, Ask keeps using `SearchService.search`.
+/// `LlamaEmbedder`, measured in tools/llmrig/retrieval. The one-time model download (on unmetered
+/// networks only) happens only after the user agrees, in Ask's offer card or in Settings >
+/// Smarter Ask search (`consent`). Until the model is installed and the index covers the journal,
+/// Ask keeps using `SearchService.search`.
 ///
 /// Privacy: entry text never leaves the device. The download sends no journal data. Vectors are
 /// derived from journal text, so they live only in Application Support: excluded from backups,
@@ -32,6 +33,25 @@ actor SemanticSearchService {
         case absent, downloading, installed, failed
     }
 
+    /// The user's per-device answer to "download the search model?". Nothing downloads before
+    /// `.accepted`; `.declined` hides Ask's offer card (Settings can still turn it on).
+    enum Consent: String {
+        case undecided = "", accepted, declined
+    }
+
+    static let consentKey = "smartAskSearchConsent"
+    static let modelByteCount: Int64 = 333_590_944
+
+    nonisolated static var consent: Consent {
+        get { Consent(rawValue: UserDefaults.standard.string(forKey: consentKey) ?? "") ?? .undecided }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: consentKey) }
+    }
+
+    /// Cheap check for views: the model file is on disk (the actor's `modelState` is authoritative).
+    nonisolated static var isModelOnDisk: Bool {
+        (try? FileManager.default.fileExists(atPath: modelFileURL().path)) == true
+    }
+
     private(set) var modelState: ModelState
     private var index: [UUID: IndexRecord]
     private var backfillTask: Task<Void, Never>?
@@ -45,10 +65,10 @@ actor SemanticSearchService {
         try LocalLLMService.modelDirectory().appendingPathComponent(modelFileName)
     }
 
-    /// Ask's "first use" trigger. Starts the download once; later calls are no-ops while it runs or
-    /// after it finished. A failed download is retried on the next Ask.
+    /// Starts the download once the user has agreed; later calls are no-ops while it runs or after it
+    /// finished. A failed download is retried on the next call (each Ask makes one).
     func ensureModelDownloadStarted() {
-        guard modelState == .absent || modelState == .failed else { return }
+        guard Self.consent == .accepted, modelState == .absent || modelState == .failed else { return }
         modelState = .downloading
         Task { await download() }
     }
@@ -74,6 +94,15 @@ actor SemanticSearchService {
         } catch {
             modelState = .failed
         }
+    }
+
+    /// Settings > Smarter Ask search > Remove: deletes the model and every stored vector.
+    func removeModel() {
+        backfillTask?.cancel()
+        try? FileManager.default.removeItem(at: Self.modelFileURL())
+        try? FileManager.default.removeItem(at: Self.indexURL())
+        index = [:]
+        modelState = .absent
     }
 
     private static func sha256(of url: URL) throws -> String {

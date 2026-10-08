@@ -28,6 +28,9 @@ struct AskView: View {
     @State private var isLoading = false
     @State private var error: String?
     @State private var keyboardHeight: CGFloat = 0
+    /// One-time offer of the semantic-search model: shown to anyone who can ask (Core/Deep) and
+    /// hasn't answered yet, never re-shown after Download or Not now.
+    @State private var showSmartSearchOffer = SemanticSearchService.consent == .undecided && !SemanticSearchService.isModelOnDisk
     @FocusState private var isInputFocused: Bool
 
     private var monthLimit: Int {
@@ -532,6 +535,16 @@ struct AskView: View {
                         .padding(.top, 8)
                 }
 
+                if showSmartSearchOffer {
+                    SmartSearchOfferCard { accepted in
+                        showSmartSearchOffer = false
+                        SemanticSearchService.consent = accepted ? .accepted : .declined
+                        if accepted { Task { await SemanticSearchService.shared.ensureModelDownloadStarted() } }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                }
+
                 if showSuggestions {
                     suggestionsRow
                 }
@@ -629,8 +642,8 @@ struct AskView: View {
         question = ""
         isInputFocused = false
 
-        // First Ask on Core/Deep starts the one-time EmbeddingGemma download (unmetered networks
-        // only); this and later questions use keyword search until it's installed and indexed.
+        // Retries a failed search-model download, only if the user agreed to it (offer card above,
+        // or Settings); keyword search answers until the model is installed and indexed.
         await SemanticSearchService.shared.ensureModelDownloadStarted()
         do {
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)

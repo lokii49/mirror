@@ -147,6 +147,9 @@ struct MacSettingsRoot: View {
                     // Keep each pane's padding: overlapping their backgrounds clips the
                     // preceding card's rounded corners and shadow.
                     ArchiveSettingsView()
+                    if SubscriptionService.shared.isSubscribed || SubscriptionService.allFeaturesFree {
+                        SmartSearchSettingsView()
+                    }
                     ManualSettingsView()
                 }
             }
