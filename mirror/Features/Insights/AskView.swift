@@ -629,6 +629,9 @@ struct AskView: View {
         question = ""
         isInputFocused = false
 
+        // First Ask on Core/Deep starts the one-time EmbeddingGemma download (unmetered networks
+        // only); this and later questions use keyword search until it's installed and indexed.
+        await SemanticSearchService.shared.ensureModelDownloadStarted()
         do {
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(

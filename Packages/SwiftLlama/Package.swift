@@ -5,8 +5,8 @@
 // with any llama.cpp upgrade (and tools/llmrig, which builds against this package).
 import PackageDescription
 
-let llamaVersion = "b6102"
-let llamaChecksum = "257b8ffbdda68b377e1b75cd23055b201b0e9a24e18d5a42f2960456776eab8a"
+let llamaVersion = "b6750"
+let llamaChecksum = "769478a7997c5bc67f5f10c4593e35b6278e4b6b70279f11ddf4f40d6e85a94f"
 
 let package = Package(
     name: "SwiftLlama",

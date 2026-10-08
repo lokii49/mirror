@@ -1429,6 +1429,19 @@ enum InsightService {
         localized: "MirrorNotes couldn't find this month's report clearly grounded in your entries. Try again, or write a bit more this month."
     )
 
+    /// Ask's retrieval: EmbeddingGemma (`SemanticSearchService`) once its model is installed and
+    /// the index covers the journal, keyword search (`SearchService.search`) otherwise. Measured in
+    /// tools/llmrig/retrieval: R@10 on paraphrased questions .07 (keyword) vs .76 (EmbeddingGemma v1).
+    static func askRelevantEntries(question: String, newestFirst: [Entry]) async -> [Entry] {
+        let documents = newestFirst.map { SemanticSearchService.Document(id: $0.id, text: $0.insightContext) }
+        if let ids = await SemanticSearchService.shared.search(question: question, in: documents, limit: 10) {
+            let byID = Dictionary(newestFirst.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let found = ids.compactMap { byID[$0] }
+            if !found.isEmpty { return found }
+        }
+        return SearchService.search(query: question, in: newestFirst, limit: 10)
+    }
+
     static func ask(question: String, entries: [Entry]) async throws -> (text: String, engine: LLMEngine) {
         let question = cappedAskQuestion(question)
         // Same empty-context filter as generateNudge/generateWeeklyDigest/generateMonthlyReport
@@ -1438,7 +1451,7 @@ enum InsightService {
         // interactive query with no readable entries, not a thrown error.
         let entries = entries.filter(hasReadableContext)
         let sorted = entries.sorted { $0.createdAt > $1.createdAt }
-        let relevant = SearchService.search(query: question, in: sorted, limit: 10)
+        let relevant = await askRelevantEntries(question: question, newestFirst: sorted)
         let relevantIDs = Set(relevant.map(\.id))
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
