@@ -126,6 +126,8 @@ enum ArchiveTransfer {
         var changed: [ArchivePackage.ArchiveEntry]
         var identical: Int
         var unreadableInPackage: Int
+        /// Collections or saved views the journal lacks.
+        var hasOrganization: Bool { !collections.isEmpty || !savedViews.isEmpty }
     }
 
     /// What one import added, so it can be undone while the entries are untouched.
@@ -137,14 +139,15 @@ enum ArchiveTransfer {
 
     /// Reads and validates the package (off the main actor), then compares it
     /// with the journal by entry ID and content.
-    static func planImport(folder: URL, existing: [Entry]) async throws -> ImportPlan {
+    static func planImport(folder: URL, existing: [Entry], knownCollections: Set<UUID> = [],
+                           knownSavedViews: Set<UUID> = []) async throws -> ImportPlan {
         let accessed = folder.startAccessingSecurityScopedResource()
         defer { if accessed { folder.stopAccessingSecurityScopedResource() } }
         let package = try await Task.detached(priority: .userInitiated) { try ArchivePackage.read(from: folder) }.value
         var byID: [UUID: Entry] = [:]
         for entry in existing { byID[entry.id] = entry }
-        var plan = ImportPlan(collections: package.manifest.collections ?? [],
-                              savedViews: package.manifest.savedViews ?? [], new: [], changed: [], identical: 0,
+        var plan = ImportPlan(collections: (package.manifest.collections ?? []).filter { !knownCollections.contains($0.id) },
+                              savedViews: (package.manifest.savedViews ?? []).filter { !knownSavedViews.contains($0.id) }, new: [], changed: [], identical: 0,
                               unreadableInPackage: package.unreadable.count)
         for archived in package.entries {
             guard let current = byID[archived.id] else {
@@ -300,8 +303,12 @@ struct ArchiveTransferAlerts: ViewModifier {
             .alert("Import archive?", isPresented: Binding(get: { plan != nil }, set: { if !$0 { plan = nil } }),
                    presenting: plan) { plan in
                 if plan.changed.isEmpty {
-                    Button("Import \(plan.new.count) entries") { apply() }
-                        .disabled(plan.new.isEmpty)
+                    if plan.new.isEmpty && plan.hasOrganization {
+                        Button("Import saved views and collections") { apply() }
+                    } else {
+                        Button("Import \(plan.new.count) entries") { apply() }
+                            .disabled(plan.new.isEmpty)
+                    }
                 } else {
                     Button("Import new only (\(plan.new.count))") { importChangedAsCopies = false; apply() }
                     Button("Also add \(plan.changed.count) changed as copies") { importChangedAsCopies = true; apply() }
@@ -320,6 +327,8 @@ struct ArchiveTransferAlerts: ViewModifier {
 
     static func summary(_ plan: ArchiveTransfer.ImportPlan) -> String {
         var parts = [String(localized: "\(plan.new.count) new entries will be added.")]
+        if !plan.collections.isEmpty { parts.append(String(localized: "\(plan.collections.count) collections will be added.")) }
+        if !plan.savedViews.isEmpty { parts.append(String(localized: "\(plan.savedViews.count) saved views will be added.")) }
         if plan.identical > 0 { parts.append(String(localized: "\(plan.identical) are already in your journal and will be skipped.")) }
         if !plan.changed.isEmpty {
             parts.append(String(localized: "\(plan.changed.count) differ from the version in your journal. Your journal's version is never replaced; you can add the archive's version as a copy."))

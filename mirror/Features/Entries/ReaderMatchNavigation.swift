@@ -51,6 +51,17 @@ nonisolated enum ReaderMatches {
         return result
     }
 
+    /// `text` with every occurrence of a term marked; `mark` is the background.
+    static func marked(_ text: String, terms: [String], mark: Color) -> AttributedString {
+        var result = AttributedString(text)
+        for range in ranges(of: terms, in: text) {
+            if let stringRange = Range(range, in: text), let markedRange = Range(stringRange, in: result) {
+                result[markedRange].backgroundColor = mark
+            }
+        }
+        return result
+    }
+
     /// Non-overlapping occurrences of any term, in order, in the original text's
     /// UTF-16 coordinates (whole composed characters, so accents stay intact).
     static func ranges(of terms: [String], in text: String) -> [NSRange] {

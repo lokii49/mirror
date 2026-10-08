@@ -177,9 +177,18 @@ struct JournalOrganizationTests {
         #expect(imported.id == view.id)
         #expect(imported.payload == view.payload)
 
-        // Importing the same package again adds no second view.
-        let again = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: false, context: target)
+        // Planning the same package again, now that the journal has it, finds nothing to add.
+        let known = Set(JournalOrganizationStore.savedViews(in: target).map(\.id))
+        let replan = try await ArchiveTransfer.planImport(folder: root, existing: try target.fetch(FetchDescriptor<Entry>()),
+                                                          knownSavedViews: known)
+        #expect(replan.savedViews.isEmpty && !replan.hasOrganization)
+        let again = try ArchiveTransfer.applyImport(replan, importChangedAsCopies: false, context: target)
         #expect(again.createdSavedViews.isEmpty)
+        // A stale plan (views already present) still adds no second copy.
+        var stalePlan = plan
+        stalePlan.new = []
+        let stale = try ArchiveTransfer.applyImport(stalePlan, importChangedAsCopies: false, context: target)
+        #expect(stale.createdSavedViews.isEmpty)
         #expect(JournalOrganizationStore.savedViews(in: target).count == 1)
 
         _ = try ArchiveTransfer.undoImport(batch, context: target)

@@ -261,10 +261,13 @@ struct ArchiveSettingsView: View {
 
     private func planArchiveImport(_ folder: URL) {
         let existing = entries
+        let knownCollections = Set(collections.map(\.id))
+        let knownViews = Set(savedViews.map(\.id))
         Task {
             do {
                 importChangedAsCopies = false
-                importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing)
+                importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing, knownCollections: knownCollections,
+                                                                knownSavedViews: knownViews)
             } catch ArchivePackage.PackageError.tooLarge {
                 archiveMessage = String(localized: "This archive is too large to import on this device in one go (over 750 MB of photos and recordings). Nothing was imported.")
             } catch {
