@@ -9,7 +9,9 @@ import AppKit
 ///
 /// An entry stores its text plus two optional JSON documents (`textStyleData`: one style per
 /// paragraph; `inlineStyleData`: character ranges), both in *logical* coordinates: list
-/// markers and checkbox glyphs are never part of the stored text. The iOS editor displays
+/// markers and checkbox glyphs are never part of the stored text. Inline ranges count a photo
+/// as one character, not its token (see `InlineStyleRange.location`); the Mac editor only
+/// edits entries whose photos are all at the end, where the two agree. The iOS editor displays
 /// markers as real characters and maps display offsets to logical ones; the Mac editor draws
 /// markers outside the text, so its display text IS the logical text and no mapping exists.
 ///
@@ -226,9 +228,10 @@ enum NoteEditorCodec {
         var ranges: [InlineStyleRange] = []
 
         attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attrs, range, _ in
-            // Title and heading bold is the paragraph style, not an inline choice.
+            // Title, heading and subheading bold is the paragraph style, not an inline choice (same
+            // rule as the iOS editor, which reads bold from the font and cannot tell them apart).
             let style = paragraphModel(at: range.location, in: attributed).style
-            let paragraphBold = style == .heading || style == .title
+            let paragraphBold = style == .heading || style == .title || style == .subheading
             let bold = (attrs[boldKey] as? Bool ?? false) && !paragraphBold
             let italic = attrs[italicKey] as? Bool ?? false
             let underline = attrs[.underlineStyle] != nil
@@ -312,6 +315,37 @@ enum NoteEditorCodec {
             adjusted.location = start
             adjusted.length = end - start
             return adjusted
+        }
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
+    /// Inline ranges with bold removed inside `range` (other formatting there stays). Used when a
+    /// paragraph leaves Subheading: older iOS builds stored the subheading font's own bold as an
+    /// inline range, which would otherwise follow the paragraph into its new style.
+    static func clearingBold(_ data: Data?, in range: NSRange) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let clearStart = range.location
+        let clearEnd = range.location + range.length
+        var ranges: [InlineStyleRange] = []
+        for styleRange in document.ranges {
+            let start = styleRange.location
+            let end = styleRange.location + styleRange.length
+            guard styleRange.bold, start < clearEnd, end > clearStart else { ranges.append(styleRange); continue }
+            func piece(_ from: Int, _ to: Int, bold: Bool) {
+                guard to > from else { return }
+                var part = styleRange
+                part.location = from
+                part.length = to - from
+                part.bold = bold
+                let hasFormatting = part.bold || part.italic || part.underline || part.strikethrough
+                    || part.highlightIndex != nil || part.linkURL != nil || part.textColorIndex != nil
+                if hasFormatting { ranges.append(part) }
+            }
+            piece(start, max(start, clearStart), bold: true)
+            piece(max(start, clearStart), min(end, clearEnd), bold: false)
+            piece(min(end, clearEnd), end, bold: true)
         }
         let merged = mergeInlineRanges(ranges)
         guard !merged.isEmpty else { return nil }

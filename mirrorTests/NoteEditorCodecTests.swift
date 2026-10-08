@@ -17,10 +17,6 @@ struct NoteEditorCodecTests {
         var paragraphs: [NoteEditorCodec.ParagraphModel]
         var inline: [InlineStyleRange] = []
         var entryFont: WritingFontChoice = .system
-        /// The iOS editor records the subheading font's built-in bold as an inline range. The Mac
-        /// editor does not need to (iOS renders a subheading bold regardless), so fixtures with a
-        /// subheading skip the inline comparison; their round trip is still checked.
-        var compareInline = true
     }
 
     private func p(_ style: NoteParagraphTextStyle, indent: Int = 0, font: WritingFontChoice? = nil) -> NoteEditorCodec.ParagraphModel {
@@ -47,8 +43,7 @@ struct NoteEditorCodecTests {
                 name: "headings quote and monospace",
                 text: "Heading\nSub\nA quote\ncode line\nplain",
                 paragraphs: [p(.heading), p(.subheading), p(.blockQuote), p(.monospaced), p(.body)],
-                inline: [range(0, 7, underline: true), range(8, 3, strike: true)],
-                compareInline: false
+                inline: [range(0, 7, underline: true), range(8, 3, strike: true)]
             ),
             Fixture(
                 name: "empty last list item",
@@ -166,9 +161,8 @@ struct NoteEditorCodecTests {
             #expect(iosStyle?.paragraphStyles == codecStyle?.paragraphStyles, "paragraph styles differ for: \(fixture.name)")
             #expect((iosStyle?.indentLevels ?? []) == (codecStyle?.indentLevels ?? []), "indent levels differ for: \(fixture.name)")
             #expect(iosStyle?.fontChoices == codecStyle?.fontChoices, "font choices differ for: \(fixture.name)")
-            if fixture.compareInline {
-                #expect(decodedInline(ios.inline) == decodedInline(codec.inline), "inline ranges differ for: \(fixture.name)")
-            }
+            // Includes a subheading: neither editor stores the subheading font's own bold.
+            #expect(decodedInline(ios.inline) == decodedInline(codec.inline), "inline ranges differ for: \(fixture.name)")
         }
     }
 
@@ -299,5 +293,15 @@ struct NoteEditorCodecTests {
 
     @Test func adjustFollowsAReplacementOfADifferentLength() {
         #expect(adjusted([range(30, 3, underline: true)], 5, 4, 3) == [range(29, 3, underline: true)])
+    }
+
+    @Test func clearingBoldKeepsOtherFormattingAndBoldOutside() {
+        // Bold+underline over 0..<10; clear bold in 2..<5.
+        #expect(decodedInline(NoteEditorCodec.clearingBold(try? JSONEncoder().encode(InlineStyleDocument(ranges: [range(0, 10, bold: true, underline: true)])),
+                                                           in: NSRange(location: 2, length: 3)))
+                == [range(0, 2, bold: true, underline: true), range(2, 3, underline: true), range(5, 5, bold: true, underline: true)])
+        // Plain bold inside the cleared span disappears.
+        #expect(NoteEditorCodec.clearingBold(try? JSONEncoder().encode(InlineStyleDocument(ranges: [range(0, 3, bold: true)])),
+                                             in: NSRange(location: 0, length: 5)) == nil)
     }
 }

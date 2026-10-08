@@ -238,4 +238,20 @@ struct InlineOffsetsAfterListEditsTests {
         #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(5, 4)],
                 "the view shows bold on \"milk\": \(String(describing: inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView))))")
     }
+
+    // The subheading font is semibold. Its bold is the style's, not the user's.
+
+    @Test func subheadingBoldIsNotStoredAsInline() {
+        let h = makeListHarness(text: "alpha\nNotes", textStyleData: listStyle([.subheading, .body]))
+        #expect(h.coordinator.extractedInlineStyleData(from: h.textView) == nil)
+    }
+
+    @Test func leavingSubheadingDropsItsStoredBoldButKeepsBoldElsewhere() {
+        // Entries saved by older builds carry the subheading's bold as an inline range.
+        let h = makeListHarness(text: "alpha\nNotes", textStyleData: listStyle([.subheading, .body]),
+                                inlineStyleData: inline([bold(0, 5), bold(6, 5)]))
+        h.coordinator.apply(.body, to: h.textView)
+        #expect(inlineRanges(h.getInlineData()) == [bold(6, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(6, 5)], "the view shows \"alpha\" plain")
+    }
 }

@@ -100,7 +100,10 @@ struct InlineStyleSet: Equatable {
 }
 
 nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
-    var location: Int   // logical text coordinate
+    /// UTF-16 offset in the text without list markers, where a photo counts as one character
+    /// (its attachment), not its `[[mirror-photo-N]]` token. Equal to `Entry.text` offsets only
+    /// up to the first photo (the Mac editor allows photos only at the end).
+    var location: Int
     var length: Int
     var bold: Bool
     var italic: Bool

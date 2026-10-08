@@ -1822,6 +1822,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let boundedRange = bounded(range, in: mutable.string)
             let level = indentLevelValue(at: boundedRange.location, in: mutable)
             let fontChoice = fontChoiceValue(at: boundedRange.location, in: mutable)
+            // Entries saved before extraction skipped subheading bold carry it as an inline range;
+            // drop it with the style, or the stored ranges re-applied below keep the paragraph bold.
+            if textStyle(at: boundedRange.location, in: mutable) == .subheading, style != .subheading {
+                let map = buildLogicalOffsetMap(from: mutable)
+                let start = displayToLogical(display: boundedRange.location, map: map)
+                parent.inlineStyleData = NoteEditorCodec.clearingBold(parent.inlineStyleData,
+                                                                      in: NSRange(location: start, length: boundedRange.length))
+            }
             mutable.removeAttribute(Self.paragraphStyleAttribute, range: boundedRange)
             mutable.addAttributes(attributes(for: style, level: level, fontChoice: fontChoice), range: boundedRange)
             if style != .body {
@@ -2711,9 +2719,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
 
-                // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
+                // Only store non-default inline attrs (skip title/heading/subheading bold — those are
+                // paragraph-level; the subheading font is semibold, which reads as bold)
                 let style = self.textStyle(at: range.location, in: attributed)
-                let isParaBold = (style == .heading || style == .title)
+                let isParaBold = (style == .heading || style == .title || style == .subheading)
                 let effectiveBold = bold && !isParaBold
 
                 guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
