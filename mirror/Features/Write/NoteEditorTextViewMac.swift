@@ -437,7 +437,12 @@ struct NoteEditorTextView: NSViewRepresentable {
                 || lastTextSize != MacEditorStyle.bodySize
         }
 
-        func load(into textView: MirrorNSTextView) {
+        /// Shows the stored documents. `undoable`: a command's whole-document change (checklist
+        /// Check All, Sort Done, Delete Done), recorded by NSTextView as one undo step with the old
+        /// text and attributes. Otherwise an outside reload (opening an entry, a restored draft),
+        /// which drops the undo steps: they point into text that is gone, and Cmd-Z replayed them
+        /// at stale offsets (deleting the wrong character).
+        func load(into textView: MirrorNSTextView, undoable: Bool = false) {
             guard let storage = textView.textStorage else { return }
             let rendered = NoteEditorCodec.render(
                 text: parent.text, textStyleData: parent.textStyleData,
@@ -446,7 +451,19 @@ struct NoteEditorTextView: NSViewRepresentable {
             MacEditorStyle.restyle(rendered.attributed, in: NSRange(location: 0, length: rendered.attributed.length),
                                    entryFont: entryFont, displayMode: displayMode)
             isApplying = true
-            storage.setAttributedString(rendered.attributed)
+            if undoable {
+                let whole = NSRange(location: 0, length: storage.length)
+                textView.breakUndoCoalescing()
+                if textView.shouldChangeText(in: whole, replacementString: rendered.attributed.string) {
+                    storage.replaceCharacters(in: whole, with: rendered.attributed)
+                    textView.didChangeText()
+                }
+                textView.breakUndoCoalescing()
+            } else {
+                storage.setAttributedString(rendered.attributed)
+                textView.undoManager?.removeAllActions(withTarget: textView)
+                textView.undoManager?.removeAllActions(withTarget: storage)
+            }
             trailing = rendered.trailing
             layout?.trailingModel = rendered.trailing
             isApplying = false
@@ -719,7 +736,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
             parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
-            load(into: textView)
+            load(into: textView, undoable: true)
             publishActiveState(in: textView)
         }
 
@@ -743,7 +760,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
             parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
-            load(into: textView)
+            load(into: textView, undoable: true)
             publishActiveState(in: textView)
         }
 

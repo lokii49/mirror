@@ -1058,6 +1058,34 @@ enum MacEditorSelfTest {
             check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
         }
 
+        // 14. Undo after a whole-document checklist command (audit item 6): Cmd-Z must restore the
+        // document as it was, not replay an earlier typing step at stale offsets.
+        do {
+            let box = Box(text: "a\nb\nc", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 1, length: 0))
+            tv.insertText("Z", replacementRange: NSRange(location: NSNotFound, length: 0))
+            tv.undoManager?.endUndoGrouping(); tv.undoManager?.beginUndoGrouping()
+            check("undo setup: typed", box.text == "aZ\nb\nc", box.text.debugDescription)
+            c.apply(.sortCheckedToBottom, to: tv)
+            check("undo setup: sorted", box.text == "b\nc\naZ", box.text.debugDescription)
+            tv.undoManager?.endUndoGrouping()
+            tv.undoManager?.undo()
+            check("undo after Sort Done restores the order", box.text == "aZ\nb\nc" && styles(box.style) == ["checklistChecked", "checklistUnchecked", "checklistUnchecked"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+            tv.undoManager?.undo()
+            check("a second undo removes the typing", box.text == "a\nb\nc", box.text.debugDescription)
+        }
+        do {
+            let box = Box(text: "a\nb", style: doc([.checklistUnchecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            c.apply(.checkAllItems, to: tv)
+            tv.undoManager?.undo()
+            check("undo after Check All unchecks again", styles(box.style) == ["checklistUnchecked", "checklistUnchecked"], "\(styles(box.style))")
+            tv.undoManager?.redo()
+            check("redo checks all again", styles(box.style) == ["checklistChecked", "checklistChecked"], "\(styles(box.style))")
+        }
+
         // 13. Input-method composition (Japanese, Chinese, Korean): nothing is saved while text
         // is marked (NSTextView stores its underline on it), and the committed text is saved plain.
         do {
