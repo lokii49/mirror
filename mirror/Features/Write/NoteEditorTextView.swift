@@ -264,8 +264,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 textView.selectedRange = self.bounded(NSRange(location: charIndex, length: 0), in: textView.text)
             }
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -356,9 +355,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
-            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
@@ -603,8 +600,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             )
             isApplyingStyledText = false
 
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel, fontChoice: paraFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
@@ -639,8 +635,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
 
             // Hand off to the shared command path — it covers the empty-doc,
@@ -1139,8 +1134,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
 
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
 
             let newCursor = max(displayParaRange.location, cursorLocation - markerLen)
@@ -1695,19 +1689,35 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Remove from photoDataArray
             var photos = parent.photoDataArray
             if token.index < photos.count { photos.remove(at: token.index) }
-            // Renumber remaining tokens in text
-            var updatedText = parent.text
-            updatedText = updatedText
-                .replacingOccurrences(of: "\n" + tokenStr, with: "")
-                .replacingOccurrences(of: tokenStr + "\n", with: "")
-                .replacingOccurrences(of: tokenStr, with: "")
+            // Each text edit also moves the inline ranges after it (they are logical offsets),
+            // or formatting below the photo shifts by the token's length.
+            var updatedText = parent.text as NSString
+            var updatedInline = parent.inlineStyleData
+            func replace(_ range: NSRange, with replacement: String) {
+                updatedInline = NoteEditorCodec.adjustInlineStyles(updatedInline, replacing: range, withLength: (replacement as NSString).length)
+                updatedText = updatedText.replacingCharacters(in: range, with: replacement) as NSString
+            }
+            let tokenRange = updatedText.range(of: tokenStr)
+            if tokenRange.location != NSNotFound {
+                // Take the token's line break with it: the one before, else the one after.
+                let tokenEnd = NSMaxRange(tokenRange)
+                if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
+                    replace(NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1), with: "")
+                } else if tokenEnd < updatedText.length, updatedText.character(at: tokenEnd) == 10 {
+                    replace(NSRange(location: tokenRange.location, length: tokenRange.length + 1), with: "")
+                } else {
+                    replace(tokenRange, with: "")
+                }
+            }
             // Renumber subsequent tokens (indices shift down by 1)
             // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.
             for i in stride(from: token.index + 1, to: parent.photoDataArray.count, by: 1) {
-                updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1))
+                let range = updatedText.range(of: inlinePhotoToken(at: i))
+                if range.location != NSNotFound { replace(range, with: inlinePhotoToken(at: i - 1)) }
             }
             parent.photoDataArray = photos
-            parent.text = updatedText
+            parent.inlineStyleData = updatedInline
+            parent.text = updatedText as String
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             updatePlaceholder(in: textView)
@@ -1814,8 +1824,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
             updateTypingAttributes(for: textView)
         }
@@ -1842,8 +1851,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
         }
 
@@ -1910,8 +1918,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             // Re-render to show correct number
             if newStyle == .numberedList { invalidateRenderedCache() }
             applyStyledText(to: textView, preservingSelection: false)
@@ -1958,8 +1965,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             applyAttributedText(mutable, to: textView)
             textView.selectedRange = bounded(NSRange(location: boundedRange.location + lineBreak.count, length: 0), in: textView.text)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             textView.typingAttributes = styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: exitFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
@@ -2110,6 +2116,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                 indentLevels: hasIndent ? levels : nil,
                 fontChoices: fontChoices
             ))
+        }
+
+        /// Reads the text, paragraph styles and inline ranges back from the view after an edit.
+        /// Inline ranges are logical offsets, so they must be re-read whenever an edit moves the
+        /// logical text (list Return, typing into a marker, "1. "): otherwise the next re-render
+        /// applies them at stale offsets and the next keystroke saves the shifted result.
+        private func storeDocuments(from textView: UITextView) {
+            parent.text = logicalText(from: textView)
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
         }
 
         private func invalidateRenderedCache() {
@@ -2748,13 +2764,19 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsDisplay = attributed.string as NSString
 
             nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                // Same rule as `logicalText`: a marker counts only when the paragraph really
+                // starts with it. Right after a style change, before the re-render inserts the
+                // marker, a list paragraph has none, and counting one shifted every range after it.
                 let style = self.textStyle(at: enclosingRange.location, in: attributed)
+                let level = self.indentLevelValue(at: enclosingRange.location, in: attributed)
+                let para = nsDisplay.substring(with: enclosingRange)
                 let markerLen: Int
-                if style == .numberedList {
-                    let para = nsDisplay.substring(with: enclosingRange)
+                if let marker = self.staticListMarkerPrefix(for: style, level: level) {
+                    markerLen = para.hasPrefix(marker) ? (marker as NSString).length : 0
+                } else if style == .numberedList {
                     markerLen = self.numberedListMarkerLength(in: para)
                 } else {
-                    markerLen = (self.staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0
+                    markerLen = 0
                 }
                 result.append((displayOff, logicalOff, markerLen))
                 logicalOff += enclosingRange.length - markerLen
@@ -3022,8 +3044,17 @@ nonisolated func preparedInlinePhotoData(fromFileAt url: URL) throws -> Data {
 nonisolated func textWithInlinePhotoToken(_ text: String, at index: Int) -> String {
     let token = inlinePhotoToken(at: index)
     guard !text.contains(token) else { return text }
-    let trimmed = text.trimmingCharacters(in: .newlines)
+    let trimmed = trimmingTrailingNewlines(text)
     return trimmed.isEmpty ? token : "\(trimmed)\n\(token)\n"
+}
+
+/// `text` without its trailing line breaks, for appending a block (photo, scan, Talk It Out).
+/// Leading line breaks stay: paragraph styles are stored by paragraph index and inline ranges by
+/// offset from the start, so trimming the front shifted every style in the entry.
+nonisolated func trimmingTrailingNewlines(_ text: String) -> String {
+    var trimmed = text
+    while let last = trimmed.last, last.isNewline { trimmed.removeLast() }
+    return trimmed
 }
 
 private nonisolated func isRenderableImageData(_ data: Data) -> Bool {

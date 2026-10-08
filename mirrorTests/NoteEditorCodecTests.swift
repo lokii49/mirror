@@ -276,4 +276,28 @@ struct NoteEditorCodecTests {
         #expect(NoteEditorCodec.remapInlineStyles(nil, in: "a\nb", rowOrder: [1, 0]) == nil)
         #expect(remapped([range(0, 1, bold: true)], "a\nb", [1]) == nil)
     }
+
+    // MARK: - Adjusting inline ranges for a text edit (photo removal)
+
+    private func adjusted(_ ranges: [InlineStyleRange], _ location: Int, _ length: Int, _ newLength: Int) -> [InlineStyleRange]? {
+        decodedInline(NoteEditorCodec.adjustInlineStyles(try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges)),
+                                                         replacing: NSRange(location: location, length: length), withLength: newLength))
+    }
+
+    @Test func adjustShiftsRangesAfterADeletion() {
+        // "ab\n[[mirror-photo-0]]\nNotes": deleting "\n" + token (19 units at 2) moves "Notes" from 22 to 3.
+        #expect(adjusted([range(0, 2, bold: true), range(22, 5, italic: true)], 2, 19, 0)
+                == [range(0, 2, bold: true), range(3, 5, italic: true)])
+    }
+
+    @Test func adjustClipsRangesThatOverlapTheEdit() {
+        #expect(adjusted([range(0, 5, bold: true)], 3, 4, 0) == [range(0, 3, bold: true)])
+        #expect(adjusted([range(4, 4, bold: true)], 2, 4, 0) == [range(2, 2, bold: true)])
+        #expect(adjusted([range(3, 2, bold: true)], 2, 4, 0) == nil)
+    }
+
+    @Test func adjustFollowsAReplacementOfADifferentLength() {
+        // Renumbering "[[mirror-photo-10]]" to "[[mirror-photo-9]]" is one unit shorter.
+        #expect(adjusted([range(30, 3, underline: true)], 5, 19, 18) == [range(29, 3, underline: true)])
+    }
 }

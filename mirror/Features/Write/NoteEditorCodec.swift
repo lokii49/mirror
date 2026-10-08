@@ -292,6 +292,32 @@ enum NoteEditorCodec {
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
     }
 
+    /// Inline ranges after `range` of the text is replaced by `length` new UTF-16 units. Ranges
+    /// after the edit shift; a range that overlaps it loses the replaced part, and one that spans
+    /// it keeps covering the replacement.
+    static func adjustInlineStyles(_ data: Data?, replacing range: NSRange, withLength length: Int) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let editEnd = range.location + range.length
+        let delta = length - range.length
+        func moved(_ offset: Int, isEnd: Bool) -> Int {
+            if offset <= range.location { return offset }
+            if offset >= editEnd { return offset + delta }
+            return isEnd ? range.location : range.location + length
+        }
+        let ranges = document.ranges.compactMap { styleRange -> InlineStyleRange? in
+            let start = moved(styleRange.location, isEnd: false)
+            let end = moved(styleRange.location + styleRange.length, isEnd: true)
+            guard end > start else { return nil }
+            var adjusted = styleRange
+            adjusted.location = start
+            adjusted.length = end - start
+            return adjusted
+        }
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
     /// Same rule as the iOS coordinator's `mergeInlineRanges`.
     static func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
         guard !ranges.isEmpty else { return [] }

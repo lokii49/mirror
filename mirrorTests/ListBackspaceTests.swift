@@ -3,7 +3,8 @@ import SwiftUI
 import UIKit
 @testable import mirror
 
-// Backspace at the start of a list item, and checklist bulk ops. Synthetic text only.
+// Backspace at the start of a list item, checklist bulk ops, and inline ranges after list edits.
+// Synthetic text only.
 
 @MainActor
 private func makeListHarness(
@@ -126,5 +127,60 @@ struct ChecklistBulkOpsKeepInlineTests {
         #expect(h.getText() == "shop\npaid")
         let ranges = (try? JSONDecoder().decode(InlineStyleDocument.self, from: h.getInlineData() ?? Data()))?.ranges
         #expect(ranges == [link(5, 4, "https://example.com")], "got \(String(describing: ranges))")
+    }
+}
+
+private func inlineRanges(_ data: Data?) -> [InlineStyleRange]? {
+    data.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges
+}
+
+/// Edits that move the logical text outside UIKit's typing path used to leave inlineStyleData at
+/// the old offsets; the re-render then drew bold one or more characters off and the next
+/// keystroke saved it (audit item 4). Each test checks the stored ranges and what the view shows.
+@MainActor
+struct InlineOffsetsAfterListEditsTests {
+    private func displayLocation(of needle: String, in textView: UITextView) -> Int {
+        ((textView.text ?? "") as NSString).range(of: needle).location
+    }
+
+    @Test func returnInAListKeepsBoldBelowInPlace() {
+        let h = makeListHarness(text: "alpha\nNotes", textStyleData: listStyle([.bulletedList, .body]),
+                                inlineStyleData: inline([bold(6, 5)]))
+        let end = displayLocation(of: "alpha", in: h.textView) + 5
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: end, length: 0), replacementText: "\n")
+        #expect(h.getText() == "alpha\n\nNotes")
+        #expect(inlineRanges(h.getInlineData()) == [bold(7, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(7, 5)], "the view shows bold on \"Notes\"")
+    }
+
+    @Test func typingIntoAMarkerKeepsBoldBelowInPlace() {
+        let h = makeListHarness(text: "alpha\nNotes", textStyleData: listStyle([.bulletedList, .body]),
+                                inlineStyleData: inline([bold(6, 5)]))
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: 0, length: 0), replacementText: "x")
+        #expect(h.getText() == "xalpha\nNotes")
+        #expect(inlineRanges(h.getInlineData()) == [bold(7, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+    }
+
+    @Test func numberedShortcutKeepsBoldBelowInPlace() {
+        let h = makeListHarness(text: "1.go\nNotes", inlineStyleData: inline([bold(5, 5)]))
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: 2, length: 0), replacementText: " ")
+        #expect(h.getText() == "go\nNotes")
+        #expect(inlineRanges(h.getInlineData()) == [bold(3, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(3, 5)], "the view shows bold on \"Notes\"")
+    }
+
+    @Test func makingAParagraphAListKeepsBoldBelowInPlace() {
+        // The style is set before the re-render inserts the marker; the offset map must not
+        // count a marker that isn't there yet.
+        let h = makeListHarness(text: "alpha\nNotes", inlineStyleData: inline([bold(6, 5)]))
+        h.coordinator.apply(.bulletedList, to: h.textView)
+        #expect(h.getText() == "alpha\nNotes")
+        #expect(inlineRanges(h.getInlineData()) == [bold(6, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(6, 5)], "the view shows bold on \"Notes\"")
+    }
+
+    @Test func appendingABlockKeepsLeadingLineBreaks() {
+        #expect(trimmingTrailingNewlines("\nfirst\n\n") == "\nfirst")
+        #expect(textWithInlinePhotoToken("\nfirst\n", at: 0) == "\nfirst\n[[mirror-photo-0]]\n")
     }
 }
