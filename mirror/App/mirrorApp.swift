@@ -317,6 +317,13 @@ struct mirrorApp: App {
                         CJKWordCountRecount.runIfNeeded(context: sharedModelContainer.mainContext)
                     }
                 }
+                // One-time: remove list markers the old editor saved next to mid-text photos
+                // (see PhotoMarkerRepair).
+                Task { @MainActor in
+                    PerfSignpost.interval("active.photoMarkerRepair") {
+                        PhotoMarkerRepair.runIfNeeded(context: sharedModelContainer.mainContext)
+                    }
+                }
                 // One-time: rewrite the latest digest/report if the pre-grammar Gemma path wrote it.
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = Task(priority: .background) { @MainActor in

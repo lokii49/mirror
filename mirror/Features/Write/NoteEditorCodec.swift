@@ -379,6 +379,83 @@ enum NoteEditorCodec {
         }
     }
 
+    // MARK: - Repairing photo-line damage (one-time cleanup)
+
+    /// The list markers the iOS editor draws (all indent levels), as `NoteEditorTextView` renders them.
+    nonisolated static let staticListMarkers = ["•  ", "◦  ", "▸  ", "–  ", "·  ", "○  ", "✓  "]
+
+    /// Length of a list marker at the start of `line` ("•  ", "1.\t", legacy "1.  "), else 0.
+    static func leadingListMarkerLength(in line: NSString) -> Int {
+        for marker in staticListMarkers where line.hasPrefix(marker) { return (marker as NSString).length }
+        var i = 0
+        while i < line.length, (48...57).contains(line.character(at: i)) { i += 1 }
+        guard i > 0, i < line.length, line.character(at: i) == 46 else { return 0 }   // "."
+        i += 1
+        if i < line.length, line.character(at: i) == 9 { return i + 1 }               // "\t"
+        if i + 1 < line.length, line.character(at: i) == 32, line.character(at: i + 1) == 32 { return i + 2 }
+        return 0
+    }
+
+    /// Undoes what the pre-3.1.0 iOS editor saved into the text of entries with a mid-text photo
+    /// (audit item 2): a list marker drawn on the photo line and saved right after the token
+    /// ("[[mirror-photo-0]]•  "), and list items below a photo whose own marker was saved into
+    /// their text ("•  milk" stored as a bulleted paragraph, shown "•  •  milk"). The editor never
+    /// writes either, so both are removed; only lines from the first photo line on are touched.
+    /// Inline ranges move with the deleted characters. Styles that were shifted cannot be told
+    /// from real ones and are left alone. Nil when there is nothing to repair.
+    static func repairPhotoMarkerDamage(text: String, textStyleData: Data?, inlineStyleData: Data?) -> (text: String, inlineStyleData: Data?)? {
+        let nsText = text as NSString
+        let tokens = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
+        guard let firstToken = tokens.first else { return nil }
+
+        let starts = paragraphStarts(in: nsText)
+        func lineRange(_ index: Int) -> NSRange {
+            let end = index + 1 < starts.count ? starts[index + 1] - 1 : nsText.length
+            return NSRange(location: starts[index], length: end - starts[index])
+        }
+        var deletions: [NSRange] = []
+
+        // Markers saved right after a token that starts its line.
+        for token in tokens where token.location == 0 || nsText.character(at: token.location - 1) == 10 {
+            var end = NSMaxRange(token)
+            while end < nsText.length {
+                let rest = nsText.substring(from: end) as NSString
+                let markerLength = leadingListMarkerLength(in: rest)
+                guard markerLength > 0 else { break }
+                end += markerLength
+            }
+            if end > NSMaxRange(token) { deletions.append(NSRange(location: NSMaxRange(token), length: end - NSMaxRange(token))) }
+        }
+
+        // A list paragraph below a photo whose text starts with a marker.
+        if let styles = decodeTextStyleDocument(textStyleData)?.paragraphStyles {
+            let firstPhotoLine = starts.lastIndex { $0 <= firstToken.location } ?? 0
+            for index in starts.indices where index > firstPhotoLine && styles.indices.contains(index) && isListStyle(styles[index]) {
+                let line = lineRange(index)
+                var length = 0
+                while true {
+                    let rest = nsText.substring(with: NSRange(location: line.location + length, length: line.length - length)) as NSString
+                    let markerLength = leadingListMarkerLength(in: rest)
+                    guard markerLength > 0 else { break }
+                    length += markerLength
+                }
+                if length > 0 { deletions.append(NSRange(location: line.location, length: length)) }
+            }
+        }
+        guard !deletions.isEmpty else { return nil }
+
+        // Delete from the end so earlier offsets stay valid. Inline ranges count a photo as one
+        // character, so each deletion is moved into those coordinates first.
+        var repaired = nsText
+        var inline = inlineStyleData
+        for deletion in deletions.sorted(by: { $0.location > $1.location }) {
+            let extraBefore = tokens.reduce(0) { NSMaxRange($1) <= deletion.location ? $0 + $1.length - 1 : $0 }
+            inline = adjustInlineStyles(inline, replacing: NSRange(location: deletion.location - extraBefore, length: deletion.length), withLength: 0)
+            repaired = repaired.replacingCharacters(in: deletion, with: "") as NSString
+        }
+        return (repaired as String, inline)
+    }
+
     /// Same rule as the iOS coordinator's `mergeInlineRanges`.
     static func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
         guard !ranges.isEmpty else { return [] }

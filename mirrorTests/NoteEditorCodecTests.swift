@@ -1,4 +1,5 @@
 import Testing
+import SwiftData
 import SwiftUI
 import UIKit
 @testable import mirror
@@ -313,5 +314,101 @@ struct NoteEditorCodecTests {
                 == [range(0, 2, bold: true), range(22, 5, italic: true), range(47, 3, underline: true)])
         // No photos: unchanged.
         #expect(NoteEditorCodec.inlineRangesInTextCoordinates(ranges, text: "plain") == ranges)
+    }
+
+    // MARK: - One-time repair of photo-line damage (audit item 2)
+
+    @MainActor
+    private func repaired(_ text: String, _ styles: [NoteParagraphTextStyle]? = nil, _ inline: [InlineStyleRange] = [])
+        -> (text: String, inline: [InlineStyleRange]?)? {
+        let styleData = styles.flatMap { try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: $0)) }
+        let inlineData = inline.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: inline))
+        guard let result = NoteEditorCodec.repairPhotoMarkerDamage(text: text, textStyleData: styleData, inlineStyleData: inlineData) else { return nil }
+        return (result.text, decodedInline(result.inlineStyleData))
+    }
+
+    @MainActor
+    @Test func repairRemovesMarkersSavedAfterAPhotoToken() {
+        #expect(repaired("ab\n[[mirror-photo-0]]•  \nmilk")?.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(repaired("ab\n[[mirror-photo-0]]•  •  ○  \nmilk")?.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(repaired("[[mirror-photo-0]]2.\t\nnext")?.text == "[[mirror-photo-0]]\nnext")
+    }
+
+    @MainActor
+    @Test func repairRemovesADoubledMarkerFromAListItemBelowAPhoto() {
+        let result = repaired("ab\n[[mirror-photo-0]]\n•  milk\nplain", [.body, .body, .bulletedList, .body])
+        #expect(result?.text == "ab\n[[mirror-photo-0]]\nmilk\nplain")
+    }
+
+    @MainActor
+    @Test func repairMovesInlineRangesWithTheDeletedCharacters() {
+        // Editor coordinates: "ab\n" + photo + "•  " + "\nmilk" → "milk" at 8; after removing 3 marker
+        // characters it is at 5.
+        let result = repaired("ab\n[[mirror-photo-0]]•  \nmilk", nil, [range(0, 2, bold: true), range(8, 4, italic: true)])
+        #expect(result?.inline == [range(0, 2, bold: true), range(5, 4, italic: true)])
+    }
+
+    @MainActor
+    @Test func repairLeavesHealthyAndUnrelatedTextAlone() {
+        // No photo: never touched, even with a marker-looking line.
+        #expect(repaired("•  milk", [.bulletedList]) == nil)
+        // Above the first photo: not touched.
+        #expect(repaired("•  milk\n[[mirror-photo-0]]", [.bulletedList, .body]) == nil)
+        // A body line below a photo that starts like a marker is the user's text.
+        #expect(repaired("[[mirror-photo-0]]\n•  typed", [.body, .body]) == nil)
+        // A token in the middle of a line, then a marker-looking text: not a photo line.
+        #expect(repaired("see [[mirror-photo-0]]•  x") == nil)
+        // Healthy entry.
+        #expect(repaired("ab\n[[mirror-photo-0]]\nmilk", [.body, .body, .bulletedList]) == nil)
+    }
+}
+
+@Suite("PhotoMarkerRepair")
+struct PhotoMarkerRepairTests {
+    @MainActor
+    @Test func repairsOnlyDamagedPhotoEntriesAndSetsTheFlag() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+        UserDefaults.standard.set(1, forKey: countKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let context = container.mainContext
+        let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
+        let healthy = Entry(text: "•  a line the user typed")
+        context.insert(damaged); context.insert(healthy)
+        try context.save()
+
+        PhotoMarkerRepair.runIfNeeded(context: context)
+
+        #expect(damaged.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(healthy.text == "•  a line the user typed")
+        #expect(UserDefaults.standard.bool(forKey: PhotoMarkerRepair.flag))
+    }
+
+    @MainActor
+    @Test func waitsForFirstBackgrounding() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+        UserDefaults.standard.set(0, forKey: countKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
+        container.mainContext.insert(damaged)
+        try container.mainContext.save()
+
+        PhotoMarkerRepair.runIfNeeded(context: container.mainContext)
+
+        #expect(damaged.text == "ab\n[[mirror-photo-0]]•  \nmilk")
+        #expect(!UserDefaults.standard.bool(forKey: PhotoMarkerRepair.flag))
     }
 }
