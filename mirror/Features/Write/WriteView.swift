@@ -706,7 +706,7 @@ struct WriteView: View {
             Button("Delete", role: .destructive) { sendTextCommand(.deleteCheckedItems) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Checked items are removed from this entry. This can't be undone.")
+            Text("Checked items are removed from this entry.")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
             TextField("https://example.com", text: $linkEditorURLText)

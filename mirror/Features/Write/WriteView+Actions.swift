@@ -8,8 +8,8 @@ import AppKit
 
 extension WriteView {
     func applyTextCommand(_ command: NoteTextCommand) {
-        // Delete Done removes rows with no undo, so every entry point (toolbar trash, Aa panel,
-        // Mac popover menu) asks first. An alert can't present over the Aa popover, so close it
+        // Delete Done removes rows, so every entry point (toolbar trash, Aa panel, Mac popover
+        // menu) asks first; it can also be undone. An alert can't present over the Aa popover, so close it
         // and wait for the dismissal.
         if case .deleteCheckedItems = command {
             let panelWasOpen = showFormattingPanel

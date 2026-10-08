@@ -224,7 +224,8 @@ final class MirrorLayoutManager: NSLayoutManager {
             let symbol = model.style == .checklistChecked ? "checkmark.circle.fill" : "circle"
             let tint: NSColor = model.style == .checklistChecked ? .controlAccentColor : .secondaryLabelColor
             let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(paletteColors: [tint]))
-            let description = model.style == .checklistChecked ? String(localized: "Done") : String(localized: "Not done")
+            // Own keys: "Done" alone is the finish-button label (German "Fertig", not "Erledigt").
+            let description = model.style == .checklistChecked ? String(localized: "Checklist item done") : String(localized: "Checklist item not done")
             if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)?.withSymbolConfiguration(config) {
                 image.draw(in: rect.offsetBy(dx: origin.x, dy: origin.y))
             }
