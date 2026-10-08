@@ -1,10 +1,11 @@
-Una barra degli strumenti come in Note e il diario più protetto
+Blocca il tuo diario, annota da ovunque, trova tutto
 
-• Un nuovo pannello Aa per formattare il testo, come in Note, e una barra degli strumenti più pulita.
-• Passaggio più fluido tra le schede delle Impostazioni, un pulsante per cancellare la ricerca e feedback al passaggio del puntatore.
-• Foto e tag scorrono in orizzontale nell'editor, e la mappa di calore dell'umore mostra i dettagli al passaggio del puntatore.
-• Zoom e spostamento in Brain View con la rotella o il trackpad, e scorciatoie da tastiera per cambiare mese nei report.
-• La stessa protezione dell'iPhone: una copia privata e il ripristino se iCloud viene disattivato, più un avviso quando le modifiche non hanno ancora un backup.
-• La riflessione quotidiana ora mostra una seconda frase della tua voce.
-• Ricerca e filtri più veloci nelle Voci.
-• Nel Finder l'app ora si chiama MirrorNotes.
+• Blocco app: proteggi MirrorNotes con Touch ID o la password del tuo Mac. Si blocca all'apertura e dopo 5 minuti di assenza, e copre il diario finché è bloccata. Attivalo in Impostazioni.
+• Acquisizione rapida da qualsiasi app: premi Opzione-Comando-J per annotare qualcosa senza lasciare quello che stai facendo. Cambia la scorciatoia o disattivala in Impostazioni.
+• Il promemoria giornaliero del check-in ora appare anche quando MirrorNotes è aperta, e un clic ti porta subito a registrare l'umore.
+• Ricerca migliorata: metti le parole tra "virgolette" per una frase esatta, scrivi tag:lavoro per cercare un tag o -parola per escludere una parola. Le corrispondenze sono evidenziate e i risultati si possono ordinare per pertinenza.
+• Filtri: combina più stati d'animo, alcuni o tutti i tuoi tag, intervalli di date (anche Questa settimana e Questo mese), foto e voci fissate.
+• Raccolte: raggruppa le voci in raccolte e passa dall'una all'altra in Voci. Ogni voce può stare in una raccolta.
+• Viste salvate: salva una ricerca con filtri e ordinamento e riaprila con un clic.
+• Bozze più sicure: l'editor mostra se la bozza è stata conservata, e le modifiche non salvate a una voce, anche chiusa con Esc, si possono ripristinare alla successiva apertura.
+• Esporta tutto il diario come ZIP con file Markdown e le tue foto. Puoi reimportare un archivio decompresso; le voci esistenti non vengono mai sovrascritte.

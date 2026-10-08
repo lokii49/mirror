@@ -1,10 +1,11 @@
-Eine Symbolleiste wie in Notizen und besserer Schutz für dein Journal
+Sperre dein Journal, erfasse von überall, finde alles
 
-• Ein neues Aa-Menü zum Formatieren wie in Notizen und eine aufgeräumtere Symbolleiste.
-• Flüssigerer Wechsel zwischen den Einstellungs-Tabs, eine Taste zum Löschen der Suche und Hover-Feedback überall.
-• Fotos und Tags scrollen im Editor seitlich, und die Stimmungs-Heatmap zeigt beim Darüberfahren Details.
-• Zoomen und Verschieben in der Brain View per Scrollrad oder Trackpad sowie Tastenkürzel zum Wechseln der Monate in Berichten.
-• Derselbe Journal-Schutz wie auf dem iPhone: eine private Kopie mit Wiederherstellung, wenn iCloud ausgeschaltet wird, und ein Hinweis, wenn Änderungen noch nicht gesichert sind.
-• Deine tägliche Reflexion zeigt jetzt einen zweiten Satz aus deinem Eintrag.
-• Schnellere Suche und Filter in Einträgen.
-• Die App heißt im Finder jetzt MirrorNotes.
+• App-Sperre: Schütze MirrorNotes mit Touch ID oder deinem Mac-Passwort. Die App sperrt sich beim Öffnen und nach 5 Minuten Abwesenheit und verdeckt dein Journal, solange sie gesperrt ist. Aktiviere sie in den Einstellungen.
+• Schnellerfassung aus jeder App: Drücke Wahl-Befehl-J, um etwas zu notieren, ohne deine Arbeit zu verlassen. Ändere den Kurzbefehl oder schalte ihn in den Einstellungen aus.
+• Deine tägliche Check-in-Erinnerung erscheint jetzt auch, wenn MirrorNotes geöffnet ist, und ein Klick darauf führt direkt zum Stimmung-Erfassen.
+• Bessere Suche: Setze Wörter in „Anführungszeichen“ für eine genaue Wortfolge, tippe tag:arbeit, um nach einem Tag zu suchen, oder -wort, um ein Wort auszuschließen. Treffer werden hervorgehoben, und Ergebnisse lassen sich nach Relevanz sortieren.
+• Filter: Kombiniere mehrere Stimmungen, einige oder alle deiner Tags, Zeiträume (auch Diese Woche und Dieser Monat), Fotos und angeheftete Einträge.
+• Sammlungen: Ordne Einträge in Sammlungen und wechsle in Einträge zwischen ihnen. Jeder Eintrag kann in einer Sammlung sein.
+• Gespeicherte Ansichten: Speichere eine Suche mit Filtern und Sortierung und öffne sie mit einem Klick wieder.
+• Sicherere Entwürfe: Der Editor zeigt, ob dein Entwurf behalten wurde, und ungespeicherte Änderungen an einem Eintrag, auch mit Esc geschlossene, lassen sich beim nächsten Öffnen wiederherstellen.
+• Exportiere dein ganzes Journal als ZIP mit Markdown-Dateien und deinen Fotos. Ein entpacktes Archiv kannst du wieder importieren; vorhandene Einträge werden nie überschrieben.
