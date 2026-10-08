@@ -21,3 +21,10 @@ All marked `mirror patch` in the source.
    tokenizer emitted as several byte-level tokens (CJK, especially under a grammar) came out as ""
    or "�" and silently disappeared — 3/20 grammar-constrained Japanese digests lost characters, so
    their verbatim quotes failed validation.
+7. **`LlamaEmbedder`** (2026-10-08, with the llama.cpp bump b6102 → b6750): sentence embeddings for
+   EmbeddingGemma through llama.cpp's embedding API (non-causal context, `embeddings = true`,
+   pooled vector from `llama_get_embeddings_seq`, L2-normalized). b6750 is the first release that
+   loads ggml-org's EmbeddingGemma GGUF (b6700 and earlier fail with "expected 316 tensors, got 314":
+   the dense layers). Never logs text, tokens or vectors. Before landing the bump, every Gemma 3 1B rig round
+   was re-run on b6750: mood and follow-up are byte-identical, and grammar paths resample the same distributions
+   (`.claude/ask-embeddings-plan.md`).
