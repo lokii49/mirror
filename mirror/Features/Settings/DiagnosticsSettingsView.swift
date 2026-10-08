@@ -7,10 +7,18 @@ import SwiftData
 struct DiagnosticsSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
+    @Query private var collections: [JournalCollection]
+    @Query private var savedViews: [SavedEntryView]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @State private var encryptionReport: String?
     @State private var groundingAuditReport: String?
+
+    /// Counts only; no names or text.
+    private var entriesInMissingCollection: Int {
+        let known = Set(collections.map(\.id))
+        return entries.filter { $0.collectionID.map { !known.contains($0) } ?? false }.count
+    }
 
     var body: some View {
         SettingsScroll {
@@ -20,6 +28,9 @@ struct DiagnosticsSettingsView: View {
                         let unreadable = entries.filter(\.textDecryptionFailed).count
                         encryptionReport = MirrorEncryption.diagnosticsReport()
                             + "\nentries unreadable: \(unreadable)/\(entries.count)"
+                            + "\ncollections unreadable: \(collections.filter { $0.payload == nil }.count)/\(collections.count)"
+                            + "\nsaved views unreadable: \(savedViews.filter { $0.payload == nil }.count)/\(savedViews.count)"
+                            + "\nentries in a missing collection: \(entriesInMissingCollection)"
                     } label: {
                         SettingsRowLabel(title: "Encryption Diagnostics", systemImage: "key.viewfinder", iconColor: .orange)
                     }
