@@ -671,3 +671,35 @@ struct ReturnOnEmptyMiddleItemTests {
                 "numbering below restarts: \(lines.map(\.debugDescription))")
     }
 }
+
+/// Text size changes while writing reach body text (audit item 11), and lines pasted into a list
+/// get their markers right away (audit item 12).
+@MainActor
+struct TextSizeAndPasteTests {
+    @Test func bodyTextFollowsATextSizeChange() {
+        let h = makeListHarness(text: "hello")
+        h.coordinator.textView = h.textView
+        let before = (h.textView.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)?.pointSize ?? 0
+        h.coordinator.contentSizeCategory = { .accessibilityExtraLarge }
+        NotificationCenter.default.post(name: UIContentSizeCategory.didChangeNotification, object: nil)
+        let after = (h.textView.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)?.pointSize ?? 0
+        #expect(after > before, "body text grew: \(before) -> \(after)")
+    }
+
+    @Test func linesPastedIntoAListGetMarkers() {
+        let h = makeListHarness(text: "milk\n", textStyleData: listStyle([.bulletedList, .bulletedList]))
+        let end = ((h.textView.text ?? "") as NSString).length
+        h.textView.selectedRange = NSRange(location: end, length: 0)
+        let pasted = "eggs\nbread"
+        let range = NSRange(location: end, length: 0)
+        #expect(h.coordinator.textView(h.textView, shouldChangeTextIn: range, replacementText: pasted))
+        h.textView.textStorage.replaceCharacters(in: range, with: NSAttributedString(string: pasted, attributes: h.textView.typingAttributes))
+        h.textView.selectedRange = NSRange(location: end + (pasted as NSString).length, length: 0)
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == "milk\neggs\nbread", "got \(h.getText().debugDescription)")
+        let lines = (h.textView.text ?? "").components(separatedBy: "\n")
+        #expect(lines.count == 3 && lines.allSatisfy { $0.hasPrefix("•  ") }, "every line shows its bullet: \(lines.map(\.debugDescription))")
+        let caretLine = ((h.textView.text ?? "") as NSString).substring(to: h.textView.selectedRange.location)
+        #expect(caretLine.hasSuffix("bread"), "the caret stays after the pasted text")
+    }
+}

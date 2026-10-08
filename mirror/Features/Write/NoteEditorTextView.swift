@@ -34,6 +34,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = MirrorEditorTextView()
+        context.coordinator.textView = textView
         textView.editorUndo = context.coordinator.editorUndoManager
         context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
@@ -178,6 +179,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// A re-render was skipped because an input method was composing (setting
         /// `attributedText` ends the composition); it runs once the composition ends.
         private var renderDeferredForComposition = false
+        /// Several lines were pasted into a list item (display range of the pasted text, the item's
+        /// style and level). Lines after the first came in as body with no marker; textViewDidChange
+        /// gives them the item's style and redraws.
+        private var pastedIntoList: (range: NSRange, style: NoteParagraphTextStyle, level: Int)?
 
         /// The inline formatting the next typed character gets (links are never extended).
         struct TypingInline: Equatable {
@@ -211,6 +216,24 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
+            super.init()
+            NotificationCenter.default.addObserver(self, selector: #selector(contentSizeCategoryDidChange),
+                                                   name: UIContentSizeCategory.didChangeNotification, object: nil)
+        }
+
+        /// The text view this coordinator draws into (for redraws it starts itself).
+        weak var textView: UITextView?
+
+        /// The system text size the body font follows. A function so tests can change it.
+        var contentSizeCategory: () -> UIContentSizeCategory = { UIApplication.shared.preferredContentSizeCategory }
+
+        /// Text size changed in Settings while writing: body text is built from a cached font and
+        /// attributed runs don't follow `adjustsFontForContentSizeCategory`, so redraw (headings
+        /// already rebuild their fonts on each render).
+        @objc func contentSizeCategoryDidChange() {
+            guard let textView else { return }
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
         }
 
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -352,16 +375,19 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // UIFontDescriptor.preferredFontDescriptor + withDesign + UIFont init are not
         // free, and this is called on every keystroke/cursor movement across 13+ call
-        // sites — cache the built font, but keyed on the user's choice so switching
-        // fonts in the formatting panel takes effect immediately.
-        private var _bodyFontCache: (choice: WritingFontChoice, font: UIFont)?
+        // sites — cache the built font, keyed on the user's choice (so switching fonts in
+        // the formatting panel takes effect immediately) and on the text size (so a text
+        // size change in Settings does; it used to keep the old size until the editor closed).
+        private var _bodyFontCache: (choice: WritingFontChoice, category: UIContentSizeCategory, font: UIFont)?
         func bodyFont(for choice: WritingFontChoice) -> UIFont {
-            if let cache = _bodyFontCache, cache.choice == choice {
+            let category = contentSizeCategory()
+            if let cache = _bodyFontCache, cache.choice == choice, cache.category == category {
                 return cache.font
             }
-            let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
+            let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body,
+                                                                compatibleWith: UITraitCollection(preferredContentSizeCategory: category))
             let font = UIFont(descriptor: base.withDesign(choice.uiDesign) ?? base, size: 0)
-            _bodyFontCache = (choice, font)
+            _bodyFontCache = (choice, category, font)
             return font
         }
 
@@ -381,6 +407,15 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
+            if let paste = pastedIntoList {
+                let nsText = (textView.text ?? "") as NSString
+                let pasted = NSIntersectionRange(paste.range, NSRange(location: 0, length: nsText.length))
+                if pasted.length > 0 {
+                    let paragraphs = nsText.paragraphRange(for: pasted)
+                    textView.textStorage.addAttribute(Self.paragraphStyleAttribute, value: paste.style.rawValue, range: paragraphs)
+                    if paste.level > 0 { textView.textStorage.addAttribute(Self.indentLevelAttribute, value: paste.level, range: paragraphs) }
+                }
+            }
             if renderDeferredForComposition {
                 // Stored styles changed while an input method was composing and the view hasn't
                 // shown them yet: reading styles back from it would undo that change. Keep the
@@ -405,6 +440,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             refreshActiveInlineStyles(in: textView)
             if !changeWasGrouped { groupTypedChange(range: nil, replacement: nil) }
             changeWasGrouped = false
+            if pastedIntoList != nil {
+                // Draw the markers for the pasted lines, keeping the caret at the same place in
+                // the text (each new marker shifts display offsets after it).
+                pastedIntoList = nil
+                let logicalCaret = displayToLogical(display: textView.selectedRange.location,
+                                                    map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: false)
+                let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
+                isApplyingStyledText = true
+                textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
+                isApplyingStyledText = false
+                updateTypingAttributes(for: textView)
+            }
             committedSnapshot = currentSnapshot(of: textView)
             scrollCaretToVisible(in: textView)
         }
@@ -508,6 +557,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // UIKit applies it; textViewDidChange records the result.
                 groupTypedChange(range: range, replacement: replacement)
                 changeWasGrouped = true
+                if replacement.count > 1, replacement.contains("\n"), let attributed = textView.attributedText, attributed.length > 0 {
+                    let at = min(range.location, attributed.length - 1)
+                    let style = textStyle(at: at, in: attributed)
+                    if isListStyle(style) {
+                        pastedIntoList = (NSRange(location: range.location, length: (replacement as NSString).length), style,
+                                          indentLevelValue(at: at, in: attributed))
+                    }
+                }
             } else {
                 commitUndoPoint(in: textView)
             }

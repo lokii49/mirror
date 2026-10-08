@@ -59,6 +59,9 @@ struct CJKWordCountRecountTests {
         let countKey = UngroundedInsightCleanup.backgroundingCountKey
         let savedCount = UserDefaults.standard.integer(forKey: countKey)
         UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
+        // The recount waits for the first backgrounding; don't depend on earlier app runs having
+        // set it (a fresh install, e.g. on a device, has 0).
+        UserDefaults.standard.set(1, forKey: countKey)
         defer {
             UserDefaults.standard.removeObject(forKey: CJKWordCountRecount.flag)
             UserDefaults.standard.set(savedCount, forKey: countKey)
