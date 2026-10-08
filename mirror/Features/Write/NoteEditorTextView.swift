@@ -270,10 +270,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             // Sorting checked items to the bottom is still available via the "Sort Done"
-            // button, not automatic here — sortCheckedToBottom nils inline style data
-            // note-wide on every reorder, so firing it on every check would silently
-            // strip bold/italic/highlight elsewhere in the entry. Real Notes ships this
-            // off by default too.
+            // button, not automatic here: moving rows under the caret on every check is
+            // disorienting. Real Notes ships this off by default too.
         }
 
         // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
@@ -2462,8 +2460,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             // offset-based like inlineStyleData — it must be reordered in lockstep with
             // the row, not nil'd out, or a "Sort Done"/"Delete Done" tap would silently
             // wipe every font override in the entry.
-            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String)
-            var rows: [Row] = zip(logicalParas, paraInfos).map { ($0, $1.style, $1.level, $1.fontChoice) }
+            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String, source: Int)
+            var rows: [Row] = zip(logicalParas, paraInfos).enumerated().map { ($1.0, $1.1.style, $1.1.level, $1.1.fontChoice, $0) }
             let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
             var i = 0
             var changed = false
@@ -2486,6 +2484,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard changed else { return }
 
+            // Inline ranges move with their rows (they used to be dropped, wiping every bold,
+            // link and highlight in the entry).
+            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: parent.text, rowOrder: rows.map { $0.source })
             parent.text = rows.map { $0.text }.joined(separator: "\n")
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
@@ -2498,7 +2499,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                     indentLevels: hasIndent ? levels : nil,
                     fontChoices: fontChoices
                 ))
-            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
             UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
                 self.applyStyledText(to: textView, preservingSelection: true)
@@ -2521,9 +2521,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             let logicalParas = parent.text.components(separatedBy: "\n")
             guard logicalParas.count == paraInfos.count else { return }
 
-            let kept = zip(logicalParas, paraInfos).filter { $0.1.style != .checklistChecked }
+            let keptRows = paraInfos.indices.filter { paraInfos[$0].style != .checklistChecked }
+            let kept = keptRows.map { (logicalParas[$0], paraInfos[$0]) }
             guard kept.count < logicalParas.count else { return }
 
+            // Formatting on the kept rows moves with them (it used to be dropped for the whole entry).
+            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: parent.text, rowOrder: keptRows)
             parent.text = kept.map { $0.0 }.joined(separator: "\n")
             let styles = kept.map { $0.1.style }
             let levels = kept.map { $0.1.level }
@@ -2536,7 +2539,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                     indentLevels: hasIndent ? levels : nil,
                     fontChoices: fontChoices
                 ))
-            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
             UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
                 self.applyStyledText(to: textView, preservingSelection: true)

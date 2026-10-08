@@ -1038,16 +1038,24 @@ enum MacEditorSelfTest {
             check("uncheck all", styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistUnchecked"], "\(styles(box.style))")
         }
         do {
-            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]))
+            // "c" is bold; it must stay bold at its new offset (audit item 3).
+            let bold = InlineStyleRange(location: 4, length: 1, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]),
+                          inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
             let (tv, c) = makeEditor(box)
             c.apply(.deleteCheckedItems, to: tv)
             check("delete checked removes the row", box.text == "a\nc" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked"], "\(box.text.debugDescription) \(styles(box.style))")
+            check("delete checked keeps bold on a kept row", ranges(box.inline).map { [$0.location, $0.length] } == [[2, 1]], "\(ranges(box.inline))")
         }
         do {
-            let box = Box(text: "x\ny\nz", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+            // "x" is bold and moves to the bottom with its row.
+            let bold = InlineStyleRange(location: 0, length: 1, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: "x\ny\nz", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]),
+                          inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
             let (tv, c) = makeEditor(box)
             c.apply(.sortCheckedToBottom, to: tv)
             check("sort checked to bottom", box.text == "y\nz\nx" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistChecked"], "\(box.text.debugDescription) \(styles(box.style))")
+            check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
         }
 
         // 8. Pasting is plain text.

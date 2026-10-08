@@ -242,4 +242,38 @@ struct NoteEditorCodecTests {
         #expect(ranges?.count == 1)
         #expect(ranges?.first?.location == 6)
     }
+
+    // MARK: - Remapping inline ranges when rows move (checklist Sort Done / Delete Done)
+
+    private func remapped(_ ranges: [InlineStyleRange], _ text: String, _ order: [Int]) -> [InlineStyleRange]? {
+        decodedInline(NoteEditorCodec.remapInlineStyles(try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges)),
+                                                        in: text, rowOrder: order))
+    }
+
+    @Test func remapDropsDeletedRowsAndShiftsTheRest() {
+        // rows: "aa" "bbb" "cc"; delete row 0.
+        #expect(remapped([range(3, 3, bold: true), range(7, 2, italic: true)], "aa\nbbb\ncc", [1, 2])
+                == [range(0, 3, bold: true), range(4, 2, italic: true)])
+    }
+
+    @Test func remapMovesARangeWithItsRow() {
+        #expect(remapped([range(0, 2, link: "https://example.com")], "aa\nbbb", [1, 0]) == [range(4, 2, link: "https://example.com")])
+    }
+
+    @Test func remapClipsARangeThatSpansAKeptAndADeletedRow() {
+        // Bold over "a\nbbb" (0..<5); row 0 is deleted, so only "bbb" keeps it.
+        #expect(remapped([range(0, 5, bold: true)], "a\nbbb", [1]) == [range(0, 3, bold: true)])
+    }
+
+    @Test func remapCountsUTF16NotCharacters() {
+        // The emoji row is 2 UTF-16 units; deleting it moves "xy" from 3 to 0.
+        #expect(remapped([range(3, 2, underline: true)], "\u{1F600}\nxy", [1]) == [range(0, 2, underline: true)])
+        // Moving the emoji row below: "xy" goes to 0, a highlight on the emoji goes to 3.
+        #expect(remapped([range(0, 2, highlight: 1)], "\u{1F600}\nxy", [1, 0]) == [range(3, 2, highlight: 1)])
+    }
+
+    @Test func remapOfNothingOrEverythingDeletedIsNil() {
+        #expect(NoteEditorCodec.remapInlineStyles(nil, in: "a\nb", rowOrder: [1, 0]) == nil)
+        #expect(remapped([range(0, 1, bold: true)], "a\nb", [1]) == nil)
+    }
 }

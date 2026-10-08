@@ -8,6 +8,22 @@ import AppKit
 
 extension WriteView {
     func applyTextCommand(_ command: NoteTextCommand) {
+        // Delete Done removes rows with no undo, so every entry point (toolbar trash, Aa panel,
+        // Mac popover menu) asks first. An alert can't present over the Aa popover, so close it
+        // and wait for the dismissal.
+        if case .deleteCheckedItems = command {
+            let panelWasOpen = showFormattingPanel
+            showFormattingPanel = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + (panelWasOpen ? 0.35 : 0)) {
+                showDeleteCheckedConfirm = true
+            }
+            return
+        }
+        sendTextCommand(command)
+    }
+
+    /// Hands a command to the editor without any confirmation step.
+    func sendTextCommand(_ command: NoteTextCommand) {
         editorFocused = true
         pendingTextCommand = command
         textCommandRevision += 1

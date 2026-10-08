@@ -686,16 +686,17 @@ struct NoteEditorTextView: NSViewRepresentable {
             return rows
         }
 
-        /// Replaces the document with `rows`. Inline ranges are dropped because paragraph positions
-        /// moved (the iOS editor does the same).
-        private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], in textView: MirrorNSTextView) {
-            guard !rows.isEmpty else { return }
+        /// Replaces the document with `rows`. `rowOrder[i]` is the current paragraph index of new
+        /// row `i`; inline ranges move with their rows, as on iOS.
+        private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], rowOrder: [Int], in textView: MirrorNSTextView) {
+            guard !rows.isEmpty, let storage = textView.textStorage else { return }
+            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(
+                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder)
             parent.text = rows.map(\.text).joined(separator: "\n")
             // The stored document lists the empty last paragraph only when it is a list item.
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
             parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
-            parent.inlineStyleData = nil
             load(into: textView)
             publishActiveState(in: textView)
         }
@@ -726,33 +727,35 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         private func deleteCheckedItems(in textView: MirrorNSTextView) {
             guard let rows = paragraphRows(in: textView) else { return }
-            let kept = rows.filter { $0.model.style != .checklistChecked }
-            guard kept.count < rows.count, !kept.isEmpty else {
-                if kept.isEmpty, !rows.isEmpty { replaceDocument(with: [("", NoteEditorCodec.ParagraphModel())], in: textView) }
+            let keptRows = rows.indices.filter { rows[$0].model.style != .checklistChecked }
+            guard keptRows.count < rows.count, !keptRows.isEmpty else {
+                if keptRows.isEmpty, !rows.isEmpty { replaceDocument(with: [("", NoteEditorCodec.ParagraphModel())], rowOrder: [], in: textView) }
                 return
             }
-            replaceDocument(with: kept, in: textView)
+            replaceDocument(with: keptRows.map { rows[$0] }, rowOrder: keptRows, in: textView)
         }
 
         /// Within each run of checklist items, unchecked ones come first (stable).
         private func sortCheckedToBottom(in textView: MirrorNSTextView) {
-            guard var rows = paragraphRows(in: textView) else { return }
-            func isChecklist(_ style: NoteParagraphTextStyle) -> Bool { style == .checklistChecked || style == .checklistUnchecked }
+            guard let rows = paragraphRows(in: textView) else { return }
+            func isChecklist(_ index: Int) -> Bool { rows[index].model.style == .checklistChecked || rows[index].model.style == .checklistUnchecked }
+            func isChecked(_ index: Int) -> Bool { rows[index].model.style == .checklistChecked }
+            var order = Array(rows.indices)
             var changed = false
             var i = 0
-            while i < rows.count {
-                guard isChecklist(rows[i].model.style) else { i += 1; continue }
+            while i < order.count {
+                guard isChecklist(order[i]) else { i += 1; continue }
                 var j = i
-                while j < rows.count, isChecklist(rows[j].model.style) { j += 1 }
-                let block = Array(rows[i..<j])
-                let sorted = block.filter { $0.model.style != .checklistChecked } + block.filter { $0.model.style == .checklistChecked }
-                if sorted.map(\.model.style) != block.map(\.model.style) {
+                while j < order.count, isChecklist(order[j]) { j += 1 }
+                let block = Array(order[i..<j])
+                let sorted = block.filter { !isChecked($0) } + block.filter { isChecked($0) }
+                if sorted.map(isChecked) != block.map(isChecked) {
                     changed = true
-                    rows.replaceSubrange(i..<j, with: sorted)
+                    order.replaceSubrange(i..<j, with: sorted)
                 }
                 i = j
             }
-            if changed { replaceDocument(with: rows, in: textView) }
+            if changed { replaceDocument(with: order.map { rows[$0] }, rowOrder: order, in: textView) }
         }
 
         // MARK: Commands

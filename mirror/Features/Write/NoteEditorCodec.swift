@@ -256,6 +256,42 @@ enum NoteEditorCodec {
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
     }
 
+    /// Inline ranges after the "\n"-separated rows of `text` are reordered or dropped (checklist
+    /// Sort Done and Delete Done). `rowOrder[i]` is the old index of new row `i`; rows left out are
+    /// deleted along with their formatting. Each range is cut at row edges and moves with its row.
+    /// Offsets are UTF-16, like `InlineStyleRange`.
+    static func remapInlineStyles(_ data: Data?, in text: String, rowOrder: [Int]) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let lengths = text.components(separatedBy: "\n").map { ($0 as NSString).length }
+        var oldStarts: [Int] = []
+        var offset = 0
+        for length in lengths {
+            oldStarts.append(offset)
+            offset += length + 1
+        }
+
+        var ranges: [InlineStyleRange] = []
+        var newStart = 0
+        for oldRow in rowOrder where lengths.indices.contains(oldRow) {
+            let rowStart = oldStarts[oldRow]
+            let rowEnd = rowStart + lengths[oldRow]
+            for range in document.ranges {
+                let start = max(range.location, rowStart)
+                let end = min(range.location + range.length, rowEnd)
+                guard end > start else { continue }
+                var moved = range
+                moved.location = newStart + (start - rowStart)
+                moved.length = end - start
+                ranges.append(moved)
+            }
+            newStart += lengths[oldRow] + 1
+        }
+
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
     /// Same rule as the iOS coordinator's `mergeInlineRanges`.
     static func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
         guard !ranges.isEmpty else { return [] }

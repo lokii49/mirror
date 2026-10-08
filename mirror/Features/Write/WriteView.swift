@@ -77,6 +77,7 @@ struct WriteView: View {
     @State var showSaved = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
+    @State var showDeleteCheckedConfirm = false
     @State var pendingDelete = false
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
@@ -698,6 +699,12 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(textScanError ?? "")
+        }
+        .alert("Delete checked items?", isPresented: $showDeleteCheckedConfirm) {
+            Button("Delete", role: .destructive) { sendTextCommand(.deleteCheckedItems) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Checked items are removed from this entry. This can't be undone.")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
             TextField("https://example.com", text: $linkEditorURLText)
