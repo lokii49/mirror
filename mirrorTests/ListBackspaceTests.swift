@@ -13,7 +13,7 @@ private func makeListHarness(
     inlineStyleData: Data? = nil,
     photos: [Data] = [],
     fontChoiceRaw: String = WritingFontChoice.system.rawValue
-) -> (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String, getStyleData: () -> Data?, getInlineData: () -> Data?) {
+) -> (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String, getStyleData: () -> Data?, getInlineData: () -> Data?, panel: FormattingPanelState) {
     var text = text
     var textStyleData = textStyleData
     var inlineStyleData = inlineStyleData
@@ -49,7 +49,7 @@ private func makeListHarness(
     let coordinator = editor.makeCoordinator()
     let textView = UITextView()
     coordinator.applyStyledText(to: textView, preservingSelection: false)
-    return (coordinator, textView, { text }, { textStyleData }, { inlineStyleData })
+    return (coordinator, textView, { text }, { textStyleData }, { inlineStyleData }, panelState)
 }
 
 private func listStyle(_ styles: [NoteParagraphTextStyle]) -> Data {
@@ -363,5 +363,78 @@ struct UnreadablePhotoTests {
         guard second != NSNotFound else { return }
         _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: second, length: 1), replacementText: "")
         #expect(h.getText() == "a\n[[mirror-photo-0]]\nb\nc", "got \(h.getText().debugDescription)")
+    }
+}
+
+/// Formatting chosen with nothing selected must survive render passes, show in the panel, and
+/// apply to what is typed next; typing after formatted text continues it (audit item 9).
+@MainActor
+struct TypingFormattingTests {
+    private func isBold(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
+        (attributes[.font] as? UIFont)?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false
+    }
+
+    /// Types `string` at the caret the way UIKit does (with the typing attributes), then reports it.
+    private func type(_ string: String, into h: ReturnType) {
+        let caret = h.textView.selectedRange.location
+        h.textView.textStorage.replaceCharacters(in: NSRange(location: caret, length: 0),
+                                                 with: NSAttributedString(string: string, attributes: h.textView.typingAttributes))
+        h.textView.selectedRange = NSRange(location: caret + (string as NSString).length, length: 0)
+        h.coordinator.textViewDidChange(h.textView)
+    }
+    typealias ReturnType = (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String,
+                            getStyleData: () -> Data?, getInlineData: () -> Data?, panel: FormattingPanelState)
+
+    @Test func boldWithNoSelectionSurvivesARenderPassAndShowsInThePanel() {
+        let h = makeListHarness(text: "hello world")
+        h.textView.selectedRange = NSRange(location: 5, length: 0)
+        h.coordinator.apply(.bold, to: h.textView)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)   // an updateUIView pass
+        #expect(isBold(h.textView.typingAttributes), "typing stays bold after a render pass")
+        #expect(h.panel.activeInlineStyles.bold, "the B button shows on")
+    }
+
+    @Test func textTypedAfterBoldWithNoSelectionIsBoldAndStaysBold() {
+        let h = makeListHarness(text: "hello world")
+        h.textView.selectedRange = NSRange(location: 5, length: 0)
+        h.coordinator.apply(.bold, to: h.textView)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        type("X", into: h)
+        type("Y", into: h)
+        let ranges = h.getInlineData().flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges
+        #expect(ranges?.count == 1 && ranges?.first?.location == 5 && ranges?.first?.length == 2 && ranges?.first?.bold == true,
+                "both typed characters are bold: \(String(describing: ranges))")
+    }
+
+    @Test func typingAfterABoldWordContinuesBold() {
+        let bold = InlineStyleRange(location: 0, length: 5, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        let h = makeListHarness(text: "hello world", inlineStyleData: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
+        h.textView.selectedRange = NSRange(location: 5, length: 0)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        type("X", into: h)
+        type("Y", into: h)
+        let ranges = h.getInlineData().flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges
+        #expect(ranges?.first?.length == 7, "the bold run grows to cover both: \(String(describing: ranges))")
+    }
+
+    @Test func turningBoldOffInsideABoldWordTypesPlain() {
+        let bold = InlineStyleRange(location: 0, length: 5, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        let h = makeListHarness(text: "hello world", inlineStyleData: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
+        h.textView.selectedRange = NSRange(location: 5, length: 0)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        h.coordinator.apply(.bold, to: h.textView)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        #expect(!isBold(h.textView.typingAttributes))
+        type("X", into: h)
+        let ranges = h.getInlineData().flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges
+        #expect(ranges?.count == 1 && ranges?.first?.length == 5, "X is not bold: \(String(describing: ranges))")
+    }
+
+    @Test func aListMarkerIsNotInherited() {
+        // The caret right after "•  " must not pick up anything from the marker.
+        let h = makeListHarness(text: "milk", textStyleData: try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.bulletedList])))
+        h.textView.selectedRange = NSRange(location: 3, length: 0)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        #expect(!isBold(h.textView.typingAttributes))
     }
 }

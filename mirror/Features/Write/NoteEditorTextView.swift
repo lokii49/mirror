@@ -165,6 +165,20 @@ struct NoteEditorTextView: UIViewRepresentable {
         private var lastRenderedFontChoice: WritingFontChoice?
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
         private var lastKnownCursorLocation: Int = 0
+        /// Inline formatting chosen with nothing selected (B/I/U/S, highlight, colour, clear),
+        /// kept for as long as the caret stays where it was chosen. Without it the next render pass
+        /// rebuilt typing attributes from the paragraph style and the choice was lost.
+        private var pendingTypingInline: (location: Int, inline: TypingInline)?
+
+        /// The inline formatting the next typed character gets (links are never extended).
+        struct TypingInline: Equatable {
+            var bold = false
+            var italic = false
+            var underline = false
+            var strikethrough = false
+            var highlightIndex: Int? = nil
+            var textColorIndex: Int? = nil
+        }
         // textViewDidChange and textViewDidChangeSelection both fire per keystroke, each
         // scheduling an async scrollCaretToVisible. Under fast typing/auto-repeat backspace,
         // several of these land before the previous animated scroll finishes; each restarts
@@ -761,6 +775,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
             clampCursorPastListMarker(in: textView)
+            updateTypingAttributes(for: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
@@ -1810,7 +1825,75 @@ struct NoteEditorTextView: UIViewRepresentable {
             let style = textStyle(at: cursorLoc, in: textView.attributedText)
             let level = indentLevelValue(at: cursorLoc, in: textView.attributedText)
             let fontChoice = fontChoiceValue(at: cursorLoc, in: textView.attributedText)
-            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            var typing = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            // Inline formatting: what was just chosen at this caret, else the character before the
+            // caret in the same paragraph (as in Notes: typing after a bold word stays bold).
+            let selection = textView.selectedRange
+            if let pending = pendingTypingInline, pending.location == selection.location, selection.length == 0 {
+                overlay(pending.inline, onto: &typing)
+            } else {
+                pendingTypingInline = nil
+                if let attributed = textView.attributedText, let inline = inheritedTypingInline(before: cursorLoc, in: attributed) {
+                    overlay(inline, onto: &typing)
+                }
+            }
+            textView.typingAttributes = typing
+        }
+
+        /// The inline formatting of the character before `location`, if it is in the same paragraph
+        /// and is text (not a list marker, a photo or the paragraph break).
+        private func inheritedTypingInline(before location: Int, in attributed: NSAttributedString) -> TypingInline? {
+            let nsText = attributed.string as NSString
+            guard location > 0, location <= nsText.length else { return nil }
+            let paragraph = nsText.paragraphRange(for: NSRange(location: location - 1, length: 0))
+            let contentStart = paragraph.location + displayedMarkerLength(of: paragraph, in: attributed)
+            guard location - 1 >= contentStart else { return nil }
+            let previous = nsText.character(at: location - 1)
+            guard previous != 10, previous != 0xFFFC else { return nil }
+            return typingInline(from: attributed.attributes(at: location - 1, effectiveRange: nil),
+                                style: textStyle(at: location - 1, in: attributed))
+        }
+
+        private func typingInline(from attributes: [NSAttributedString.Key: Any], style: NoteParagraphTextStyle) -> TypingInline {
+            let traits = (attributes[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
+            let paragraphBold = style == .heading || style == .title || style == .subheading
+            return TypingInline(
+                bold: traits.contains(.traitBold) && !paragraphBold,
+                italic: traits.contains(.traitItalic),
+                underline: attributes[.underlineStyle] != nil,
+                strikethrough: attributes[.strikethroughStyle] != nil,
+                highlightIndex: attributes[Self.highlightIndexAttribute] as? Int,
+                textColorIndex: attributes[Self.textColorIndexAttribute] as? Int
+            )
+        }
+
+        private func overlay(_ inline: TypingInline, onto typing: inout [NSAttributedString.Key: Any]) {
+            if let font = typing[.font] as? UIFont {
+                var styled = font
+                if inline.bold { styled = styled.withTrait(.traitBold, add: true) }
+                if inline.italic { styled = styled.withTrait(.traitItalic, add: true) }
+                typing[.font] = styled
+            }
+            if inline.underline { typing[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            if inline.strikethrough { typing[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+            let highlights = HighlightPalette.colors(for: parent.displayMode)
+            if let index = inline.highlightIndex, highlights.indices.contains(index) {
+                typing[.backgroundColor] = UIColor(highlights[index])
+                typing[Self.highlightIndexAttribute] = index
+            }
+            let textColors = TextColorPalette.colors(for: parent.displayMode)
+            if let index = inline.textColorIndex, textColors.indices.contains(index) {
+                typing[.foregroundColor] = UIColor(textColors[index])
+                typing[Self.textColorIndexAttribute] = index
+            }
+        }
+
+        /// Records the typing attributes a no-selection formatting choice just set.
+        private func rememberTypingInline(in textView: UITextView) {
+            guard textView.selectedRange.length == 0 else { pendingTypingInline = nil; return }
+            let location = textView.selectedRange.location
+            let style = textView.attributedText.map { textStyle(at: min(location, max(0, $0.length - 1)), in: $0) } ?? .body
+            pendingTypingInline = (location, typingInline(from: textView.typingAttributes, style: style))
         }
 
         private func paragraphStyle(for command: NoteTextCommand) -> NoteParagraphTextStyle {
@@ -2237,11 +2320,27 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ? selRange
                 : NSRange(location: min(selRange.location, max(0, attributed.length - 1)), length: min(1, attributed.length))
 
-            let hasBold       = command == .bold          && isStyleApplied(.bold,          in: effectiveRange, of: attributed)
-            let hasItalic     = command == .italic        && isStyleApplied(.italic,        in: effectiveRange, of: attributed)
-            let hasUnderline  = command == .underline     && isStyleApplied(.underline,     in: effectiveRange, of: attributed)
-            let hasStrike     = command == .strikethrough && isStyleApplied(.strikethrough, in: effectiveRange, of: attributed)
-            let shouldRemove = hasBold || hasItalic || hasUnderline || hasStrike
+            let shouldRemove: Bool
+            if selRange.length == 0 {
+                // With nothing selected, toggle what the next typed character would get (the
+                // typing attributes), not the character after the caret: at the end of a bold word
+                // that is a plain space, so B used to add bold instead of turning it off.
+                let style = attributed.length > 0 ? textStyle(at: effectiveRange.location, in: attributed) : .body
+                let typing = typingInline(from: textView.typingAttributes, style: style)
+                switch command {
+                case .bold: shouldRemove = typing.bold
+                case .italic: shouldRemove = typing.italic
+                case .underline: shouldRemove = typing.underline
+                case .strikethrough: shouldRemove = typing.strikethrough
+                default: shouldRemove = false
+                }
+            } else {
+                let hasBold       = command == .bold          && isStyleApplied(.bold,          in: effectiveRange, of: attributed)
+                let hasItalic     = command == .italic        && isStyleApplied(.italic,        in: effectiveRange, of: attributed)
+                let hasUnderline  = command == .underline     && isStyleApplied(.underline,     in: effectiveRange, of: attributed)
+                let hasStrike     = command == .strikethrough && isStyleApplied(.strikethrough, in: effectiveRange, of: attributed)
+                shouldRemove = hasBold || hasItalic || hasUnderline || hasStrike
+            }
 
             let mutable = NSMutableAttributedString(attributedString: attributed)
 
@@ -2296,6 +2395,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 default: break
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2330,6 +2430,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     typing[Self.highlightIndexAttribute] = idx
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2395,6 +2496,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     typing[.foregroundColor] = baseForegroundColor(for: style)
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2488,6 +2590,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
                 typing[.foregroundColor] = baseForegroundColor(for: style)
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2947,8 +3050,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             let highlightIndex: Int?
             let textColorIndex: Int?
             let linkURL: String?
-            if lastKnownCursorLocation >= attributed.length {
-                if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
+            // With nothing selected the panel shows what the next typed character gets, which is
+            // the typing attributes (a B pressed with no selection showed as off before).
+            if lastKnownCursorLocation >= attributed.length || textView.selectedRange.length == 0 {
+                if lastKnownCursorLocation < attributed.length {
+                    paraStyle = textStyle(at: loc, in: attributed)
+                } else if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
                    let style = NoteParagraphTextStyle(rawValue: raw) {
                     paraStyle = style
                 } else {
