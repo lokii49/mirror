@@ -285,8 +285,9 @@ struct NoteEditorCodecTests {
     }
 
     @Test func adjustShiftsRangesAfterADeletion() {
-        // "ab\n[[mirror-photo-0]]\nNotes": deleting "\n" + token (19 units at 2) moves "Notes" from 22 to 3.
-        #expect(adjusted([range(0, 2, bold: true), range(22, 5, italic: true)], 2, 19, 0)
+        // "ab\n<photo>\nNotes" (a photo is one character in inline coordinates): deleting "\n" + photo
+        // (2 units at 2) moves "Notes" from 5 to 3.
+        #expect(adjusted([range(0, 2, bold: true), range(5, 5, italic: true)], 2, 2, 0)
                 == [range(0, 2, bold: true), range(3, 5, italic: true)])
     }
 
@@ -297,7 +298,6 @@ struct NoteEditorCodecTests {
     }
 
     @Test func adjustFollowsAReplacementOfADifferentLength() {
-        // Renumbering "[[mirror-photo-10]]" to "[[mirror-photo-9]]" is one unit shorter.
-        #expect(adjusted([range(30, 3, underline: true)], 5, 19, 18) == [range(29, 3, underline: true)])
+        #expect(adjusted([range(30, 3, underline: true)], 5, 4, 3) == [range(29, 3, underline: true)])
     }
 }

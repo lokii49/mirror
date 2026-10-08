@@ -260,6 +260,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             // toggling a checkbox — crossfade the marker glyph and the text dimming
             // together so it reads as one smooth transition, à la Notes.
             UIView.transition(with: textView, duration: 0.2, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+                self.applyInlineStyles(to: mutable, from: self.parent.inlineStyleData)
                 self.applyAttributedText(mutable, to: textView)
                 textView.selectedRange = self.bounded(NSRange(location: charIndex, length: 0), in: textView.text)
             }
@@ -355,7 +357,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
-            storeDocuments(from: textView)
+            parent.text = logicalText(from: textView)
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            parent.inlineStyleData = extractedInlineStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
@@ -1131,6 +1135,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
 
@@ -1689,34 +1695,40 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Remove from photoDataArray
             var photos = parent.photoDataArray
             if token.index < photos.count { photos.remove(at: token.index) }
-            // Each text edit also moves the inline ranges after it (they are logical offsets),
-            // or formatting below the photo shifts by the token's length.
+            // Remove the token line from the text: the line break before it, else the one after.
             var updatedText = parent.text as NSString
-            var updatedInline = parent.inlineStyleData
-            func replace(_ range: NSRange, with replacement: String) {
-                updatedInline = NoteEditorCodec.adjustInlineStyles(updatedInline, replacing: range, withLength: (replacement as NSString).length)
-                updatedText = updatedText.replacingCharacters(in: range, with: replacement) as NSString
-            }
+            var removedBreakBefore = false
+            var removedBreakAfter = false
             let tokenRange = updatedText.range(of: tokenStr)
             if tokenRange.location != NSNotFound {
-                // Take the token's line break with it: the one before, else the one after.
                 let tokenEnd = NSMaxRange(tokenRange)
+                var removal = tokenRange
                 if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
-                    replace(NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1), with: "")
+                    removal = NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1)
+                    removedBreakBefore = true
                 } else if tokenEnd < updatedText.length, updatedText.character(at: tokenEnd) == 10 {
-                    replace(NSRange(location: tokenRange.location, length: tokenRange.length + 1), with: "")
-                } else {
-                    replace(tokenRange, with: "")
+                    removal.length += 1
+                    removedBreakAfter = true
                 }
+                updatedText = updatedText.replacingCharacters(in: removal, with: "") as NSString
             }
             // Renumber subsequent tokens (indices shift down by 1)
             // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.
             for i in stride(from: token.index + 1, to: parent.photoDataArray.count, by: 1) {
-                let range = updatedText.range(of: inlinePhotoToken(at: i))
-                if range.location != NSNotFound { replace(range, with: inlinePhotoToken(at: i - 1)) }
+                updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1)) as NSString
+            }
+            // Inline ranges count the photo as its one attachment character, so make the same
+            // removal there (renumbering a token changes nothing in those coordinates); otherwise
+            // formatting below the photo shifts by one or two characters.
+            if tokenRange.location != NSNotFound, let attributed = textView.attributedText {
+                let map = buildLogicalOffsetMap(from: attributed)
+                var location = displayToLogical(display: displayCharIndex, map: map)
+                var length = 1
+                if removedBreakBefore { location -= 1; length += 1 } else if removedBreakAfter { length += 1 }
+                parent.inlineStyleData = NoteEditorCodec.adjustInlineStyles(parent.inlineStyleData,
+                                                                            replacing: NSRange(location: max(0, location), length: length), withLength: 0)
             }
             parent.photoDataArray = photos
-            parent.inlineStyleData = updatedInline
             parent.text = updatedText as String
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
@@ -1822,6 +1834,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
             storeDocuments(from: textView)
@@ -1849,6 +1863,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
             storeDocuments(from: textView)
@@ -2118,14 +2134,31 @@ struct NoteEditorTextView: UIViewRepresentable {
             ))
         }
 
-        /// Reads the text, paragraph styles and inline ranges back from the view after an edit.
-        /// Inline ranges are logical offsets, so they must be re-read whenever an edit moves the
-        /// logical text (list Return, typing into a marker, "1. "): otherwise the next re-render
-        /// applies them at stale offsets and the next keystroke saves the shifted result.
+        /// Reads the text and paragraph styles back from the view after an edit, and the inline
+        /// ranges too when the logical text moved (list Return, typing into a marker, "1. "):
+        /// otherwise the next re-render applies them at stale offsets and the next keystroke
+        /// saves the shifted result. When the text did not move the stored ranges stay: a style
+        /// change replaces the paragraph's font, so reading bold/italic back from it would lose them.
         private func storeDocuments(from textView: UITextView) {
-            parent.text = logicalText(from: textView)
+            let text = logicalText(from: textView)
+            let moved = text != parent.text
+            parent.text = text
             parent.textStyleData = encodedTextStyleData(from: textView)
-            parent.inlineStyleData = extractedInlineStyleData(from: textView)
+            if moved { parent.inlineStyleData = extractedInlineStyleData(from: textView) }
+        }
+
+        /// The text in the coordinates inline ranges use: the displayed text without list markers
+        /// (same rule as `buildLogicalOffsetMap`). A photo is its one attachment character here, or
+        /// nothing when it could not be decoded, never its `[[mirror-photo-N]]` token, so these
+        /// offsets differ from `parent.text` after a photo.
+        func inlineCoordinateText(from attributed: NSAttributedString) -> String {
+            let nsDisplay = attributed.string as NSString
+            var result = ""
+            nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
+                result += nsDisplay.substring(with: NSRange(location: enclosingRange.location + markerLen, length: enclosingRange.length - markerLen))
+            }
+            return result
         }
 
         private func invalidateRenderedCache() {
@@ -2502,7 +2535,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             // Inline ranges move with their rows (they used to be dropped, wiping every bold,
             // link and highlight in the entry).
-            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: parent.text, rowOrder: rows.map { $0.source })
+            parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: logicalParas.count, displayed: attributed)
             parent.text = rows.map { $0.text }.joined(separator: "\n")
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
@@ -2521,6 +2554,15 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             refreshActiveInlineStyles(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        /// Inline ranges after rows are reordered or dropped. Rows are cut from the inline
+        /// coordinate text (a photo is one character there), not `parent.text`. If its rows don't
+        /// line up with the stored text's, the ranges are dropped rather than put on the wrong words.
+        private func remappedInlineStyles(rowOrder: [Int], rowCount: Int, displayed: NSAttributedString) -> Data? {
+            let text = inlineCoordinateText(from: displayed)
+            guard text.components(separatedBy: "\n").count == rowCount else { return nil }
+            return NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: text, rowOrder: rowOrder)
         }
 
         func deleteCheckedChecklistItems(in textView: UITextView) {
@@ -2542,7 +2584,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard kept.count < logicalParas.count else { return }
 
             // Formatting on the kept rows moves with them (it used to be dropped for the whole entry).
-            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: parent.text, rowOrder: keptRows)
+            parent.inlineStyleData = remappedInlineStyles(rowOrder: keptRows, rowCount: logicalParas.count, displayed: attributed)
             parent.text = kept.map { $0.0 }.joined(separator: "\n")
             let styles = kept.map { $0.1.style }
             let levels = kept.map { $0.1.level }
@@ -2757,6 +2799,19 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // MARK: - Logical ↔ display coordinate mapping
 
+        /// Length of the list marker the paragraph really starts with. Same rule as `logicalText`:
+        /// right after a style change, before the re-render inserts the marker, a list paragraph
+        /// has none, and counting one shifted every inline range after it.
+        private func displayedMarkerLength(of paragraphRange: NSRange, in attributed: NSAttributedString) -> Int {
+            let style = textStyle(at: paragraphRange.location, in: attributed)
+            let level = indentLevelValue(at: paragraphRange.location, in: attributed)
+            let paragraph = (attributed.string as NSString).substring(with: paragraphRange)
+            if let marker = staticListMarkerPrefix(for: style, level: level) {
+                return paragraph.hasPrefix(marker) ? (marker as NSString).length : 0
+            }
+            return style == .numberedList ? numberedListMarkerLength(in: paragraph) : 0
+        }
+
         private func buildLogicalOffsetMap(from attributed: NSAttributedString) -> [(displayStart: Int, logicalStart: Int, markerLen: Int)] {
             var result: [(Int, Int, Int)] = []
             var displayOff = 0
@@ -2764,20 +2819,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsDisplay = attributed.string as NSString
 
             nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
-                // Same rule as `logicalText`: a marker counts only when the paragraph really
-                // starts with it. Right after a style change, before the re-render inserts the
-                // marker, a list paragraph has none, and counting one shifted every range after it.
-                let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                let level = self.indentLevelValue(at: enclosingRange.location, in: attributed)
-                let para = nsDisplay.substring(with: enclosingRange)
-                let markerLen: Int
-                if let marker = self.staticListMarkerPrefix(for: style, level: level) {
-                    markerLen = para.hasPrefix(marker) ? (marker as NSString).length : 0
-                } else if style == .numberedList {
-                    markerLen = self.numberedListMarkerLength(in: para)
-                } else {
-                    markerLen = 0
-                }
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
                 result.append((displayOff, logicalOff, markerLen))
                 logicalOff += enclosingRange.length - markerLen
                 displayOff += enclosingRange.length

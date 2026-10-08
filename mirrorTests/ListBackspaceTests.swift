@@ -11,12 +11,13 @@ private func makeListHarness(
     text: String = "",
     textStyleData: Data? = nil,
     inlineStyleData: Data? = nil,
+    photos: [Data] = [],
     fontChoiceRaw: String = WritingFontChoice.system.rawValue
 ) -> (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String, getStyleData: () -> Data?, getInlineData: () -> Data?) {
     var text = text
     var textStyleData = textStyleData
     var inlineStyleData = inlineStyleData
-    var photos: [Data] = []
+    var photos = photos
     var command: NoteTextCommand?
     var commandRevision = 0
     var isFocused = false
@@ -182,5 +183,59 @@ struct InlineOffsetsAfterListEditsTests {
     @Test func appendingABlockKeepsLeadingLineBreaks() {
         #expect(trimmingTrailingNewlines("\nfirst\n\n") == "\nfirst")
         #expect(textWithInlinePhotoToken("\nfirst\n", at: 0) == "\nfirst\n[[mirror-photo-0]]\n")
+    }
+
+    // A style change replaces the paragraph's font; bold inside that paragraph must survive.
+
+    @Test func boldInsideAParagraphSurvivesMakingItAList() {
+        let h = makeListHarness(text: "alpha\nNotes", inlineStyleData: inline([bold(0, 5)]))
+        h.coordinator.apply(.bulletedList, to: h.textView)
+        #expect(inlineRanges(h.getInlineData()) == [bold(0, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(0, 5)], "the view shows bold on \"alpha\"")
+    }
+
+    @Test func boldInsideAParagraphSurvivesLeavingAList() {
+        let h = makeListHarness(text: "alpha", textStyleData: listStyle([.bulletedList]), inlineStyleData: inline([bold(0, 5)]))
+        h.coordinator.apply(.bulletedList, to: h.textView)
+        #expect(h.getStyleData() == nil || (try? JSONDecoder().decode(NoteTextStyleDocument.self, from: h.getStyleData()!))?.paragraphStyles == [.body])
+        #expect(inlineRanges(h.getInlineData()) == [bold(0, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(0, 5)], "the view shows bold on \"alpha\"")
+    }
+
+    @Test func boldInsideAParagraphSurvivesSwitchingListType() {
+        let h = makeListHarness(text: "alpha", textStyleData: listStyle([.bulletedList]), inlineStyleData: inline([bold(0, 5)]))
+        h.coordinator.apply(.checklist, to: h.textView)
+        #expect(inlineRanges(h.getInlineData()) == [bold(0, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(0, 5)], "the view shows bold on \"alpha\"")
+    }
+
+    // Inline ranges count a photo as one character, not its [[mirror-photo-N]] token.
+
+    private static let onePixelPNG: Data = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { ctx in
+        UIColor.black.setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+    }.pngData()!
+
+    @Test func deletingAPhotoKeepsBoldBelowInPlace() {
+        // Display "ab\n<photo>\nNotes": "Notes" starts at 5 in inline coordinates.
+        let h = makeListHarness(text: "ab\n[[mirror-photo-0]]\nNotes", inlineStyleData: inline([bold(5, 5)]), photos: [Self.onePixelPNG])
+        let attachment = ((h.textView.text ?? "") as NSString).range(of: "\u{FFFC}").location
+        #expect(attachment == 3, "the photo renders as one attachment character")
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: attachment, length: 1), replacementText: "")
+        #expect(h.getText() == "ab\nNotes")
+        #expect(inlineRanges(h.getInlineData()) == [bold(3, 5)], "stored: \(String(describing: inlineRanges(h.getInlineData())))")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(3, 5)], "the view shows bold on \"Notes\"")
+    }
+
+    @Test func deleteDoneBelowAPhotoKeepsBoldInPlace() {
+        // Rows: "ab", photo, "done" (checked), "milk" (bold). "milk" is at 10 in inline coordinates.
+        // A photo line takes two paragraph-style slots (audit item 2), hence five styles.
+        let h = makeListHarness(text: "ab\n[[mirror-photo-0]]\ndone\nmilk",
+                                textStyleData: listStyle([.body, .body, .body, .checklistChecked, .checklistUnchecked]),
+                                inlineStyleData: inline([bold(10, 4)]), photos: [Self.onePixelPNG])
+        h.coordinator.deleteCheckedChecklistItems(in: h.textView)
+        #expect(h.getText() == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView)) == [bold(5, 4)],
+                "the view shows bold on \"milk\": \(String(describing: inlineRanges(h.coordinator.extractedInlineStyleData(from: h.textView))))")
     }
 }
