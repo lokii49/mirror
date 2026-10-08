@@ -1522,7 +1522,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             for match in allMatches {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
                 let textSegment = nsRaw.substring(with: textRange)
-                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd))
+                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0)
                 attributed.append(rendered.value)
 
                 let token = nsRaw.substring(with: match.range)
@@ -1532,11 +1532,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let tail = nsRaw.substring(from: lastEnd)
-            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphIndex(at: lastEnd)).value)
+            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0).value)
             return attributed
         }
 
-        private func renderedTextWithoutMarkdownMarkers(for rawText: String, startingParagraph: Int) -> (value: NSAttributedString, paragraphCount: Int) {
+        /// `continuesLine`: the segment starts right after a photo token, so its first piece is the
+        /// rest of the photo's line. That line's marker was already drawn before the photo; drawing
+        /// it again after the photo put a second one there, which was then saved into the text.
+        private func renderedTextWithoutMarkdownMarkers(for rawText: String, startingParagraph: Int, continuesLine: Bool = false) -> (value: NSAttributedString, paragraphCount: Int) {
             let attributed = NSMutableAttributedString()
             let rawParagraphs = rawText.components(separatedBy: "\n")
             guard !rawParagraphs.isEmpty else { return (attributed, 0) }
@@ -1573,8 +1576,11 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 // Track numbered list counter per indent level for sequential
                 // numbering that restarts on nesting (see comment at declaration).
+                let isLineContinuation = continuesLine && offset == 0
                 var numberedListCounter = 0
-                if storedStyle == .numberedList {
+                if isLineContinuation {
+                    // Same line as the photo: no marker, no new number.
+                } else if storedStyle == .numberedList {
                     numberedListCounters = numberedListCounters.filter { $0.key <= indentLevel }
                     numberedListCounter = (numberedListCounters[indentLevel] ?? 0) + 1
                     numberedListCounters[indentLevel] = numberedListCounter
@@ -1594,7 +1600,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                 }
 
                 let listMarker: String
-                if storedStyle == .numberedList {
+                if isLineContinuation {
+                    listMarker = ""
+                } else if storedStyle == .numberedList {
                     listMarker = "\(numberedListCounter).\t"
                 } else {
                     listMarker = self.staticListMarkerPrefix(for: storedStyle, level: indentLevel) ?? ""

@@ -287,6 +287,36 @@ struct PhotoParagraphStyleTests {
         #expect(styles(h.getStyleData()) == [.body, .body, .bulletedList, .body], "got \(String(describing: styles(h.getStyleData())))")
     }
 
+    /// A list item, Return (which stores a trailing empty item), then a photo: the photo line holds a
+    /// list slot. Its marker must be drawn once, so nothing is saved after the token.
+    @Test func aPhotoOnAListSlotGetsNoMarkerSavedAfterIt() {
+        for style in [NoteParagraphTextStyle.bulletedList, .checklistUnchecked, .numberedList] {
+            for text in ["milk\n[[mirror-photo-0]]\n", "[[mirror-photo-0]]\nmilk"] {
+                let h = makeListHarness(text: text, textStyleData: listStyle([style, style]), photos: [Self.onePixelPNG])
+                let display = (h.textView.text ?? "") as NSString
+                let photoLine = display.paragraphRange(for: NSRange(location: display.range(of: "\u{FFFC}").location, length: 0))
+                let afterPhoto = display.substring(with: photoLine).components(separatedBy: "\u{FFFC}").last ?? ""
+                #expect(afterPhoto.trimmingCharacters(in: .newlines).isEmpty, "\(style) \(text.debugDescription): nothing drawn after the photo, got \(afterPhoto.debugDescription)")
+                h.coordinator.textViewDidChange(h.textView)
+                #expect(h.getText() == text, "\(style): got \(h.getText().debugDescription)")
+                // A second render and keystroke must not add one either.
+                h.coordinator.applyStyledText(to: h.textView, preservingSelection: false)
+                h.coordinator.textViewDidChange(h.textView)
+                #expect(h.getText() == text, "\(style) after re-render: got \(h.getText().debugDescription)")
+            }
+        }
+    }
+
+    /// The one-time cleanup's result must stay clean once the editor renders it and saves again.
+    @Test func aRepairedEntryStaysCleanInTheEditor() {
+        let styles = listStyle([.bulletedList, .bulletedList])
+        let fixed = NoteEditorCodec.repairPhotoMarkerDamage(text: "milk\n[[mirror-photo-0]]•  \n", textStyleData: styles, inlineStyleData: nil)
+        #expect(fixed?.text == "milk\n[[mirror-photo-0]]\n")
+        let h = makeListHarness(text: fixed?.text ?? "", textStyleData: styles, photos: [Self.onePixelPNG])
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == "milk\n[[mirror-photo-0]]\n", "got \(h.getText().debugDescription)")
+    }
+
     @Test func twoPhotosAndStylesAroundThem() {
         let text = "Title\n[[mirror-photo-0]]\nmiddle\n[[mirror-photo-1]]\nend"
         let stored: [NoteParagraphTextStyle] = [.title, .body, .heading, .body, .blockQuote]
