@@ -115,6 +115,18 @@ Same GGUF, prompts and seeds on b6102 vs b6750 (spike copy of SwiftLlama + rig):
   A probe on a Swift concurrency thread vs an 8MB-stack thread showed both are fine, so the stack wasn't the cause.
 - **Simulator full suite on the branch:** 708 passed, 4 failed. The failures are the known NLTagger flakes in BrainViewTests.
 
+## Hosting: LIVE (2026-10-08)
+
+Cloudflare R2 bucket `mirrornotes-models` (account af1dd2b4…, zone mirrornotes.org), custom domain `models.mirrornotes.org`
+with TLS 1.2 minimum. The object is `embeddinggemma/embeddinggemma-300M-Q8_0.gguf`, `cache-control: public, max-age=31536000, immutable`.
+- **Verified through the live URL:** HTTP 200, 333,590,944 bytes, SHA-256 matches the pinned value. The bucket root and unknown keys
+  return 404, so there's no listing. TLS 1.1 is refused.
+- **How it was uploaded:** wrangler caps uploads at 300 MiB, so a temporary Worker bound to the bucket did an R2 multipart upload in
+  7 × 50 MB parts, behind a random secret. The Worker was deleted right after; its URL now returns error 1042.
+- **To replace the file later:** do the same multipart upload, then update `SemanticSearchService.modelSHA256` (and `modelURL` if the
+  name changes), because the immutable cache header means the same URL must never get different bytes.
+- **Cost:** R2 egress is free. Storage is about 0.33 GB, inside the 10 GB free tier.
+
 ## Hosting (owner, 2026-10-08)
 
 The owner will host the model at `https://models.mirrornotes.org/embeddinggemma/embeddinggemma-300M-Q8_0.gguf`.
