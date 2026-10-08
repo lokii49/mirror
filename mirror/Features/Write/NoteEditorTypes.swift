@@ -154,6 +154,36 @@ nonisolated func strippedWordCount(_ s: String) -> Int {
     return segmentedWordCount(cleaned)
 }
 
+/// `strippedWordCount` for text that changes a little at a time (the editor, every keystroke).
+/// For space-separated text, words never span a line break, so counting each paragraph and adding
+/// up gives the same number as counting the whole text; unchanged paragraphs come from the cache,
+/// so a keystroke re-counts one paragraph (counting all of a 50k-character entry took about 6 ms
+/// a keystroke on an iPhone 14 Pro). Text with Japanese or Chinese is counted whole, as before:
+/// word segmentation uses context across lines, so per-paragraph counts differ (9 vs 11 on a
+/// two-line Chinese sample) and the editor must show what is stored.
+nonisolated struct ParagraphWordCounter {
+    private var cache: [String: Int] = [:]
+
+    mutating func count(_ text: String) -> Int {
+        var cleaned = text
+        for (range, _) in allPhotoTokens(in: text).reversed() { cleaned.removeSubrange(range) }
+        guard !containsUnspacedScript(cleaned) else {
+            cache.removeAll()
+            return segmentedWordCount(cleaned)
+        }
+        var next: [String: Int] = [:]
+        var total = 0
+        for paragraph in cleaned.split(separator: "\n", omittingEmptySubsequences: true) {
+            let key = String(paragraph)
+            let count = next[key] ?? cache[key] ?? key.split { $0.isWhitespace }.count
+            next[key] = count
+            total += count
+        }
+        cache = next
+        return total
+    }
+}
+
 /// True when the text has Han, Hiragana or Katakana, which are written without spaces between
 /// words. Korean uses spaces, so it isn't included.
 nonisolated func containsUnspacedScript(_ s: String) -> Bool {

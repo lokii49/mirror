@@ -80,7 +80,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.noteOutsideChange(in: textView)
 
-        let logicalMismatch = context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
+        // The full comparison rebuilds the logical text (several ms at 50k characters). When the
+        // text is exactly what the editor last showed or synced, it can't differ.
+        let logicalMismatch = !context.coordinator.isShowing(text)
+            && context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
         if logicalMismatch {
             let selectedRange = textView.selectedRange
             context.coordinator.applyStyledText(to: textView, preservingSelection: false)
@@ -2495,6 +2498,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
 
+        /// Whether `text` is what the editor last rendered or read back from the view.
+        func isShowing(_ text: String) -> Bool { lastRenderedText == text }
+
         private func invalidateRenderedCache() {
             lastRenderedText = nil
             lastRenderedStyleSignature = nil
@@ -3113,7 +3119,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // Detect that case and use the paragraph's displayStart instead (before its marker).
                 let logicalEnd = styleRange.location + styleRange.length
                 let displayEnd: Int
-                if let boundary = logicalOffsets.first(where: { $0.logicalStart == logicalEnd && logicalEnd > 0 }) {
+                if logicalEnd > 0, let boundary = firstParagraph(startingAt: logicalEnd, in: logicalOffsets) {
                     displayEnd = boundary.displayStart
                 } else {
                     displayEnd = logicalToDisplay(logical: logicalEnd, map: logicalOffsets)
@@ -3182,27 +3188,40 @@ struct NoteEditorTextView: UIViewRepresentable {
             return result
         }
 
-        private func displayToLogical(display: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
-            for (i, entry) in map.enumerated() {
-                let nextDisplay = i + 1 < map.count ? map[i + 1].displayStart : Int.max
-                if display >= entry.displayStart && display < nextDisplay {
-                    let offsetInPara = display - entry.displayStart
-                    let logicalOffset = max(0, offsetInPara - entry.markerLen)
-                    return entry.logicalStart + logicalOffset
-                }
+        /// Index of the last paragraph whose start (by `key`) is at or before `offset`; nil before
+        /// the first. Binary search: inline extraction maps every attribute run, and a linear scan
+        /// per run made it quadratic (30 ms a keystroke at 50k characters).
+        private func paragraphIndex(atOrBefore offset: Int, in map: [(displayStart: Int, logicalStart: Int, markerLen: Int)],
+                                    key: KeyPath<(displayStart: Int, logicalStart: Int, markerLen: Int), Int>) -> Int? {
+            var low = 0, high = map.count - 1, found: Int?
+            while low <= high {
+                let mid = (low + high) / 2
+                if map[mid][keyPath: key] <= offset { found = mid; low = mid + 1 } else { high = mid - 1 }
             }
-            return display
+            return found
+        }
+
+        /// The first paragraph whose logical start is exactly `logical` (binary search).
+        private func firstParagraph(startingAt logical: Int, in map: [(displayStart: Int, logicalStart: Int, markerLen: Int)])
+            -> (displayStart: Int, logicalStart: Int, markerLen: Int)? {
+            var low = 0, high = map.count
+            while low < high {
+                let mid = (low + high) / 2
+                if map[mid].logicalStart < logical { low = mid + 1 } else { high = mid }
+            }
+            return low < map.count && map[low].logicalStart == logical ? map[low] : nil
+        }
+
+        private func displayToLogical(display: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
+            guard let i = paragraphIndex(atOrBefore: display, in: map, key: \.displayStart) else { return display }
+            let entry = map[i]
+            return entry.logicalStart + max(0, display - entry.displayStart - entry.markerLen)
         }
 
         private func logicalToDisplay(logical: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
-            for (i, entry) in map.enumerated() {
-                let nextLogical = i + 1 < map.count ? map[i + 1].logicalStart : Int.max
-                if logical >= entry.logicalStart && logical < nextLogical {
-                    let offsetInPara = logical - entry.logicalStart
-                    return entry.displayStart + entry.markerLen + offsetInPara
-                }
-            }
-            return logical
+            guard let i = paragraphIndex(atOrBefore: logical, in: map, key: \.logicalStart) else { return logical }
+            let entry = map[i]
+            return entry.displayStart + entry.markerLen + (logical - entry.logicalStart)
         }
 
         private func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {

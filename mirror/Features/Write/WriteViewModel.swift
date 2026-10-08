@@ -26,7 +26,9 @@ class WriteViewModel {
         }
     }
 
+    private var wordCounter = ParagraphWordCounter()
+
     private func updateWordCount() {
-        wordCount = strippedWordCount(text)
+        wordCount = wordCounter.count(text)
     }
 }

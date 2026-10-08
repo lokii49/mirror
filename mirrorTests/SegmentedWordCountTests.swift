@@ -27,6 +27,29 @@ struct SegmentedWordCountTests {
     @Test func photoTokensStillIgnored() {
         #expect(strippedWordCount("one two [[mirror-photo-0]] three") == 3)
     }
+
+    @Test func paragraphCounterMatchesTheWholeTextCount() {
+        let texts = [
+            "", "\n\n", "one", "one two\nthree", "  spaced   out  \n\n tabs\tand\tmore ",
+            "I don't know, well-known 3.5 times\nnext line here",
+            "before [[mirror-photo-0]] after\n[[mirror-photo-1]]\nend",
+            "word[[mirror-photo-0]]joined",
+            "English line with well-known words\n今日は天気がいいので散歩に行きました\nmore English",
+            "今天天气很好\n\n所以我去散步了",
+        ]
+        var counter = ParagraphWordCounter()
+        for text in texts {
+            #expect(counter.count(text) == strippedWordCount(text), "\(text.debugDescription)")
+        }
+        // Typing a little at a time, through a switch to segmentation and back.
+        var typed = "Hello there\nsecond line"
+        for addition in [" more", "\nnew paragraph", " 今日は", " back", "\n"] {
+            typed += addition
+            #expect(counter.count(typed) == strippedWordCount(typed), "\(typed.debugDescription)")
+        }
+        typed = "Hello there\nsecond line"
+        #expect(counter.count(typed) == strippedWordCount(typed))
+    }
 }
 
 @Suite("CJKWordCountRecount")
