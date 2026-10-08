@@ -703,3 +703,31 @@ struct TextSizeAndPasteTests {
         #expect(caretLine.hasSuffix("bread"), "the caret stays after the pasted text")
     }
 }
+
+/// VoiceOver can't tap a checkbox: the item at the caret offers an action that toggles it, named
+/// for what it does (audit polish item).
+@MainActor
+struct ChecklistAccessibilityTests {
+    @Test func theItemAtTheCaretCanBeCheckedAndUncheckedWithVoiceOver() {
+        let h = makeListHarness(text: "milk\nnotes", textStyleData: listStyle([.checklistUnchecked, .body]))
+        h.textView.selectedRange = NSRange(location: 5, length: 0)   // inside "○  milk"
+        var actions = h.coordinator.checklistAccessibilityActions(in: h.textView)
+        #expect(actions.map(\.name) == ["Mark as done"])
+        _ = actions.first?.actionHandler?(actions[0])
+        let styles = { h.getStyleData().flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?.paragraphStyles }
+        #expect(styles()?.first == .checklistChecked)
+        actions = h.coordinator.checklistAccessibilityActions(in: h.textView)
+        #expect(actions.map(\.name) == ["Mark as not done"])
+        // Not offered outside a checklist item.
+        h.textView.selectedRange = NSRange(location: ((h.textView.text ?? "") as NSString).length, length: 0)
+        #expect(h.coordinator.checklistAccessibilityActions(in: h.textView).isEmpty)
+    }
+
+    @Test func theEditorTextViewExposesTheAction() {
+        let h = makeListHarness(text: "milk", textStyleData: listStyle([.checklistUnchecked]))
+        let tv = MirrorEditorTextView()
+        tv.caretAccessibilityActions = { h.coordinator.checklistAccessibilityActions(in: h.textView) }
+        h.textView.selectedRange = NSRange(location: 4, length: 0)
+        #expect(tv.accessibilityCustomActions?.map(\.name).contains("Mark as done") == true)
+    }
+}

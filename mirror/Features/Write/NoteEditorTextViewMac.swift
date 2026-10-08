@@ -224,7 +224,8 @@ final class MirrorLayoutManager: NSLayoutManager {
             let symbol = model.style == .checklistChecked ? "checkmark.circle.fill" : "circle"
             let tint: NSColor = model.style == .checklistChecked ? .controlAccentColor : .secondaryLabelColor
             let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(paletteColors: [tint]))
-            if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
+            let description = model.style == .checklistChecked ? String(localized: "Done") : String(localized: "Not done")
+            if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)?.withSymbolConfiguration(config) {
                 image.draw(in: rect.offsetBy(dx: origin.x, dy: origin.y))
             }
         default:
@@ -246,6 +247,22 @@ final class MirrorLayoutManager: NSLayoutManager {
 final class MirrorNSTextView: NSTextView {
     var placeholder = String(localized: "What's on your mind?")
     var onToggleChecklist: ((Int) -> Void)?
+    /// The checklist item at the caret (its paragraph start and whether it is checked), if any.
+    var checklistItemAtCaret: (() -> (start: Int, checked: Bool)?)?
+
+    /// Checkboxes are drawn, not views, so VoiceOver can neither read their state nor press them.
+    /// The item at the caret gets a custom action named for what it does.
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        var actions = super.accessibilityCustomActions() ?? []
+        if let item = checklistItemAtCaret?() {
+            let name = item.checked ? String(localized: "Mark as not done") : String(localized: "Mark as done")
+            actions.append(NSAccessibilityCustomAction(name: name) { [weak self] in
+                self?.onToggleChecklist?(item.start)
+                return true
+            })
+        }
+        return actions
+    }
     /// Lets the editor take focus once the view is actually in a window.
     var onAttachToWindow: (() -> Void)?
 
@@ -356,6 +373,10 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.delegate = coordinator
         storage.delegate = coordinator
         textView.onToggleChecklist = { [weak coordinator] start in coordinator?.toggleChecklist(at: start) }
+        textView.checklistItemAtCaret = { [weak coordinator, weak textView] in
+            guard let coordinator, let textView else { return nil }
+            return coordinator.checklistItemAtCaret(in: textView)
+        }
         textView.onAttachToWindow = { [weak coordinator, weak textView] in
             guard let coordinator, let textView, coordinator.parent.isFocused else { return }
             DispatchQueue.main.async { textView.window?.makeFirstResponder(textView) }
@@ -712,6 +733,16 @@ struct NoteEditorTextView: NSViewRepresentable {
             }
             textView.undoManager?.endUndoGrouping()
             return true
+        }
+
+        /// The checklist item the caret is in (for the VoiceOver action).
+        func checklistItemAtCaret(in textView: NSTextView) -> (start: Int, checked: Bool)? {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), !isTrailing else { return nil }
+            switch model.style {
+            case .checklistChecked: return (range.location, true)
+            case .checklistUnchecked: return (range.location, false)
+            default: return nil
+            }
         }
 
         /// Backspace at the start of a list item turns it into a plain paragraph first.

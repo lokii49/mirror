@@ -1058,6 +1058,19 @@ enum MacEditorSelfTest {
             check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
         }
 
+        // 16. VoiceOver: the checklist item at the caret has a "Mark as done" action.
+        do {
+            let box = Box(text: "milk\nnotes", style: doc([.checklistUnchecked, .body]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            let names = (tv.accessibilityCustomActions() ?? []).map(\.name)
+            check("VoiceOver offers Mark as done on a checklist item", names.contains("Mark as done"), "\(names)")
+            _ = (tv.accessibilityCustomActions() ?? []).first { $0.name == "Mark as done" }?.handler?()
+            check("the action checks the item", styles(box.style).first == "checklistChecked", "\(styles(box.style))")
+            tv.setSelectedRange(NSRange(location: 8, length: 0))
+            check("no checklist action outside a checklist item", !((tv.accessibilityCustomActions() ?? []).map(\.name).contains { $0.hasPrefix("Mark as") }))
+        }
+
         // 15. Return after a checked item or a heading (audit item 13).
         do {
             let box = Box(text: "done", style: doc([.checklistChecked]))

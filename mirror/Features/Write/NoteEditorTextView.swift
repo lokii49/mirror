@@ -35,6 +35,10 @@ struct NoteEditorTextView: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let textView = MirrorEditorTextView()
         context.coordinator.textView = textView
+        textView.caretAccessibilityActions = { [weak coordinator = context.coordinator, weak textView] in
+            guard let coordinator, let textView else { return [] }
+            return coordinator.checklistAccessibilityActions(in: textView)
+        }
         textView.editorUndo = context.coordinator.editorUndoManager
         context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
@@ -272,11 +276,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             let paraRange = nsText.paragraphRange(for: NSRange(location: charIndex, length: 0))
             let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
             let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
-            let iFontChoice = fontChoiceValue(at: paraRange.location, in: textView.attributedText)
             let markerStart = textView.textContainerInset.left + CGFloat(iLevel) * 20
             let markerEnd = textView.textContainerInset.left + 44 + CGFloat(iLevel) * 20
             guard location.x >= markerStart && location.x <= markerEnd else { return }
             guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
+            toggleChecklistItem(paragraphRange: paraRange, caret: charIndex, in: textView)
+        }
+
+        /// Checks or unchecks the checklist item in `paraRange` (a tap on its marker, or the
+        /// VoiceOver action). The caret ends at `caret`.
+        func toggleChecklistItem(paragraphRange paraRange: NSRange, caret charIndex: Int, in textView: UITextView) {
+            let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
+            guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
+            let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let iFontChoice = fontChoiceValue(at: paraRange.location, in: textView.attributedText)
 
             let nextStyle: NoteParagraphTextStyle = currentStyle == .checklistUnchecked ? .checklistChecked : .checklistUnchecked
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
@@ -1774,6 +1787,23 @@ struct NoteEditorTextView: UIViewRepresentable {
                 paragraphIndex += 1
             }
             return (attributed, paragraphIndex - startingParagraph)
+        }
+
+        /// VoiceOver can't tap a checkbox: the checklist item at the caret gets a custom action,
+        /// named for what it does, so it also says whether the item is done.
+        func checklistAccessibilityActions(in textView: UITextView) -> [UIAccessibilityCustomAction] {
+            let nsText = (textView.text ?? "") as NSString
+            guard nsText.length > 0, let attributed = textView.attributedText else { return [] }
+            let location = min(textView.selectedRange.location, nsText.length - 1)
+            let paragraph = nsText.paragraphRange(for: NSRange(location: location, length: 0))
+            let style = textStyle(at: paragraph.location, in: attributed)
+            guard style == .checklistUnchecked || style == .checklistChecked else { return [] }
+            let name = style == .checklistChecked ? String(localized: "Mark as not done") : String(localized: "Mark as done")
+            return [UIAccessibilityCustomAction(name: name) { [weak self, weak textView] _ in
+                guard let self, let textView else { return false }
+                self.toggleChecklistItem(paragraphRange: paragraph, caret: textView.selectedRange.location, in: textView)
+                return true
+            }]
         }
 
         /// Whether photo `index` has data that decodes to an image (tap and context menu ignore the rest).
@@ -3558,6 +3588,14 @@ private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
 final class MirrorEditorTextView: UITextView {
     weak var editorUndo: UndoManager?
     override var undoManager: UndoManager? { editorUndo ?? super.undoManager }
+
+    /// Extra VoiceOver actions for the caret's paragraph (checking a checklist item).
+    var caretAccessibilityActions: (() -> [UIAccessibilityCustomAction])?
+    private var assignedAccessibilityActions: [UIAccessibilityCustomAction]?
+    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
+        get { (assignedAccessibilityActions ?? []) + (caretAccessibilityActions?() ?? []) }
+        set { assignedAccessibilityActions = newValue }
+    }
 }
 
 /// Answers UIKit's undo questions from the editor's snapshot history. Registrations UIKit makes

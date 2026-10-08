@@ -8,6 +8,12 @@ import AppKit
 private let moodLabels = MirrorTheme.moodOptions
 
 extension WriteView {
+    /// A toolbar icon size of `base` points at the default text size, scaled with Dynamic Type
+    /// up to 1.5x (more would overflow the 44 pt buttons).
+    func toolbarIconSize(_ base: CGFloat) -> CGFloat {
+        min(base * toolbarIconMetric / 20, base * 1.5)
+    }
+
     var dateHeader: some View {
         HStack(alignment: .center, spacing: 10) {
             Button {
@@ -547,11 +553,12 @@ extension WriteView {
                     dismissKeyboard()
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: 20))
+                        .font(.system(size: toolbarIconSize(20)))
                         .foregroundStyle(.secondary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Hide keyboard")
                 #endif
 
                 // Undo
@@ -559,7 +566,7 @@ extension WriteView {
                     applyTextCommand(.undo)
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 18))
+                        .font(.system(size: toolbarIconSize(18)))
                         .foregroundStyle(canUndo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
@@ -572,7 +579,7 @@ extension WriteView {
                     applyTextCommand(.redo)
                 } label: {
                     Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 18))
+                        .font(.system(size: toolbarIconSize(18)))
                         .foregroundStyle(canRedo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
@@ -611,7 +618,7 @@ extension WriteView {
                         applyTextCommand(.checkAllItems)
                     } label: {
                         Image(systemName: "checkmark.circle")
-                            .font(.system(size: 20))
+                            .font(.system(size: toolbarIconSize(20)))
                             .foregroundStyle(.primary)
                             .frame(width: 40, height: 44)
                     }
@@ -623,7 +630,7 @@ extension WriteView {
                         applyTextCommand(.deleteCheckedItems)
                     } label: {
                         Image(systemName: "trash.circle")
-                            .font(.system(size: 20))
+                            .font(.system(size: toolbarIconSize(20)))
                             .foregroundStyle(.secondary)
                             .frame(width: 40, height: 44)
                     }
@@ -667,7 +674,7 @@ extension WriteView {
                     }
                 } label: {
                     Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
-                        .font(.system(size: 20))
+                        .font(.system(size: toolbarIconSize(20)))
                         .foregroundStyle(!photoDataArray.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : .primary)
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
@@ -687,6 +694,8 @@ extension WriteView {
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add photo")
+                .accessibilityValue(photoDataArray.isEmpty ? Text("") : Text("\(photoDataArray.count) attached"))
                 #endif
 
                 // Voice button — records inline; keyboard and caret stay put.
@@ -698,7 +707,7 @@ extension WriteView {
                 // discoverability affordance. .onTapGesture/.onLongPressGesture
                 // on a plain view are mutually exclusive by construction.
                 Image(systemName: iconForVoiceButton)
-                    .font(.system(size: 20))
+                    .font(.system(size: toolbarIconSize(20)))
                     .foregroundStyle(
                         isRecordingInline ? Color.red
                             : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)

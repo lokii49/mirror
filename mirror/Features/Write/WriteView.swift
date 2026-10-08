@@ -128,6 +128,8 @@ struct WriteView: View {
     @State var showVoiceButtonHint = false
     @State var canUndo = false
     @State var canRedo = false
+    /// Toolbar icons follow the person's text size (capped so they stay inside 44 pt buttons).
+    @ScaledMetric(relativeTo: .title3) var toolbarIconMetric: CGFloat = 20
     @State var panelState = FormattingPanelState()
     @State var fullscreenPhotoIndex: Int? = nil
     @State var voiceNoteData: Data? = nil
