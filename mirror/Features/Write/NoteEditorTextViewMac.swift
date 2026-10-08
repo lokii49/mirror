@@ -633,7 +633,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             guard textView.selectedRange().length == 0 else { return false }
             switch commandSelector {
             case #selector(NSResponder.insertNewline(_:)):
-                return exitEmptyListItem(in: textView)
+                return exitEmptyListItem(in: textView) || continueAfterReturn(in: textView)
             case #selector(NSResponder.deleteBackward(_:)):
                 return leaveListAtParagraphStart(in: textView)
             case #selector(NSResponder.insertTab(_:)):
@@ -683,6 +683,34 @@ struct NoteEditorTextView: NSViewRepresentable {
             plain.style = .body
             plain.indent = 0
             setModel(plain, forParagraph: range, isTrailing: isTrailing, in: textView)
+            return true
+        }
+
+        /// Return after a checked item starts an unchecked one; Return at the end of a title,
+        /// heading, subheading, monospaced or quote line continues as body (as on iOS). NSTextView's
+        /// own newline carried the paragraph's attributes over, so both continued as they were.
+        /// Splitting such a line in the middle keeps the tail in its style, as on iOS.
+        private func continueAfterReturn(in textView: NSTextView) -> Bool {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), !isTrailing else { return false }
+            let text = textView.string as NSString
+            let contentEnd = NSMaxRange(range) - (NSMaxRange(range) > range.location && text.character(at: NSMaxRange(range) - 1) == 10 ? 1 : 0)
+            let atEnd = textView.selectedRange().location >= contentEnd
+            let next: NoteParagraphTextStyle
+            switch model.style {
+            case .checklistChecked: next = .checklistUnchecked
+            case .title, .heading, .subheading, .monospaced, .blockQuote:
+                guard atEnd else { return false }
+                next = .body
+            default: return false
+            }
+            textView.undoManager?.beginUndoGrouping()
+            textView.insertNewline(nil)
+            if let (newRange, current, newIsTrailing) = caretParagraph(in: textView) {
+                var newModel = current
+                newModel.style = next
+                setModel(newModel, forParagraph: newRange, isTrailing: newIsTrailing, in: textView)
+            }
+            textView.undoManager?.endUndoGrouping()
             return true
         }
 

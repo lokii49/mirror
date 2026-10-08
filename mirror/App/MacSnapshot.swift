@@ -1058,6 +1058,34 @@ enum MacEditorSelfTest {
             check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
         }
 
+        // 15. Return after a checked item or a heading (audit item 13).
+        do {
+            let box = Box(text: "done", style: doc([.checklistChecked]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            tv.insertText("next", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("Return after a checked item starts unchecked", box.text == "done\nnext" && styles(box.style) == ["checklistChecked", "checklistUnchecked"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "Title", style: doc([.heading]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 5, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            tv.insertText("body", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("Return at the end of a heading continues as body", box.text == "Title\nbody" && styles(box.style).first == "heading" && styles(box.style).dropFirst().allSatisfy { $0 == "body" },
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "Title", style: doc([.heading]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            check("splitting a heading keeps the tail a heading", box.text == "Ti\ntle" && styles(box.style) == ["heading", "heading"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+
         // 14. Undo after a whole-document checklist command (audit item 6): Cmd-Z must restore the
         // document as it was, not replay an earlier typing step at stale offsets.
         do {

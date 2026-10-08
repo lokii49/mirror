@@ -2175,9 +2175,17 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
-            textView.selectedRange = bounded(NSRange(location: boundedRange.location + lineBreak.count, length: 0), in: textView.text)
+            // The caret stays on the line that left the list (it used to land on the row below
+            // when the empty item had rows after it).
+            textView.selectedRange = bounded(NSRange(location: boundedRange.location, length: 0), in: textView.text)
             isApplyingStyledText = false
             storeDocuments(from: textView)
+            // A numbered list below now starts a new list: redraw so it counts from 1.
+            let afterExit = boundedRange.location + (lineBreak as NSString).length
+            if afterExit < (textView.text as NSString).length, textStyle(at: afterExit, in: textView.attributedText) == .numberedList {
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            }
             textView.typingAttributes = styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: exitFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)

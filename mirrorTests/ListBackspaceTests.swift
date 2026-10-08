@@ -635,3 +635,39 @@ struct CompositionTests {
         #expect(h.getText() == "note", "got \(h.getText().debugDescription)")
     }
 }
+
+/// Return on an empty list item that has rows below it ends the list there: the item becomes a body
+/// line, the caret stays on it, and a numbered list below restarts at 1 (audit item 10).
+@MainActor
+struct ReturnOnEmptyMiddleItemTests {
+    private func styles(_ data: Data?) -> [NoteParagraphTextStyle]? {
+        data.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?.paragraphStyles
+    }
+
+    @Test func emptyMiddleBulletBecomesBodyAndTheCaretStaysThere() {
+        let h = makeListHarness(text: "a\n\nb", textStyleData: listStyle([.bulletedList, .bulletedList, .bulletedList]))
+        let display = (h.textView.text ?? "") as NSString
+        let middle = display.paragraphRange(for: NSRange(location: display.range(of: "a").location + 2, length: 0))
+        let caret = middle.location + 3   // after "•  "
+        h.textView.selectedRange = NSRange(location: caret, length: 0)
+        let allowed = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: caret, length: 0), replacementText: "\n")
+        #expect(!allowed)
+        #expect(h.getText() == "a\n\nb", "got \(h.getText().debugDescription)")
+        #expect(styles(h.getStyleData()) == [.bulletedList, .body, .bulletedList], "got \(String(describing: styles(h.getStyleData())))")
+        let now = (h.textView.text ?? "") as NSString
+        let caretParagraph = now.paragraphRange(for: NSRange(location: h.textView.selectedRange.location, length: 0))
+        #expect(caretParagraph.location == middle.location, "the caret stays on the emptied line")
+    }
+
+    @Test func numberingBelowRestartsAfterTheListEnds() {
+        let h = makeListHarness(text: "one\n\ntwo\nthree", textStyleData: listStyle([.numberedList, .numberedList, .numberedList, .numberedList]))
+        let display = (h.textView.text ?? "") as NSString
+        let middle = display.paragraphRange(for: NSRange(location: NSMaxRange(display.paragraphRange(for: NSRange(location: 0, length: 0))), length: 0))
+        let caret = middle.location + 3   // after "2.\t"
+        h.textView.selectedRange = NSRange(location: caret, length: 0)
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: NSRange(location: caret, length: 0), replacementText: "\n")
+        let lines = (h.textView.text ?? "").components(separatedBy: "\n")
+        #expect(lines.count == 4 && lines[2].hasPrefix("1.\t") && lines[3].hasPrefix("2.\t"),
+                "numbering below restarts: \(lines.map(\.debugDescription))")
+    }
+}
