@@ -27,6 +27,10 @@ import UIKit
 /// their early-return paths on every paragraph rather than reading real
 /// attributes — an honest approximation for a length-driven cost, not a
 /// claim that styling is free.
+///
+/// Main actor: it creates `UITextView`s, which UIKit only allows on the main thread. Off it, the
+/// init raced UIKit's shared keyboard gesture state and could abort the whole test host.
+@MainActor
 struct NoteEditorRenderCostTests {
     private func makeCoordinator(text: String, photoCount: Int = 0) -> (coordinator: NoteEditorTextView.Coordinator, textView: UITextView) {
         let view = NoteEditorTextView(

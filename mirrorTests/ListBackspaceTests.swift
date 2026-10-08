@@ -438,3 +438,122 @@ struct TypingFormattingTests {
         #expect(!isBold(h.textView.typingAttributes))
     }
 }
+
+/// UITextView's own undo stack is cleared whenever `attributedText` is set, so list Return,
+/// formatting and checklist commands wiped all undo history. The editor keeps its own (audit item 7).
+@MainActor
+struct EditorUndoTests {
+    typealias Harness = (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String,
+                         getStyleData: () -> Data?, getInlineData: () -> Data?, panel: FormattingPanelState)
+
+    /// Types the way UIKit does: ask the delegate, insert with the typing attributes, report the change.
+    private func type(_ string: String, into h: Harness) {
+        let caret = h.textView.selectedRange.location
+        let range = NSRange(location: caret, length: 0)
+        guard h.coordinator.textView(h.textView, shouldChangeTextIn: range, replacementText: string) else { return }
+        h.textView.textStorage.replaceCharacters(in: range, with: NSAttributedString(string: string, attributes: h.textView.typingAttributes))
+        h.textView.selectedRange = NSRange(location: caret + (string as NSString).length, length: 0)
+        h.coordinator.textViewDidChange(h.textView)
+    }
+
+    private func inline(_ h: Harness) -> [InlineStyleRange] {
+        h.getInlineData().flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
+    }
+
+    @Test func listReturnCanBeUndoneAndRedone() {
+        let h = makeListHarness(text: "milk", textStyleData: listStyle([.bulletedList]))
+        let end = ((h.textView.text ?? "") as NSString).length
+        h.textView.selectedRange = NSRange(location: end, length: 0)
+        type("\n", into: h)
+        #expect(h.getText() == "milk\n")
+        #expect(h.coordinator.canUndoEdit)
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "milk")
+        #expect(h.coordinator.canRedoEdit)
+        h.coordinator.apply(.redo, to: h.textView)
+        #expect(h.getText() == "milk\n")
+    }
+
+    @Test func boldCanBeUndone() {
+        let h = makeListHarness(text: "hello world")
+        h.textView.selectedRange = NSRange(location: 0, length: 5)
+        h.coordinator.apply(.bold, to: h.textView)
+        #expect(inline(h).first?.bold == true)
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(inline(h).isEmpty)
+    }
+
+    @Test func typingBeforeACommandIsStillUndoableAfterIt() {
+        // The command used to clear UIKit's stack, losing the typing undo.
+        let h = makeListHarness(text: "hello")
+        h.textView.selectedRange = NSRange(location: 5, length: 0)
+        type(" there", into: h)
+        h.textView.selectedRange = NSRange(location: 0, length: 5)
+        h.coordinator.apply(.italic, to: h.textView)
+        h.coordinator.apply(.undo, to: h.textView)   // the italic
+        #expect(inline(h).isEmpty && h.getText() == "hello there")
+        h.coordinator.apply(.undo, to: h.textView)   // the typing
+        #expect(h.getText() == "hello")
+    }
+
+    @Test func aRunOfTypingIsOneStepAndALineBreakStartsAnother() {
+        let h = makeListHarness(text: "a")
+        h.textView.selectedRange = NSRange(location: 1, length: 0)
+        for ch in ["b", "c", "d"] { type(ch, into: h) }
+        type("\n", into: h)
+        for ch in ["e", "f"] { type(ch, into: h) }
+        #expect(h.getText() == "abcd\nef")
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "abcd\n")
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "abcd")
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "a")
+        #expect(!h.coordinator.canUndoEdit)
+    }
+
+    @Test func loadingTheEntryIsNotUndoable() {
+        let h = makeListHarness(text: "")
+        h.coordinator.parent.text = "loaded entry text"   // WriteView sets the entry's text after the editor appears
+        h.coordinator.noteOutsideChange(in: h.textView)
+        #expect(!h.coordinator.canUndoEdit)
+    }
+
+    @Test func anAppendAfterEditingIsUndoable() {
+        let h = makeListHarness(text: "note")
+        h.textView.selectedRange = NSRange(location: 4, length: 0)
+        type("s", into: h)
+        h.coordinator.parent.text = "notes\n\nscanned text"   // a scan or Talk It Out append
+        h.coordinator.noteOutsideChange(in: h.textView)
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "notes")
+    }
+
+    /// The text view's own undo manager (what Cmd-Z, shake and the three-finger gesture use) is the
+    /// editor's. No window or first responder here: keyboard state is shared across parallel tests.
+    @Test func theEditorTextViewHandsUIKitTheEditorHistory() {
+        let h = makeListHarness(text: "hello world")
+        let tv = MirrorEditorTextView()
+        tv.editorUndo = h.coordinator.editorUndoManager
+        #expect(tv.undoManager === h.coordinator.editorUndoManager)
+        h.coordinator.editorUndoManager.textView = h.textView
+        h.textView.selectedRange = NSRange(location: 0, length: 5)
+        h.coordinator.apply(.bold, to: h.textView)
+        #expect(tv.undoManager?.canUndo == true)
+        tv.undoManager?.undo()
+        #expect(inline(h).isEmpty)
+    }
+
+    @Test func theTextViewUndoManagerUsesTheEditorHistory() {
+        // Cmd-Z, shake and the three-finger gesture ask the text view's undo manager.
+        let h = makeListHarness(text: "hello world")
+        let um = h.coordinator.editorUndoManager
+        um.textView = h.textView
+        h.textView.selectedRange = NSRange(location: 0, length: 5)
+        h.coordinator.apply(.bold, to: h.textView)
+        #expect(um.canUndo)
+        um.undo()
+        #expect(inline(h).isEmpty)
+        #expect(um.canRedo)
+    }
+}

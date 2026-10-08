@@ -33,7 +33,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     var onPhotoTapped: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
+        let textView = MirrorEditorTextView()
+        textView.editorUndo = context.coordinator.editorUndoManager
+        context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
         textView.isEditable = true
@@ -76,6 +78,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.parent = self
+        context.coordinator.noteOutsideChange(in: textView)
 
         let logicalMismatch = context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
         if logicalMismatch {
@@ -287,6 +290,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Sorting checked items to the bottom is still available via the "Sort Done"
             // button, not automatic here: moving rows under the caret on every check is
             // disorienting. Real Notes ships this off by default too.
+            commitUndoPoint(in: textView)
         }
 
         // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
@@ -378,8 +382,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
             refreshActiveInlineStyles(in: textView)
-            parent.canUndo = textView.undoManager?.canUndo ?? false
-            parent.canRedo = textView.undoManager?.canRedo ?? false
+            if !changeWasGrouped { groupTypedChange(range: nil, replacement: nil) }
+            changeWasGrouped = false
+            committedSnapshot = currentSnapshot(of: textView)
             scrollCaretToVisible(in: textView)
         }
 
@@ -463,6 +468,18 @@ struct NoteEditorTextView: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText replacement: String
         ) -> Bool {
+            let allowed = handleChange(textView, range: range, replacement: replacement)
+            if allowed {
+                // UIKit applies it; textViewDidChange records the result.
+                groupTypedChange(range: range, replacement: replacement)
+                changeWasGrouped = true
+            } else {
+                commitUndoPoint(in: textView)
+            }
+            return allowed
+        }
+
+        private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
                 // Find which attachment char is being deleted
@@ -824,6 +841,20 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func apply(_ command: NoteTextCommand, to textView: UITextView) {
+            switch command {
+            case .undo:
+                undoEdit(in: textView)
+            case .redo:
+                redoEdit(in: textView)
+            case .moveCursor:
+                performCommand(command, to: textView)
+            default:
+                performCommand(command, to: textView)
+                commitUndoPoint(in: textView)
+            }
+        }
+
+        private func performCommand(_ command: NoteTextCommand, to textView: UITextView) {
             // Inline style commands
             switch command {
             case .bold, .italic, .underline, .strikethrough:
@@ -865,20 +896,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .photo(let index):
                 insertPhotoToken(at: index, in: textView)
                 return
-            case .undo:
-                textView.undoManager?.undo()
-                DispatchQueue.main.async {
-                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
-                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
-                }
-                return
-            case .redo:
-                textView.undoManager?.redo()
-                DispatchQueue.main.async {
-                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
-                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
-                }
-                return
+            case .undo, .redo:
+                return   // handled in apply(_:to:)
             case .moveCursor(let location):
                 // Runs in the same updateUIView pass as the text-diff branch above (lines
                 // 75-81), which has already applied the new text to textView by the time any
@@ -1207,6 +1226,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 textView.selectedRange = bounded(selectedRange, in: textView.text)
             }
             updateTypingAttributes(for: textView)
+            // The first render is the undo baseline (before any updateUIView has run).
+            if committedSnapshot == nil { committedSnapshot = currentSnapshot(of: textView) }
         }
 
         func updatePlaceholder(in textView: UITextView) {
@@ -2287,6 +2308,147 @@ struct NoteEditorTextView: UIViewRepresentable {
             return result
         }
 
+        // MARK: - Undo
+        //
+        // UITextView's own undo manager loses its whole stack whenever `attributedText` is set,
+        // which every list Return, re-render, formatting command and checkbox tap does. So the
+        // editor keeps its own history of whole-document snapshots, and the text view's undo
+        // manager (Undo button, Cmd-Z, shake, three-finger swipe) is pointed at it.
+
+        struct EditorSnapshot {
+            var text: String
+            var textStyleData: Data?
+            var inlineStyleData: Data?
+            var photos: [Data]
+            var selection: NSRange
+
+            func hasSameContent(as other: EditorSnapshot) -> Bool {
+                text == other.text && textStyleData == other.textStyleData && inlineStyleData == other.inlineStyleData
+                    && photos.count == other.photos.count && photos.map(\.count) == other.photos.map(\.count)
+            }
+        }
+
+        private struct TypingGroup {
+            var isDeletion: Bool
+            var nextLocation: Int
+            var lastEdit: Date
+        }
+
+        private static let undoLimit = 200
+        private static let typingGroupPause: TimeInterval = 2
+
+        private var undoStack: [EditorSnapshot] = []
+        private var redoStack: [EditorSnapshot] = []
+        /// The document as of the last change the editor knows about: what an undo point records.
+        private var committedSnapshot: EditorSnapshot?
+        private var typingGroup: TypingGroup?
+        /// Set by `shouldChangeTextIn` when it has already grouped the change `textViewDidChange` reports.
+        private var changeWasGrouped = false
+        /// Outside changes (loading the entry, restoring a draft) are not undoable until the
+        /// person has edited, so Undo can never empty an entry that was just opened.
+        private var hasUserEdited = false
+
+        var canUndoEdit: Bool { !undoStack.isEmpty }
+        var canRedoEdit: Bool { !redoStack.isEmpty }
+
+        lazy var editorUndoManager = EditorUndoManager(coordinator: self)
+
+        func currentSnapshot(of textView: UITextView) -> EditorSnapshot {
+            EditorSnapshot(text: parent.text, textStyleData: parent.textStyleData, inlineStyleData: parent.inlineStyleData,
+                           photos: parent.photoDataArray, selection: textView.selectedRange)
+        }
+
+        private func pushUndo(_ snapshot: EditorSnapshot) {
+            undoStack.append(snapshot)
+            if undoStack.count > Self.undoLimit { undoStack.removeFirst(undoStack.count - Self.undoLimit) }
+            redoStack.removeAll()
+            hasUserEdited = true
+            publishUndoState()
+        }
+
+        /// After a structural edit or command: one undo step if the document changed.
+        private func commitUndoPoint(in textView: UITextView) {
+            let current = currentSnapshot(of: textView)
+            typingGroup = nil
+            guard let committed = committedSnapshot else { committedSnapshot = current; return }
+            if !committed.hasSameContent(as: current) { pushUndo(committed) }
+            committedSnapshot = current
+        }
+
+        /// Before UIKit applies a typed change: start a new undo step unless it continues the
+        /// current run (same kind, at the caret, within a short pause, no line break).
+        private func groupTypedChange(range: NSRange?, replacement: String?) {
+            let now = Date()
+            let isDeletion = replacement?.isEmpty ?? false
+            var continues = false
+            if let group = typingGroup, now.timeIntervalSince(group.lastEdit) < Self.typingGroupPause, group.isDeletion == isDeletion {
+                if let range {
+                    continues = isDeletion ? NSMaxRange(range) == group.nextLocation : range.location == group.nextLocation
+                } else {
+                    continues = true   // marked (IME) text has no range here; group it by time
+                }
+            }
+            if replacement?.contains("\n") == true { continues = false }
+            if !continues, let committed = committedSnapshot { pushUndo(committed) }
+            let next: Int
+            if let range { next = isDeletion ? range.location : range.location + ((replacement ?? "") as NSString).length } else { next = typingGroup?.nextLocation ?? 0 }
+            typingGroup = replacement?.contains("\n") == true ? nil : TypingGroup(isDeletion: isDeletion, nextLocation: next, lastEdit: now)
+        }
+
+        /// Called at the start of every `updateUIView`: a document change the editor did not make
+        /// (an append, a scan, a photo attached) becomes an undo step once the person has edited.
+        func noteOutsideChange(in textView: UITextView) {
+            let current = currentSnapshot(of: textView)
+            guard let committed = committedSnapshot else { committedSnapshot = current; return }
+            guard !committed.hasSameContent(as: current) else { return }
+            if hasUserEdited { pushUndo(committed) }
+            committedSnapshot = current
+            typingGroup = nil
+        }
+
+        func undoEdit(in textView: UITextView) {
+            guard let snapshot = undoStack.popLast() else { return }
+            redoStack.append(currentSnapshot(of: textView))
+            restore(snapshot, in: textView)
+        }
+
+        func redoEdit(in textView: UITextView) {
+            guard let snapshot = redoStack.popLast() else { return }
+            undoStack.append(currentSnapshot(of: textView))
+            restore(snapshot, in: textView)
+        }
+
+        private func restore(_ snapshot: EditorSnapshot, in textView: UITextView) {
+            parent.text = snapshot.text
+            parent.textStyleData = snapshot.textStyleData
+            parent.inlineStyleData = snapshot.inlineStyleData
+            if parent.photoDataArray.map(\.count) != snapshot.photos.map(\.count) { parent.photoDataArray = snapshot.photos }
+            pendingTypingInline = nil
+            typingGroup = nil
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: false)
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(snapshot.selection, in: textView.text)
+            isApplyingStyledText = false
+            lastKnownCursorLocation = textView.selectedRange.location
+            updateTypingAttributes(for: textView)
+            updatePlaceholder(in: textView)
+            refreshActiveParagraphStyle(in: textView)
+            refreshActiveInlineStyles(in: textView)
+            committedSnapshot = currentSnapshot(of: textView)
+            publishUndoState()
+        }
+
+        /// The toolbar buttons read these. Deferred: this can run inside `updateUIView`.
+        private func publishUndoState() {
+            let canUndo = canUndoEdit, canRedo = canRedoEdit
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if self.parent.canUndo != canUndo { self.parent.canUndo = canUndo }
+                if self.parent.canRedo != canRedo { self.parent.canRedo = canRedo }
+            }
+        }
+
         private func invalidateRenderedCache() {
             lastRenderedText = nil
             lastRenderedStyleSignature = nil
@@ -3258,3 +3420,38 @@ private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
     }
     return CGImageSourceGetCount(source) > 0
 }
+
+#if os(iOS)
+/// The editor text view. Its undo manager is the editor's own history (see the coordinator's
+/// "Undo" section), so Cmd-Z, shake and the three-finger gesture use the same steps as the
+/// toolbar's Undo button.
+final class MirrorEditorTextView: UITextView {
+    weak var editorUndo: UndoManager?
+    override var undoManager: UndoManager? { editorUndo ?? super.undoManager }
+}
+
+/// Answers UIKit's undo questions from the editor's snapshot history. Registrations UIKit makes
+/// while typing are accepted and never used.
+final class EditorUndoManager: UndoManager {
+    private weak var coordinator: NoteEditorTextView.Coordinator?
+    weak var textView: UITextView?
+
+    init(coordinator: NoteEditorTextView.Coordinator) {
+        self.coordinator = coordinator
+        super.init()
+        levelsOfUndo = 1   // only UIKit's unused typing registrations land here
+    }
+
+    override var canUndo: Bool { coordinator?.canUndoEdit ?? false }
+    override var canRedo: Bool { coordinator?.canRedoEdit ?? false }
+    override func undo() {
+        guard let coordinator, let textView else { return }
+        coordinator.undoEdit(in: textView)
+    }
+    override func redo() {
+        guard let coordinator, let textView else { return }
+        coordinator.redoEdit(in: textView)
+    }
+    override func undoNestedGroup() { undo() }
+}
+#endif
