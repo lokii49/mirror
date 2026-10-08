@@ -405,6 +405,8 @@ struct NoteEditorTextView: NSViewRepresentable {
         var lastAppliedCommandRevision = 0
 
         private var isApplying = false
+        /// Paragraphs edited while an input method was composing; restyled once it commits.
+        private var composedRange: NSRange?
         private var lastStyleData: Data?
         private var lastInlineData: Data?
         private var lastFontChoiceRaw = ""
@@ -468,6 +470,13 @@ struct NoteEditorTextView: NSViewRepresentable {
             let probe = NSRange(location: min(editedRange.location, text.length), length: min(editedRange.length, max(0, text.length - editedRange.location)))
             let paragraphs = text.paragraphRange(for: probe)
             guard paragraphs.length > 0 else { return }
+            // While an input method composes (Japanese, Chinese, Korean), NSTextView keeps the
+            // marked text's own attributes in the storage; restyling would strip them. Restyle
+            // these paragraphs once the composition is committed (textDidChange).
+            if let textView, textView.hasMarkedText() {
+                composedRange = composedRange.map { NSUnionRange($0, paragraphs) } ?? paragraphs
+                return
+            }
 
             var cursor = paragraphs.location
             while cursor < NSMaxRange(paragraphs) {
@@ -498,6 +507,19 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard !isApplying, let textView, let storage = textView.textStorage else { return }
+            // Mid-composition the marked text carries NSTextView's underline, which would be
+            // saved as the person's own underline. Save once the composition is committed.
+            guard !textView.hasMarkedText() else { return }
+            if let composed = composedRange {
+                composedRange = nil
+                let text = storage.string as NSString
+                let range = text.paragraphRange(for: NSIntersectionRange(composed, NSRange(location: 0, length: text.length)))
+                if range.length > 0 {
+                    storage.beginEditing()
+                    MacEditorStyle.restyle(storage, in: range, entryFont: entryFont, displayMode: displayMode)
+                    storage.endEditing()
+                }
+            }
             captureTrailingModel(from: textView)
             emit(storage: storage, textView: textView)
         }

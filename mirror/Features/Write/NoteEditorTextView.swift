@@ -172,6 +172,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// kept for as long as the caret stays where it was chosen. Without it the next render pass
         /// rebuilt typing attributes from the paragraph style and the choice was lost.
         private var pendingTypingInline: (location: Int, inline: TypingInline)?
+        /// A re-render was skipped because an input method was composing (setting
+        /// `attributedText` ends the composition); it runs once the composition ends.
+        private var renderDeferredForComposition = false
 
         /// The inline formatting the next typed character gets (links are never extended).
         struct TypingInline: Equatable {
@@ -375,6 +378,21 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
+            if renderDeferredForComposition {
+                // Stored styles changed while an input method was composing and the view hasn't
+                // shown them yet: reading styles back from it would undo that change. Keep the
+                // text in sync; once the composition ends, render the stored styles onto the
+                // current text, then carry on as usual.
+                parent.text = logicalText(from: textView)
+                guard textView.markedTextRange == nil else {
+                    if !changeWasGrouped { groupTypedChange(range: nil, replacement: nil) }
+                    changeWasGrouped = false
+                    committedSnapshot = currentSnapshot(of: textView)
+                    return
+                }
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            }
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -468,6 +486,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText replacement: String
         ) -> Bool {
+            if textView.markedTextRange != nil {
+                if replacement == "\n" {
+                    // Return while composing (Korean): commit the composed text first, so the
+                    // list handling below works on finished text instead of ending the
+                    // composition halfway through rebuilding the row.
+                    textView.unmarkText()
+                } else {
+                    // Every other change while composing belongs to the input method; list and
+                    // marker handling would rebuild the text and end the composition.
+                    groupTypedChange(range: nil, replacement: replacement)
+                    changeWasGrouped = true
+                    return true
+                }
+            }
             let allowed = handleChange(textView, range: range, replacement: replacement)
             if allowed {
                 // UIKit applies it; textViewDidChange records the result.
@@ -791,6 +823,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         func textViewDidChangeSelection(_ textView: UITextView) {
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
+            // The caret moves inside the composition; clamping it or rewriting typing attributes
+            // there would break the input method.
+            guard textView.markedTextRange == nil else { return }
             clampCursorPastListMarker(in: textView)
             updateTypingAttributes(for: textView)
             refreshActiveParagraphStyle(in: textView)
@@ -1197,18 +1232,28 @@ struct NoteEditorTextView: UIViewRepresentable {
             let width = textView.bounds.width.rounded()
             let fontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .system
 
+            let isComposing = textView.markedTextRange != nil
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
                lastRenderedInlineSignature == inlineSignature,
                lastRenderedPhotoSignature == photoSignature,
                lastRenderedWidth == width,
                lastRenderedFontChoice == fontChoice {
+                // While an input method composes (Japanese, Chinese, Korean), the selection and
+                // typing attributes belong to it.
+                guard !isComposing else { return }
                 if preservingSelection {
                     textView.selectedRange = bounded(selectedRange, in: textView.text)
                 }
                 updateTypingAttributes(for: textView)
                 return
             }
+            // Setting attributedText would end the composition mid-word; render when it ends.
+            if isComposing {
+                renderDeferredForComposition = true
+                return
+            }
+            renderDeferredForComposition = false
 
             let attributed = renderedAttributedText(for: rawText, width: textView.bounds.width)
             applyInlineStyles(to: attributed, from: parent.inlineStyleData)
@@ -1831,6 +1876,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func updateTypingAttributes(for textView: UITextView) {
+            guard textView.markedTextRange == nil else { return }
             let nsText = (textView.text ?? "") as NSString
             guard nsText.length > 0 else {
                 textView.typingAttributes = bodyAttributes

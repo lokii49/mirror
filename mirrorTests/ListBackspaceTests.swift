@@ -557,3 +557,81 @@ struct EditorUndoTests {
         #expect(um.canRedo)
     }
 }
+
+/// An input method (Japanese, Chinese, Korean) keeps marked text while composing. Setting
+/// `attributedText`, list handling or marker handling during it ended the composition mid-word
+/// (audit item 8). Driven with UIKit's own `setMarkedText`.
+@MainActor
+struct CompositionTests {
+    typealias Harness = (coordinator: NoteEditorTextView.Coordinator, textView: UITextView, getText: () -> String,
+                         getStyleData: () -> Data?, getInlineData: () -> Data?, panel: FormattingPanelState)
+
+    /// What UIKit does for a composition keystroke: ask the delegate, mark the text, report it.
+    private func compose(_ marked: String, into h: Harness) {
+        let range = h.textView.markedTextRange.map { tr in
+            NSRange(location: h.textView.offset(from: h.textView.beginningOfDocument, to: tr.start),
+                    length: h.textView.offset(from: tr.start, to: tr.end))
+        } ?? h.textView.selectedRange
+        _ = h.coordinator.textView(h.textView, shouldChangeTextIn: range, replacementText: marked)
+        h.textView.setMarkedText(marked, selectedRange: NSRange(location: (marked as NSString).length, length: 0))
+        h.coordinator.textViewDidChange(h.textView)
+    }
+
+    private func styles(_ h: Harness) -> [NoteParagraphTextStyle]? {
+        h.getStyleData().flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?.paragraphStyles
+    }
+
+    @Test func aRenderPassDoesNotEndTheComposition() {
+        let h = makeListHarness(text: "note")
+        h.textView.selectedRange = NSRange(location: 4, length: 0)
+        compose("か", into: h)
+        // Something else changes the stored formatting (a cache miss would set attributedText).
+        let bold = InlineStyleRange(location: 0, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        h.coordinator.parent.inlineStyleData = try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold]))
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        #expect(h.textView.markedTextRange != nil, "still composing")
+        // The postponed render runs once the composition is committed.
+        h.textView.unmarkText()
+        h.coordinator.textViewDidChange(h.textView)
+        let font = h.textView.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+        #expect(font?.fontDescriptor.symbolicTraits.contains(.traitBold) == true, "the deferred render applied the bold")
+        #expect(h.getText() == "noteか")
+    }
+
+    @Test func returnWhileComposingInAListCommitsThenAddsARow() {
+        let h = makeListHarness(text: "milk", textStyleData: listStyle([.bulletedList]))
+        let end = ((h.textView.text ?? "") as NSString).length
+        h.textView.selectedRange = NSRange(location: end, length: 0)
+        compose("한", into: h)
+        let caret = h.textView.selectedRange
+        let allowed = h.coordinator.textView(h.textView, shouldChangeTextIn: caret, replacementText: "\n")
+        #expect(!allowed, "the list handles Return")
+        #expect(h.textView.markedTextRange == nil)
+        #expect(h.getText() == "milk한\n", "got \(h.getText().debugDescription)")
+        #expect(styles(h) == [.bulletedList, .bulletedList], "got \(String(describing: styles(h)))")
+    }
+
+    @Test func deletingTheLastComposedLetterDoesNotLeaveTheList() {
+        // Pinyin "n" typed into a new empty list item, then Backspace inside the composition.
+        let h = makeListHarness(text: "milk\n", textStyleData: listStyle([.bulletedList, .bulletedList]))
+        let end = ((h.textView.text ?? "") as NSString).length
+        h.textView.selectedRange = NSRange(location: end, length: 0)
+        compose("n", into: h)
+        let marked = h.textView.markedTextRange!
+        let range = NSRange(location: h.textView.offset(from: h.textView.beginningOfDocument, to: marked.start), length: 1)
+        let allowed = h.coordinator.textView(h.textView, shouldChangeTextIn: range, replacementText: "")
+        #expect(allowed, "the input method handles it; the list item stays")
+        #expect(styles(h) == [.bulletedList, .bulletedList])
+    }
+
+    @Test func aCompositionIsOneUndoStep() {
+        let h = makeListHarness(text: "note")
+        h.textView.selectedRange = NSRange(location: 4, length: 0)
+        for step in ["か", "かん", "かんじ"] { compose(step, into: h) }
+        h.textView.unmarkText()
+        h.coordinator.textViewDidChange(h.textView)
+        #expect(h.getText() == "noteかんじ")
+        h.coordinator.apply(.undo, to: h.textView)
+        #expect(h.getText() == "note", "got \(h.getText().debugDescription)")
+    }
+}

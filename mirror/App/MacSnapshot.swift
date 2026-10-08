@@ -1058,6 +1058,20 @@ enum MacEditorSelfTest {
             check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
         }
 
+        // 13. Input-method composition (Japanese, Chinese, Korean): nothing is saved while text
+        // is marked (NSTextView stores its underline on it), and the committed text is saved plain.
+        do {
+            let box = Box(text: "note")
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.setMarkedText("か", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("composing: text not saved mid-composition", box.text == "note", box.text.debugDescription)
+            tv.setMarkedText("かん", selectedRange: NSRange(location: 2, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+            tv.insertText("漢", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("composing: committed text is saved", box.text == "note漢", box.text.debugDescription)
+            check("composing: no underline saved from the marked text", ranges(box.inline).isEmpty, "\(ranges(box.inline))")
+        }
+
         // 8. Pasting is plain text.
         do {
             let box = Box(text: "")
