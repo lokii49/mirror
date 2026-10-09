@@ -253,6 +253,15 @@ extension WriteView {
         additionalVoiceNoteLanguageCodes = []
         additionalVoiceNoteLanguageNames = []
         additionalVoiceNoteEnglishTranslations = []
+        // Tags and a picked date are part of the draft too: deleting or saving it used to leave
+        // the chips behind for the next entry (2026-10-09).
+        entryTags = []
+        tagText = ""
+        showTagInput = false
+        if entry == nil {
+            entryDate = Date()
+            entryDateChosen = false
+        }
         cancelAllTranscriptions()
     }
 
@@ -275,6 +284,8 @@ extension WriteView {
             photos: photoDataArray,
             mood: viewModel.selectedMood,
             tags: entryTags,
+            entryDate: entryDate,
+            entryDateChosen: entryDateChosen,
             voiceNoteData: voiceNoteData,
             voiceNoteDuration: voiceNoteDuration,
             voiceNoteTranscript: voiceNoteTranscript,
@@ -315,6 +326,8 @@ extension WriteView {
         photoDataArray = undoSnapshot.photos
         viewModel.selectedMood = undoSnapshot.mood
         entryTags = undoSnapshot.tags
+        entryDate = undoSnapshot.entryDate
+        entryDateChosen = undoSnapshot.entryDateChosen
         voiceNoteData = undoSnapshot.voiceNoteData
         voiceNoteDuration = undoSnapshot.voiceNoteDuration
         voiceNoteTranscript = undoSnapshot.voiceNoteTranscript
@@ -678,7 +691,6 @@ extension WriteView {
         guard entry == nil else { return }
         cancelDraftSave()
         clearDraft()
-        entryTags = []
     }
 
     /// Delete Everything: like `clearAllDraftStorage`, plus any draft held back

@@ -18,6 +18,8 @@ struct DraftUndoSnapshot {
     var photos: [Data] = []
     var mood: String? = nil
     var tags: [String] = []
+    var entryDate: Date = Date()
+    var entryDateChosen = false
     var voiceNoteData: Data? = nil
     var voiceNoteDuration: TimeInterval = 0
     var voiceNoteTranscript: String? = nil
