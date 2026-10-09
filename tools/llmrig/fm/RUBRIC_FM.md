@@ -391,3 +391,27 @@ fallback, quote verbatim, errors and safety refusals.
 One round only. A style that misses stays unbuilt and Tier 1 stays as it is. Scoring: shuffled blind sheet of each
 style's shown outputs (`score_tools.py sheet`), single scorer; prod's shown outputs are not blind-scored (its PASS
 rate is known from rounds 5-10).
+
+### Round 12 result (2026-10-09, 33 cases x 3 variants x 10 = 990 runs, mechanical): BOTH styles FAILED; Tier 1 stays
+| | runs | shown | fallback | errors | quotes verbatim | style gate |
+|---|---|---|---|---|---|---|
+| prod (V1e) | 330 | 301 | 19 (5.8%) | 10 (hold3_hospital refusals) | 301/301 | n/a (one sentence 50%, median 10 words) |
+| S1 Plain | 330 | 296 | 34 (10.3%) | 0 | 296/296 | one sentence 99%, median 5 words = 0.50 x prod (pass) |
+| S2 Question | 330 | 308 | 22 (6.7%) | 0 | 308/308 | one question 94% (pass) |
+
+- **S1 Plain fails**: fallback 10.3% > 10%, and three cases fell back 10/10 (> 30%): hold3_exam, hold3_run,
+  hold4_weekends. On hold3_exam/run the model wrote "You feel anxious." or a lowercase sentence with a reason the
+  guard drops. What it did show is mostly the mood label restated: "You felt drained." / "You felt sad." /
+  "You felt joyful." are the most common outputs (54 distinct insights in 296 shown). That is not a style worth a
+  setting; Quiet (quote only) already covers "less".
+- **S2 Question fails**: hold4_move 10/10 and hold3_twomoods 7/10 fallback (> 30%). Of 308 shown, 162 open with
+  the same template, "What does it mean…". Grounded, but it is the app-built Curious question (`followUpQuestion`)
+  written by a model, with fallbacks added.
+- Per the plan (one round only), neither style was blind-scored and neither is built.
+- **Production findings (prod, not caused by the styles)**, follow-ups for the roadmap:
+  - hold4_weekends fell back 10/10: the model copied the prompt's mood line, "Drained. Source: written entry.", as
+    the quote (the entry's first sentence, "Third weekend in a row working.", is short). The guard rejects it as
+    designed, so the day gets the fixed mood line instead of a reflection. Cause is the user message layout
+    (`Mood: X. Source: written entry.` directly above the text); fixing it needs its own rig round.
+  - hold4_garden fell back 5/10: "you feel a sense of relief" ("relief" is not in the entry; the guard is right).
+  - hold3_hospital refused 10/10 as in round 11 (`refusedDayNudge` covers it).
