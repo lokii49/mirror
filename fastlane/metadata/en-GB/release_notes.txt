@@ -1,9 +1,12 @@
-Lock your journal, find anything, keep it organised
+Smarter search in Ask, reflection styles and a steadier editor
 
-• App Lock: protect MirrorNotes with Face ID, Touch ID or your passcode. It locks when the app opens and after 5 minutes away, and hides your journal in the app switcher. Turn it on in Settings.
-• Better search: put words in "quotes" for an exact phrase, type tag:work to search a tag, or -word to leave a word out. Matching words are highlighted, and results can be sorted by best match.
-• Filters: combine several moods, any or all of your tags, date ranges (including This week and This month), photos, voice notes and pinned entries.
-• Collections: group entries into collections and switch between them in Entries. Each entry can be in one collection.
-• Saved views: save a search with its filters and sort, and open it again with one tap.
-• Safer drafts: your unsaved draft is fully encrypted on your iPhone, the editor shows whether it's been kept, and unsaved changes to an entry can be restored next time you open it.
-• Export your whole journal as a ZIP of Markdown files with your photos and voice recordings. You can import an unzipped archive back; existing entries are never overwritten.
+• Smarter search in Ask (optional): find entries by meaning, not only matching words. It's a one-time 334 MB download on Wi-Fi that runs on your device, and your journal never leaves it. Turn it on in Ask or in Settings.
+• Ask finds better matches even without it: whole words count, and rare words count for more than common ones.
+• Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
+• Writing: the keyboard opens straight away, the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
+• Lists and checklists: Backspace at a marker leaves the list, Return on an empty item ends it, bold and italic stay where you put them, and undo works across formatting.
+• Japanese, Chinese and Korean input works properly in the editor.
+• Long entries and entries with photos are quicker to edit.
+• Tags: typing #work, or several tags separated by commas, now does what you'd expect.
+• Export and import now include your saved views and collections.
+• Search words are highlighted inside voice-note transcripts too.

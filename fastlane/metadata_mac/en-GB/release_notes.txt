@@ -1,11 +1,10 @@
-Lock your journal, capture from anywhere, find anything
+Smarter search in Ask, reflection styles and a steadier editor
 
-• App Lock: protect MirrorNotes with Touch ID or your Mac password. It locks when the app opens and after 5 minutes away, and covers your journal while locked. Turn it on in Settings.
-• Quick capture from any app: press Option-Command-J to jot something down without leaving what you're doing. Change the shortcut or turn it off in Settings.
-• Your daily check-in reminder now shows even while MirrorNotes is open, and clicking it takes you straight to Log Mood.
-• Better search: put words in "quotes" for an exact phrase, type tag:work to search a tag, or -word to leave a word out. Matching words are highlighted, and results can be sorted by best match.
-• Filters: combine several moods, any or all of your tags, date ranges (including This week and This month), photos and pinned entries.
-• Collections: group entries into collections and switch between them in Entries. Each entry can be in one collection.
-• Saved views: save a search with its filters and sort, and open it again in one click.
-• Safer drafts: the editor shows whether your draft has been kept, and unsaved changes to an entry, even ones closed with Esc, can be restored next time you open it.
-• Export your whole journal as a ZIP of Markdown files with your photos. You can import an unzipped archive back; existing entries are never overwritten.
+• Smarter search in Ask (optional): find entries by meaning, not only matching words. It's a one-time 334 MB download on Wi-Fi that runs on your device, and your journal never leaves it. Turn it on in Ask or in Settings.
+• Ask finds better matches even without it: whole words count, and rare words count for more than common ones.
+• Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
+• Writing: the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
+• Lists and checklists: Return after a checked item or a heading behaves as it should, bold and italic stay where you put them, and checklist changes can be undone with Command-Z.
+• Japanese, Chinese and Korean input works properly in the editor.
+• Tags: typing #work, or several tags separated by commas, now does what you'd expect.
+• Export and import now include your saved views and collections.

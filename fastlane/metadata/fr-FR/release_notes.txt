@@ -1,9 +1,12 @@
-Verrouille ton journal, retrouve tout, reste organisé
+Recherche intelligente dans Demander, styles de réflexion et un éditeur plus fiable
 
-• Verrouillage de l'app : protège MirrorNotes avec Face ID, Touch ID ou ton code. L'app se verrouille à l'ouverture et après 5 minutes d'absence, et masque ton journal dans le sélecteur d'apps. Active-le dans Réglages.
-• Recherche améliorée : mets des mots entre « guillemets » pour une expression exacte, tape tag:travail pour chercher un tag, ou -mot pour exclure un mot. Les mots trouvés sont surlignés et les résultats peuvent être triés par pertinence.
-• Filtres : combine plusieurs humeurs, certains ou tous tes tags, des périodes (dont Cette semaine et Ce mois-ci), photos, notes vocales et entrées épinglées.
-• Collections : regroupe tes entrées en collections et passe de l'une à l'autre dans Entrées. Chaque entrée peut appartenir à une collection.
-• Vues enregistrées : enregistre une recherche avec ses filtres et son tri, et rouvre-la d'un toucher.
-• Brouillons plus sûrs : ton brouillon non enregistré est entièrement chiffré sur ton iPhone, l'éditeur indique s'il a été conservé, et les modifications non enregistrées d'une entrée peuvent être restaurées à sa prochaine ouverture.
-• Exporte tout ton journal en ZIP avec des fichiers Markdown, tes photos et tes enregistrements vocaux. Tu peux réimporter une archive décompressée ; les entrées existantes ne sont jamais écrasées.
+• Recherche intelligente dans Demander (facultative) : trouvez des entrées par leur sens, pas seulement par des mots identiques. Téléchargement unique de 334 Mo en Wi-Fi, fonctionne sur votre appareil, et votre journal ne le quitte jamais. À activer dans Demander ou dans Réglages.
+• Même sans elle, Demander trouve de meilleurs résultats : les mots entiers comptent, et les mots rares comptent plus que les mots courants.
+• Styles de réflexion (Core) : choisissez comment se lit la réflexion du jour. Doux comme avant, Discret avec seulement vos propres mots, ou Curieux avec une question sur ce que vous avez écrit. À choisir dans Réglages.
+• Écriture : le clavier s'ouvre tout de suite, le curseur se place à la fin de votre brouillon, et un brouillon garde sa date, sa police, ses tags et sa mise en forme.
+• Listes et listes de tâches : Retour arrière sur une puce quitte la liste, Retour sur un élément vide la termine, le gras et l'italique restent là où vous les avez mis, et l'annulation fonctionne aussi avec la mise en forme.
+• La saisie en japonais, chinois et coréen fonctionne correctement dans l'éditeur.
+• Les entrées longues et celles avec des photos se modifient plus vite.
+• Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
+• L'export et l'import incluent désormais vos vues enregistrées et vos collections.
+• Les mots recherchés sont aussi surlignés dans les transcriptions des notes vocales.

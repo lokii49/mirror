@@ -1,11 +1,10 @@
-Blocca il tuo diario, annota da ovunque, trova tutto
+Ricerca intelligente in Chiedi, stili di riflessione e un editor più affidabile
 
-• Blocco app: proteggi MirrorNotes con Touch ID o la password del tuo Mac. Si blocca all'apertura e dopo 5 minuti di assenza, e copre il diario finché è bloccata. Attivalo in Impostazioni.
-• Acquisizione rapida da qualsiasi app: premi Opzione-Comando-J per annotare qualcosa senza lasciare quello che stai facendo. Cambia la scorciatoia o disattivala in Impostazioni.
-• Il promemoria giornaliero del check-in ora appare anche quando MirrorNotes è aperta, e un clic ti porta subito a registrare l'umore.
-• Ricerca migliorata: metti le parole tra "virgolette" per una frase esatta, scrivi tag:lavoro per cercare un tag o -parola per escludere una parola. Le corrispondenze sono evidenziate e i risultati si possono ordinare per pertinenza.
-• Filtri: combina più stati d'animo, alcuni o tutti i tuoi tag, intervalli di date (anche Questa settimana e Questo mese), foto e voci fissate.
-• Raccolte: raggruppa le voci in raccolte e passa dall'una all'altra in Voci. Ogni voce può stare in una raccolta.
-• Viste salvate: salva una ricerca con filtri e ordinamento e riaprila con un clic.
-• Bozze più sicure: l'editor mostra se la bozza è stata conservata, e le modifiche non salvate a una voce, anche chiusa con Esc, si possono ripristinare alla successiva apertura.
-• Esporta tutto il diario come ZIP con file Markdown e le tue foto. Puoi reimportare un archivio decompresso; le voci esistenti non vengono mai sovrascritte.
+• Ricerca intelligente in Chiedi (facoltativa): trova le voci in base al significato, non solo alle parole uguali. Download unico di 334 MB con il Wi-Fi, funziona sul tuo dispositivo e il tuo diario non lo lascia mai. Attivala in Chiedi o nelle Impostazioni.
+• Chiedi trova risultati migliori anche senza: contano le parole intere, e le parole rare contano più di quelle comuni.
+• Stili di riflessione (Core): scegli come si legge la riflessione di oggi. Delicato come prima, Silenzioso solo con le tue parole o Curioso con una domanda su ciò che hai scritto. Sceglilo nelle Impostazioni.
+• Scrittura: il cursore parte dalla fine della bozza e una bozza conserva data, font, tag e formattazione.
+• Elenchi e checklist: A capo dopo una voce spuntata o un titolo funziona come dovrebbe, grassetto e corsivo restano dove li hai messi e le modifiche alle checklist si annullano con Comando-Z.
+• La scrittura in giapponese, cinese e coreano funziona correttamente nell'editor.
+• Tag: scrivere #lavoro, o più tag separati da virgole, ora funziona come ti aspetti.
+• Esportazione e importazione ora includono le tue viste salvate e le raccolte.

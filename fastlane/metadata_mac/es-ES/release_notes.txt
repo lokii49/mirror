@@ -1,11 +1,10 @@
-Bloquea tu diario, captura desde cualquier sitio y encuentra todo
+Búsqueda inteligente en Preguntar, estilos de reflexión y un editor más fiable
 
-• Bloqueo de la app: protege MirrorNotes con Touch ID o la contraseña de tu Mac. Se bloquea al abrir la app y tras 5 minutos fuera, y cubre tu diario mientras está bloqueada. Actívalo en Ajustes.
-• Captura rápida desde cualquier app: pulsa Opción-Comando-J para apuntar algo sin dejar lo que estás haciendo. Cambia el atajo o desactívalo en Ajustes.
-• Tu recordatorio diario de check-in ahora aparece aunque MirrorNotes esté abierta, y al hacer clic te lleva directamente a registrar tu estado de ánimo.
-• Búsqueda mejorada: pon palabras entre "comillas" para una frase exacta, escribe tag:trabajo para buscar una etiqueta o -palabra para excluir una palabra. Las coincidencias se resaltan y los resultados se pueden ordenar por relevancia.
-• Filtros: combina varios estados de ánimo, algunas o todas tus etiquetas, rangos de fechas (incluidos Esta semana y Este mes), fotos y entradas fijadas.
-• Colecciones: agrupa entradas en colecciones y cambia entre ellas en Entradas. Cada entrada puede estar en una colección.
-• Vistas guardadas: guarda una búsqueda con sus filtros y orden, y ábrela de nuevo con un clic.
-• Borradores más seguros: el editor muestra si tu borrador se ha conservado, y los cambios sin guardar de una entrada, incluso los cerrados con Esc, se pueden restaurar la próxima vez que la abras.
-• Exporta todo tu diario como un ZIP con archivos Markdown y tus fotos. Puedes volver a importar un archivo descomprimido; las entradas existentes nunca se sobrescriben.
+• Búsqueda inteligente en Preguntar (opcional): encuentra entradas por su significado, no solo por palabras que coinciden. Descarga única de 334 MB con Wi-Fi, funciona en tu dispositivo y tu diario nunca sale de él. Actívala en Preguntar o en Ajustes.
+• Preguntar encuentra mejores resultados incluso sin ella: cuentan las palabras completas y las palabras poco comunes pesan más que las frecuentes.
+• Estilos de reflexión (Core): elige cómo se lee la reflexión de hoy. Suave como antes, Silencioso solo con tus propias palabras o Curioso con una pregunta sobre lo que escribiste. Elígelo en Ajustes.
+• Escribir: el cursor empieza al final de tu borrador y un borrador conserva su fecha, fuente, etiquetas y formato.
+• Listas y listas de tareas: Intro después de un elemento marcado o un encabezado funciona como debe, la negrita y la cursiva se quedan donde las pusiste y los cambios en listas de tareas se pueden deshacer con Comando-Z.
+• La escritura en japonés, chino y coreano funciona correctamente en el editor.
+• Etiquetas: escribir #trabajo, o varias etiquetas separadas por comas, ahora funciona como esperas.
+• Exportar e importar ahora incluyen tus vistas guardadas y colecciones.
