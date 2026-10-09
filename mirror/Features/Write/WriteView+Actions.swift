@@ -583,8 +583,15 @@ extension WriteView {
                 englishTranslation: $0.englishTranslation
             )
         }
-        attachmentsSaved = DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
-        if !attachmentsSaved { draftSaveState = .failed }
+        // Off the main thread (up to ~130 ms with five camera photos); a newer save or a
+        // clear makes this result stale, so it's dropped.
+        attachmentSaveGeneration &+= 1
+        let generation = attachmentSaveGeneration
+        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes) { saved in
+            guard generation == attachmentSaveGeneration else { return }
+            attachmentsSaved = saved
+            if !saved { draftSaveState = .failed }
+        }
     }
 
     func restoreDraftAttachments() {
@@ -626,7 +633,8 @@ extension WriteView {
 
     func clearDraftStorage() {
         cancelDraftSave()
-        Self.clearAllDraftStorage()
+        attachmentSaveGeneration &+= 1   // a photo save still in flight must not report afterwards
+        Self.clearAllDraftStorage()      // waits for that save, then clears
         draftSaveState = .idle
         attachmentsSaved = true
     }

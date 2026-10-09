@@ -95,6 +95,9 @@ struct WriteView: View {
     /// What the draft store actually holds for this editor (shown as a status label).
     @State var draftSaveState: DraftSaveState = .idle
     @State var attachmentsSaved = true
+    /// Bumped by every draft-attachment save and clear; a background save's result is applied
+    /// only if nothing newer happened meanwhile.
+    @State var attachmentSaveGeneration = 0
     /// Existing entry as it was saved when editing started (see WriteDraftStore.fingerprint).
     @State var editBaseFingerprint: String? = nil
     /// Unsaved edits found for this entry from an earlier session, awaiting Restore/Discard.

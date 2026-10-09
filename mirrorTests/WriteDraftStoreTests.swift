@@ -194,6 +194,42 @@ struct WriteDraftStoreTests {
         return DraftAttachmentStore.Location(file: dir.appendingPathComponent("a.json"), preserved: dir.appendingPathComponent("a.unreadable.json"))
     }
 
+    /// Photo saves run off the main thread (2026-10-09), but a clear called right after one must
+    /// still leave nothing behind: the clear waits for the save, never the other way round.
+    @Test func clearAfterABackgroundSaveLeavesNothing() async {
+        let location = Self.location()
+        let big = Data(repeating: 9, count: 3_000_000)
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            DraftAttachmentStore.saveInBackground(photos: [big, big], voiceNotes: [], at: location, crypto: Self.crypto()) { _ in
+                done.resume()
+            }
+            DraftAttachmentStore.clear(at: location, crypto: Self.crypto())   // called while the save may still run
+            guard case .none = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+                Issue.record("a background save landed after the clear")
+                return
+            }
+        }
+        guard case .none = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+            Issue.record("attachments came back after the save completed")
+            return
+        }
+    }
+
+    @Test func backgroundSaveIsReadableWhenItReports() async {
+        let location = Self.location()
+        let saved: Bool = await withCheckedContinuation { done in
+            DraftAttachmentStore.saveInBackground(photos: [Data([4, 2])], voiceNotes: [], at: location, crypto: Self.crypto()) {
+                done.resume(returning: $0)
+            }
+        }
+        #expect(saved)
+        guard case .attachments(let current) = DraftAttachmentStore.load(at: location, crypto: Self.crypto()) else {
+            Issue.record("background save not readable")
+            return
+        }
+        #expect(current.photos == [Data([4, 2])])
+    }
+
     @Test func unreadableAttachmentsSurviveClearAndNewSaves() {
         let location = Self.location()
         let photo = Data([7, 7, 7])

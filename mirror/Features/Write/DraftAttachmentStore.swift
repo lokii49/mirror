@@ -55,6 +55,33 @@ enum DraftAttachmentStore {
         }
     }
 
+    // MARK: - Serial access
+
+    /// Every read and write of the store runs here, in call order. A photo save (20–134 ms on an
+    /// iPhone 14 Pro for 1–5 camera photos) runs off the main thread via `saveInBackground`, and
+    /// a clear or load called afterwards waits for it, so an older save can never land after the
+    /// draft was cleared (a saved entry's photos would come back as a draft).
+    private static let queueKey = DispatchSpecificKey<Void>()
+    private static let queue: DispatchQueue = {
+        let queue = DispatchQueue(label: "com.mirror.draft-attachments", qos: .userInitiated)
+        queue.setSpecific(key: queueKey, value: ())
+        return queue
+    }()
+
+    private static func serialized<T>(_ work: () -> T) -> T {
+        DispatchQueue.getSpecific(key: queueKey) != nil ? work() : queue.sync(execute: work)
+    }
+
+    /// `save` off the main thread; `completion` gets its result on the main actor.
+    static func saveInBackground(photos: [Data], voiceNotes: [VoiceNote],
+                                 at location: Location? = .live, crypto: WriteDraftStore.Crypto = .live,
+                                 completion: @escaping @MainActor (Bool) -> Void) {
+        queue.async {
+            let saved = save(photos: photos, voiceNotes: voiceNotes, at: location, crypto: crypto)
+            Task { @MainActor in completion(saved) }
+        }
+    }
+
     // MARK: - Save
 
     /// Encrypts every blob or writes nothing: if the key is unavailable a partial
@@ -63,6 +90,11 @@ enum DraftAttachmentStore {
     @discardableResult
     static func save(photos: [Data], voiceNotes: [VoiceNote],
                      at location: Location? = .live, crypto: WriteDraftStore.Crypto = .live) -> Bool {
+        serialized { saveNow(photos: photos, voiceNotes: voiceNotes, at: location, crypto: crypto) }
+    }
+
+    private static func saveNow(photos: [Data], voiceNotes: [VoiceNote],
+                                at location: Location?, crypto: WriteDraftStore.Crypto) -> Bool {
         guard let location else { return false }
         if photos.isEmpty && voiceNotes.isEmpty {
             clear(at: location, crypto: crypto)
@@ -118,6 +150,10 @@ enum DraftAttachmentStore {
     /// restore would be saved back over the complete original) and offered again
     /// on a later launch once no newer attachment draft exists.
     static func load(at location: Location?, crypto: WriteDraftStore.Crypto = .live) -> LoadResult {
+        serialized { loadNow(at: location, crypto: crypto) }
+    }
+
+    private static func loadNow(at location: Location?, crypto: WriteDraftStore.Crypto) -> LoadResult {
         guard let location else { return .none }
         let fm = FileManager.default
         if fm.fileExists(atPath: location.file.path) {
@@ -164,6 +200,10 @@ enum DraftAttachmentStore {
     /// Removes the current attachment draft if it can be read (or is corrupt
     /// JSON). A file that only lacks its key is set aside instead.
     static func clear(at location: Location? = .live, crypto: WriteDraftStore.Crypto = .live) {
+        serialized { clearNow(at: location, crypto: crypto) }
+    }
+
+    private static func clearNow(at location: Location?, crypto: WriteDraftStore.Crypto) {
         guard let location, FileManager.default.fileExists(atPath: location.file.path) else { return }
         if isUndecodable(location.file) || read(location.file, crypto: crypto) != nil {
             try? FileManager.default.removeItem(at: location.file)
@@ -174,9 +214,11 @@ enum DraftAttachmentStore {
 
     /// Delete Everything and test-state reset: removes readable and unreadable files.
     static func clearIncludingPreserved(at location: Location? = .live) {
-        guard let location else { return }
-        try? FileManager.default.removeItem(at: location.file)
-        try? FileManager.default.removeItem(at: location.preserved)
+        serialized {
+            guard let location else { return }
+            try? FileManager.default.removeItem(at: location.file)
+            try? FileManager.default.removeItem(at: location.preserved)
+        }
     }
 
     // MARK: - Private
