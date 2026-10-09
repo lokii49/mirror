@@ -2242,66 +2242,66 @@
         }
       }
     },
-    "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)" : {
+    "Our privacy policy now covers AI model downloads. The Gemma model, on devices that need it, and the optional search model for Ask each download once from models.mirrornotes.org, only when you start the download. Cloudflare hosts it for us and, as with any download, sees your IP address. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unsere Datenschutzerklärung umfasst jetzt das optionale Suchmodell für Fragen. Wenn du es einschaltest, wird es einmalig von models.mirrornotes.org geladen. Die Adresse wird für uns von Cloudflare gehostet, das wie bei jedem Download deine IP-Adresse sieht. Dein Journal verlässt dein Gerät nie. [Datenschutzerklärung lesen](https://mirrornotes.org/de/privacy.html)"
+            "value" : "Unsere Datenschutzerklärung umfasst jetzt die Downloads der KI-Modelle. Das Gemma-Modell (auf Geräten, die es brauchen) und das optionale Suchmodell für Fragen werden jeweils einmalig von models.mirrornotes.org geladen, und nur, wenn du den Download startest. Die Adresse wird für uns von Cloudflare gehostet, das wie bei jedem Download deine IP-Adresse sieht. Dein Journal verlässt dein Gerät nie. [Datenschutzerklärung lesen](https://mirrornotes.org/de/privacy.html)"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)"
+            "value" : "Our privacy policy now covers AI model downloads. The Gemma model, on devices that need it, and the optional search model for Ask each download once from models.mirrornotes.org, only when you start the download. Cloudflare hosts it for us and, as with any download, sees your IP address. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nuestra política de privacidad ahora incluye el modelo de búsqueda opcional de Preguntar. Si lo activas, se descarga una sola vez desde models.mirrornotes.org, que Cloudflare aloja por nosotros y que, como en cualquier descarga, ve tu dirección IP. Tu diario nunca sale de tu dispositivo. [Leer la política de privacidad](https://mirrornotes.org/es/privacy.html)"
+            "value" : "Nuestra política de privacidad ahora incluye las descargas de modelos de IA. El modelo Gemma (en los dispositivos que lo necesitan) y el modelo de búsqueda opcional de Preguntar se descargan una sola vez desde models.mirrornotes.org, y solo cuando inicias la descarga. Cloudflare lo aloja por nosotros y, como en cualquier descarga, ve tu dirección IP. Tu diario nunca sale de tu dispositivo. [Leer la política de privacidad](https://mirrornotes.org/es/privacy.html)"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Notre politique de confidentialité couvre désormais le modèle de recherche facultatif de Demander. Si vous l'activez, il est téléchargé une seule fois depuis models.mirrornotes.org, hébergé pour nous par Cloudflare, qui voit votre adresse IP comme pour tout téléchargement. Votre journal ne quitte jamais votre appareil. [Lire la politique de confidentialité](https://mirrornotes.org/fr/privacy.html)"
+            "value" : "Notre politique de confidentialité couvre désormais le téléchargement des modèles d'IA. Le modèle Gemma (sur les appareils qui en ont besoin) et le modèle de recherche facultatif de Demander sont chacun téléchargés une seule fois depuis models.mirrornotes.org, et seulement quand vous lancez le téléchargement. Cloudflare l'héberge pour nous et, comme pour tout téléchargement, voit votre adresse IP. Votre journal ne quitte jamais votre appareil. [Lire la politique de confidentialité](https://mirrornotes.org/fr/privacy.html)"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La nostra informativa sulla privacy ora copre il modello di ricerca facoltativo di Chiedi. Se lo attivi, viene scaricato una sola volta da models.mirrornotes.org, ospitato per noi da Cloudflare, che come per ogni download vede il tuo indirizzo IP. Il tuo diario non lascia mai il tuo dispositivo. [Leggi l'informativa sulla privacy](https://mirrornotes.org/it/privacy.html)"
+            "value" : "La nostra informativa sulla privacy ora copre il download dei modelli di IA. Il modello Gemma (sui dispositivi che ne hanno bisogno) e il modello di ricerca facoltativo di Chiedi vengono scaricati una sola volta da models.mirrornotes.org, e solo quando avvii il download. Cloudflare lo ospita per noi e, come per ogni download, vede il tuo indirizzo IP. Il tuo diario non lascia mai il tuo dispositivo. [Leggi l'informativa sulla privacy](https://mirrornotes.org/it/privacy.html)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "プライバシーポリシーに、質問の任意の検索モデルについての説明を追加しました。オンにすると、models.mirrornotes.org から一度だけダウンロードされます。このアドレスは当社に代わって Cloudflare がホストしており、通常のダウンロードと同様に IP アドレスが Cloudflare に送られます。日記が端末から出ることはありません。[プライバシーポリシーを読む](https://mirrornotes.org/ja/privacy.html)"
+            "value" : "プライバシーポリシーに、AIモデルのダウンロードについての説明を追加しました。Gemmaモデル（必要な端末のみ）と、質問の任意の検索モデルは、ダウンロードを始めたときだけ、models.mirrornotes.org から一度だけダウンロードされます。このアドレスは当社に代わって Cloudflare がホストしており、通常のダウンロードと同様に IP アドレスが Cloudflare に送られます。日記が端末から出ることはありません。[プライバシーポリシーを読む](https://mirrornotes.org/ja/privacy.html)"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "개인정보처리방침에 질문의 선택 사항인 검색 모델에 관한 내용이 추가되었습니다. 켜면 models.mirrornotes.org에서 한 번 다운로드되며, 이 주소는 당사를 대신해 Cloudflare가 호스팅하고 일반적인 다운로드처럼 IP 주소를 확인합니다. 일기는 기기를 절대 떠나지 않습니다. [개인정보처리방침 읽기](https://mirrornotes.org/ko/privacy.html)"
+            "value" : "개인정보처리방침에 AI 모델 다운로드에 관한 내용이 추가되었습니다. Gemma 모델(필요한 기기에서만)과 질문의 선택 사항인 검색 모델은 다운로드를 시작할 때만 models.mirrornotes.org에서 한 번 다운로드됩니다. 이 주소는 당사를 대신해 Cloudflare가 호스팅하며, 일반적인 다운로드처럼 IP 주소를 확인합니다. 일기는 기기를 절대 떠나지 않습니다. [개인정보처리방침 읽기](https://mirrornotes.org/ko/privacy.html)"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nossa Política de Privacidade agora inclui o modelo de busca opcional do Perguntar. Se você ativar, ele é baixado uma única vez de models.mirrornotes.org, hospedado para nós pela Cloudflare, que vê seu endereço IP como em qualquer download. Seu diário nunca sai do seu dispositivo. [Ler a Política de Privacidade](https://mirrornotes.org/pt/privacy.html)"
+            "value" : "Nossa Política de Privacidade agora inclui os downloads de modelos de IA. O modelo Gemma (nos dispositivos que precisam dele) e o modelo de busca opcional do Perguntar são baixados uma única vez de models.mirrornotes.org, e só quando você inicia o download. A Cloudflare o hospeda para nós e, como em qualquer download, vê seu endereço IP. Seu diário nunca sai do seu dispositivo. [Ler a Política de Privacidade](https://mirrornotes.org/pt/privacy.html)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Наша политика конфиденциальности теперь описывает необязательную модель поиска для «Спросить». Если вы её включите, она один раз загрузится с models.mirrornotes.org. Этот адрес размещён для нас в Cloudflare, который, как и при любой загрузке, видит ваш IP-адрес. Ваш дневник никогда не покидает ваше устройство. [Прочитать политику конфиденциальности](https://mirrornotes.org/ru/privacy.html)"
+            "value" : "Наша политика конфиденциальности теперь описывает загрузку моделей ИИ. Модель Gemma (на устройствах, которым она нужна) и необязательная модель поиска для «Спросить» загружаются по одному разу с models.mirrornotes.org и только когда вы сами начинаете загрузку. Этот адрес размещён для нас в Cloudflare, который, как и при любой загрузке, видит ваш IP-адрес. Ваш дневник никогда не покидает ваше устройство. [Прочитать политику конфиденциальности](https://mirrornotes.org/ru/privacy.html)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "我们的隐私政策现已涵盖提问的可选搜索模型。如果你开启它，它会从 models.mirrornotes.org 一次性下载；该地址由 Cloudflare 为我们托管，与任何下载一样，Cloudflare 会看到你的 IP 地址。你的日记永远不会离开你的设备。[阅读隐私政策](https://mirrornotes.org/zh/privacy.html)"
+            "value" : "我们的隐私政策现已涵盖 AI 模型的下载。Gemma 模型（仅限需要它的设备）和提问的可选搜索模型，只有在你开始下载时，才会从 models.mirrornotes.org 各下载一次；该地址由 Cloudflare 为我们托管，与任何下载一样，Cloudflare 会看到你的 IP 地址。你的日记永远不会离开你的设备。[阅读隐私政策](https://mirrornotes.org/zh/privacy.html)"
           }
         }
       }

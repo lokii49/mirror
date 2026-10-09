@@ -343,11 +343,11 @@ enum FeatureCardRegistry {
             showInFeatureGuide: false
         ),
         // One-time notice of the 2026-10-09 privacy policy update (the policy promises an in-app
-        // notice for material changes): Cloudflare hosts the optional search model.
+        // notice for material changes): Cloudflare hosts the model downloads (Gemma and the optional search model).
         .init(
             id: "privacy-policy-310",
             title: "Privacy policy updated",
-            body: "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)",
+            body: "Our privacy policy now covers AI model downloads. The Gemma model, on devices that need it, and the optional search model for Ask each download once from models.mirrornotes.org, only when you start the download. Cloudflare hosts it for us and, as with any download, sees your IP address. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)",
             symbolName: "hand.raised.fill",
             accentColor: .blue,
             tier: .free,
