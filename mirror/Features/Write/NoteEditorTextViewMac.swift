@@ -405,6 +405,11 @@ struct NoteEditorTextView: NSViewRepresentable {
         }
 
         if isFocused, textView.window?.firstResponder !== textView {
+            // Same rule as iOS: the first programmatic focus starts at the end of the text.
+            if !coordinator.placedInitialCaret {
+                coordinator.placedInitialCaret = true
+                textView.setSelectedRange(NSRange(location: (textView.string as NSString).length, length: 0))
+            }
             DispatchQueue.main.async { textView.window?.makeFirstResponder(textView) }
         }
     }
@@ -425,6 +430,9 @@ struct NoteEditorTextView: NSViewRepresentable {
         var parent: NoteEditorTextView
         weak var textView: MirrorNSTextView?
         var lastAppliedCommandRevision = 0
+        /// Set once the first programmatic focus placed the caret at the end (or the person
+        /// focused the editor themselves, which keeps their caret).
+        var placedInitialCaret = false
 
         private var isApplying = false
         /// Paragraphs edited while an input method was composing; restyled once it commits.
@@ -581,7 +589,10 @@ struct NoteEditorTextView: NSViewRepresentable {
             guard !isApplying, let textView else { return }
             captureTrailingModel(from: textView)
             publishActiveState(in: textView)
-            if textView.window?.firstResponder === textView, !parent.isFocused { parent.isFocused = true }
+            if textView.window?.firstResponder === textView, !parent.isFocused {
+                placedInitialCaret = true   // focused by a click; keep that caret
+                parent.isFocused = true
+            }
             textView.scrollRangeToVisible(textView.selectedRange())
         }
 

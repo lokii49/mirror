@@ -100,6 +100,13 @@ struct NoteEditorTextView: UIViewRepresentable {
         context.coordinator.updatePlaceholder(in: textView)
 
         if isFocused, !textView.isFirstResponder {
+            // The first focus this editor didn't get from a tap (autoFocus on Write, Edit, a
+            // restored draft) starts at the end of the text, like Notes; it used to start at
+            // the beginning. Later programmatic refocus keeps the caret where it was.
+            if !context.coordinator.placedInitialCaret {
+                context.coordinator.placedInitialCaret = true
+                textView.selectedRange = NSRange(location: (textView.text as NSString? ?? "").length, length: 0)
+            }
             textView.becomeFirstResponder()
         }
 
@@ -215,6 +222,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         // the scroll view's offset out from under us.
         var lastGoodContentOffset: CGPoint?
         var lastAppliedCommandRevision = 0
+        /// Set once the first programmatic focus placed the caret at the end (or the person
+        /// focused the editor themselves, which keeps their caret).
+        var placedInitialCaret = false
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
 
@@ -937,6 +947,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
+            placedInitialCaret = true   // a tap placed the caret; never move it to the end later
             parent.isFocused = true
             lastKnownCursorLocation = textView.selectedRange.location
             refreshActiveParagraphStyle(in: textView)
