@@ -15,6 +15,8 @@ final class WhatsNewRenderHarness: XCTestCase {
         defer { WhatsNewWalkthrough.snapshotPhase = nil }
         let looks: [(String, UIUserInterfaceStyle, DisplayMode, String)] = [("light-en", .light, .classic, "en"), ("sentinel-en", .dark, .sentinel, "en"),
                                                                              ("dark-de", .dark, .classic, "de"), ("light-ja", .light, .classic, "ja")]
+        // Warm-up: the first window rendered in a run came out cut short, so it is thrown away.
+        _ = try render(AnyView(WhatsNewWalkthrough(cards: ordered) {}), mode: .classic, style: .light)
         for (name, style, mode, locale) in looks {
             for i in ordered.indices {
                 let view = AnyView(WhatsNewWalkthrough(cards: ordered, startIndex: i) {}
