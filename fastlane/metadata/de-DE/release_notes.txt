@@ -6,6 +6,7 @@ Smarte Suche in Fragen, Reflexionsstile und ein zuverlässigerer Editor
 • Schreiben: Die Tastatur öffnet sich sofort, der Cursor steht am Ende deines Entwurfs, und ein Entwurf behält Datum, Schrift, Tags und Formatierung.
 • Formatierung: Das Aa-Feld ist neu gestaltet, sodass alle Bedienelemente auf den Bildschirm passen, auch mit großer Schrift, und die Checklisten-Aktionen sind in einem Menü.
 • Listen und Checklisten: Rücktaste am Aufzählungszeichen beendet die Liste, Return auf einem leeren Punkt ebenso, Fett und Kursiv bleiben, wo du sie gesetzt hast, und Rückgängig funktioniert auch über Formatierungen hinweg.
+• Übersichtlicheres Format-Menü (Aa): Alle Stile, Listen und Farben sind auf einen Blick zu sehen, jede Farbe zeigt vor dem Tippen, was sie bewirkt, und die Checklisten-Aktionen liegen in einem Checkliste-Menü.
 • Japanische, chinesische und koreanische Eingabe wird im Editor besser behandelt.
 • Lange Einträge und Einträge mit Fotos lassen sich schneller bearbeiten.
 • Tags: #arbeit oder mehrere durch Kommas getrennte Tags funktionieren jetzt wie erwartet.

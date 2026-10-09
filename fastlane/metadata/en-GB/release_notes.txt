@@ -6,6 +6,7 @@ Smarter search in Ask, reflection styles and a steadier editor
 • Writing: the keyboard opens straight away, the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
 • Formatting: the Aa panel is redesigned so every control fits on screen, including with large text, and checklist actions are in one menu.
 • Lists and checklists: Backspace at a marker leaves the list, Return on an empty item ends it, bold and italic stay where you put them, and undo works across formatting.
+• A clearer Format panel (Aa): every style, list and colour is on screen at once, each colour shows what it does before you tap it, and checklist actions sit in one Checklist menu.
 • Typing in Japanese, Chinese and Korean is handled better in the editor.
 • Long entries and entries with photos are quicker to edit.
 • Tags: typing #work, or several tags separated by commas, now does what you'd expect.

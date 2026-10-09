@@ -6,6 +6,7 @@ Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
 • Escrever: o teclado abre na hora, o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
 • Formatação: o painel Aa foi redesenhado para que todos os controles caibam na tela, mesmo com texto grande, e as ações de checklist ficam em um só menu.
 • Listas e checklists: Apagar em um marcador sai da lista, Return em um item vazio a encerra, negrito e itálico ficam onde você colocou, e desfazer funciona também com a formatação.
+• Um painel Formatar mais claro (Aa): todos os estilos, listas e cores aparecem de uma vez, cada cor mostra o que faz antes de você tocar, e as ações de checklist ficam em um único menu Lista de tarefas.
 • A digitação em japonês, chinês e coreano funciona melhor no editor.
 • Entradas longas e com fotos ficaram mais rápidas de editar.
 • Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.

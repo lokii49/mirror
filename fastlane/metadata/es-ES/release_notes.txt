@@ -6,6 +6,7 @@ Búsqueda inteligente en Preguntar, estilos de reflexión y un editor más fiabl
 • Escribir: el teclado se abre al instante, el cursor empieza al final de tu borrador y un borrador conserva su fecha, fuente, etiquetas y formato.
 • Formato: el panel Aa se ha rediseñado para que todos los controles quepan en pantalla, también con texto grande, y las acciones de las listas de tareas están en un solo menú.
 • Listas y listas de tareas: Borrar en una viñeta sale de la lista, Intro en un elemento vacío la termina, la negrita y la cursiva se quedan donde las pusiste y deshacer funciona también con el formato.
+• Un panel de Formato más claro (Aa): todos los estilos, listas y colores a la vista a la vez, cada color muestra lo que hace antes de tocarlo y las acciones de las listas de tareas están en un solo menú Lista de tareas.
 • La escritura en japonés, chino y coreano funciona mejor en el editor.
 • Las entradas largas y las que tienen fotos se editan más rápido.
 • Etiquetas: escribir #trabajo, o varias etiquetas separadas por comas, ahora funciona como esperas.
