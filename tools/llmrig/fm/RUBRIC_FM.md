@@ -330,3 +330,64 @@ no mood line for the mood -> the honest card as before. Real FM end to end: `Rea
 Follow-up probe (real FM, a four-entry hospital week, 3 runs each): weekly digest 3/3, monthly report 3/3 and Ask 3/3
 answered, none declined. The decline is specific to the structured (`@Generable`) daily reflection, so the other three
 need no fallback. A declined Ask saves nothing, so it never counts against Core's 15 questions a month.
+
+---
+## Round 12: reflection styles Tier 2, model-written Plain and Question (plan fixed BEFORE running, 2026-10-09)
+
+Question (owner, 2026-10-09, roadmap §2): can Foundation Models write a reflection in a different style without
+inventing, as reliably as today's? The owner picked two styles to measure:
+- **Plain (S1)**: one short sentence that names what happened or how they felt, with no reading of what it means.
+- **Question (S2)**: one open question about something they wrote, in their own words. Tier 1's app-built Curious
+  falls back to Gentle when the entry has nothing else to ask about; this would always have a question.
+
+**Scope and constraints (decided before the run):**
+- **FM English only.** FM's own words are not shown outside English (`FMDailyGuard` is English word lists), and
+  Gemma's other languages are fixed text. Gemma English is a grammar-forced feeling sentence, so a Gemma style would
+  need its own grammar and its own rig round. Not in this round: on Gemma devices and in other languages, a
+  model-written style falls back to Gentle, and the Tier 1 styles still apply.
+- **Stored shape unchanged.** A model-written style is an input to the *next* generation, not a display-time change:
+  Security Rule 4 (no regeneration within 24h) means switching style never rewrites today's reflection. The output is
+  stored as `You wrote, "<quote>" <insight>`, the shape 3.0.9 / Mac 1.0.2, the widget and the lock screen parse. No
+  new field, so no CloudKit schema change.
+- **One variable per variant.** Only the `insight` line of the system prompt (`system_s1_plain.txt`,
+  `system_s2_question.txt`) and the `insight` `@Guide` (`DailyS1Plain`, `DailyS2Question` in fmrig.swift) differ
+  from what ships. The quote guide, `FMDailyGuard` (unchanged, cap 2 sentences) and the 3-attempt loop are
+  byte-identical. Round 10 changed only the insight guide and the model still rewrote quotes, so the per-case
+  fallback gate matters most.
+
+**Baseline** `prod` = the shipped V1e on the same cases, for the mechanical comparison (fallback, refusals, length).
+
+**Inputs**: dumped fresh by `GroundingSampleHarness.test_dumpStructuredNudgePromptsForRig` (byte-identical to the
+app). The S1/S2 system prompts are the dumped prod prompt with only the insight line replaced.
+
+**Cases**: the 23 committed cases (rigCases, groundedEdgeCases, reflectionLineCases, heldOutRound10) plus 10 NEW
+held-out synthetic cases written before this run and committed in the harness (`heldOutRound12`, labels `hold4_*`):
+a move with old photos, gardening with an aching back, an interview tomorrow (a plan), an apology that came out flat,
+a niece born with a visit planned, a plain errands day, a third working weekend, a colleague back after his dad's
+funeral (another person's grief), a bug fixed with relief, two moods the same day. hold3 has been read, so hold4
+is the held-out set. N = 10 per case per variant, temperature 0.45. 33 cases x 3 variants x 10 = 990 runs.
+
+**Per shown output, 0/1, PASS needs 1-5 (as round 10, applied to every shown insight sentence):**
+1. MAIN: about the entry's main event or feeling.
+2. INVENT: no event, object, place, person, sensation, scenery or feeling the entries lack. For S2, a question
+   that names a feeling or reason the entry lacks ("Are you worried about…?" when no worry is written) fails INVENT.
+3. SWAP: no person given another person's action or feeling (hold4_colleague: the grief is Kai's).
+4. TENSE: plans and offers are not stated or asked about as done ("How did the interview go?" fails).
+5. FORMAT: `You wrote, "<quote>"` + the insight; "you" register; no first person, no meta text; grammatical.
+   S1: one plain sentence; a reading of what it means ("which shows you…") fails. S2: exactly one question,
+   open (what/how/why, or a yes/no question that proposes no answer); advice dressed as a question
+   ("Could you call Lena?") fails.
+
+**Recorded by script**: shown insight word count and sentence count, ends with "?", dropped sentences, attempts,
+fallback, quote verbatim, errors and safety refusals.
+
+**Ship rule (all must hold, per style; each style is judged on its own):**
+- shown PASS >= 95% over all 33 cases AND >= 95% on the 10 hold4 cases alone; no case with more than 2 shown failures;
+- FALLBACK <= 10% overall and <= 30% in any case; shown quotes 100% verbatim;
+- errors / safety refusals no more than prod's on the same cases + 5 points (prod already declines hold3_hospital);
+- **STYLE (mechanical, so a style that reads like Gentle does not ship):**
+  - S1: >= 90% of shown insights are one sentence, AND the median shown insight word count is at most 60% of prod's.
+  - S2: >= 90% of shown insights are exactly one sentence ending in "?".
+One round only. A style that misses stays unbuilt and Tier 1 stays as it is. Scoring: shuffled blind sheet of each
+style's shown outputs (`score_tools.py sheet`), single scorer; prod's shown outputs are not blind-scored (its PASS
+rate is known from rounds 5-10).
