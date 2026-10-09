@@ -335,7 +335,26 @@ final class FeatureCardService {
 
     var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide } }
 
+    /// The Mac has its own version numbers (1.x) while cards carry the iOS release they shipped
+    /// in, so a Mac upgrade compared 1.x against "3.1.0" and never showed a card. Each Mac release
+    /// lists the iOS release whose cards it shows; the Mac still decides *whether* to show the
+    /// sheet with its own versions. A Mac version missing here shows no cards.
+    static let macFeatureRelease: [String: String] = [
+        "1.1.0": "3.1.0",
+    ]
+
+    /// The cards a Mac version shows. Like the iOS fallback, this does not depend on the last
+    /// seen version (the sheet marks itself seen on appear and must keep its list);
+    /// `shouldShowWhatsNew` still requires an upgrade.
+    static func macWhatsNewCards(current: String) -> [FeatureCard] {
+        guard let release = macFeatureRelease[current] else { return [] }
+        return FeatureCardRegistry.all.filter { $0.sinceVersion == release }
+    }
+
     var whatsNewCards: [FeatureCard] {
+        #if os(macOS)
+        return Self.macWhatsNewCards(current: currentAppVersion)
+        #endif
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return [] }
         let newSinceUpgrade = FeatureCardRegistry.all.filter {
