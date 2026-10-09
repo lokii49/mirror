@@ -5,8 +5,8 @@ Búsqueda inteligente en Preguntar, estilos de reflexión y un editor más fiabl
 • Estilos de reflexión (Core): elige cómo se lee la reflexión de hoy. Suave como antes, Silencioso solo con tus propias palabras o Curioso con una pregunta sobre lo que escribiste. Elígelo en Ajustes.
 • Escribir: el teclado se abre al instante, el cursor empieza al final de tu borrador y un borrador conserva su fecha, fuente, etiquetas y formato.
 • Listas y listas de tareas: Borrar en una viñeta sale de la lista, Intro en un elemento vacío la termina, la negrita y la cursiva se quedan donde las pusiste y deshacer funciona también con el formato.
-• La escritura en japonés, chino y coreano funciona correctamente en el editor.
+• La escritura en japonés, chino y coreano funciona mejor en el editor.
 • Las entradas largas y las que tienen fotos se editan más rápido.
 • Etiquetas: escribir #trabajo, o varias etiquetas separadas por comas, ahora funciona como esperas.
-• Exportar e importar ahora incluyen tus vistas guardadas y colecciones.
+• Exportar e importar ahora incluyen tus vistas guardadas.
 • Las palabras buscadas también se resaltan en las transcripciones de notas de voz.

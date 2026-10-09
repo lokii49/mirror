@@ -5,8 +5,8 @@ Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
 • Estilos de reflexão (Core): escolha como a reflexão de hoje aparece. Suave como antes, Silencioso só com as suas palavras ou Curioso com uma pergunta sobre o que você escreveu. Escolha em Ajustes.
 • Escrever: o teclado abre na hora, o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
 • Listas e checklists: Apagar em um marcador sai da lista, Return em um item vazio a encerra, negrito e itálico ficam onde você colocou, e desfazer funciona também com a formatação.
-• A digitação em japonês, chinês e coreano funciona corretamente no editor.
+• A digitação em japonês, chinês e coreano funciona melhor no editor.
 • Entradas longas e com fotos ficaram mais rápidas de editar.
 • Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.
-• Exportar e importar agora incluem suas visualizações salvas e coleções.
+• Exportar e importar agora incluem suas visualizações salvas.
 • As palavras buscadas também são destacadas nas transcrições das notas de voz.

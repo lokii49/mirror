@@ -5,8 +5,8 @@ Smarter search in Ask, reflection styles and a steadier editor
 • Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
 • Writing: the keyboard opens straight away, the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
 • Lists and checklists: Backspace at a marker leaves the list, Return on an empty item ends it, bold and italic stay where you put them, and undo works across formatting.
-• Japanese, Chinese and Korean input works properly in the editor.
+• Typing in Japanese, Chinese and Korean is handled better in the editor.
 • Long entries and entries with photos are quicker to edit.
 • Tags: typing #work, or several tags separated by commas, now does what you'd expect.
-• Export and import now include your saved views and collections.
+• Export and import now include your saved views.
 • Search words are highlighted inside voice-note transcripts too.

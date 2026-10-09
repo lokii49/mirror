@@ -5,8 +5,8 @@ Ricerca intelligente in Chiedi, stili di riflessione e un editor più affidabile
 • Stili di riflessione (Core): scegli come si legge la riflessione di oggi. Delicato come prima, Silenzioso solo con le tue parole o Curioso con una domanda su ciò che hai scritto. Sceglilo nelle Impostazioni.
 • Scrittura: la tastiera si apre subito, il cursore parte dalla fine della bozza e una bozza conserva data, font, tag e formattazione.
 • Elenchi e checklist: Cancella su un punto elenco esce dall'elenco, A capo su una voce vuota lo chiude, grassetto e corsivo restano dove li hai messi e l'annullamento funziona anche con la formattazione.
-• La scrittura in giapponese, cinese e coreano funziona correttamente nell'editor.
+• La scrittura in giapponese, cinese e coreano funziona meglio nell'editor.
 • Le voci lunghe e quelle con foto si modificano più velocemente.
 • Tag: scrivere #lavoro, o più tag separati da virgole, ora funziona come ti aspetti.
-• Esportazione e importazione ora includono le tue viste salvate e le raccolte.
+• Esportazione e importazione ora includono le tue viste salvate.
 • Le parole cercate sono evidenziate anche nelle trascrizioni dei memo vocali.

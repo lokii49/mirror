@@ -5,6 +5,6 @@ Smarter search in Ask, reflection styles and a steadier editor
 • Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
 • Writing: the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
 • Lists and checklists: Return after a checked item or a heading behaves as it should, bold and italic stay where you put them, and checklist changes can be undone with Command-Z.
-• Japanese, Chinese and Korean input works properly in the editor.
+• Typing in Japanese, Chinese and Korean is handled better in the editor.
 • Tags: typing #work, or several tags separated by commas, now does what you'd expect.
-• Export and import now include your saved views and collections.
+• Export and import now include your saved views.

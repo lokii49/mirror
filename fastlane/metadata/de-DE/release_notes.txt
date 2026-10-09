@@ -5,8 +5,8 @@ Smarte Suche in Fragen, Reflexionsstile und ein zuverlässigerer Editor
 • Reflexionsstile (Core): Wähle, wie sich die heutige Reflexion liest. Sanft wie bisher, Still nur mit deinen eigenen Worten oder Neugierig mit einer Frage zu dem, was du geschrieben hast. Auswahl in den Einstellungen.
 • Schreiben: Die Tastatur öffnet sich sofort, der Cursor steht am Ende deines Entwurfs, und ein Entwurf behält Datum, Schrift, Tags und Formatierung.
 • Listen und Checklisten: Rücktaste am Aufzählungszeichen beendet die Liste, Return auf einem leeren Punkt ebenso, Fett und Kursiv bleiben, wo du sie gesetzt hast, und Rückgängig funktioniert auch über Formatierungen hinweg.
-• Japanische, chinesische und koreanische Eingabe funktioniert im Editor richtig.
+• Japanische, chinesische und koreanische Eingabe wird im Editor besser behandelt.
 • Lange Einträge und Einträge mit Fotos lassen sich schneller bearbeiten.
 • Tags: #arbeit oder mehrere durch Kommas getrennte Tags funktionieren jetzt wie erwartet.
-• Export und Import enthalten jetzt deine gespeicherten Ansichten und Sammlungen.
+• Export und Import enthalten jetzt deine gespeicherten Ansichten.
 • Suchbegriffe werden jetzt auch in Transkripten von Sprachnotizen hervorgehoben.
