@@ -1498,8 +1498,16 @@ struct ModelDownloadStateControl: View {
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : Color.accentColor)
             }
 
-        case .paused(let resumable):
+        case .paused(let resumable, let written, let expected):
             VStack(spacing: 10) {
+                if resumable && written > 0 {
+                    ProgressView(value: expected > 0 ? Double(written) / Double(expected) : 0)
+                        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                        .frame(maxWidth: 220)
+                    Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
+                        .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium))
+                        .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                }
                 Text(resumable ? (isSentinel ? "PAUSED" : "Paused") : (isSentinel ? "PAUSED (WILL RESTART FROM 0%)" : "Paused (will restart from 0%)"))
                     .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
                     .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
@@ -1525,7 +1533,7 @@ struct ModelDownloadStateControl: View {
                     .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.startDownload() }
+                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.resumeDownload() }
             }
         }
     }
