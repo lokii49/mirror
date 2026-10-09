@@ -8,6 +8,20 @@ struct SmartSearchSettingsView: View {
     @Environment(\.appDisplayMode) private var displayMode
     @State private var state: SemanticSearchService.ModelState = SemanticSearchService.isModelOnDisk ? .installed : .absent
     @State private var consent = SemanticSearchService.consent
+    @State private var downloadedBytes: Int64 = 0
+
+    init() {}
+
+    #if DEBUG
+    /// Render harness only: start from a given state instead of the service's.
+    init(previewState: SemanticSearchService.ModelState, downloadedBytes: Int64) {
+        _state = State(initialValue: previewState)
+        _downloadedBytes = State(initialValue: downloadedBytes)
+        _consent = State(initialValue: .accepted)
+        polls = false
+    }
+    #endif
+    private var polls = true
 
     private var sizeText: String {
         SemanticSearchService.modelSizeText
@@ -37,6 +51,10 @@ struct SmartSearchSettingsView: View {
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
 
+                        if state == .downloading {
+                            downloadProgress
+                        }
+
                         actionButton
                     }
                 }
@@ -60,12 +78,36 @@ struct SmartSearchSettingsView: View {
         .settingsNavigationTitle(displayMode == .sentinel ? "Search model" : "Smarter Ask search")
         .task {
             // The service is an actor, so poll while this screen is visible (cheap: one property read).
-            while !Task.isCancelled {
+            while polls, !Task.isCancelled {
                 state = await SemanticSearchService.shared.modelState
+                downloadedBytes = await SemanticSearchService.shared.downloadedBytes
                 consent = SemanticSearchService.consent
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .milliseconds(500))
             }
         }
+    }
+
+    /// Bar plus "120 MB of 333.6 MB". Before the first bytes arrive (or while waiting for Wi-Fi) the bar
+    /// is indeterminate rather than stuck at zero.
+    private var downloadProgress: some View {
+        let total = SemanticSearchService.modelByteCount
+        let fraction = min(1, Double(downloadedBytes) / Double(total))
+        let received = ByteCountFormatter.string(fromByteCount: downloadedBytes, countStyle: .file)
+        return VStack(alignment: .leading, spacing: 6) {
+            if downloadedBytes > 0 {
+                ProgressView(value: fraction)
+                Text("\(received) of \(sizeText)")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+        }
+        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .animation(.linear(duration: 0.4), value: downloadedBytes)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(Text("\(Int(fraction * 100))%"))
     }
 
     private var statusText: LocalizedStringKey {

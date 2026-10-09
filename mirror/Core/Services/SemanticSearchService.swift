@@ -58,6 +58,14 @@ actor SemanticSearchService {
     }
 
     private(set) var modelState: ModelState
+    /// The running download, kept so its bytes received can be read for a progress bar.
+    private var downloadTask: URLSessionDownloadTask?
+
+    /// Bytes of the model received so far while `.downloading` (0 otherwise). Settings polls it.
+    var downloadedBytes: Int64 {
+        guard modelState == .downloading, let task = downloadTask else { return 0 }
+        return max(0, task.countOfBytesReceived)
+    }
     private var index: [UUID: IndexRecord]
     private var backfillTask: Task<Void, Never>?
 
@@ -85,7 +93,29 @@ actor SemanticSearchService {
             configuration.allowsConstrainedNetworkAccess = false   // nor in Low Data Mode
             configuration.waitsForConnectivity = true
             configuration.timeoutIntervalForResource = 6 * 60 * 60
-            let (temporary, response) = try await URLSession(configuration: configuration).download(from: Self.modelURL)
+            // A download task (not `download(from:)`) so `downloadedBytes` can read its progress. The
+            // finished file is moved out inside the handler: URLSession deletes it when the handler returns.
+            let session = URLSession(configuration: configuration)
+            defer { session.finishTasksAndInvalidate() }
+            let (temporary, response): (URL, URLResponse) = try await withCheckedThrowingContinuation { continuation in
+                let task = session.downloadTask(with: Self.modelURL) { location, response, error in
+                    guard let location, let response else {
+                        continuation.resume(throwing: error ?? URLError(.unknown))
+                        return
+                    }
+                    do {
+                        let kept = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("embeddinggemma-\(UUID().uuidString).download")
+                        try FileManager.default.moveItem(at: location, to: kept)
+                        continuation.resume(returning: (kept, response))
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+                downloadTask = task
+                task.resume()
+            }
+            downloadTask = nil
             defer { try? FileManager.default.removeItem(at: temporary) }
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             guard try Self.sha256(of: temporary) == Self.modelSHA256 else { throw URLError(.cannotDecodeContentData) }
@@ -97,6 +127,7 @@ actor SemanticSearchService {
             try destination.setResourceValues(values)
             modelState = .installed
         } catch {
+            downloadTask = nil
             modelState = .failed
         }
     }
@@ -104,6 +135,8 @@ actor SemanticSearchService {
     /// Settings > Smarter Ask search > Remove: deletes the model and every stored vector.
     func removeModel() {
         backfillTask?.cancel()
+        downloadTask?.cancel()
+        downloadTask = nil
         try? FileManager.default.removeItem(at: Self.modelFileURL())
         try? FileManager.default.removeItem(at: Self.indexURL())
         try? FileManager.default.removeItem(at: Self.legacyPlaintextIndexURL())

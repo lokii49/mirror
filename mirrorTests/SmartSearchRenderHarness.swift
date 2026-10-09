@@ -9,7 +9,9 @@ import UIKit
 @MainActor
 final class SmartSearchRenderHarness: XCTestCase {
     func test_renderOfferCardAndSettings() throws {
-        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else { throw XCTSkip("Set HARNESS_DUMP_DIR") }
+        guard var dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else { throw XCTSkip("Set HARNESS_DUMP_DIR") }
+        // On a device the host's paths aren't writable: "attachments" keeps the images in the result bundle.
+        if dir == "attachments" { dir = NSTemporaryDirectory() + "smart-search-render" }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let cases: [(String, UIUserInterfaceStyle, DisplayMode)] = [("light", .light, .classic), ("dark", .dark, .classic), ("sentinel", .dark, .sentinel)]
         for (name, style, mode) in cases {
@@ -17,6 +19,10 @@ final class SmartSearchRenderHarness: XCTestCase {
                        mode: mode, style: style, height: 200, to: "\(dir)/smart-search-offer-\(name).png")
             try render(AnyView(NavigationStack { SmartSearchSettingsView() }),
                        mode: mode, style: style, height: 760, to: "\(dir)/smart-search-settings-\(name).png")
+            try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 141_000_000) }),
+                       mode: mode, style: style, height: 760, to: "\(dir)/smart-search-downloading-\(name).png")
+            try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 0) }),
+                       mode: mode, style: style, height: 760, to: "\(dir)/smart-search-starting-\(name).png")
         }
     }
 
@@ -36,6 +42,10 @@ final class SmartSearchRenderHarness: XCTestCase {
         }
         window.isHidden = true
         try XCTUnwrap(image.pngData()).write(to: URL(fileURLWithPath: path))
+        let attachment = XCTAttachment(image: image)
+        attachment.name = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
 #endif
