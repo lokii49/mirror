@@ -8,3 +8,4 @@ Ricerca intelligente in Chiedi, stili di riflessione e un editor più affidabile
 • La scrittura in giapponese, cinese e coreano funziona meglio nell'editor.
 • Tag: scrivere #lavoro, o più tag separati da virgole, ora funziona come ti aspetti.
 • Esportazione e importazione ora includono le tue viste salvate.
+• Download del modello di IA sul dispositivo (per i dispositivi senza Apple Intelligence): Pausa e Riprendi, e Riprova dopo una connessione persa, ora ripartono da dove si erano fermati. Il modello ora arriva dal nostro server ed è verificato con un'impronta fissa prima dell'uso.

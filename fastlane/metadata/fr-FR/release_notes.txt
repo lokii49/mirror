@@ -4,9 +4,11 @@ Recherche intelligente dans Demander, styles de réflexion et un éditeur plus f
 • Même sans elle, Demander trouve de meilleurs résultats : les mots entiers comptent, et les mots rares comptent plus que les mots courants.
 • Styles de réflexion (Core) : choisissez comment se lit la réflexion du jour. Doux comme avant, Discret avec seulement vos propres mots, ou Curieux avec une question sur ce que vous avez écrit. À choisir dans Réglages.
 • Écriture : le clavier s'ouvre tout de suite, le curseur se place à la fin de votre brouillon, et un brouillon garde sa date, sa police, ses tags et sa mise en forme.
+• Mise en forme : le panneau Aa est repensé pour que toutes les commandes tiennent à l'écran, même avec un texte agrandi, et les actions des listes de tâches sont réunies dans un menu.
 • Listes et listes de tâches : Retour arrière sur une puce quitte la liste, Retour sur un élément vide la termine, le gras et l'italique restent là où vous les avez mis, et l'annulation fonctionne aussi avec la mise en forme.
 • La saisie en japonais, chinois et coréen est mieux prise en charge dans l'éditeur.
 • Les entrées longues et celles avec des photos se modifient plus vite.
 • Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
 • L'export et l'import incluent désormais vos vues enregistrées.
 • Les mots recherchés sont aussi surlignés dans les transcriptions des notes vocales.
+• Téléchargement du modèle d'IA sur l'appareil (pour les appareils sans Apple Intelligence) : Pause et Reprendre, ainsi que Réessayer après une coupure de connexion, repartent désormais là où ils s'étaient arrêtés. Le modèle provient maintenant de notre propre serveur et est vérifié avec une empreinte fixe avant utilisation.

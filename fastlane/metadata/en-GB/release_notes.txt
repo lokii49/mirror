@@ -4,9 +4,11 @@ Smarter search in Ask, reflection styles and a steadier editor
 • Ask finds better matches even without it: whole words count, and rare words count for more than common ones.
 • Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
 • Writing: the keyboard opens straight away, the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
+• Formatting: the Aa panel is redesigned so every control fits on screen, including with large text, and checklist actions are in one menu.
 • Lists and checklists: Backspace at a marker leaves the list, Return on an empty item ends it, bold and italic stay where you put them, and undo works across formatting.
 • Typing in Japanese, Chinese and Korean is handled better in the editor.
 • Long entries and entries with photos are quicker to edit.
 • Tags: typing #work, or several tags separated by commas, now does what you'd expect.
 • Export and import now include your saved views.
 • Search words are highlighted inside voice-note transcripts too.
+• On-device AI model download (for devices without Apple Intelligence): Pause and Resume, and Try Again after a lost connection, now carry on from where they stopped. The model now comes from our own server and is checked against a fixed fingerprint before it's used.

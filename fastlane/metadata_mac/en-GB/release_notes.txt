@@ -8,3 +8,4 @@ Smarter search in Ask, reflection styles and a steadier editor
 • Typing in Japanese, Chinese and Korean is handled better in the editor.
 • Tags: typing #work, or several tags separated by commas, now does what you'd expect.
 • Export and import now include your saved views.
+• On-device AI model download (for devices without Apple Intelligence): Pause and Resume, and Try Again after a lost connection, now carry on from where they stopped. The model now comes from our own server and is checked against a fixed fingerprint before it's used.

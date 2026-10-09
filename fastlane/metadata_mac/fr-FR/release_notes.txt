@@ -8,3 +8,4 @@ Recherche intelligente dans Demander, styles de réflexion et un éditeur plus f
 • La saisie en japonais, chinois et coréen est mieux prise en charge dans l'éditeur.
 • Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
 • L'export et l'import incluent désormais vos vues enregistrées.
+• Téléchargement du modèle d'IA sur l'appareil (pour les appareils sans Apple Intelligence) : Pause et Reprendre, ainsi que Réessayer après une coupure de connexion, repartent désormais là où ils s'étaient arrêtés. Le modèle provient maintenant de notre propre serveur et est vérifié avec une empreinte fixe avant utilisation.

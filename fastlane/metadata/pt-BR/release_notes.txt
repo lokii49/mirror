@@ -4,9 +4,11 @@ Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
 • Mesmo sem ela, o Perguntar encontra resultados melhores: palavras inteiras contam, e palavras raras contam mais que as comuns.
 • Estilos de reflexão (Core): escolha como a reflexão de hoje aparece. Suave como antes, Silencioso só com as suas palavras ou Curioso com uma pergunta sobre o que você escreveu. Escolha em Ajustes.
 • Escrever: o teclado abre na hora, o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
+• Formatação: o painel Aa foi redesenhado para que todos os controles caibam na tela, mesmo com texto grande, e as ações de checklist ficam em um só menu.
 • Listas e checklists: Apagar em um marcador sai da lista, Return em um item vazio a encerra, negrito e itálico ficam onde você colocou, e desfazer funciona também com a formatação.
 • A digitação em japonês, chinês e coreano funciona melhor no editor.
 • Entradas longas e com fotos ficaram mais rápidas de editar.
 • Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.
 • Exportar e importar agora incluem suas visualizações salvas.
 • As palavras buscadas também são destacadas nas transcrições das notas de voz.
+• Download do modelo de IA no dispositivo (para dispositivos sem Apple Intelligence): Pausar e Retomar, e Tentar novamente após perder a conexão, agora continuam de onde pararam. O modelo agora vem do nosso próprio servidor e é verificado com uma impressão digital fixa antes de ser usado.

@@ -8,3 +8,4 @@ Smarte Suche in Fragen, Reflexionsstile und ein zuverlässigerer Editor
 • Japanische, chinesische und koreanische Eingabe wird im Editor besser behandelt.
 • Tags: #arbeit oder mehrere durch Kommas getrennte Tags funktionieren jetzt wie erwartet.
 • Export und Import enthalten jetzt deine gespeicherten Ansichten.
+• Download des KI-Modells auf dem Gerät (für Geräte ohne Apple Intelligence): Pausieren und Fortsetzen sowie Erneut versuchen nach einem Verbindungsabbruch machen jetzt dort weiter, wo sie aufgehört haben. Das Modell kommt jetzt von unserem eigenen Server und wird vor der Verwendung mit einem festen Fingerabdruck geprüft.

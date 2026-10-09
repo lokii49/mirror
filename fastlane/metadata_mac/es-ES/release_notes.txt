@@ -8,3 +8,4 @@ Búsqueda inteligente en Preguntar, estilos de reflexión y un editor más fiabl
 • La escritura en japonés, chino y coreano funciona mejor en el editor.
 • Etiquetas: escribir #trabajo, o varias etiquetas separadas por comas, ahora funciona como esperas.
 • Exportar e importar ahora incluyen tus vistas guardadas.
+• Descarga del modelo de IA en el dispositivo (para dispositivos sin Apple Intelligence): Pausar y Reanudar, e Intentar de nuevo tras perder la conexión, ahora siguen desde donde se quedaron. El modelo ahora se descarga de nuestro propio servidor y se comprueba con una huella fija antes de usarse.
