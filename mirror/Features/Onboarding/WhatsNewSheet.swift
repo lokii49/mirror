@@ -13,6 +13,37 @@ struct WhatsNewSheet: View {
     @State private var selectedTier: CardTier? = nil
 
     var body: some View {
+        if mode == .whatsNew, WhatsNewWalkthrough.supports(service.whatsNewCards) {
+            // 3.1.0+: a paged walkthrough with a small animated demo per feature.
+            NavigationStack {
+                WhatsNewWalkthrough(cards: walkthroughCards) { dismiss() }
+                    .navigationTitle(Text(verbatim: ""))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { dismiss() }
+                                .cancelActionOnMac()
+                                .fontWeight(.semibold)
+                        }
+                    }
+            }
+            .onAppear { cachedWalkthroughCards = service.whatsNewCards; service.markWhatsNewSeen() }
+        } else {
+            listBody
+        }
+    }
+
+    /// The cards captured on appear (marking What's New seen can change what the service returns),
+    /// with notices (cards without a demo, such as the privacy policy update) first: the policy promises
+    /// an in-app notice, and What's New is marked seen on open, so a notice must not sit behind pages
+    /// someone can close early.
+    @State private var cachedWalkthroughCards: [FeatureCard]? = nil
+    private var walkthroughCards: [FeatureCard] {
+        let cards = cachedWalkthroughCards ?? service.whatsNewCards
+        return cards.filter { !WhatsNewWalkthrough.demoIDs.contains($0.id) } + cards.filter { WhatsNewWalkthrough.demoIDs.contains($0.id) }
+    }
+
+    private var listBody: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {

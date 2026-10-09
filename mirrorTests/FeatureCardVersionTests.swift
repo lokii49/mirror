@@ -7,7 +7,8 @@ struct FeatureCardVersionTests {
 
     @Test func mac110ShowsThe310Cards() {
         let ids = FeatureCardService.macWhatsNewCards(current: "1.1.0").map(\.id)
-        #expect(ids == ["smart-ask-search-310", "privacy-policy-310"])
+        #expect(ids == ["smart-ask-search-310", "reflection-styles-310", "writing-310", "privacy-policy-310"])
+        #expect(!ids.contains("format-panel-310"), "the Aa panel is iOS only")
     }
 
     @Test func aMacVersionWithoutAMappingShowsNothing() {

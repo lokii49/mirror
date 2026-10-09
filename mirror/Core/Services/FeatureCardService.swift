@@ -71,6 +71,8 @@ struct FeatureCard: Identifiable {
     let sinceVersion: String
     /// False for changelog/update cards that shouldn't appear in the Feature Guide.
     var showInFeatureGuide: Bool = true
+    /// iPhone/iPad only (the Mac has its own version of the feature, or none).
+    var iOSOnly: Bool = false
 }
 
 // MARK: - Registry — add new cards here when releasing features
@@ -310,6 +312,36 @@ enum FeatureCardRegistry {
             tier: .core,
             sinceVersion: "3.1.0"
         ),
+        .init(
+            id: "reflection-styles-310",
+            title: "Reflection styles",
+            body: "Choose how today's reflection reads: Gentle, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.",
+            symbolName: "text.quote",
+            accentColor: .indigo,
+            tier: .core,
+            sinceVersion: "3.1.0"
+        ),
+        .init(
+            id: "format-panel-310",
+            title: "A clearer format panel",
+            body: "Every style, list and color is on screen at once, and each color shows what it does before you tap it.",
+            symbolName: "textformat",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "writing-310",
+            title: "Writing that keeps up",
+            body: "The cursor starts where you left off, and a draft keeps its date, font and tags. Type #work, or several tags separated by commas.",
+            symbolName: "pencil.line",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false
+        ),
         // One-time notice of the 2026-10-09 privacy policy update (the policy promises an in-app
         // notice for material changes): Cloudflare hosts the optional search model.
         .init(
@@ -348,7 +380,7 @@ final class FeatureCardService {
     /// `shouldShowWhatsNew` still requires an upgrade.
     static func macWhatsNewCards(current: String) -> [FeatureCard] {
         guard let release = macFeatureRelease[current] else { return [] }
-        return FeatureCardRegistry.all.filter { $0.sinceVersion == release }
+        return FeatureCardRegistry.all.filter { $0.sinceVersion == release && !$0.iOSOnly }
     }
 
     var whatsNewCards: [FeatureCard] {

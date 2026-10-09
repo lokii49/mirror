@@ -10,7 +10,7 @@ enum ModelDownloadState: Equatable {
     case failed(String)
 }
 
-/// Downloads the Gemma 3 1B model from models.mirrornotes.org into Application Support on
+/// Downloads the Gemma 3 1B model from Hugging Face into Application Support on
 /// demand, instead of shipping it inside the app bundle. The 768MB model file was
 /// previously bundled directly into the IPA — this cut the App Store download size
 /// by roughly 800MB, since a journaling app with an 800MB install size is a hard
@@ -31,12 +31,7 @@ final class ModelDownloadManager: NSObject {
     /// won't grant background time for the next download's completion event.
     var backgroundCompletionHandler: (() -> Void)?
 
-    /// Our own copy (Cloudflare R2, immutable cache header) of bartowski/google_gemma-3-1b-it-GGUF
-    /// `google_gemma-3-1b-it-Q4_K_M.gguf` at commit 116f762, byte for byte. Never put different bytes
-    /// at this URL: a new file gets a new path and a new `modelSHA256`.
-    private nonisolated static let sourceURL = URL(string: "https://models.mirrornotes.org/gemma3/google_gemma-3-1b-it-Q4_K_M.gguf")!
-    /// SHA-256 of that file (806,058,496 bytes). A download that doesn't match is deleted, never installed.
-    nonisolated static let modelSHA256 = "12bf0fff8815d5f73a3c9b586bd8fee8e7b248c935de70dec367679873d0f29d"
+    private nonisolated static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
     /// Rough estimate only — used to size the progress bar before the server's real
     /// Content-Length is known. Never used to validate a completed file; that check
     /// is against the size the server actually advertised for that specific
@@ -187,13 +182,8 @@ final class ModelDownloadManager: NSObject {
     }
 
     @MainActor
-    private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64, sha256: String?) {
-        guard sha256 == Self.modelSHA256 else {
-            try? FileManager.default.removeItem(at: tempURL)
-            resumeData = nil
-            state = .failed(String(localized: "Downloaded model didn't match its fingerprint. Please try again."))
-            return
-        }
+    private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64) {
+        state = .verifying
         do {
             let destination = try LocalLLMService.preferredModelURL()
             if FileManager.default.fileExists(atPath: destination.path) {
@@ -265,11 +255,8 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             }
             return
         }
-        Task { @MainActor in self.state = .verifying }
-        // Hashing ~800MB takes seconds, so it runs here on the delegate queue, not the main actor.
-        let sha256 = try? SemanticSearchService.sha256(of: tempURL)
         Task { @MainActor in
-            self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount, sha256: sha256)
+            self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount)
         }
     }
 
