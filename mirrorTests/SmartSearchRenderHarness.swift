@@ -15,10 +15,16 @@ final class SmartSearchRenderHarness: XCTestCase {
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let cases: [(String, UIUserInterfaceStyle, DisplayMode)] = [("light", .light, .classic), ("dark", .dark, .classic), ("sentinel", .dark, .sentinel)]
         for (name, style, mode) in cases {
-            try render(AnyView(SmartSearchOfferCard { _ in }.padding(16).frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
+            try render(AnyView(SmartSearchOfferCard(onAnswer: { _ in }).padding(16).frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
                        mode: mode, style: style, height: 200, to: "\(dir)/smart-search-offer-\(name).png")
             try render(AnyView(NavigationStack { SmartSearchSettingsView() }),
                        mode: mode, style: style, height: 760, to: "\(dir)/smart-search-settings-\(name).png")
+            for (state, bytes, label) in [(SemanticSearchService.ModelState.downloading, Int64(141_000_000), "downloading"),
+                                          (.downloading, 0, "waiting"), (.installed, 0, "ready")] {
+                try render(AnyView(SmartSearchOfferCard(previewState: state, downloadedBytes: bytes).padding(16)
+                                    .frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
+                           mode: mode, style: style, height: 200, to: "\(dir)/smart-search-offer-\(label)-\(name).png")
+            }
             try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 141_000_000) }),
                        mode: mode, style: style, height: 760, to: "\(dir)/smart-search-downloading-\(name).png")
             try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 0) }),

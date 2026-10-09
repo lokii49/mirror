@@ -52,7 +52,7 @@ struct SmartSearchSettingsView: View {
                         }
 
                         if state == .downloading {
-                            downloadProgress
+                            SearchModelDownloadProgress(bytes: downloadedBytes)
                         }
 
                         actionButton
@@ -85,29 +85,6 @@ struct SmartSearchSettingsView: View {
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
-    }
-
-    /// Bar plus "120 MB of 333.6 MB". Before the first bytes arrive (or while waiting for Wi-Fi) the bar
-    /// is indeterminate rather than stuck at zero.
-    private var downloadProgress: some View {
-        let total = SemanticSearchService.modelByteCount
-        let fraction = min(1, Double(downloadedBytes) / Double(total))
-        let received = ByteCountFormatter.string(fromByteCount: downloadedBytes, countStyle: .file)
-        return VStack(alignment: .leading, spacing: 6) {
-            if downloadedBytes > 0 {
-                ProgressView(value: fraction)
-                Text("\(received) of \(sizeText)")
-                    .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
-            }
-        }
-        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-        .animation(.linear(duration: 0.4), value: downloadedBytes)
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(Text("\(Int(fraction * 100))%"))
     }
 
     private var statusText: LocalizedStringKey {
@@ -151,28 +128,129 @@ struct SmartSearchSettingsView: View {
 }
 
 /// Ask's one-time offer of the search model, above the question field. `onAnswer(true)` = Download.
+/// The search model's download progress: a bar plus "141 MB of 333.6 MB", indeterminate until the
+/// first bytes arrive (or while waiting for Wi-Fi) rather than stuck at zero. Settings and Ask's card.
+struct SearchModelDownloadProgress: View {
+    let bytes: Int64
+    @Environment(\.appDisplayMode) private var displayMode
+
+    var body: some View {
+        let total = SemanticSearchService.modelByteCount
+        let fraction = min(1, Double(bytes) / Double(total))
+        let received = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        VStack(alignment: .leading, spacing: 6) {
+            if bytes > 0 {
+                ProgressView(value: fraction)
+                Text("\(received) of \(SemanticSearchService.modelSizeText)")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+        }
+        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .animation(.linear(duration: 0.4), value: bytes)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(Text("\(Int(fraction * 100))%"))
+    }
+}
+
+/// Ask's one-time offer of the search model. After Download it stays and shows the download (bar,
+/// size, waiting for Wi-Fi), says Ready when the model is in, then hides itself. Ask shows it again,
+/// already downloading, if the download is still running when Ask reopens.
 struct SmartSearchOfferCard: View {
     let onAnswer: (Bool) -> Void
+    /// Called once the model is ready (after a short "Ready") or when the person hides the card.
+    var onDone: () -> Void = {}
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var accepted: Bool
+    @State private var state: SemanticSearchService.ModelState = .absent
+    @State private var downloadedBytes: Int64 = 0
+
+    init(alreadyAccepted: Bool = false, onAnswer: @escaping (Bool) -> Void, onDone: @escaping () -> Void = {}) {
+        self.onAnswer = onAnswer
+        self.onDone = onDone
+        _accepted = State(initialValue: alreadyAccepted)
+    }
+
+    #if DEBUG
+    /// Render harness only: show the card already downloading.
+    init(previewState: SemanticSearchService.ModelState, downloadedBytes: Int64) {
+        self.onAnswer = { _ in }
+        _accepted = State(initialValue: true)
+        _state = State(initialValue: previewState)
+        _downloadedBytes = State(initialValue: downloadedBytes)
+        polls = false
+    }
+    #endif
+    private var polls = true
 
     private var sizeText: String {
         SemanticSearchService.modelSizeText
     }
 
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
+
     var body: some View {
-        let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
         VStack(alignment: .leading, spacing: 8) {
-            Text(displayMode == .sentinel ? "SMARTER SEARCH" : "Smarter search for Ask")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 14, weight: .semibold))
-                .foregroundStyle(MirrorTheme.textPrimary)
+            HStack(alignment: .firstTextBaseline) {
+                Text(displayMode == .sentinel ? "SMARTER SEARCH" : "Smarter search for Ask")
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 14, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                Spacer(minLength: 0)
+                if accepted, state != .installed {
+                    // Hides the card only; the download carries on (Settings shows it too).
+                    Button(action: onDone) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
+                }
+            }
+            if accepted {
+                progressContent
+            } else {
+                offerContent
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .themedCard(cornerRadius: displayMode == .sentinel ? 8 : 14)
+        .animation(.easeInOut(duration: 0.25), value: accepted)
+        .animation(.easeInOut(duration: 0.25), value: state)
+        .task(id: accepted) {
+            guard accepted, polls else { return }
+            while !Task.isCancelled {
+                state = await SemanticSearchService.shared.modelState
+                downloadedBytes = await SemanticSearchService.shared.downloadedBytes
+                if state == .installed {
+                    try? await Task.sleep(for: .seconds(2))
+                    if !Task.isCancelled { onDone() }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+    }
+
+    private var offerContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Find entries by meaning, not just matching words. One-time \(sizeText) download on Wi-Fi. Your journal never leaves this device.")
                 .font(.system(size: 12.5))
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
-                Button("Download") { onAnswer(true) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                Button("Download") {
+                    accepted = true
+                    onAnswer(true)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accent)
                 Button("Not now") { onAnswer(false) }
                     .buttonStyle(.bordered)
                     .tint(accent)
@@ -181,8 +259,32 @@ struct SmartSearchOfferCard: View {
             .font(.system(size: 13, weight: .semibold))
             .controlSize(.small)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard(cornerRadius: displayMode == .sentinel ? 8 : 14)
+    }
+
+    @ViewBuilder private var progressContent: some View {
+        switch state {
+        case .installed:
+            Label("Ready", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accent)
+        case .failed:
+            Text("Download didn't finish. It'll retry.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(MirrorTheme.textSecondary)
+        case .downloading:
+            VStack(alignment: .leading, spacing: 6) {
+                Text(downloadedBytes > 0 ? "Downloading… (Wi-Fi only)" : "Waiting for Wi-Fi")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                SearchModelDownloadProgress(bytes: downloadedBytes)
+            }
+        case .absent:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Waiting for Wi-Fi")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                SearchModelDownloadProgress(bytes: 0)
+            }
+        }
     }
 }

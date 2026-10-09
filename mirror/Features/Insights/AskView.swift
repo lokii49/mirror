@@ -30,7 +30,8 @@ struct AskView: View {
     @State private var keyboardHeight: CGFloat = 0
     /// One-time offer of the semantic-search model: shown to anyone who can ask (Core/Deep) and
     /// hasn't answered yet, never re-shown after Download or Not now.
-    @State private var showSmartSearchOffer = SemanticSearchService.consent == .undecided && !SemanticSearchService.isModelOnDisk
+    /// The offer before an answer; after Download, the same card shows the download until the model is in.
+    @State private var showSmartSearchOffer = SemanticSearchService.consent != .declined && !SemanticSearchService.isModelOnDisk
     @FocusState private var isInputFocused: Bool
 
     private var monthLimit: Int {
@@ -536,10 +537,13 @@ struct AskView: View {
                 }
 
                 if showSmartSearchOffer {
-                    SmartSearchOfferCard { accepted in
-                        showSmartSearchOffer = false
+                    SmartSearchOfferCard(alreadyAccepted: SemanticSearchService.consent == .accepted) { accepted in
+                        // Not now hides the card; Download keeps it, now showing the download.
+                        if !accepted { showSmartSearchOffer = false }
                         SemanticSearchService.consent = accepted ? .accepted : .declined
                         if accepted { Task { await SemanticSearchService.shared.ensureModelDownloadStarted() } }
+                    } onDone: {
+                        withAnimation { showSmartSearchOffer = false }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
