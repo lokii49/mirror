@@ -12,6 +12,7 @@ Fonctionnalités :
   • Chronologie de l'humeur et rapports mensuels
   • Carte mentale : explorez les thèmes récurrents en 3D
   • Posez des questions sur les tendances de votre journal
+  • Trouvez des entrées par leur sens grâce à la recherche intelligente facultative sur l'appareil
   • Synchronisation privée avec iCloud
   • Préférences de lecture dans une fenêtre Réglages native
 

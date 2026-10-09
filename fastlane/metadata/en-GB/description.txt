@@ -12,6 +12,7 @@ Features:
   • View daily reflections and weekly digests
   • Explore mood trends and monthly reports
   • Ask questions about your journal patterns
+  • Find entries by meaning with optional on-device smart search in Ask
   • Sync privately with iCloud
   • Protect your writing with encrypted storage
 

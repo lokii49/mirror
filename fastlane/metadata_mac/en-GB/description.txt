@@ -12,6 +12,7 @@ Features:
   • Mood timeline and monthly reports
   • Brain View: explore recurring themes in 3D
   • Ask questions about your journal patterns
+  • Find entries by meaning with optional on-device smart search in Ask
   • Private sync with iCloud
   • Reading preferences in a native Settings window
 

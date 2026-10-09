@@ -133,3 +133,23 @@ The owner will host the model at `https://models.mirrornotes.org/embeddinggemma/
 It must be byte-identical to ggml-org's file: 333,590,944 bytes,
 SHA-256 `b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63`. Until then, every download fails its check and Ask
 stays on keyword search.
+
+## Store text (2026-10-09)
+
+- **Privacy policy** (website repo, all 10 pages, "Last updated: October 9, 2026"):
+  - Section 4 names models.mirrornotes.org and Cloudflare. Cloudflare sees the IP address and the file request; no journal data, account or device identifier is sent, and nothing at all if the feature stays off.
+  - Section 5 describes Smarter Ask search: opt-in, Wi-Fi only, fingerprint-checked, on-device, index encrypted with the entries' key and excluded from backups, Remove deletes it.
+  - Section 8 adds the HTTPS + pinned SHA-256 download.
+- **App Store description** (iOS + Mac, 10 locales): new feature bullet after the Ask bullet.
+- **App Privacy label:** no change. The app collects no new data: the download carries none, and nothing reaches us.
+- **3.1.0 release-notes line**, for whoever writes the 3.1.0 notes:
+  - en-GB: • Smarter search in Ask (optional): find entries by meaning, not only matching words. It's a one-time 334 MB download on Wi-Fi that runs on your device, and your journal never leaves it. Turn it on in Ask or in Settings.
+  - de-DE: • Smarte Suche in Fragen (optional): Finde Einträge nach Bedeutung, nicht nur nach passenden Wörtern. Einmaliger Download (334 MB) über WLAN, läuft auf deinem Gerät, und dein Journal verlässt es nie. Einschalten in Fragen oder in den Einstellungen.
+  - es-ES: • Búsqueda inteligente en Preguntar (opcional): encuentra entradas por su significado, no solo por palabras que coinciden. Descarga única de 334 MB con Wi-Fi, funciona en tu dispositivo y tu diario nunca sale de él. Actívala en Preguntar o en Ajustes.
+  - fr-FR: • Recherche intelligente dans Demander (facultative) : trouvez des entrées par leur sens, pas seulement par des mots identiques. Téléchargement unique de 334 Mo en Wi-Fi, fonctionne sur votre appareil, et votre journal ne le quitte jamais. À activer dans Demander ou dans Réglages.
+  - it: • Ricerca intelligente in Chiedi (facoltativa): trova le voci in base al significato, non solo alle parole uguali. Download unico di 334 MB con il Wi-Fi, funziona sul tuo dispositivo e il tuo diario non lo lascia mai. Attivala in Chiedi o nelle Impostazioni.
+  - ja: • 質問のスマート検索（任意）：一致する言葉だけでなく、意味で日記を見つけます。Wi-Fiで334 MBを一度だけダウンロードし、端末上で動作します。日記が端末から出ることはありません。質問または設定でオンにできます。
+  - ko: • 질문 스마트 검색(선택 사항): 단어가 일치하는 것뿐 아니라 의미로 일기를 찾습니다. Wi-Fi에서 334MB를 한 번 다운로드하며 기기에서 실행되고, 일기는 기기를 떠나지 않습니다. 질문 또는 설정에서 켜세요.
+  - pt-BR: • Busca inteligente no Perguntar (opcional): encontre entradas pelo significado, não só por palavras iguais. Download único de 334 MB no Wi-Fi, roda no seu dispositivo e seu diário nunca sai dele. Ative no Perguntar ou em Ajustes.
+  - ru: • Умный поиск в «Спросить» (необязательно): находите записи по смыслу, а не только по совпадающим словам. Однократная загрузка 334 МБ по Wi-Fi, работает на вашем устройстве, и ваш дневник никогда его не покидает. Включите в «Спросить» или в Настройках.
+  - zh-Hans: • 提问的智能搜索（可选）：按意思查找日记，而不只是匹配字词。在 Wi-Fi 下一次性下载 334 MB，在你的设备上运行，你的日记永远不会离开设备。可在提问或设置中开启。

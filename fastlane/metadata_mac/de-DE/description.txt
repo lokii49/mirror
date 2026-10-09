@@ -12,6 +12,7 @@ Funktionen:
   • Stimmungsverlauf und Monatsberichte
   • Denkkarte: wiederkehrende Themen in 3D erkunden
   • Fragen zu deinen Journal-Mustern stellen
+  • Einträge nach Bedeutung finden, mit der optionalen smarten Suche auf dem Gerät
   • Private Synchronisierung mit iCloud
   • Leseeinstellungen in einem nativen Einstellungsfenster
 
