@@ -725,6 +725,9 @@ struct DraftRecoveryAlerts: ViewModifier {
 struct DraftSaveStatusLabel: View {
     let state: DraftSaveState
     let retry: () -> Void
+    /// The iPhone header's narrow slot: "Draft saved" with a checkmark and a short "Retry";
+    /// VoiceOver still hears the full wording.
+    var compact = false
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
@@ -735,12 +738,25 @@ struct DraftSaveStatusLabel: View {
             label("Saving…")
         case .saved:
             // A draft, not the entry: Save is still needed (and nothing here is iCloud).
-            label("Draft kept on this device")
+            if compact {
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 10, weight: .semibold))
+                    label("Draft saved")
+                }
+                .foregroundStyle(.tertiary)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Draft kept on this device"))
+                .accessibilityIdentifier("draft.saveStatus")
+            } else {
+                label("Draft kept on this device")
+            }
         case .failed:
             Button(action: retry) {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                     Text("Not saved · Retry")
+                        .lineLimit(1)
                 }
                 .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 12, weight: .semibold))
                 .foregroundStyle(.orange)
@@ -754,6 +770,7 @@ struct DraftSaveStatusLabel: View {
         Text(text)
             .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
             .foregroundStyle(.tertiary)
+            .lineLimit(1)
             .accessibilityIdentifier("draft.saveStatus")
     }
 }

@@ -3,35 +3,18 @@ import SwiftData
 
 extension WriteView {
     var tagsBar: some View {
+        HStack(spacing: 0) {
+            tagsScroller
+            writingStats
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+        }
+    }
+
+    private var tagsScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(entryTags, id: \.self) { tag in
-                    HStack(spacing: 3) {
-                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                            .font(.system(size: 12, weight: .medium))
-                        Button {
-                            entryTags.removeAll { $0 == tag }
-                            if entry == nil { saveDraftToStorage() }
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
-                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if displayMode == .sentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                        }
-                    }
-                }
-
+                // Add first: always reachable, however many tags follow.
                 if showTagInput {
                     TextField("tag", text: $tagText)
                         .font(.system(size: 12))
@@ -120,10 +103,45 @@ extension WriteView {
                     }
                     .buttonStyle(.plain)
                 }
+                ForEach(entryTags, id: \.self) { tag in
+                    HStack(spacing: 3) {
+                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                            .font(.system(size: 12, weight: .medium))
+                        Button {
+                            entryTags.removeAll { $0 == tag }
+                            if entry == nil { saveDraftToStorage() }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                        }
+                    }
+                }
+
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 6)
         }
+        // A long tag list fades out before the word count instead of being cut off.
+        .mask(
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 18)
+            }
+        )
     }
 
     static let defaultTagSuggestions = [

@@ -26,9 +26,10 @@ extension WriteView {
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .kerning(0.4)
                     } else {
-                        Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                        Text(noteDate, format: Self.headerDateFormat(for: noteDate))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .semibold))
@@ -51,37 +52,6 @@ extension WriteView {
             }
             .buttonStyle(.plain)
 
-            if viewModel.wordCount > 0 {
-                let goalMet = viewModel.wordCount >= dailyWordGoal
-                HStack(spacing: 4) {
-                    Text("\(viewModel.wordCount)w")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
-                    if goalMet {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    } else if viewModel.wordCount >= 50 {
-                        Text("/ \(dailyWordGoal)w")
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.quaternary)
-                    }
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                // No .animation(value: wordCount) here — dateHeader is a fixed sibling of the
-                // scrollable editor below it now, not scroll content itself. That spring used
-                // to fire harmlessly on every word boundary; now it wraps the SAME render pass
-                // as the ScrollView's own simultaneous content-size change (the keystroke that
-                // completes a word), and the ScrollView's resize gets swept into the spring's
-                // curve instead of snapping instantly. On-device that showed up as the scroll
-                // position visibly interpolating through an earlier part of the entry — a
-                // "teleport to the top, then ease back" — landing right on word-count changes.
-                // The `.transition` above still animates the badge's one-time 0→1 word
-                // appearance via the `if wordCount > 0` insertion; only the per-keystroke spring
-                // is gone.
-            }
-
-            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
 
             if displayMode == .sentinel {
                 HStack(spacing: 5) {
@@ -103,6 +73,41 @@ extension WriteView {
         .padding(.horizontal, 18)
         .padding(.top, 12)
         .padding(.bottom, 4)
+    }
+
+    /// "Wed, 7 Oct": short enough to never wrap beside the Mood button; the year only when it
+    /// isn't this year. VoiceOver reads the full date.
+    static func headerDateFormat(for date: Date) -> Date.FormatStyle {
+        let base = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated)
+        return Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) ? base : base.year()
+    }
+
+    /// Word count and draft status, at the trailing end of the tags row.
+    @ViewBuilder
+    var writingStats: some View {
+        HStack(spacing: 8) {
+            if viewModel.wordCount > 0 {
+                let goalMet = viewModel.wordCount >= dailyWordGoal
+                HStack(spacing: 3) {
+                    Text("\(viewModel.wordCount)w")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
+                    if goalMet {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else if viewModel.wordCount >= 50 {
+                        Text("/ \(dailyWordGoal)w")
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.quaternary)
+                    }
+                }
+                .lineLimit(1)
+                .transition(.opacity)
+            }
+            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave, compact: true)
+        }
+        .fixedSize()
     }
 
     @ViewBuilder
