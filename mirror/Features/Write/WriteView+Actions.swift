@@ -24,7 +24,8 @@ extension WriteView {
 
     /// Hands a command to the editor without any confirmation step.
     func sendTextCommand(_ command: NoteTextCommand) {
-        editorFocused = true
+        // Doesn't focus the editor: a formatting tap shouldn't pop the keyboard (this line used
+        // to set `editorFocused = true`, which had no effect while it was a @FocusState).
         pendingTextCommand = command
         textCommandRevision += 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -56,6 +57,7 @@ extension WriteView {
     /// saved entry after this view is gone, instead of being silently
     /// abandoned or corrupting whatever comes next.
     func saveAndDismiss() {
+        commitPendingTag()
         if let entry {
             // Snapshot before the handoff below clears failedTranscriptionIndexes —
             // line ~80 still needs to know what was failed *at save time* to set
@@ -185,6 +187,7 @@ extension WriteView {
     /// Saves even while a voice note is still transcribing (1.4) — see
     /// `saveAndDismiss()`'s doc comment.
     func saveDraft() {
+        commitPendingTag()
         guard entry == nil, hasDraftContent else { return }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
@@ -365,11 +368,18 @@ extension WriteView {
         var inlineStyleData: Data?
         var tags: [String]
         var entryDate: Date
+        var fontChoice: String = WritingFontChoice.system.rawValue
     }
 
     var draftChangeKey: DraftChangeKey {
         DraftChangeKey(textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData,
-                       tags: entryTags, entryDate: entryDate)
+                       tags: entryTags, entryDate: entryDate, fontChoice: entryFontChoiceRaw)
+    }
+
+    /// The entry date as the date pickers set it: a pick marks the date as chosen, so a
+    /// new-entry draft keeps it.
+    var chosenEntryDate: Binding<Date> {
+        Binding(get: { entryDate }, set: { entryDate = $0; entryDateChosen = true })
     }
 
     func scheduleDraftSave() {
@@ -478,7 +488,9 @@ extension WriteView {
             textStyleData: viewModel.textStyleData,
             inlineStyleData: inlineStyleData,
             mood: viewModel.selectedMood,
-            tags: entryTags
+            tags: entryTags,
+            entryDate: entryDateChosen ? entryDate : nil,
+            fontChoice: entryFontChoiceRaw
         ))
         draftSaveState = saved && attachmentsSaved ? .saved : .failed
     }
@@ -512,7 +524,8 @@ extension WriteView {
             tags: entryTags,
             entryDate: entryDate,
             baseFingerprint: base,
-            savedAt: Date()
+            savedAt: Date(),
+            fontChoice: entryFontChoiceRaw
         ), slot: slot)
         draftSaveState = saved ? .saved : .failed
     }
@@ -545,6 +558,7 @@ extension WriteView {
         viewModel.selectedMood = draft.mood
         entryTags = draft.tags
         if let date = draft.entryDate { entryDate = date }
+        if let font = draft.fontChoice { entryFontChoiceRaw = font }
         draftSaveState = .saved
     }
 
@@ -629,6 +643,11 @@ extension WriteView {
         inlineStyleData = draft.inlineStyleData
         viewModel.selectedMood = draft.mood
         entryTags = draft.tags
+        if let date = draft.entryDate {
+            entryDate = date
+            entryDateChosen = true
+        }
+        if let font = draft.fontChoice { entryFontChoiceRaw = font }
     }
 
     func clearDraftStorage() {

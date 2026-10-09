@@ -159,6 +159,8 @@ struct WriteView: View {
     @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    /// Briefly shown when "Mirror suggests" found no mood.
+    @State var showMoodSuggestionFailed = false
     /// True while the selected mood came from "Mirror suggests" rather than a manual pick.
     @State var moodWasSuggested = false
     @State var recPulse = false
@@ -167,6 +169,9 @@ struct WriteView: View {
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
     @State var entryDate: Date = Date()
+    /// True once the person picked the date for a new entry, so the draft keeps it (2026-10-09:
+    /// a back-dated draft came back dated today after a tab switch or app kill).
+    @State var entryDateChosen = false
     @State var showDatePicker = false
     @State var focusMode = false
     @State var entryTags: [String] = []
@@ -178,7 +183,11 @@ struct WriteView: View {
     @State var linkEditorURLText = ""
     @State var linkEditorHasExisting = false
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
-    @FocusState var editorFocused: Bool
+    /// Whether the editor has the keyboard. Plain state, not `@FocusState`: the editor is a
+    /// UIKit/AppKit text view that takes focus from this binding (`becomeFirstResponder`) and
+    /// writes it back on begin/end editing. As a `@FocusState` with no `.focused` view, every
+    /// assignment was dropped, so `autoFocus` never opened the keyboard (fixed 2026-10-09).
+    @State var editorFocused = false
     @FocusState var tagFieldFocused: Bool
 
     /// Drives the inline voice-recording timer; the handler no-ops unless
@@ -377,6 +386,20 @@ struct WriteView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
+            if showMoodSuggestionFailed {
+                Label("Couldn't suggest a mood", systemImage: "sparkles")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(MirrorTheme.inkMid, in: Capsule())
+                    .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                    .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+
             if isAttachingPhoto {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -493,7 +516,7 @@ struct WriteView: View {
             switch note.userInfo?["action"] as? String {
             case "openDate": showDatePicker = true
             case "openPhoto": if !photoDataArray.isEmpty { fullscreenPhotoIndex = 0 }
-            case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
+            case "setDate": if let date = note.userInfo?["date"] as? Date { chosenEntryDate.wrappedValue = date }
             case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
             case "appendText": if let text = note.userInfo?["text"] as? String { viewModel.text += text }
             case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
@@ -545,6 +568,7 @@ struct WriteView: View {
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
             }
             entryDate = entry?.createdAt ?? Date()
+            entryDateChosen = false
             entryTags = entry?.tags ?? []
             #if os(macOS)
             // The Mac design sets body text in a serif face; new entries start there.
@@ -736,7 +760,7 @@ struct WriteView: View {
                 VStack(spacing: 0) {
                     DatePicker(
                         "Entry date",
-                        selection: $entryDate,
+                        selection: chosenEntryDate,
                         in: ...Date(),
                         displayedComponents: .date
                     )
@@ -745,7 +769,7 @@ struct WriteView: View {
                     Divider()
                     DatePicker(
                         "Entry time",
-                        selection: $entryDate,
+                        selection: chosenEntryDate,
                         in: ...Date(),
                         displayedComponents: .hourAndMinute
                     )
@@ -756,6 +780,13 @@ struct WriteView: View {
                 .navigationTitle("Entry Date & Time")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        // Back to the default (now), like the Mac date popover's "Now".
+                        Button("Now") {
+                            entryDate = Date()
+                            entryDateChosen = false
+                        }
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { showDatePicker = false }
                     }

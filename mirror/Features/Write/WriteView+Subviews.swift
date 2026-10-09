@@ -128,8 +128,9 @@ extension WriteView {
                     detectMoodWithMirror()
                 } label: {
                     Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+                    if !canSuggestMood { Text("Core required") }
                 }
-                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
 
                 Divider()
 
@@ -250,8 +251,8 @@ extension WriteView {
                 .padding(.vertical, 11)
             }
             .buttonStyle(.plain)
-            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
-            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
+            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
+            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canSuggestMood ? 0.4 : 1)
 
             Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
 

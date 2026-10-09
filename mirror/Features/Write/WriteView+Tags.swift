@@ -39,8 +39,14 @@ extension WriteView {
                         .onChange(of: tagFieldFocused) { _, focused in
                             if !focused {
                                 DispatchQueue.main.async {
-                                    if !tagFieldFocused && tagText.isEmpty {
+                                    guard !tagFieldFocused else { return }
+                                    // Tapping away keeps what was typed (it used to stay in
+                                    // the field, uncommitted, and Save ignored it).
+                                    if tagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        tagText = ""
                                         showTagInput = false
+                                    } else {
+                                        commitTag()
                                     }
                                 }
                             }
@@ -183,15 +189,34 @@ extension WriteView {
     }
 
     func commitTag() {
-        let tag = tagText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "-")
-        if !tag.isEmpty && !entryTags.contains(tag) {
+        for tag in Self.normalizedTags(from: tagText) where !entryTags.contains(tag) {
             entryTags.append(tag)
         }
         tagText = ""
         showTagInput = false
         if entry == nil { saveDraftToStorage() }
+    }
+
+    /// A tag still being typed when the entry is saved goes in with it.
+    func commitPendingTag() {
+        guard !tagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        commitTag()
+    }
+
+    /// What typing in the tag field adds: commas or semicolons separate tags, a leading `#` is
+    /// dropped (chips add their own, so `#work` showed as "##work"), case is lowered, and the
+    /// spaces inside one tag become dashes ("deep work" → "deep-work"). Duplicates and empty
+    /// pieces are skipped.
+    static func normalizedTags(from input: String) -> [String] {
+        var tags: [String] = []
+        for piece in input.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "，" || $0 == "、" }) {
+            var tag = piece.trimmingCharacters(in: .whitespacesAndNewlines)
+            while tag.hasPrefix("#") || tag.hasPrefix("＃") { tag = String(tag.dropFirst()).trimmingCharacters(in: .whitespaces) }
+            tag = tag.lowercased()
+                .split(whereSeparator: \.isWhitespace)
+                .joined(separator: "-")
+            if !tag.isEmpty, !tags.contains(tag) { tags.append(tag) }
+        }
+        return tags
     }
 }

@@ -46,10 +46,15 @@ extension WriteView {
         #endif
     }
 
-    func detectMoodWithMirror() {
+    /// "Mirror suggests" runs on Core and Deep with an on-device model; the menu disables it
+    /// otherwise instead of letting a tap do nothing.
+    var canSuggestMood: Bool {
         let sub = SubscriptionService.shared
-        guard sub.tier == .core || sub.tier == .deep else { return }
-        guard LocalLLMService.isModelAvailable else { return }
+        return (sub.tier == .core || sub.tier == .deep) && LocalLLMService.isModelAvailable
+    }
+
+    func detectMoodWithMirror() {
+        guard canSuggestMood else { return }
         let text = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         isDetectingMood = true
@@ -59,6 +64,12 @@ extension WriteView {
                 if let detected, MirrorTheme.moodOptions.contains(detected) {
                     viewModel.selectedMood = detected
                     moodWasSuggested = true
+                } else {
+                    // Say so instead of ending with no change (2026-10-09).
+                    withAnimation { showMoodSuggestionFailed = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        withAnimation { showMoodSuggestionFailed = false }
+                    }
                 }
                 isDetectingMood = false
             }
