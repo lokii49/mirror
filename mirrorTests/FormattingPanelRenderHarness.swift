@@ -12,34 +12,55 @@ final class FormattingPanelRenderHarness: XCTestCase {
         let modes: [(String, UIUserInterfaceStyle, DisplayMode)] = [("light", .light, .classic), ("dark", .dark, .classic), ("sentinel", .dark, .sentinel)]
         for (name, style, mode) in modes {
             for active in [false, true] {
-                let state = FormattingPanelState()
-                if active {
-                    state.activeParagraphStyle = .checklistUnchecked
-                    state.activeInlineStyles = InlineStyleSet(bold: true, italic: true)
-                    state.activeHighlightIndex = 1
-                    state.activeTextColorIndex = 3
-                    state.activeFontChoice = .serif
-                    state.activeLinkURL = "https://example.com"
-                }
-                let view = AnyView(VStack(spacing: 0) {
-                    Spacer()
-                    FormattingPanelView(state: state, presentation: .sheet, onClose: {})
-                        .frame(height: 360)
-                }.background(MirrorTheme.bgBase))
-                let image = try render(view, mode: mode, style: style, height: 520)
-                let attachment = XCTAttachment(image: image)
-                attachment.name = "panel-\(name)-\(active ? "active" : "plain")"
-                attachment.lifetime = .keepAlways
-                add(attachment)
+                try snap("panel-\(name)-\(active ? "active" : "plain")", active: active, mode: mode, style: style)
             }
         }
     }
 
-    private func render(_ view: AnyView, mode: DisplayMode, style: UIUserInterfaceStyle, height: CGFloat) throws -> UIImage {
+    /// Long translations, the narrowest popover, and a large accessibility size: where equal-width
+    /// cells could squeeze a label. Checklist row showing (the tallest, tightest case).
+    func test_renderFormattingPanelStress() throws {
+        for code in ["de", "ru", "fr", "ja", "pt-BR"] {
+            try snap("stress-\(code)-375", active: true, mode: .classic, style: .light, locale: code, width: 375)
+            try snap("stress-\(code)-sentinel", active: true, mode: .sentinel, style: .dark, locale: code, width: 375)
+        }
+        try snap("stress-en-popover320", active: true, mode: .classic, style: .light, width: 320, presentation: .popover)
+        try snap("stress-de-popover320", active: true, mode: .classic, style: .light, locale: "de", width: 320, presentation: .popover)
+        try snap("stress-en-ax3", active: true, mode: .classic, style: .light, width: 375, typeSize: .accessibility3, height: 900)
+    }
+
+    private func snap(_ name: String, active: Bool, mode: DisplayMode, style: UIUserInterfaceStyle, locale: String = "en",
+                      width: CGFloat = 393, presentation: FormattingPanelView.Presentation = .sheet,
+                      typeSize: DynamicTypeSize = .large, height: CGFloat = 520) throws {
+        let state = FormattingPanelState()
+        if active {
+            state.activeParagraphStyle = .checklistUnchecked
+            state.activeInlineStyles = InlineStyleSet(bold: true, italic: true)
+            state.activeHighlightIndex = 1
+            state.activeTextColorIndex = 3
+            state.activeFontChoice = .serif
+            state.activeLinkURL = "https://example.com"
+        }
+        let panel = FormattingPanelView(state: state, presentation: presentation, onClose: presentation == .sheet ? {} : nil)
+        let view = AnyView(VStack(spacing: 0) {
+            Spacer()
+            if presentation == .sheet { panel.frame(height: typeSize == .large ? 360 : nil) } else { panel }
+        }
+        .background(MirrorTheme.bgBase)
+        .environment(\.locale, Locale(identifier: locale))
+        .dynamicTypeSize(typeSize))
+        let image = try render(view, mode: mode, style: style, width: width, height: height)
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func render(_ view: AnyView, mode: DisplayMode, style: UIUserInterfaceStyle, width: CGFloat, height: CGFloat) throws -> UIImage {
         let host = UIHostingController(rootView: view.environment(\.appDisplayMode, mode))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 393, height: height)
+        window.frame = CGRect(x: 0, y: 0, width: width, height: height)
         window.overrideUserInterfaceStyle = style
         window.rootViewController = host
         window.isHidden = false

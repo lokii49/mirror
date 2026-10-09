@@ -188,17 +188,11 @@ struct FormattingPanelView: View {
                 listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent")
             }
 
-            // Checklist actions, only on a checklist line; equal cells, so none is cut off.
-            if state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked {
-                bar {
-                    bulkChecklistButton("Check All",   command: .checkAllItems)
-                    segmentDivider
-                    bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
-                    segmentDivider
-                    bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
-                    segmentDivider
-                    bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
-                }
+            // Checklist actions, only on a checklist line: one menu, as in Notes, so long translations
+            // ("Erledigte löschen") keep their full size instead of squeezing into four cells.
+            if isChecklistLine {
+                checklistMenu
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             colorRow("Highlight") {
@@ -228,6 +222,47 @@ struct FormattingPanelView: View {
         }
         .padding(.top, presentation == .sheet ? 10 : 14)
         .padding(.bottom, 10)
+        .animation(.easeInOut(duration: 0.2), value: isChecklistLine)
+    }
+
+    private var isChecklistLine: Bool {
+        state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked
+    }
+
+    private var checklistMenu: some View {
+        Menu {
+            Button { send(.checkAllItems) } label: { Label("Check All", systemImage: "checkmark.circle") }
+            Button { send(.uncheckAllItems) } label: { Label("Uncheck All", systemImage: "circle") }
+            Button { send(.sortCheckedToBottom) } label: { Label("Sort Done", systemImage: "arrow.down.to.line") }
+            Button(role: .destructive) { send(.deleteCheckedItems) } label: { Label("Delete Done", systemImage: "trash") }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "checklist").font(.system(size: 15 * typeScale, weight: .medium))
+                Group {
+                    if displayMode == .sentinel {
+                        Text("Checklist").font(MirrorTheme.mono(12 * typeScale, weight: .bold)).textCase(.uppercase)
+                    } else {
+                        Text("Checklist").font(.system(size: 15 * typeScale, weight: .medium))
+                    }
+                }
+                .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11 * typeScale, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
+            }
+            .foregroundStyle(Color.primary)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: cellHeight)
+            .background(groupShape.fill(idleFill))
+            .contentShape(groupShape)
+        }
+        .accessibilityIdentifier("checklistActions")
+        .padding(.horizontal, 16)
+    }
+
+    private func send(_ command: NoteTextCommand) {
+        DispatchQueue.main.async { state.onCommand?(command) }
     }
 
     // MARK: - Rows
@@ -246,24 +281,33 @@ struct FormattingPanelView: View {
         Rectangle().fill(Color.primary.opacity(0.22)).frame(width: 1.5, height: 26 * typeScale)
     }
 
-    /// A labelled row of swatches: the label says what the dots do.
+    /// A labelled row of swatches: the label says what the dots do. The label sits beside the swatches
+    /// when it fits whole, otherwise above them (long translations, narrow popover, large text sizes).
     private func colorRow<Content: View>(_ title: LocalizedStringKey, @ViewBuilder _ swatches: () -> Content) -> some View {
-        HStack(spacing: 8) {
-            Group {
-                if displayMode == .sentinel {
-                    Text(title).font(MirrorTheme.mono(11 * typeScale, weight: .bold)).textCase(.uppercase).tracking(0.6)
-                } else {
-                    Text(title).font(.system(size: 13 * typeScale, weight: .medium))
-                }
+        let dots = HStack(spacing: 6) { swatches() }
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                colorLabel(title).fixedSize()
+                Spacer(minLength: 4)
+                dots
             }
-            .foregroundStyle(Color.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 6) { swatches() }
-                .layoutPriority(1)
+            VStack(alignment: .leading, spacing: 4) {
+                colorLabel(title).fixedSize(horizontal: false, vertical: true)
+                dots
+            }
         }
         .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder private func colorLabel(_ title: LocalizedStringKey) -> some View {
+        Group {
+            if displayMode == .sentinel {
+                Text(title).font(MirrorTheme.mono(11 * typeScale, weight: .bold)).textCase(.uppercase).tracking(0.6)
+            } else {
+                Text(title).font(.system(size: 13 * typeScale, weight: .medium))
+            }
+        }
+        .foregroundStyle(Color.secondary)
     }
 
     private var swatchSize: CGFloat { min(26 * typeScale, 36) }
@@ -299,6 +343,9 @@ struct FormattingPanelView: View {
                 }
             }
             .foregroundStyle(Color.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .layoutPriority(1)
             Spacer(minLength: 8)
             fontMenu
             if presentation == .sheet, let onClose {
@@ -464,10 +511,13 @@ struct FormattingPanelView: View {
         } label: {
             cell(isActive: isActive) {
                 HStack(spacing: 3) {
-                    Text(marker).font(.system(size: 15 * typeScale, weight: .bold)).frame(minWidth: 9 * typeScale)
-                    VStack(alignment: .leading, spacing: 3 * typeScale) {
-                        Capsule().frame(width: 12 * typeScale, height: 2)
-                        Capsule().frame(width: 8 * typeScale, height: 2)
+                    Text(verbatim: marker)
+                        .font(.system(size: min(15 * typeScale, 22), weight: .bold))
+                        .lineLimit(1)
+                        .fixedSize()
+                    VStack(alignment: .leading, spacing: min(3 * typeScale, 5)) {
+                        Capsule().frame(width: min(12 * typeScale, 16), height: 2)
+                        Capsule().frame(width: min(8 * typeScale, 11), height: 2)
                     }
                 }
             }
@@ -491,28 +541,6 @@ struct FormattingPanelView: View {
         .accessibilityIdentifier(icon)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(isActive ? .isSelected : [])
-    }
-
-    // MARK: - Bulk checklist button
-
-    private func bulkChecklistButton(_ label: LocalizedStringKey, command: NoteTextCommand) -> some View {
-        Button {
-            DispatchQueue.main.async { state.onCommand?(command) }
-        } label: {
-            cell(isActive: false) {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(label).font(MirrorTheme.mono(10.5 * typeScale, weight: .medium)).textCase(.uppercase)
-                    } else {
-                        Text(label).font(.system(size: 12.5 * typeScale, weight: .medium))
-                    }
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .padding(.horizontal, 4)
-            }
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Colour dots

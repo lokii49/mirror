@@ -813,8 +813,11 @@ struct WriteView: View {
         }
         .onChange(of: editorFocused) { _, focused in
             // When the editor fully loses focus (keyboard/panel dismissed), drop
-            // the panel state so it doesn't reopen on the next focus.
-            if !focused { showFormattingPanel = false }
+            // the panel state so it doesn't reopen on the next focus. iPhone only: there the panel
+            // is the editor's input view and goes with the focus. The iPad popover closes itself,
+            // and closing it here could shut it as it opens if presenting it took the focus
+            // (this handler never ran before 2026-10-09, while editorFocused was an unbound @FocusState).
+            if !focused, !usesPopoverPanel { showFormattingPanel = false }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             flushDraftSave()

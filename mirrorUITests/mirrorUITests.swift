@@ -456,9 +456,15 @@ final class mirrorUITests: XCTestCase {
 
         applyChecklistViaPanel(in: app)
 
-        // Panel stays open; bulk-ops row appears because activeParagraphStyle changed to checklist
-        XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),
-                      "Bulk-ops row must appear once checklist is applied from the panel")
+        // Panel stays open; the Checklist actions menu appears because activeParagraphStyle changed to
+        // checklist, and it holds the four actions.
+        let actions = app.buttons["checklistActions"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3),
+                      "Checklist actions menu must appear once checklist is applied from the panel")
+        actions.tap()
+        XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3), "Menu must list Check All")
+        XCTAssertTrue(app.buttons["Delete Done"].exists, "Menu must list Delete Done")
+        app.buttons["Check All"].tap()
         XCTAssertTrue(app.buttons["checklist"].exists, "Panel checklist button must remain after activation")
 
         snapshot(app, name: "panel_checklist_active_state")
@@ -717,6 +723,7 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
+        XCTAssertFalse(app.buttons["checklistActions"].exists, "Checklist actions must not appear on body text")
         XCTAssertFalse(app.buttons["Check All"].exists,   "Check All must not appear on body text")
         XCTAssertFalse(app.buttons["Uncheck All"].exists, "Uncheck All must not appear on body text")
         XCTAssertFalse(app.buttons["Delete Done"].exists, "Delete Done must not appear on body text")

@@ -33614,14 +33614,14 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Titre"
+            "state" : "needs_review",
+            "value" : "En-tête"
           }
         },
         "it" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Titolo"
+            "state" : "needs_review",
+            "value" : "Intestazione"
           }
         },
         "ja" : {
@@ -33632,14 +33632,14 @@
         },
         "ko" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "제목"
+            "state" : "needs_review",
+            "value" : "머리말"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Título"
+            "state" : "needs_review",
+            "value" : "Cabeçalho"
           }
         },
         "ru" : {
@@ -33650,8 +33650,8 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "标题"
+            "state" : "needs_review",
+            "value" : "小标题"
           }
         }
       }
@@ -62733,8 +62733,8 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zwischenüberschrift"
+            "state" : "needs_review",
+            "value" : "Unterüberschrift"
           }
         },
         "en" : {
@@ -62751,14 +62751,14 @@
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sous-titre"
+            "state" : "needs_review",
+            "value" : "Sous-en-tête"
           }
         },
         "it" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sottotitolo"
+            "state" : "needs_review",
+            "value" : "Sottointestazione"
           }
         },
         "ja" : {
@@ -62769,14 +62769,14 @@
         },
         "ko" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "소제목"
+            "state" : "needs_review",
+            "value" : "부머리말"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Subtítulo"
+            "state" : "needs_review",
+            "value" : "Subcabeçalho"
           }
         },
         "ru" : {
@@ -66653,8 +66653,8 @@
         },
         "ru" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Заголовок"
+            "state" : "needs_review",
+            "value" : "Название"
           }
         },
         "zh-Hans" : {
