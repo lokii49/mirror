@@ -10,7 +10,7 @@ struct SmartSearchSettingsView: View {
     @State private var consent = SemanticSearchService.consent
 
     private var sizeText: String {
-        ByteCountFormatter.string(fromByteCount: SemanticSearchService.modelByteCount, countStyle: .file)
+        SemanticSearchService.modelSizeText
     }
 
     var body: some View {
@@ -114,7 +114,7 @@ struct SmartSearchOfferCard: View {
     @Environment(\.appDisplayMode) private var displayMode
 
     private var sizeText: String {
-        ByteCountFormatter.string(fromByteCount: SemanticSearchService.modelByteCount, countStyle: .file)
+        SemanticSearchService.modelSizeText
     }
 
     var body: some View {

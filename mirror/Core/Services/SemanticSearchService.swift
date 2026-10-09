@@ -41,6 +41,11 @@ actor SemanticSearchService {
 
     static let consentKey = "smartAskSearchConsent"
     static let modelByteCount: Int64 = 333_590_944
+    /// "333.6 MB", with a no-break space so a translated sentence never wraps between number and unit.
+    static var modelSizeText: String {
+        ByteCountFormatter.string(fromByteCount: modelByteCount, countStyle: .file)
+            .replacingOccurrences(of: " ", with: "\u{00A0}")
+    }
 
     nonisolated static var consent: Consent {
         get { Consent(rawValue: UserDefaults.standard.string(forKey: consentKey) ?? "") ?? .undecided }
