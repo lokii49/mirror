@@ -221,14 +221,23 @@ struct mirrorApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main") {
-            if MirrorModelContainer.isStoreAvailable {
-                ContentView()
-            } else {
-                StoreUnavailableView()
+            Group {
+                if MirrorModelContainer.isStoreAvailable {
+                    ContentView()
+                } else {
+                    StoreUnavailableView()
+                }
             }
+            #if os(macOS)
+            // An open main window takes widget and notification links (mirror://...) itself.
+            // Without this, macOS opened another main window for every widget click (2026-10-09).
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            #endif
         }
         .modelContainer(sharedModelContainer)
         #if os(macOS)
+        // Only the main window group handles links; it opens a window only when none is open.
+        .handlesExternalEvents(matching: ["*"])
         .commands { MirrorMacCommands() }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 800)
@@ -389,6 +398,7 @@ struct mirrorApp: App {
         WindowGroup("New Entry", id: "new-entry") {
             MacNewEntryWindow()
         }
+        .handlesExternalEvents(matching: [])
         .modelContainer(sharedModelContainer)
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 760, height: 800)
@@ -396,6 +406,7 @@ struct mirrorApp: App {
         WindowGroup("Entry", id: "entry", for: UUID.self) { $entryID in
             MacEntryWindow(entryID: entryID)
         }
+        .handlesExternalEvents(matching: [])
         .modelContainer(sharedModelContainer)
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 760, height: 800)
