@@ -192,6 +192,70 @@
         }
       }
     },
+    "Ask can find entries by meaning, not only matching words. It's optional: a one-time download on Wi-Fi of a search model that runs on your device. Turn it on in Ask or in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragen findet Einträge nach Bedeutung, nicht nur nach passenden Wörtern. Optional: ein einmaliger Download eines Suchmodells über WLAN, das auf deinem Gerät läuft. Einschalten in Fragen oder in den Einstellungen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask can find entries by meaning, not only matching words. It's optional: a one-time download on Wi-Fi of a search model that runs on your device. Turn it on in Ask or in Settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preguntar puede encontrar entradas por su significado, no solo por palabras que coinciden. Es opcional: una descarga única con Wi-Fi de un modelo de búsqueda que funciona en tu dispositivo. Actívala en Preguntar o en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander peut trouver des entrées par leur sens, pas seulement par des mots identiques. C'est facultatif : un téléchargement unique en Wi-Fi d'un modèle de recherche qui fonctionne sur votre appareil. Activez-la dans Demander ou dans Réglages."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi può trovare le voci in base al significato, non solo alle parole uguali. È facoltativa: un download unico con il Wi-Fi di un modello di ricerca che funziona sul tuo dispositivo. Attivala in Chiedi o nelle Impostazioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "質問は、一致する言葉だけでなく意味で日記を見つけられます。任意の機能で、端末上で動作する検索モデルをWi-Fiで一度だけダウンロードします。質問または設定でオンにできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "질문은 단어가 일치하는 것뿐 아니라 의미로 일기를 찾을 수 있습니다. 선택 사항이며, 기기에서 실행되는 검색 모델을 Wi-Fi에서 한 번 다운로드합니다. 질문 또는 설정에서 켜세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Perguntar pode encontrar entradas pelo significado, não só por palavras iguais. É opcional: um download único no Wi-Fi de um modelo de busca que roda no seu dispositivo. Ative no Perguntar ou em Ajustes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Спросить» может находить записи по смыслу, а не только по совпадающим словам. Это необязательно: однократная загрузка по Wi-Fi модели поиска, которая работает на вашем устройстве. Включите в «Спросить» или в Настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提问可以按意思查找日记，而不只是匹配字词。这是可选功能：在 Wi-Fi 下一次性下载一个在你设备上运行的搜索模型。可在提问或设置中开启。"
+          }
+        }
+      }
+    },
     "Ask finds the entries that match what you mean, not only the words you type. \"Have I been working out?\" finds your run and gym entries." : {
       "localizations" : {
         "de" : {
@@ -960,6 +1024,134 @@
         }
       }
     },
+    "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsere Datenschutzerklärung umfasst jetzt das optionale Suchmodell für Fragen. Wenn du es einschaltest, wird es einmalig von models.mirrornotes.org geladen. Die Adresse wird für uns von Cloudflare gehostet, das wie bei jedem Download deine IP-Adresse sieht. Dein Journal verlässt dein Gerät nie. [Datenschutzerklärung lesen](https://mirrornotes.org/de/privacy.html)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuestra política de privacidad ahora incluye el modelo de búsqueda opcional de Preguntar. Si lo activas, se descarga una sola vez desde models.mirrornotes.org, que Cloudflare aloja por nosotros y que, como en cualquier descarga, ve tu dirección IP. Tu diario nunca sale de tu dispositivo. [Leer la política de privacidad](https://mirrornotes.org/es/privacy.html)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notre politique de confidentialité couvre désormais le modèle de recherche facultatif de Demander. Si vous l'activez, il est téléchargé une seule fois depuis models.mirrornotes.org, hébergé pour nous par Cloudflare, qui voit votre adresse IP comme pour tout téléchargement. Votre journal ne quitte jamais votre appareil. [Lire la politique de confidentialité](https://mirrornotes.org/fr/privacy.html)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La nostra informativa sulla privacy ora copre il modello di ricerca facoltativo di Chiedi. Se lo attivi, viene scaricato una sola volta da models.mirrornotes.org, ospitato per noi da Cloudflare, che come per ogni download vede il tuo indirizzo IP. Il tuo diario non lascia mai il tuo dispositivo. [Leggi l'informativa sulla privacy](https://mirrornotes.org/it/privacy.html)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシーポリシーに、質問の任意の検索モデルについての説明を追加しました。オンにすると、models.mirrornotes.org から一度だけダウンロードされます。このアドレスは当社に代わって Cloudflare がホストしており、通常のダウンロードと同様に IP アドレスが Cloudflare に送られます。日記が端末から出ることはありません。[プライバシーポリシーを読む](https://mirrornotes.org/ja/privacy.html)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보처리방침에 질문의 선택 사항인 검색 모델에 관한 내용이 추가되었습니다. 켜면 models.mirrornotes.org에서 한 번 다운로드되며, 이 주소는 당사를 대신해 Cloudflare가 호스팅하고 일반적인 다운로드처럼 IP 주소를 확인합니다. 일기는 기기를 절대 떠나지 않습니다. [개인정보처리방침 읽기](https://mirrornotes.org/ko/privacy.html)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nossa Política de Privacidade agora inclui o modelo de busca opcional do Perguntar. Se você ativar, ele é baixado uma única vez de models.mirrornotes.org, hospedado para nós pela Cloudflare, que vê seu endereço IP como em qualquer download. Seu diário nunca sai do seu dispositivo. [Ler a Política de Privacidade](https://mirrornotes.org/pt/privacy.html)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наша политика конфиденциальности теперь описывает необязательную модель поиска для «Спросить». Если вы её включите, она один раз загрузится с models.mirrornotes.org. Этот адрес размещён для нас в Cloudflare, который, как и при любой загрузке, видит ваш IP-адрес. Ваш дневник никогда не покидает ваше устройство. [Прочитать политику конфиденциальности](https://mirrornotes.org/ru/privacy.html)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我们的隐私政策现已涵盖提问的可选搜索模型。如果你开启它，它会从 models.mirrornotes.org 一次性下载；该地址由 Cloudflare 为我们托管，与任何下载一样，Cloudflare 会看到你的 IP 地址。你的日记永远不会离开你的设备。[阅读隐私政策](https://mirrornotes.org/zh/privacy.html)"
+          }
+        }
+      }
+    },
+    "Privacy policy updated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzerklärung aktualisiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy policy updated"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de privacidad actualizada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politique de confidentialité mise à jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informativa sulla privacy aggiornata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシーポリシーを更新しました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보처리방침이 업데이트되었습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de Privacidade atualizada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Политика конфиденциальности обновлена"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策已更新"
+          }
+        }
+      }
+    },
     "Ready" : {
       "localizations" : {
         "de" : {
@@ -1334,6 +1526,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Умный поиск для «Спросить»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提问的智能搜索"
+          }
+        }
+      }
+    },
+    "Smarter search in Ask" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smarte Suche in Fragen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smarter search in Ask"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Búsqueda inteligente en Preguntar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche intelligente dans Demander"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca intelligente in Chiedi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "質問のスマート検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "질문 스마트 검색"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca inteligente no Perguntar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умный поиск в «Спросить»"
           }
         },
         "zh-Hans" : {

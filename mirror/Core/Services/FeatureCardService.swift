@@ -301,6 +301,27 @@ enum FeatureCardRegistry {
             sinceVersion: "2.1.0",
             showInFeatureGuide: false
         ),
+        .init(
+            id: "smart-ask-search-310",
+            title: "Smarter search in Ask",
+            body: "Ask can find entries by meaning, not only matching words. It's optional: a one-time download on Wi-Fi of a search model that runs on your device. Turn it on in Ask or in Settings.",
+            symbolName: "sparkle.magnifyingglass",
+            accentColor: .purple,
+            tier: .core,
+            sinceVersion: "3.1.0"
+        ),
+        // One-time notice of the 2026-10-09 privacy policy update (the policy promises an in-app
+        // notice for material changes): Cloudflare hosts the optional search model.
+        .init(
+            id: "privacy-policy-310",
+            title: "Privacy policy updated",
+            body: "Our privacy policy now covers the optional search model for Ask. If you turn it on, it downloads once from models.mirrornotes.org, which Cloudflare hosts for us and which sees your IP address, as with any download. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)",
+            symbolName: "hand.raised.fill",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false
+        ),
     ]
 }
 
