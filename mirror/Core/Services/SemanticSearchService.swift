@@ -106,6 +106,7 @@ actor SemanticSearchService {
         backfillTask?.cancel()
         try? FileManager.default.removeItem(at: Self.modelFileURL())
         try? FileManager.default.removeItem(at: Self.indexURL())
+        try? FileManager.default.removeItem(at: Self.legacyPlaintextIndexURL())
         index = [:]
         modelState = .absent
     }
@@ -133,23 +134,52 @@ actor SemanticSearchService {
         let vector: [Float]
     }
 
-    private static func indexURL() throws -> URL {
+    /// The index is sealed with the same Keychain key as entry text (`MirrorEncryption`, AES-GCM):
+    /// vectors are derived from journal text and can leak some of it, so they get the entries'
+    /// protection, not just iOS file protection (which is weaker still on the Mac).
+    private static func indexDirectory() throws -> URL {
         let appSupport = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let directory = appSupport.appendingPathComponent("Mirror", isDirectory: true).appendingPathComponent("Index", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("entry-embeddings.plist")
+        return directory
+    }
+
+    private static func indexURL() throws -> URL {
+        try indexDirectory().appendingPathComponent("entry-embeddings.sealed")
+    }
+
+    /// Pre-encryption dev builds (2026-10-08) wrote the index unsealed under this name.
+    private static func legacyPlaintextIndexURL() throws -> URL {
+        try indexDirectory().appendingPathComponent("entry-embeddings.plist")
+    }
+
+    /// The index as a sealed blob, or nil when the content key isn't available (nothing is written then).
+    static func sealIndex(_ index: [UUID: IndexRecord]) -> Data? {
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        guard let plain = try? encoder.encode(index) else { return nil }
+        return MirrorEncryption.sealData(plain)
+    }
+
+    /// nil when the blob can't be opened (key unavailable, or not a sealed index); the index is then rebuilt.
+    static func openIndex(_ sealed: Data) -> [UUID: IndexRecord]? {
+        guard let plain = MirrorEncryption.openData(sealed) else { return nil }
+        return try? PropertyListDecoder().decode([UUID: IndexRecord].self, from: plain)
     }
 
     private static func loadIndex() throws -> [UUID: IndexRecord] {
-        let data = try Data(contentsOf: indexURL())
-        return try PropertyListDecoder().decode([UUID: IndexRecord].self, from: data)
+        if let legacy = try? legacyPlaintextIndexURL() { try? FileManager.default.removeItem(at: legacy) }
+        guard let index = openIndex(try Data(contentsOf: indexURL())) else {
+            try? FileManager.default.removeItem(at: indexURL())
+            return [:]
+        }
+        return index
     }
 
     private func saveIndex() throws {
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .binary
+        guard let sealed = Self.sealIndex(index) else { return }
         var url = try Self.indexURL()
-        try encoder.encode(index).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try sealed.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try url.setResourceValues(values)

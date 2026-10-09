@@ -59,4 +59,27 @@ struct SemanticAskRetrievalTests {
         SemanticSearchService.consent = .accepted
         #expect(SemanticSearchService.consent == .accepted)
     }
+
+    /// The vector index is sealed with the entries' content key: the bytes on disk are neither a
+    /// readable plist nor contain the vector values, and they open back to the same index.
+    @Test func indexIsSealedWithTheContentKey() throws {
+        let id = UUID()
+        let index = [id: SemanticSearchService.IndexRecord(textHash: "abc", vector: [0.25, -0.5, 0.125])]
+        let sealed = try #require(SemanticSearchService.sealIndex(index))
+        #expect((try? PropertyListDecoder().decode([UUID: SemanticSearchService.IndexRecord].self, from: sealed)) == nil)
+        #expect(sealed.range(of: Data("abc".utf8)) == nil)
+        let opened = try #require(SemanticSearchService.openIndex(sealed))
+        #expect(opened[id]?.textHash == "abc")
+        #expect(opened[id]?.vector == [0.25, -0.5, 0.125])
+    }
+
+    @Test func unsealedOrDamagedIndexIsRejected() throws {
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        let plaintext = try encoder.encode([UUID(): SemanticSearchService.IndexRecord(textHash: "x", vector: [1])])
+        #expect(SemanticSearchService.openIndex(plaintext) == nil)
+        var damaged = try #require(SemanticSearchService.sealIndex([:]))
+        damaged[damaged.count - 1] ^= 0xFF
+        #expect(SemanticSearchService.openIndex(damaged) == nil)
+    }
 }
