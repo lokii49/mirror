@@ -731,3 +731,48 @@ struct ChecklistAccessibilityTests {
         #expect(tv.accessibilityCustomActions?.map(\.name).contains("Mark as done") == true)
     }
 }
+
+/// A formatting-only edit must start a draft save (2026-10-09). `WriteView` saves the draft when
+/// `draftChangeKey` changes; these check that the editor's formatting commands change the
+/// bindings that key is built from without touching the text, and that tags and the date count.
+@MainActor
+struct FormattingOnlyDraftSaveTests {
+    private func key(style: Data?, inline: Data?, tags: [String] = [], date: Date = Date(timeIntervalSince1970: 0)) -> WriteView.DraftChangeKey {
+        WriteView.DraftChangeKey(textStyleData: style, inlineStyleData: inline, tags: tags, entryDate: date)
+    }
+
+    @Test func boldOnASelectionChangesTheDraftKeyButNotTheText() {
+        let h = makeListHarness(text: "hello world")
+        let before = key(style: h.getStyleData(), inline: h.getInlineData())
+        let textBefore = h.getText()
+        h.textView.selectedRange = NSRange(location: 0, length: 5)
+        h.coordinator.apply(.bold, to: h.textView)
+        #expect(h.getText() == textBefore, "formatting-only: the text trigger alone would not fire")
+        #expect(key(style: h.getStyleData(), inline: h.getInlineData()) != before)
+    }
+
+    @Test func headingOnALineChangesTheDraftKeyButNotTheText() {
+        let h = makeListHarness(text: "hello world")
+        let before = key(style: h.getStyleData(), inline: h.getInlineData())
+        let textBefore = h.getText()
+        h.textView.selectedRange = NSRange(location: 2, length: 0)
+        h.coordinator.apply(.heading, to: h.textView)
+        #expect(h.getText() == textBefore)
+        #expect(key(style: h.getStyleData(), inline: h.getInlineData()) != before)
+    }
+
+    @Test func highlightChangesTheDraftKey() {
+        let h = makeListHarness(text: "hello world")
+        let before = key(style: h.getStyleData(), inline: h.getInlineData())
+        h.textView.selectedRange = NSRange(location: 6, length: 5)
+        h.coordinator.apply(.highlight(index: 1), to: h.textView)
+        #expect(key(style: h.getStyleData(), inline: h.getInlineData()) != before)
+    }
+
+    @Test func tagsAndDateAreInTheKey() {
+        let base = key(style: nil, inline: nil)
+        #expect(key(style: nil, inline: nil, tags: ["work"]) != base)
+        #expect(key(style: nil, inline: nil, date: Date(timeIntervalSince1970: 86_400)) != base)
+        #expect(key(style: nil, inline: nil) == base)
+    }
+}

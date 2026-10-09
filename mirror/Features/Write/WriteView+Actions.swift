@@ -357,6 +357,21 @@ extension WriteView {
     /// array each call, so writing synchronously per character is real input
     /// latency. Coalesce to one write ~1s after typing stops; background and
     /// mood changes still flush immediately.
+    /// Draft content other than the text (which has its own trigger), the mood (flushed at
+    /// once) and photos/voice notes (saved on their own): a change here must schedule a draft
+    /// save just like typing does.
+    struct DraftChangeKey: Equatable {
+        var textStyleData: Data?
+        var inlineStyleData: Data?
+        var tags: [String]
+        var entryDate: Date
+    }
+
+    var draftChangeKey: DraftChangeKey {
+        DraftChangeKey(textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData,
+                       tags: entryTags, entryDate: entryDate)
+    }
+
     func scheduleDraftSave() {
         guard Self.usesPersistentDraftStorage(), !pendingDelete, !editCommitted else { return }
         // No content comparison here: it hashes attachments, too slow per keystroke.

@@ -765,6 +765,13 @@ struct WriteView: View {
             scheduleDraftSave()
             scheduleFollowUpCheck()
         }
+        // Formatting, tags and the entry date are part of the draft too. A change to only one
+        // of them starts the same debounced save as typing (before 2026-10-09 only `text` did,
+        // so a bold-only or heading-only edit was lost if the app was killed before the next
+        // keystroke).
+        .onChange(of: draftChangeKey) { _, _ in
+            scheduleDraftSave()
+        }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
         }
