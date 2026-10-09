@@ -280,9 +280,14 @@ struct ArchiveSettingsView: View {
         guard let plan = importPlan else { return }
         importPlan = nil
         do {
-            lastImportBatch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: importChangedAsCopies, context: modelContext)
-            let added = lastImportBatch?.digests.count ?? 0
-            archiveMessage = String(localized: "Imported \(added) entries.")
+            let batch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: importChangedAsCopies, context: modelContext)
+            lastImportBatch = batch
+            if batch.digests.isEmpty, batch.hasOrganization {
+                // A package with nothing new but its collections and saved views.
+                archiveMessage = String(localized: "Imported \(batch.createdCollections.count) collections and \(batch.createdSavedViews.count) saved views.")
+            } else {
+                archiveMessage = String(localized: "Imported \(batch.digests.count) entries.")
+            }
         } catch {
             archiveMessage = String(localized: "The import failed and nothing was added.")
         }
@@ -292,6 +297,10 @@ struct ArchiveSettingsView: View {
         guard let batch = lastImportBatch else { return }
         lastImportBatch = nil
         if let result = try? ArchiveTransfer.undoImport(batch, context: modelContext) {
+            if batch.digests.isEmpty, batch.hasOrganization {
+                archiveMessage = String(localized: "Removed the imported collections and saved views.")
+                return
+            }
             archiveMessage = result.kept > 0
                 ? String(localized: "Removed \(result.removed) imported entries. \(result.kept) edited since the import were kept.")
                 : String(localized: "Removed \(result.removed) imported entries.")

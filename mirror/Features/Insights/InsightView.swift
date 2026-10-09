@@ -2078,6 +2078,8 @@ extension InsightView {
             if let source = InsightService.entryQuoting(parts.quote, in: window) {
                 followUp = InsightService.followUpQuestion(for: parts, sourceText: source.text)
             }
+            // Curious already shows that question in the card; a chip would repeat it.
+            if reflectionStyle == .curious, let question = followUp, content.contains(question) { followUp = nil }
         }
         macToday = MacTodayContent(
             id: insight.persistentModelID,

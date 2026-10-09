@@ -135,6 +135,7 @@ enum ArchiveTransfer {
         var digests: [UUID: String]
         var createdCollections: [UUID] = []
         var createdSavedViews: [UUID] = []
+        var hasOrganization: Bool { !createdCollections.isEmpty || !createdSavedViews.isEmpty }
     }
 
     /// Reads and validates the package (off the main actor), then compares it

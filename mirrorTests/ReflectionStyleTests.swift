@@ -65,4 +65,35 @@ struct ReflectionStyleTests {
         #expect(ReflectionStyle(storedValue: "nonsense") == .gentle)
         #expect(ReflectionStyle(storedValue: "quiet") == .quiet)
     }
+
+    /// Localized reflections use the locale's own quote marks (fr « », ja 「」). Quiet and Curious
+    /// must keep the verified quote with those marks and never add English text.
+    @Test @MainActor func localizedStylesKeepTheLocalesQuoteMarks() throws {
+        let cases: [(code: String, text: String, quote: String)] = [
+            ("fr", "L'examen est vendredi et je n'ai revu que la moitié du programme. J'ai étudié à la bibliothèque jusqu'à neuf heures. Mon colocataire a proposé de m'interroger demain soir.",
+             "L'examen est vendredi et je n'ai revu que la moitié du programme."),
+            ("ja", "試験は金曜日なのに、範囲の半分しか終わっていない。図書館で九時まで勉強した。ルームメイトが明日の夜に問題を出してくれると言った。",
+             "試験は金曜日なのに、範囲の半分しか終わっていない。"),
+        ]
+        for c in cases {
+            let loc = try #require(InsightService.groundedLocales[c.code])
+            let head = loc.youWrote + loc.open + c.quote + loc.close
+            let content = head + loc.joiner + "fixed line"
+            let entry = Entry(text: c.text, mood: "Anxious")
+            let when = Date().addingTimeInterval(60)
+
+            let quiet = InsightService.reflectionForDisplay(content, entries: [entry], generatedAt: when, style: .quiet)
+            #expect(quiet.text == head, "\(c.code): Quiet is the head only, got: \(quiet.text)")
+            #expect(quiet.parts?.quote == c.quote)
+
+            let curious = InsightService.reflectionForDisplay(content, entries: [entry], generatedAt: when, style: .curious)
+            #expect(curious.text.hasPrefix(head), "\(c.code): Curious keeps the head")
+            #expect(!curious.text.contains("fixed line"))
+            if curious.text != content {
+                let question = String(curious.text.dropFirst(head.count)).trimmingCharacters(in: .whitespaces)
+                #expect(question.contains(loc.open), "\(c.code): the question quotes with the locale's marks, got: \(question)")
+                #expect(!question.contains(c.quote))
+            }
+        }
+    }
 }

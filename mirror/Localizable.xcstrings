@@ -896,6 +896,71 @@
         }
       }
     },
+    "Imported %lld collections and %lld saved views." : {
+      "comment" : "Reflection style / archive import. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld Sammlungen und %lld gespeicherte Ansichten importiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imported %lld collections and %lld saved views."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Se importaron %lld colecciones y %lld vistas guardadas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld collections et %lld vues enregistrées importées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Importate %lld raccolte e %lld viste salvate."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld 件のコレクションと %lld 件の保存した表示を読み込みました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "컬렉션 %lld개와 저장된 보기 %lld개를 가져왔습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld coleções e %lld visualizações salvas importadas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Импортировано коллекций: %lld, сохранённых видов: %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已导入 %lld 个合集和 %lld 个已存视图。"
+          }
+        }
+      }
+    },
     "It needs a one-time download of a search model (%@), on Wi-Fi only. Your journal never leaves this device: the model runs here, and the download sends nothing about you or your entries." : {
       "localizations" : {
         "de" : {
@@ -1084,6 +1149,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用于提问的设备端搜索模型"
+          }
+        }
+      }
+    },
+    "Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and “How this was generated” stay as they are." : {
+      "comment" : "Reflection style / archive import. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ändert nur, wie die heutige Reflexion in der App aussieht. Das Zitat sind immer deine eigenen Worte. Widget, Mitteilungen, frühere Reflexionen und „So wurde das erstellt“ bleiben unverändert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and “How this was generated” stay as they are."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Solo cambia cómo se lee la reflexión de hoy en la app. La cita siempre son tus propias palabras. El widget, las notificaciones, las reflexiones pasadas y «Cómo se generó» no cambian."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ne change que la présentation de la réflexion du jour dans l’app. La citation reste toujours vos propres mots. Le widget, les notifications, les réflexions passées et « Comment cela a été généré » ne changent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cambia solo come si legge la riflessione di oggi nell’app. La citazione è sempre fatta delle tue parole. Widget, notifiche, riflessioni passate e «Come è stato generato» restano invariati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "アプリ内での今日のリフレクションの見え方だけが変わります。引用は常にあなた自身の言葉です。ウィジェット、通知、過去のリフレクション、「生成の仕組み」は変わりません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "앱 안에서 오늘의 리플렉션이 보이는 방식만 바뀝니다. 인용문은 언제나 내가 쓴 그대로입니다. 위젯, 알림, 지난 리플렉션, ‘생성 과정’은(는) 그대로 유지됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Muda apenas como a reflexão de hoje aparece no app. A citação são sempre as suas próprias palavras. O widget, as notificações, as reflexões anteriores e “Como isto foi gerado” permanecem como estão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Меняется только вид сегодняшней рефлексии в приложении. Цитата всегда состоит из ваших собственных слов. Виджет, уведомления, прошлые рефлексии и «Как это было создано» остаются прежними."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "只会改变今天的反思在 App 内的呈现方式。引用的始终是你自己的话。小组件、通知、过往反思以及“生成方式”保持不变。"
           }
         }
       }
@@ -1340,6 +1470,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除搜索模型"
+          }
+        }
+      }
+    },
+    "Removed the imported collections and saved views." : {
+      "comment" : "Reflection style / archive import. Model-translated; native review pending.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Die importierten Sammlungen und gespeicherten Ansichten wurden entfernt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed the imported collections and saved views."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Se quitaron las colecciones y vistas guardadas importadas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les collections et vues enregistrées importées ont été supprimées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Raccolte e viste salvate importate rimosse."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "読み込んだコレクションと保存した表示を削除しました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "가져온 컬렉션과 저장된 보기를 삭제했습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "As coleções e visualizações salvas importadas foram removidas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Импортированные коллекции и сохранённые виды удалены."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已移除导入的合集和已存视图。"
           }
         }
       }
@@ -4474,13 +4669,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "振り返り"
+            "value" : "リフレクション"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "되돌아보기"
+            "value" : "리플렉션"
           }
         },
         "pt-BR" : {
@@ -4498,7 +4693,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "回顾"
+            "value" : "反思"
           }
         }
       }
@@ -4539,13 +4734,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "振り返りのスタイル"
+            "value" : "リフレクションのスタイル"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "되돌아보기 스타일"
+            "value" : "리플렉션 스타일"
           }
         },
         "pt-BR" : {
@@ -4563,7 +4758,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "回顾风格"
+            "value" : "反思风格"
           }
         }
       }

@@ -247,6 +247,8 @@ struct ProtocolSettingsView: View {
                     #endif
                 }
 
+                // Daily reflections are part of Core, like the nudge time above.
+                if subscriptionService.isSubscribed {
                 SettingsGroup(title: "Reflection") {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
@@ -266,7 +268,7 @@ struct ProtocolSettingsView: View {
                             .padding(.leading, 44)
                             .padding(.top, -4)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("Only changes how a reflection reads in the app. The quote is always your own words. The widget and notifications stay as they are.")
+                        Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
                             .font(.system(size: 12))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
@@ -274,6 +276,7 @@ struct ProtocolSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 2)
+                }
                 }
 
                 SettingsGroup(title: "Input") {
