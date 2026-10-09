@@ -87,7 +87,11 @@ struct WhatsNewSheet: View {
                     HStack(spacing: 10) {
                         Group {
                             if displayMode == .sentinel {
+                                // One line, shrunk to fit: translations like ÄNDERUNGSPROTOKOLL are a single
+                                // word wider than the hero beside the version badge and broke mid-word.
                                 Text("CHANGELOG").font(MirrorTheme.mono(26, weight: .bold)).tracking(0.5)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
                             } else {
                                 Text("What's New").font(.system(size: 30, weight: .bold, design: .rounded))
                             }
