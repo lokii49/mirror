@@ -19,9 +19,9 @@ enum HighlightPalette {
     /// text, so without this every one reads as just "button" (audit 3.1).
     static func name(for index: Int, displayMode: DisplayMode) -> String {
         let names = displayMode == .sentinel
-            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
-            : ["Pink", "Purple", "Orange", "Mint", "Blue"]
-        guard names.indices.contains(index) else { return "Highlight" }
+            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
+            : [String(localized: "Pink"), String(localized: "Purple"), String(localized: "Orange"), String(localized: "Mint"), String(localized: "Blue")]
+        guard names.indices.contains(index) else { return String(localized: "Highlight") }
         return names[index]
     }
 
@@ -58,9 +58,9 @@ enum TextColorPalette {
 
     static func name(for index: Int, displayMode: DisplayMode) -> String {
         let names = displayMode == .sentinel
-            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
-            : ["Red", "Orange", "Green", "Blue", "Purple"]
-        guard names.indices.contains(index) else { return "Text color" }
+            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
+            : [String(localized: "Red"), String(localized: "Orange"), String(localized: "Green"), String(localized: "Blue"), String(localized: "Purple")]
+        guard names.indices.contains(index) else { return String(localized: "Text color") }
         return names[index]
     }
 
@@ -561,7 +561,9 @@ struct FormattingPanelView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(HighlightPalette.name(for: index, displayMode: displayMode))
+        // Both rows share colour names, so the label says which row ("Purple, Highlight").
+        .accessibilityLabel(Text(verbatim: HighlightPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Highlight"))
+        .accessibilityIdentifier("highlight-\(index)")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
@@ -583,7 +585,8 @@ struct FormattingPanelView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(TextColorPalette.name(for: index, displayMode: displayMode))
+        .accessibilityLabel(Text(verbatim: TextColorPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Text color"))
+        .accessibilityIdentifier("textColor-\(index)")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 

@@ -732,6 +732,14 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "panel_no_bulk_ops_on_body")
     }
 
+    /// Checklist actions live in the panel's Checklist menu (2026-10-09): open it, return the action.
+    @MainActor
+    private func checklistAction(_ name: String, in app: XCUIApplication) -> XCUIElement {
+        let actions = app.buttons["checklistActions"]
+        if actions.waitForExistence(timeout: 3) { actions.tap() }
+        return app.buttons[name]
+    }
+
     /// Bulk ops row is still present after the panel is closed and reopened with
     /// the cursor left on a checklist line.
     @MainActor
@@ -747,6 +755,9 @@ final class mirrorUITests: XCTestCase {
         closeFormattingPanel(in: app)     // keyboard back, cursor stays on the checklist line
         openFormattingPanel(in: app)      // reopen — activeParagraphStyle must still be checklist
 
+        let actions = app.buttons["checklistActions"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist actions menu must appear")
+        actions.tap()
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),   "Check All must appear")
         XCTAssertTrue(app.buttons["Uncheck All"].waitForExistence(timeout: 3), "Uncheck All must appear")
         XCTAssertTrue(app.buttons["Delete Done"].waitForExistence(timeout: 3), "Delete Done must appear")
@@ -774,19 +785,19 @@ final class mirrorUITests: XCTestCase {
 
         openFormattingPanel(in: app)
 
-        let checkAll = app.buttons["Check All"]
+        let checkAll = checklistAction("Check All", in: app)
         XCTAssertTrue(checkAll.waitForExistence(timeout: 3))
         checkAll.tap()
         Thread.sleep(forTimeInterval: 0.5)
         snapshot(app, name: "bulk_after_check_all")
 
-        let sortDone = app.buttons["Sort Done"]
+        let sortDone = checklistAction("Sort Done", in: app)
         XCTAssertTrue(sortDone.waitForExistence(timeout: 3))
         sortDone.tap()
         Thread.sleep(forTimeInterval: 0.5)
         snapshot(app, name: "bulk_after_sort_done")
 
-        let uncheckAll = app.buttons["Uncheck All"]
+        let uncheckAll = checklistAction("Uncheck All", in: app)
         XCTAssertTrue(uncheckAll.waitForExistence(timeout: 3))
         uncheckAll.tap()
         Thread.sleep(forTimeInterval: 0.5)
@@ -812,13 +823,13 @@ final class mirrorUITests: XCTestCase {
 
         openFormattingPanel(in: app)
 
-        let checkAll = app.buttons["Check All"]
+        let checkAll = checklistAction("Check All", in: app)
         XCTAssertTrue(checkAll.waitForExistence(timeout: 3))
         checkAll.tap()
         Thread.sleep(forTimeInterval: 0.5)
         snapshot(app, name: "bulk_before_delete_done")
 
-        let deleteDone = app.buttons["Delete Done"]
+        let deleteDone = checklistAction("Delete Done", in: app)
         XCTAssertTrue(deleteDone.waitForExistence(timeout: 3))
         deleteDone.tap()
         Thread.sleep(forTimeInterval: 0.5)
@@ -892,9 +903,11 @@ final class mirrorUITests: XCTestCase {
 
         // Audit 3.1 gave each swatch a real VoiceOver label (HighlightPalette.name) —
         // tap each by name instead of by coordinate guesswork (Classic palette names).
-        for name in ["Pink", "Purple", "Orange", "Mint", "Blue"] {
+        // Identifiers, not names: the highlight and text-colour rows share colour names (2026-10-09).
+        for name in (0..<5).map({ "highlight-\($0)" }) + (0..<5).map({ "textColor-\($0)" }) {
             let swatch = app.buttons[name]
-            XCTAssertTrue(swatch.waitForExistence(timeout: 3), "\(name) highlight swatch must exist")
+            XCTAssertTrue(swatch.waitForExistence(timeout: 3), "\(name) swatch must exist")
+            XCTAssertTrue(swatch.isHittable, "\(name) swatch must be on screen")
             swatch.tap()
             Thread.sleep(forTimeInterval: 0.2)
         }
