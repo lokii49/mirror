@@ -1808,8 +1808,14 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         /// Whether photo `index` has data that decodes to an image (tap and context menu ignore the rest).
         private func isPhotoReadable(_ index: Int) -> Bool {
-            index < parent.photoDataArray.count && UIImage(data: parent.photoDataArray[index]) != nil
+            index < parent.photoDataArray.count && photoCache.isReadable(parent.photoDataArray[index], at: index)
         }
+
+        /// Decoded, downsampled photo images for the attachments, kept across re-renders. Every
+        /// re-render (list Return, checklist tap, a paragraph style) used to make a fresh
+        /// `UIImage(data:)` per photo, which decodes the full-size JPEG again on the main thread
+        /// when drawn: ~31 ms per re-render with three 12 MP photos on an iPhone 14 Pro.
+        private var photoCache = PhotoAttachmentCache()
 
         /// Drawn for a token whose photo is missing or won't decode. It must be a real attachment
         /// character: `logicalText` turns each one back into its token, and photo lookups count
@@ -1833,18 +1839,16 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
+            let maxWidth = max(180, width - 8)
             guard photoIndex < parent.photoDataArray.count,
-                  let image = UIImage(data: parent.photoDataArray[photoIndex]) else {
+                  let photo = photoCache.image(for: parent.photoDataArray[photoIndex], at: photoIndex, maxWidth: maxWidth,
+                                               displayScale: max(UITraitCollection.current.displayScale, 2)) else {
                 return unreadablePhotoAttachmentString()
             }
 
-            let maxWidth = max(180, width - 8)
-            let scale = min(1, maxWidth / max(image.size.width, 1))
-            let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-
             let attachment = NSTextAttachment()
-            attachment.image = image
-            attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: targetSize)
+            attachment.image = photo.image
+            attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: photo.displaySize)
 
             let result = NSMutableAttributedString(attachment: attachment)
             // Font/color matter here even though nothing visible renders them on the
