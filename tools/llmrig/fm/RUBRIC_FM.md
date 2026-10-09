@@ -410,8 +410,13 @@ rate is known from rounds 5-10).
 - Per the plan (one round only), neither style was blind-scored and neither is built.
 - **Production findings (prod, not caused by the styles)**, follow-ups for the roadmap:
   - hold4_weekends fell back 10/10: the model copied the prompt's mood line, "Drained. Source: written entry.", as
-    the quote (the entry's first sentence, "Third weekend in a row working.", is short). The guard rejects it as
-    designed, so the day gets the fixed mood line instead of a reflection. Cause is the user message layout
-    (`Mood: X. Source: written entry.` directly above the text); fixing it needs its own rig round.
+    the quote. The guard rejects it as designed, so the day gets the fixed mood line instead of a reflection. Likely
+    cause (untested): the user message layout puts `Mood: X. Source: written entry.` directly above the text, and
+    this entry opens with a short sentence. All 33 cases share that layout and only this one copied it, so this
+    needs its own rig round before any change.
   - hold4_garden fell back 5/10: "you feel a sense of relief" ("relief" is not in the entry; the guard is right).
-  - hold3_hospital refused 10/10 as in round 11 (`refusedDayNudge` covers it).
+  - hold3_hospital: prod refused 10/10 ("May contain sensitive content") as in round 11, but S1 and S2 were
+    refused 0/10 each and showed a reflection all 10 times. The variants differ from prod only in the insight
+    line and `@Guide`, so that wording affects the refusal, and round 11's "no prompt can fix a decline on the input
+    itself" does not hold for these variants. One case, one round, with variants that failed elsewhere: this is a
+    lead for its own round, not evidence that a guide change fixes the refusal.
