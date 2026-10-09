@@ -1,9 +1,15 @@
-Blocca il tuo diario, trova tutto, tienilo in ordine
+Ricerca intelligente in Chiedi, stili di riflessione e un editor più affidabile
 
-• Blocco app: proteggi MirrorNotes con Face ID, Touch ID o il tuo codice. Si blocca all'apertura e dopo 5 minuti di assenza, e nasconde il diario nel selettore app. Attivalo in Impostazioni.
-• Ricerca migliorata: metti le parole tra "virgolette" per una frase esatta, scrivi tag:lavoro per cercare un tag o -parola per escludere una parola. Le corrispondenze sono evidenziate e i risultati si possono ordinare per pertinenza.
-• Filtri: combina più stati d'animo, alcuni o tutti i tuoi tag, intervalli di date (anche Questa settimana e Questo mese), foto, note vocali e voci fissate.
-• Raccolte: raggruppa le voci in raccolte e passa dall'una all'altra in Voci. Ogni voce può stare in una raccolta.
-• Viste salvate: salva una ricerca con filtri e ordinamento e riaprila con un tocco.
-• Bozze più sicure: la bozza non salvata è completamente cifrata sul tuo iPhone, l'editor mostra se è stata conservata e le modifiche non salvate a una voce si possono ripristinare alla successiva apertura.
-• Esporta tutto il diario come ZIP con file Markdown, foto e registrazioni vocali. Puoi reimportare un archivio decompresso; le voci esistenti non vengono mai sovrascritte.
+• Ricerca intelligente in Chiedi (facoltativa): trova le voci in base al significato, non solo alle parole uguali. Download unico di 334 MB con il Wi-Fi, funziona sul tuo dispositivo e il tuo diario non lo lascia mai. Attivala in Chiedi o nelle Impostazioni.
+• Chiedi trova risultati migliori anche senza: contano le parole intere, e le parole rare contano più di quelle comuni.
+• Stili di riflessione (Core): scegli come si legge la riflessione di oggi. Delicato come prima, Silenzioso solo con le tue parole o Curioso con una domanda su ciò che hai scritto. Sceglilo nelle Impostazioni.
+• Scrittura: la tastiera si apre subito, il cursore parte dalla fine della bozza e una bozza conserva data, font, tag e formattazione.
+• Formattazione: il pannello Aa è stato ridisegnato perché tutti i controlli stiano sullo schermo, anche con il testo grande, e le azioni delle checklist sono in un unico menu.
+• Elenchi e checklist: Cancella su un punto elenco esce dall'elenco, A capo su una voce vuota lo chiude, grassetto e corsivo restano dove li hai messi e l'annullamento funziona anche con la formattazione.
+• Un pannello Formato più chiaro (Aa): tutti gli stili, gli elenchi e i colori sono visibili insieme, ogni colore mostra cosa fa prima di toccarlo e le azioni delle checklist sono in un unico menu Elenco di controllo.
+• La scrittura in giapponese, cinese e coreano funziona meglio nell'editor.
+• Le voci lunghe e quelle con foto si modificano più velocemente.
+• Tag: scrivere #lavoro, o più tag separati da virgole, ora funziona come ti aspetti.
+• Esportazione e importazione ora includono le tue viste salvate.
+• Le parole cercate sono evidenziate anche nelle trascrizioni dei memo vocali.
+• Download del modello di IA sul dispositivo (per i dispositivi senza Apple Intelligence): Pausa e Riprendi, e Riprova dopo una connessione persa, ora ripartono da dove si erano fermati. Il modello ora arriva dal nostro server ed è verificato con un'impronta fissa prima dell'uso.

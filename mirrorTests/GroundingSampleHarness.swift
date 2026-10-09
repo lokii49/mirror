@@ -1147,6 +1147,27 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Round 12 held-out cases (tools/llmrig/fm/RUBRIC_FM.md, reflection styles Tier 2), written
+    /// before the run, all synthetic. Shapes a short plain line or a question could get wrong: a plan
+    /// asked about as if done, another person's grief given to the writer, two moods the same day.
+    static let heldOutRound12: [(label: String, entries: [Entry])] = {
+        let morning = Entry(text: "Slept badly, kept thinking about the rent going up next month.", mood: "Anxious")
+        let evening = Entry(text: "The landlord agreed to wait until March for the increase. Breathing easier tonight.", mood: "Hopeful")
+        morning.createdAt = Date().addingTimeInterval(-60)
+        return [
+            ("hold4_move", [Entry(text: "Packed the last boxes tonight. The new flat is smaller but closer to work. Kept finding old photos of Sam and me and had to stop for a while.", mood: "Sad")]),
+            ("hold4_garden", [Entry(text: "Planted the tomatoes and basil in the back bed. My hands were covered in dirt and my back aches, but it felt good to finish.", mood: "Content")]),
+            ("hold4_interview", [Entry(text: "Interview with the bank is tomorrow at ten. Ironed my shirt twice. Ma keeps sending me good luck messages.", mood: "Anxious")]),
+            ("hold4_cancel", [Entry(text: "Lena said I always cancel on her, and she's not wrong. I apologised but it came out flat. Not sure she believes me.", mood: "Sad")]),
+            ("hold4_baby", [Entry(text: "My sister had her baby at 4am, a girl! Saw the first photo and cried at my desk. Driving up on Saturday to meet her.", mood: "Joyful")]),
+            ("hold4_errands", [Entry(text: "Nothing much happened. Laundry, groceries, called the bank about a fee. Early night.", mood: "Content")]),
+            ("hold4_weekends", [Entry(text: "Third weekend in a row working. Told Tom I'm fine but I'm not sure I am. Skipped the climbing session again.", mood: "Drained")]),
+            ("hold4_colleague", [Entry(text: "Kai came back to the office today after his dad's funeral. He looked so tired. I left a coffee on his desk and didn't know what to say.", mood: "Sad")]),
+            ("hold4_bugfix", [Entry(text: "Finally fixed the bug that has haunted the team for a month. Raj bought everyone donuts. I'm proud but mostly relieved.", mood: "Grateful")]),
+            ("hold4_rent", [morning, evening]),
+        ]
+    }()
+
     /// Round 10: the exact (system, user) pair the English structured daily reflection sends
     /// (`structuredNudgeSystemPrompt` + `buildUserMessage` from `dailyNudgeContext`), one pair per case,
     /// for tools/llmrig/fm `fmrig prod|v1f`. No model runs. Output dir from HARNESS_DUMP_DIR.
@@ -1155,7 +1176,7 @@ final class GroundingSampleHarness: XCTestCase {
             throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 {
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 + Self.heldOutRound12 {
             let (recent, background) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
             let system = InsightService.structuredNudgeSystemPrompt(for: recent + background)
             let user = InsightService.buildUserMessage(
@@ -1374,8 +1395,15 @@ final class GroundingSampleHarness: XCTestCase {
             switch first.2 {
             case .samePrompt: gemmaSystem = first.0
             case .ownSystemPrompt(let own): gemmaSystem = own
-            default:
-                XCTFail("unexpected Gemma plan for \(label): \(first.2)")
+            case .grammarConstrained(let message, let grammar):
+                // The grounded follow-up chip (2026-09-28): same files as test_dumpNudgePromptsForRig.
+                try "<start_of_turn>user\n\(message)<end_of_turn>\n<start_of_turn>model\n"
+                    .write(toFile: "\(dir)/\(label)_gemma.prompt", atomically: true, encoding: .utf8)
+                try grammar.write(toFile: "\(dir)/\(label)_gemma.gbnf", atomically: true, encoding: .utf8)
+                return
+            case .unsuitable:
+                // Languages outside the grounded 10 get no chip on Gemma.
+                try "unsuitable".write(toFile: "\(dir)/\(label)_gemma.none", atomically: true, encoding: .utf8)
                 return
             }
             try gemmaSystem.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)

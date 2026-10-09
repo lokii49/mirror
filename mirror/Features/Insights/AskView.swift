@@ -28,6 +28,10 @@ struct AskView: View {
     @State private var isLoading = false
     @State private var error: String?
     @State private var keyboardHeight: CGFloat = 0
+    /// One-time offer of the semantic-search model: shown to anyone who can ask (Core/Deep) and
+    /// hasn't answered yet, never re-shown after Download or Not now.
+    /// The offer before an answer; after Download, the same card shows the download until the model is in.
+    @State private var showSmartSearchOffer = SemanticSearchService.consent != .declined && !SemanticSearchService.isModelOnDisk
     @FocusState private var isInputFocused: Bool
 
     private var monthLimit: Int {
@@ -532,6 +536,19 @@ struct AskView: View {
                         .padding(.top, 8)
                 }
 
+                if showSmartSearchOffer {
+                    SmartSearchOfferCard(alreadyAccepted: SemanticSearchService.consent == .accepted) { accepted in
+                        // Not now hides the card; Download keeps it, now showing the download.
+                        if !accepted { showSmartSearchOffer = false }
+                        SemanticSearchService.consent = accepted ? .accepted : .declined
+                        if accepted { Task { await SemanticSearchService.shared.ensureModelDownloadStarted() } }
+                    } onDone: {
+                        withAnimation { showSmartSearchOffer = false }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                }
+
                 if showSuggestions {
                     suggestionsRow
                 }
@@ -629,6 +646,9 @@ struct AskView: View {
         question = ""
         isInputFocused = false
 
+        // Retries a failed search-model download, only if the user agreed to it (offer card above,
+        // or Settings); keyword search answers until the model is installed and indexed.
+        await SemanticSearchService.shared.ensureModelDownloadStarted()
         do {
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(

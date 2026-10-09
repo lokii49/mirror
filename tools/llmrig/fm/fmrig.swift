@@ -45,6 +45,21 @@ import Foundation
     var insight: String
 }
 
+// Round 12 (RUBRIC_FM.md, reflection styles Tier 2): only the insight guide differs from the shipped one.
+@Generable struct DailyS1Plain {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "One short sentence, at most 15 words, speaking to the person as 'you': plainly what happened or how they felt, using only feelings they wrote or plainly showed. Do not explain what it means. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+    var insight: String
+}
+
+@Generable struct DailyS2Question {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "One open question to the person as 'you' about something they wrote today, in their own words: what it means to them or how it sits with them. No suggested answer, feeling or action. Plain everyday words. Ask about nothing they did not write")
+    var insight: String
+}
+
 @Generable struct DailyV1bEasy {
     @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
     var quote: String
@@ -190,7 +205,7 @@ func emit(_ obj: [String: Any]) {
                     } else {
                         rec["fallback"] = true
                     }
-                case "prod", "v1f":
+                case "prod", "v1f", "s1", "s2":
                     // Round 10. prod = the shipped reflection (V1e: guide, guard at 2 sentences, 3 attempts);
                     // v1f = two-or-three-sentence guide, guard keeps up to 3. The system prompt comes from argv.
                     let sources = todaySources(user)
@@ -203,6 +218,12 @@ func emit(_ obj: [String: Any]) {
                         let (quote, insight): (String, String)
                         if variant == "v1f" {
                             let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyV1f.self, options: opts).content
+                            (quote, insight) = (r.quote, r.insight)
+                        } else if variant == "s1" {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyS1Plain.self, options: opts).content
+                            (quote, insight) = (r.quote, r.insight)
+                        } else if variant == "s2" {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyS2Question.self, options: opts).content
                             (quote, insight) = (r.quote, r.insight)
                         } else {
                             let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyV1bEasy.self, options: opts).content

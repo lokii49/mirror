@@ -27,9 +27,9 @@ enum ArchiveTransfer {
         var unreadable: Int
     }
 
-    static func exportArchive(entries: [Entry], collections: [JournalCollection],
+    static func exportArchive(entries: [Entry], collections: [JournalCollection], savedViews: [SavedEntryView] = [],
                               progress: @escaping (Double) -> Void) async throws -> ExportResult {
-        let staged = try await stageArchive(entries: entries, collections: collections) { progress($0 * 0.9) }
+        let staged = try await stageArchive(entries: entries, collections: collections, savedViews: savedViews) { progress($0 * 0.9) }
         do {
             let root = staged.root
             let name = root.lastPathComponent
@@ -45,7 +45,7 @@ enum ArchiveTransfer {
 
     /// Writes the package folder (the part the zip wraps). Separate so tests can
     /// import exactly what export wrote.
-    static func stageArchive(entries: [Entry], collections: [JournalCollection],
+    static func stageArchive(entries: [Entry], collections: [JournalCollection], savedViews: [SavedEntryView] = [],
                              progress: @escaping (Double) -> Void) async throws -> StagedArchive {
         // Names are decrypted here once; an unreadable collection name is left out
         // (its entries still carry the id).
@@ -56,6 +56,13 @@ enum ArchiveTransfer {
             names[collection.id] = payload.name
             collectionRecords.append(.init(id: collection.id, name: payload.name, icon: payload.icon, colorIndex: payload.colorIndex))
         }
+        // Views the device can't decrypt are left out, like collections.
+        let viewRecords: [ArchivePackage.Manifest.SavedViewRecord] = savedViews
+            .sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
+            .compactMap { view in
+                guard let payload = view.payload else { return nil }
+                return .init(id: view.id, name: payload.name, query: payload.query, criteria: payload.criteria, sort: payload.sort)
+            }
         let now = Date()
         let timeZone = TimeZone.current
         let name = "MirrorNotes Export \(ArchivePackage.iso(now).prefix(10))"
@@ -80,7 +87,7 @@ enum ArchiveTransfer {
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             try ArchivePackage.writeManifest(records: records, unreadable: unreadable, to: root,
                                              appVersion: version, exportedAt: now, timeZone: timeZone,
-                                             collections: collectionRecords)
+                                             collections: collectionRecords, savedViews: viewRecords)
             return StagedArchive(root: root, exported: records.count, unreadable: unreadable.count)
         } catch {
             try? FileManager.default.removeItem(at: root.deletingLastPathComponent())
@@ -113,27 +120,35 @@ enum ArchiveTransfer {
     struct ImportPlan {
         /// Collections named in the package; missing ones are created on import.
         var collections: [ArchivePackage.Manifest.CollectionRecord] = []
+        /// Saved views named in the package; ones this journal lacks are created.
+        var savedViews: [ArchivePackage.Manifest.SavedViewRecord] = []
         var new: [ArchivePackage.ArchiveEntry]
         var changed: [ArchivePackage.ArchiveEntry]
         var identical: Int
         var unreadableInPackage: Int
+        /// Collections or saved views the journal lacks.
+        var hasOrganization: Bool { !collections.isEmpty || !savedViews.isEmpty }
     }
 
     /// What one import added, so it can be undone while the entries are untouched.
     struct ImportBatch {
         var digests: [UUID: String]
         var createdCollections: [UUID] = []
+        var createdSavedViews: [UUID] = []
+        var hasOrganization: Bool { !createdCollections.isEmpty || !createdSavedViews.isEmpty }
     }
 
     /// Reads and validates the package (off the main actor), then compares it
     /// with the journal by entry ID and content.
-    static func planImport(folder: URL, existing: [Entry]) async throws -> ImportPlan {
+    static func planImport(folder: URL, existing: [Entry], knownCollections: Set<UUID> = [],
+                           knownSavedViews: Set<UUID> = []) async throws -> ImportPlan {
         let accessed = folder.startAccessingSecurityScopedResource()
         defer { if accessed { folder.stopAccessingSecurityScopedResource() } }
         let package = try await Task.detached(priority: .userInitiated) { try ArchivePackage.read(from: folder) }.value
         var byID: [UUID: Entry] = [:]
         for entry in existing { byID[entry.id] = entry }
-        var plan = ImportPlan(collections: package.manifest.collections ?? [], new: [], changed: [], identical: 0,
+        var plan = ImportPlan(collections: (package.manifest.collections ?? []).filter { !knownCollections.contains($0.id) },
+                              savedViews: (package.manifest.savedViews ?? []).filter { !knownSavedViews.contains($0.id) }, new: [], changed: [], identical: 0,
                               unreadableInPackage: package.unreadable.count)
         for archived in package.entries {
             guard let current = byID[archived.id] else {
@@ -168,6 +183,21 @@ enum ArchiveTransfer {
             known.insert(record.id)
             batch.createdCollections.append(record.id)
             nextIndex += 1
+        }
+        // Saved views too: same id, so a re-import adds nothing and never overwrites a
+        // view the user has since edited.
+        let existingViews = (try? context.fetch(FetchDescriptor<SavedEntryView>())) ?? []
+        var knownViews = Set(existingViews.map(\.id))
+        var nextViewIndex = (existingViews.map(\.sortIndex).max() ?? -1) + 1
+        for record in plan.savedViews where !knownViews.contains(record.id) {
+            let view = SavedEntryView(id: record.id, payload: .init(name: record.name, query: record.query,
+                                                                    criteria: record.criteria, sort: record.sort),
+                                      sortIndex: nextViewIndex)
+            guard view.encryptedPayload != nil else { continue }
+            context.insert(view)
+            knownViews.insert(record.id)
+            batch.createdSavedViews.append(record.id)
+            nextViewIndex += 1
         }
         let toInsert = plan.new.map { ($0, $0.id) } + (importChangedAsCopies ? plan.changed.map { ($0, UUID()) } : [])
         for (archived, id) in toInsert {
@@ -205,6 +235,12 @@ enum ArchiveTransfer {
                   let collection = try? context.fetch(FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })).first
             else { continue }
             context.delete(collection)
+        }
+        // Views the import created go too (they hold no entries, only a search).
+        for id in batch.createdSavedViews {
+            if let view = try? context.fetch(FetchDescriptor<SavedEntryView>(predicate: #Predicate { $0.id == id })).first {
+                context.delete(view)
+            }
         }
         try context.save()
         return (removed, batch.digests.count - removed)
@@ -268,8 +304,12 @@ struct ArchiveTransferAlerts: ViewModifier {
             .alert("Import archive?", isPresented: Binding(get: { plan != nil }, set: { if !$0 { plan = nil } }),
                    presenting: plan) { plan in
                 if plan.changed.isEmpty {
-                    Button("Import \(plan.new.count) entries") { apply() }
-                        .disabled(plan.new.isEmpty)
+                    if plan.new.isEmpty && plan.hasOrganization {
+                        Button("Import saved views and collections") { apply() }
+                    } else {
+                        Button("Import \(plan.new.count) entries") { apply() }
+                            .disabled(plan.new.isEmpty)
+                    }
                 } else {
                     Button("Import new only (\(plan.new.count))") { importChangedAsCopies = false; apply() }
                     Button("Also add \(plan.changed.count) changed as copies") { importChangedAsCopies = true; apply() }
@@ -288,6 +328,8 @@ struct ArchiveTransferAlerts: ViewModifier {
 
     static func summary(_ plan: ArchiveTransfer.ImportPlan) -> String {
         var parts = [String(localized: "\(plan.new.count) new entries will be added.")]
+        if !plan.collections.isEmpty { parts.append(String(localized: "\(plan.collections.count) collections will be added.")) }
+        if !plan.savedViews.isEmpty { parts.append(String(localized: "\(plan.savedViews.count) saved views will be added.")) }
         if plan.identical > 0 { parts.append(String(localized: "\(plan.identical) are already in your journal and will be skipped.")) }
         if !plan.changed.isEmpty {
             parts.append(String(localized: "\(plan.changed.count) differ from the version in your journal. Your journal's version is never replaced; you can add the archive's version as a copy."))

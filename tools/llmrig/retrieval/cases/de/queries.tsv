@@ -1,0 +1,16 @@
+qid	class	lang	gold	query
+l1	lexical	de	ex1	Wann war ich im Fitnessstudio?
+l2	lexical	de	jb1,jb2,jb3	Was ist beim Vorstellungsgespräch passiert?
+l3	lexical	de	pt1	Was hat der Tierarzt gesagt?
+l4	lexical	de	wk1	Wie lief die Präsentation?
+p1	paraphrase	de	ex1,ex2,ex3,ex4	Treibe ich genug Sport?
+p2	paraphrase	de	sl1,sl2,sl3	Bin ich morgens ausgeruht?
+p3	paraphrase	de	mo1,mo2,mo3	Wie steht es um meine Finanzen?
+p4	paraphrase	de	mm1,mm2,mm3	Wie läuft es mit meiner Familie?
+p5	paraphrase	de	jb1,jb2,jb3	Suche ich eine neue Stelle?
+p6	paraphrase	de	pt1,pt2	Wie geht es meinem Haustier?
+p7	paraphrase	de	hl1,hl2	War ich krank?
+a1	abstract	de	hp1,hp2,mo2,jb2,fr2	Wann war ich am glücklichsten?
+a2	abstract	de	ln1	Wann habe ich mich einsam gefühlt?
+a3	abstract	de	bo1,wk2,wk3	Bin ich ausgebrannt?
+a4	abstract	de	wk1,sl1	Was macht mich nervös?

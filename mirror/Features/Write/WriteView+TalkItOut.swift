@@ -24,7 +24,7 @@ extension WriteView {
     /// WriteView (the chip only shows on a blank new entry), so there's no `initialText`
     /// prefill involved and no risk of the stale-draft-precedence bug that path once had.
     func appendTalkItOutText(_ text: String) {
-        let trimmed = viewModel.text.trimmingCharacters(in: .newlines)
+        let trimmed = trimmingTrailingNewlines(viewModel.text)
         viewModel.text = trimmed.isEmpty ? text : "\(trimmed)\n\n\(text)"
         // Same clamped-stale-selection bug templates hit (see WritingTemplate.cursorOffset) —
         // without this, the caret lands wherever it was before the append, not at the end where

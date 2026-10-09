@@ -259,6 +259,15 @@ struct ContentView: View {
             WhatsNewSheet(mode: .whatsNew)
                 .environment(\.appDisplayMode, displayMode)
         }
+        #if os(iOS)
+        // Write focuses its editor on launch, and these sheets open over it a moment later: put the
+        // keyboard away so it doesn't sit on top of the sheet (2026-10-09).
+        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
+            if covered {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+        }
+        #endif
         .sheet(isPresented: $showRatePrompt) {
             RateUsPromptSheet()
                 .environment(\.appDisplayMode, displayMode)

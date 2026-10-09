@@ -12,6 +12,7 @@ Recursos:
   • Linha do tempo de humor e relatórios mensais
   • Mapa mental: explore temas recorrentes em 3D
   • Faça perguntas sobre os padrões do seu diário
+  • Encontre entradas pelo significado com a busca inteligente opcional no dispositivo
   • Sincronização privada com o iCloud
   • Preferências de leitura em uma janela de Ajustes nativa
 

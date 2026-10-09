@@ -1038,16 +1038,107 @@ enum MacEditorSelfTest {
             check("uncheck all", styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistUnchecked"], "\(styles(box.style))")
         }
         do {
-            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]))
+            // "c" is bold; it must stay bold at its new offset (audit item 3).
+            let bold = InlineStyleRange(location: 4, length: 1, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: "a\nb\nc", style: doc([.checklistUnchecked, .checklistChecked, .checklistUnchecked]),
+                          inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
             let (tv, c) = makeEditor(box)
             c.apply(.deleteCheckedItems, to: tv)
             check("delete checked removes the row", box.text == "a\nc" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked"], "\(box.text.debugDescription) \(styles(box.style))")
+            check("delete checked keeps bold on a kept row", ranges(box.inline).map { [$0.location, $0.length] } == [[2, 1]], "\(ranges(box.inline))")
         }
         do {
-            let box = Box(text: "x\ny\nz", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+            // "x" is bold and moves to the bottom with its row.
+            let bold = InlineStyleRange(location: 0, length: 1, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: "x\ny\nz", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]),
+                          inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold])))
             let (tv, c) = makeEditor(box)
             c.apply(.sortCheckedToBottom, to: tv)
             check("sort checked to bottom", box.text == "y\nz\nx" && styles(box.style) == ["checklistUnchecked", "checklistUnchecked", "checklistChecked"], "\(box.text.debugDescription) \(styles(box.style))")
+            check("sort checked moves bold with its row", ranges(box.inline).map { [$0.location, $0.length] } == [[4, 1]], "\(ranges(box.inline))")
+        }
+
+        // 16. VoiceOver: the checklist item at the caret has a "Mark as done" action.
+        do {
+            let box = Box(text: "milk\nnotes", style: doc([.checklistUnchecked, .body]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            let names = (tv.accessibilityCustomActions() ?? []).map(\.name)
+            check("VoiceOver offers Mark as done on a checklist item", names.contains("Mark as done"), "\(names)")
+            _ = (tv.accessibilityCustomActions() ?? []).first { $0.name == "Mark as done" }?.handler?()
+            check("the action checks the item", styles(box.style).first == "checklistChecked", "\(styles(box.style))")
+            tv.setSelectedRange(NSRange(location: 8, length: 0))
+            check("no checklist action outside a checklist item", !((tv.accessibilityCustomActions() ?? []).map(\.name).contains { $0.hasPrefix("Mark as") }))
+        }
+
+        // 15. Return after a checked item or a heading (audit item 13).
+        do {
+            let box = Box(text: "done", style: doc([.checklistChecked]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            tv.insertText("next", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("Return after a checked item starts unchecked", box.text == "done\nnext" && styles(box.style) == ["checklistChecked", "checklistUnchecked"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "Title", style: doc([.heading]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 5, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            tv.insertText("body", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("Return at the end of a heading continues as body", box.text == "Title\nbody" && styles(box.style).first == "heading" && styles(box.style).dropFirst().allSatisfy { $0 == "body" },
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+        do {
+            let box = Box(text: "Title", style: doc([.heading]))
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 2, length: 0))
+            tv.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            check("splitting a heading keeps the tail a heading", box.text == "Ti\ntle" && styles(box.style) == ["heading", "heading"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+        }
+
+        // 14. Undo after a whole-document checklist command (audit item 6): Cmd-Z must restore the
+        // document as it was, not replay an earlier typing step at stale offsets.
+        do {
+            let box = Box(text: "a\nb\nc", style: doc([.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 1, length: 0))
+            tv.insertText("Z", replacementRange: NSRange(location: NSNotFound, length: 0))
+            tv.undoManager?.endUndoGrouping(); tv.undoManager?.beginUndoGrouping()
+            check("undo setup: typed", box.text == "aZ\nb\nc", box.text.debugDescription)
+            c.apply(.sortCheckedToBottom, to: tv)
+            check("undo setup: sorted", box.text == "b\nc\naZ", box.text.debugDescription)
+            tv.undoManager?.endUndoGrouping()
+            tv.undoManager?.undo()
+            check("undo after Sort Done restores the order", box.text == "aZ\nb\nc" && styles(box.style) == ["checklistChecked", "checklistUnchecked", "checklistUnchecked"],
+                  "\(box.text.debugDescription) \(styles(box.style))")
+            tv.undoManager?.undo()
+            check("a second undo removes the typing", box.text == "a\nb\nc", box.text.debugDescription)
+        }
+        do {
+            let box = Box(text: "a\nb", style: doc([.checklistUnchecked, .checklistUnchecked]))
+            let (tv, c) = makeEditor(box)
+            c.apply(.checkAllItems, to: tv)
+            tv.undoManager?.undo()
+            check("undo after Check All unchecks again", styles(box.style) == ["checklistUnchecked", "checklistUnchecked"], "\(styles(box.style))")
+            tv.undoManager?.redo()
+            check("redo checks all again", styles(box.style) == ["checklistChecked", "checklistChecked"], "\(styles(box.style))")
+        }
+
+        // 13. Input-method composition (Japanese, Chinese, Korean): nothing is saved while text
+        // is marked (NSTextView stores its underline on it), and the committed text is saved plain.
+        do {
+            let box = Box(text: "note")
+            let (tv, _) = makeEditor(box)
+            tv.setSelectedRange(NSRange(location: 4, length: 0))
+            tv.setMarkedText("か", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("composing: text not saved mid-composition", box.text == "note", box.text.debugDescription)
+            tv.setMarkedText("かん", selectedRange: NSRange(location: 2, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+            tv.insertText("漢", replacementRange: NSRange(location: NSNotFound, length: 0))
+            check("composing: committed text is saved", box.text == "note漢", box.text.debugDescription)
+            check("composing: no underline saved from the marked text", ranges(box.inline).isEmpty, "\(ranges(box.inline))")
         }
 
         // 8. Pasting is plain text.

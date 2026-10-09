@@ -27,12 +27,16 @@ enum WriteDraftStore {
         var inlineStyleData: Data?
         var mood: String?
         var tags: [String] = []
-        // Edit drafts only (nil for new-entry drafts).
+        /// Edit drafts always. New-entry drafts only when the person picked a date (a draft
+        /// started yesterday and finished today shouldn't come back dated yesterday).
         var entryDate: Date?
         /// `fingerprint` of the saved entry when editing started; a mismatch on
         /// restore means the entry changed since (e.g. on another device).
         var baseFingerprint: String?
         var savedAt: Date?
+        /// The entry-wide font (`WritingFontChoice` raw value). nil in drafts written before
+        /// 2026-10-09, which then keep whatever font the editor opened with.
+        var fontChoice: String?
 
         var isEmpty: Bool {
             text.isEmpty && mood == nil && tags.isEmpty

@@ -270,6 +270,11 @@ struct VoiceNoteAttachmentView: View {
     let duration: TimeInterval
     var title: String = String(localized: "Voice note")
     var transcript: String? = nil
+    /// Archive-search words to mark in the transcript (reader only). A transcript
+    /// that contains one is shown in full, so a match is never cut off.
+    var highlightTerms: [String] = []
+    /// This note holds the match the reader is showing: a stronger mark.
+    var isActiveMatch = false
     var languageName: String? = nil
     var isTranscribing: Bool = false
     var transcriptionFailed: Bool = false
@@ -288,6 +293,16 @@ struct VoiceNoteAttachmentView: View {
     private var failureLine: String {
         let reason = transcriptionFailureMessage ?? String(localized: "Transcription failed.")
         return "\(reason) \(String(localized: "AI won't reflect on this note."))"
+    }
+
+    private func hasMatch(in text: String) -> Bool {
+        !highlightTerms.isEmpty && !ReaderMatches.ranges(of: highlightTerms, in: text).isEmpty
+    }
+
+    /// Same marks as the entry text: ember in Sentinel, violet in Classic.
+    private func markedTranscript(_ text: String) -> AttributedString {
+        let mark = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet
+        return ReaderMatches.marked(text, terms: highlightTerms, mark: mark.opacity(isActiveMatch ? 0.45 : 0.18))
     }
 
     var body: some View {
@@ -370,10 +385,10 @@ struct VoiceNoteAttachmentView: View {
 
             if let transcript, !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Divider().padding(.horizontal, 14)
-                Text(transcript)
+                Text(markedTranscript(transcript))
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                    .lineLimit(4)
+                    .lineLimit(hasMatch(in: transcript) ? nil : 4)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
             } else if transcriptionFailed {

@@ -2,7 +2,7 @@ import Foundation
 import SwiftLlama
 import llama
 
-// Mac test rig: same llama.cpp build (b6102 xcframework), same SwiftLlama wrapper sources, same
+// Mac test rig: same llama.cpp build (the xcframework Packages/SwiftLlama pins), same SwiftLlama wrapper sources, same
 // GGUF as the app. Generation loop mirrors SwiftLlama's Llama.swift (processPrompt +
 // generateNextToken) exactly, so results transfer — plus a raw-prompt mode for prefill tests.
 

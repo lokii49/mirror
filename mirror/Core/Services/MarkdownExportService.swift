@@ -36,7 +36,8 @@ enum MarkdownExportService {
 
         let paragraphStyles = decodedParagraphStyles(textStyleData)
         let indentLevels = decodedIndentLevels(textStyleData)
-        let inlineRanges = decodedInlineRanges(inlineStyleData)
+        // Stored with a photo as one character; `text` holds the photo's token.
+        let inlineRanges = NoteEditorCodec.inlineRangesInTextCoordinates(decodedInlineRanges(inlineStyleData), text: text)
 
         let nsText = text as NSString
         var lines: [String] = []

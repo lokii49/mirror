@@ -12,6 +12,7 @@ Funzionalità:
   • Visualizza riflessioni giornaliere e riepiloghi settimanali
   • Esplora tendenze dell'umore e report mensili
   • Fai domande sugli schemi del tuo diario
+  • Trova le voci in base al significato con la ricerca intelligente facoltativa sul dispositivo
   • Sincronizza in privato con iCloud
   • Proteggi i tuoi scritti con archiviazione crittografata
 

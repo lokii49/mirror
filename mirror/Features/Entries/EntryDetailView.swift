@@ -166,6 +166,8 @@ struct EntryDetailView: View {
                                     duration: note.duration,
                                     title: String(localized: "Voice note \(index + 1)"),
                                     transcript: note.transcript,
+                                    highlightTerms: highlightTerms,
+                                    isActiveMatch: activeMatch?.place == .voiceNote(index),
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
@@ -354,6 +356,8 @@ struct EntryDetailView: View {
                                     duration: note.duration,
                                     title: String(localized: "Voice note \(index + 1)"),
                                     transcript: note.transcript,
+                                    highlightTerms: highlightTerms,
+                                    isActiveMatch: activeMatch?.place == .voiceNote(index),
                                     languageName: note.languageName,
                                     transcriptionFailed: index == 0 && entry.voiceNoteTranscriptionFailed
                                 )
@@ -684,7 +688,8 @@ private struct InlineEntryContent: View {
               let document = try? JSONDecoder().decode(InlineStyleDocument.self, from: inlineStyleData) else {
             return []
         }
-        return document.ranges
+        // Stored with a photo as one character; these lines hold the photo's token.
+        return NoteEditorCodec.inlineRangesInTextCoordinates(document.ranges, text: text)
     }
 
     private var indentLevels: [Int] {

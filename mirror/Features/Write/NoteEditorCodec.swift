@@ -9,7 +9,9 @@ import AppKit
 ///
 /// An entry stores its text plus two optional JSON documents (`textStyleData`: one style per
 /// paragraph; `inlineStyleData`: character ranges), both in *logical* coordinates: list
-/// markers and checkbox glyphs are never part of the stored text. The iOS editor displays
+/// markers and checkbox glyphs are never part of the stored text. Inline ranges count a photo
+/// as one character, not its token (see `InlineStyleRange.location`); the Mac editor only
+/// edits entries whose photos are all at the end, where the two agree. The iOS editor displays
 /// markers as real characters and maps display offsets to logical ones; the Mac editor draws
 /// markers outside the text, so its display text IS the logical text and no mapping exists.
 ///
@@ -226,9 +228,10 @@ enum NoteEditorCodec {
         var ranges: [InlineStyleRange] = []
 
         attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attrs, range, _ in
-            // Title and heading bold is the paragraph style, not an inline choice.
+            // Title, heading and subheading bold is the paragraph style, not an inline choice (same
+            // rule as the iOS editor, which reads bold from the font and cannot tell them apart).
             let style = paragraphModel(at: range.location, in: attributed).style
-            let paragraphBold = style == .heading || style == .title
+            let paragraphBold = style == .heading || style == .title || style == .subheading
             let bold = (attrs[boldKey] as? Bool ?? false) && !paragraphBold
             let italic = attrs[italicKey] as? Bool ?? false
             let underline = attrs[.underlineStyle] != nil
@@ -254,6 +257,203 @@ enum NoteEditorCodec {
         let merged = mergeInlineRanges(ranges)
         guard !merged.isEmpty else { return nil }
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
+    /// Inline ranges after the "\n"-separated rows of `text` are reordered or dropped (checklist
+    /// Sort Done and Delete Done). `rowOrder[i]` is the old index of new row `i`; rows left out are
+    /// deleted along with their formatting. Each range is cut at row edges and moves with its row.
+    /// Offsets are UTF-16, like `InlineStyleRange`.
+    static func remapInlineStyles(_ data: Data?, in text: String, rowOrder: [Int]) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let lengths = text.components(separatedBy: "\n").map { ($0 as NSString).length }
+        var oldStarts: [Int] = []
+        var offset = 0
+        for length in lengths {
+            oldStarts.append(offset)
+            offset += length + 1
+        }
+
+        var ranges: [InlineStyleRange] = []
+        var newStart = 0
+        for oldRow in rowOrder where lengths.indices.contains(oldRow) {
+            let rowStart = oldStarts[oldRow]
+            let rowEnd = rowStart + lengths[oldRow]
+            for range in document.ranges {
+                let start = max(range.location, rowStart)
+                let end = min(range.location + range.length, rowEnd)
+                guard end > start else { continue }
+                var moved = range
+                moved.location = newStart + (start - rowStart)
+                moved.length = end - start
+                ranges.append(moved)
+            }
+            newStart += lengths[oldRow] + 1
+        }
+
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
+    /// Inline ranges after `range` of the text is replaced by `length` new UTF-16 units. Ranges
+    /// after the edit shift; a range that overlaps it loses the replaced part, and one that spans
+    /// it keeps covering the replacement.
+    static func adjustInlineStyles(_ data: Data?, replacing range: NSRange, withLength length: Int) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let editEnd = range.location + range.length
+        let delta = length - range.length
+        func moved(_ offset: Int, isEnd: Bool) -> Int {
+            if offset <= range.location { return offset }
+            if offset >= editEnd { return offset + delta }
+            return isEnd ? range.location : range.location + length
+        }
+        let ranges = document.ranges.compactMap { styleRange -> InlineStyleRange? in
+            let start = moved(styleRange.location, isEnd: false)
+            let end = moved(styleRange.location + styleRange.length, isEnd: true)
+            guard end > start else { return nil }
+            var adjusted = styleRange
+            adjusted.location = start
+            adjusted.length = end - start
+            return adjusted
+        }
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
+    /// Inline ranges with bold removed inside `range` (other formatting there stays). Used when a
+    /// paragraph leaves Subheading: older iOS builds stored the subheading font's own bold as an
+    /// inline range, which would otherwise follow the paragraph into its new style.
+    static func clearingBold(_ data: Data?, in range: NSRange) -> Data? {
+        guard let document = decodeInlineStyleDocument(data), !document.ranges.isEmpty else { return nil }
+        let clearStart = range.location
+        let clearEnd = range.location + range.length
+        var ranges: [InlineStyleRange] = []
+        for styleRange in document.ranges {
+            let start = styleRange.location
+            let end = styleRange.location + styleRange.length
+            guard styleRange.bold, start < clearEnd, end > clearStart else { ranges.append(styleRange); continue }
+            func piece(_ from: Int, _ to: Int, bold: Bool) {
+                guard to > from else { return }
+                var part = styleRange
+                part.location = from
+                part.length = to - from
+                part.bold = bold
+                let hasFormatting = part.bold || part.italic || part.underline || part.strikethrough
+                    || part.highlightIndex != nil || part.linkURL != nil || part.textColorIndex != nil
+                if hasFormatting { ranges.append(part) }
+            }
+            piece(start, max(start, clearStart), bold: true)
+            piece(max(start, clearStart), min(end, clearEnd), bold: false)
+            piece(min(end, clearEnd), end, bold: true)
+        }
+        let merged = mergeInlineRanges(ranges)
+        guard !merged.isEmpty else { return nil }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: merged))
+    }
+
+    /// Stored inline ranges moved onto offsets in `text`, for surfaces that apply them to the raw
+    /// text (reader, Markdown export). The editor counts a photo as one character; `text` holds its
+    /// `[[mirror-photo-N]]` token, so every range after a mid-text photo is shifted by the token's
+    /// extra length. A photo that can't be decoded is drawn as a placeholder, so it is one
+    /// character too (entries edited before 3.1.0 may have counted it as nothing).
+    nonisolated static func inlineRangesInTextCoordinates(_ ranges: [InlineStyleRange], text: String) -> [InlineStyleRange] {
+        let tokens = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
+        guard !tokens.isEmpty, !ranges.isEmpty else { return ranges }
+        // Each photo's position in editor coordinates and how much longer its token is.
+        var photos: [(position: Int, extra: Int)] = []
+        var shift = 0
+        for token in tokens {
+            photos.append((token.location - shift, token.length - 1))
+            shift += token.length - 1
+        }
+        func textOffset(_ offset: Int) -> Int {
+            offset + photos.reduce(0) { offset > $1.position ? $0 + $1.extra : $0 }
+        }
+        return ranges.map { range in
+            var moved = range
+            let start = textOffset(range.location)
+            moved.location = start
+            moved.length = textOffset(range.location + range.length) - start
+            return moved
+        }
+    }
+
+    // MARK: - Repairing photo-line damage (one-time cleanup)
+
+    /// The list markers the iOS editor draws (all indent levels), as `NoteEditorTextView` renders them.
+    nonisolated static let staticListMarkers = ["•  ", "◦  ", "▸  ", "–  ", "·  ", "○  ", "✓  "]
+
+    /// Length of a list marker at the start of `line` ("•  ", "1.\t", legacy "1.  "), else 0.
+    static func leadingListMarkerLength(in line: NSString) -> Int {
+        for marker in staticListMarkers where line.hasPrefix(marker) { return (marker as NSString).length }
+        var i = 0
+        while i < line.length, (48...57).contains(line.character(at: i)) { i += 1 }
+        guard i > 0, i < line.length, line.character(at: i) == 46 else { return 0 }   // "."
+        i += 1
+        if i < line.length, line.character(at: i) == 9 { return i + 1 }               // "\t"
+        if i + 1 < line.length, line.character(at: i) == 32, line.character(at: i + 1) == 32 { return i + 2 }
+        return 0
+    }
+
+    /// Undoes what the pre-3.1.0 iOS editor saved into the text of entries with a mid-text photo
+    /// (audit item 2): a list marker drawn on the photo line and saved right after the token
+    /// ("[[mirror-photo-0]]•  "), and list items below a photo whose own marker was saved into
+    /// their text ("•  milk" stored as a bulleted paragraph, shown "•  •  milk"). The editor never
+    /// writes either, so both are removed; only lines from the first photo line on are touched.
+    /// Inline ranges move with the deleted characters. Styles that were shifted cannot be told
+    /// from real ones and are left alone. Nil when there is nothing to repair.
+    static func repairPhotoMarkerDamage(text: String, textStyleData: Data?, inlineStyleData: Data?) -> (text: String, inlineStyleData: Data?)? {
+        let nsText = text as NSString
+        let tokens = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
+        guard let firstToken = tokens.first else { return nil }
+
+        let starts = paragraphStarts(in: nsText)
+        func lineRange(_ index: Int) -> NSRange {
+            let end = index + 1 < starts.count ? starts[index + 1] - 1 : nsText.length
+            return NSRange(location: starts[index], length: end - starts[index])
+        }
+        var deletions: [NSRange] = []
+
+        // Markers saved right after a token that starts its line.
+        for token in tokens where token.location == 0 || nsText.character(at: token.location - 1) == 10 {
+            var end = NSMaxRange(token)
+            while end < nsText.length {
+                let rest = nsText.substring(from: end) as NSString
+                let markerLength = leadingListMarkerLength(in: rest)
+                guard markerLength > 0 else { break }
+                end += markerLength
+            }
+            if end > NSMaxRange(token) { deletions.append(NSRange(location: NSMaxRange(token), length: end - NSMaxRange(token))) }
+        }
+
+        // A list paragraph below a photo whose text starts with a marker.
+        if let styles = decodeTextStyleDocument(textStyleData)?.paragraphStyles {
+            let firstPhotoLine = starts.lastIndex { $0 <= firstToken.location } ?? 0
+            for index in starts.indices where index > firstPhotoLine && styles.indices.contains(index) && isListStyle(styles[index]) {
+                let line = lineRange(index)
+                var length = 0
+                while true {
+                    let rest = nsText.substring(with: NSRange(location: line.location + length, length: line.length - length)) as NSString
+                    let markerLength = leadingListMarkerLength(in: rest)
+                    guard markerLength > 0 else { break }
+                    length += markerLength
+                }
+                if length > 0 { deletions.append(NSRange(location: line.location, length: length)) }
+            }
+        }
+        guard !deletions.isEmpty else { return nil }
+
+        // Delete from the end so earlier offsets stay valid. Inline ranges count a photo as one
+        // character, so each deletion is moved into those coordinates first.
+        var repaired = nsText
+        var inline = inlineStyleData
+        for deletion in deletions.sorted(by: { $0.location > $1.location }) {
+            let extraBefore = tokens.reduce(0) { NSMaxRange($1) <= deletion.location ? $0 + $1.length - 1 : $0 }
+            inline = adjustInlineStyles(inline, replacing: NSRange(location: deletion.location - extraBefore, length: deletion.length), withLength: 0)
+            repaired = repaired.replacingCharacters(in: deletion, with: "") as NSString
+        }
+        return (repaired as String, inline)
     }
 
     /// Same rule as the iOS coordinator's `mergeInlineRanges`.

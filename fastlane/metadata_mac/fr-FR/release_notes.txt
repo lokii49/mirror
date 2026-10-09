@@ -1,11 +1,11 @@
-Verrouille ton journal, note depuis n'importe où, retrouve tout
+Recherche intelligente dans Demander, styles de réflexion et un éditeur plus fiable
 
-• Verrouillage de l'app : protège MirrorNotes avec Touch ID ou le mot de passe de ton Mac. L'app se verrouille à l'ouverture et après 5 minutes d'absence, et masque ton journal tant qu'elle est verrouillée. Active-le dans Réglages.
-• Saisie rapide depuis n'importe quelle app : appuie sur Option-Commande-J pour noter quelque chose sans quitter ce que tu fais. Change le raccourci ou désactive-le dans Réglages.
-• Ton rappel quotidien de check-in s'affiche maintenant même quand MirrorNotes est ouverte, et un clic t'amène directement à l'enregistrement de ton humeur.
-• Recherche améliorée : mets des mots entre « guillemets » pour une expression exacte, tape tag:travail pour chercher un tag, ou -mot pour exclure un mot. Les mots trouvés sont surlignés et les résultats peuvent être triés par pertinence.
-• Filtres : combine plusieurs humeurs, certains ou tous tes tags, des périodes (dont Cette semaine et Ce mois-ci), photos et entrées épinglées.
-• Collections : regroupe tes entrées en collections et passe de l'une à l'autre dans Entrées. Chaque entrée peut appartenir à une collection.
-• Vues enregistrées : enregistre une recherche avec ses filtres et son tri, et rouvre-la d'un clic.
-• Brouillons plus sûrs : l'éditeur indique si ton brouillon a été conservé, et les modifications non enregistrées d'une entrée, même fermée avec Échap, peuvent être restaurées à sa prochaine ouverture.
-• Exporte tout ton journal en ZIP avec des fichiers Markdown et tes photos. Tu peux réimporter une archive décompressée ; les entrées existantes ne sont jamais écrasées.
+• Recherche intelligente dans Demander (facultative) : trouvez des entrées par leur sens, pas seulement par des mots identiques. Téléchargement unique de 334 Mo en Wi-Fi, fonctionne sur votre appareil, et votre journal ne le quitte jamais. À activer dans Demander ou dans Réglages.
+• Même sans elle, Demander trouve de meilleurs résultats : les mots entiers comptent, et les mots rares comptent plus que les mots courants.
+• Styles de réflexion (Core) : choisissez comment se lit la réflexion du jour. Doux comme avant, Discret avec seulement vos propres mots, ou Curieux avec une question sur ce que vous avez écrit. À choisir dans Réglages.
+• Écriture : le curseur se place à la fin de votre brouillon, et un brouillon garde sa date, sa police, ses tags et sa mise en forme.
+• Listes et listes de tâches : Retour après un élément coché ou un titre se comporte correctement, le gras et l'italique restent là où vous les avez mis, et les modifications de listes de tâches s'annulent avec Commande-Z.
+• La saisie en japonais, chinois et coréen est mieux prise en charge dans l'éditeur.
+• Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
+• L'export et l'import incluent désormais vos vues enregistrées.
+• Téléchargement du modèle d'IA sur l'appareil (pour les appareils sans Apple Intelligence) : Pause et Reprendre, ainsi que Réessayer après une coupure de connexion, repartent désormais là où ils s'étaient arrêtés. Le modèle provient maintenant de notre propre serveur et est vérifié avec une empreinte fixe avant utilisation.

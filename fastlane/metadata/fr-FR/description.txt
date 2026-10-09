@@ -12,6 +12,7 @@ Fonctionnalités :
   • Consultez les réflexions quotidiennes et les résumés hebdomadaires
   • Explorez les tendances d'humeur et les rapports mensuels
   • Posez des questions sur les habitudes de votre journal
+  • Trouvez des entrées par leur sens grâce à la recherche intelligente facultative sur l'appareil
   • Synchronisez en privé avec iCloud
   • Protégez votre écriture avec un stockage chiffré
 

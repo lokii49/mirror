@@ -12,6 +12,7 @@ Funzionalità:
   • Cronologia dell'umore e report mensili
   • Mappa mentale: esplora i temi ricorrenti in 3D
   • Fai domande sugli schemi del tuo diario
+  • Trova le voci in base al significato con la ricerca intelligente facoltativa sul dispositivo
   • Sincronizzazione privata con iCloud
   • Preferenze di lettura in una finestra Impostazioni nativa
 

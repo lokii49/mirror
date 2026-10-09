@@ -18,6 +18,16 @@ struct AcknowledgmentsView: View {
                 )
 
                 acknowledgmentCard(
+                    title: "EmbeddingGemma",
+                    body: "If you turn on Smarter Ask search, mirror downloads EmbeddingGemma 300M (google/embeddinggemma-300m, GGUF build by ggml-org) once and runs it on your device to find entries for Ask. EmbeddingGemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms.",
+                    links: [
+                        ("Gemma Terms of Use", URL(string: "https://ai.google.dev/gemma/terms")),
+                        ("Gemma Prohibited Use Policy", URL(string: "https://ai.google.dev/gemma/prohibited_use_policy")),
+                        ("Model card (GGUF build used by mirror)", URL(string: "https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF")),
+                    ]
+                )
+
+                acknowledgmentCard(
                     title: "Foundation Models",
                     body: "On supported devices with Apple Intelligence enabled, mirror instead uses Apple's on-device Foundation Models framework. This ships as part of iOS and isn't a separate redistributed model.",
                     links: []

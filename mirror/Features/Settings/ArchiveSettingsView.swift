@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 struct ArchiveSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var collections: [JournalCollection]
+    @Query private var savedViews: [SavedEntryView]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -224,9 +225,10 @@ struct ArchiveSettingsView: View {
         exportProgress = 0
         let snapshot = entries
         let collectionSnapshot = collections
+        let viewSnapshot = savedViews
         exportTask = Task {
             do {
-                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot) { value in
+                let result = try await ArchiveTransfer.exportArchive(entries: snapshot, collections: collectionSnapshot, savedViews: viewSnapshot) { value in
                     exportProgress = value
                 }
                 exportProgress = nil
@@ -259,10 +261,13 @@ struct ArchiveSettingsView: View {
 
     private func planArchiveImport(_ folder: URL) {
         let existing = entries
+        let knownCollections = Set(collections.map(\.id))
+        let knownViews = Set(savedViews.map(\.id))
         Task {
             do {
                 importChangedAsCopies = false
-                importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing)
+                importPlan = try await ArchiveTransfer.planImport(folder: folder, existing: existing, knownCollections: knownCollections,
+                                                                knownSavedViews: knownViews)
             } catch ArchivePackage.PackageError.tooLarge {
                 archiveMessage = String(localized: "This archive is too large to import on this device in one go (over 750 MB of photos and recordings). Nothing was imported.")
             } catch {
@@ -275,9 +280,14 @@ struct ArchiveSettingsView: View {
         guard let plan = importPlan else { return }
         importPlan = nil
         do {
-            lastImportBatch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: importChangedAsCopies, context: modelContext)
-            let added = lastImportBatch?.digests.count ?? 0
-            archiveMessage = String(localized: "Imported \(added) entries.")
+            let batch = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: importChangedAsCopies, context: modelContext)
+            lastImportBatch = batch
+            if batch.digests.isEmpty, batch.hasOrganization {
+                // A package with nothing new but its collections and saved views.
+                archiveMessage = String(localized: "Imported \(batch.createdCollections.count) collections and \(batch.createdSavedViews.count) saved views.")
+            } else {
+                archiveMessage = String(localized: "Imported \(batch.digests.count) entries.")
+            }
         } catch {
             archiveMessage = String(localized: "The import failed and nothing was added.")
         }
@@ -287,6 +297,10 @@ struct ArchiveSettingsView: View {
         guard let batch = lastImportBatch else { return }
         lastImportBatch = nil
         if let result = try? ArchiveTransfer.undoImport(batch, context: modelContext) {
+            if batch.digests.isEmpty, batch.hasOrganization {
+                archiveMessage = String(localized: "Removed the imported collections and saved views.")
+                return
+            }
             archiveMessage = result.kept > 0
                 ? String(localized: "Removed \(result.removed) imported entries. \(result.kept) edited since the import were kept.")
                 : String(localized: "Removed \(result.removed) imported entries.")

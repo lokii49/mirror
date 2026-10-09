@@ -224,7 +224,9 @@ final class MirrorLayoutManager: NSLayoutManager {
             let symbol = model.style == .checklistChecked ? "checkmark.circle.fill" : "circle"
             let tint: NSColor = model.style == .checklistChecked ? .controlAccentColor : .secondaryLabelColor
             let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(paletteColors: [tint]))
-            if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
+            // Own keys: "Done" alone is the finish-button label (German "Fertig", not "Erledigt").
+            let description = model.style == .checklistChecked ? String(localized: "Checklist item done") : String(localized: "Checklist item not done")
+            if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)?.withSymbolConfiguration(config) {
                 image.draw(in: rect.offsetBy(dx: origin.x, dy: origin.y))
             }
         default:
@@ -246,6 +248,22 @@ final class MirrorLayoutManager: NSLayoutManager {
 final class MirrorNSTextView: NSTextView {
     var placeholder = String(localized: "What's on your mind?")
     var onToggleChecklist: ((Int) -> Void)?
+    /// The checklist item at the caret (its paragraph start and whether it is checked), if any.
+    var checklistItemAtCaret: (() -> (start: Int, checked: Bool)?)?
+
+    /// Checkboxes are drawn, not views, so VoiceOver can neither read their state nor press them.
+    /// The item at the caret gets a custom action named for what it does.
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        var actions = super.accessibilityCustomActions() ?? []
+        if let item = checklistItemAtCaret?() {
+            let name = item.checked ? String(localized: "Mark as not done") : String(localized: "Mark as done")
+            actions.append(NSAccessibilityCustomAction(name: name) { [weak self] in
+                self?.onToggleChecklist?(item.start)
+                return true
+            })
+        }
+        return actions
+    }
     /// Lets the editor take focus once the view is actually in a window.
     var onAttachToWindow: (() -> Void)?
 
@@ -356,6 +374,10 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.delegate = coordinator
         storage.delegate = coordinator
         textView.onToggleChecklist = { [weak coordinator] start in coordinator?.toggleChecklist(at: start) }
+        textView.checklistItemAtCaret = { [weak coordinator, weak textView] in
+            guard let coordinator, let textView else { return nil }
+            return coordinator.checklistItemAtCaret(in: textView)
+        }
         textView.onAttachToWindow = { [weak coordinator, weak textView] in
             guard let coordinator, let textView, coordinator.parent.isFocused else { return }
             DispatchQueue.main.async { textView.window?.makeFirstResponder(textView) }
@@ -383,6 +405,11 @@ struct NoteEditorTextView: NSViewRepresentable {
         }
 
         if isFocused, textView.window?.firstResponder !== textView {
+            // Same rule as iOS: the first programmatic focus starts at the end of the text.
+            if !coordinator.placedInitialCaret {
+                coordinator.placedInitialCaret = true
+                textView.setSelectedRange(NSRange(location: (textView.string as NSString).length, length: 0))
+            }
             DispatchQueue.main.async { textView.window?.makeFirstResponder(textView) }
         }
     }
@@ -403,8 +430,13 @@ struct NoteEditorTextView: NSViewRepresentable {
         var parent: NoteEditorTextView
         weak var textView: MirrorNSTextView?
         var lastAppliedCommandRevision = 0
+        /// Set once the first programmatic focus placed the caret at the end (or the person
+        /// focused the editor themselves, which keeps their caret).
+        var placedInitialCaret = false
 
         private var isApplying = false
+        /// Paragraphs edited while an input method was composing; restyled once it commits.
+        private var composedRange: NSRange?
         private var lastStyleData: Data?
         private var lastInlineData: Data?
         private var lastFontChoiceRaw = ""
@@ -435,7 +467,12 @@ struct NoteEditorTextView: NSViewRepresentable {
                 || lastTextSize != MacEditorStyle.bodySize
         }
 
-        func load(into textView: MirrorNSTextView) {
+        /// Shows the stored documents. `undoable`: a command's whole-document change (checklist
+        /// Check All, Sort Done, Delete Done), recorded by NSTextView as one undo step with the old
+        /// text and attributes. Otherwise an outside reload (opening an entry, a restored draft),
+        /// which drops the undo steps: they point into text that is gone, and Cmd-Z replayed them
+        /// at stale offsets (deleting the wrong character).
+        func load(into textView: MirrorNSTextView, undoable: Bool = false) {
             guard let storage = textView.textStorage else { return }
             let rendered = NoteEditorCodec.render(
                 text: parent.text, textStyleData: parent.textStyleData,
@@ -444,7 +481,19 @@ struct NoteEditorTextView: NSViewRepresentable {
             MacEditorStyle.restyle(rendered.attributed, in: NSRange(location: 0, length: rendered.attributed.length),
                                    entryFont: entryFont, displayMode: displayMode)
             isApplying = true
-            storage.setAttributedString(rendered.attributed)
+            if undoable {
+                let whole = NSRange(location: 0, length: storage.length)
+                textView.breakUndoCoalescing()
+                if textView.shouldChangeText(in: whole, replacementString: rendered.attributed.string) {
+                    storage.replaceCharacters(in: whole, with: rendered.attributed)
+                    textView.didChangeText()
+                }
+                textView.breakUndoCoalescing()
+            } else {
+                storage.setAttributedString(rendered.attributed)
+                textView.undoManager?.removeAllActions(withTarget: textView)
+                textView.undoManager?.removeAllActions(withTarget: storage)
+            }
             trailing = rendered.trailing
             layout?.trailingModel = rendered.trailing
             isApplying = false
@@ -468,6 +517,13 @@ struct NoteEditorTextView: NSViewRepresentable {
             let probe = NSRange(location: min(editedRange.location, text.length), length: min(editedRange.length, max(0, text.length - editedRange.location)))
             let paragraphs = text.paragraphRange(for: probe)
             guard paragraphs.length > 0 else { return }
+            // While an input method composes (Japanese, Chinese, Korean), NSTextView keeps the
+            // marked text's own attributes in the storage; restyling would strip them. Restyle
+            // these paragraphs once the composition is committed (textDidChange).
+            if let textView, textView.hasMarkedText() {
+                composedRange = composedRange.map { NSUnionRange($0, paragraphs) } ?? paragraphs
+                return
+            }
 
             var cursor = paragraphs.location
             while cursor < NSMaxRange(paragraphs) {
@@ -498,6 +554,19 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard !isApplying, let textView, let storage = textView.textStorage else { return }
+            // Mid-composition the marked text carries NSTextView's underline, which would be
+            // saved as the person's own underline. Save once the composition is committed.
+            guard !textView.hasMarkedText() else { return }
+            if let composed = composedRange {
+                composedRange = nil
+                let text = storage.string as NSString
+                let range = text.paragraphRange(for: NSIntersectionRange(composed, NSRange(location: 0, length: text.length)))
+                if range.length > 0 {
+                    storage.beginEditing()
+                    MacEditorStyle.restyle(storage, in: range, entryFont: entryFont, displayMode: displayMode)
+                    storage.endEditing()
+                }
+            }
             captureTrailingModel(from: textView)
             emit(storage: storage, textView: textView)
         }
@@ -520,7 +589,10 @@ struct NoteEditorTextView: NSViewRepresentable {
             guard !isApplying, let textView else { return }
             captureTrailingModel(from: textView)
             publishActiveState(in: textView)
-            if textView.window?.firstResponder === textView, !parent.isFocused { parent.isFocused = true }
+            if textView.window?.firstResponder === textView, !parent.isFocused {
+                placedInitialCaret = true   // focused by a click; keep that caret
+                parent.isFocused = true
+            }
             textView.scrollRangeToVisible(textView.selectedRange())
         }
 
@@ -594,7 +666,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             guard textView.selectedRange().length == 0 else { return false }
             switch commandSelector {
             case #selector(NSResponder.insertNewline(_:)):
-                return exitEmptyListItem(in: textView)
+                return exitEmptyListItem(in: textView) || continueAfterReturn(in: textView)
             case #selector(NSResponder.deleteBackward(_:)):
                 return leaveListAtParagraphStart(in: textView)
             case #selector(NSResponder.insertTab(_:)):
@@ -647,6 +719,44 @@ struct NoteEditorTextView: NSViewRepresentable {
             return true
         }
 
+        /// Return after a checked item starts an unchecked one; Return at the end of a title,
+        /// heading, subheading, monospaced or quote line continues as body (as on iOS). NSTextView's
+        /// own newline carried the paragraph's attributes over, so both continued as they were.
+        /// Splitting such a line in the middle keeps the tail in its style, as on iOS.
+        private func continueAfterReturn(in textView: NSTextView) -> Bool {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), !isTrailing else { return false }
+            let text = textView.string as NSString
+            let contentEnd = NSMaxRange(range) - (NSMaxRange(range) > range.location && text.character(at: NSMaxRange(range) - 1) == 10 ? 1 : 0)
+            let atEnd = textView.selectedRange().location >= contentEnd
+            let next: NoteParagraphTextStyle
+            switch model.style {
+            case .checklistChecked: next = .checklistUnchecked
+            case .title, .heading, .subheading, .monospaced, .blockQuote:
+                guard atEnd else { return false }
+                next = .body
+            default: return false
+            }
+            textView.undoManager?.beginUndoGrouping()
+            textView.insertNewline(nil)
+            if let (newRange, current, newIsTrailing) = caretParagraph(in: textView) {
+                var newModel = current
+                newModel.style = next
+                setModel(newModel, forParagraph: newRange, isTrailing: newIsTrailing, in: textView)
+            }
+            textView.undoManager?.endUndoGrouping()
+            return true
+        }
+
+        /// The checklist item the caret is in (for the VoiceOver action).
+        func checklistItemAtCaret(in textView: NSTextView) -> (start: Int, checked: Bool)? {
+            guard let (range, model, isTrailing) = caretParagraph(in: textView), !isTrailing else { return nil }
+            switch model.style {
+            case .checklistChecked: return (range.location, true)
+            case .checklistUnchecked: return (range.location, false)
+            default: return nil
+            }
+        }
+
         /// Backspace at the start of a list item turns it into a plain paragraph first.
         private func leaveListAtParagraphStart(in textView: NSTextView) -> Bool {
             guard let (range, model, isTrailing) = caretParagraph(in: textView), NoteEditorCodec.isListStyle(model.style) else { return false }
@@ -686,17 +796,18 @@ struct NoteEditorTextView: NSViewRepresentable {
             return rows
         }
 
-        /// Replaces the document with `rows`. Inline ranges are dropped because paragraph positions
-        /// moved (the iOS editor does the same).
-        private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], in textView: MirrorNSTextView) {
-            guard !rows.isEmpty else { return }
+        /// Replaces the document with `rows`. `rowOrder[i]` is the current paragraph index of new
+        /// row `i`; inline ranges move with their rows, as on iOS.
+        private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], rowOrder: [Int], in textView: MirrorNSTextView) {
+            guard !rows.isEmpty, let storage = textView.textStorage else { return }
+            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(
+                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder)
             parent.text = rows.map(\.text).joined(separator: "\n")
             // The stored document lists the empty last paragraph only when it is a list item.
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
             parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
-            parent.inlineStyleData = nil
-            load(into: textView)
+            load(into: textView, undoable: true)
             publishActiveState(in: textView)
         }
 
@@ -720,39 +831,41 @@ struct NoteEditorTextView: NSViewRepresentable {
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }
             parent.textStyleData = NoteEditorCodec.encodeTextStyleData(models: models, entryFont: entryFont)
-            load(into: textView)
+            load(into: textView, undoable: true)
             publishActiveState(in: textView)
         }
 
         private func deleteCheckedItems(in textView: MirrorNSTextView) {
             guard let rows = paragraphRows(in: textView) else { return }
-            let kept = rows.filter { $0.model.style != .checklistChecked }
-            guard kept.count < rows.count, !kept.isEmpty else {
-                if kept.isEmpty, !rows.isEmpty { replaceDocument(with: [("", NoteEditorCodec.ParagraphModel())], in: textView) }
+            let keptRows = rows.indices.filter { rows[$0].model.style != .checklistChecked }
+            guard keptRows.count < rows.count, !keptRows.isEmpty else {
+                if keptRows.isEmpty, !rows.isEmpty { replaceDocument(with: [("", NoteEditorCodec.ParagraphModel())], rowOrder: [], in: textView) }
                 return
             }
-            replaceDocument(with: kept, in: textView)
+            replaceDocument(with: keptRows.map { rows[$0] }, rowOrder: keptRows, in: textView)
         }
 
         /// Within each run of checklist items, unchecked ones come first (stable).
         private func sortCheckedToBottom(in textView: MirrorNSTextView) {
-            guard var rows = paragraphRows(in: textView) else { return }
-            func isChecklist(_ style: NoteParagraphTextStyle) -> Bool { style == .checklistChecked || style == .checklistUnchecked }
+            guard let rows = paragraphRows(in: textView) else { return }
+            func isChecklist(_ index: Int) -> Bool { rows[index].model.style == .checklistChecked || rows[index].model.style == .checklistUnchecked }
+            func isChecked(_ index: Int) -> Bool { rows[index].model.style == .checklistChecked }
+            var order = Array(rows.indices)
             var changed = false
             var i = 0
-            while i < rows.count {
-                guard isChecklist(rows[i].model.style) else { i += 1; continue }
+            while i < order.count {
+                guard isChecklist(order[i]) else { i += 1; continue }
                 var j = i
-                while j < rows.count, isChecklist(rows[j].model.style) { j += 1 }
-                let block = Array(rows[i..<j])
-                let sorted = block.filter { $0.model.style != .checklistChecked } + block.filter { $0.model.style == .checklistChecked }
-                if sorted.map(\.model.style) != block.map(\.model.style) {
+                while j < order.count, isChecklist(order[j]) { j += 1 }
+                let block = Array(order[i..<j])
+                let sorted = block.filter { !isChecked($0) } + block.filter { isChecked($0) }
+                if sorted.map(isChecked) != block.map(isChecked) {
                     changed = true
-                    rows.replaceSubrange(i..<j, with: sorted)
+                    order.replaceSubrange(i..<j, with: sorted)
                 }
                 i = j
             }
-            if changed { replaceDocument(with: rows, in: textView) }
+            if changed { replaceDocument(with: order.map { rows[$0] }, rowOrder: order, in: textView) }
         }
 
         // MARK: Commands

@@ -1,0 +1,51 @@
+qid	class	lang	gold	query
+l1	lexical	en	ex1,ex4	When did I go to the gym?
+l2	lexical	en	jb1,jb2,jb3	What happened with the job interview?
+l3	lexical	en	dg1,dg2,dg3	How is Biscuit doing?
+l4	lexical	en	mo1	What did I say about rent?
+l5	lexical	en	wk1,wk2	Tell me about the presentation.
+l6	lexical	en	dg1	What did the vet say?
+l7	lexical	en	fr1,fr2	When did I talk to Sam?
+l8	lexical	en	mv1,mv2,mv3	What happened with the move?
+l9	lexical	en	gt1	Did I play guitar?
+l10	lexical	en	hl1	What did I write about migraines?
+l11	lexical	en	ph1,ph2,sl4	Am I spending too much time on my phone?
+l12	lexical	en	cf1,cf2	How much coffee am I drinking?
+l13	lexical	en	pr1,pr2,pr3	How are things with Jordan?
+p1	paraphrase	en	ex1,ex2,ex3,ex4,ex5,ex6	Have I been working out?
+p2	paraphrase	en	sl1,sl2,sl3,sl4	How have I been sleeping?
+p3	paraphrase	en	mo1,mo2,mo3,mo4	How are my finances?
+p4	paraphrase	en	mm1,mm2,mm3,mm4,bd2	How are things with my parents?
+p5	paraphrase	en	jb1,jb2,jb3,jb4	Am I looking for a new position?
+p6	paraphrase	en	wk1,wk3,wk4,wk5,sl1	Did anything stress me out at the office?
+p7	paraphrase	en	dg1,dg2,dg3	How is my pet?
+p8	paraphrase	en	ck1,ck2,ck3	What have I been cooking?
+p9	paraphrase	en	rd1,rd2	What books have I enjoyed?
+p10	paraphrase	en	hl1,hl2,hl3,cf2	Have I been unwell?
+p11	paraphrase	en	tv1,tv2	Where have I traveled?
+p12	paraphrase	en	pr1,pr2,pr3	How is my relationship going?
+p13	paraphrase	en	pc1,pc2,ex4	Have I been putting things off?
+p14	paraphrase	en	pt1,pt2,gt1	What creative hobbies have I tried?
+p15	paraphrase	en	gd1,gd2	How are my plants?
+p16	paraphrase	en	ln1,ln2,fr1,fr2,fr3,bd1	What is my social life like?
+a1	abstract	en	hp1,hp2,hp3,mo2,pr2,bd1,dg2,jb2,mv2	When was I happiest?
+a2	abstract	en	ln1,ln2	When did I feel lonely?
+a3	abstract	en	wk1,wk3,sl1,pr3	What makes me anxious?
+a4	abstract	en	bo1,bo2,wk4,wk5	Am I burning out?
+a5	abstract	en	hp1,hp2,mm3	What am I grateful for?
+a6	abstract	en	dg2,ex2,mo2,gt1	When did I feel proud of myself?
+a7	abstract	en	pc1,pc2,mm4,ex4	What have I been avoiding?
+a8	abstract	en	mm3	When did I cry?
+a9	abstract	en	sl2,bo2,sl4	When did I feel rested?
+n1	nonen	de	de2	Wie schlafe ich?
+n2	nonen	de	de1	Mache ich Sport?
+n3	nonen	de	de3	Wie sieht es mit meinem Geld aus?
+n4	nonen	es	es1	¿Cómo duermo últimamente?
+n5	nonen	es	es2	¿Cómo está mi madre?
+n6	nonen	es	es3	¿Tengo problemas de dinero?
+n7	nonen	fr	fx1	Est-ce que je fais du sport ?
+n8	nonen	fr	fx2	Quand me suis-je sentie isolée ?
+n9	nonen	ja	ja1	よく眠れている？
+n10	nonen	ja	ja2	母はどうしてる？
+n11	nonen	ja	ja3	旅行の思い出は？
+n12	nonen	pt	pt3	Estou aprendendo música?

@@ -1,11 +1,11 @@
-Bloqueie seu diário, anote de qualquer lugar e encontre tudo
+Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
 
-• Bloqueio do app: proteja o MirrorNotes com Touch ID ou a senha do seu Mac. Ele bloqueia ao abrir o app e após 5 minutos fora, e cobre seu diário enquanto estiver bloqueado. Ative em Ajustes.
-• Captura rápida em qualquer app: pressione Option-Command-J para anotar algo sem sair do que está fazendo. Altere o atalho ou desative em Ajustes.
-• Seu lembrete diário de check-in agora aparece mesmo com o MirrorNotes aberto, e clicar nele leva direto ao registro de humor.
-• Busca melhorada: coloque palavras entre "aspas" para uma frase exata, digite tag:trabalho para buscar uma tag ou -palavra para excluir uma palavra. As palavras encontradas ficam destacadas, e os resultados podem ser ordenados por relevância.
-• Filtros: combine vários humores, algumas ou todas as suas tags, períodos (incluindo Esta semana e Este mês), fotos e entradas fixadas.
-• Coleções: agrupe entradas em coleções e alterne entre elas em Entradas. Cada entrada pode estar em uma coleção.
-• Visualizações salvas: salve uma busca com seus filtros e ordem e abra de novo com um clique.
-• Rascunhos mais seguros: o editor mostra se seu rascunho foi mantido, e alterações não salvas em uma entrada, mesmo fechada com Esc, podem ser restauradas na próxima vez que você abri-la.
-• Exporte todo o seu diário como um ZIP com arquivos Markdown e suas fotos. Você pode importar de volta um arquivo descompactado; entradas existentes nunca são substituídas.
+• Busca inteligente no Perguntar (opcional): encontre entradas pelo significado, não só por palavras iguais. Download único de 334 MB no Wi-Fi, roda no seu dispositivo e seu diário nunca sai dele. Ative no Perguntar ou em Ajustes.
+• Mesmo sem ela, o Perguntar encontra resultados melhores: palavras inteiras contam, e palavras raras contam mais que as comuns.
+• Estilos de reflexão (Core): escolha como a reflexão de hoje aparece. Suave como antes, Silencioso só com as suas palavras ou Curioso com uma pergunta sobre o que você escreveu. Escolha em Ajustes.
+• Escrever: o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
+• Listas e checklists: Return depois de um item marcado ou de um título funciona como deveria, negrito e itálico ficam onde você colocou, e mudanças em checklists podem ser desfeitas com Command-Z.
+• A digitação em japonês, chinês e coreano funciona melhor no editor.
+• Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.
+• Exportar e importar agora incluem suas visualizações salvas.
+• Download do modelo de IA no dispositivo (para dispositivos sem Apple Intelligence): Pausar e Retomar, e Tentar novamente após perder a conexão, agora continuam de onde pararam. O modelo agora vem do nosso próprio servidor e é verificado com uma impressão digital fixa antes de ser usado.

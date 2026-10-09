@@ -108,6 +108,13 @@ nonisolated enum ArchivePackage {
             var icon: String
             var colorIndex: Int
         }
+        struct SavedViewRecord: Codable, Sendable, Equatable {
+            var id: UUID
+            var name: String
+            var query: String
+            var criteria: SavedCriteria
+            var sort: String
+        }
         var format: String
         var version: Int
         var appVersion: String
@@ -117,6 +124,8 @@ nonisolated enum ArchivePackage {
         var unreadable: [Unreadable]
         /// Absent in packages written before collections existed.
         var collections: [CollectionRecord]?
+        /// Absent in packages written before saved views were exported.
+        var savedViews: [SavedViewRecord]?
     }
 
     enum PackageError: Error, Equatable {
@@ -193,10 +202,11 @@ nonisolated enum ArchivePackage {
 
     static func writeManifest(records: [Manifest.EntryRecord], unreadable: [Unreadable], to root: URL,
                               appVersion: String, exportedAt: Date, timeZone: TimeZone,
-                              collections: [Manifest.CollectionRecord] = []) throws {
+                              collections: [Manifest.CollectionRecord] = [],
+                              savedViews: [Manifest.SavedViewRecord] = []) throws {
         let manifest = Manifest(format: format, version: version, appVersion: appVersion, exportedAt: exportedAt,
                                 exportedTimeZone: timeZone.identifier, entries: records, unreadable: unreadable,
-                                collections: collections)
+                                collections: collections, savedViews: savedViews)
         try encoder.encode(manifest).write(to: root.appendingPathComponent("manifest.json"), options: .completeFileProtection)
         let readme = """
         # MirrorNotes export

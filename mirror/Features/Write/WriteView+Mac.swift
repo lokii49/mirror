@@ -16,7 +16,7 @@ extension WriteView {
     /// The date and time of the entry. Changes apply as they are made, through the same
     /// `entryDate` the save reads.
     var macDatePopover: some View {
-        MacEntryDatePopover(date: $entryDate) { showDatePicker = false }
+        MacEntryDatePopover(date: chosenEntryDate) { showDatePicker = false }
     }
 
     // MARK: - Toolbar
@@ -160,8 +160,9 @@ extension WriteView {
             detectMoodWithMirror()
         } label: {
             Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+            if !canSuggestMood { Text("Core required") }
         }
-        .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+        .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
         Divider()
         ForEach(MirrorTheme.moodOptions, id: \.self) { mood in
             Button {

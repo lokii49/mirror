@@ -33,7 +33,14 @@ struct NoteEditorTextView: UIViewRepresentable {
     var onPhotoTapped: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
+        let textView = MirrorEditorTextView()
+        context.coordinator.textView = textView
+        textView.caretAccessibilityActions = { [weak coordinator = context.coordinator, weak textView] in
+            guard let coordinator, let textView else { return [] }
+            return coordinator.checklistAccessibilityActions(in: textView)
+        }
+        textView.editorUndo = context.coordinator.editorUndoManager
+        context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
         textView.isEditable = true
@@ -76,8 +83,12 @@ struct NoteEditorTextView: UIViewRepresentable {
 
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.parent = self
+        context.coordinator.noteOutsideChange(in: textView)
 
-        let logicalMismatch = context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
+        // The full comparison rebuilds the logical text (several ms at 50k characters). When the
+        // text is exactly what the editor last showed or synced, it can't differ.
+        let logicalMismatch = !context.coordinator.isShowing(text)
+            && context.coordinator.logicalText(from: textView) != context.coordinator.displayTextEquivalent(for: text)
         if logicalMismatch {
             let selectedRange = textView.selectedRange
             context.coordinator.applyStyledText(to: textView, preservingSelection: false)
@@ -89,6 +100,13 @@ struct NoteEditorTextView: UIViewRepresentable {
         context.coordinator.updatePlaceholder(in: textView)
 
         if isFocused, !textView.isFirstResponder {
+            // The first focus this editor didn't get from a tap (autoFocus on Write, Edit, a
+            // restored draft) starts at the end of the text, like Notes; it used to start at
+            // the beginning. Later programmatic refocus keeps the caret where it was.
+            if !context.coordinator.placedInitialCaret {
+                context.coordinator.placedInitialCaret = true
+                textView.selectedRange = NSRange(location: (textView.text as NSString? ?? "").length, length: 0)
+            }
             textView.becomeFirstResponder()
         }
 
@@ -165,6 +183,27 @@ struct NoteEditorTextView: UIViewRepresentable {
         private var lastRenderedFontChoice: WritingFontChoice?
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
         private var lastKnownCursorLocation: Int = 0
+        /// Inline formatting chosen with nothing selected (B/I/U/S, highlight, colour, clear),
+        /// kept for as long as the caret stays where it was chosen. Without it the next render pass
+        /// rebuilt typing attributes from the paragraph style and the choice was lost.
+        private var pendingTypingInline: (location: Int, inline: TypingInline)?
+        /// A re-render was skipped because an input method was composing (setting
+        /// `attributedText` ends the composition); it runs once the composition ends.
+        private var renderDeferredForComposition = false
+        /// Several lines were pasted into a list item (display range of the pasted text, the item's
+        /// style and level). Lines after the first came in as body with no marker; textViewDidChange
+        /// gives them the item's style and redraws.
+        private var pastedIntoList: (range: NSRange, style: NoteParagraphTextStyle, level: Int)?
+
+        /// The inline formatting the next typed character gets (links are never extended).
+        struct TypingInline: Equatable {
+            var bold = false
+            var italic = false
+            var underline = false
+            var strikethrough = false
+            var highlightIndex: Int? = nil
+            var textColorIndex: Int? = nil
+        }
         // textViewDidChange and textViewDidChangeSelection both fire per keystroke, each
         // scheduling an async scrollCaretToVisible. Under fast typing/auto-repeat backspace,
         // several of these land before the previous animated scroll finishes; each restarts
@@ -183,11 +222,32 @@ struct NoteEditorTextView: UIViewRepresentable {
         // the scroll view's offset out from under us.
         var lastGoodContentOffset: CGPoint?
         var lastAppliedCommandRevision = 0
+        /// Set once the first programmatic focus placed the caret at the end (or the person
+        /// focused the editor themselves, which keeps their caret).
+        var placedInitialCaret = false
         // marker lengths per paragraph index, populated during render for coord mapping
         private var paragraphMarkerLengths: [Int: Int] = [:]
 
         init(parent: NoteEditorTextView) {
             self.parent = parent
+            super.init()
+            NotificationCenter.default.addObserver(self, selector: #selector(contentSizeCategoryDidChange),
+                                                   name: UIContentSizeCategory.didChangeNotification, object: nil)
+        }
+
+        /// The text view this coordinator draws into (for redraws it starts itself).
+        weak var textView: UITextView?
+
+        /// The system text size the body font follows. A function so tests can change it.
+        var contentSizeCategory: () -> UIContentSizeCategory = { UIApplication.shared.preferredContentSizeCategory }
+
+        /// Text size changed in Settings while writing: body text is built from a cached font and
+        /// attributed runs don't follow `adjustsFontForContentSizeCategory`, so redraw (headings
+        /// already rebuild their fonts on each render).
+        @objc func contentSizeCategoryDidChange() {
+            guard let textView else { return }
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
         }
 
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -217,7 +277,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
                 }
                 let sortedTokens = photoTokens.sorted { parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) < parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound) }
-                if attachCount < sortedTokens.count {
+                if attachCount < sortedTokens.count, isPhotoReadable(sortedTokens[attachCount].index) {
                     parent.onPhotoTapped?(sortedTokens[attachCount].index)
                 }
                 return
@@ -226,11 +286,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             let paraRange = nsText.paragraphRange(for: NSRange(location: charIndex, length: 0))
             let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
             let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
-            let iFontChoice = fontChoiceValue(at: paraRange.location, in: textView.attributedText)
             let markerStart = textView.textContainerInset.left + CGFloat(iLevel) * 20
             let markerEnd = textView.textContainerInset.left + 44 + CGFloat(iLevel) * 20
             guard location.x >= markerStart && location.x <= markerEnd else { return }
             guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
+            toggleChecklistItem(paragraphRange: paraRange, caret: charIndex, in: textView)
+        }
+
+        /// Checks or unchecks the checklist item in `paraRange` (a tap on its marker, or the
+        /// VoiceOver action). The caret ends at `caret`.
+        func toggleChecklistItem(paragraphRange paraRange: NSRange, caret charIndex: Int, in textView: UITextView) {
+            let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
+            guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
+            let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let iFontChoice = fontChoiceValue(at: paraRange.location, in: textView.attributedText)
 
             let nextStyle: NoteParagraphTextStyle = currentStyle == .checklistUnchecked ? .checklistChecked : .checklistUnchecked
             let mutable = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString())
@@ -260,20 +329,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             // toggling a checkbox — crossfade the marker glyph and the text dimming
             // together so it reads as one smooth transition, à la Notes.
             UIView.transition(with: textView, duration: 0.2, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+                self.applyInlineStyles(to: mutable, from: self.parent.inlineStyleData)
                 self.applyAttributedText(mutable, to: textView)
                 textView.selectedRange = self.bounded(NSRange(location: charIndex, length: 0), in: textView.text)
             }
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             // Sorting checked items to the bottom is still available via the "Sort Done"
-            // button, not automatic here — sortCheckedToBottom nils inline style data
-            // note-wide on every reorder, so firing it on every check would silently
-            // strip bold/italic/highlight elsewhere in the entry. Real Notes ships this
-            // off by default too.
+            // button, not automatic here: moving rows under the caret on every check is
+            // disorienting. Real Notes ships this off by default too.
+            commitUndoPoint(in: textView)
         }
 
         // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
@@ -281,7 +350,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
             guard let textView = interaction.view as? UITextView,
                   let photoIndex = photoAttachmentIndex(at: location, in: textView),
-                  photoIndex < parent.photoDataArray.count else { return nil }
+                  isPhotoReadable(photoIndex) else { return nil }
             let data = parent.photoDataArray[photoIndex]
             return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
                 let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
@@ -329,16 +398,19 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // UIFontDescriptor.preferredFontDescriptor + withDesign + UIFont init are not
         // free, and this is called on every keystroke/cursor movement across 13+ call
-        // sites — cache the built font, but keyed on the user's choice so switching
-        // fonts in the formatting panel takes effect immediately.
-        private var _bodyFontCache: (choice: WritingFontChoice, font: UIFont)?
+        // sites — cache the built font, keyed on the user's choice (so switching fonts in
+        // the formatting panel takes effect immediately) and on the text size (so a text
+        // size change in Settings does; it used to keep the old size until the editor closed).
+        private var _bodyFontCache: (choice: WritingFontChoice, category: UIContentSizeCategory, font: UIFont)?
         func bodyFont(for choice: WritingFontChoice) -> UIFont {
-            if let cache = _bodyFontCache, cache.choice == choice {
+            let category = contentSizeCategory()
+            if let cache = _bodyFontCache, cache.choice == choice, cache.category == category {
                 return cache.font
             }
-            let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
+            let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body,
+                                                                compatibleWith: UITraitCollection(preferredContentSizeCategory: category))
             let font = UIFont(descriptor: base.withDesign(choice.uiDesign) ?? base, size: 0)
-            _bodyFontCache = (choice, font)
+            _bodyFontCache = (choice, category, font)
             return font
         }
 
@@ -358,6 +430,30 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
+            if let paste = pastedIntoList {
+                let nsText = (textView.text ?? "") as NSString
+                let pasted = NSIntersectionRange(paste.range, NSRange(location: 0, length: nsText.length))
+                if pasted.length > 0 {
+                    let paragraphs = nsText.paragraphRange(for: pasted)
+                    textView.textStorage.addAttribute(Self.paragraphStyleAttribute, value: paste.style.rawValue, range: paragraphs)
+                    if paste.level > 0 { textView.textStorage.addAttribute(Self.indentLevelAttribute, value: paste.level, range: paragraphs) }
+                }
+            }
+            if renderDeferredForComposition {
+                // Stored styles changed while an input method was composing and the view hasn't
+                // shown them yet: reading styles back from it would undo that change. Keep the
+                // text in sync; once the composition ends, render the stored styles onto the
+                // current text, then carry on as usual.
+                parent.text = logicalText(from: textView)
+                guard textView.markedTextRange == nil else {
+                    if !changeWasGrouped { groupTypedChange(range: nil, replacement: nil) }
+                    changeWasGrouped = false
+                    committedSnapshot = currentSnapshot(of: textView)
+                    return
+                }
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            }
             parent.text = logicalText(from: textView)
             parent.textStyleData = encodedTextStyleData(from: textView)
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -365,8 +461,23 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             updateTypingAttributes(for: textView)
             refreshActiveInlineStyles(in: textView)
-            parent.canUndo = textView.undoManager?.canUndo ?? false
-            parent.canRedo = textView.undoManager?.canRedo ?? false
+            if !changeWasGrouped { groupTypedChange(range: nil, replacement: nil) }
+            changeWasGrouped = false
+            if pastedIntoList != nil {
+                // Draw the markers for the pasted lines, keeping the caret at the same place in
+                // the text (each new marker shifts display offsets after it).
+                pastedIntoList = nil
+                let logicalCaret = displayToLogical(display: textView.selectedRange.location,
+                                                    map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: false)
+                let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
+                isApplyingStyledText = true
+                textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
+                isApplyingStyledText = false
+                updateTypingAttributes(for: textView)
+            }
+            committedSnapshot = currentSnapshot(of: textView)
             scrollCaretToVisible(in: textView)
         }
 
@@ -450,6 +561,40 @@ struct NoteEditorTextView: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText replacement: String
         ) -> Bool {
+            if textView.markedTextRange != nil {
+                if replacement == "\n" {
+                    // Return while composing (Korean): commit the composed text first, so the
+                    // list handling below works on finished text instead of ending the
+                    // composition halfway through rebuilding the row.
+                    textView.unmarkText()
+                } else {
+                    // Every other change while composing belongs to the input method; list and
+                    // marker handling would rebuild the text and end the composition.
+                    groupTypedChange(range: nil, replacement: replacement)
+                    changeWasGrouped = true
+                    return true
+                }
+            }
+            let allowed = handleChange(textView, range: range, replacement: replacement)
+            if allowed {
+                // UIKit applies it; textViewDidChange records the result.
+                groupTypedChange(range: range, replacement: replacement)
+                changeWasGrouped = true
+                if replacement.count > 1, replacement.contains("\n"), let attributed = textView.attributedText, attributed.length > 0 {
+                    let at = min(range.location, attributed.length - 1)
+                    let style = textStyle(at: at, in: attributed)
+                    if isListStyle(style) {
+                        pastedIntoList = (NSRange(location: range.location, length: (replacement as NSString).length), style,
+                                          indentLevelValue(at: at, in: attributed))
+                    }
+                }
+            } else {
+                commitUndoPoint(in: textView)
+            }
+            return allowed
+        }
+
+        private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
                 // Find which attachment char is being deleted
@@ -461,6 +606,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             if replacement.isEmpty, exitsEmptyListAfterDeletion(in: rendered, range: range, textView: textView) {
+                return false
+            }
+
+            if replacement.isEmpty, leavesListFromMarker(in: rendered, range: range, textView: textView) {
                 return false
             }
 
@@ -601,8 +750,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             )
             isApplyingStyledText = false
 
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: paraLevel, fontChoice: paraFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
@@ -637,8 +785,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
 
             // Hand off to the shared command path — it covers the empty-doc,
@@ -650,6 +797,27 @@ struct NoteEditorTextView: UIViewRepresentable {
             lastKnownCursorLocation = caret.location
             apply(.numberedList, to: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return true
+        }
+
+        /// Backspace at the start of a list item's text (the caret sits just after the marker)
+        /// turns the item into a body paragraph, as on Mac and in Notes. Without this the
+        /// delete ate one marker character, and the half-marker was then saved as text.
+        private func leavesListFromMarker(in rendered: String, range: NSRange, textView: UITextView) -> Bool {
+            let nsText = rendered as NSString
+            guard nsText.length > 0, range.location < nsText.length else { return false }
+            let paragraphRange = nsText.paragraphRange(for: NSRange(location: range.location, length: 0))
+            let style = textStyle(at: paragraphRange.location, in: textView.attributedText)
+            guard isListStyle(style) else { return false }
+            let paragraph = nsText.substring(with: paragraphRange)
+            let markerLength = style == .numberedList
+                ? numberedListMarkerLength(in: paragraph)
+                : ((staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0)
+            let markerEnd = paragraphRange.location + markerLength
+            // Only a delete that starts inside the marker and stays inside it; a longer
+            // selection that reaches into the text keeps its normal behavior.
+            guard markerLength > 0, range.location < markerEnd, NSMaxRange(range) <= markerEnd else { return false }
+            stripListMarkerAndApply(.body, at: markerEnd, in: textView)
             return true
         }
 
@@ -738,7 +906,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         func textViewDidChangeSelection(_ textView: UITextView) {
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
+            // The caret moves inside the composition; clamping it or rewriting typing attributes
+            // there would break the input method.
+            guard textView.markedTextRange == nil else { return }
             clampCursorPastListMarker(in: textView)
+            updateTypingAttributes(for: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveFontChoice(in: textView)
             refreshActiveInlineStyles(in: textView)
@@ -775,6 +947,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
+            placedInitialCaret = true   // a tap placed the caret; never move it to the end later
             parent.isFocused = true
             lastKnownCursorLocation = textView.selectedRange.location
             refreshActiveParagraphStyle(in: textView)
@@ -787,6 +960,20 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func apply(_ command: NoteTextCommand, to textView: UITextView) {
+            switch command {
+            case .undo:
+                undoEdit(in: textView)
+            case .redo:
+                redoEdit(in: textView)
+            case .moveCursor:
+                performCommand(command, to: textView)
+            default:
+                performCommand(command, to: textView)
+                commitUndoPoint(in: textView)
+            }
+        }
+
+        private func performCommand(_ command: NoteTextCommand, to textView: UITextView) {
             // Inline style commands
             switch command {
             case .bold, .italic, .underline, .strikethrough:
@@ -828,20 +1015,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .photo(let index):
                 insertPhotoToken(at: index, in: textView)
                 return
-            case .undo:
-                textView.undoManager?.undo()
-                DispatchQueue.main.async {
-                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
-                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
-                }
-                return
-            case .redo:
-                textView.undoManager?.redo()
-                DispatchQueue.main.async {
-                    self.parent.canUndo = textView.undoManager?.canUndo ?? false
-                    self.parent.canRedo = textView.undoManager?.canRedo ?? false
-                }
-                return
+            case .undo, .redo:
+                return   // handled in apply(_:to:)
             case .moveCursor(let location):
                 // Runs in the same updateUIView pass as the text-diff branch above (lines
                 // 75-81), which has already applied the new text to textView by the time any
@@ -1113,11 +1288,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
 
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
 
             let newCursor = max(displayParaRange.location, cursorLocation - markerLen)
@@ -1140,18 +1316,28 @@ struct NoteEditorTextView: UIViewRepresentable {
             let width = textView.bounds.width.rounded()
             let fontChoice = WritingFontChoice(rawValue: parent.fontChoiceRaw) ?? .system
 
+            let isComposing = textView.markedTextRange != nil
             if lastRenderedText == rawText,
                lastRenderedStyleSignature == styleSignature,
                lastRenderedInlineSignature == inlineSignature,
                lastRenderedPhotoSignature == photoSignature,
                lastRenderedWidth == width,
                lastRenderedFontChoice == fontChoice {
+                // While an input method composes (Japanese, Chinese, Korean), the selection and
+                // typing attributes belong to it.
+                guard !isComposing else { return }
                 if preservingSelection {
                     textView.selectedRange = bounded(selectedRange, in: textView.text)
                 }
                 updateTypingAttributes(for: textView)
                 return
             }
+            // Setting attributedText would end the composition mid-word; render when it ends.
+            if isComposing {
+                renderDeferredForComposition = true
+                return
+            }
+            renderDeferredForComposition = false
 
             let attributed = renderedAttributedText(for: rawText, width: textView.bounds.width)
             applyInlineStyles(to: attributed, from: parent.inlineStyleData)
@@ -1169,6 +1355,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 textView.selectedRange = bounded(selectedRange, in: textView.text)
             }
             updateTypingAttributes(for: textView)
+            // The first render is the undo baseline (before any updateUIView has run).
+            if committedSnapshot == nil { committedSnapshot = currentSnapshot(of: textView) }
         }
 
         func updatePlaceholder(in textView: UITextView) {
@@ -1215,42 +1403,31 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func logicalText(from textView: UITextView) -> String {
             let attributed = textView.attributedText ?? NSAttributedString()
-            // Replace each attachment char with the correct indexed photo token
-            var displayString = attributed.string
+            let nsDisplay = attributed.string as NSString
+            guard nsDisplay.length > 0 else { return "" }
+            // Each attachment character becomes its photo's token, in text order.
             let photoTokensSorted = allPhotoTokens(in: parent.text).sorted {
                 parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
                 parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
             }
             var tokenIdx = 0
-            var rebuilt = ""
-            for ch in displayString {
-                if ch == "\u{fffc}" {
-                    let tok = tokenIdx < photoTokensSorted.count ? inlinePhotoToken(at: photoTokensSorted[tokenIdx].index) : inlinePhotoToken(at: tokenIdx)
-                    rebuilt += tok
-                    tokenIdx += 1
-                } else {
-                    rebuilt += String(ch)
-                }
-            }
-            displayString = rebuilt
-
-            let nsRendered = displayString as NSString
-            guard nsRendered.length > 0 else { return "" }
 
             var result = ""
-            // Use enclosingRange (3rd param) not substringRange (2nd param) — enclosingRange
-            // includes the paragraph separator (\n), substringRange does not.
-            nsRendered.enumerateSubstrings(in: NSRange(location: 0, length: nsRendered.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
-                let paragraph = nsRendered.substring(with: enclosingRange)
-                let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                let level = self.indentLevelValue(at: enclosingRange.location, in: attributed)
-                if let marker = self.staticListMarkerPrefix(for: style, level: level), paragraph.hasPrefix(marker) {
-                    result += String(paragraph.dropFirst(marker.count))
-                } else if style == .numberedList {
-                    let markerLen = self.numberedListMarkerLength(in: paragraph)
-                    result += markerLen > 0 ? String(paragraph.dropFirst(markerLen)) : paragraph
-                } else {
-                    result += paragraph
+            // Paragraphs and their attributes are read in display offsets. Swapping the tokens in
+            // first (as this used to) inflated every offset after a photo, so styles were read from
+            // the wrong paragraph and list markers were saved into the text.
+            // enclosingRange (3rd param) includes the paragraph separator (\n).
+            nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
+                let content = nsDisplay.substring(with: NSRange(location: enclosingRange.location + markerLen, length: enclosingRange.length - markerLen))
+                guard content.contains("\u{fffc}") else { result += content; return }
+                for ch in content {
+                    if ch == "\u{fffc}" {
+                        result += tokenIdx < photoTokensSorted.count ? inlinePhotoToken(at: photoTokensSorted[tokenIdx].index) : inlinePhotoToken(at: tokenIdx)
+                        tokenIdx += 1
+                    } else {
+                        result.append(ch)
+                    }
                 }
             }
             return result
@@ -1491,15 +1668,27 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsRaw = rawText as NSString
             let allMatches = regex?.matches(in: rawText, range: NSRange(rawText.startIndex..., in: rawText)) ?? []
 
+            // A segment's first paragraph index is the number of line breaks before it, so the
+            // text on either side of a photo token shares the photo line's one slot. Counting each
+            // segment's pieces gave a photo line two slots, while the encoder and the Mac codec
+            // store one: every style below a mid-text photo read the next paragraph's entry.
+            func paragraphIndex(at location: Int) -> Int {
+                var count = 0
+                var i = 0
+                while i < location {
+                    if nsRaw.character(at: i) == 10 { count += 1 }
+                    i += 1
+                }
+                return count
+            }
+
             var lastEnd = 0
-            var paragraphOffset = 0
 
             for match in allMatches {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
                 let textSegment = nsRaw.substring(with: textRange)
-                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphOffset)
+                let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0)
                 attributed.append(rendered.value)
-                paragraphOffset += rendered.paragraphCount
 
                 let token = nsRaw.substring(with: match.range)
                 let photoIdx = inlinePhotoIndex(from: token) ?? 0
@@ -1508,11 +1697,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             let tail = nsRaw.substring(from: lastEnd)
-            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphOffset).value)
+            attributed.append(renderedTextWithoutMarkdownMarkers(for: tail, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0).value)
             return attributed
         }
 
-        private func renderedTextWithoutMarkdownMarkers(for rawText: String, startingParagraph: Int) -> (value: NSAttributedString, paragraphCount: Int) {
+        /// `continuesLine`: the segment starts right after a photo token, so its first piece is the
+        /// rest of the photo's line. That line's marker was already drawn before the photo; drawing
+        /// it again after the photo put a second one there, which was then saved into the text.
+        private func renderedTextWithoutMarkdownMarkers(for rawText: String, startingParagraph: Int, continuesLine: Bool = false) -> (value: NSAttributedString, paragraphCount: Int) {
             let attributed = NSMutableAttributedString()
             let rawParagraphs = rawText.components(separatedBy: "\n")
             guard !rawParagraphs.isEmpty else { return (attributed, 0) }
@@ -1549,8 +1741,11 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 // Track numbered list counter per indent level for sequential
                 // numbering that restarts on nesting (see comment at declaration).
+                let isLineContinuation = continuesLine && offset == 0
                 var numberedListCounter = 0
-                if storedStyle == .numberedList {
+                if isLineContinuation {
+                    // Same line as the photo: no marker, no new number.
+                } else if storedStyle == .numberedList {
                     numberedListCounters = numberedListCounters.filter { $0.key <= indentLevel }
                     numberedListCounter = (numberedListCounters[indentLevel] ?? 0) + 1
                     numberedListCounters[indentLevel] = numberedListCounter
@@ -1570,7 +1765,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                 }
 
                 let listMarker: String
-                if storedStyle == .numberedList {
+                if isLineContinuation {
+                    listMarker = ""
+                } else if storedStyle == .numberedList {
                     listMarker = "\(numberedListCounter).\t"
                 } else {
                     listMarker = self.staticListMarkerPrefix(for: storedStyle, level: indentLevel) ?? ""
@@ -1603,19 +1800,66 @@ struct NoteEditorTextView: UIViewRepresentable {
             return (attributed, paragraphIndex - startingParagraph)
         }
 
+        /// VoiceOver can't tap a checkbox: the checklist item at the caret gets a custom action,
+        /// named for what it does, so it also says whether the item is done.
+        func checklistAccessibilityActions(in textView: UITextView) -> [UIAccessibilityCustomAction] {
+            let nsText = (textView.text ?? "") as NSString
+            guard nsText.length > 0, let attributed = textView.attributedText else { return [] }
+            let location = min(textView.selectedRange.location, nsText.length - 1)
+            let paragraph = nsText.paragraphRange(for: NSRange(location: location, length: 0))
+            let style = textStyle(at: paragraph.location, in: attributed)
+            guard style == .checklistUnchecked || style == .checklistChecked else { return [] }
+            let name = style == .checklistChecked ? String(localized: "Mark as not done") : String(localized: "Mark as done")
+            return [UIAccessibilityCustomAction(name: name) { [weak self, weak textView] _ in
+                guard let self, let textView else { return false }
+                self.toggleChecklistItem(paragraphRange: paragraph, caret: textView.selectedRange.location, in: textView)
+                return true
+            }]
+        }
+
+        /// Whether photo `index` has data that decodes to an image (tap and context menu ignore the rest).
+        private func isPhotoReadable(_ index: Int) -> Bool {
+            index < parent.photoDataArray.count && photoCache.isReadable(parent.photoDataArray[index], at: index)
+        }
+
+        /// Decoded, downsampled photo images for the attachments, kept across re-renders. Every
+        /// re-render (list Return, checklist tap, a paragraph style) used to make a fresh
+        /// `UIImage(data:)` per photo, which decodes the full-size JPEG again on the main thread
+        /// when drawn: ~31 ms per re-render with three 12 MP photos on an iPhone 14 Pro.
+        private var photoCache = PhotoAttachmentCache()
+
+        /// Drawn for a token whose photo is missing or won't decode. It must be a real attachment
+        /// character: `logicalText` turns each one back into its token, and photo lookups count
+        /// them. Rendering nothing (as this used to) dropped the token on the next keystroke and
+        /// matched every later photo to the wrong token.
+        private func unreadablePhotoAttachmentString() -> NSAttributedString {
+            let config = UIImage.SymbolConfiguration(pointSize: 34, weight: .light)
+            let symbol = UIImage(systemName: "photo.badge.exclamationmark", withConfiguration: config)?
+                .withTintColor(.tertiaryLabel, renderingMode: .alwaysOriginal)
+            let attachment = NSTextAttachment()
+            attachment.image = symbol
+            attachment.accessibilityLabel = String(localized: "Photo unavailable")
+            if let size = symbol?.size { attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: size) }
+            let result = NSMutableAttributedString(attachment: attachment)
+            result.addAttributes([
+                .paragraphStyle: paragraphStyle(lineSpacing: 8, paragraphSpacing: 8),
+                .font: bodyFont(for: entryDefaultFontChoice),
+                .foregroundColor: UIColor.label
+            ], range: NSRange(location: 0, length: result.length))
+            return result
+        }
+
         private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
+            let maxWidth = max(180, width - 8)
             guard photoIndex < parent.photoDataArray.count,
-                  let image = UIImage(data: parent.photoDataArray[photoIndex]) else {
-                return NSAttributedString(string: "")
+                  let photo = photoCache.image(for: parent.photoDataArray[photoIndex], at: photoIndex, maxWidth: maxWidth,
+                                               displayScale: max(UITraitCollection.current.displayScale, 2)) else {
+                return unreadablePhotoAttachmentString()
             }
 
-            let maxWidth = max(180, width - 8)
-            let scale = min(1, maxWidth / max(image.size.width, 1))
-            let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-
             let attachment = NSTextAttachment()
-            attachment.image = image
-            attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: targetSize)
+            attachment.image = photo.image
+            attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: photo.displaySize)
 
             let result = NSMutableAttributedString(attachment: attachment)
             // Font/color matter here even though nothing visible renders them on the
@@ -1672,18 +1916,41 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Remove from photoDataArray
             var photos = parent.photoDataArray
             if token.index < photos.count { photos.remove(at: token.index) }
-            // Renumber remaining tokens in text
-            var updatedText = parent.text
-            updatedText = updatedText
-                .replacingOccurrences(of: "\n" + tokenStr, with: "")
-                .replacingOccurrences(of: tokenStr + "\n", with: "")
-                .replacingOccurrences(of: tokenStr, with: "")
+            // Remove the token line from the text: the line break before it, else the one after.
+            var updatedText = parent.text as NSString
+            var removedBreakBefore = false
+            var removedBreakAfter = false
+            let tokenRange = updatedText.range(of: tokenStr)
+            if tokenRange.location != NSNotFound {
+                let tokenEnd = NSMaxRange(tokenRange)
+                var removal = tokenRange
+                if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
+                    removal = NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1)
+                    removedBreakBefore = true
+                } else if tokenEnd < updatedText.length, updatedText.character(at: tokenEnd) == 10 {
+                    removal.length += 1
+                    removedBreakAfter = true
+                }
+                updatedText = updatedText.replacingCharacters(in: removal, with: "") as NSString
+            }
             // Renumber subsequent tokens (indices shift down by 1)
-            for i in (token.index + 1)..<(parent.photoDataArray.count) {
-                updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1))
+            // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.
+            for i in stride(from: token.index + 1, to: parent.photoDataArray.count, by: 1) {
+                updatedText = updatedText.replacingOccurrences(of: inlinePhotoToken(at: i), with: inlinePhotoToken(at: i - 1)) as NSString
+            }
+            // Inline ranges count the photo as its one attachment character, so make the same
+            // removal there (renumbering a token changes nothing in those coordinates); otherwise
+            // formatting below the photo shifts by one or two characters.
+            if tokenRange.location != NSNotFound, let attributed = textView.attributedText {
+                let map = buildLogicalOffsetMap(from: attributed)
+                var location = displayToLogical(display: displayCharIndex, map: map)
+                var length = 1
+                if removedBreakBefore { location -= 1; length += 1 } else if removedBreakAfter { length += 1 }
+                parent.inlineStyleData = NoteEditorCodec.adjustInlineStyles(parent.inlineStyleData,
+                                                                            replacing: NSRange(location: max(0, location), length: length), withLength: 0)
             }
             parent.photoDataArray = photos
-            parent.text = updatedText
+            parent.text = updatedText as String
             applyStyledText(to: textView, preservingSelection: false)
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             updatePlaceholder(in: textView)
@@ -1714,6 +1981,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func updateTypingAttributes(for textView: UITextView) {
+            guard textView.markedTextRange == nil else { return }
             let nsText = (textView.text ?? "") as NSString
             guard nsText.length > 0 else {
                 textView.typingAttributes = bodyAttributes
@@ -1729,7 +1997,75 @@ struct NoteEditorTextView: UIViewRepresentable {
             let style = textStyle(at: cursorLoc, in: textView.attributedText)
             let level = indentLevelValue(at: cursorLoc, in: textView.attributedText)
             let fontChoice = fontChoiceValue(at: cursorLoc, in: textView.attributedText)
-            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            var typing = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            // Inline formatting: what was just chosen at this caret, else the character before the
+            // caret in the same paragraph (as in Notes: typing after a bold word stays bold).
+            let selection = textView.selectedRange
+            if let pending = pendingTypingInline, pending.location == selection.location, selection.length == 0 {
+                overlay(pending.inline, onto: &typing)
+            } else {
+                pendingTypingInline = nil
+                if let attributed = textView.attributedText, let inline = inheritedTypingInline(before: cursorLoc, in: attributed) {
+                    overlay(inline, onto: &typing)
+                }
+            }
+            textView.typingAttributes = typing
+        }
+
+        /// The inline formatting of the character before `location`, if it is in the same paragraph
+        /// and is text (not a list marker, a photo or the paragraph break).
+        private func inheritedTypingInline(before location: Int, in attributed: NSAttributedString) -> TypingInline? {
+            let nsText = attributed.string as NSString
+            guard location > 0, location <= nsText.length else { return nil }
+            let paragraph = nsText.paragraphRange(for: NSRange(location: location - 1, length: 0))
+            let contentStart = paragraph.location + displayedMarkerLength(of: paragraph, in: attributed)
+            guard location - 1 >= contentStart else { return nil }
+            let previous = nsText.character(at: location - 1)
+            guard previous != 10, previous != 0xFFFC else { return nil }
+            return typingInline(from: attributed.attributes(at: location - 1, effectiveRange: nil),
+                                style: textStyle(at: location - 1, in: attributed))
+        }
+
+        private func typingInline(from attributes: [NSAttributedString.Key: Any], style: NoteParagraphTextStyle) -> TypingInline {
+            let traits = (attributes[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
+            let paragraphBold = style == .heading || style == .title || style == .subheading
+            return TypingInline(
+                bold: traits.contains(.traitBold) && !paragraphBold,
+                italic: traits.contains(.traitItalic),
+                underline: attributes[.underlineStyle] != nil,
+                strikethrough: attributes[.strikethroughStyle] != nil,
+                highlightIndex: attributes[Self.highlightIndexAttribute] as? Int,
+                textColorIndex: attributes[Self.textColorIndexAttribute] as? Int
+            )
+        }
+
+        private func overlay(_ inline: TypingInline, onto typing: inout [NSAttributedString.Key: Any]) {
+            if let font = typing[.font] as? UIFont {
+                var styled = font
+                if inline.bold { styled = styled.withTrait(.traitBold, add: true) }
+                if inline.italic { styled = styled.withTrait(.traitItalic, add: true) }
+                typing[.font] = styled
+            }
+            if inline.underline { typing[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            if inline.strikethrough { typing[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+            let highlights = HighlightPalette.colors(for: parent.displayMode)
+            if let index = inline.highlightIndex, highlights.indices.contains(index) {
+                typing[.backgroundColor] = UIColor(highlights[index])
+                typing[Self.highlightIndexAttribute] = index
+            }
+            let textColors = TextColorPalette.colors(for: parent.displayMode)
+            if let index = inline.textColorIndex, textColors.indices.contains(index) {
+                typing[.foregroundColor] = UIColor(textColors[index])
+                typing[Self.textColorIndexAttribute] = index
+            }
+        }
+
+        /// Records the typing attributes a no-selection formatting choice just set.
+        private func rememberTypingInline(in textView: UITextView) {
+            guard textView.selectedRange.length == 0 else { pendingTypingInline = nil; return }
+            let location = textView.selectedRange.location
+            let style = textView.attributedText.map { textStyle(at: min(location, max(0, $0.length - 1)), in: $0) } ?? .body
+            pendingTypingInline = (location, typingInline(from: textView.typingAttributes, style: style))
         }
 
         private func paragraphStyle(for command: NoteTextCommand) -> NoteParagraphTextStyle {
@@ -1776,6 +2112,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             let boundedRange = bounded(range, in: mutable.string)
             let level = indentLevelValue(at: boundedRange.location, in: mutable)
             let fontChoice = fontChoiceValue(at: boundedRange.location, in: mutable)
+            // Entries saved before extraction skipped subheading bold carry it as an inline range;
+            // drop it with the style, or the stored ranges re-applied below keep the paragraph bold.
+            if textStyle(at: boundedRange.location, in: mutable) == .subheading, style != .subheading {
+                let map = buildLogicalOffsetMap(from: mutable)
+                let start = displayToLogical(display: boundedRange.location, map: map)
+                parent.inlineStyleData = NoteEditorCodec.clearingBold(parent.inlineStyleData,
+                                                                      in: NSRange(location: start, length: boundedRange.length))
+            }
             mutable.removeAttribute(Self.paragraphStyleAttribute, range: boundedRange)
             mutable.addAttributes(attributes(for: style, level: level, fontChoice: fontChoice), range: boundedRange)
             if style != .body {
@@ -1788,10 +2132,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
             updateTypingAttributes(for: textView)
         }
@@ -1816,10 +2161,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             isApplyingStyledText = true
+            // The paragraph font was just replaced, which drops inline bold/italic; put the stored ranges back.
+            applyInlineStyles(to: mutable, from: parent.inlineStyleData)
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             syncRenderedCache(from: textView)
         }
 
@@ -1886,8 +2232,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
             // Re-render to show correct number
             if newStyle == .numberedList { invalidateRenderedCache() }
             applyStyledText(to: textView, preservingSelection: false)
@@ -1932,10 +2277,17 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             isApplyingStyledText = true
             applyAttributedText(mutable, to: textView)
-            textView.selectedRange = bounded(NSRange(location: boundedRange.location + lineBreak.count, length: 0), in: textView.text)
+            // The caret stays on the line that left the list (it used to land on the row below
+            // when the empty item had rows after it).
+            textView.selectedRange = bounded(NSRange(location: boundedRange.location, length: 0), in: textView.text)
             isApplyingStyledText = false
-            parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            storeDocuments(from: textView)
+            // A numbered list below now starts a new list: redraw so it counts from 1.
+            let afterExit = boundedRange.location + (lineBreak as NSString).length
+            if afterExit < (textView.text as NSString).length, textStyle(at: afterExit, in: textView.attributedText) == .numberedList {
+                invalidateRenderedCache()
+                applyStyledText(to: textView, preservingSelection: true)
+            }
             textView.typingAttributes = styledAttributesForTyping(.body, numberedIndex: nil, level: 0, fontChoice: exitFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
@@ -2088,6 +2440,177 @@ struct NoteEditorTextView: UIViewRepresentable {
             ))
         }
 
+        /// Reads the text and paragraph styles back from the view after an edit, and the inline
+        /// ranges too when the logical text moved (list Return, typing into a marker, "1. "):
+        /// otherwise the next re-render applies them at stale offsets and the next keystroke
+        /// saves the shifted result. When the text did not move the stored ranges stay: a style
+        /// change replaces the paragraph's font, so reading bold/italic back from it would lose them.
+        private func storeDocuments(from textView: UITextView) {
+            let text = logicalText(from: textView)
+            let moved = text != parent.text
+            parent.text = text
+            parent.textStyleData = encodedTextStyleData(from: textView)
+            if moved { parent.inlineStyleData = extractedInlineStyleData(from: textView) }
+        }
+
+        /// The text in the coordinates inline ranges use: the displayed text without list markers
+        /// (same rule as `buildLogicalOffsetMap`). A photo is its one attachment character here (a
+        /// placeholder when it can't be decoded), never its `[[mirror-photo-N]]` token, so these
+        /// offsets differ from `parent.text` after a photo.
+        func inlineCoordinateText(from attributed: NSAttributedString) -> String {
+            let nsDisplay = attributed.string as NSString
+            var result = ""
+            nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
+                result += nsDisplay.substring(with: NSRange(location: enclosingRange.location + markerLen, length: enclosingRange.length - markerLen))
+            }
+            return result
+        }
+
+        // MARK: - Undo
+        //
+        // UITextView's own undo manager loses its whole stack whenever `attributedText` is set,
+        // which every list Return, re-render, formatting command and checkbox tap does. So the
+        // editor keeps its own history of whole-document snapshots, and the text view's undo
+        // manager (Undo button, Cmd-Z, shake, three-finger swipe) is pointed at it.
+
+        struct EditorSnapshot {
+            var text: String
+            var textStyleData: Data?
+            var inlineStyleData: Data?
+            var photos: [Data]
+            var selection: NSRange
+
+            func hasSameContent(as other: EditorSnapshot) -> Bool {
+                text == other.text && textStyleData == other.textStyleData && inlineStyleData == other.inlineStyleData
+                    && photos.count == other.photos.count && photos.map(\.count) == other.photos.map(\.count)
+            }
+        }
+
+        private struct TypingGroup {
+            var isDeletion: Bool
+            var nextLocation: Int
+            var lastEdit: Date
+        }
+
+        private static let undoLimit = 200
+        private static let typingGroupPause: TimeInterval = 2
+
+        private var undoStack: [EditorSnapshot] = []
+        private var redoStack: [EditorSnapshot] = []
+        /// The document as of the last change the editor knows about: what an undo point records.
+        private var committedSnapshot: EditorSnapshot?
+        private var typingGroup: TypingGroup?
+        /// Set by `shouldChangeTextIn` when it has already grouped the change `textViewDidChange` reports.
+        private var changeWasGrouped = false
+        /// Outside changes (loading the entry, restoring a draft) are not undoable until the
+        /// person has edited, so Undo can never empty an entry that was just opened.
+        private var hasUserEdited = false
+
+        var canUndoEdit: Bool { !undoStack.isEmpty }
+        var canRedoEdit: Bool { !redoStack.isEmpty }
+
+        lazy var editorUndoManager = EditorUndoManager(coordinator: self)
+
+        func currentSnapshot(of textView: UITextView) -> EditorSnapshot {
+            EditorSnapshot(text: parent.text, textStyleData: parent.textStyleData, inlineStyleData: parent.inlineStyleData,
+                           photos: parent.photoDataArray, selection: textView.selectedRange)
+        }
+
+        private func pushUndo(_ snapshot: EditorSnapshot) {
+            undoStack.append(snapshot)
+            if undoStack.count > Self.undoLimit { undoStack.removeFirst(undoStack.count - Self.undoLimit) }
+            redoStack.removeAll()
+            hasUserEdited = true
+            publishUndoState()
+        }
+
+        /// After a structural edit or command: one undo step if the document changed.
+        private func commitUndoPoint(in textView: UITextView) {
+            let current = currentSnapshot(of: textView)
+            typingGroup = nil
+            guard let committed = committedSnapshot else { committedSnapshot = current; return }
+            if !committed.hasSameContent(as: current) { pushUndo(committed) }
+            committedSnapshot = current
+        }
+
+        /// Before UIKit applies a typed change: start a new undo step unless it continues the
+        /// current run (same kind, at the caret, within a short pause, no line break).
+        private func groupTypedChange(range: NSRange?, replacement: String?) {
+            let now = Date()
+            let isDeletion = replacement?.isEmpty ?? false
+            var continues = false
+            if let group = typingGroup, now.timeIntervalSince(group.lastEdit) < Self.typingGroupPause, group.isDeletion == isDeletion {
+                if let range {
+                    continues = isDeletion ? NSMaxRange(range) == group.nextLocation : range.location == group.nextLocation
+                } else {
+                    continues = true   // marked (IME) text has no range here; group it by time
+                }
+            }
+            if replacement?.contains("\n") == true { continues = false }
+            if !continues, let committed = committedSnapshot { pushUndo(committed) }
+            let next: Int
+            if let range { next = isDeletion ? range.location : range.location + ((replacement ?? "") as NSString).length } else { next = typingGroup?.nextLocation ?? 0 }
+            typingGroup = replacement?.contains("\n") == true ? nil : TypingGroup(isDeletion: isDeletion, nextLocation: next, lastEdit: now)
+        }
+
+        /// Called at the start of every `updateUIView`: a document change the editor did not make
+        /// (an append, a scan, a photo attached) becomes an undo step once the person has edited.
+        func noteOutsideChange(in textView: UITextView) {
+            let current = currentSnapshot(of: textView)
+            guard let committed = committedSnapshot else { committedSnapshot = current; return }
+            guard !committed.hasSameContent(as: current) else { return }
+            if hasUserEdited { pushUndo(committed) }
+            committedSnapshot = current
+            typingGroup = nil
+        }
+
+        func undoEdit(in textView: UITextView) {
+            guard let snapshot = undoStack.popLast() else { return }
+            redoStack.append(currentSnapshot(of: textView))
+            restore(snapshot, in: textView)
+        }
+
+        func redoEdit(in textView: UITextView) {
+            guard let snapshot = redoStack.popLast() else { return }
+            undoStack.append(currentSnapshot(of: textView))
+            restore(snapshot, in: textView)
+        }
+
+        private func restore(_ snapshot: EditorSnapshot, in textView: UITextView) {
+            parent.text = snapshot.text
+            parent.textStyleData = snapshot.textStyleData
+            parent.inlineStyleData = snapshot.inlineStyleData
+            if parent.photoDataArray.map(\.count) != snapshot.photos.map(\.count) { parent.photoDataArray = snapshot.photos }
+            pendingTypingInline = nil
+            typingGroup = nil
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: false)
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(snapshot.selection, in: textView.text)
+            isApplyingStyledText = false
+            lastKnownCursorLocation = textView.selectedRange.location
+            updateTypingAttributes(for: textView)
+            updatePlaceholder(in: textView)
+            refreshActiveParagraphStyle(in: textView)
+            refreshActiveInlineStyles(in: textView)
+            committedSnapshot = currentSnapshot(of: textView)
+            publishUndoState()
+        }
+
+        /// The toolbar buttons read these. Deferred: this can run inside `updateUIView`.
+        private func publishUndoState() {
+            let canUndo = canUndoEdit, canRedo = canRedoEdit
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if self.parent.canUndo != canUndo { self.parent.canUndo = canUndo }
+                if self.parent.canRedo != canRedo { self.parent.canRedo = canRedo }
+            }
+        }
+
+        /// Whether `text` is what the editor last rendered or read back from the view.
+        func isShowing(_ text: String) -> Bool { lastRenderedText == text }
+
         private func invalidateRenderedCache() {
             lastRenderedText = nil
             lastRenderedStyleSignature = nil
@@ -2121,11 +2644,27 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ? selRange
                 : NSRange(location: min(selRange.location, max(0, attributed.length - 1)), length: min(1, attributed.length))
 
-            let hasBold       = command == .bold          && isStyleApplied(.bold,          in: effectiveRange, of: attributed)
-            let hasItalic     = command == .italic        && isStyleApplied(.italic,        in: effectiveRange, of: attributed)
-            let hasUnderline  = command == .underline     && isStyleApplied(.underline,     in: effectiveRange, of: attributed)
-            let hasStrike     = command == .strikethrough && isStyleApplied(.strikethrough, in: effectiveRange, of: attributed)
-            let shouldRemove = hasBold || hasItalic || hasUnderline || hasStrike
+            let shouldRemove: Bool
+            if selRange.length == 0 {
+                // With nothing selected, toggle what the next typed character would get (the
+                // typing attributes), not the character after the caret: at the end of a bold word
+                // that is a plain space, so B used to add bold instead of turning it off.
+                let style = attributed.length > 0 ? textStyle(at: effectiveRange.location, in: attributed) : .body
+                let typing = typingInline(from: textView.typingAttributes, style: style)
+                switch command {
+                case .bold: shouldRemove = typing.bold
+                case .italic: shouldRemove = typing.italic
+                case .underline: shouldRemove = typing.underline
+                case .strikethrough: shouldRemove = typing.strikethrough
+                default: shouldRemove = false
+                }
+            } else {
+                let hasBold       = command == .bold          && isStyleApplied(.bold,          in: effectiveRange, of: attributed)
+                let hasItalic     = command == .italic        && isStyleApplied(.italic,        in: effectiveRange, of: attributed)
+                let hasUnderline  = command == .underline     && isStyleApplied(.underline,     in: effectiveRange, of: attributed)
+                let hasStrike     = command == .strikethrough && isStyleApplied(.strikethrough, in: effectiveRange, of: attributed)
+                shouldRemove = hasBold || hasItalic || hasUnderline || hasStrike
+            }
 
             let mutable = NSMutableAttributedString(attributedString: attributed)
 
@@ -2180,6 +2719,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 default: break
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2214,6 +2754,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     typing[Self.highlightIndexAttribute] = idx
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2279,6 +2820,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     typing[.foregroundColor] = baseForegroundColor(for: style)
                 }
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2372,6 +2914,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let style = attributed.length > 0 ? textStyle(at: cursorLoc, in: attributed) : .body
                 typing[.foregroundColor] = baseForegroundColor(for: style)
                 textView.typingAttributes = typing
+                rememberTypingInline(in: textView)
             }
 
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
@@ -2436,8 +2979,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             // offset-based like inlineStyleData — it must be reordered in lockstep with
             // the row, not nil'd out, or a "Sort Done"/"Delete Done" tap would silently
             // wipe every font override in the entry.
-            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String)
-            var rows: [Row] = zip(logicalParas, paraInfos).map { ($0, $1.style, $1.level, $1.fontChoice) }
+            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String, source: Int)
+            var rows: [Row] = zip(logicalParas, paraInfos).enumerated().map { ($1.0, $1.1.style, $1.1.level, $1.1.fontChoice, $0) }
             let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
             var i = 0
             var changed = false
@@ -2460,6 +3003,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard changed else { return }
 
+            // Inline ranges move with their rows (they used to be dropped, wiping every bold,
+            // link and highlight in the entry).
+            parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: logicalParas.count, displayed: attributed)
             parent.text = rows.map { $0.text }.joined(separator: "\n")
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
@@ -2472,13 +3018,21 @@ struct NoteEditorTextView: UIViewRepresentable {
                     indentLevels: hasIndent ? levels : nil,
                     fontChoices: fontChoices
                 ))
-            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
             UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
                 self.applyStyledText(to: textView, preservingSelection: true)
             }
             refreshActiveInlineStyles(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        /// Inline ranges after rows are reordered or dropped. Rows are cut from the inline
+        /// coordinate text (a photo is one character there), not `parent.text`. If its rows don't
+        /// line up with the stored text's, the ranges are dropped rather than put on the wrong words.
+        private func remappedInlineStyles(rowOrder: [Int], rowCount: Int, displayed: NSAttributedString) -> Data? {
+            let text = inlineCoordinateText(from: displayed)
+            guard text.components(separatedBy: "\n").count == rowCount else { return nil }
+            return NoteEditorCodec.remapInlineStyles(parent.inlineStyleData, in: text, rowOrder: rowOrder)
         }
 
         func deleteCheckedChecklistItems(in textView: UITextView) {
@@ -2495,9 +3049,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             let logicalParas = parent.text.components(separatedBy: "\n")
             guard logicalParas.count == paraInfos.count else { return }
 
-            let kept = zip(logicalParas, paraInfos).filter { $0.1.style != .checklistChecked }
+            let keptRows = paraInfos.indices.filter { paraInfos[$0].style != .checklistChecked }
+            let kept = keptRows.map { (logicalParas[$0], paraInfos[$0]) }
             guard kept.count < logicalParas.count else { return }
 
+            // Formatting on the kept rows moves with them (it used to be dropped for the whole entry).
+            parent.inlineStyleData = remappedInlineStyles(rowOrder: keptRows, rowCount: logicalParas.count, displayed: attributed)
             parent.text = kept.map { $0.0 }.joined(separator: "\n")
             let styles = kept.map { $0.1.style }
             let levels = kept.map { $0.1.level }
@@ -2510,7 +3067,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                     indentLevels: hasIndent ? levels : nil,
                     fontChoices: fontChoices
                 ))
-            parent.inlineStyleData = nil  // paragraph positions shifted; inline ranges are now invalid
             invalidateRenderedCache()
             UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
                 self.applyStyledText(to: textView, preservingSelection: true)
@@ -2625,9 +3181,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
 
-                // Only store non-default inline attrs (skip heading/title bold — those are paragraph-level)
+                // Only store non-default inline attrs (skip title/heading/subheading bold — those are
+                // paragraph-level; the subheading font is semibold, which reads as bold)
                 let style = self.textStyle(at: range.location, in: attributed)
-                let isParaBold = (style == .heading || style == .title)
+                let isParaBold = (style == .heading || style == .title || style == .subheading)
                 let effectiveBold = bold && !isParaBold
 
                 guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
@@ -2672,7 +3229,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // Detect that case and use the paragraph's displayStart instead (before its marker).
                 let logicalEnd = styleRange.location + styleRange.length
                 let displayEnd: Int
-                if let boundary = logicalOffsets.first(where: { $0.logicalStart == logicalEnd && logicalEnd > 0 }) {
+                if logicalEnd > 0, let boundary = firstParagraph(startingAt: logicalEnd, in: logicalOffsets) {
                     displayEnd = boundary.displayStart
                 } else {
                     displayEnd = logicalToDisplay(logical: logicalEnd, map: logicalOffsets)
@@ -2713,6 +3270,19 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // MARK: - Logical ↔ display coordinate mapping
 
+        /// Length of the list marker the paragraph really starts with. Same rule as `logicalText`:
+        /// right after a style change, before the re-render inserts the marker, a list paragraph
+        /// has none, and counting one shifted every inline range after it.
+        private func displayedMarkerLength(of paragraphRange: NSRange, in attributed: NSAttributedString) -> Int {
+            let style = textStyle(at: paragraphRange.location, in: attributed)
+            let level = indentLevelValue(at: paragraphRange.location, in: attributed)
+            let paragraph = (attributed.string as NSString).substring(with: paragraphRange)
+            if let marker = staticListMarkerPrefix(for: style, level: level) {
+                return paragraph.hasPrefix(marker) ? (marker as NSString).length : 0
+            }
+            return style == .numberedList ? numberedListMarkerLength(in: paragraph) : 0
+        }
+
         private func buildLogicalOffsetMap(from attributed: NSAttributedString) -> [(displayStart: Int, logicalStart: Int, markerLen: Int)] {
             var result: [(Int, Int, Int)] = []
             var displayOff = 0
@@ -2720,14 +3290,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let nsDisplay = attributed.string as NSString
 
             nsDisplay.enumerateSubstrings(in: NSRange(location: 0, length: nsDisplay.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosingRange, _ in
-                let style = self.textStyle(at: enclosingRange.location, in: attributed)
-                let markerLen: Int
-                if style == .numberedList {
-                    let para = nsDisplay.substring(with: enclosingRange)
-                    markerLen = self.numberedListMarkerLength(in: para)
-                } else {
-                    markerLen = (self.staticListMarkerPrefix(for: style) as NSString?)?.length ?? 0
-                }
+                let markerLen = self.displayedMarkerLength(of: enclosingRange, in: attributed)
                 result.append((displayOff, logicalOff, markerLen))
                 logicalOff += enclosingRange.length - markerLen
                 displayOff += enclosingRange.length
@@ -2735,27 +3298,40 @@ struct NoteEditorTextView: UIViewRepresentable {
             return result
         }
 
-        private func displayToLogical(display: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
-            for (i, entry) in map.enumerated() {
-                let nextDisplay = i + 1 < map.count ? map[i + 1].displayStart : Int.max
-                if display >= entry.displayStart && display < nextDisplay {
-                    let offsetInPara = display - entry.displayStart
-                    let logicalOffset = max(0, offsetInPara - entry.markerLen)
-                    return entry.logicalStart + logicalOffset
-                }
+        /// Index of the last paragraph whose start (by `key`) is at or before `offset`; nil before
+        /// the first. Binary search: inline extraction maps every attribute run, and a linear scan
+        /// per run made it quadratic (30 ms a keystroke at 50k characters).
+        private func paragraphIndex(atOrBefore offset: Int, in map: [(displayStart: Int, logicalStart: Int, markerLen: Int)],
+                                    key: KeyPath<(displayStart: Int, logicalStart: Int, markerLen: Int), Int>) -> Int? {
+            var low = 0, high = map.count - 1, found: Int?
+            while low <= high {
+                let mid = (low + high) / 2
+                if map[mid][keyPath: key] <= offset { found = mid; low = mid + 1 } else { high = mid - 1 }
             }
-            return display
+            return found
+        }
+
+        /// The first paragraph whose logical start is exactly `logical` (binary search).
+        private func firstParagraph(startingAt logical: Int, in map: [(displayStart: Int, logicalStart: Int, markerLen: Int)])
+            -> (displayStart: Int, logicalStart: Int, markerLen: Int)? {
+            var low = 0, high = map.count
+            while low < high {
+                let mid = (low + high) / 2
+                if map[mid].logicalStart < logical { low = mid + 1 } else { high = mid }
+            }
+            return low < map.count && map[low].logicalStart == logical ? map[low] : nil
+        }
+
+        private func displayToLogical(display: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
+            guard let i = paragraphIndex(atOrBefore: display, in: map, key: \.displayStart) else { return display }
+            let entry = map[i]
+            return entry.logicalStart + max(0, display - entry.displayStart - entry.markerLen)
         }
 
         private func logicalToDisplay(logical: Int, map: [(displayStart: Int, logicalStart: Int, markerLen: Int)]) -> Int {
-            for (i, entry) in map.enumerated() {
-                let nextLogical = i + 1 < map.count ? map[i + 1].logicalStart : Int.max
-                if logical >= entry.logicalStart && logical < nextLogical {
-                    let offsetInPara = logical - entry.logicalStart
-                    return entry.displayStart + entry.markerLen + offsetInPara
-                }
-            }
-            return logical
+            guard let i = paragraphIndex(atOrBefore: logical, in: map, key: \.logicalStart) else { return logical }
+            let entry = map[i]
+            return entry.displayStart + entry.markerLen + (logical - entry.logicalStart)
         }
 
         private func mergeInlineRanges(_ ranges: [InlineStyleRange]) -> [InlineStyleRange] {
@@ -2811,8 +3387,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             let highlightIndex: Int?
             let textColorIndex: Int?
             let linkURL: String?
-            if lastKnownCursorLocation >= attributed.length {
-                if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
+            // With nothing selected the panel shows what the next typed character gets, which is
+            // the typing attributes (a B pressed with no selection showed as off before).
+            if lastKnownCursorLocation >= attributed.length || textView.selectedRange.length == 0 {
+                if lastKnownCursorLocation < attributed.length {
+                    paraStyle = textStyle(at: loc, in: attributed)
+                } else if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
                    let style = NoteParagraphTextStyle(rawValue: raw) {
                     paraStyle = style
                 } else {
@@ -2994,8 +3574,17 @@ nonisolated func preparedInlinePhotoData(fromFileAt url: URL) throws -> Data {
 nonisolated func textWithInlinePhotoToken(_ text: String, at index: Int) -> String {
     let token = inlinePhotoToken(at: index)
     guard !text.contains(token) else { return text }
-    let trimmed = text.trimmingCharacters(in: .newlines)
+    let trimmed = trimmingTrailingNewlines(text)
     return trimmed.isEmpty ? token : "\(trimmed)\n\(token)\n"
+}
+
+/// `text` without its trailing line breaks, for appending a block (photo, scan, Talk It Out).
+/// Leading line breaks stay: paragraph styles are stored by paragraph index and inline ranges by
+/// offset from the start, so trimming the front shifted every style in the entry.
+nonisolated func trimmingTrailingNewlines(_ text: String) -> String {
+    var trimmed = text
+    while let last = trimmed.last, last.isNewline { trimmed.removeLast() }
+    return trimmed
 }
 
 private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
@@ -3006,3 +3595,46 @@ private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
     }
     return CGImageSourceGetCount(source) > 0
 }
+
+#if os(iOS)
+/// The editor text view. Its undo manager is the editor's own history (see the coordinator's
+/// "Undo" section), so Cmd-Z, shake and the three-finger gesture use the same steps as the
+/// toolbar's Undo button.
+final class MirrorEditorTextView: UITextView {
+    weak var editorUndo: UndoManager?
+    override var undoManager: UndoManager? { editorUndo ?? super.undoManager }
+
+    /// Extra VoiceOver actions for the caret's paragraph (checking a checklist item).
+    var caretAccessibilityActions: (() -> [UIAccessibilityCustomAction])?
+    private var assignedAccessibilityActions: [UIAccessibilityCustomAction]?
+    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
+        get { (assignedAccessibilityActions ?? []) + (caretAccessibilityActions?() ?? []) }
+        set { assignedAccessibilityActions = newValue }
+    }
+}
+
+/// Answers UIKit's undo questions from the editor's snapshot history. Registrations UIKit makes
+/// while typing are accepted and never used.
+final class EditorUndoManager: UndoManager {
+    private weak var coordinator: NoteEditorTextView.Coordinator?
+    weak var textView: UITextView?
+
+    init(coordinator: NoteEditorTextView.Coordinator) {
+        self.coordinator = coordinator
+        super.init()
+        levelsOfUndo = 1   // only UIKit's unused typing registrations land here
+    }
+
+    override var canUndo: Bool { coordinator?.canUndoEdit ?? false }
+    override var canRedo: Bool { coordinator?.canRedoEdit ?? false }
+    override func undo() {
+        guard let coordinator, let textView else { return }
+        coordinator.undoEdit(in: textView)
+    }
+    override func redo() {
+        guard let coordinator, let textView else { return }
+        coordinator.redoEdit(in: textView)
+    }
+    override func undoNestedGroup() { undo() }
+}
+#endif

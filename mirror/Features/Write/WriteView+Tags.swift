@@ -3,35 +3,18 @@ import SwiftData
 
 extension WriteView {
     var tagsBar: some View {
+        HStack(spacing: 0) {
+            tagsScroller
+            writingStats
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+        }
+    }
+
+    private var tagsScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(entryTags, id: \.self) { tag in
-                    HStack(spacing: 3) {
-                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                            .font(.system(size: 12, weight: .medium))
-                        Button {
-                            entryTags.removeAll { $0 == tag }
-                            if entry == nil { saveDraftToStorage() }
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
-                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if displayMode == .sentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                        }
-                    }
-                }
-
+                // Add first: always reachable, however many tags follow.
                 if showTagInput {
                     TextField("tag", text: $tagText)
                         .font(.system(size: 12))
@@ -56,8 +39,14 @@ extension WriteView {
                         .onChange(of: tagFieldFocused) { _, focused in
                             if !focused {
                                 DispatchQueue.main.async {
-                                    if !tagFieldFocused && tagText.isEmpty {
+                                    guard !tagFieldFocused else { return }
+                                    // Tapping away keeps what was typed (it used to stay in
+                                    // the field, uncommitted, and Save ignored it).
+                                    if tagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        tagText = ""
                                         showTagInput = false
+                                    } else {
+                                        commitTag()
                                     }
                                 }
                             }
@@ -120,10 +109,45 @@ extension WriteView {
                     }
                     .buttonStyle(.plain)
                 }
+                ForEach(entryTags, id: \.self) { tag in
+                    HStack(spacing: 3) {
+                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                            .font(.system(size: 12, weight: .medium))
+                        Button {
+                            entryTags.removeAll { $0 == tag }
+                            if entry == nil { saveDraftToStorage() }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                        }
+                    }
+                }
+
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 6)
         }
+        // A long tag list fades out before the word count instead of being cut off.
+        .mask(
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 18)
+            }
+        )
     }
 
     static let defaultTagSuggestions = [
@@ -165,15 +189,34 @@ extension WriteView {
     }
 
     func commitTag() {
-        let tag = tagText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "-")
-        if !tag.isEmpty && !entryTags.contains(tag) {
+        for tag in Self.normalizedTags(from: tagText) where !entryTags.contains(tag) {
             entryTags.append(tag)
         }
         tagText = ""
         showTagInput = false
         if entry == nil { saveDraftToStorage() }
+    }
+
+    /// A tag still being typed when the entry is saved goes in with it.
+    func commitPendingTag() {
+        guard !tagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        commitTag()
+    }
+
+    /// What typing in the tag field adds: commas or semicolons separate tags, a leading `#` is
+    /// dropped (chips add their own, so `#work` showed as "##work"), case is lowered, and the
+    /// spaces inside one tag become dashes ("deep work" → "deep-work"). Duplicates and empty
+    /// pieces are skipped.
+    static func normalizedTags(from input: String) -> [String] {
+        var tags: [String] = []
+        for piece in input.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "，" || $0 == "、" }) {
+            var tag = piece.trimmingCharacters(in: .whitespacesAndNewlines)
+            while tag.hasPrefix("#") || tag.hasPrefix("＃") { tag = String(tag.dropFirst()).trimmingCharacters(in: .whitespaces) }
+            tag = tag.lowercased()
+                .split(whereSeparator: \.isWhitespace)
+                .joined(separator: "-")
+            if !tag.isEmpty, !tags.contains(tag) { tags.append(tag) }
+        }
+        return tags
     }
 }

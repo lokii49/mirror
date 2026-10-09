@@ -8,6 +8,12 @@ import AppKit
 private let moodLabels = MirrorTheme.moodOptions
 
 extension WriteView {
+    /// A toolbar icon size of `base` points at the default text size, scaled with Dynamic Type
+    /// up to 1.5x (more would overflow the 44 pt buttons).
+    func toolbarIconSize(_ base: CGFloat) -> CGFloat {
+        min(base * toolbarIconMetric / 20, base * 1.5)
+    }
+
     var dateHeader: some View {
         HStack(alignment: .center, spacing: 10) {
             Button {
@@ -20,9 +26,10 @@ extension WriteView {
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .kerning(0.4)
                     } else {
-                        Text(noteDate, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                        Text(noteDate, format: Self.headerDateFormat(for: noteDate))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .semibold))
@@ -45,37 +52,6 @@ extension WriteView {
             }
             .buttonStyle(.plain)
 
-            if viewModel.wordCount > 0 {
-                let goalMet = viewModel.wordCount >= dailyWordGoal
-                HStack(spacing: 4) {
-                    Text("\(viewModel.wordCount)w")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
-                    if goalMet {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    } else if viewModel.wordCount >= 50 {
-                        Text("/ \(dailyWordGoal)w")
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.quaternary)
-                    }
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                // No .animation(value: wordCount) here — dateHeader is a fixed sibling of the
-                // scrollable editor below it now, not scroll content itself. That spring used
-                // to fire harmlessly on every word boundary; now it wraps the SAME render pass
-                // as the ScrollView's own simultaneous content-size change (the keystroke that
-                // completes a word), and the ScrollView's resize gets swept into the spring's
-                // curve instead of snapping instantly. On-device that showed up as the scroll
-                // position visibly interpolating through an earlier part of the entry — a
-                // "teleport to the top, then ease back" — landing right on word-count changes.
-                // The `.transition` above still animates the badge's one-time 0→1 word
-                // appearance via the `if wordCount > 0` insertion; only the per-keystroke spring
-                // is gone.
-            }
-
-            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
 
             if displayMode == .sentinel {
                 HStack(spacing: 5) {
@@ -99,6 +75,41 @@ extension WriteView {
         .padding(.bottom, 4)
     }
 
+    /// "Wed, 7 Oct": short enough to never wrap beside the Mood button; the year only when it
+    /// isn't this year. VoiceOver reads the full date.
+    static func headerDateFormat(for date: Date) -> Date.FormatStyle {
+        let base = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated)
+        return Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) ? base : base.year()
+    }
+
+    /// Word count and draft status, at the trailing end of the tags row.
+    @ViewBuilder
+    var writingStats: some View {
+        HStack(spacing: 8) {
+            if viewModel.wordCount > 0 {
+                let goalMet = viewModel.wordCount >= dailyWordGoal
+                HStack(spacing: 3) {
+                    Text("\(viewModel.wordCount)w")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
+                    if goalMet {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else if viewModel.wordCount >= 50 {
+                        Text("/ \(dailyWordGoal)w")
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.quaternary)
+                    }
+                }
+                .lineLimit(1)
+                .transition(.opacity)
+            }
+            DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave, compact: true)
+        }
+        .fixedSize()
+    }
+
     @ViewBuilder
     var moodMenu: some View {
         if displayMode == .sentinel {
@@ -117,8 +128,9 @@ extension WriteView {
                     detectMoodWithMirror()
                 } label: {
                     Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+                    if !canSuggestMood { Text("Core required") }
                 }
-                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
+                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
 
                 Divider()
 
@@ -239,8 +251,8 @@ extension WriteView {
                 .padding(.vertical, 11)
             }
             .buttonStyle(.plain)
-            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood)
-            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
+            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
+            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canSuggestMood ? 0.4 : 1)
 
             Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
 
@@ -547,11 +559,12 @@ extension WriteView {
                     dismissKeyboard()
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: 20))
+                        .font(.system(size: toolbarIconSize(20)))
                         .foregroundStyle(.secondary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Hide keyboard")
                 #endif
 
                 // Undo
@@ -559,7 +572,7 @@ extension WriteView {
                     applyTextCommand(.undo)
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 18))
+                        .font(.system(size: toolbarIconSize(18)))
                         .foregroundStyle(canUndo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
@@ -572,7 +585,7 @@ extension WriteView {
                     applyTextCommand(.redo)
                 } label: {
                     Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 18))
+                        .font(.system(size: toolbarIconSize(18)))
                         .foregroundStyle(canRedo ? Color.secondary : Color.secondary.opacity(0.35))
                         .frame(width: 38, height: 44)
                 }
@@ -611,7 +624,7 @@ extension WriteView {
                         applyTextCommand(.checkAllItems)
                     } label: {
                         Image(systemName: "checkmark.circle")
-                            .font(.system(size: 20))
+                            .font(.system(size: toolbarIconSize(20)))
                             .foregroundStyle(.primary)
                             .frame(width: 40, height: 44)
                     }
@@ -623,7 +636,7 @@ extension WriteView {
                         applyTextCommand(.deleteCheckedItems)
                     } label: {
                         Image(systemName: "trash.circle")
-                            .font(.system(size: 20))
+                            .font(.system(size: toolbarIconSize(20)))
                             .foregroundStyle(.secondary)
                             .frame(width: 40, height: 44)
                     }
@@ -667,7 +680,7 @@ extension WriteView {
                     }
                 } label: {
                     Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
-                        .font(.system(size: 20))
+                        .font(.system(size: toolbarIconSize(20)))
                         .foregroundStyle(!photoDataArray.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : .primary)
                         .frame(width: 44, height: 44)
                         .overlay(alignment: .topTrailing) {
@@ -687,6 +700,8 @@ extension WriteView {
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add photo")
+                .accessibilityValue(photoDataArray.isEmpty ? Text("") : Text("\(photoDataArray.count) attached"))
                 #endif
 
                 // Voice button — records inline; keyboard and caret stay put.
@@ -698,7 +713,7 @@ extension WriteView {
                 // discoverability affordance. .onTapGesture/.onLongPressGesture
                 // on a plain view are mutually exclusive by construction.
                 Image(systemName: iconForVoiceButton)
-                    .font(.system(size: 20))
+                    .font(.system(size: toolbarIconSize(20)))
                     .foregroundStyle(
                         isRecordingInline ? Color.red
                             : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)

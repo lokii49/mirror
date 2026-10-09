@@ -12,6 +12,7 @@ Funciones:
   • Consulta reflexiones diarias y resúmenes semanales
   • Explora tendencias de ánimo e informes mensuales
   • Haz preguntas sobre los patrones de tu diario
+  • Encuentra entradas por su significado con la búsqueda inteligente opcional en el dispositivo
   • Sincroniza en privado con iCloud
   • Protege tu escritura con almacenamiento cifrado
 

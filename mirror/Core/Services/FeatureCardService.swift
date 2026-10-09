@@ -71,6 +71,8 @@ struct FeatureCard: Identifiable {
     let sinceVersion: String
     /// False for changelog/update cards that shouldn't appear in the Feature Guide.
     var showInFeatureGuide: Bool = true
+    /// iPhone/iPad only (the Mac has its own version of the feature, or none).
+    var iOSOnly: Bool = false
 }
 
 // MARK: - Registry — add new cards here when releasing features
@@ -301,6 +303,57 @@ enum FeatureCardRegistry {
             sinceVersion: "2.1.0",
             showInFeatureGuide: false
         ),
+        .init(
+            id: "smart-ask-search-310",
+            title: "Smarter search in Ask",
+            body: "Ask can find entries by meaning, not only matching words. It's optional: a one-time download on Wi-Fi of a search model that runs on your device. Turn it on in Ask or in Settings.",
+            symbolName: "sparkle.magnifyingglass",
+            accentColor: .purple,
+            tier: .core,
+            sinceVersion: "3.1.0"
+        ),
+        .init(
+            id: "reflection-styles-310",
+            title: "Reflection styles",
+            body: "Choose how today's reflection reads: Gentle, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.",
+            symbolName: "text.quote",
+            accentColor: .indigo,
+            tier: .core,
+            sinceVersion: "3.1.0"
+        ),
+        .init(
+            id: "format-panel-310",
+            title: "A clearer format panel",
+            body: "Every style, list and color is on screen at once, and each color shows what it does before you tap it.",
+            symbolName: "textformat",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "writing-310",
+            title: "Writing that keeps up",
+            body: "The cursor starts where you left off, and a draft keeps its date, font and tags. Type #work, or several tags separated by commas.",
+            symbolName: "pencil.line",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false
+        ),
+        // One-time notice of the 2026-10-09 privacy policy update (the policy promises an in-app
+        // notice for material changes): Cloudflare hosts the model downloads (Gemma and the optional search model).
+        .init(
+            id: "privacy-policy-310",
+            title: "Privacy policy updated",
+            body: "Our privacy policy now covers AI model downloads. The Gemma model, on devices that need it, and the optional search model for Ask each download once from models.mirrornotes.org, only when you start the download. Cloudflare hosts it for us and, as with any download, sees your IP address. Your journal never leaves your device. [Read the privacy policy](https://mirrornotes.org/privacy.html)",
+            symbolName: "hand.raised.fill",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.0",
+            showInFeatureGuide: false
+        ),
     ]
 }
 
@@ -314,7 +367,26 @@ final class FeatureCardService {
 
     var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide } }
 
+    /// The Mac has its own version numbers (1.x) while cards carry the iOS release they shipped
+    /// in, so a Mac upgrade compared 1.x against "3.1.0" and never showed a card. Each Mac release
+    /// lists the iOS release whose cards it shows; the Mac still decides *whether* to show the
+    /// sheet with its own versions. A Mac version missing here shows no cards.
+    static let macFeatureRelease: [String: String] = [
+        "1.1.0": "3.1.0",
+    ]
+
+    /// The cards a Mac version shows. Like the iOS fallback, this does not depend on the last
+    /// seen version (the sheet marks itself seen on appear and must keep its list);
+    /// `shouldShowWhatsNew` still requires an upgrade.
+    static func macWhatsNewCards(current: String) -> [FeatureCard] {
+        guard let release = macFeatureRelease[current] else { return [] }
+        return FeatureCardRegistry.all.filter { $0.sinceVersion == release && !$0.iOSOnly }
+    }
+
     var whatsNewCards: [FeatureCard] {
+        #if os(macOS)
+        return Self.macWhatsNewCards(current: currentAppVersion)
+        #endif
         guard let last = AppVersion(lastSeenVersion),
               let current = AppVersion(currentAppVersion) else { return [] }
         let newSinceUpgrade = FeatureCardRegistry.all.filter {

@@ -18,6 +18,8 @@ struct DraftUndoSnapshot {
     var photos: [Data] = []
     var mood: String? = nil
     var tags: [String] = []
+    var entryDate: Date = Date()
+    var entryDateChosen = false
     var voiceNoteData: Data? = nil
     var voiceNoteDuration: TimeInterval = 0
     var voiceNoteTranscript: String? = nil
@@ -77,6 +79,7 @@ struct WriteView: View {
     @State var showSaved = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
+    @State var showDeleteCheckedConfirm = false
     @State var pendingDelete = false
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
@@ -94,6 +97,9 @@ struct WriteView: View {
     /// What the draft store actually holds for this editor (shown as a status label).
     @State var draftSaveState: DraftSaveState = .idle
     @State var attachmentsSaved = true
+    /// Bumped by every draft-attachment save and clear; a background save's result is applied
+    /// only if nothing newer happened meanwhile.
+    @State var attachmentSaveGeneration = 0
     /// Existing entry as it was saved when editing started (see WriteDraftStore.fingerprint).
     @State var editBaseFingerprint: String? = nil
     /// Unsaved edits found for this entry from an earlier session, awaiting Restore/Discard.
@@ -127,6 +133,8 @@ struct WriteView: View {
     @State var showVoiceButtonHint = false
     @State var canUndo = false
     @State var canRedo = false
+    /// Toolbar icons follow the person's text size (capped so they stay inside 44 pt buttons).
+    @ScaledMetric(relativeTo: .title3) var toolbarIconMetric: CGFloat = 20
     @State var panelState = FormattingPanelState()
     @State var fullscreenPhotoIndex: Int? = nil
     @State var voiceNoteData: Data? = nil
@@ -153,6 +161,8 @@ struct WriteView: View {
     @State var transcriptionTasks: [Int: Task<Void, Never>] = [:]
     @AppStorage("transcriptionLanguage") var transcriptionLanguage: String = ""
     @State var isDetectingMood = false
+    /// Briefly shown when "Mirror suggests" found no mood.
+    @State var showMoodSuggestionFailed = false
     /// True while the selected mood came from "Mirror suggests" rather than a manual pick.
     @State var moodWasSuggested = false
     @State var recPulse = false
@@ -161,6 +171,9 @@ struct WriteView: View {
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
     @State var entryDate: Date = Date()
+    /// True once the person picked the date for a new entry, so the draft keeps it (2026-10-09:
+    /// a back-dated draft came back dated today after a tab switch or app kill).
+    @State var entryDateChosen = false
     @State var showDatePicker = false
     @State var focusMode = false
     @State var entryTags: [String] = []
@@ -172,7 +185,11 @@ struct WriteView: View {
     @State var linkEditorURLText = ""
     @State var linkEditorHasExisting = false
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
-    @FocusState var editorFocused: Bool
+    /// Whether the editor has the keyboard. Plain state, not `@FocusState`: the editor is a
+    /// UIKit/AppKit text view that takes focus from this binding (`becomeFirstResponder`) and
+    /// writes it back on begin/end editing. As a `@FocusState` with no `.focused` view, every
+    /// assignment was dropped, so `autoFocus` never opened the keyboard (fixed 2026-10-09).
+    @State var editorFocused = false
     @FocusState var tagFieldFocused: Bool
 
     /// Drives the inline voice-recording timer; the handler no-ops unless
@@ -371,6 +388,20 @@ struct WriteView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
 
+            if showMoodSuggestionFailed {
+                Label("Couldn't suggest a mood", systemImage: "sparkles")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(MirrorTheme.inkMid, in: Capsule())
+                    .overlay { Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1) }
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                    .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+
             if isAttachingPhoto {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -487,7 +518,7 @@ struct WriteView: View {
             switch note.userInfo?["action"] as? String {
             case "openDate": showDatePicker = true
             case "openPhoto": if !photoDataArray.isEmpty { fullscreenPhotoIndex = 0 }
-            case "setDate": if let date = note.userInfo?["date"] as? Date { entryDate = date }
+            case "setDate": if let date = note.userInfo?["date"] as? Date { chosenEntryDate.wrappedValue = date }
             case "save": if entry == nil { saveDraft() } else { saveAndDismiss() }
             case "appendText": if let text = note.userInfo?["text"] as? String { viewModel.text += text }
             case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
@@ -539,6 +570,7 @@ struct WriteView: View {
                 additionalVoiceNoteEnglishTranslations = entry.additionalVoiceNoteEnglishTranslations
             }
             entryDate = entry?.createdAt ?? Date()
+            entryDateChosen = false
             entryTags = entry?.tags ?? []
             #if os(macOS)
             // The Mac design sets body text in a serif face; new entries start there.
@@ -699,6 +731,12 @@ struct WriteView: View {
         } message: {
             Text(textScanError ?? "")
         }
+        .alert("Delete checked items?", isPresented: $showDeleteCheckedConfirm) {
+            Button("Delete", role: .destructive) { sendTextCommand(.deleteCheckedItems) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Checked items are removed from this entry.")
+        }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
             TextField("https://example.com", text: $linkEditorURLText)
                 .keyboardType(.URL)
@@ -724,7 +762,7 @@ struct WriteView: View {
                 VStack(spacing: 0) {
                     DatePicker(
                         "Entry date",
-                        selection: $entryDate,
+                        selection: chosenEntryDate,
                         in: ...Date(),
                         displayedComponents: .date
                     )
@@ -733,7 +771,7 @@ struct WriteView: View {
                     Divider()
                     DatePicker(
                         "Entry time",
-                        selection: $entryDate,
+                        selection: chosenEntryDate,
                         in: ...Date(),
                         displayedComponents: .hourAndMinute
                     )
@@ -744,6 +782,13 @@ struct WriteView: View {
                 .navigationTitle("Entry Date & Time")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        // Back to the default (now), like the Mac date popover's "Now".
+                        Button("Now") {
+                            entryDate = Date()
+                            entryDateChosen = false
+                        }
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { showDatePicker = false }
                     }
@@ -756,13 +801,23 @@ struct WriteView: View {
             scheduleDraftSave()
             scheduleFollowUpCheck()
         }
+        // Formatting, tags and the entry date are part of the draft too. A change to only one
+        // of them starts the same debounced save as typing (before 2026-10-09 only `text` did,
+        // so a bold-only or heading-only edit was lost if the app was killed before the next
+        // keystroke).
+        .onChange(of: draftChangeKey) { _, _ in
+            scheduleDraftSave()
+        }
         .onChange(of: showTagInput) { _, open in
             if open { computeTagSuggestions() }
         }
         .onChange(of: editorFocused) { _, focused in
             // When the editor fully loses focus (keyboard/panel dismissed), drop
-            // the panel state so it doesn't reopen on the next focus.
-            if !focused { showFormattingPanel = false }
+            // the panel state so it doesn't reopen on the next focus. iPhone only: there the panel
+            // is the editor's input view and goes with the focus. The iPad popover closes itself,
+            // and closing it here could shut it as it opens if presenting it took the focus
+            // (this handler never ran before 2026-10-09, while editorFocused was an unbound @FocusState).
+            if !focused, !usesPopoverPanel { showFormattingPanel = false }
         }
         .onChange(of: viewModel.selectedMood) { _, _ in
             flushDraftSave()

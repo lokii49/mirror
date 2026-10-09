@@ -4,13 +4,13 @@ import SwiftUI
 enum ModelDownloadState: Equatable {
     case notStarted
     case downloading(progress: Double, bytesWritten: Int64, bytesExpected: Int64)
-    case paused(resumable: Bool)
+    case paused(resumable: Bool, bytesWritten: Int64, bytesExpected: Int64)
     case verifying
     case installed
     case failed(String)
 }
 
-/// Downloads the Gemma 3 1B model from Hugging Face into Application Support on
+/// Downloads the Gemma 3 1B model from models.mirrornotes.org into Application Support on
 /// demand, instead of shipping it inside the app bundle. The 768MB model file was
 /// previously bundled directly into the IPA — this cut the App Store download size
 /// by roughly 800MB, since a journaling app with an 800MB install size is a hard
@@ -31,7 +31,12 @@ final class ModelDownloadManager: NSObject {
     /// won't grant background time for the next download's completion event.
     var backgroundCompletionHandler: (() -> Void)?
 
-    private nonisolated static let sourceURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
+    /// Our own copy (Cloudflare R2, immutable cache header) of bartowski/google_gemma-3-1b-it-GGUF
+    /// `google_gemma-3-1b-it-Q4_K_M.gguf` at commit 116f762, byte for byte. Never put different bytes
+    /// at this URL: a new file gets a new path and a new `modelSHA256`.
+    private nonisolated static let sourceURL = URL(string: "https://models.mirrornotes.org/gemma3/google_gemma-3-1b-it-Q4_K_M.gguf")!
+    /// SHA-256 of that file (806,058,496 bytes). A download that doesn't match is deleted, never installed.
+    nonisolated static let modelSHA256 = "12bf0fff8815d5f73a3c9b586bd8fee8e7b248c935de70dec367679873d0f29d"
     /// Rough estimate only — used to size the progress bar before the server's real
     /// Content-Length is known. Never used to validate a completed file; that check
     /// is against the size the server actually advertised for that specific
@@ -55,7 +60,18 @@ final class ModelDownloadManager: NSObject {
 
     private var session: URLSession!
     private var task: URLSessionDownloadTask?
+    /// Where a paused or failed transfer can pick up again. Also kept on disk
+    /// (`resumeDataURL`), so a pause survives the app being quit.
     private var resumeData: Data?
+    /// Last progress shown, so Pause and Resume don't jump the bar back to 0.
+    private var lastBytesWritten: Int64 = 0
+    private var lastBytesExpected: Int64 = estimatedByteCount
+    /// Pause shows at once, but the background session hands back the resume data a
+    /// moment later. A Resume tapped in between waits for it instead of starting at 0.
+    private var pauseInFlight = false
+    private var resumeAfterPause = false
+    private static let resumeBytesWrittenKey = "mirror.modelDownload.resumeBytesWritten"
+    private static let resumeBytesExpectedKey = "mirror.modelDownload.resumeBytesExpected"
 
     private override init() {
         super.init()
@@ -80,7 +96,69 @@ final class ModelDownloadManager: NSObject {
             if lastInstalled == nil {
                 UserDefaults.standard.set(currentFileName, forKey: Self.lastInstalledModelFileNameKey)
             }
+            Self.clearStoredResumeData()
+        } else if let data = Self.storedResumeData() {
+            resumeData = data
+            lastBytesWritten = (UserDefaults.standard.object(forKey: Self.resumeBytesWrittenKey) as? Int64) ?? 0
+            lastBytesExpected = (UserDefaults.standard.object(forKey: Self.resumeBytesExpectedKey) as? Int64) ?? Self.estimatedByteCount
+            state = .paused(resumable: true, bytesWritten: lastBytesWritten, bytesExpected: lastBytesExpected)
         }
+        // A transfer from before the app was quit keeps running in the background
+        // session. Adopt it, or tapping Download would start a second one from 0.
+        session.getAllTasks { tasks in
+            guard let running = tasks.compactMap({ $0 as? URLSessionDownloadTask }).first(where: { $0.state == .running })
+            else { return }
+            Task { @MainActor in self.adopt(running) }
+        }
+    }
+
+    private func adopt(_ running: URLSessionDownloadTask) {
+        guard task == nil, !isReady else { return }
+        task = running
+        resumeData = nil
+        Self.clearStoredResumeData()
+        let expected = running.countOfBytesExpectedToReceive > 0 ? running.countOfBytesExpectedToReceive : lastBytesExpected
+        let written = max(running.countOfBytesReceived, lastBytesWritten)
+        showProgress(written: written, expected: expected)
+    }
+
+    /// Not in the model directory: `removeStaleModelFiles` deletes everything else there.
+    private nonisolated static func resumeDataURL() throws -> URL {
+        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("ModelDownload.resumedata")
+    }
+
+    private static func storedResumeData() -> Data? {
+        guard let url = try? resumeDataURL() else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    private func storeResumeData(_ data: Data?) {
+        resumeData = data
+        guard let data else {
+            Self.clearStoredResumeData()
+            return
+        }
+        if let url = try? Self.resumeDataURL() {
+            try? data.write(to: url, options: .atomic)
+        }
+        UserDefaults.standard.set(lastBytesWritten, forKey: Self.resumeBytesWrittenKey)
+        UserDefaults.standard.set(lastBytesExpected, forKey: Self.resumeBytesExpectedKey)
+    }
+
+    private static func clearStoredResumeData() {
+        if let url = try? resumeDataURL() {
+            try? FileManager.default.removeItem(at: url)
+        }
+        UserDefaults.standard.removeObject(forKey: resumeBytesWrittenKey)
+        UserDefaults.standard.removeObject(forKey: resumeBytesExpectedKey)
+    }
+
+    private func showProgress(written: Int64, expected: Int64) {
+        lastBytesWritten = written
+        lastBytesExpected = expected
+        let progress = expected > 0 ? Double(written) / Double(expected) : 0
+        state = .downloading(progress: progress, bytesWritten: written, bytesExpected: expected)
     }
 
     private nonisolated static var currentModelFileName: String {
@@ -128,7 +206,8 @@ final class ModelDownloadManager: NSObject {
         default:
             break
         }
-        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.estimatedByteCount)
+        storeResumeData(nil)
+        showProgress(written: 0, expected: Self.estimatedByteCount)
         let task = session.downloadTask(with: Self.sourceURL)
         self.task = task
         task.resume()
@@ -136,25 +215,47 @@ final class ModelDownloadManager: NSObject {
 
     @MainActor
     func pauseDownload() {
-        task?.cancel { [weak self] data in
+        guard let pausing = task else { return }
+        task = nil
+        state = .paused(resumable: true, bytesWritten: lastBytesWritten, bytesExpected: lastBytesExpected)
+        pauseInFlight = true
+        pausing.cancel { [weak self] data in
             guard let self else { return }
             Task { @MainActor in
-                self.resumeData = data
-                self.state = .paused(resumable: data != nil)
+                guard self.pauseInFlight else { return }
+                self.pauseInFlight = false
+                self.storeResumeData(data)
+                self.state = .paused(resumable: data != nil, bytesWritten: self.lastBytesWritten, bytesExpected: self.lastBytesExpected)
+                if self.resumeAfterPause {
+                    self.resumeAfterPause = false
+                    self.resumeDownload()
+                }
             }
         }
     }
 
+    /// Resume, and Try Again after a network error: continues from the saved byte
+    /// offset when there is one, else starts over.
     @MainActor
     func resumeDownload() {
+        switch state {
+        case .downloading, .verifying:
+            return
+        default:
+            break
+        }
+        if pauseInFlight {
+            resumeAfterPause = true
+            return
+        }
         guard let resumeData else {
             startDownload()
             return
         }
-        state = .downloading(progress: 0, bytesWritten: 0, bytesExpected: Self.estimatedByteCount)
+        showProgress(written: lastBytesWritten, expected: lastBytesExpected)
         let task = session.downloadTask(withResumeData: resumeData)
         self.task = task
-        self.resumeData = nil
+        storeResumeData(nil)
         task.resume()
     }
 
@@ -165,7 +266,7 @@ final class ModelDownloadManager: NSObject {
     func deleteInstalledModelForTesting() {
         task?.cancel()
         task = nil
-        resumeData = nil
+        storeResumeData(nil)
         if let url = try? LocalLLMService.preferredModelURL() {
             try? FileManager.default.removeItem(at: url)
         }
@@ -175,15 +276,22 @@ final class ModelDownloadManager: NSObject {
 
     @MainActor
     func cancelDownload() {
+        pauseInFlight = false
+        resumeAfterPause = false
         task?.cancel()
         task = nil
-        resumeData = nil
+        storeResumeData(nil)
         state = .notStarted
     }
 
     @MainActor
-    private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64) {
-        state = .verifying
+    private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64, sha256: String?) {
+        guard sha256 == Self.modelSHA256 else {
+            try? FileManager.default.removeItem(at: tempURL)
+            storeResumeData(nil)
+            state = .failed(String(localized: "Downloaded model didn't match its fingerprint. Please try again."))
+            return
+        }
         do {
             let destination = try LocalLLMService.preferredModelURL()
             if FileManager.default.fileExists(atPath: destination.path) {
@@ -205,6 +313,8 @@ final class ModelDownloadManager: NSObject {
             }
             UserDefaults.standard.set(Self.currentModelFileName, forKey: Self.lastInstalledModelFileNameKey)
             modelWasUpgraded = false
+            task = nil
+            storeResumeData(nil)
             state = .installed
         } catch {
             state = .failed(error.localizedDescription)
@@ -220,11 +330,34 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        let expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.estimatedByteCount
-        let progress = expected > 0 ? Double(totalBytesWritten) / Double(expected) : 0
-        Task { @MainActor in
-            self.state = .downloading(progress: progress, bytesWritten: totalBytesWritten, bytesExpected: expected)
+        var written = totalBytesWritten
+        var expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.estimatedByteCount
+        // A resumed transfer (HTTP 206) may count only the remaining range. If the
+        // expected bytes are fewer than the whole file, add back what was already on disk.
+        if let total = Self.contentRangeTotal(of: downloadTask), totalBytesExpectedToWrite > 0, totalBytesExpectedToWrite < total {
+            written += total - totalBytesExpectedToWrite
+            expected = total
         }
+        let id = downloadTask.taskIdentifier
+        Task { @MainActor in
+            // Late callbacks from a task that was just paused must not flip the card back to downloading.
+            guard self.task?.taskIdentifier == id else { return }
+            self.showProgress(written: written, expected: expected)
+        }
+    }
+
+    #if DEBUG
+    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
+        print("[ModelDownload] resumed at offset \(fileOffset) of \(expectedTotalBytes)")
+    }
+    #endif
+
+    /// The whole file's size from a 206's `Content-Range: bytes start-end/total`.
+    private nonisolated static func contentRangeTotal(of task: URLSessionTask) -> Int64? {
+        guard let contentRange = (task.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Range"),
+              let totalString = contentRange.split(separator: "/").last
+        else { return nil }
+        return Int64(totalString)
     }
 
     nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
@@ -238,15 +371,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         // download is a ranged request (HTTP 206) — there, countOfBytesExpectedToReceive
         // is only the *remaining* bytes for that range, not the whole file, so it must
         // come from the Content-Range response header ("bytes start-end/total") instead.
-        let serverExpectedByteCount: Int64
-        if let contentRange = (downloadTask.response as? HTTPURLResponse)?
-            .value(forHTTPHeaderField: "Content-Range"),
-           let totalString = contentRange.split(separator: "/").last,
-           let total = Int64(totalString) {
-            serverExpectedByteCount = total
-        } else {
-            serverExpectedByteCount = downloadTask.countOfBytesExpectedToReceive
-        }
+        let serverExpectedByteCount = Self.contentRangeTotal(of: downloadTask) ?? downloadTask.countOfBytesExpectedToReceive
         do {
             try FileManager.default.moveItem(at: location, to: tempURL)
         } catch {
@@ -255,8 +380,11 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             }
             return
         }
+        Task { @MainActor in self.state = .verifying }
+        // Hashing ~800MB takes seconds, so it runs here on the delegate queue, not the main actor.
+        let sha256 = try? SemanticSearchService.sha256(of: tempURL)
         Task { @MainActor in
-            self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount)
+            self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount, sha256: sha256)
         }
     }
 
@@ -264,7 +392,13 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         guard let error else { return }
         let nsError = error as NSError
         if nsError.code == NSURLErrorCancelled { return }
+        // A dropped connection hands back where it got to, so Try Again can continue from there.
+        let data = nsError.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+        let id = task.taskIdentifier
         Task { @MainActor in
+            guard self.task == nil || self.task?.taskIdentifier == id else { return }
+            self.task = nil
+            self.storeResumeData(data)
             self.state = .failed(nsError.localizedDescription)
         }
     }

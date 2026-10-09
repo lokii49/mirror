@@ -12,6 +12,7 @@ Funciones:
   • Cronología del estado de ánimo e informes mensuales
   • Mapa mental: explora los temas recurrentes en 3D
   • Haz preguntas sobre los patrones de tu diario
+  • Encuentra entradas por su significado con la búsqueda inteligente opcional en el dispositivo
   • Sincronización privada con iCloud
   • Preferencias de lectura en una ventana de Ajustes nativa
 

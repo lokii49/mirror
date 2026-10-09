@@ -12,6 +12,7 @@ Recursos:
   • Veja reflexões diárias e resumos semanais
   • Explore tendências de humor e relatórios mensais
   • Faça perguntas sobre os padrões do seu diário
+  • Encontre entradas pelo significado com a busca inteligente opcional no dispositivo
   • Sincronize em modo privado com o iCloud
   • Proteja sua escrita com armazenamento criptografado
 

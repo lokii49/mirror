@@ -1,4 +1,5 @@
 import Testing
+import SwiftData
 import SwiftUI
 import UIKit
 @testable import mirror
@@ -17,10 +18,6 @@ struct NoteEditorCodecTests {
         var paragraphs: [NoteEditorCodec.ParagraphModel]
         var inline: [InlineStyleRange] = []
         var entryFont: WritingFontChoice = .system
-        /// The iOS editor records the subheading font's built-in bold as an inline range. The Mac
-        /// editor does not need to (iOS renders a subheading bold regardless), so fixtures with a
-        /// subheading skip the inline comparison; their round trip is still checked.
-        var compareInline = true
     }
 
     private func p(_ style: NoteParagraphTextStyle, indent: Int = 0, font: WritingFontChoice? = nil) -> NoteEditorCodec.ParagraphModel {
@@ -47,8 +44,7 @@ struct NoteEditorCodecTests {
                 name: "headings quote and monospace",
                 text: "Heading\nSub\nA quote\ncode line\nplain",
                 paragraphs: [p(.heading), p(.subheading), p(.blockQuote), p(.monospaced), p(.body)],
-                inline: [range(0, 7, underline: true), range(8, 3, strike: true)],
-                compareInline: false
+                inline: [range(0, 7, underline: true), range(8, 3, strike: true)]
             ),
             Fixture(
                 name: "empty last list item",
@@ -166,9 +162,8 @@ struct NoteEditorCodecTests {
             #expect(iosStyle?.paragraphStyles == codecStyle?.paragraphStyles, "paragraph styles differ for: \(fixture.name)")
             #expect((iosStyle?.indentLevels ?? []) == (codecStyle?.indentLevels ?? []), "indent levels differ for: \(fixture.name)")
             #expect(iosStyle?.fontChoices == codecStyle?.fontChoices, "font choices differ for: \(fixture.name)")
-            if fixture.compareInline {
-                #expect(decodedInline(ios.inline) == decodedInline(codec.inline), "inline ranges differ for: \(fixture.name)")
-            }
+            // Includes a subheading: neither editor stores the subheading font's own bold.
+            #expect(decodedInline(ios.inline) == decodedInline(codec.inline), "inline ranges differ for: \(fixture.name)")
         }
     }
 
@@ -241,5 +236,179 @@ struct NoteEditorCodecTests {
         let ranges = decodedInline(NoteEditorCodec.extractInlineStyleData(from: rendered.attributed))
         #expect(ranges?.count == 1)
         #expect(ranges?.first?.location == 6)
+    }
+
+    // MARK: - Remapping inline ranges when rows move (checklist Sort Done / Delete Done)
+
+    private func remapped(_ ranges: [InlineStyleRange], _ text: String, _ order: [Int]) -> [InlineStyleRange]? {
+        decodedInline(NoteEditorCodec.remapInlineStyles(try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges)),
+                                                        in: text, rowOrder: order))
+    }
+
+    @Test func remapDropsDeletedRowsAndShiftsTheRest() {
+        // rows: "aa" "bbb" "cc"; delete row 0.
+        #expect(remapped([range(3, 3, bold: true), range(7, 2, italic: true)], "aa\nbbb\ncc", [1, 2])
+                == [range(0, 3, bold: true), range(4, 2, italic: true)])
+    }
+
+    @Test func remapMovesARangeWithItsRow() {
+        #expect(remapped([range(0, 2, link: "https://example.com")], "aa\nbbb", [1, 0]) == [range(4, 2, link: "https://example.com")])
+    }
+
+    @Test func remapClipsARangeThatSpansAKeptAndADeletedRow() {
+        // Bold over "a\nbbb" (0..<5); row 0 is deleted, so only "bbb" keeps it.
+        #expect(remapped([range(0, 5, bold: true)], "a\nbbb", [1]) == [range(0, 3, bold: true)])
+    }
+
+    @Test func remapCountsUTF16NotCharacters() {
+        // The emoji row is 2 UTF-16 units; deleting it moves "xy" from 3 to 0.
+        #expect(remapped([range(3, 2, underline: true)], "\u{1F600}\nxy", [1]) == [range(0, 2, underline: true)])
+        // Moving the emoji row below: "xy" goes to 0, a highlight on the emoji goes to 3.
+        #expect(remapped([range(0, 2, highlight: 1)], "\u{1F600}\nxy", [1, 0]) == [range(3, 2, highlight: 1)])
+    }
+
+    @Test func remapOfNothingOrEverythingDeletedIsNil() {
+        #expect(NoteEditorCodec.remapInlineStyles(nil, in: "a\nb", rowOrder: [1, 0]) == nil)
+        #expect(remapped([range(0, 1, bold: true)], "a\nb", [1]) == nil)
+    }
+
+    // MARK: - Adjusting inline ranges for a text edit (photo removal)
+
+    private func adjusted(_ ranges: [InlineStyleRange], _ location: Int, _ length: Int, _ newLength: Int) -> [InlineStyleRange]? {
+        decodedInline(NoteEditorCodec.adjustInlineStyles(try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges)),
+                                                         replacing: NSRange(location: location, length: length), withLength: newLength))
+    }
+
+    @Test func adjustShiftsRangesAfterADeletion() {
+        // "ab\n<photo>\nNotes" (a photo is one character in inline coordinates): deleting "\n" + photo
+        // (2 units at 2) moves "Notes" from 5 to 3.
+        #expect(adjusted([range(0, 2, bold: true), range(5, 5, italic: true)], 2, 2, 0)
+                == [range(0, 2, bold: true), range(3, 5, italic: true)])
+    }
+
+    @Test func adjustClipsRangesThatOverlapTheEdit() {
+        #expect(adjusted([range(0, 5, bold: true)], 3, 4, 0) == [range(0, 3, bold: true)])
+        #expect(adjusted([range(4, 4, bold: true)], 2, 4, 0) == [range(2, 2, bold: true)])
+        #expect(adjusted([range(3, 2, bold: true)], 2, 4, 0) == nil)
+    }
+
+    @Test func adjustFollowsAReplacementOfADifferentLength() {
+        #expect(adjusted([range(30, 3, underline: true)], 5, 4, 3) == [range(29, 3, underline: true)])
+    }
+
+    @Test func clearingBoldKeepsOtherFormattingAndBoldOutside() {
+        // Bold+underline over 0..<10; clear bold in 2..<5.
+        #expect(decodedInline(NoteEditorCodec.clearingBold(try? JSONEncoder().encode(InlineStyleDocument(ranges: [range(0, 10, bold: true, underline: true)])),
+                                                           in: NSRange(location: 2, length: 3)))
+                == [range(0, 2, bold: true, underline: true), range(2, 3, underline: true), range(5, 5, bold: true, underline: true)])
+        // Plain bold inside the cleared span disappears.
+        #expect(NoteEditorCodec.clearingBold(try? JSONEncoder().encode(InlineStyleDocument(ranges: [range(0, 3, bold: true)])),
+                                             in: NSRange(location: 0, length: 5)) == nil)
+    }
+
+    @Test func inlineRangesMoveToTextOffsetsAfterPhotos() {
+        // Editor coordinates: "ab\n" + photo(1) + "\nNotes" + photo(1) + "\nend".
+        let text = "ab\n[[mirror-photo-0]]\nNotes\n[[mirror-photo-1]]\nend"
+        let ranges = [range(0, 2, bold: true), range(5, 5, italic: true), range(13, 3, underline: true)]
+        #expect(NoteEditorCodec.inlineRangesInTextCoordinates(ranges, text: text)
+                == [range(0, 2, bold: true), range(22, 5, italic: true), range(47, 3, underline: true)])
+        // No photos: unchanged.
+        #expect(NoteEditorCodec.inlineRangesInTextCoordinates(ranges, text: "plain") == ranges)
+    }
+
+    // MARK: - One-time repair of photo-line damage (audit item 2)
+
+    @MainActor
+    private func repaired(_ text: String, _ styles: [NoteParagraphTextStyle]? = nil, _ inline: [InlineStyleRange] = [])
+        -> (text: String, inline: [InlineStyleRange]?)? {
+        let styleData = styles.flatMap { try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: $0)) }
+        let inlineData = inline.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: inline))
+        guard let result = NoteEditorCodec.repairPhotoMarkerDamage(text: text, textStyleData: styleData, inlineStyleData: inlineData) else { return nil }
+        return (result.text, decodedInline(result.inlineStyleData))
+    }
+
+    @MainActor
+    @Test func repairRemovesMarkersSavedAfterAPhotoToken() {
+        #expect(repaired("ab\n[[mirror-photo-0]]•  \nmilk")?.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(repaired("ab\n[[mirror-photo-0]]•  •  ○  \nmilk")?.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(repaired("[[mirror-photo-0]]2.\t\nnext")?.text == "[[mirror-photo-0]]\nnext")
+    }
+
+    @MainActor
+    @Test func repairRemovesADoubledMarkerFromAListItemBelowAPhoto() {
+        let result = repaired("ab\n[[mirror-photo-0]]\n•  milk\nplain", [.body, .body, .bulletedList, .body])
+        #expect(result?.text == "ab\n[[mirror-photo-0]]\nmilk\nplain")
+    }
+
+    @MainActor
+    @Test func repairMovesInlineRangesWithTheDeletedCharacters() {
+        // Editor coordinates: "ab\n" + photo + "•  " + "\nmilk" → "milk" at 8; after removing 3 marker
+        // characters it is at 5.
+        let result = repaired("ab\n[[mirror-photo-0]]•  \nmilk", nil, [range(0, 2, bold: true), range(8, 4, italic: true)])
+        #expect(result?.inline == [range(0, 2, bold: true), range(5, 4, italic: true)])
+    }
+
+    @MainActor
+    @Test func repairLeavesHealthyAndUnrelatedTextAlone() {
+        // No photo: never touched, even with a marker-looking line.
+        #expect(repaired("•  milk", [.bulletedList]) == nil)
+        // Above the first photo: not touched.
+        #expect(repaired("•  milk\n[[mirror-photo-0]]", [.bulletedList, .body]) == nil)
+        // A body line below a photo that starts like a marker is the user's text.
+        #expect(repaired("[[mirror-photo-0]]\n•  typed", [.body, .body]) == nil)
+        // A token in the middle of a line, then a marker-looking text: not a photo line.
+        #expect(repaired("see [[mirror-photo-0]]•  x") == nil)
+        // Healthy entry.
+        #expect(repaired("ab\n[[mirror-photo-0]]\nmilk", [.body, .body, .bulletedList]) == nil)
+    }
+}
+
+@Suite("PhotoMarkerRepair")
+struct PhotoMarkerRepairTests {
+    @MainActor
+    @Test func repairsOnlyDamagedPhotoEntriesAndSetsTheFlag() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+        UserDefaults.standard.set(1, forKey: countKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let context = container.mainContext
+        let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
+        let healthy = Entry(text: "•  a line the user typed")
+        context.insert(damaged); context.insert(healthy)
+        try context.save()
+
+        PhotoMarkerRepair.runIfNeeded(context: context)
+
+        #expect(damaged.text == "ab\n[[mirror-photo-0]]\nmilk")
+        #expect(healthy.text == "•  a line the user typed")
+        #expect(UserDefaults.standard.bool(forKey: PhotoMarkerRepair.flag))
+    }
+
+    @MainActor
+    @Test func waitsForFirstBackgrounding() throws {
+        let countKey = UngroundedInsightCleanup.backgroundingCountKey
+        let savedCount = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+        UserDefaults.standard.set(0, forKey: countKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: PhotoMarkerRepair.flag)
+            UserDefaults.standard.set(savedCount, forKey: countKey)
+        }
+        let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
+        container.mainContext.insert(damaged)
+        try container.mainContext.save()
+
+        PhotoMarkerRepair.runIfNeeded(context: container.mainContext)
+
+        #expect(damaged.text == "ab\n[[mirror-photo-0]]•  \nmilk")
+        #expect(!UserDefaults.standard.bool(forKey: PhotoMarkerRepair.flag))
     }
 }

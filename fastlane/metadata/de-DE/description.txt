@@ -12,6 +12,7 @@ Funktionen:
   • Tägliche Reflexionen und Wochenrückblicke ansehen
   • Stimmungstrends und Monatsberichte erkunden
   • Fragen zu deinen Journal-Mustern stellen
+  • Einträge nach Bedeutung finden, mit der optionalen smarten Suche auf dem Gerät
   • Privat mit iCloud synchronisieren
   • Schreiben mit verschlüsselter Speicherung schützen
 

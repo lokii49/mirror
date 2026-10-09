@@ -88,6 +88,20 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
 
+                        if subscriptionService.isSubscribed || SubscriptionService.allFeaturesFree {
+                            NavigationLink {
+                                SmartSearchSettingsView()
+                            } label: {
+                                SettingsCategoryRow(
+                                    title: displayMode == .sentinel ? "Search model" : "Smarter Ask search",
+                                    subtitle: "On-device search model for Ask",
+                                    systemImage: "sparkle.magnifyingglass",
+                                    iconColor: .purple
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+
                         NavigationLink {
                             ArchiveSettingsView()
                         } label: {

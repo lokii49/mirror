@@ -19,9 +19,9 @@ enum HighlightPalette {
     /// text, so without this every one reads as just "button" (audit 3.1).
     static func name(for index: Int, displayMode: DisplayMode) -> String {
         let names = displayMode == .sentinel
-            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
-            : ["Pink", "Purple", "Orange", "Mint", "Blue"]
-        guard names.indices.contains(index) else { return "Highlight" }
+            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
+            : [String(localized: "Pink"), String(localized: "Purple"), String(localized: "Orange"), String(localized: "Mint"), String(localized: "Blue")]
+        guard names.indices.contains(index) else { return String(localized: "Highlight") }
         return names[index]
     }
 
@@ -58,9 +58,9 @@ enum TextColorPalette {
 
     static func name(for index: Int, displayMode: DisplayMode) -> String {
         let names = displayMode == .sentinel
-            ? ["Ember", "Amber", "Ash", "Rust", "Dusk violet"]
-            : ["Red", "Orange", "Green", "Blue", "Purple"]
-        guard names.indices.contains(index) else { return "Text color" }
+            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
+            : [String(localized: "Red"), String(localized: "Orange"), String(localized: "Green"), String(localized: "Blue"), String(localized: "Purple")]
+        guard names.indices.contains(index) else { return String(localized: "Text color") }
         return names[index]
     }
 
@@ -141,133 +141,194 @@ struct FormattingPanelView: View {
         }
     }
 
-    /// Laid out like the Format sheet in Notes on iPhone: a "Format" header (font menu, close), the
-    /// paragraph styles as chips, then segmented capsules for B / I / U / S + link / clear and for the
-    /// list types + indent, then colour dots. Every control still sends the same command.
+    /// Every control is on screen at once: no row scrolls sideways, so nothing hides past the edge
+    /// (2026-10-09 redesign). Header (font, close); paragraph styles as a 3 x 2 grid, each label in its
+    /// own style; one bar for B / I / U / S + link + clear; one for the list types + indent; the
+    /// checklist actions when on a checklist line; labelled Highlight and Text color rows. At large
+    /// Dynamic Type sizes the sheet scrolls vertically. Every control still sends the same command.
     private var panelRows: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             header
 
-            // Paragraph styles, each label in its own style.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 20 * typeScale, weight: .bold))
-                    paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 17 * typeScale, weight: .bold))
-                    paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 15 * typeScale, weight: .semibold))
-                    paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 15 * typeScale, weight: .regular))
-                    paragraphStyleButton("Code",       style: .monospaced, labelFont: .system(size: 14 * typeScale, design: .monospaced))
-                    paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 15 * typeScale, weight: .regular).italic())
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 1)
-            }
-
-            // B / I / U / S, then link / clear. Scrolls at large Dynamic Type sizes (audit 2.5).
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    segmented {
-                        inlineButton("B", style: .bold,          font: .system(size: 17 * typeScale, weight: .bold),       accessibilityLabel: "Bold")
-                        segmentDivider
-                        inlineButton("I", style: .italic,        font: .system(size: 17 * typeScale).italic(),             accessibilityLabel: "Italic")
-                        segmentDivider
-                        inlineButton("U", style: .underline,     font: .system(size: 17 * typeScale), underline: true,     accessibilityLabel: "Underline")
-                        segmentDivider
-                        inlineButton("S", style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true, accessibilityLabel: "Strikethrough")
-                    }
-                    segmented {
-                        linkButton
-                        segmentDivider
-                        clearFormattingButton
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-
-            // List types (scrolling) + indent, pinned so it can't be pushed off-screen (audit 2.5).
-            HStack(spacing: 10) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    segmented {
-                        listButton(icon: "list.bullet", command: .bulletedList, accessibilityLabel: "Bulleted list")
-                        segmentDivider
-                        listButton(icon: "list.dash",   command: .dashedList,   accessibilityLabel: "Dashed list")
-                        segmentDivider
-                        listButton(icon: "list.number", command: .numberedList, accessibilityLabel: "Numbered list")
-                        segmentDivider
-                        listButton(icon: "checklist",   command: .checklist,    accessibilityLabel: "Checklist")
-                    }
-                }
-                segmented {
-                    listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent", scaleFrame: false)
-                    segmentDivider
-                    listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent", scaleFrame: false)
-                }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+                paragraphStyleButton("Title",      style: .title,      labelFont: .system(size: 19 * typeScale, weight: .bold))
+                paragraphStyleButton("Heading",    style: .heading,    labelFont: .system(size: 16 * typeScale, weight: .bold))
+                paragraphStyleButton("Subheading", style: .subheading, labelFont: .system(size: 14 * typeScale, weight: .semibold))
+                paragraphStyleButton("Body",       style: .body,       labelFont: .system(size: 14 * typeScale, weight: .regular))
+                paragraphStyleButton("Code",       style: .monospaced, labelFont: .system(size: 13 * typeScale, design: .monospaced))
+                paragraphStyleButton("Quote",      style: .blockQuote, labelFont: .system(size: 14 * typeScale, weight: .regular).italic())
             }
             .padding(.horizontal, 16)
 
-            // Checklist bulk ops — only when the cursor is on a checklist line.
-            if state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        bulkChecklistButton("Check All",   command: .checkAllItems)
-                        bulkChecklistButton("Uncheck All", command: .uncheckAllItems)
-                        bulkChecklistButton("Delete Done", command: .deleteCheckedItems)
-                        bulkChecklistButton("Sort Done",   command: .sortCheckedToBottom)
-                    }
-                    .padding(.horizontal, 16)
+            bar {
+                inlineButton("B", style: .bold,          font: .system(size: 17 * typeScale, weight: .bold),       accessibilityLabel: "Bold")
+                segmentDivider
+                inlineButton("I", style: .italic,        font: .system(size: 17 * typeScale).italic(),             accessibilityLabel: "Italic")
+                segmentDivider
+                inlineButton("U", style: .underline,     font: .system(size: 17 * typeScale), underline: true,     accessibilityLabel: "Underline")
+                segmentDivider
+                inlineButton("S", style: .strikethrough, font: .system(size: 17 * typeScale), strikethrough: true, accessibilityLabel: "Strikethrough")
+                groupGap
+                linkButton
+                segmentDivider
+                clearFormattingButton
+            }
+
+            bar {
+                listButton(marker: "•",  command: .bulletedList, identifier: "list.bullet", accessibilityLabel: "Bulleted list")
+                segmentDivider
+                listButton(marker: "–",  command: .dashedList,   identifier: "list.dash",   accessibilityLabel: "Dashed list")
+                segmentDivider
+                listButton(marker: "1.", command: .numberedList, identifier: "list.number", accessibilityLabel: "Numbered list")
+                segmentDivider
+                listButton(icon: "checklist", command: .checklist, accessibilityLabel: "Checklist")
+                groupGap
+                listButton(icon: "decrease.indent", command: .indentLess, accessibilityLabel: "Decrease indent")
+                segmentDivider
+                listButton(icon: "increase.indent", command: .indentMore, accessibilityLabel: "Increase indent")
+            }
+
+            // Checklist actions, only on a checklist line: one menu, as in Notes, so long translations
+            // ("Erledigte löschen") keep their full size instead of squeezing into four cells.
+            if isChecklistLine {
+                checklistMenu
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            colorRow("Highlight") {
+                noneSwatch(isActive: state.activeHighlightIndex == nil, accessibilityLabel: "No highlight") {
+                    state.onCommand?(.highlight(index: nil))
+                } label: {
+                    Image(systemName: "nosign").font(.system(size: 15 * typeScale, weight: .medium))
+                }
+                .accessibilityIdentifier("xmark")
+                ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
+                    highlightButton(index: idx)
                 }
             }
 
-            // Highlight and text colours share one scrolling row (a second row would push the panel past
-            // its fixed 360pt input-view budget: FormattingPanelSizingTests).
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    Button {
-                        DispatchQueue.main.async { state.onCommand?(.highlight(index: nil)) }
-                    } label: {
-                        Image(systemName: "circle.slash")
-                            .font(.system(size: 20 * typeScale))
-                            .foregroundStyle(state.activeHighlightIndex == nil ? accent : Color.secondary)
-                            .frame(width: 34 * typeScale, height: 34 * typeScale)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("xmark")
-                    .accessibilityLabel("No highlight")
-                    .accessibilityAddTraits(state.activeHighlightIndex == nil ? .isSelected : [])
-
-                    ForEach(0..<HighlightPalette.colors(for: displayMode).count, id: \.self) { idx in
-                        highlightButton(index: idx)
-                    }
-
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.12))
-                        .frame(width: 1, height: 26 * typeScale)
-                        .padding(.horizontal, 2)
-
-                    Button {
-                        DispatchQueue.main.async { state.onCommand?(.textColor(index: nil)) }
-                    } label: {
-                        Text("A")
-                            .font(.system(size: 17 * typeScale, weight: .semibold))
-                            .foregroundStyle(Color.primary)
-                            .frame(width: 34 * typeScale, height: 34 * typeScale)
-                            .background(Circle().fill(idleFill))
-                            .overlay(Circle().stroke(state.activeTextColorIndex == nil ? accent : Color.clear, lineWidth: 2))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Default text color")
-                    .accessibilityAddTraits(state.activeTextColorIndex == nil ? .isSelected : [])
-
-                    ForEach(0..<TextColorPalette.colors(for: displayMode).count, id: \.self) { idx in
-                        textColorButton(index: idx)
-                    }
+            colorRow("Text color") {
+                noneSwatch(isActive: state.activeTextColorIndex == nil, accessibilityLabel: "Default text color") {
+                    state.onCommand?(.textColor(index: nil))
+                } label: {
+                    Text("A").font(.system(size: 15 * typeScale, weight: .bold))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 1)
+                ForEach(0..<TextColorPalette.colors(for: displayMode).count, id: \.self) { idx in
+                    textColorButton(index: idx)
+                }
             }
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 0)
         }
-        .padding(.top, presentation == .sheet ? 12 : 10)
+        .padding(.top, presentation == .sheet ? 10 : 14)
+        .padding(.bottom, 10)
+        .animation(.easeInOut(duration: 0.2), value: isChecklistLine)
+    }
+
+    private var isChecklistLine: Bool {
+        state.activeParagraphStyle == .checklistUnchecked || state.activeParagraphStyle == .checklistChecked
+    }
+
+    private var checklistMenu: some View {
+        Menu {
+            Button { send(.checkAllItems) } label: { Label("Check All", systemImage: "checkmark.circle") }
+            Button { send(.uncheckAllItems) } label: { Label("Uncheck All", systemImage: "circle") }
+            Button { send(.sortCheckedToBottom) } label: { Label("Sort Done", systemImage: "arrow.down.to.line") }
+            Button(role: .destructive) { send(.deleteCheckedItems) } label: { Label("Delete Done", systemImage: "trash") }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "checklist").font(.system(size: 15 * typeScale, weight: .medium))
+                Group {
+                    if displayMode == .sentinel {
+                        Text("Checklist").font(MirrorTheme.mono(12 * typeScale, weight: .bold)).textCase(.uppercase)
+                    } else {
+                        Text("Checklist").font(.system(size: 15 * typeScale, weight: .medium))
+                    }
+                }
+                .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11 * typeScale, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
+            }
+            .foregroundStyle(Color.primary)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: cellHeight)
+            .background(groupShape.fill(idleFill))
+            .contentShape(groupShape)
+        }
+        .accessibilityIdentifier("checklistActions")
+        .padding(.horizontal, 16)
+    }
+
+    private func send(_ command: NoteTextCommand) {
+        DispatchQueue.main.async { state.onCommand?(command) }
+    }
+
+    // MARK: - Rows
+
+    /// A full-width group of equal cells with hairline dividers.
+    private func bar<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        HStack(spacing: 0) { content() }
+            .frame(maxWidth: .infinity)
+            .background(groupShape.fill(idleFill))
+            .clipShape(groupShape)
+            .padding(.horizontal, 16)
+    }
+
+    /// The thicker break between two groups inside one bar (styles | link, lists | indent).
+    private var groupGap: some View {
+        Rectangle().fill(Color.primary.opacity(0.22)).frame(width: 1.5, height: 26 * typeScale)
+    }
+
+    /// A labelled row of swatches: the label says what the dots do. The label sits beside the swatches
+    /// when it fits whole, otherwise above them (long translations, narrow popover, large text sizes).
+    private func colorRow<Content: View>(_ title: LocalizedStringKey, @ViewBuilder _ swatches: () -> Content) -> some View {
+        let dots = HStack(spacing: 6) { swatches() }
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                colorLabel(title).fixedSize()
+                Spacer(minLength: 4)
+                dots
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                colorLabel(title).fixedSize(horizontal: false, vertical: true)
+                dots
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder private func colorLabel(_ title: LocalizedStringKey) -> some View {
+        Group {
+            if displayMode == .sentinel {
+                Text(title).font(MirrorTheme.mono(11 * typeScale, weight: .bold)).textCase(.uppercase).tracking(0.6)
+            } else {
+                Text(title).font(.system(size: 13 * typeScale, weight: .medium))
+            }
+        }
+        .foregroundStyle(Color.secondary)
+    }
+
+    private var swatchSize: CGFloat { min(26 * typeScale, 36) }
+
+    /// The "none" swatch at the start of a colour row: idle fill, accent ring when active.
+    private func noneSwatch<Label: View>(isActive: Bool, accessibilityLabel: String, action: @escaping () -> Void,
+                                         @ViewBuilder label: () -> Label) -> some View {
+        Button {
+            DispatchQueue.main.async { action() }
+        } label: {
+            label()
+                .foregroundStyle(isActive ? accent : Color.primary)
+                .frame(width: swatchSize, height: swatchSize)
+                .background(Circle().fill(idleFill))
+                .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2).padding(-3))
+                .padding(3)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Header
@@ -282,6 +343,9 @@ struct FormattingPanelView: View {
                 }
             }
             .foregroundStyle(Color.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .layoutPriority(1)
             Spacer(minLength: 8)
             fontMenu
             if presentation == .sheet, let onClose {
@@ -332,13 +396,6 @@ struct FormattingPanelView: View {
 
     // MARK: - Segmented capsule
 
-    /// A rounded group of buttons with hairline dividers, like the segments in Notes' Format sheet.
-    private func segmented<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        HStack(spacing: 0) { content() }
-            .background(groupShape.fill(idleFill))
-            .clipShape(groupShape)
-    }
-
     private var groupShape: AnyShape {
         displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6)) : AnyShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
@@ -359,29 +416,36 @@ struct FormattingPanelView: View {
             Text(label)
                 .font(labelFont)
                 .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .foregroundStyle(isActive ? accent : Color.primary)
-                .padding(.horizontal, 14)
-                .frame(height: 42 * typeScale)
-                .background(isActive ? accent.opacity(0.16) : Color.clear, in: chipShape)
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34 * typeScale)
+                .background(isActive ? accent.opacity(0.16) : idleFill, in: tileShape)
+                .overlay(tileShape.stroke(isActive ? accent.opacity(0.55) : Color.clear, lineWidth: 1.5))
+                .contentShape(tileShape)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    private var chipShape: AnyShape {
-        displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6)) : AnyShape(Capsule())
+    private var tileShape: AnyShape {
+        displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6)) : AnyShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Segment cells
 
-    /// One cell inside a `segmented` group: tinted when active.
-    private func cell<Label: View>(isActive: Bool, width: CGFloat, height: CGFloat, @ViewBuilder _ label: () -> Label) -> some View {
+    /// One equal-width cell inside a `bar`: tinted when active.
+    private func cell<Label: View>(isActive: Bool, @ViewBuilder _ label: () -> Label) -> some View {
         label()
             .foregroundStyle(isActive ? accent : Color.primary)
-            .frame(width: width, height: height)
+            .frame(maxWidth: .infinity)
+            .frame(height: cellHeight)
             .background(isActive ? accent.opacity(0.16) : Color.clear)
             .contentShape(Rectangle())
     }
+
+    private var cellHeight: CGFloat { 36 * typeScale }
 
     @ViewBuilder
     private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false, accessibilityLabel: String) -> some View {
@@ -390,7 +454,7 @@ struct FormattingPanelView: View {
             let cmd = inlineCommand(for: style)
             DispatchQueue.main.async { state.onCommand?(cmd) }
         } label: {
-            cell(isActive: isActive, width: 48 * typeScale, height: 42 * typeScale) {
+            cell(isActive: isActive) {
                 Group {
                     if strikethrough {
                         Text(label).strikethrough(true, color: isActive ? accent : Color.primary)
@@ -416,7 +480,7 @@ struct FormattingPanelView: View {
         return Button {
             DispatchQueue.main.async { state.onRequestLinkEditor?() }
         } label: {
-            cell(isActive: isActive, width: 48 * typeScale, height: 42 * typeScale) {
+            cell(isActive: isActive) {
                 Image(systemName: "link").font(.system(size: 16 * typeScale))
             }
         }
@@ -430,7 +494,7 @@ struct FormattingPanelView: View {
         Button {
             DispatchQueue.main.async { state.onCommand?(.clearFormatting) }
         } label: {
-            cell(isActive: false, width: 48 * typeScale, height: 42 * typeScale) {
+            cell(isActive: false) {
                 Image(systemName: "eraser").font(.system(size: 16 * typeScale))
             }
         }
@@ -439,18 +503,38 @@ struct FormattingPanelView: View {
         .accessibilityLabel("Clear formatting")
     }
 
-    @ViewBuilder
-    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String, scaleFrame: Bool = true) -> some View {
+    /// A list type drawn as its own marker ("•", "–", "1."), so bulleted and dashed can't look alike.
+    private func listButton(marker: String, command: NoteTextCommand, identifier: String, accessibilityLabel: String) -> some View {
         let isActive = listIsActive(command: command)
-        // The indent pair keeps a fixed frame so two growing buttons can't eat an iPhone SE row at large
-        // Dynamic Type sizes; its glyph still scales, capped inside the box (audit 2.5).
-        let frameScale = scaleFrame ? typeScale : 1
-        let iconSize = scaleFrame ? 17 * typeScale : min(17 * typeScale, 22)
-        Button {
+        return Button {
             DispatchQueue.main.async { state.onCommand?(command) }
         } label: {
-            cell(isActive: isActive, width: 48 * frameScale, height: 42 * frameScale) {
-                Image(systemName: icon).font(.system(size: iconSize))
+            cell(isActive: isActive) {
+                HStack(spacing: 3) {
+                    Text(verbatim: marker)
+                        .font(.system(size: min(15 * typeScale, 22), weight: .bold))
+                        .lineLimit(1)
+                        .fixedSize()
+                    VStack(alignment: .leading, spacing: min(3 * typeScale, 5)) {
+                        Capsule().frame(width: min(12 * typeScale, 16), height: 2)
+                        Capsule().frame(width: min(8 * typeScale, 11), height: 2)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private func listButton(icon: String, command: NoteTextCommand, accessibilityLabel: String) -> some View {
+        let isActive = listIsActive(command: command)
+        return Button {
+            DispatchQueue.main.async { state.onCommand?(command) }
+        } label: {
+            cell(isActive: isActive) {
+                Image(systemName: icon).font(.system(size: min(16 * typeScale, 24)))
             }
         }
         .buttonStyle(.plain)
@@ -459,50 +543,31 @@ struct FormattingPanelView: View {
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    // MARK: - Bulk checklist button
-
-    @ViewBuilder
-    private func bulkChecklistButton(_ label: LocalizedStringKey, command: NoteTextCommand) -> some View {
-        Button {
-            DispatchQueue.main.async { state.onCommand?(command) }
-        } label: {
-            Group {
-                if displayMode == .sentinel {
-                    Text(label).font(MirrorTheme.mono(11 * typeScale, weight: .medium)).textCase(.uppercase)
-                } else {
-                    Text(label).font(.system(size: 13 * typeScale, weight: .medium))
-                }
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .foregroundStyle(Color.primary)
-            .padding(.horizontal, 12)
-            .frame(height: 32 * typeScale)
-            .background(idleFill, in: chipShape)
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Colour dots
 
-    @ViewBuilder
+    /// A highlight swatch is the highlight colour itself.
     private func highlightButton(index: Int) -> some View {
         let isActive = state.activeHighlightIndex == index
-        Button {
+        return Button {
             let newIndex = isActive ? nil : index
             DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
             Circle()
                 .fill(HighlightPalette.colors(for: displayMode)[index])
-                .frame(width: 30 * typeScale, height: 30 * typeScale)
-                .padding(2)
-                .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2))
+                .overlay(Circle().stroke(Color.primary.opacity(0.12), lineWidth: 1))
+                .frame(width: swatchSize, height: swatchSize)
+                .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2).padding(-3))
+                .padding(3)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(HighlightPalette.name(for: index, displayMode: displayMode))
+        // Both rows share colour names, so the label says which row ("Purple, Highlight").
+        .accessibilityLabel(Text(verbatim: HighlightPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Highlight"))
+        .accessibilityIdentifier("highlight-\(index)")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
+    /// A text-colour swatch is an "A" in that colour, so it previews the result.
     private func textColorButton(index: Int) -> some View {
         let isActive = state.activeTextColorIndex == index
         let color = TextColorPalette.colors(for: displayMode)[index]
@@ -510,14 +575,18 @@ struct FormattingPanelView: View {
             let newIndex = isActive ? nil : index
             DispatchQueue.main.async { state.onCommand?(.textColor(index: newIndex)) }
         } label: {
-            Circle()
-                .fill(color)
-                .frame(width: 30 * typeScale, height: 30 * typeScale)
-                .padding(2)
-                .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2))
+            Text("A")
+                .font(.system(size: 15 * typeScale, weight: .heavy))
+                .foregroundStyle(color)
+                .frame(width: swatchSize, height: swatchSize)
+                .background(Circle().fill(idleFill))
+                .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2).padding(-3))
+                .padding(3)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(TextColorPalette.name(for: index, displayMode: displayMode))
+        .accessibilityLabel(Text(verbatim: TextColorPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Text color"))
+        .accessibilityIdentifier("textColor-\(index)")
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 

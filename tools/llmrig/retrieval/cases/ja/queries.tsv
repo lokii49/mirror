@@ -1,0 +1,16 @@
+qid	class	lang	gold	query
+l1	lexical	ja	ex1	ジムに行ったのはいつ？
+l2	lexical	ja	jb1,jb2,jb3	面接はどうだった？
+l3	lexical	ja	pt1	動物病院では何て言われた？
+l4	lexical	ja	mo1	家賃のことは？
+p1	paraphrase	ja	ex1,ex2,ex3,ex4	ちゃんと運動している？
+p2	paraphrase	ja	sl1,sl2,sl3	夜はよく休めている？
+p3	paraphrase	ja	mo1,mo2,mo3	お金の状況はどう？
+p4	paraphrase	ja	mm1,mm2,mm3	家族とはうまくいっている？
+p5	paraphrase	ja	jb1,jb2,jb3	転職活動をしている？
+p6	paraphrase	ja	pt1,pt2	ペットは元気？
+p7	paraphrase	ja	hl1,hl2	体調を崩していた？
+a1	abstract	ja	hp1,hp2,mo2,jb2,fr2	いちばん幸せだったのはいつ？
+a2	abstract	ja	ln1	寂しかったのはいつ？
+a3	abstract	ja	bo1,wk2,wk3	燃え尽きている？
+a4	abstract	ja	wk1,sl1	何に不安を感じている？

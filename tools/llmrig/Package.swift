@@ -1,6 +1,6 @@
 // swift-tools-version: 6.0
 // Off-device Gemma test rig. Builds against the app's own vendored SwiftLlama package (same
-// patched sources, same llama.cpp b6102 xcframework), so generations here match the app's Gemma
+// patched sources, same llama.cpp xcframework (llamaVersion in Packages/SwiftLlama)), so generations here match the app's Gemma
 // path, at Metal speed on a Mac instead of ~25s/generation on the simulator's CPU path.
 import PackageDescription
 

@@ -8,7 +8,24 @@ import AppKit
 
 extension WriteView {
     func applyTextCommand(_ command: NoteTextCommand) {
-        editorFocused = true
+        // Delete Done removes rows, so every entry point (toolbar trash, Aa panel, Mac popover
+        // menu) asks first; it can also be undone. An alert can't present over the Aa popover, so close it
+        // and wait for the dismissal.
+        if case .deleteCheckedItems = command {
+            let panelWasOpen = showFormattingPanel
+            showFormattingPanel = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + (panelWasOpen ? 0.35 : 0)) {
+                showDeleteCheckedConfirm = true
+            }
+            return
+        }
+        sendTextCommand(command)
+    }
+
+    /// Hands a command to the editor without any confirmation step.
+    func sendTextCommand(_ command: NoteTextCommand) {
+        // Doesn't focus the editor: a formatting tap shouldn't pop the keyboard (this line used
+        // to set `editorFocused = true`, which had no effect while it was a @FocusState).
         pendingTextCommand = command
         textCommandRevision += 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -40,6 +57,7 @@ extension WriteView {
     /// saved entry after this view is gone, instead of being silently
     /// abandoned or corrupting whatever comes next.
     func saveAndDismiss() {
+        commitPendingTag()
         if let entry {
             // Snapshot before the handoff below clears failedTranscriptionIndexes —
             // line ~80 still needs to know what was failed *at save time* to set
@@ -169,6 +187,7 @@ extension WriteView {
     /// Saves even while a voice note is still transcribing (1.4) — see
     /// `saveAndDismiss()`'s doc comment.
     func saveDraft() {
+        commitPendingTag()
         guard entry == nil, hasDraftContent else { return }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
@@ -234,6 +253,15 @@ extension WriteView {
         additionalVoiceNoteLanguageCodes = []
         additionalVoiceNoteLanguageNames = []
         additionalVoiceNoteEnglishTranslations = []
+        // Tags and a picked date are part of the draft too: deleting or saving it used to leave
+        // the chips behind for the next entry (2026-10-09).
+        entryTags = []
+        tagText = ""
+        showTagInput = false
+        if entry == nil {
+            entryDate = Date()
+            entryDateChosen = false
+        }
         cancelAllTranscriptions()
     }
 
@@ -256,6 +284,8 @@ extension WriteView {
             photos: photoDataArray,
             mood: viewModel.selectedMood,
             tags: entryTags,
+            entryDate: entryDate,
+            entryDateChosen: entryDateChosen,
             voiceNoteData: voiceNoteData,
             voiceNoteDuration: voiceNoteDuration,
             voiceNoteTranscript: voiceNoteTranscript,
@@ -296,6 +326,8 @@ extension WriteView {
         photoDataArray = undoSnapshot.photos
         viewModel.selectedMood = undoSnapshot.mood
         entryTags = undoSnapshot.tags
+        entryDate = undoSnapshot.entryDate
+        entryDateChosen = undoSnapshot.entryDateChosen
         voiceNoteData = undoSnapshot.voiceNoteData
         voiceNoteDuration = undoSnapshot.voiceNoteDuration
         voiceNoteTranscript = undoSnapshot.voiceNoteTranscript
@@ -341,6 +373,28 @@ extension WriteView {
     /// array each call, so writing synchronously per character is real input
     /// latency. Coalesce to one write ~1s after typing stops; background and
     /// mood changes still flush immediately.
+    /// Draft content other than the text (which has its own trigger), the mood (flushed at
+    /// once) and photos/voice notes (saved on their own): a change here must schedule a draft
+    /// save just like typing does.
+    struct DraftChangeKey: Equatable {
+        var textStyleData: Data?
+        var inlineStyleData: Data?
+        var tags: [String]
+        var entryDate: Date
+        var fontChoice: String = WritingFontChoice.system.rawValue
+    }
+
+    var draftChangeKey: DraftChangeKey {
+        DraftChangeKey(textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData,
+                       tags: entryTags, entryDate: entryDate, fontChoice: entryFontChoiceRaw)
+    }
+
+    /// The entry date as the date pickers set it: a pick marks the date as chosen, so a
+    /// new-entry draft keeps it.
+    var chosenEntryDate: Binding<Date> {
+        Binding(get: { entryDate }, set: { entryDate = $0; entryDateChosen = true })
+    }
+
     func scheduleDraftSave() {
         guard Self.usesPersistentDraftStorage(), !pendingDelete, !editCommitted else { return }
         // No content comparison here: it hashes attachments, too slow per keystroke.
@@ -447,7 +501,9 @@ extension WriteView {
             textStyleData: viewModel.textStyleData,
             inlineStyleData: inlineStyleData,
             mood: viewModel.selectedMood,
-            tags: entryTags
+            tags: entryTags,
+            entryDate: entryDateChosen ? entryDate : nil,
+            fontChoice: entryFontChoiceRaw
         ))
         draftSaveState = saved && attachmentsSaved ? .saved : .failed
     }
@@ -481,7 +537,8 @@ extension WriteView {
             tags: entryTags,
             entryDate: entryDate,
             baseFingerprint: base,
-            savedAt: Date()
+            savedAt: Date(),
+            fontChoice: entryFontChoiceRaw
         ), slot: slot)
         draftSaveState = saved ? .saved : .failed
     }
@@ -514,6 +571,7 @@ extension WriteView {
         viewModel.selectedMood = draft.mood
         entryTags = draft.tags
         if let date = draft.entryDate { entryDate = date }
+        if let font = draft.fontChoice { entryFontChoiceRaw = font }
         draftSaveState = .saved
     }
 
@@ -552,8 +610,15 @@ extension WriteView {
                 englishTranslation: $0.englishTranslation
             )
         }
-        attachmentsSaved = DraftAttachmentStore.save(photos: photoDataArray, voiceNotes: notes)
-        if !attachmentsSaved { draftSaveState = .failed }
+        // Off the main thread (up to ~130 ms with five camera photos); a newer save or a
+        // clear makes this result stale, so it's dropped.
+        attachmentSaveGeneration &+= 1
+        let generation = attachmentSaveGeneration
+        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes) { saved in
+            guard generation == attachmentSaveGeneration else { return }
+            attachmentsSaved = saved
+            if !saved { draftSaveState = .failed }
+        }
     }
 
     func restoreDraftAttachments() {
@@ -591,11 +656,17 @@ extension WriteView {
         inlineStyleData = draft.inlineStyleData
         viewModel.selectedMood = draft.mood
         entryTags = draft.tags
+        if let date = draft.entryDate {
+            entryDate = date
+            entryDateChosen = true
+        }
+        if let font = draft.fontChoice { entryFontChoiceRaw = font }
     }
 
     func clearDraftStorage() {
         cancelDraftSave()
-        Self.clearAllDraftStorage()
+        attachmentSaveGeneration &+= 1   // a photo save still in flight must not report afterwards
+        Self.clearAllDraftStorage()      // waits for that save, then clears
         draftSaveState = .idle
         attachmentsSaved = true
     }
@@ -620,7 +691,6 @@ extension WriteView {
         guard entry == nil else { return }
         cancelDraftSave()
         clearDraft()
-        entryTags = []
     }
 
     /// Delete Everything: like `clearAllDraftStorage`, plus any draft held back
@@ -686,6 +756,9 @@ struct DraftRecoveryAlerts: ViewModifier {
 struct DraftSaveStatusLabel: View {
     let state: DraftSaveState
     let retry: () -> Void
+    /// The iPhone header's narrow slot: "Draft saved" with a checkmark and a short "Retry";
+    /// VoiceOver still hears the full wording.
+    var compact = false
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
@@ -696,12 +769,25 @@ struct DraftSaveStatusLabel: View {
             label("Saving…")
         case .saved:
             // A draft, not the entry: Save is still needed (and nothing here is iCloud).
-            label("Draft kept on this device")
+            if compact {
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 10, weight: .semibold))
+                    label("Draft saved")
+                }
+                .foregroundStyle(.tertiary)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Draft kept on this device"))
+                .accessibilityIdentifier("draft.saveStatus")
+            } else {
+                label("Draft kept on this device")
+            }
         case .failed:
             Button(action: retry) {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                     Text("Not saved · Retry")
+                        .lineLimit(1)
                 }
                 .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 12, weight: .semibold))
                 .foregroundStyle(.orange)
@@ -715,6 +801,7 @@ struct DraftSaveStatusLabel: View {
         Text(text)
             .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
             .foregroundStyle(.tertiary)
+            .lineLimit(1)
             .accessibilityIdentifier("draft.saveStatus")
     }
 }
