@@ -727,6 +727,16 @@ enum InsightService {
         !entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// True when today's reflection is in a grounded language Foundation Models can't work in
+    /// (Russian), so only Gemma can write it, resolved as `generateNudge` does. On a device with
+    /// Foundation Models and no Gemma file, the card offers the download instead of waiting on a
+    /// generation that throws `modelMissing` every time (backlog A15).
+    static func nudgeNeedsGemma(entries: [Entry], foundationModelsSupports: (String) -> Bool = FoundationModelEngine.supports(languageCode:)) -> Bool {
+        let (recent, background) = dailyNudgeContext(from: entries.filter(hasReadableContext), asOf: Date())
+        guard !recent.isEmpty, let code = groundedLocaleCode(for: recent + background) else { return false }
+        return !foundationModelsSupports(code)
+    }
+
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
         // Real device case (2026-09-25): mirrorApp.swift's own call site filters this too, but
         // generateWeeklyDigest/generateMonthlyReport/ask also have callers that never went through

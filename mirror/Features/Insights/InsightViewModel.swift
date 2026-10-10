@@ -192,7 +192,9 @@ final class InsightViewModel {
             return .loaded(latest)
         }
 
-        guard mirrorApp.modelAvailable() else {
+        // Foundation Models alone counts as available, but Russian runs only on Gemma (A15).
+        guard mirrorApp.modelAvailable(),
+              LocalLLMService.isGemmaModelAvailable || !InsightService.nudgeNeedsGemma(entries: entries) else {
             return .modelNotInstalled
         }
 
