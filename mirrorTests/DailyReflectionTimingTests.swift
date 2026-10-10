@@ -258,6 +258,48 @@ extension SharedLLMState {
             #expect(try todaysReflections(context).count == 2)
         }
 
+        /// Backlog A5: a fallback day retried and saved another row on every trigger.
+        @Test(.enabled(if: LocalLLMService.isModelAvailable))
+        func fallbackDay_retriesOnlyAfterTheWritingChanges_orOnTryAgain() async throws {
+            let key = mirrorApp.fallbackRetrySignatureKey
+            UserDefaults.standard.removeObject(forKey: key); defer { UserDefaults.standard.removeObject(forKey: key) }
+            let context = try makeContext()
+            addEntry("Long walk around the lake with Bruno after work, the light was gold on the water.", at: startOfToday.addingTimeInterval(60), to: context)
+            addEntry("Finally fixed the dashboard bug with Omar, it was in the date parsing all along.", at: startOfToday.addingTimeInterval(120), to: context)
+            let latest = addEntry("Called Anu tonight, first time in weeks, and we talked for almost an hour.", at: startOfToday.addingTimeInterval(180), to: context)
+            try context.save()
+            var calls = 0
+            // Rejected by the word-overlap guards on every attempt, so the fallback card is saved.
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in
+                calls += 1
+                return ("The rain outside feels heavy tonight, doesn't it?", .foundationModels)
+            }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+
+            await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+            var rows = try todaysReflections(context)
+            #expect(rows.count == 1)
+            #expect(rows.allSatisfy { InsightService.isUngroundedFallback($0.content) })
+
+            let callsAfterFallback = calls
+            await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+            await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+            rows = try todaysReflections(context)
+            #expect(calls == callsAfterFallback, "unchanged writing: no automatic retry")
+            #expect(rows.count == 1, "unchanged writing: no new row")
+
+            latest.text += " We made a plan to meet up next month."
+            try context.save()
+            await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+            #expect(calls > callsAfterFallback, "added writing retries")
+            #expect(try todaysReflections(context).count == 2)
+
+            let callsBeforeTap = calls
+            await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true, userInitiatedRetry: true)
+            #expect(calls > callsBeforeTap, "Try Again always runs")
+            #expect(try todaysReflections(context).count == 3)
+        }
+
         @Test(.enabled(if: LocalLLMService.isModelAvailable))
         func throwingSecondAttempt_isNotRecorded_andRetriesOnTheNextTrigger() async throws {
             clearMarker(); defer { clearMarker() }
