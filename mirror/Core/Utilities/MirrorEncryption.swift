@@ -69,6 +69,30 @@ enum MirrorEncryption {
         isEncryptedString(value) && decryptOptionalStringValue(value) == nil
     }
 
+    /// True when `value` is sealed data this device can't open. `decryptOptionalData` hands such
+    /// bytes back unchanged, so a caller that writes them back would re-encrypt ciphertext.
+    /// Bytes that start like a format the app stores unencrypted elsewhere (JPEG/PNG photos,
+    /// AAC voice notes, JSON style data) are taken as plaintext, not as a missing key.
+    static func encryptedDataNeedsUnavailableKey(_ value: Data?) -> Bool {
+        guard let value, !value.isEmpty else { return false }
+        if (try? decryptData(value)) != nil { return false }
+        return !looksLikePlaintextPayload(value)
+    }
+
+    static func looksLikePlaintextPayload(_ data: Data) -> Bool {
+        let bytes = [UInt8](data.prefix(12))
+        func starts(_ magic: [UInt8], at offset: Int = 0) -> Bool {
+            bytes.count >= offset + magic.count && Array(bytes[offset..<offset + magic.count]) == magic
+        }
+        return starts([0xFF, 0xD8, 0xFF])                       // JPEG
+            || starts([0x89, 0x50, 0x4E, 0x47])                  // PNG
+            || starts(Array("ftyp".utf8), at: 4)                 // M4A / HEIC / MP4
+            || starts(Array("caff".utf8))                        // CAF
+            || starts(Array("RIFF".utf8))                        // WAV
+            || starts(Array("bplist".utf8))                      // binary plist
+            || starts(Array("{".utf8)) || starts(Array("[".utf8)) // JSON
+    }
+
     static func encryptOptionalData(_ value: Data?) -> Data? {
         guard let value, !value.isEmpty else { return value }
         return try? encryptData(value)

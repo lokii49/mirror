@@ -58,6 +58,34 @@ enum EntrySource: String, Codable {
         MirrorEncryption.encryptedStringNeedsUnavailableKey(encryptedText)
     }
 
+    /// Any encrypted field this device can't open, not just the text. A voice-only entry keeps
+    /// its text as an empty, unencrypted string, so `textDecryptionFailed` never fires for it;
+    /// editing it would then write the unreadable fields back: the voice note's ciphertext
+    /// re-encrypted under this device's key, the "unavailable" placeholder saved as tags and
+    /// transcripts. Opens every field, photos and recordings included, so check it once when an
+    /// entry is opened for editing, not per row or per render.
+    var contentDecryptionFailed: Bool {
+        if textDecryptionFailed { return true }
+        let strings: [String?] = [
+            encryptedMood, encryptedVoiceNoteTranscript, encryptedVoiceNoteLanguageCode,
+            encryptedVoiceNoteLanguageName, encryptedVoiceNoteEnglishTranslation,
+        ]
+        if strings.contains(where: { $0.map(MirrorEncryption.encryptedStringNeedsUnavailableKey) ?? false }) { return true }
+        let stringArrays = [
+            encryptedTagsStorage, encryptedAdditionalVoiceNoteTranscriptsStorage,
+            encryptedAdditionalVoiceNoteLanguageCodesStorage, encryptedAdditionalVoiceNoteLanguageNamesStorage,
+            encryptedAdditionalVoiceNoteEnglishTranslationsStorage,
+        ]
+        for storage in stringArrays
+        where Self.decodedStringArray(from: storage).contains(where: MirrorEncryption.encryptedStringNeedsUnavailableKey) {
+            return true
+        }
+        let data = [encryptedTextStyleData, encryptedInlineStyleData, encryptedVoiceNoteData, encryptedPhotoData]
+            + Self.decodedDataArray(from: encryptedAdditionalVoiceNoteDataStorage).map { Optional($0) }
+            + Self.decodedDataArray(from: encryptedAdditionalPhotoDataStorage).map { Optional($0) }
+        return data.contains(where: MirrorEncryption.encryptedDataNeedsUnavailableKey)
+    }
+
     var textStyleData: Data? {
         get { MirrorEncryption.decryptOptionalData(encryptedTextStyleData) }
         set { encryptedTextStyleData = MirrorEncryption.encryptOptionalData(newValue) }

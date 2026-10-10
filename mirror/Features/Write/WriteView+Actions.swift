@@ -72,7 +72,7 @@ extension WriteView {
             if isTranscribingVoiceNotes {
                 continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
             }
-            guard !entry.textDecryptionFailed else {
+            guard !entry.textDecryptionFailed, !entryContentUnreadable else {
                 dismiss()
                 return
             }
@@ -521,7 +521,7 @@ extension WriteView {
     /// them the next time the entry is opened. Text, formatting, mood, tags and
     /// date only: photo and voice-note edits are not kept.
     func saveEditDraft(for entry: Entry) {
-        guard !pendingDelete, !editCommitted, !entry.textDecryptionFailed,
+        guard !pendingDelete, !editCommitted, !entry.textDecryptionFailed, !entryContentUnreadable,
               let base = editBaseFingerprint else { return }
         let slot = WriteDraftStore.Slot.entry(entry.id)
         guard currentContentHash() != loadedContentHash else {
@@ -544,7 +544,7 @@ extension WriteView {
     }
 
     func checkForEditDraft() {
-        guard let entry, Self.usesPersistentDraftStorage(), !entry.textDecryptionFailed else { return }
+        guard let entry, Self.usesPersistentDraftStorage(), !entry.textDecryptionFailed, !entryContentUnreadable else { return }
         editBaseFingerprint = entryFingerprint(entry)
         let slot = WriteDraftStore.Slot.entry(entry.id)
         guard case .payload(let draft) = WriteDraftStore.load(slot: slot) else { return }

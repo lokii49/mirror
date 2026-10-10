@@ -138,6 +138,9 @@ struct WriteView: View {
     @State var panelState = FormattingPanelState()
     @State var fullscreenPhotoIndex: Int? = nil
     @State var voiceNoteData: Data? = nil
+    /// `Entry.contentDecryptionFailed`, checked once when the entry loads (it opens every
+    /// photo and recording). Gates saving and edit drafts like `textDecryptionFailed` does.
+    @State var entryContentUnreadable = false
     @State var voiceNoteDuration: TimeInterval = 0
     @State var voiceNoteTranscript: String? = nil
     @State var voiceNoteLanguageCode: String? = nil
@@ -554,6 +557,7 @@ struct WriteView: View {
         .onAppear {
             viewModel.configure(entry: entry)
             if let entry {
+                entryContentUnreadable = entry.contentDecryptionFailed
                 photoDataArray = entry.photoDataArray
                 inlineStyleData = entry.inlineStyleData
                 voiceNoteData = entry.voiceNoteData

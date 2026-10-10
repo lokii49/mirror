@@ -12,6 +12,10 @@ struct EntryDetailView: View {
     var onDone: (() -> Void)? = nil
 
     @State private var showEditor = false
+    /// `Entry.contentDecryptionFailed`, checked once on appear (it opens every photo and
+    /// recording): a voice-only entry from a device whose key this one lacks reads fine as
+    /// text, but editing it would write its unreadable fields back.
+    @State private var contentUnreadable = false
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
@@ -232,6 +236,7 @@ struct EntryDetailView: View {
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
+            contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
             let prefix = text
                 .components(separatedBy: .whitespacesAndNewlines)
@@ -248,7 +253,7 @@ struct EntryDetailView: View {
         #endif
         #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacEditEntry)) { _ in
-            if macCanEditPlainText, !entry.textDecryptionFailed { showEditor = true }
+            if macEditAllowed { showEditor = true }
         }
         #endif
         .toolbar {
@@ -307,7 +312,7 @@ struct EntryDetailView: View {
         Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
             .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-            .disabled(entry.textDecryptionFailed)
+            .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
 
     #if os(macOS)
@@ -399,6 +404,7 @@ struct EntryDetailView: View {
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
+            contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
             let prefix = text
                 .components(separatedBy: .whitespacesAndNewlines)
@@ -502,7 +508,7 @@ struct EntryDetailView: View {
         .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
     }
 
-    private var macEditAllowed: Bool { !entry.textDecryptionFailed && macCanEditPlainText }
+    private var macEditAllowed: Bool { !entry.textDecryptionFailed && !contentUnreadable && macCanEditPlainText }
 
     private func macToolbarButton(_ icon: String, label: LocalizedStringKey, active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
