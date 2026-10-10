@@ -384,6 +384,71 @@
         }
       }
     },
+    "Another prompt" : {
+      "comment" : "Accessibility label for the shuffle button on the Write screen's writing prompt card.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Andere Anregung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another prompt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Otra pregunta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Autre invitation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Altro spunto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "別のお題"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "다른 질문"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Outra sugestão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Другой вопрос"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "换一个提示"
+          }
+        }
+      }
+    },
     "Ash" : {
       "localizations" : {
         "de" : {
@@ -2429,6 +2494,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用于提问的设备端搜索模型"
+          }
+        }
+      }
+    },
+    "Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are." : {
+      "comment" : "Settings > Journal > Reflection footnote for the default theme on iPhone, where “How this was generated” can't be opened.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ändert nur, wie die heutige Reflexion in der App aussieht. Das Zitat sind immer deine eigenen Worte. Widget, Mitteilungen und frühere Reflexionen bleiben unverändert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Solo cambia cómo se lee la reflexión de hoy en la app. La cita siempre son tus propias palabras. El widget, las notificaciones y las reflexiones pasadas no cambian."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ne change que la présentation de la réflexion du jour dans l’app. La citation reste toujours vos propres mots. Le widget, les notifications et les réflexions passées ne changent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cambia solo come si legge la riflessione di oggi nell’app. La citazione è sempre fatta delle tue parole. Widget, notifiche e riflessioni passate restano invariati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "アプリ内での今日のリフレクションの見え方だけが変わります。引用は常にあなた自身の言葉です。ウィジェット、通知、過去のリフレクションは変わりません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "앱 안에서 오늘의 리플렉션이 보이는 방식만 바뀝니다. 인용문은 언제나 내가 쓴 그대로입니다. 위젯, 알림, 지난 리플렉션은 그대로 유지됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Muda apenas como a reflexão de hoje aparece no app. A citação são sempre as suas próprias palavras. O widget, as notificações e as reflexões anteriores permanecem como estão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Меняется только вид сегодняшней рефлексии в приложении. Цитата всегда состоит из ваших собственных слов. Виджет, уведомления и прошлые рефлексии остаются прежними."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "只会改变今天的反思在 App 内的呈现方式。引用的始终是你自己的话。小组件、通知和过往反思保持不变。"
           }
         }
       }
