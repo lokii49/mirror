@@ -54,17 +54,17 @@ Use a **Claude Code cloud session** (claude.ai/code, or `/schedule` for a routin
 
 Prompt to start a session:
 
-> Work on branch `3.1.2` of lokii49/mirror. Follow `CLAUDE.md` (repo root). Read `.claude/3.1.2-backlog.md`, starting with its "Fixed" section, so you don't redo finished work. Take the next open item in order, starting at A17.
->
-> Skip A16, A18's engine-tag question, A19, the B (translations) section and A15a (its copy needs translations): they need product decisions. Never touch release versions, App Store metadata or CloudKit schema.
+> Work on branch `3.1.2` of lokii49/mirror. Follow `CLAUDE.md` (repo root). Read `.claude/3.1.2-backlog.md`, starting with its "Fixed" section and the "Overnight plan" section at its end, so you don't redo finished work. The A list is done. Work through the Overnight plan in order without asking the owner; they review in the morning. Skip anything that needs an owner decision (C's November items, Talk It Out's day-0 paywall, D's owner checks) and note it.
 >
 > For each item:
-> - Write a failing Swift Testing test first, using synthetic text only.
+> - Write a failing Swift Testing test first where code changes behaviour, using synthetic text only.
 > - Make the smallest fix, matching the surrounding code's style and comment density.
-> - Get an advisor audit of the change.
+> - Review your own diff for regressions.
 > - Commit with a message explaining the defect and the fix, then push.
 >
-> You can't run Xcode here, so say so in the commit message ("not built locally; see Xcode Cloud"). After each push, poll the commit's checks with `gh` (e.g. `gh api repos/lokii49/mirror/commits/<sha>/check-runs`) until Xcode Cloud finishes. If it's red, read the check details, fix and push again. Stop after 3 red rounds on one item and write what failed in the backlog. Add the item to the backlog's "Fixed" section, marked "pending device verification".
+> Catalogs: use `tools/i18n/xcstrings_tool.py` (insert only your keys, state `needs_review`). Match each language's existing terms. Never touch release versions, App Store metadata or the CloudKit schema.
+>
+> You can't run Xcode here, so say so in the commit message ("not built locally; see Xcode Cloud"). After each push, poll the commit's checks with `gh api repos/lokii49/mirror/commits/<sha>/check-runs` until Xcode Cloud finishes. If it's red, read the check details, fix and push again. Stop after 3 red rounds on one item, write what failed in the backlog, and move on. Mark each finished item in the backlog's "Fixed" section as "pending device verification".
 
 After each push, the `3.1.2 CI` workflow builds and tests it. A red run is emailed to the owner and shown in App Store Connect → Xcode Cloud. The next session, cloud or laptop, reads that result before starting new work.
 
