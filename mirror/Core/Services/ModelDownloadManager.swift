@@ -169,11 +169,16 @@ final class ModelDownloadManager: NSObject {
     /// (an app update that swapped in a different/newer LLM) so it doesn't sit on
     /// disk forever — a stale file never matches the new preferredModelURL(), so it
     /// would otherwise never get cleaned up.
-    private nonisolated static func removeStaleModelFiles(keeping currentFileName: String) {
-        guard let directory = try? LocalLLMService.modelDirectory(),
+    ///
+    /// Every model file the app owns lives in this directory and must be in `keptFileNames`:
+    /// 3.1.0 kept only Gemma's, so each launch deleted Ask's search model (EmbeddingGemma) and
+    /// it downloaded again.
+    nonisolated static func removeStaleModelFiles(keeping currentFileName: String, in directory: URL? = nil) {
+        guard let directory = directory ?? (try? LocalLLMService.modelDirectory()),
               let contents = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         else { return }
-        for file in contents where file.lastPathComponent != currentFileName {
+        let keptFileNames: Set<String> = [currentFileName, SemanticSearchService.modelFileName]
+        for file in contents where !keptFileNames.contains(file.lastPathComponent) {
             try? FileManager.default.removeItem(at: file)
         }
     }
