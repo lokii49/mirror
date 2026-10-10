@@ -154,17 +154,9 @@ struct MoodCheckInView: View {
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            // Long names (Overwhelmed, Energiegeladen) drop the dot before they shrink: the
-            // chip's tint already carries the mood's colour, and a shrunk label looks uneven
-            // next to its neighbours.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) {
-                    swatch(color: color, onColor: onColor, isSelected: isSelected)
-                    moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor)
-                }
-                moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor)
-                moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor, shrinks: true)
-            }
+            // No dot: the chip's tint and outline carry the mood's colour, which leaves the
+            // whole width for the name (Overwhelmed, Energiegeladen).
+            moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor)
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
@@ -180,24 +172,14 @@ struct MoodCheckInView: View {
         .buttonStyle(.plain)
     }
 
-    // Colour swatch carries the mood identity; the label stays a high-contrast text colour so
-    // pale moods (Numb, Joyful) are still readable on the near-white sheet.
-    private func swatch(color: Color, onColor: Color, isSelected: Bool) -> some View {
-        Circle()
-            .fill(isSelected ? onColor : color)
-            .frame(width: 8, height: 8)
-            .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
-    }
-
-    /// `shrinks`: the last resort, scaled down to fit; otherwise full size (so ViewThatFits can
-    /// tell whether it fits).
-    private func moodLabel(_ mood: String, isSelected: Bool, color: Color, onColor: Color, shrinks: Bool = false) -> some View {
+    /// The label stays a high-contrast text colour in Classic so pale moods (Numb, Joyful) are
+    /// still readable; it shrinks only if a translation can't fit.
+    private func moodLabel(_ mood: String, isSelected: Bool, color: Color, onColor: Color) -> some View {
         Text(MirrorTheme.localizedMoodName(for: mood))
             .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
             .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
             .lineLimit(1)
-            .minimumScaleFactor(shrinks ? 0.7 : 1)
-            .fixedSize(horizontal: !shrinks, vertical: false)
+            .minimumScaleFactor(0.75)
     }
 
     private func confirmation(mood: String) -> some View {
