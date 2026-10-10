@@ -8,6 +8,20 @@ extension Calendar {
 }
 
 enum DateHelpers {
+    #if DEBUG
+    /// Tests only: stands in for "now" on the digest and report paths, which are date-gated
+    /// (Sunday, the month's last week) and would otherwise return before doing anything.
+    @TaskLocal static var nowForTesting: Date?
+    #endif
+
+    /// "Now" for the digest and report paths (`nowForTesting` in tests).
+    static func now() -> Date {
+        #if DEBUG
+        if let nowForTesting { return nowForTesting }
+        #endif
+        return Date()
+    }
+
     static func weekIdentifier(for date: Date) -> String {
         let cal = Calendar.current
         let year = cal.component(.yearForWeekOfYear, from: date)
@@ -43,7 +57,7 @@ enum DateHelpers {
     /// the first two or three weeks isn't actually a look back at the month, so this gates
     /// generation entirely (not just which entry-count threshold applies, which is all the old
     /// isInLastThreeDaysOfMonth version of this controlled).
-    static func isInLastWeekOfMonth(_ date: Date = Date()) -> Bool {
+    static func isInLastWeekOfMonth(_ date: Date = now()) -> Bool {
         let cal = Calendar.current
         guard let range = cal.range(of: .day, in: .month, for: date),
               let day = cal.dateComponents([.day], from: date).day else { return false }
@@ -57,7 +71,7 @@ enum DateHelpers {
     /// `.weekday == 1` is Sunday regardless of `Calendar.current.firstWeekday` (weekday numbering
     /// is fixed Gregorian, 1...7 = Sun...Sat; only which day a week is considered to *start* on
     /// changes with firstWeekday, not this number).
-    static func isSunday(_ date: Date = Date()) -> Bool {
+    static func isSunday(_ date: Date = now()) -> Bool {
         Calendar.current.component(.weekday, from: date) == 1
     }
 }

@@ -1296,9 +1296,34 @@ enum InsightService {
     /// The second condition matters because a digest can be generated mid-week
     /// (on-demand from the view) and then go stale as the rest of the week fills
     /// in under a "THIS WEEK'S THEME" label that promises freshness.
+    /// A digest or report regeneration that comes back as the fallback while the period already has
+    /// a real one keeps the real one (backlog A7): it isn't saved, since newest wins and a fallback
+    /// row would replace a readable digest with "couldn't find…".
+    static func keepsRealRowOverFallback(newText: String, cachedContent: String?) -> Bool {
+        guard isUngroundedFallback(newText), let cachedContent else { return false }
+        return !isUngroundedFallback(cachedContent)
+    }
+
+    /// Per device: when a regeneration for this period last came back as the fallback and was not
+    /// saved (`keepsRealRowOverFallback`). Staleness is measured from it, so an unchanged period
+    /// doesn't regenerate on every trigger.
+    static func periodFallbackAttemptKey(_ type: InsightType, period: String) -> String {
+        "mirror.periodFallbackAttempt.\(type.rawValue).\(period)"
+    }
+
+    static func recordKeptRealRow(_ type: InsightType, period: String) {
+        UserDefaults.standard.set(DateHelpers.now(), forKey: periodFallbackAttemptKey(type, period: period))
+    }
+
+    /// The date a cached digest or report's staleness is measured from.
+    static func stalenessBaseline(cachedAt: Date, _ type: InsightType, period: String) -> Date {
+        let attempt = UserDefaults.standard.object(forKey: periodFallbackAttemptKey(type, period: period)) as? Date
+        return max(cachedAt, attempt ?? .distantPast)
+    }
+
     static func weeklyDigestIsStale(generatedAt: Date, newestWeekEntry: Date?) -> Bool {
         guard let newestWeekEntry else { return false }
-        let cooldownElapsed = Date().timeIntervalSince(generatedAt) >= 24 * 60 * 60
+        let cooldownElapsed = DateHelpers.now().timeIntervalSince(generatedAt) >= 24 * 60 * 60
         return cooldownElapsed && newestWeekEntry > generatedAt
     }
 

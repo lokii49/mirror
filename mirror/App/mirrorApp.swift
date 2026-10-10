@@ -917,7 +917,7 @@ struct mirrorApp: App {
 
     @MainActor
     static func runWeeklyDigestIfNeeded(context: ModelContext) async {
-        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: DateHelpers.now())
         let coordinatorKey = "digest_\(thisWeek)"
 
         let descriptor = FetchDescriptor<Insight>(
@@ -945,7 +945,7 @@ struct mirrorApp: App {
         // (24h cooldown elapsed AND newer entries since), else nothing to do.
         if let cached = cachedDigest {
             guard InsightService.weeklyDigestIsStale(
-                generatedAt: cached.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .weeklyDigest, period: thisWeek),
                 newestWeekEntry: weekEntries.first?.createdAt  // entries are sorted newest-first
             ) else { return }
         }
@@ -956,6 +956,10 @@ struct mirrorApp: App {
 
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cachedDigest?.content) {
+                InsightService.recordKeptRealRow(.weeklyDigest, period: thisWeek)
+                return
+            }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -973,7 +977,7 @@ struct mirrorApp: App {
         // Cheap gates first: this runs on every app refresh, and everything below fetches and
         // decrypts the whole journal.
         guard DateHelpers.isInLastWeekOfMonth(), SubscriptionService.shared.isDeep else { return }
-        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        let thisMonth = DateHelpers.monthIdentifier(for: DateHelpers.now())
         let coordinatorKey = "monthlyReport_\(thisMonth)"
 
         let descriptor = FetchDescriptor<Insight>(
@@ -1000,13 +1004,13 @@ struct mirrorApp: App {
         // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
         let allEntries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         let cal = Calendar.current
-        let now = Date()
+        let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
 
         if let cachedReport {
             guard InsightService.weeklyDigestIsStale(
-                generatedAt: cachedReport.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cachedReport.generatedAt, .monthlyReport, period: thisMonth),
                 newestWeekEntry: monthEntries.first?.createdAt  // entries are sorted newest-first
             ) else { return }
         }
@@ -1022,6 +1026,10 @@ struct mirrorApp: App {
 
         do {
             let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
+            if InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cachedReport?.content) {
+                InsightService.recordKeptRealRow(.monthlyReport, period: thisMonth)
+                return
+            }
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()

@@ -199,7 +199,7 @@ final class InsightViewModel {
     // On-demand if no cache. Background Sunday task pre-generates so it's ready on wake.
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
-        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: DateHelpers.now())
         let coordinatorKey = "digest_\(thisWeek)"
 
         guard SubscriptionService.shared.isSubscribed else {
@@ -232,7 +232,7 @@ final class InsightViewModel {
         // gate means deleting an entry after it generated doesn't blank it.
         if !forceRegenerate, let cached = cachedThisWeek {
             let stale = InsightService.weeklyDigestIsStale(
-                generatedAt: cached.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .weeklyDigest, period: thisWeek),
                 newestWeekEntry: weekEntries.map(\.createdAt).max()
             )
             guard stale else {
@@ -319,6 +319,11 @@ final class InsightViewModel {
         digestState = .loading
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if let cached = cachedThisWeek, InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cached.content) {
+                InsightService.recordKeptRealRow(.weeklyDigest, period: thisWeek)
+                digestState = .loaded(cached)
+                return
+            }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -337,11 +342,11 @@ final class InsightViewModel {
     // On-demand if no cache. Background end-of-month task pre-generates so it's ready on wake.
 
     func loadMonthlyReport(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
-        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        let thisMonth = DateHelpers.monthIdentifier(for: DateHelpers.now())
         let coordinatorKey = "monthlyReport_\(thisMonth)"
 
         let cal = Calendar.current
-        let now = Date()
+        let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
@@ -393,8 +398,14 @@ final class InsightViewModel {
             return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
         }
 
+        // Same staleness rule as the background runner: 24h passed AND newer writing this month (or
+        // since this device's last kept-real attempt). Was 24h alone, so opening Monthly each day of
+        // the last week regenerated from the same entries (backlog A8).
         if !forceRegenerate, let cached = cachedThisMonth,
-           Date().timeIntervalSince(cached.generatedAt) < 86400 {
+           !InsightService.weeklyDigestIsStale(
+               generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .monthlyReport, period: thisMonth),
+               newestWeekEntry: thisMonthEntries.map(\.createdAt).max()
+           ) {
             // Same reasoning as loadWeeklyDigest's cache-serve branch: a cached fallback's "Try
             // Again" needs the model, so don't show it as actionable when the model isn't ready.
             if InsightService.isUngroundedFallback(cached.content) {
@@ -430,6 +441,11 @@ final class InsightViewModel {
             let (text, engine) = try await InsightService.generateMonthlyReport(
                 monthEntries: thisMonthEntries, allEntries: entries
             )
+            if let cached = cachedThisMonth, InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cached.content) {
+                InsightService.recordKeptRealRow(.monthlyReport, period: thisMonth)
+                monthlyReportState = .loaded(cached)
+                return
+            }
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
