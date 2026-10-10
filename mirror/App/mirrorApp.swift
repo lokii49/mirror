@@ -38,6 +38,9 @@ struct mirrorApp: App {
         Purchases.logLevel = .debug
         #endif
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
+        // Create it now, not on first use: its init writes the widgets' tier key, which has to
+        // land before the app-active pass reloads the widget timelines.
+        _ = SubscriptionService.shared
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         NotificationService.registerCategories()
         registerNightlyInsightsTask()

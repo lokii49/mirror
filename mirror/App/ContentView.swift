@@ -382,7 +382,14 @@ struct ContentView: View {
                 selectedTab = 2
                 selectedSidebarItem = .insights
             case "upgrade":
-                showPaywall = true
+                // A widget can still link here from a locked view drawn before the tier key was
+                // written. Nothing is for sale while every feature is free.
+                if SubscriptionService.allFeaturesFree {
+                    selectedTab = 2
+                    selectedSidebarItem = .insights
+                } else {
+                    showPaywall = true
+                }
             case "entry":
                 if let idString = url.pathComponents.dropFirst().first,
                    let uuid = UUID(uuidString: idString) {

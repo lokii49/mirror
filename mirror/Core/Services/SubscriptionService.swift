@@ -30,6 +30,10 @@ final class SubscriptionService {
     var isDeep: Bool { tier == .deep }
 
     private init() {
+        // Widgets read the tier from the app group and treat a missing key as "free". With
+        // everything free the answer is known now, so write it before RevenueCat replies (or
+        // fails, offline): otherwise the widgets show a locked view with a price.
+        if Self.allFeaturesFree { Self.publishTierToWidgets(.deep) }
         Task {
             await restorePurchases()
             await refresh()
@@ -96,7 +100,7 @@ final class SubscriptionService {
     private func updateTier(from customerInfo: CustomerInfo) {
         guard !Self.allFeaturesFree else {
             tier = .deep
-            UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(tier.rawValue, forKey: "widget.tier")
+            Self.publishTierToWidgets(tier)
             return
         }
         if customerInfo.entitlements["deep"]?.isActive == true {
@@ -106,6 +110,10 @@ final class SubscriptionService {
         } else {
             tier = .free
         }
+        Self.publishTierToWidgets(tier)
+    }
+
+    private static func publishTierToWidgets(_ tier: SubscriptionTier) {
         UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(tier.rawValue, forKey: "widget.tier")
     }
 }
