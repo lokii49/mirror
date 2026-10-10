@@ -646,6 +646,29 @@ private struct OnThisDaySection: View {
     }
 }
 
+/// The iPhone/iPad reader's entry text sizes at Dynamic Type `scale` (1 at the default text size,
+/// where they are the editor's: body 17, title 30, heading 22, monospaced 16). They were fixed, so
+/// the reader ignored the person's text size (backlog A19 follow-up). The Mac reader keeps its own
+/// Text size setting.
+nonisolated struct ReaderTextSizes: Equatable, Sendable {
+    let body: CGFloat
+    let lineSpacing: CGFloat
+    let title: CGFloat
+    let heading: CGFloat
+    let monospaced: CGFloat
+    /// List and checklist markers (24 pt at the default size).
+    let marker: CGFloat
+
+    init(scale: CGFloat) {
+        body = 17 * scale
+        lineSpacing = 6 * scale
+        title = 30 * scale
+        heading = 22 * scale
+        monospaced = 16 * scale
+        marker = 24 * scale
+    }
+}
+
 private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
@@ -665,12 +688,16 @@ private struct InlineEntryContent: View {
     private var titleSize: CGFloat { bodySize + 10 }
     private var headingSize: CGFloat { bodySize + 4 }
     private var monospacedSize: CGFloat { bodySize - 2 }
+    private var markerScale: CGFloat { 1 }
     #else
-    private var bodySize: CGFloat { 17 }
-    private var bodyLineSpacing: CGFloat { 6 }
-    private var titleSize: CGFloat { 30 }
-    private var headingSize: CGFloat { 22 }
-    private var monospacedSize: CGFloat { 16 }
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1.0
+    private var sizes: ReaderTextSizes { ReaderTextSizes(scale: typeScale) }
+    private var bodySize: CGFloat { sizes.body }
+    private var bodyLineSpacing: CGFloat { sizes.lineSpacing }
+    private var titleSize: CGFloat { sizes.title }
+    private var headingSize: CGFloat { sizes.heading }
+    private var monospacedSize: CGFloat { sizes.monospaced }
+    private var markerScale: CGFloat { sizes.marker / 24 }
     #endif
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -897,9 +924,9 @@ private struct InlineEntryContent: View {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(.system(size: 24 * markerScale, weight: .regular))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
-                    .frame(width: 24, alignment: .center)
+                    .frame(width: 24 * markerScale, alignment: .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
@@ -915,9 +942,9 @@ private struct InlineEntryContent: View {
             let marker = listMarker(for: style, level: level, index: index)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(marker)
-                    .font(.system(size: style == .numberedList ? 17 : 20, weight: .regular))
+                    .font(.system(size: (style == .numberedList ? 17 : 20) * markerScale, weight: .regular))
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 22, alignment: style == .numberedList ? .trailing : .center)
+                    .frame(minWidth: 22 * markerScale, alignment: style == .numberedList ? .trailing : .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(MirrorTheme.textPrimary)
             }
