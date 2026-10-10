@@ -38,6 +38,11 @@ struct MoodCheckInView: View {
 
     @State private var selected: String?
     @State private var logged: String?
+    /// The picker's own height: the sheet is exactly that tall (`.medium` left a band under
+    /// "Not now"). iOS 26's floating sheet adds the bottom safe area to a `.height` detent,
+    /// so that is taken back off there.
+    @State private var pickerHeight: CGFloat = 480
+    @State private var floatingBottomInset: CGFloat = 0
 
     private func log(_ mood: String) {
         modelContext.insert(MoodCheckIn(mood: mood))
@@ -57,14 +62,19 @@ struct MoodCheckInView: View {
             if let logged {
                 confirmation(mood: logged)
             } else {
-                picker
+                // Scrolls only when the picker is taller than the sheet can be (large Dynamic Type).
+                ScrollView { picker }
+                    .scrollBounceBehavior(.basedOnSize)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
+            if #available(iOS 26, macOS 26, *) { floatingBottomInset = inset }
+        }
         // inkRaised is the "elevated card / sheet" token — near-white in Classic
         // light so the pastel mood chips read against it, not the pale page bg.
         .background(MirrorTheme.inkRaised)
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.height(max(320, pickerHeight - floatingBottomInset))])
         .presentationDragIndicator(.visible)
     }
 
@@ -82,15 +92,7 @@ struct MoodCheckInView: View {
             }
             .padding(.top, 22)
 
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
-                    ForEach(MirrorTheme.moodOptions, id: \.self) { mood in
-                        moodChip(mood)
-                    }
-                }
-                .padding(.horizontal, 2)
-                .padding(.bottom, 8)
-            }
+            moodGrid
 
             VStack(spacing: 10) {
                 Button {
@@ -117,13 +119,29 @@ struct MoodCheckInView: View {
                 .disabled(selected == nil)
                 .animation(.easeInOut(duration: 0.2), value: selected)
 
-                Button("Not now") { dismiss() }
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Button { dismiss() } label: {
+                    Text("Not now")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.bottom, 18)
+            .padding(.bottom, 6)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pickerHeight = ceil($0) }
+    }
+
+    private var moodGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 98), spacing: 10)], spacing: 10) {
+            ForEach(MirrorTheme.moodOptions, id: \.self) { mood in
+                moodChip(mood)
+            }
+        }
+        // Room for the chips' outlines: a scroll view clipped the top row's top edge.
+        .padding(3)
     }
 
     private func moodChip(_ mood: String) -> some View {
@@ -136,20 +154,18 @@ struct MoodCheckInView: View {
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            HStack(spacing: 7) {
-                // Colour swatch carries the mood identity; the label stays a
-                // high-contrast text colour so pale moods (Numb, Joyful) are
-                // still readable on the near-white sheet.
-                Circle()
-                    .fill(isSelected ? onColor : color)
-                    .frame(width: 9, height: 9)
-                    .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
-                Text(MirrorTheme.localizedMoodName(for: mood))
-                    .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            // Long names (Overwhelmed, Energiegeladen) drop the dot before they shrink: the
+            // chip's tint already carries the mood's colour, and a shrunk label looks uneven
+            // next to its neighbours.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    swatch(color: color, onColor: onColor, isSelected: isSelected)
+                    moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor)
+                }
+                moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor)
+                moodLabel(mood, isSelected: isSelected, color: color, onColor: onColor, shrinks: true)
             }
+            .padding(.horizontal, 8)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
             .background(
@@ -162,6 +178,26 @@ struct MoodCheckInView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // Colour swatch carries the mood identity; the label stays a high-contrast text colour so
+    // pale moods (Numb, Joyful) are still readable on the near-white sheet.
+    private func swatch(color: Color, onColor: Color, isSelected: Bool) -> some View {
+        Circle()
+            .fill(isSelected ? onColor : color)
+            .frame(width: 8, height: 8)
+            .overlay(Circle().stroke(MirrorTheme.textPrimary.opacity(isSelected ? 0 : 0.18), lineWidth: 0.5))
+    }
+
+    /// `shrinks`: the last resort, scaled down to fit; otherwise full size (so ViewThatFits can
+    /// tell whether it fits).
+    private func moodLabel(_ mood: String, isSelected: Bool, color: Color, onColor: Color, shrinks: Bool = false) -> some View {
+        Text(MirrorTheme.localizedMoodName(for: mood))
+            .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
+            .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
+            .lineLimit(1)
+            .minimumScaleFactor(shrinks ? 0.7 : 1)
+            .fixedSize(horizontal: !shrinks, vertical: false)
     }
 
     private func confirmation(mood: String) -> some View {

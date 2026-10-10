@@ -339,6 +339,12 @@ struct ContentView: View {
                 selectedSidebarItem = .entries
             }
             #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--showMoodCheckIn") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(2))
+                    showMoodCheckIn = true
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("--showRatePrompt") {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(2))
