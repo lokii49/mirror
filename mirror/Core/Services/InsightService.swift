@@ -1919,6 +1919,9 @@ enum InsightService {
             }
         } catch let error as InsightError {
             throw error
+        } catch is CancellationError {
+            // Not a model failure: callers tell cancellation apart by its type (backlog A15).
+            throw CancellationError()
         } catch {
             throw InsightError.serviceUnavailable(error.localizedDescription)
         }
