@@ -49,6 +49,22 @@ import SwiftData
         })
     }
 
+    /// Re-imported (or restored by hand) rows are journal rows again: drop their ids from every
+    /// erasure, or the backup would never offer them back after a purge. A synced update.
+    @MainActor
+    static func unerase(entryIDs: Set<UUID>, checkInIDs: Set<UUID> = [], in context: ModelContext) {
+        guard !entryIDs.isEmpty || !checkInIDs.isEmpty else { return }
+        for erasure in (try? context.fetch(FetchDescriptor<JournalErasure>())) ?? [] {
+            let entries = erasure.erasedEntryIDs, checkIns = erasure.erasedCheckInIDs
+            if !entries.isDisjoint(with: entryIDs) {
+                erasure.erasedEntryIDsStorage = encode(Array(entries.subtracting(entryIDs)))
+            }
+            if !checkIns.isDisjoint(with: checkInIDs) {
+                erasure.erasedCheckInIDsStorage = encode(Array(checkIns.subtracting(checkInIDs)))
+            }
+        }
+    }
+
     /// Every entry ID erased by any "Delete Everything" on any device.
     @MainActor
     static func allErasedEntryIDs(in context: ModelContext) -> Set<UUID> {

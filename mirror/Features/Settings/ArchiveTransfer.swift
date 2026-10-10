@@ -210,7 +210,11 @@ enum ArchiveTransfer {
             batch.digests[id] = stored.digest
         }
         do {
-            try context.save()
+            // Imported ids may have been erased (an undone import, a Delete Everything): rows again now.
+        let insertedIDs = Set(batch.digests.keys)
+        JournalErasure.unerase(entryIDs: insertedIDs, in: context)
+        LocalJournalBackup.forgetUserDeleted(Array(insertedIDs))
+        try context.save()
         } catch {
             context.rollback()
             throw error

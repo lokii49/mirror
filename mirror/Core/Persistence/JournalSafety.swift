@@ -97,7 +97,8 @@ final class JournalSafety {
         })
         // Rows the user deletes here are not a purge: noted before the save, while their ids are
         // still readable, so the backup never offers them back (backlog A13).
-        observers.append(center.addObserver(forName: ModelContext.willSave, object: nil, queue: .main) { note in
+        // Main context only: every user delete goes through it, and its models may be read here.
+        observers.append(center.addObserver(forName: ModelContext.willSave, object: container.mainContext, queue: .main) { note in
             guard let context = note.object as? ModelContext else { return }
             MainActor.assumeIsolated { Self.recordDeletions(in: context) }
         })
@@ -343,13 +344,16 @@ final class JournalSafety {
     private static var recordingDeletions = true
 
     static func recordDeletions(in context: ModelContext) {
-        guard recordingDeletions else { return }
-        let ids = context.deletedModelsArray.compactMap { model -> UUID? in
-            if let entry = model as? Entry { return entry.id }
-            if let checkIn = model as? MoodCheckIn { return checkIn.id }
-            return nil
+        func ids(_ models: [any PersistentModel]) -> [UUID] {
+            models.compactMap { model in
+                if let entry = model as? Entry { return entry.id }
+                if let checkIn = model as? MoodCheckIn { return checkIn.id }
+                return nil
+            }
         }
-        LocalJournalBackup.recordUserDeleted(ids)
+        LocalJournalBackup.forgetUserDeleted(ids(context.insertedModelsArray))
+        guard recordingDeletions else { return }
+        LocalJournalBackup.recordUserDeleted(ids(context.deletedModelsArray))
     }
 
     func journalWasErased() {

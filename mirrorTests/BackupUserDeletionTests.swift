@@ -60,4 +60,41 @@ struct BackupUserDeletionTests {
         #expect(result.removed == 1)
         #expect(JournalErasure.allErasedEntryIDs(in: context).contains(id))
     }
+
+    @Test func reimportedEntriesAreOfferedAgainAfterAPurge() throws {
+        let context = try makeContext()
+        let entry = Entry(text: "An imported synthetic entry.")
+        context.insert(entry)
+        try context.save()
+        let id = entry.id
+        let digest = try #require(entry.archiveSnapshot()?.digest)
+        _ = try ArchiveTransfer.undoImport(ArchiveTransfer.ImportBatch(digests: [id: digest]), context: context)
+        #expect(JournalErasure.allErasedEntryIDs(in: context).contains(id))
+        // Re-importing the same entry (same id) makes it a journal row again.
+        JournalErasure.unerase(entryIDs: [id], in: context)
+        try context.save()
+        let erased = JournalErasure.allErasedEntryIDs(in: context)
+        #expect(!erased.contains(id))
+        #expect(LocalJournalBackup.offeredIDs(backup: [id], journal: [], erased: erased, userDeleted: []) == [id])
+    }
+
+    /// The production wiring: SwiftData posts willSave for the context, before the deletes land,
+    /// with the deleted models still readable.
+    @Test func willSaveObserverSeesTheDeletes() throws {
+        let context = try makeContext()
+        let entry = Entry(text: "A synthetic entry deleted through a real save.")
+        context.insert(entry)
+        try context.save()
+        let id = entry.id
+        LocalJournalBackup.forgetUserDeleted(before: .distantFuture)
+        let observer = NotificationCenter.default.addObserver(forName: ModelContext.willSave, object: context, queue: nil) { note in
+            guard let ctx = note.object as? ModelContext else { return }
+            MainActor.assumeIsolated { JournalSafety.recordDeletions(in: ctx) }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        context.delete(entry)
+        try context.save()
+        #expect(LocalJournalBackup.userDeletedIDs().contains(id))
+        LocalJournalBackup.forgetUserDeleted(before: .distantFuture)
+    }
 }

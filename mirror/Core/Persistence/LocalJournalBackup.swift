@@ -77,6 +77,16 @@ enum LocalJournalBackup {
         }
     }
 
+    /// Rows inserted again with a deleted id (re-import) are journal rows again.
+    static func forgetUserDeleted(_ ids: [UUID], defaults: UserDefaults = .standard) {
+        guard !ids.isEmpty else { return }
+        stateLock.withLock {
+            guard var ledger = defaults.dictionary(forKey: userDeletedKey) as? [String: Date] else { return }
+            ids.forEach { ledger[$0.uuidString] = nil }
+            defaults.set(ledger, forKey: userDeletedKey)
+        }
+    }
+
     static func userDeletedIDs(defaults: UserDefaults = .standard) -> Set<UUID> {
         stateLock.withLock {
             let ledger = defaults.dictionary(forKey: userDeletedKey) as? [String: Date] ?? [:]
