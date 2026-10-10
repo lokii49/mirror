@@ -26,6 +26,9 @@ struct WhatsNewWalkthrough: View {
         cards.contains { demoIDs.contains($0.id) }
     }
 
+    /// More pages than this show a "3 of 9" counter instead of dots.
+    static let maxDots = 7
+
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
     private var isLast: Bool { index >= cards.count - 1 }
 
@@ -68,14 +71,24 @@ struct WhatsNewWalkthrough: View {
 
     private var controls: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 7) {
-                ForEach(cards.indices, id: \.self) { i in
-                    Capsule()
-                        .fill(i == index ? accent : Color.primary.opacity(0.18))
-                        .frame(width: i == index ? 20 : 7, height: 7)
+            Group {
+                if cards.count <= Self.maxDots {
+                    HStack(spacing: 7) {
+                        ForEach(cards.indices, id: \.self) { i in
+                            Capsule()
+                                .fill(i == index ? accent : Color.primary.opacity(0.18))
+                                .frame(width: i == index ? 20 : 7, height: 7)
+                        }
+                    }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: index)
+                } else {
+                    // A row of dots wider than the screen widened the whole sheet (3.1.0, 28 pages).
+                    Text("\(index + 1) of \(cards.count)")
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: index)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text("\(index + 1) of \(cards.count)"))
 

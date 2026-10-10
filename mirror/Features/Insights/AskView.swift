@@ -646,9 +646,9 @@ struct AskView: View {
         question = ""
         isInputFocused = false
 
-        // Retries a failed search-model download, only if the user agreed to it (offer card above,
-        // or Settings); keyword search answers until the model is installed and indexed.
-        await SemanticSearchService.shared.ensureModelDownloadStarted()
+        // Keyword search answers until the search model is installed and indexed. Asking never
+        // starts or retries its download: only a tap does (3.1.1 downloads on mobile data too,
+        // and 3.1.0 users agreed to Wi-Fi only).
         do {
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(

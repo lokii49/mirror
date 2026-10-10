@@ -45,6 +45,11 @@ struct mirrorApp: App {
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
         }
+        // Re-attach to a search-model download still running in its background session, so it
+        // installs when it finishes even if Ask and Settings are never opened this launch.
+        if SemanticSearchService.consent == .accepted, !SemanticSearchService.isModelOnDisk {
+            _ = ModelDownloadManager.searchModel
+        }
         #if os(macOS)
         // Global quick-capture shortcut. Not in harness runs: an unsigned copy shares the installed
         // app's bundle id and would take the combination from it.

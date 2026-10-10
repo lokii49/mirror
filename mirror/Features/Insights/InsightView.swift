@@ -1461,13 +1461,13 @@ struct ModelDownloadStateControl: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
-    private static let byteFormatter: ByteCountFormatter = {
-        let f = ByteCountFormatter()
-        f.countStyle = .file
-        return f
-    }()
-
     var body: some View {
+        stateBody
+            .animation(.spring(response: 0.4, dampingFraction: 0.88), value: ModelDownloadStage(manager.state))
+    }
+
+    @ViewBuilder
+    private var stateBody: some View {
         switch manager.state {
         case .notStarted:
             VStack(spacing: 10) {
@@ -1477,50 +1477,20 @@ struct ModelDownloadStateControl: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                pillButton(isSentinel ? "DOWNLOAD MODEL" : "Download Model") { manager.startDownload() }
-            }
-
-        case .downloading(let progress, let written, let expected):
-            VStack(spacing: 10) {
-                ProgressView(value: progress)
-                    .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                    .frame(maxWidth: 220)
-                Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium))
-                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
-                Text(isSentinel ? "DOWNLOADING IN BACKGROUND — DO NOT FORCE-QUIT" : "Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
-                    .font(isSentinel ? MirrorTheme.mono(9.5, weight: .semibold) : .system(size: 11))
-                    .kerning(isSentinel ? 0.3 : 0)
-                    .foregroundStyle(MirrorTheme.textTertiary)
-                    .multilineTextAlignment(.center)
-                Button(isSentinel ? "PAUSE" : "Pause") { manager.pauseDownload() }
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : Color.accentColor)
-            }
-
-        case .paused(let resumable, let written, let expected):
-            VStack(spacing: 10) {
-                if resumable && written > 0 {
-                    ProgressView(value: expected > 0 ? Double(written) / Double(expected) : 0)
-                        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                        .frame(maxWidth: 220)
-                    Text("\(Self.byteFormatter.string(fromByteCount: written)) of \(Self.byteFormatter.string(fromByteCount: expected))")
-                        .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium))
-                        .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
+                ModelDownloadButton(title: isSentinel ? "DOWNLOAD MODEL" : "Download Model", byteCount: ModelDownloadSpec.gemma.estimatedByteCount) {
+                    manager.startDownload()
                 }
-                Text(resumable ? (isSentinel ? "PAUSED" : "Paused") : (isSentinel ? "PAUSED (WILL RESTART FROM 0%)" : "Paused (will restart from 0%)"))
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
-                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
-                pillButton(isSentinel ? "RESUME" : "Resume") { manager.resumeDownload() }
+                .frame(maxWidth: 320)
             }
 
-        case .verifying:
-            HStack(spacing: 8) {
-                ProgressView().tint(isSentinel ? MirrorTheme.ember : nil)
-                Text(isSentinel ? "VERIFYING…" : "Verifying…")
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14))
-                    .foregroundStyle(isSentinel ? MirrorTheme.textSecondary : Color.secondary)
-            }
+        case .downloading, .paused, .verifying:
+            ModelDownloadProgressPanel(
+                state: manager.state,
+                onPause: { manager.pauseDownload() },
+                onResume: { manager.resumeDownload() }
+            )
+            .frame(maxWidth: 320)
+            .transition(.opacity)
 
         case .installed:
             Label(isSentinel ? "MODEL ONLINE — REOPEN TO GENERATE" : "Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
@@ -1533,23 +1503,12 @@ struct ModelDownloadStateControl: View {
                     .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.resumeDownload() }
+                ModelDownloadButton(title: isSentinel ? "TRY AGAIN" : "Try Again", systemImage: "arrow.clockwise") {
+                    manager.resumeDownload()
+                }
+                .frame(maxWidth: 320)
             }
         }
-    }
-
-    private func pillButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
-                .kerning(isSentinel ? 0.4 : 0)
-                .foregroundStyle(Color.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 14)
-                .background(isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 16, x: 0, y: 6)
     }
 }
 

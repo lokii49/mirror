@@ -1,11 +1,5 @@
-Ricerca intelligente in Chiedi, stili di riflessione e un editor più affidabile
+Correzioni per la ricerca intelligente
 
-• Ricerca intelligente in Chiedi (facoltativa): trova le voci in base al significato, non solo alle parole uguali. Download unico di 334 MB con il Wi-Fi, funziona sul tuo dispositivo e il tuo diario non lo lascia mai. Attivala in Chiedi o nelle Impostazioni.
-• Chiedi trova risultati migliori anche senza: contano le parole intere, e le parole rare contano più di quelle comuni.
-• Stili di riflessione (Core): scegli come si legge la riflessione di oggi. Delicato come prima, Silenzioso solo con le tue parole o Curioso con una domanda su ciò che hai scritto. Sceglilo nelle Impostazioni.
-• Scrittura: il cursore parte dalla fine della bozza e una bozza conserva data, font, tag e formattazione.
-• Elenchi e checklist: A capo dopo una voce spuntata o un titolo funziona come dovrebbe, grassetto e corsivo restano dove li hai messi e le modifiche alle checklist si annullano con Comando-Z.
-• La scrittura in giapponese, cinese e coreano funziona meglio nell'editor.
-• Tag: scrivere #lavoro, o più tag separati da virgole, ora funziona come ti aspetti.
-• Esportazione e importazione ora includono le tue viste salvate.
-• Download del modello di IA sul dispositivo (per i dispositivi senza Apple Intelligence): Pausa e Riprendi, e Riprova dopo una connessione persa, ora ripartono da dove si erano fermati. Il modello ora arriva dal nostro server ed è verificato con un'impronta fissa prima dell'uso.
+• Ricerca intelligente in Chiedi: il modello di ricerca non viene più scaricato di nuovo quando chiudi e riapri MirrorNotes. Ora si scarica in background, e puoi mettere in pausa e riprendere il download.
+• I download dei modelli mostrano una barra di avanzamento più chiara con un solo pulsante Pausa/Riprendi, e un pulsante di download più chiaro.
+• Novità mostra solo le ultime modifiche, e un Mac che ha saltato la 1.1.0 le vede comunque.

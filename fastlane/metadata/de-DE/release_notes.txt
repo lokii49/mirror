@@ -1,15 +1,8 @@
-Smarte Suche in Fragen, Reflexionsstile und ein zuverlässigerer Editor
+Korrekturen für die smarte Suche, das Schreiben und den Stimmungs-Check
 
-• Smarte Suche in Fragen (optional): Finde Einträge nach Bedeutung, nicht nur nach passenden Wörtern. Einmaliger Download (334 MB) über WLAN, läuft auf deinem Gerät, und dein Journal verlässt es nie. Einschalten in Fragen oder in den Einstellungen.
-• Fragen findet auch ohne sie bessere Treffer: Ganze Wörter zählen, und seltene Wörter zählen mehr als häufige.
-• Reflexionsstile (Core): Wähle, wie sich die heutige Reflexion liest. Sanft wie bisher, Still nur mit deinen eigenen Worten oder Neugierig mit einer Frage zu dem, was du geschrieben hast. Auswahl in den Einstellungen.
-• Schreiben: Die Tastatur öffnet sich sofort, der Cursor steht am Ende deines Entwurfs, und ein Entwurf behält Datum, Schrift, Tags und Formatierung.
-• Formatierung: Das Aa-Feld ist neu gestaltet, sodass alle Bedienelemente auf den Bildschirm passen, auch mit großer Schrift, und die Checklisten-Aktionen sind in einem Menü.
-• Listen und Checklisten: Rücktaste am Aufzählungszeichen beendet die Liste, Return auf einem leeren Punkt ebenso, Fett und Kursiv bleiben, wo du sie gesetzt hast, und Rückgängig funktioniert auch über Formatierungen hinweg.
-• Übersichtlicheres Format-Menü (Aa): Alle Stile, Listen und Farben sind auf einen Blick zu sehen, jede Farbe zeigt vor dem Tippen, was sie bewirkt, und die Checklisten-Aktionen liegen in einem Checkliste-Menü.
-• Japanische, chinesische und koreanische Eingabe wird im Editor besser behandelt.
-• Lange Einträge und Einträge mit Fotos lassen sich schneller bearbeiten.
-• Tags: #arbeit oder mehrere durch Kommas getrennte Tags funktionieren jetzt wie erwartet.
-• Export und Import enthalten jetzt deine gespeicherten Ansichten.
-• Suchbegriffe werden jetzt auch in Transkripten von Sprachnotizen hervorgehoben.
-• Download des KI-Modells auf dem Gerät (für Geräte ohne Apple Intelligence): Pausieren und Fortsetzen sowie Erneut versuchen nach einem Verbindungsabbruch machen jetzt dort weiter, wo sie aufgehört haben. Das Modell kommt jetzt von unserem eigenen Server und wird vor der Verwendung mit einem festen Fingerabdruck geprüft.
+• Smarte Suche in Fragen: Das Suchmodell wird nach dem erneuten Öffnen der App nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund über WLAN oder Mobilfunk, und du kannst den Download pausieren und fortsetzen.
+• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
+• Schreiben: Titel, Überschrift oder Unterüberschrift in einem leeren Eintrag gelten jetzt für das, was du tippst.
+• Stimmungs-Check: Jeder Stimmungsname passt in seine Taste, und jede Stimmung behält ihre Farbe.
+• Neuigkeiten zeigt nur noch die neuesten Änderungen, nicht jede frühere Version.
+• Die Fenster für die Bewertung und den Stimmungs-Check passen jetzt zu ihrem Inhalt.

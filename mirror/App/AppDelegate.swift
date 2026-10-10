@@ -16,13 +16,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {
-        guard identifier == ModelDownloadManager.backgroundSessionIdentifier else {
+        // Looking the manager up is what re-attaches to the still-running background
+        // session if the system relaunched the app fresh to deliver this event.
+        guard let manager = ModelDownloadManager.manager(forSessionIdentifier: identifier) else {
             completionHandler()
             return
         }
-        // Referencing .shared here is what re-attaches to the still-running background
-        // session if the system relaunched the app fresh to deliver this event.
-        ModelDownloadManager.shared.backgroundCompletionHandler = completionHandler
+        manager.backgroundCompletionHandler = completionHandler
     }
 }
 #endif

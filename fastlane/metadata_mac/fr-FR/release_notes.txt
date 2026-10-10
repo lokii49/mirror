@@ -1,11 +1,5 @@
-Recherche intelligente dans Demander, styles de réflexion et un éditeur plus fiable
+Corrections pour la recherche intelligente
 
-• Recherche intelligente dans Demander (facultative) : trouvez des entrées par leur sens, pas seulement par des mots identiques. Téléchargement unique de 334 Mo en Wi-Fi, fonctionne sur votre appareil, et votre journal ne le quitte jamais. À activer dans Demander ou dans Réglages.
-• Même sans elle, Demander trouve de meilleurs résultats : les mots entiers comptent, et les mots rares comptent plus que les mots courants.
-• Styles de réflexion (Core) : choisissez comment se lit la réflexion du jour. Doux comme avant, Discret avec seulement vos propres mots, ou Curieux avec une question sur ce que vous avez écrit. À choisir dans Réglages.
-• Écriture : le curseur se place à la fin de votre brouillon, et un brouillon garde sa date, sa police, ses tags et sa mise en forme.
-• Listes et listes de tâches : Retour après un élément coché ou un titre se comporte correctement, le gras et l'italique restent là où vous les avez mis, et les modifications de listes de tâches s'annulent avec Commande-Z.
-• La saisie en japonais, chinois et coréen est mieux prise en charge dans l'éditeur.
-• Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
-• L'export et l'import incluent désormais vos vues enregistrées.
-• Téléchargement du modèle d'IA sur l'appareil (pour les appareils sans Apple Intelligence) : Pause et Reprendre, ainsi que Réessayer après une coupure de connexion, repartent désormais là où ils s'étaient arrêtés. Le modèle provient maintenant de notre propre serveur et est vérifié avec une empreinte fixe avant utilisation.
+• Recherche intelligente dans Demander : le modèle de recherche n'est plus téléchargé à nouveau quand vous quittez puis rouvrez MirrorNotes. Il se télécharge désormais en arrière-plan, et vous pouvez mettre le téléchargement en pause puis le reprendre.
+• Les téléchargements de modèles affichent une barre de progression plus claire avec un seul bouton Pause/Reprendre, et un bouton de téléchargement plus clair.
+• Nouveautés n'affiche que les derniers changements, et un Mac qui a sauté la version 1.1.0 les voit quand même.

@@ -28,22 +28,38 @@ struct RateUsPromptSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
     @State private var step: Step = .ask
+    /// The content's own height: the sheet is exactly that tall. A fixed detent (372) left a third
+    /// of the floating iOS 26 sheet empty under "Not now".
+    @State private var contentHeight: CGFloat = 320
+    /// iOS 26 sheets float above the home indicator but still add its safe area to a `.height`
+    /// detent, which left an empty band under "Not now". Earlier sheets sit on the bottom edge
+    /// and need it.
+    @State private var floatingBottomInset: CGFloat = 0
 
     private enum Step { case ask, notGreat }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            switch step {
-            case .ask: askStep
-            case .notGreat: notGreatStep
+        // Scrolls only if the sheet ends up shorter than its content (iOS 17/18 sheets, large
+        // Dynamic Type), so "Not now" is never cut off.
+        ScrollView {
+            VStack(spacing: 0) {
+                switch step {
+                case .ask: askStep
+                case .notGreat: notGreatStep
+                }
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 28)
+            .padding(.top, 36)
+            .padding(.bottom, 4)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = ceil($0) }
         }
-        .padding(.horizontal, 28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
+            if #available(iOS 26, macOS 26, *) { floatingBottomInset = inset }
+        }
         .background(MirrorTheme.bgBase)
-        .presentationDetents([.height(step == .ask ? 372 : 340)])
+        .presentationDetents([.height(max(200, contentHeight - floatingBottomInset))])
         .presentationDragIndicator(.visible)
         .animation(.easeInOut(duration: 0.25), value: step)
     }
@@ -51,15 +67,15 @@ struct RateUsPromptSheet: View {
     private var appLogo: some View {
         Image("AppIconDisplay")
             .resizable()
-            .frame(width: 58, height: 58)
+            .frame(width: 60, height: 60)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 20, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 4)
     }
 
     private var askStep: some View {
         VStack(spacing: 20) {
             appLogo
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text(displayMode == .sentinel ? "How's the signal?" : "How's mirror going?")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                 Text("A quick check before we ask anything else.")
@@ -104,9 +120,15 @@ struct RateUsPromptSheet: View {
                 .buttonStyle(.plain)
             }
 
-            Button("Not now") { dismiss() }
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+            Button { dismiss() } label: {
+                Text("Not now")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, -10)
         }
     }
 
@@ -141,9 +163,15 @@ struct RateUsPromptSheet: View {
             }
             .buttonStyle(.plain)
 
-            Button("Not now") { dismiss() }
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+            Button { dismiss() } label: {
+                Text("Not now")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, -10)
         }
     }
 

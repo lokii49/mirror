@@ -1252,3 +1252,51 @@ struct FontChoicePerParagraphTests {
         #expect(font.fontDescriptor.postscriptName == serifFont.fontDescriptor.postscriptName)
     }
 }
+
+// MARK: - Empty entry keeps the style picked in Aa
+
+/// Picking Title (or a font) in an empty entry used to last only until the next SwiftUI update:
+/// closing the panel re-rendered, the empty-document branch reset typing to body, and the first
+/// word came out as body (3.1.0).
+@MainActor
+struct EmptyEntryTypingStyleTests {
+    private let styleKey = NSAttributedString.Key("mirror.paragraphStyle")
+    private let fontKey = NSAttributedString.Key("mirror.fontChoice")
+
+    @Test func titlePickedInAnEmptyEntrySurvivesARerender() throws {
+        for picked: (NoteTextCommand, NoteParagraphTextStyle) in [(.title, .title), (.heading, .heading), (.subheading, .subheading)] {
+            let h = makeEditorHarness()
+            let bodyFont = try #require(h.textView.typingAttributes[.font] as? UIFont)
+            h.coordinator.apply(picked.0, to: h.textView)
+            // What closing the panel does: another updateUIView pass.
+            h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+            #expect(h.textView.typingAttributes[styleKey] as? String == picked.1.rawValue, "\(picked.1) reset after a re-render")
+            let font = try #require(h.textView.typingAttributes[.font] as? UIFont)
+            #expect(font != bodyFont, "\(picked.1) types in the body font")
+        }
+    }
+
+    @Test func aFontPickedInAnEmptyEntrySurvivesARerender() {
+        let h = makeEditorHarness()
+        h.coordinator.apply(.fontFamily(.serif), to: h.textView)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        #expect(h.textView.typingAttributes[fontKey] as? String == WritingFontChoice.serif.rawValue)
+    }
+
+    @Test func aFontThenTitleKeepsBoth() {
+        let h = makeEditorHarness()
+        h.coordinator.apply(.fontFamily(.serif), to: h.textView)
+        h.coordinator.apply(.title, to: h.textView)
+        h.coordinator.applyStyledText(to: h.textView, preservingSelection: true)
+        #expect(h.textView.typingAttributes[styleKey] as? String == NoteParagraphTextStyle.title.rawValue)
+        #expect(h.textView.typingAttributes[fontKey] as? String == WritingFontChoice.serif.rawValue)
+    }
+
+    @Test func bodyInAnEmptyEntryStoresNothing() {
+        let h = makeEditorHarness()
+        h.coordinator.apply(.title, to: h.textView)
+        h.coordinator.apply(.body, to: h.textView)
+        #expect(h.getStyleData() == nil, "plain body must not hide the placeholder")
+        #expect(h.textView.typingAttributes[styleKey] == nil)
+    }
+}

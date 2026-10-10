@@ -3,10 +3,11 @@ import Foundation
 import SwiftLlama
 
 /// Ask's semantic retrieval (2026-10-08): EmbeddingGemma v1 300M (Q8_0 GGUF) through SwiftLlama's
-/// `LlamaEmbedder`, measured in tools/llmrig/retrieval. The one-time model download (on unmetered
-/// networks only) happens only after the user agrees, in Ask's offer card or in Settings >
-/// Smarter Ask search (`consent`). Until the model is installed and the index covers the journal,
-/// Ask keeps using `SearchService.search`.
+/// `LlamaEmbedder`, measured in tools/llmrig/retrieval. The one-time model download
+/// (`ModelDownloadManager.searchModel`: background, pause/resume, any network, like Gemma) happens
+/// only after the user agrees, in Ask's offer card or in Settings > Smarter Ask search (`consent`).
+/// Until the model is installed and the index covers the journal, Ask keeps using
+/// `SearchService.search`.
 ///
 /// Privacy: entry text never leaves the device. The download sends no journal data. Vectors are
 /// derived from journal text, so they live only in Application Support: excluded from backups,
@@ -29,8 +30,10 @@ actor SemanticSearchService {
     /// Ask switches to semantic retrieval only when the index covers this share of readable entries.
     static let minimumCoverage = 0.95
 
+    /// Whether the model is on disk. The download's own progress, pause and failures live in
+    /// `ModelDownloadManager.searchModel`, which only moves a file here after its hash matched.
     enum ModelState: Equatable {
-        case absent, downloading, installed, failed
+        case absent, installed
     }
 
     /// The user's per-device answer to "download the search model?". Nothing downloads before
@@ -57,20 +60,11 @@ actor SemanticSearchService {
         (try? FileManager.default.fileExists(atPath: modelFileURL().path)) == true
     }
 
-    private(set) var modelState: ModelState
-    /// The running download, kept so its bytes received can be read for a progress bar.
-    private var downloadTask: URLSessionDownloadTask?
-
-    /// Bytes of the model received so far while `.downloading` (0 otherwise). Settings polls it.
-    var downloadedBytes: Int64 {
-        guard modelState == .downloading, let task = downloadTask else { return 0 }
-        return max(0, task.countOfBytesReceived)
-    }
+    var modelState: ModelState { Self.isModelOnDisk ? .installed : .absent }
     private var index: [UUID: IndexRecord]
     private var backfillTask: Task<Void, Never>?
 
     private init() {
-        modelState = (try? FileManager.default.fileExists(atPath: Self.modelFileURL().path)) == true ? .installed : .absent
         index = (try? Self.loadIndex()) ?? [:]
     }
 
@@ -78,70 +72,20 @@ actor SemanticSearchService {
         try LocalLLMService.modelDirectory().appendingPathComponent(modelFileName)
     }
 
-    /// Starts the download once the user has agreed; later calls are no-ops while it runs or after it
-    /// finished. A failed download is retried on the next call (each Ask makes one).
-    func ensureModelDownloadStarted() {
-        guard Self.consent == .accepted, modelState == .absent || modelState == .failed else { return }
-        modelState = .downloading
-        Task { await download() }
-    }
-
-    private func download() async {
-        do {
-            let configuration = URLSessionConfiguration.default
-            configuration.allowsExpensiveNetworkAccess = false     // never on cellular / hotspot
-            configuration.allowsConstrainedNetworkAccess = false   // nor in Low Data Mode
-            configuration.waitsForConnectivity = true
-            configuration.timeoutIntervalForResource = 6 * 60 * 60
-            // A download task (not `download(from:)`) so `downloadedBytes` can read its progress. The
-            // finished file is moved out inside the handler: URLSession deletes it when the handler returns.
-            let session = URLSession(configuration: configuration)
-            defer { session.finishTasksAndInvalidate() }
-            let (temporary, response): (URL, URLResponse) = try await withCheckedThrowingContinuation { continuation in
-                let task = session.downloadTask(with: Self.modelURL) { location, response, error in
-                    guard let location, let response else {
-                        continuation.resume(throwing: error ?? URLError(.unknown))
-                        return
-                    }
-                    do {
-                        let kept = FileManager.default.temporaryDirectory
-                            .appendingPathComponent("embeddinggemma-\(UUID().uuidString).download")
-                        try FileManager.default.moveItem(at: location, to: kept)
-                        continuation.resume(returning: (kept, response))
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-                downloadTask = task
-                task.resume()
-            }
-            downloadTask = nil
-            defer { try? FileManager.default.removeItem(at: temporary) }
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            guard try Self.sha256(of: temporary) == Self.modelSHA256 else { throw URLError(.cannotDecodeContentData) }
-            var destination = try Self.modelFileURL()
-            try? FileManager.default.removeItem(at: destination)
-            try FileManager.default.moveItem(at: temporary, to: destination)
-            var values = URLResourceValues()
-            values.isExcludedFromBackup = true
-            try destination.setResourceValues(values)
-            modelState = .installed
-        } catch {
-            downloadTask = nil
-            modelState = .failed
-        }
+    /// Starts the download right after the user agrees (Ask's card). Never called without a tap:
+    /// the download may use mobile data. A download the user paused stays paused.
+    func ensureModelDownloadStarted() async {
+        guard Self.consent == .accepted, !Self.isModelOnDisk else { return }
+        await MainActor.run { ModelDownloadManager.searchModel.startIfIdle() }
     }
 
     /// Settings > Smarter Ask search > Remove: deletes the model and every stored vector.
-    func removeModel() {
+    func removeModel() async {
         backfillTask?.cancel()
-        downloadTask?.cancel()
-        downloadTask = nil
-        try? FileManager.default.removeItem(at: Self.modelFileURL())
+        await MainActor.run { ModelDownloadManager.searchModel.removeInstalledModel() }
         try? FileManager.default.removeItem(at: Self.indexURL())
         try? FileManager.default.removeItem(at: Self.legacyPlaintextIndexURL())
         index = [:]
-        modelState = .absent
     }
 
     static func sha256(of url: URL) throws -> String {
@@ -257,10 +201,8 @@ actor SemanticSearchService {
             try? saveIndex()
             return
         }
-        guard let embedder = try? LlamaEmbedder(path: Self.modelFileURL().path) else {
-            modelState = .failed
-            return
-        }
+        // A model that won't load (memory pressure) is skipped this pass, not downloaded again.
+        guard let embedder = try? LlamaEmbedder(path: Self.modelFileURL().path) else { return }
         for (count, document) in stale.enumerated() {
             if Task.isCancelled { break }
             let text = Self.embeddedText(document.text)

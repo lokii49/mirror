@@ -11,9 +11,18 @@ struct WhatsNewSheet: View {
     @Environment(\.appDisplayMode) private var displayMode
     @State private var service = FeatureCardService.shared
     @State private var selectedTier: CardTier? = nil
+    /// What's New's cards, captured once: the sheet marks What's New seen on appear, which changes
+    /// what the service returns (in a release with no cards of its own, nothing), and the sheet
+    /// must not switch layout or empty itself while open.
+    @State private var whatsNewCards: [FeatureCard]
+
+    init(mode: WhatsNewMode) {
+        self.mode = mode
+        _whatsNewCards = State(initialValue: mode == .whatsNew ? FeatureCardService.shared.whatsNewCards : [])
+    }
 
     var body: some View {
-        if mode == .whatsNew, WhatsNewWalkthrough.supports(service.whatsNewCards) {
+        if mode == .whatsNew, WhatsNewWalkthrough.supports(whatsNewCards) {
             // 3.1.0+: a paged walkthrough with a small animated demo per feature.
             NavigationStack {
                 WhatsNewWalkthrough(cards: walkthroughCards) { dismiss() }
@@ -27,19 +36,17 @@ struct WhatsNewSheet: View {
                         }
                     }
             }
-            .onAppear { cachedWalkthroughCards = service.whatsNewCards; service.markWhatsNewSeen() }
+            .onAppear { service.markWhatsNewSeen() }
         } else {
             listBody
         }
     }
 
-    /// The cards captured on appear (marking What's New seen can change what the service returns),
-    /// with notices (cards without a demo, such as the privacy policy update) first: the policy promises
+    /// Notices (cards without a demo, such as the privacy policy update) first: the policy promises
     /// an in-app notice, and What's New is marked seen on open, so a notice must not sit behind pages
     /// someone can close early.
-    @State private var cachedWalkthroughCards: [FeatureCard]? = nil
     private var walkthroughCards: [FeatureCard] {
-        let cards = cachedWalkthroughCards ?? service.whatsNewCards
+        let cards = whatsNewCards
         return cards.filter { !WhatsNewWalkthrough.demoIDs.contains($0.id) } + cards.filter { WhatsNewWalkthrough.demoIDs.contains($0.id) }
     }
 
@@ -183,7 +190,7 @@ struct WhatsNewSheet: View {
     private var cardsList: some View {
         if mode == .whatsNew {
             VStack(spacing: 12) {
-                ForEach(service.whatsNewCards) { card in
+                ForEach(whatsNewCards) { card in
                     FeatureCardRow(card: card, showTierBadge: true)
                 }
             }

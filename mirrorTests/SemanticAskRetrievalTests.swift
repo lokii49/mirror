@@ -46,6 +46,7 @@ struct SemanticAskRetrievalTests {
             SemanticSearchService.consent = answer
             await SemanticSearchService.shared.ensureModelDownloadStarted()
             #expect(await SemanticSearchService.shared.modelState == .absent, "\(answer)")
+            #expect(await ModelDownloadManager.searchModel.state == .notStarted, "\(answer)")
         }
     }
 

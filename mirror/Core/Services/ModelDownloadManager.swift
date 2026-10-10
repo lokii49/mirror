@@ -10,42 +10,94 @@ enum ModelDownloadState: Equatable {
     case failed(String)
 }
 
-/// Downloads the Gemma 3 1B model from models.mirrornotes.org into Application Support on
-/// demand, instead of shipping it inside the app bundle. The 768MB model file was
-/// previously bundled directly into the IPA — this cut the App Store download size
-/// by roughly 800MB, since a journaling app with an 800MB install size is a hard
-/// bounce for most users before they even open it once.
+/// One downloadable model: where it comes from, what it must hash to, and where it goes.
+struct ModelDownloadSpec: Sendable {
+    /// The background URLSession's identifier. AppDelegate routes a relaunch for a finished
+    /// transfer to the manager with this identifier.
+    let sessionIdentifier: String
+    let sourceURL: URL
+    /// A download that doesn't match is deleted, never installed.
+    let sha256: String
+    /// Rough estimate only — used to size the progress bar before the server's real
+    /// Content-Length is known. Never used to validate a completed file; that check
+    /// is against the size the server actually advertised for that specific download.
+    let estimatedByteCount: Int64
+    /// A truncated/corrupt file will be nowhere close to this; an intact file clears it.
+    let minimumSaneByteCount: Int64
+    /// Prefix of the UserDefaults keys (verified size, resume progress).
+    let defaultsPrefix: String
+    /// In Application Support, never in the model directory: the stale-file cleanup deletes
+    /// anything there that isn't a model.
+    let resumeDataFileName: String
+    let temporaryFilePrefix: String
+    let excludedFromBackup: Bool
+    /// Gemma only: clears old model files and notices when an update swapped the model.
+    let tracksModelUpgrades: Bool
+    let destination: @Sendable () throws -> URL
+
+    /// Gemma 3 1B. Our own copy (Cloudflare R2, immutable cache header) of
+    /// bartowski/google_gemma-3-1b-it-GGUF `google_gemma-3-1b-it-Q4_K_M.gguf` at commit 116f762,
+    /// byte for byte (806,058,496 bytes). Never put different bytes at this URL: a new file gets a
+    /// new path and a new hash. The identifier, keys and resume file are the ones 3.1.0 used, so a
+    /// download paused or running before an update carries on.
+    static let gemma = ModelDownloadSpec(
+        sessionIdentifier: "com.lokesh.mirror.modelDownload",
+        sourceURL: URL(string: "https://models.mirrornotes.org/gemma3/google_gemma-3-1b-it-Q4_K_M.gguf")!,
+        sha256: "12bf0fff8815d5f73a3c9b586bd8fee8e7b248c935de70dec367679873d0f29d",
+        estimatedByteCount: 806_058_496,
+        minimumSaneByteCount: 400_000_000,
+        defaultsPrefix: "mirror.modelDownload",
+        resumeDataFileName: "ModelDownload.resumedata",
+        temporaryFilePrefix: "gemma-3-1b-it-Q4_K_M",
+        excludedFromBackup: false,
+        tracksModelUpgrades: true,
+        destination: { try LocalLLMService.preferredModelURL() }
+    )
+
+    /// Ask's search model (EmbeddingGemma 300M), see `SemanticSearchService`. Downloads only after
+    /// the user agrees; on any network, like Gemma (3.1.0 waited for Wi-Fi and never paused).
+    static let searchModel = ModelDownloadSpec(
+        sessionIdentifier: "com.lokesh.mirror.searchModelDownload",
+        sourceURL: SemanticSearchService.modelURL,
+        sha256: SemanticSearchService.modelSHA256,
+        estimatedByteCount: SemanticSearchService.modelByteCount,
+        minimumSaneByteCount: 300_000_000,
+        defaultsPrefix: "mirror.searchModelDownload",
+        resumeDataFileName: "SearchModelDownload.resumedata",
+        temporaryFilePrefix: "embeddinggemma",
+        excludedFromBackup: true,
+        tracksModelUpgrades: false,
+        destination: { try SemanticSearchService.modelFileURL() }
+    )
+}
+
+/// Downloads a model from models.mirrornotes.org into Application Support on demand, with
+/// pause and resume, instead of shipping it inside the app bundle. One instance per model:
+/// `shared` is Gemma 3 1B (the ~800MB model was bundled in the IPA once; that was a hard bounce
+/// before anyone opened the app), `searchModel` is Ask's optional search model.
 @Observable
 @MainActor
 final class ModelDownloadManager: NSObject {
-    static let shared = ModelDownloadManager()
+    static let shared = ModelDownloadManager(spec: .gemma)
+    static let searchModel = ModelDownloadManager(spec: .searchModel)
 
-    /// A background URLSession — not the default configuration — so the OS keeps
-    /// the ~770MB transfer running when mirror is backgrounded, suspended, or the
-    /// device is locked, instead of the transfer stalling/erroring the moment the
-    /// app stops being the foreground process. AppDelegate re-attaches to this same
-    /// identifier if iOS relaunches the app to deliver the completion event.
-    nonisolated static let backgroundSessionIdentifier = "com.lokesh.mirror.modelDownload"
+    /// The manager whose background session has this identifier (AppDelegate).
+    static func manager(forSessionIdentifier identifier: String) -> ModelDownloadManager? {
+        switch identifier {
+        case ModelDownloadSpec.gemma.sessionIdentifier: return shared
+        case ModelDownloadSpec.searchModel.sessionIdentifier: return searchModel
+        default: return nil
+        }
+    }
+
+    nonisolated let spec: ModelDownloadSpec
+
     /// Set by AppDelegate when iOS wakes the app to hand back a finished background
     /// transfer — must be called once urlSessionDidFinishEvents fires, or the OS
     /// won't grant background time for the next download's completion event.
     var backgroundCompletionHandler: (() -> Void)?
 
-    /// Our own copy (Cloudflare R2, immutable cache header) of bartowski/google_gemma-3-1b-it-GGUF
-    /// `google_gemma-3-1b-it-Q4_K_M.gguf` at commit 116f762, byte for byte. Never put different bytes
-    /// at this URL: a new file gets a new path and a new `modelSHA256`.
-    private nonisolated static let sourceURL = URL(string: "https://models.mirrornotes.org/gemma3/google_gemma-3-1b-it-Q4_K_M.gguf")!
-    /// SHA-256 of that file (806,058,496 bytes). A download that doesn't match is deleted, never installed.
-    nonisolated static let modelSHA256 = "12bf0fff8815d5f73a3c9b586bd8fee8e7b248c935de70dec367679873d0f29d"
-    /// Rough estimate only — used to size the progress bar before the server's real
-    /// Content-Length is known. Never used to validate a completed file; that check
-    /// is against the size the server actually advertised for that specific
-    /// download, so it adapts automatically if the hosted file is ever requantized.
-    private nonisolated static let estimatedByteCount: Int64 = 806_058_496
-    /// A truncated/corrupt file will be nowhere close to this, but an intact gguf of
-    /// any quant/version of this model will clear it comfortably.
-    private nonisolated static let minimumSaneByteCount: Int64 = 400_000_000
-    private static let verifiedByteCountKey = "mirror.modelDownload.verifiedByteCount"
+    private var verifiedByteCountKey: String { "\(spec.defaultsPrefix).verifiedByteCount" }
     /// Tracks which model file the app last successfully installed, so a code-side
     /// model swap (new modelFileName shipped in an app update) can be told apart
     /// from a first-ever install.
@@ -65,17 +117,22 @@ final class ModelDownloadManager: NSObject {
     private var resumeData: Data?
     /// Last progress shown, so Pause and Resume don't jump the bar back to 0.
     private var lastBytesWritten: Int64 = 0
-    private var lastBytesExpected: Int64 = estimatedByteCount
+    private var lastBytesExpected: Int64
     /// Pause shows at once, but the background session hands back the resume data a
     /// moment later. A Resume tapped in between waits for it instead of starting at 0.
     private var pauseInFlight = false
     private var resumeAfterPause = false
-    private static let resumeBytesWrittenKey = "mirror.modelDownload.resumeBytesWritten"
-    private static let resumeBytesExpectedKey = "mirror.modelDownload.resumeBytesExpected"
+    private var resumeBytesWrittenKey: String { "\(spec.defaultsPrefix).resumeBytesWritten" }
+    private var resumeBytesExpectedKey: String { "\(spec.defaultsPrefix).resumeBytesExpected" }
 
-    private override init() {
+    private init(spec: ModelDownloadSpec) {
+        self.spec = spec
+        lastBytesExpected = spec.estimatedByteCount
         super.init()
-        let config = URLSessionConfiguration.background(withIdentifier: Self.backgroundSessionIdentifier)
+        // A background session: iOS keeps the transfer running while the app is in the
+        // background, suspended or the phone is locked. No network limits: like any download
+        // the user starts, it runs on Wi-Fi or cellular.
+        let config = URLSessionConfiguration.background(withIdentifier: spec.sessionIdentifier)
         // The user explicitly tapped Download — start now rather than iOS deferring
         // it to whenever it judges conditions "optimal" (Wi-Fi + charging, etc.).
         config.isDiscretionary = false
@@ -85,22 +142,24 @@ final class ModelDownloadManager: NSObject {
 
         let currentFileName = Self.currentModelFileName
         let lastInstalled = UserDefaults.standard.string(forKey: Self.lastInstalledModelFileNameKey)
-        modelWasUpgraded = lastInstalled != nil && lastInstalled != currentFileName
-        Self.removeStaleModelFiles(keeping: currentFileName)
+        if spec.tracksModelUpgrades {
+            modelWasUpgraded = lastInstalled != nil && lastInstalled != currentFileName
+            Self.removeStaleModelFiles(keeping: currentFileName)
+        }
 
-        if (try? Self.installedModelExists()) == true {
+        if (try? Self.installedFileExists(spec)) == true {
             state = .installed
             // Backfill for installs that predate this tracking key (e.g. already
             // installed before this app update) — otherwise a future model swap
             // would look like a first-ever install instead of an upgrade.
-            if lastInstalled == nil {
+            if spec.tracksModelUpgrades, lastInstalled == nil {
                 UserDefaults.standard.set(currentFileName, forKey: Self.lastInstalledModelFileNameKey)
             }
-            Self.clearStoredResumeData()
-        } else if let data = Self.storedResumeData() {
+            clearStoredResumeData()
+        } else if let data = storedResumeData() {
             resumeData = data
-            lastBytesWritten = (UserDefaults.standard.object(forKey: Self.resumeBytesWrittenKey) as? Int64) ?? 0
-            lastBytesExpected = (UserDefaults.standard.object(forKey: Self.resumeBytesExpectedKey) as? Int64) ?? Self.estimatedByteCount
+            lastBytesWritten = (UserDefaults.standard.object(forKey: resumeBytesWrittenKey) as? Int64) ?? 0
+            lastBytesExpected = (UserDefaults.standard.object(forKey: resumeBytesExpectedKey) as? Int64) ?? spec.estimatedByteCount
             state = .paused(resumable: true, bytesWritten: lastBytesWritten, bytesExpected: lastBytesExpected)
         }
         // A transfer from before the app was quit keeps running in the background
@@ -116,19 +175,19 @@ final class ModelDownloadManager: NSObject {
         guard task == nil, !isReady else { return }
         task = running
         resumeData = nil
-        Self.clearStoredResumeData()
+        clearStoredResumeData()
         let expected = running.countOfBytesExpectedToReceive > 0 ? running.countOfBytesExpectedToReceive : lastBytesExpected
         let written = max(running.countOfBytesReceived, lastBytesWritten)
         showProgress(written: written, expected: expected)
     }
 
     /// Not in the model directory: `removeStaleModelFiles` deletes everything else there.
-    private nonisolated static func resumeDataURL() throws -> URL {
+    private func resumeDataURL() throws -> URL {
         try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("ModelDownload.resumedata")
+            .appendingPathComponent(spec.resumeDataFileName)
     }
 
-    private static func storedResumeData() -> Data? {
+    private func storedResumeData() -> Data? {
         guard let url = try? resumeDataURL() else { return nil }
         return try? Data(contentsOf: url)
     }
@@ -136,17 +195,17 @@ final class ModelDownloadManager: NSObject {
     private func storeResumeData(_ data: Data?) {
         resumeData = data
         guard let data else {
-            Self.clearStoredResumeData()
+            clearStoredResumeData()
             return
         }
-        if let url = try? Self.resumeDataURL() {
+        if let url = try? resumeDataURL() {
             try? data.write(to: url, options: .atomic)
         }
-        UserDefaults.standard.set(lastBytesWritten, forKey: Self.resumeBytesWrittenKey)
-        UserDefaults.standard.set(lastBytesExpected, forKey: Self.resumeBytesExpectedKey)
+        UserDefaults.standard.set(lastBytesWritten, forKey: resumeBytesWrittenKey)
+        UserDefaults.standard.set(lastBytesExpected, forKey: resumeBytesExpectedKey)
     }
 
-    private static func clearStoredResumeData() {
+    private func clearStoredResumeData() {
         if let url = try? resumeDataURL() {
             try? FileManager.default.removeItem(at: url)
         }
@@ -169,28 +228,38 @@ final class ModelDownloadManager: NSObject {
     /// (an app update that swapped in a different/newer LLM) so it doesn't sit on
     /// disk forever — a stale file never matches the new preferredModelURL(), so it
     /// would otherwise never get cleaned up.
-    private nonisolated static func removeStaleModelFiles(keeping currentFileName: String) {
-        guard let directory = try? LocalLLMService.modelDirectory(),
+    ///
+    /// Every model file the app owns lives in this directory and must be in `keptFileNames`:
+    /// 3.1.0 kept only Gemma's, so each launch deleted Ask's search model (EmbeddingGemma) and
+    /// it downloaded again.
+    nonisolated static func removeStaleModelFiles(keeping currentFileName: String, in directory: URL? = nil) {
+        guard let directory = directory ?? (try? LocalLLMService.modelDirectory()),
               let contents = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         else { return }
-        for file in contents where file.lastPathComponent != currentFileName {
+        let keptFileNames: Set<String> = [currentFileName, SemanticSearchService.modelFileName]
+        for file in contents where !keptFileNames.contains(file.lastPathComponent) {
             try? FileManager.default.removeItem(at: file)
         }
     }
 
+    /// Gemma is installed.
     static func installedModelExists() throws -> Bool {
-        let url = try LocalLLMService.preferredModelURL()
+        try installedFileExists(.gemma)
+    }
+
+    nonisolated static func installedFileExists(_ spec: ModelDownloadSpec) throws -> Bool {
+        let url = try spec.destination()
         guard FileManager.default.fileExists(atPath: url.path) else { return false }
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
         // If we downloaded this file ourselves, hold it to the exact size the server
         // reported at the time — catches silent truncation on disk. A file that
-        // arrived some other way (manual sideload, restored backup) just needs to
-        // clear the sanity floor.
-        let verified = UserDefaults.standard.object(forKey: verifiedByteCountKey) as? Int64
+        // arrived some other way (manual sideload, restored backup, a 3.1.0 search
+        // model download) just needs to clear the sanity floor.
+        let verified = UserDefaults.standard.object(forKey: "\(spec.defaultsPrefix).verifiedByteCount") as? Int64
         if let verified {
             return size == verified
         }
-        return size >= minimumSaneByteCount
+        return size >= spec.minimumSaneByteCount
     }
 
     var isReady: Bool {
@@ -207,8 +276,8 @@ final class ModelDownloadManager: NSObject {
             break
         }
         storeResumeData(nil)
-        showProgress(written: 0, expected: Self.estimatedByteCount)
-        let task = session.downloadTask(with: Self.sourceURL)
+        showProgress(written: 0, expected: spec.estimatedByteCount)
+        let task = session.downloadTask(with: spec.sourceURL)
         self.task = task
         task.resume()
     }
@@ -259,6 +328,27 @@ final class ModelDownloadManager: NSObject {
         task.resume()
     }
 
+    /// Starts, or retries after a failure, without overriding the user: a paused download stays
+    /// paused, and a running or installed one is left alone. Ask calls this on every question.
+    @MainActor
+    func startIfIdle() {
+        switch state {
+        case .notStarted: startDownload()
+        case .failed: resumeDownload()
+        case .paused, .downloading, .verifying, .installed: break
+        }
+    }
+
+    /// Deletes the installed model and any partial download (Settings > Remove).
+    @MainActor
+    func removeInstalledModel() {
+        cancelDownload()
+        if let url = try? spec.destination() {
+            try? FileManager.default.removeItem(at: url)
+        }
+        UserDefaults.standard.removeObject(forKey: verifiedByteCountKey)
+    }
+
     #if DEBUG
     /// Removes the installed model and resets state, so the download flow can be
     /// re-tested from the "AI model needed" card without reinstalling the app.
@@ -267,7 +357,7 @@ final class ModelDownloadManager: NSObject {
         task?.cancel()
         task = nil
         storeResumeData(nil)
-        if let url = try? LocalLLMService.preferredModelURL() {
+        if let url = try? spec.destination() {
             try? FileManager.default.removeItem(at: url)
         }
         state = .notStarted
@@ -286,14 +376,14 @@ final class ModelDownloadManager: NSObject {
 
     @MainActor
     private func finishInstalling(from tempURL: URL, serverExpectedByteCount: Int64, sha256: String?) {
-        guard sha256 == Self.modelSHA256 else {
+        guard sha256 == spec.sha256 else {
             try? FileManager.default.removeItem(at: tempURL)
             storeResumeData(nil)
             state = .failed(String(localized: "Downloaded model didn't match its fingerprint. Please try again."))
             return
         }
         do {
-            let destination = try LocalLLMService.preferredModelURL()
+            var destination = try spec.destination()
             if FileManager.default.fileExists(atPath: destination.path) {
                 try FileManager.default.removeItem(at: destination)
             }
@@ -302,17 +392,24 @@ final class ModelDownloadManager: NSObject {
             // Trust the server's own Content-Length for this download over any
             // hardcoded figure — it's correct even if the hosted file changes.
             // Fall back to the sanity floor only if the server didn't report a length.
-            let expected = serverExpectedByteCount > 0 ? serverExpectedByteCount : Self.minimumSaneByteCount
+            let expected = serverExpectedByteCount > 0 ? serverExpectedByteCount : spec.minimumSaneByteCount
             guard size >= expected else {
                 try? FileManager.default.removeItem(at: destination)
                 state = .failed(String(localized: "Downloaded file was incomplete (\(size) of \(expected) bytes). Please try again."))
                 return
             }
-            if serverExpectedByteCount > 0 {
-                UserDefaults.standard.set(serverExpectedByteCount, forKey: Self.verifiedByteCountKey)
+            if spec.excludedFromBackup {
+                var values = URLResourceValues()
+                values.isExcludedFromBackup = true
+                try? destination.setResourceValues(values)
             }
-            UserDefaults.standard.set(Self.currentModelFileName, forKey: Self.lastInstalledModelFileNameKey)
-            modelWasUpgraded = false
+            if serverExpectedByteCount > 0 {
+                UserDefaults.standard.set(serverExpectedByteCount, forKey: verifiedByteCountKey)
+            }
+            if spec.tracksModelUpgrades {
+                UserDefaults.standard.set(Self.currentModelFileName, forKey: Self.lastInstalledModelFileNameKey)
+                modelWasUpgraded = false
+            }
             task = nil
             storeResumeData(nil)
             state = .installed
@@ -331,7 +428,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         totalBytesExpectedToWrite: Int64
     ) {
         var written = totalBytesWritten
-        var expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.estimatedByteCount
+        var expected = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : spec.estimatedByteCount
         // A resumed transfer (HTTP 206) may count only the remaining range. If the
         // expected bytes are fewer than the whole file, add back what was already on disk.
         if let total = Self.contentRangeTotal(of: downloadTask), totalBytesExpectedToWrite > 0, totalBytesExpectedToWrite < total {
@@ -364,7 +461,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         // The delegate must move the file synchronously before this method returns —
         // the system deletes whatever's at `location` immediately after we return.
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("gemma-3-1b-it-Q4_K_M-\(UUID().uuidString)")
+            .appendingPathComponent("\(spec.temporaryFilePrefix)-\(UUID().uuidString)")
             .appendingPathExtension("gguf")
         // The authoritative total file size, not a hardcoded guess. For a plain GET,
         // countOfBytesExpectedToReceive already is the full size. But a resumed
@@ -381,7 +478,7 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
             return
         }
         Task { @MainActor in self.state = .verifying }
-        // Hashing ~800MB takes seconds, so it runs here on the delegate queue, not the main actor.
+        // Hashing hundreds of MB takes seconds, so it runs here on the delegate queue, not the main actor.
         let sha256 = try? SemanticSearchService.sha256(of: tempURL)
         Task { @MainActor in
             self.finishInstalling(from: tempURL, serverExpectedByteCount: serverExpectedByteCount, sha256: sha256)
