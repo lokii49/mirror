@@ -184,6 +184,9 @@ extension WriteView {
     /// detached `Task` above from implicitly capturing the view, and makes
     /// the index arithmetic unit-testable without a mic or a live `WriteView`.
     static func applyTranscription(_ transcription: VoiceTranscription, to entry: Entry, atIndex index: Int) {
+        // Transcripts are saved encrypted: with the key unreadable, leave the note untranscribed
+        // (Retry stays available) rather than store the transcript in plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         if index == 0 {
             guard entry.voiceNoteData != nil else { return }
             entry.voiceNoteTranscript = transcription.transcript

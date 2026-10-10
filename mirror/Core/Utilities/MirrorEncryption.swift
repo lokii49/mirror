@@ -49,7 +49,23 @@ enum MirrorEncryption {
         #if DEBUG
         if sealFailsForTesting { return false }
         #endif
-        return (try? key(creatingIfNeeded: creatingIfNeeded)) != nil
+        if (try? key(creatingIfNeeded: creatingIfNeeded)) != nil { return true }
+        // Not minting still allows the one case sealing itself resolves without a new key: both
+        // slots readably empty while the archive holds a key (iCloud Keychain delivered the archive
+        // before the slot, so entries already open through it). Sealing adopts that key.
+        return !creatingIfNeeded && archivedKeyWouldBeAdopted()
+    }
+
+    private static func archivedKeyWouldBeAdopted() -> Bool {
+        #if DEBUG && os(macOS)
+        if debugEphemeralKey != nil { return false }
+        #endif
+        return keyQueue.sync {
+            let local = KeychainManager.read(account: keyAccount)
+            let synced = KeychainManager.read(account: keyAccount, synchronizable: true)
+            guard !local.isFailure, !synced.isFailure else { return false }
+            return refreshArchiveLocked().last != nil
+        }
     }
 
     static func encryptString(_ value: String) -> String {
