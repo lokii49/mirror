@@ -65,6 +65,7 @@ struct BrainView: View {
                         .frame(width: 32, height: 32)
                         .background(.thinMaterial, in: Circle())
                 }
+                .accessibilityLabel("Close")
             }
             if subscriptionService.isDeep, case .ready = brainModel.state {
                 ToolbarItem(placement: .topBarTrailing) {

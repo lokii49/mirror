@@ -420,6 +420,7 @@ extension WriteView {
                                 : AnyShapeStyle(Color.secondary)
                         )
                 }
+                .accessibilityLabel("Save entry")
                 .buttonStyle(.plain)
                 // Save anyway while a voice note is still transcribing (1.4) —
                 // continueTranscriptionAfterSaveAnyway hands the in-flight pass

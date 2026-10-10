@@ -120,6 +120,7 @@ extension WriteView {
                             Image(systemName: "xmark")
                                 .font(.system(size: 9, weight: .bold))
                         }
+                        .accessibilityLabel("Remove tag")
                         .buttonStyle(.plain)
                     }
                     .foregroundStyle(.secondary)

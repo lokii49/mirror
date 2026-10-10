@@ -114,6 +114,7 @@ struct MonthlyReportView: View {
                     .frame(width: 32, height: 32)
                     .background(canGoBack ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
+            .accessibilityLabel("Previous month")
             .buttonStyle(.plain)
             .disabled(!canGoBack)
             #if os(macOS)
@@ -157,6 +158,7 @@ struct MonthlyReportView: View {
                     .frame(width: 32, height: 32)
                     .background(canGoForward ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
+            .accessibilityLabel("Next month")
             .buttonStyle(.plain)
             .disabled(!canGoForward)
             #if os(macOS)

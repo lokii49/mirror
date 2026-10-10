@@ -330,6 +330,7 @@ struct CalendarHeatmap: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(canGoBack ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
+            .accessibilityLabel("Back")
             .buttonStyle(.plain)
             .disabled(!canGoBack)
 
@@ -353,6 +354,7 @@ struct CalendarHeatmap: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(canGoForward ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
+            .accessibilityLabel("Next")
             .buttonStyle(.plain)
             .disabled(!canGoForward)
         }
@@ -471,6 +473,14 @@ struct CalendarHeatmap: View {
                 .onTapGesture {
                     guard !isFuture else { return }
                     haptic()
+                    onDaySelected?(isSelected ? nil : startOfDay)
+                }
+                // VoiceOver read fragments ("12", "3") with no date and no button (backlog A19).
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(HeatmapAccessibility.label(for: startOfDay, count: count))
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                .accessibilityAction {
+                    guard !isFuture else { return }
                     onDaySelected?(isSelected ? nil : startOfDay)
                 }
         }
@@ -638,6 +648,14 @@ struct CalendarHeatmap: View {
                     haptic()
                     onDaySelected?(isSelected ? nil : startOfDay)
                 }
+                // VoiceOver read fragments ("12", "3") with no date and no button (backlog A19).
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(HeatmapAccessibility.label(for: startOfDay, count: count))
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                .accessibilityAction {
+                    guard !isFuture else { return }
+                    onDaySelected?(isSelected ? nil : startOfDay)
+                }
         }
     }
 
@@ -761,5 +779,26 @@ struct CalendarHeatmap: View {
                 haptic()
                 onDaySelected?(isSelected ? nil : date)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(date.map { HeatmapAccessibility.label(for: $0, count: dayCache[$0]?.count ?? 0) } ?? "")
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityHidden(date == nil)
+            .accessibilityAction {
+                guard let date else { return }
+                onDaySelected?(isSelected ? nil : date)
+            }
+    }
+}
+
+/// VoiceOver text for one heatmap day: the full date, then how many entries (backlog A19). Reuses
+/// the catalog's "1 entry" / "%lld entries".
+enum HeatmapAccessibility {
+    static func label(for date: Date, count: Int) -> String {
+        let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        switch count {
+        case 0: return day
+        case 1: return day + ", " + String(localized: "1 entry")
+        default: return day + ", " + String(localized: "\(count) entries")
+        }
     }
 }

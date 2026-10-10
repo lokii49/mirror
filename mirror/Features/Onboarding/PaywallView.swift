@@ -61,6 +61,7 @@ struct PaywallView: View {
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
+                    .accessibilityLabel("Close")
                     .buttonStyle(.plain)
                 }
             }

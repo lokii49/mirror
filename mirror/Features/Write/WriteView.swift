@@ -495,10 +495,14 @@ struct WriteView: View {
                 Color.black.opacity(0.001)
                     .ignoresSafeArea()
                     .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
+                    .accessibilityHidden(true)
                     .overlay(alignment: .topTrailing) {
                         signalPanel
                             .padding(.top, 96)
                             .padding(.trailing, 18)
+                            // VoiceOver: a modal panel with the two-finger scrub to close (A19).
+                            .accessibilityAddTraits(.isModal)
+                            .accessibilityAction(.escape) { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
                     }
             }
         }

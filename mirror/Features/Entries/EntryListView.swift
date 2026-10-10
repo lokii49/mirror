@@ -799,6 +799,7 @@ struct EntriesTabView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, 14)
@@ -826,6 +827,10 @@ struct EntriesTabView: View {
             .onTapGesture {
                 open(entry)
             }
+            // One element that opens the entry, not its separate texts (backlog A19).
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { open(entry) }
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }

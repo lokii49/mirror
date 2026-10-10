@@ -290,6 +290,7 @@ struct EntryDetailView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                     }
+                    .accessibilityLabel("More")
                 }
             }
         }

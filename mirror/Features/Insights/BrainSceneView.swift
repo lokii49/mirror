@@ -38,14 +38,14 @@ struct Brain3DView: View {
 
     private var zoomControls: some View {
         VStack(spacing: 10) {
-            zoomButton(systemName: "plus") { cameraController.zoomIn.send(()) }
-            zoomButton(systemName: "minus") { cameraController.zoomOut.send(()) }
+            zoomButton(systemName: "plus", label: "Zoom in") { cameraController.zoomIn.send(()) }
+            zoomButton(systemName: "minus", label: "Zoom out") { cameraController.zoomOut.send(()) }
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 
-    private func zoomButton(systemName: String, action: @escaping () -> Void) -> some View {
+    private func zoomButton(systemName: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .bold))
@@ -54,6 +54,7 @@ struct Brain3DView: View {
                 .background(.white.opacity(0.12), in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 1))
         }
+        .accessibilityLabel(label)
         .buttonStyle(.plain)
     }
 }
