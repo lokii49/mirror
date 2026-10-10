@@ -35,7 +35,11 @@ final class SubscriptionService {
         // fails, offline): otherwise the widgets show a locked view with a price.
         if Self.allFeaturesFree { Self.publishTierToWidgets(.deep) }
         Task {
-            await restorePurchases()
+            // RevenueCat: restorePurchases "may force your users to enter the App Store password
+            // so should only be performed on request of the user" (5.89.0 docs). While every
+            // feature is free its result is thrown away anyway (`updateTier`), so launch skips it;
+            // what replaces it when gating returns is the November IAP decision (backlog C).
+            if !Self.allFeaturesFree { await restorePurchases() }
             await refresh()
         }
     }
