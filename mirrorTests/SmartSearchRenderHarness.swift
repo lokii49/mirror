@@ -19,16 +19,26 @@ final class SmartSearchRenderHarness: XCTestCase {
                        mode: mode, style: style, height: 200, to: "\(dir)/smart-search-offer-\(name).png")
             try render(AnyView(NavigationStack { SmartSearchSettingsView() }),
                        mode: mode, style: style, height: 760, to: "\(dir)/smart-search-settings-\(name).png")
-            for (state, bytes, label) in [(SemanticSearchService.ModelState.downloading, Int64(141_000_000), "downloading"),
-                                          (.downloading, 0, "waiting"), (.installed, 0, "ready")] {
-                try render(AnyView(SmartSearchOfferCard(previewState: state, downloadedBytes: bytes).padding(16)
+            let total = SemanticSearchService.modelByteCount
+            let states: [(ModelDownloadState, String)] = [
+                (.downloading(progress: 141_000_000 / Double(total), bytesWritten: 141_000_000, bytesExpected: total), "downloading"),
+                (.paused(resumable: true, bytesWritten: 141_000_000, bytesExpected: total), "paused"),
+                (.downloading(progress: 0, bytesWritten: 0, bytesExpected: total), "starting"),
+                (.verifying, "verifying"),
+                (.failed("x"), "failed"),
+                (.installed, "ready"),
+            ]
+            for (state, label) in states {
+                try render(AnyView(SmartSearchOfferCard(previewState: state).padding(16)
                                     .frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
                            mode: mode, style: style, height: 200, to: "\(dir)/smart-search-offer-\(label)-\(name).png")
+                try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: state) }),
+                           mode: mode, style: style, height: 760, to: "\(dir)/smart-search-settings-\(label)-\(name).png")
+                // Gemma's card on the reflection / weekly digest / monthly report.
+                try render(AnyView(ModelDownloadProgressPanel(state: state, onPause: {}, onResume: {}).padding(20)
+                                    .frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
+                           mode: mode, style: style, height: 160, to: "\(dir)/gemma-panel-\(label)-\(name).png")
             }
-            try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 141_000_000) }),
-                       mode: mode, style: style, height: 760, to: "\(dir)/smart-search-downloading-\(name).png")
-            try render(AnyView(NavigationStack { SmartSearchSettingsView(previewState: .downloading, downloadedBytes: 0) }),
-                       mode: mode, style: style, height: 760, to: "\(dir)/smart-search-starting-\(name).png")
         }
     }
 

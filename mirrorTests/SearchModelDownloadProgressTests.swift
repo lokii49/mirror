@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 @testable import mirror
 
-/// Real download of the search model from models.mirrornotes.org (Wi-Fi, about 334 MB): progress must
+/// Real download of the search model from models.mirrornotes.org (about 334 MB): progress must
 /// rise while it runs, and Settings > Smarter Ask search must show it. Skipped unless
 /// RUN_SEARCH_MODEL_DOWNLOAD is set, since it removes and re-downloads the model.
 @MainActor
@@ -23,10 +23,12 @@ final class SearchModelDownloadProgressTests: XCTestCase {
         var samples: [Int64] = []
         var rendered = false
         let deadline = Date().addingTimeInterval(600)
+        let manager = ModelDownloadManager.searchModel
         while Date() < deadline {
-            let state = await service.modelState
-            if state != .downloading { break }
-            let bytes = await service.downloadedBytes
+            guard case .downloading(_, let bytes, _) = manager.state else {
+                if manager.state == .verifying { try await Task.sleep(for: .milliseconds(500)); continue }
+                break
+            }
             samples.append(bytes)
             if !rendered, bytes > 20_000_000 {
                 rendered = true

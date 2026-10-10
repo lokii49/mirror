@@ -306,7 +306,7 @@ enum FeatureCardRegistry {
         .init(
             id: "smart-ask-search-310",
             title: "Smarter search in Ask",
-            body: "Ask can find entries by meaning, not only matching words. It's optional: a one-time download on Wi-Fi of a search model that runs on your device. Turn it on in Ask or in Settings.",
+            body: "Ask can find entries by meaning, not only matching words. It's optional: a one-time download of a search model that runs on your device. Turn it on in Ask or in Settings.",
             symbolName: "sparkle.magnifyingglass",
             accentColor: .purple,
             tier: .core,
