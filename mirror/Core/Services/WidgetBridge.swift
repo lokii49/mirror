@@ -81,6 +81,38 @@ enum WidgetBridge {
         if changed { WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget") }
     }
 
+    /// Every app-group key holding journal-derived content. Not `widget.tier` or
+    /// `widget.displayMode`, which are settings.
+    static let journalDerivedKeys = [
+        "widget.nudge.text", "widget.nudge.date", "widget.nudge.aboutDate", "widget.nudge.mood",
+        WidgetShared.digestThemeKey, WidgetShared.digestWeekKey,
+        WidgetShared.monthlyImageKey, WidgetShared.monthlyPeriodKey,
+        "widget.entries.heatmap", "widget.mood.heatmap", "widget.streak", "widget.wrote.today",
+    ]
+
+    /// After Delete Everything: the widgets and lock screen otherwise kept showing the last
+    /// reflection line, digest theme, monthly image and heatmaps (backlog A10).
+    @MainActor
+    static func clearJournalDerived() {
+        journalDerivedKeys.forEach { defaults?.removeObject(forKey: $0) }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// The same when the erase arrived from another device: nothing here clears the widget keys,
+    /// since the sync functions above leave the last value when there's nothing new. Only on a
+    /// successful count of zero entries and zero insights; a failed fetch never clears.
+    @MainActor
+    static func clearIfJournalEmpty(context: ModelContext) {
+        do {
+            guard try context.fetchCount(FetchDescriptor<Entry>()) == 0,
+                  try context.fetchCount(FetchDescriptor<Insight>()) == 0 else { return }
+        } catch {
+            return
+        }
+        guard journalDerivedKeys.contains(where: { defaults?.object(forKey: $0) != nil }) else { return }
+        clearJournalDerived()
+    }
+
     /// Trim to the last sentence end within `max` characters, else the last word
     /// boundary, so the widget gets a whole thought rather than a mid-word cut.
     ///

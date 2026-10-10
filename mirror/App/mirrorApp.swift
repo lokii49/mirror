@@ -47,6 +47,7 @@ struct mirrorApp: App {
         configureNavigationBarAppearance()
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
+            WidgetSaveRefresher.shared.start(container: sharedModelContainer)
         }
         // Re-attach to a search-model download still running in its background session, so it
         // installs when it finishes even if Ask and Settings are never opened this launch.
@@ -197,7 +198,7 @@ struct mirrorApp: App {
         // Content Extension. Scratch-device only, DEBUG only — delete once screenshots
         // are captured, this is not a regression test fixture.
         if ProcessInfo.processInfo.arguments.contains("--scheduleTestNudge") {
-            let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
             let today = DateHelpers.dayIdentifier(for: Date())
             defaults?.set(today, forKey: "widget.nudge.date")
             defaults?.set("Content", forKey: "widget.nudge.mood")
@@ -568,6 +569,8 @@ struct mirrorApp: App {
         // same reason syncNudgeToWidget exists.
         WidgetBridge.syncWeeklyDigest(from: context)
         WidgetBridge.syncMonthlyReport(from: context)
+        // An erase on another device leaves this one's widget text otherwise.
+        WidgetBridge.clearIfJournalEmpty(context: context)
 
         // Update the daily nudge notification to reflect current state.
         // Content resets on every app open so the message matches today's context.
@@ -827,7 +830,7 @@ struct mirrorApp: App {
             // real nudge it last had (or nothing), same as the in-app UI never overwrites a real
             // card with a fallback in place.
             if !InsightService.isUngroundedFallback(text) {
-                let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+                let wDefaults = UserDefaults(suiteName: WidgetShared.appGroupID)
                 wDefaults?.set(InsightService.nudgeTextForOutsideApp(text), forKey: "widget.nudge.text")
                 wDefaults?.set(today, forKey: "widget.nudge.date")
                 // The day it's about (the newest readable entry's), so the widget can keep an
@@ -1221,7 +1224,7 @@ struct mirrorApp: App {
             moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
-        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         defaults?.set(try? JSONEncoder().encode(countByDay), forKey: "widget.entries.heatmap")
         defaults?.set(try? JSONEncoder().encode(moodByDay),  forKey: "widget.mood.heatmap")
 
@@ -1271,7 +1274,7 @@ struct mirrorApp: App {
               let nudge = insights
                   .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
                   .max(by: { $0.generatedAt < $1.generatedAt }) else { return }
-        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
