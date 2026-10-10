@@ -1312,7 +1312,14 @@ enum InsightService {
     }
 
     static func recordKeptRealRow(_ type: InsightType, period: String) {
-        UserDefaults.standard.set(DateHelpers.now(), forKey: periodFallbackAttemptKey(type, period: period))
+        let defaults = UserDefaults.standard
+        let key = periodFallbackAttemptKey(type, period: period)
+        // One key per type: drop the ones left from earlier weeks or months.
+        let prefix = periodFallbackAttemptKey(type, period: "")
+        for old in defaults.dictionaryRepresentation().keys where old.hasPrefix(prefix) && old != key {
+            defaults.removeObject(forKey: old)
+        }
+        defaults.set(DateHelpers.now(), forKey: key)
     }
 
     /// The date a cached digest or report's staleness is measured from.

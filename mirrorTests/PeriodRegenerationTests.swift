@@ -88,6 +88,53 @@ extension SharedLLMState {
         }
 
         @Test(.enabled(if: LocalLLMService.isModelAvailable))
+        func weeklyLoaderKeepsTheRealDigestWhenARetryFails() async throws {
+            let now = Self.day(10, 11)
+            let week = DateHelpers.digestWeekIdentifier(for: now)
+            clear(.weeklyDigest, week); defer { clear(.weeklyDigest, week) }
+            let context = try makeContext()
+            add("Long walk around the lake after work, the light was gold on the water.", at: Self.day(10, 6), to: context)
+            add("Finally fixed the dashboard bug, it was in the date parsing all along.", at: Self.day(10, 7), to: context)
+            add("Called an old friend tonight and we talked for almost an hour.", at: Self.day(10, 8), to: context)
+            let real = Insight(type: .weeklyDigest, content: Self.realDigest, periodIdentifier: week, generatedByEngine: .gemma)
+            real.generatedAt = Self.day(10, 9)
+            context.insert(real)
+            add("Saturday market with the neighbours, bought far too many apples.", at: Self.day(10, 10), to: context)
+            try context.save()
+            var calls = 0
+            let invented = Self.invented
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (invented, .foundationModels) }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+
+            let viewModel = InsightViewModel()
+            let entries = try context.fetch(FetchDescriptor<Entry>())
+            let insights = try context.fetch(FetchDescriptor<Insight>())
+            await DateHelpers.$nowForTesting.withValue(now) {
+                await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: context)
+            }
+            #expect(calls > 0)
+            #expect(try context.fetch(FetchDescriptor<Insight>()).filter { $0.type == .weeklyDigest }.count == 1)
+            if case .loaded(let shown) = viewModel.digestState {
+                #expect(shown.content == Self.realDigest)
+            } else {
+                Issue.record("expected the real digest, got \(viewModel.digestState)")
+            }
+        }
+
+        @Test func keptAttemptMarkersFromEarlierPeriodsAreRemoved() {
+            let old = InsightService.periodFallbackAttemptKey(.weeklyDigest, period: "2026-W40")
+            let current = InsightService.periodFallbackAttemptKey(.weeklyDigest, period: "2026-W41")
+            let otherType = InsightService.periodFallbackAttemptKey(.monthlyReport, period: "2026-09")
+            UserDefaults.standard.set(Date(), forKey: old)
+            UserDefaults.standard.set(Date(), forKey: otherType)
+            defer { [old, current, otherType].forEach { UserDefaults.standard.removeObject(forKey: $0) } }
+            InsightService.recordKeptRealRow(.weeklyDigest, period: "2026-W41")
+            #expect(UserDefaults.standard.object(forKey: old) == nil)
+            #expect(UserDefaults.standard.object(forKey: current) != nil)
+            #expect(UserDefaults.standard.object(forKey: otherType) != nil, "other types keep theirs")
+        }
+
+        @Test(.enabled(if: LocalLLMService.isModelAvailable))
         func monthlyLoaderServesTheReportWhenNothingNewWasWritten() async throws {
             let now = Self.day(10, 28)
             let month = DateHelpers.monthIdentifier(for: now)
