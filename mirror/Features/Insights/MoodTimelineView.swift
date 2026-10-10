@@ -869,9 +869,29 @@ private struct MoodPoint: Identifiable {
     let score: Double
 }
 
+/// The line and area of the mood chart: one point per calendar day, at the mean of that day's
+/// readings. Through every reading, several on one day gave the marks duplicate x values, which
+/// drew faint wedges inside the plot (and spikes outside it on Mac). The dots still show each one.
+nonisolated struct MoodDayMean: Equatable, Sendable {
+    let day: Date
+    let score: Double
+}
+
+nonisolated enum MoodChartSeries {
+    static func dailyMeans(_ readings: [(date: Date, score: Double)], calendar: Calendar = .current) -> [MoodDayMean] {
+        Dictionary(grouping: readings) { calendar.startOfDay(for: $0.date) }
+            .map { day, group in MoodDayMean(day: day, score: group.map(\.score).reduce(0, +) / Double(group.count)) }
+            .sorted { $0.day < $1.day }
+    }
+}
+
 private struct MoodChartCard: View {
     let points: [MoodPoint]
     @Environment(\.appDisplayMode) private var displayMode
+
+    private var dailyLine: [MoodDayMean] {
+        MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -887,48 +907,52 @@ private struct MoodChartCard: View {
             }
             .foregroundStyle(.secondary)
 
-            Chart(points) { point in
-                #if !os(macOS)
-                AreaMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart {
+                ForEach(dailyLine, id: \.day) { day in
+                    #if !os(macOS)
+                    AreaMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
                     )
-                )
-                .interpolationMethod(.catmullRom)
-                #endif
-
-                LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet, MirrorTheme.ember],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
-                #if os(macOS)
-                // Multiple moods can share a day. Avoid smoothing overshoot and the area
-                // renderer's duplicate-day wedges; show the recorded points and line.
-                .interpolationMethod(.linear)
-                #else
-                .interpolationMethod(.catmullRom)
-                #endif
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
+                    .interpolationMethod(.catmullRom)
+                    #endif
 
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                .symbolSize(80)
+                    LineMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet, MirrorTheme.ember],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    #if os(macOS)
+                    // Multiple moods can share a day. Avoid smoothing overshoot and the area
+                    // renderer's duplicate-day wedges; show the recorded points and line.
+                    .interpolationMethod(.linear)
+                    #else
+                    .interpolationMethod(.catmullRom)
+                    #endif
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                }
+
+                ForEach(points) { point in
+                    PointMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Mood", point.score)
+                    )
+                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                    .symbolSize(80)
+                }
             }
             .chartYScale(domain: 0...6)
             #if os(macOS)
