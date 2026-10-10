@@ -260,6 +260,37 @@ struct WriteDraftStoreTests {
         }
     }
 
+    // Mac "New Entry in New Window" shared the main Write editor's new-entry slot, so two open
+    // editors overwrote each other's draft (backlog E). The window now has its own slot and file.
+    @Test func windowDraftIsSeparateFromTheMainNewEntryDraft() {
+        let defaults = Self.defaults()
+        var other = Self.sample
+        other.text = "Synthetic draft typed in a second window."
+        #expect(WriteDraftStore.Slot.newEntryWindow.key != WriteDraftStore.Slot.newEntry.key)
+        #expect(WriteDraftStore.save(Self.sample, slot: .newEntry, defaults: defaults, crypto: Self.crypto()))
+        #expect(WriteDraftStore.save(other, slot: .newEntryWindow, defaults: defaults, crypto: Self.crypto()))
+        #expect(WriteDraftStore.load(slot: .newEntry, defaults: defaults, crypto: Self.crypto()) == .payload(Self.sample))
+        #expect(WriteDraftStore.load(slot: .newEntryWindow, defaults: defaults, crypto: Self.crypto()) == .payload(other))
+
+        // Emptying the window's editor clears only its draft, as an empty new-entry draft does.
+        #expect(WriteDraftStore.save(WriteDraftStore.Payload(), slot: .newEntryWindow, defaults: defaults, crypto: Self.crypto()))
+        #expect(defaults.data(forKey: WriteDraftStore.Slot.newEntryWindow.key) == nil)
+        #expect(WriteDraftStore.load(slot: .newEntry, defaults: defaults, crypto: Self.crypto()) == .payload(Self.sample))
+
+        #expect(WriteDraftStore.save(other, slot: .newEntryWindow, defaults: defaults, crypto: Self.crypto()))
+        WriteDraftStore.clearIncludingPreserved(slot: .newEntry, defaults: defaults)
+        #expect(WriteDraftStore.load(slot: .newEntryWindow, defaults: defaults, crypto: Self.crypto()) == .payload(other))
+    }
+
+    @Test @MainActor func standaloneWindowUsesItsOwnSlotAndAttachmentFile() {
+        #expect(WriteView.newEntryDraftSlot(standaloneWindow: false) == .newEntry)
+        #expect(WriteView.newEntryDraftSlot(standaloneWindow: true) == .newEntryWindow)
+        #expect(WriteView.newEntryAttachmentLocation(standaloneWindow: false)?.file == DraftAttachmentStore.Location.live?.file)
+        #expect(WriteView.newEntryAttachmentLocation(standaloneWindow: true)?.file == DraftAttachmentStore.Location.window?.file)
+        #expect(DraftAttachmentStore.Location.window?.file != DraftAttachmentStore.Location.live?.file)
+        #expect(DraftAttachmentStore.Location.window?.preserved != DraftAttachmentStore.Location.live?.preserved)
+    }
+
     @Test func editDraftsAreSeparatePerEntryAndKeepEmptiedText() {
         let defaults = Self.defaults()
         let first = UUID(), second = UUID()

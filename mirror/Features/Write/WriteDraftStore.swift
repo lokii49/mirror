@@ -45,6 +45,8 @@ enum WriteDraftStore {
 
     enum Slot: Equatable {
         case newEntry
+        /// A Mac "New Entry in New Window" editor, kept apart from the main Write editor's.
+        case newEntryWindow
         /// Unsaved edits to an existing entry. Never committed automatically.
         case entry(UUID)
 
@@ -53,6 +55,7 @@ enum WriteDraftStore {
         var key: String {
             switch self {
             case .newEntry: return "mirror.writeDraft.v2.new"
+            case .newEntryWindow: return "mirror.writeDraft.v2.newWindow"
             case .entry(let id): return Self.entryKeyPrefix + id.uuidString
             }
         }
@@ -60,6 +63,8 @@ enum WriteDraftStore {
         /// Holds a blob that could not be decrypted when it was found, so a later
         /// save cannot overwrite it before its key arrives (e.g. via iCloud Keychain).
         var preservedKey: String { key + ".unreadable" }
+
+        var isNewEntry: Bool { self == .newEntry || self == .newEntryWindow }
     }
 
     enum LoadResult: Equatable {
@@ -118,7 +123,7 @@ enum WriteDraftStore {
     ) -> Bool {
         // An emptied *existing* entry is a real edit; only a new-entry draft with
         // nothing in it means "no draft".
-        if payload.isEmpty, slot == .newEntry {
+        if payload.isEmpty, slot.isNewEntry {
             clear(slot: slot, defaults: defaults, crypto: crypto)
             return true
         }

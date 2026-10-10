@@ -385,6 +385,27 @@ extension WriteView {
         #endif
     }
 
+    /// A Mac "New Entry in New Window" editor keeps its draft apart from the main Write
+    /// editor's, so two open editors can't overwrite each other's (backlog E).
+    static func newEntryDraftSlot(standaloneWindow: Bool) -> WriteDraftStore.Slot {
+        standaloneWindow ? .newEntryWindow : .newEntry
+    }
+
+    static func newEntryAttachmentLocation(standaloneWindow: Bool) -> DraftAttachmentStore.Location? {
+        standaloneWindow ? .window : .live
+    }
+
+    var isStandaloneWindow: Bool {
+        #if os(macOS)
+        macStandaloneWindow
+        #else
+        false
+        #endif
+    }
+
+    var newEntryDraftSlot: WriteDraftStore.Slot { Self.newEntryDraftSlot(standaloneWindow: isStandaloneWindow) }
+    var newEntryAttachmentLocation: DraftAttachmentStore.Location? { Self.newEntryAttachmentLocation(standaloneWindow: isStandaloneWindow) }
+
     /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
     /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
     /// array each call, so writing synchronously per character is real input
@@ -521,7 +542,7 @@ extension WriteView {
             tags: entryTags,
             entryDate: entryDateChosen ? entryDate : nil,
             fontChoice: entryFontChoiceRaw
-        ))
+        ), slot: newEntryDraftSlot)
         draftSaveState = saved && attachmentsSaved ? .saved : .failed
     }
 
@@ -631,7 +652,7 @@ extension WriteView {
         // clear makes this result stale, so it's dropped.
         attachmentSaveGeneration &+= 1
         let generation = attachmentSaveGeneration
-        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes) { saved in
+        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes, at: newEntryAttachmentLocation) { saved in
             guard generation == attachmentSaveGeneration else { return }
             attachmentsSaved = saved
             if !saved { draftSaveState = .failed }
@@ -639,7 +660,8 @@ extension WriteView {
     }
 
     func restoreDraftAttachments() {
-        guard entry == nil, Self.usesPersistentDraftStorage(), let restored = DraftAttachmentStore.load() else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage(),
+              case .attachments(let restored) = DraftAttachmentStore.load(at: newEntryAttachmentLocation) else { return }
         if photoDataArray.isEmpty, !restored.photos.isEmpty {
             photoDataArray = restored.photos
         }
@@ -667,7 +689,7 @@ extension WriteView {
         // A draft that can't be read yet (key not available, e.g. before first
         // unlock) stays in storage for a later launch; never show the fallback
         // sentinel as text or re-encrypt it over the original.
-        guard case .payload(let draft) = WriteDraftStore.load() else { return }
+        guard case .payload(let draft) = WriteDraftStore.load(slot: newEntryDraftSlot) else { return }
         viewModel.text = draft.text
         viewModel.textStyleData = draft.textStyleData
         inlineStyleData = draft.inlineStyleData
@@ -683,7 +705,7 @@ extension WriteView {
     func clearDraftStorage() {
         cancelDraftSave()
         attachmentSaveGeneration &+= 1   // a photo save still in flight must not report afterwards
-        Self.clearAllDraftStorage()      // waits for that save, then clears
+        Self.clearDraftStorage(slot: newEntryDraftSlot, attachments: newEntryAttachmentLocation)   // waits for that save, then clears
         draftSaveState = .idle
         attachmentsSaved = true
     }
@@ -697,9 +719,14 @@ extension WriteView {
     /// `WriteView` instance (app-launch test-state reset) — same keys, no
     /// in-flight debounced-save task to cancel.
     static func clearAllDraftStorage() {
+        clearDraftStorage(slot: .newEntry, attachments: .live)
+        clearDraftStorage(slot: .newEntryWindow, attachments: .window)
+    }
+
+    static func clearDraftStorage(slot: WriteDraftStore.Slot, attachments: DraftAttachmentStore.Location?) {
         guard usesPersistentDraftStorage() else { return }
-        DraftAttachmentStore.clear()
-        WriteDraftStore.clear()
+        DraftAttachmentStore.clear(at: attachments)
+        WriteDraftStore.clear(slot: slot)
     }
 
     /// Delete Everything while this editor is open: drop what it holds, or the
@@ -715,7 +742,9 @@ extension WriteView {
     static func eraseAllDraftStorage() {
         guard usesPersistentDraftStorage() else { return }
         DraftAttachmentStore.clearIncludingPreserved()
+        DraftAttachmentStore.clearIncludingPreserved(at: .window)
         WriteDraftStore.clearIncludingPreserved()
+        WriteDraftStore.clearIncludingPreserved(slot: .newEntryWindow)
         WriteDraftStore.clearAllEntryDrafts()
         NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
     }

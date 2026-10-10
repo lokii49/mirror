@@ -39,12 +39,16 @@ enum DraftAttachmentStore {
         /// Holds a file that couldn't be decrypted when found, until its key arrives.
         var preserved: URL
 
-        static var live: Location? {
+        static var live: Location? { named("mirror-draft-attachments") }
+        /// A Mac "New Entry in New Window" editor's attachments, apart from the main editor's.
+        static var window: Location? { named("mirror-draft-attachments-window") }
+
+        private static func named(_ base: String) -> Location? {
             guard let dir = try? FileManager.default.url(
                 for: .applicationSupportDirectory, in: .userDomainMask,
                 appropriateFor: nil, create: true
             ) else { return nil }
-            var name = "mirror-draft-attachments"
+            var name = base
             #if DEBUG
             if CommandLine.arguments.contains("--scratchDraftStorage") { name = "scratch-" + name }
             #endif
@@ -139,12 +143,6 @@ enum DraftAttachmentStore {
     }
 
     // MARK: - Load
-
-    /// Decrypted attachments, or nil when there are none or they can't be read yet.
-    static func load() -> Attachments? {
-        guard case .attachments(let attachments) = load(at: .live) else { return nil }
-        return attachments
-    }
 
     /// A file that won't decrypt is set aside (never returned partially: a partial
     /// restore would be saved back over the complete original) and offered again
