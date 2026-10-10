@@ -141,8 +141,12 @@ final class InsightViewModel {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
 
-        guard entries.count >= 3 else {
-            return .needsMoreEntries(3 - entries.count)
+        // Readable entries only, as `runDailyNudgeIfNeeded` counts them: with a photo-only entry or
+        // a failed transcription among three, the card promised a reflection the runner never made
+        // (backlog A11). Stops after three, so it decrypts at most a few entries.
+        let readable = entries.lazy.filter(InsightService.hasReadableContext).prefix(3).count
+        guard readable >= 3 else {
+            return .needsMoreEntries(3 - readable)
         }
 
         // A fallback doesn't count as "seen" — a free user whose only nudge attempt so far
@@ -208,7 +212,10 @@ final class InsightViewModel {
         }
 
         // The digest is "this week" — gate on entries written this week, not lifetime.
-        let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
+        // Readable only, as the runner and generator count them (backlog A11).
+        let weekEntries = entries
+            .filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
+            .filter(InsightService.hasReadableContext)
         // Newest row wins; a stale digest is superseded by a fresh insert, never
         // deleted (a CloudKit-synced Insight deletion can hand a second device a
         // tombstoned object). Matches the monthly report's non-destructive approach.
@@ -348,7 +355,7 @@ final class InsightViewModel {
         let cal = Calendar.current
         let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
-        let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
+        let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }.filter(InsightService.hasReadableContext)  // A11
 
         // Generation is gated on being in the last week of the month FIRST — a report about
         // "this month" generated from only the first two weeks isn't actually a monthly report,
