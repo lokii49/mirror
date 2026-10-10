@@ -228,3 +228,69 @@ private struct ModelDownloadShine: View {
         .allowsHitTesting(false)
     }
 }
+
+/// The button that starts (or retries) a model download, the same everywhere: Gemma's card, the
+/// search model's Settings screen and Ask's card. An icon, the title, and the download's size on
+/// the trailing edge (a number, so it needs no translation); `compact` for small cards.
+struct ModelDownloadButton: View {
+    let title: LocalizedStringKey
+    var systemImage = "arrow.down"
+    /// Shown as "806 MB" on the trailing edge; nil hides it (Try Again).
+    var byteCount: Int64? = nil
+    var compact = false
+    let action: () -> Void
+
+    @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: compact ? 8 : 10) {
+                Image(systemName: systemImage)
+                    .font(.system(size: compact ? 12 : 14, weight: .bold))
+                    .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
+                    .background(.white.opacity(0.2), in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Circle()))
+                Text(title)
+                    .font(isSentinel ? MirrorTheme.mono(compact ? 12 : 14, weight: .bold) : .system(size: compact ? 14 : 16, weight: .semibold))
+                    .kerning(isSentinel ? 0.4 : 0)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if let byteCount {
+                    Spacer(minLength: 8)
+                    Text(ByteCountFormatter.string(fromByteCount: byteCount, countStyle: .file))
+                        .font(isSentinel ? MirrorTheme.mono(compact ? 10.5 : 12, weight: .semibold) : .system(size: compact ? 12 : 13, weight: .semibold).monospacedDigit())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.white.opacity(0.18), in: Capsule())
+                        .lineLimit(1)
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.leading, compact ? 8 : 12)
+            .padding(.trailing, compact ? 10 : 14)
+            .frame(maxWidth: byteCount == nil && compact ? nil : .infinity, minHeight: compact ? 38 : 52)
+            .background(fill, in: shape)
+            .contentShape(shape)
+        }
+        .buttonStyle(PressScaleButtonStyle())
+        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(compact ? 0.18 : 0.26), radius: compact ? 8 : 14, x: 0, y: compact ? 3 : 6)
+    }
+
+    private var fill: AnyShapeStyle {
+        isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient)
+    }
+
+    private var shape: AnyShape {
+        isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous))
+    }
+}
+
+/// Presses down a little, and springs back.
+private struct PressScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}

@@ -1477,7 +1477,10 @@ struct ModelDownloadStateControl: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                pillButton(isSentinel ? "DOWNLOAD MODEL" : "Download Model") { manager.startDownload() }
+                ModelDownloadButton(title: isSentinel ? "DOWNLOAD MODEL" : "Download Model", byteCount: ModelDownloadSpec.gemma.estimatedByteCount) {
+                    manager.startDownload()
+                }
+                .frame(maxWidth: 320)
             }
 
         case .downloading, .paused, .verifying:
@@ -1500,23 +1503,12 @@ struct ModelDownloadStateControl: View {
                     .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                pillButton(isSentinel ? "TRY AGAIN" : "Try Again") { manager.resumeDownload() }
+                ModelDownloadButton(title: isSentinel ? "TRY AGAIN" : "Try Again", systemImage: "arrow.clockwise") {
+                    manager.resumeDownload()
+                }
+                .frame(maxWidth: 320)
             }
         }
-    }
-
-    private func pillButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
-                .kerning(isSentinel ? 0.4 : 0)
-                .foregroundStyle(Color.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 14)
-                .background(isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.28), radius: 16, x: 0, y: 6)
     }
 }
 

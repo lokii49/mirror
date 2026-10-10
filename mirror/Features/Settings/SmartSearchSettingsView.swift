@@ -108,22 +108,14 @@ struct SmartSearchSettingsView: View {
         case .downloading, .paused, .verifying:
             EmptyView()
         case .failed:
-            Button {
+            ModelDownloadButton(title: "Try Again", systemImage: "arrow.clockwise") {
                 manager.resumeDownload()
-            } label: {
-                Text("Try Again").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
         case .notStarted:
-            Button {
+            ModelDownloadButton(title: "Download", byteCount: SemanticSearchService.modelByteCount) {
                 SemanticSearchService.consent = .accepted
                 manager.startIfIdle()
-            } label: {
-                Text("Download (\(sizeText))").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
         }
     }
 }
@@ -209,19 +201,17 @@ struct SmartSearchOfferCard: View {
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
-                Button("Download") {
+                ModelDownloadButton(title: "Download", byteCount: SemanticSearchService.modelByteCount, compact: true) {
                     accepted = true
                     onAnswer(true)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
                 Button("Not now") { onAnswer(false) }
-                    .buttonStyle(.bordered)
-                    .tint(accent)
-                Spacer(minLength: 0)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 38)
+                    .buttonStyle(.plain)
             }
-            .font(.system(size: 13, weight: .semibold))
-            .controlSize(.small)
         }
     }
 
@@ -238,11 +228,9 @@ struct SmartSearchOfferCard: View {
                     .font(.system(size: 12.5))
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
-                Button("Try Again") { manager.resumeDownload() }
-                    .font(.system(size: 13, weight: .semibold))
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(accent)
+                ModelDownloadButton(title: "Try Again", systemImage: "arrow.clockwise", compact: true) {
+                    manager.resumeDownload()
+                }
             }
             .transition(.opacity)
         case .downloading, .paused, .verifying:
@@ -255,12 +243,10 @@ struct SmartSearchOfferCard: View {
             )
             .transition(.opacity)
         case .notStarted:
-            Button("Download") { manager.startIfIdle() }
-                .font(.system(size: 13, weight: .semibold))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .tint(accent)
-                .transition(.opacity)
+            ModelDownloadButton(title: "Download", byteCount: SemanticSearchService.modelByteCount, compact: true) {
+                manager.startIfIdle()
+            }
+            .transition(.opacity)
         }
     }
 }

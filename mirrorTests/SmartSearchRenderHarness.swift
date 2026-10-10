@@ -27,7 +27,14 @@ final class SmartSearchRenderHarness: XCTestCase {
                 (.verifying, "verifying"),
                 (.failed("x"), "failed"),
                 (.installed, "ready"),
+                (.notStarted, "off"),
             ]
+            // Gemma's Download Model button, as on the reflection / weekly digest card.
+            try render(AnyView(VStack(spacing: 16) {
+                ModelDownloadButton(title: mode == .sentinel ? "DOWNLOAD MODEL" : "Download Model", byteCount: ModelDownloadSpec.gemma.estimatedByteCount) {}
+                ModelDownloadButton(title: mode == .sentinel ? "TRY AGAIN" : "Try Again", systemImage: "arrow.clockwise") {}
+            }.frame(maxWidth: 320).padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
+                       mode: mode, style: style, height: 180, to: "\(dir)/gemma-button-\(name).png")
             for (state, label) in states {
                 try render(AnyView(SmartSearchOfferCard(previewState: state).padding(16)
                                     .frame(maxHeight: .infinity, alignment: .top).background(MirrorTheme.bgBase)),
