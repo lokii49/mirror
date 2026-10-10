@@ -13,15 +13,22 @@ struct PreGrammarInsightRegradeTests {
         return i
     }
 
-    @Test func picksLatestUngroundedGemmaAndNilEngine() {
+    @Test func picksLatestUngroundedGemma() {
         let old = insight(.weeklyDigest, free, period: "2026-W38", engine: .gemma, age: 700)
-        let latest = insight(.weeklyDigest, free, period: "2026-W39", engine: nil, age: 10)
+        let latest = insight(.weeklyDigest, free, period: "2026-W39", engine: .gemma, age: 10)
         let month = insight(.monthlyReport, free, period: "2026-09", engine: .gemma)
         let result = PreGrammarInsightRegrade.candidates(among: [old, latest, month])
         #expect(result.count == 2)
         #expect(result.contains { $0 === latest })
         #expect(result.contains { $0 === month })
         #expect(!result.contains { $0 === old })
+    }
+
+    /// No engine: written before attribution, maybe by Foundation Models, so never regraded (A15b).
+    @Test func skipsRowsWithNoEngine() {
+        let digest = insight(.weeklyDigest, free, period: "2026-W35", engine: nil)
+        let report = insight(.monthlyReport, free, period: "2026-08", engine: nil)
+        #expect(PreGrammarInsightRegrade.candidates(among: [digest, report]).isEmpty)
     }
 
     @Test func skipsGroundedAndFoundationModels() {

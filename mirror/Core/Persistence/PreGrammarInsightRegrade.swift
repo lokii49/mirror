@@ -17,11 +17,14 @@ enum PreGrammarInsightRegrade {
     /// came back). After this many the pass gives up instead of retrying every foreground.
     private static let maxAttempts = 3
 
-    /// The latest row of each type that the pre-grammar path may have written.
+    /// The latest row of each type that the pre-grammar path may have written: Gemma only. A row
+    /// with no engine predates attribution (2026-09-04), when Foundation Models (since 2026-08-16)
+    /// may have written it, and its output is never touched (backlog A15b). Such a row is also
+    /// over a month old, so leaving it costs little.
     static func candidates(among insights: [Insight]) -> [Insight] {
         [InsightType.weeklyDigest, .monthlyReport].compactMap { type in
             guard let latest = insights.filter({ $0.type == type }).max(by: { $0.generatedAt < $1.generatedAt }),
-                  latest.generatedByEngine != LLMEngine.foundationModels.rawValue,
+                  latest.generatedByEngine == LLMEngine.gemma.rawValue,
                   !InsightService.isGrammarGrounded(latest.content)
             else { return nil }
             return latest
