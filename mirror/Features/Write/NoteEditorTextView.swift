@@ -1087,7 +1087,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             let cursorFontChoice = fontChoiceValue(at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)), in: textView.attributedText)
 
             if nsText.length == 0 {
-                parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [targetStyle]))
+                let emptyFontChoice = emptyDocumentStyle().1
+                storeEmptyDocumentStyle(targetStyle, fontChoice: emptyFontChoice)
                 invalidateRenderedCache()
                 applyStyledText(to: textView, preservingSelection: false)
                 if let marker = staticListMarkerPrefix(for: targetStyle) {
@@ -1095,7 +1096,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 } else if targetStyle == .numberedList {
                     textView.selectedRange = bounded(NSRange(location: "1.\t".count, length: 0), in: textView.text)
                 }
-                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: cursorFontChoice)
+                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: emptyFontChoice)
                 updatePlaceholder(in: textView)
                 parent.activeParagraphStyle = targetStyle
                 parent.panelState.activeParagraphStyle = targetStyle
@@ -1367,7 +1368,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func refreshActiveParagraphStyle(in textView: UITextView) {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
-                parent.activeParagraphStyle = .body
+                parent.activeParagraphStyle = emptyDocumentStyle().0
                 return
             }
             if lastKnownCursorLocation >= attributed.length {
@@ -1385,7 +1386,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func refreshActiveFontChoice(in textView: UITextView) {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
-                parent.panelState.activeFontChoice = entryDefaultFontChoice
+                parent.panelState.activeFontChoice = emptyDocumentStyle().1
                 return
             }
             if lastKnownCursorLocation >= attributed.length {
@@ -1984,7 +1985,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard textView.markedTextRange == nil else { return }
             let nsText = (textView.text ?? "") as NSString
             guard nsText.length > 0 else {
-                textView.typingAttributes = bodyAttributes
+                // An empty entry's style lives in the stored style data (Title or a font picked
+                // in Aa before typing). Every SwiftUI update re-runs this, so resetting to body
+                // here made the first word typed after picking Title come out as body.
+                let (style, fontChoice) = emptyDocumentStyle()
+                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: 1, level: 0, fontChoice: fontChoice)
                 return
             }
 
@@ -2181,8 +2186,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // carry the choice to whatever gets typed next, same as the general
                 // paragraph-style apply() path handles this exact ambiguity.
                 let anchor = max(0, nsText.length - 1)
-                let style = nsText.length == 0 ? .body : textStyle(at: anchor, in: textView.attributedText)
+                let style = nsText.length == 0 ? emptyDocumentStyle().0 : textStyle(at: anchor, in: textView.attributedText)
                 let level = nsText.length == 0 ? 0 : indentLevelValue(at: anchor, in: textView.attributedText)
+                if nsText.length == 0 {
+                    storeEmptyDocumentStyle(style, fontChoice: choice)
+                    invalidateRenderedCache()
+                }
                 textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: choice)
                 parent.panelState.activeFontChoice = choice
                 return
@@ -2379,6 +2388,23 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return []
             }
             return choices
+        }
+
+        /// The paragraph style and font an empty entry will type in, from the stored style data.
+        private func emptyDocumentStyle() -> (NoteParagraphTextStyle, WritingFontChoice) {
+            let style = decodedTextStyles().first ?? .body
+            let fontChoice = decodedFontChoices().first.flatMap(WritingFontChoice.init(rawValue:)) ?? entryDefaultFontChoice
+            return (style, fontChoice)
+        }
+
+        /// Stores an empty entry's paragraph style and font, so they survive re-renders until the
+        /// first character takes them on. Plain body in the entry's font stores nothing.
+        private func storeEmptyDocumentStyle(_ style: NoteParagraphTextStyle, fontChoice: WritingFontChoice) {
+            guard style != .body || fontChoice != entryDefaultFontChoice else {
+                parent.textStyleData = nil
+                return
+            }
+            parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [style], fontChoices: [fontChoice.rawValue]))
         }
 
         private var entryDefaultFontChoice: WritingFontChoice {
