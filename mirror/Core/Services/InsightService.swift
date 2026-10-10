@@ -638,6 +638,23 @@ enum InsightService {
         return todayEntryDates.contains { $0 > since }
     }
 
+    /// After today's newest reflection came back as the fallback (or the unsupported-language
+    /// notice), an automatic trigger (app-active, a save, a refresh, the nightly pass) tries again
+    /// only once the writing it reads has changed; before 3.1.2 every trigger generated and saved
+    /// another synced row. A Try Again tap always may. `signature` is
+    /// `fallbackRetrySignature`; `storedSignature` is the one saved with today's fallback on this
+    /// device (another device's fallback has none here, so this device tries once itself).
+    static func allowsRetryAfterFallback(newestTodayIsFallback: Bool, storedSignature: String?, signature: String, userInitiatedRetry: Bool) -> Bool {
+        guard newestTodayIsFallback, !userInitiatedRetry else { return true }
+        return storedSignature != signature
+    }
+
+    /// What a daily reflection reads, without any text: the day plus each recent entry's id and
+    /// readable length (text and transcripts), so adding to an entry or writing a new one changes it.
+    static func fallbackRetrySignature(day: String, recent: [Entry]) -> String {
+        ([day] + recent.map { "\($0.id.uuidString):\($0.insightContext.count)" }).joined(separator: "|")
+    }
+
     /// The recent/background split a daily nudge is generated from. Factored out so
     /// `ungroundedDailyNudges` (a retroactive audit over already-generated nudges) reconstructs
     /// a past nudge's context with the exact same rule `generateNudge` used live, rather than a

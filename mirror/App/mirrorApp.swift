@@ -655,9 +655,10 @@ struct mirrorApp: App {
         // entirely when the next day's writing came first. Only today's entries are fetched
         // (and decrypted) for that check.
         var isExtraReflection = false
-        if let newestToday = todayInsights
+        let newestTodayNudge = todayInsights
             .filter({ $0.type == .dailyNudge })
-            .max(by: { $0.generatedAt < $1.generatedAt }),
+            .max(by: { $0.generatedAt < $1.generatedAt })
+        if let newestToday = newestTodayNudge,
            !InsightService.isUngroundedFallback(newestToday.content) {
             guard anotherReflectionAllowed(after: newestToday, context: context) else {
                 #if DEBUG
@@ -721,6 +722,22 @@ struct mirrorApp: App {
                 #endif
                 return
             }
+        }
+
+        // Today's newest is a fallback: retry automatically only once what it reads has changed.
+        let retrySignature = InsightService.fallbackRetrySignature(
+            day: today, recent: InsightService.dailyNudgeContext(from: entries, asOf: Date()).recent
+        )
+        guard InsightService.allowsRetryAfterFallback(
+            newestTodayIsFallback: newestTodayNudge.map { InsightService.isUngroundedFallback($0.content) } ?? false,
+            storedSignature: UserDefaults.standard.string(forKey: fallbackRetrySignatureKey),
+            signature: retrySignature,
+            userInitiatedRetry: userInitiatedRetry
+        ) else {
+            #if DEBUG
+            print("[nudge] blocked: fallback-unchanged-writing")
+            #endif
+            return
         }
 
         // Respect the user's preferred nudge time so a full day of writing informs the reflection.
@@ -790,6 +807,11 @@ struct mirrorApp: App {
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            if InsightService.isUngroundedFallback(text) {
+                UserDefaults.standard.set(retrySignature, forKey: fallbackRetrySignatureKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: fallbackRetrySignatureKey)
+            }
             // Real device case (2026-09-20): the widget has no groundingFallback UI like the
             // in-app card does — it just renders whatever string it's handed. Writing `text`
             // unconditionally put the canned "couldn't confirm this reflection" sentence on the
@@ -1020,6 +1042,8 @@ struct mirrorApp: App {
     /// When a second same-day reflection last came back as the fallback (see
     /// InsightService.allowsAnotherReflectionToday). Per device, like the other generation state.
     static let extraReflectionFailedAttemptKey = "mirror.nudge.extraReflectionFailedAttempt"
+    /// `InsightService.fallbackRetrySignature` of the writing today's fallback reflection read.
+    static let fallbackRetrySignatureKey = "mirror.nudge.fallbackRetrySignature"
 
     // MARK: - Mood backfill
     //
