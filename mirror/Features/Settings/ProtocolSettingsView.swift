@@ -268,7 +268,19 @@ struct ProtocolSettingsView: View {
                             .padding(.leading, 44)
                             .padding(.top, -4)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                        Group {
+                            // "How this was generated" opens only from Sentinel on iPhone (and on Mac):
+                            // don't name it to Classic iPhone users, who can't reach it (backlog A18).
+                            #if os(iOS)
+                            if displayMode == .classic {
+                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are.")
+                            } else {
+                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                            }
+                            #else
+                            Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                            #endif
+                        }
                             .font(.system(size: 12))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)

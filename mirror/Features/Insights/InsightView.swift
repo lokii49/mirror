@@ -1207,26 +1207,31 @@ struct NightlyPendingCard: View {
     }
 }
 
-private struct LoadingInsightCard: View {
+// The status cards below follow MonthlyReportView's in Sentinel (backlog A18): ember accent, mono
+// uppercase titles, Sentinel card chrome via `themedCard`. Classic is unchanged.
+struct LoadingInsightCard: View {
     let label: LocalizedStringKey
     let sublabel: LocalizedStringKey
     let icon: String
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.primary.opacity(0.10))
+                        .fill(accent.opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(accent)
                         .symbolEffect(.variableColor.iterative, isActive: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .medium))
+                        .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(sublabel)
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -1241,24 +1246,25 @@ private struct LoadingInsightCard: View {
             // unlike macOS, that style doesn't animate an indeterminate track at all, it just
             // renders a static empty bar. A custom sliding highlight, driven by explicit
             // `@State`, is guaranteed to actually move.
-            IndeterminateProgressBar()
+            IndeterminateProgressBar(color: accent)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
 private struct IndeterminateProgressBar: View {
+    var color: Color = MirrorTheme.primary
     @State private var slideRight = false
 
     var body: some View {
         GeometryReader { geo in
             let highlightWidth = geo.size.width * 0.32
             Capsule()
-                .fill(MirrorTheme.primary.opacity(0.15))
+                .fill(color.opacity(0.15))
                 .overlay(alignment: .leading) {
                     Capsule()
-                        .fill(MirrorTheme.primary)
+                        .fill(color)
                         .frame(width: highlightWidth)
                         .offset(x: slideRight ? geo.size.width - highlightWidth : 0)
                 }
@@ -1331,25 +1337,28 @@ struct NeedsMoreEntriesCard: View {
     }
 }
 
-private struct UpgradePromptCard: View {
+struct UpgradePromptCard: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let onUpgrade: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.primary.opacity(0.12))
+                        .fill(accent.opacity(0.12))
                         .frame(width: 40, height: 40)
                     Image(systemName: "sparkles")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(accent)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .semibold))
+                        .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(subtitle)
                         .font(.system(size: 14))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -1357,17 +1366,25 @@ private struct UpgradePromptCard: View {
             }
             Button(action: onUpgrade) {
                 Text("View Plans")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
-                    .contentShape(Capsule())
+                    .contentShape(Rectangle())
             }
-            .background(MirrorTheme.accentGradient, in: Capsule())
+            .background {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(LinearGradient(colors: [MirrorTheme.ember, .orange], startPoint: .leading, endPoint: .trailing))
+                } else {
+                    Capsule().fill(MirrorTheme.accentGradient)
+                }
+            }
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 }
 
@@ -1377,7 +1394,7 @@ private struct UpgradePromptCard: View {
 // retry here or a newer entry (see InsightService.weeklyDigestUngroundedFallback's comment).
 // "Try Again" re-runs the same bounded grounding loop fresh — a real chance of a different
 // result since generation is stochastic, not just a way to write more first.
-private struct GroundingFallbackCard: View {
+struct GroundingFallbackCard: View {
     // LocalizedStringKey, not String — a plain String param silently drops this out of
     // SwiftUI's auto-localization (Label(_:systemImage:) only picks the LocalizedStringKey
     // overload for a compile-time literal), which is exactly what happened here: the catalog
@@ -1387,44 +1404,50 @@ private struct GroundingFallbackCard: View {
     let message: String
     /// nil: nothing a retry could change (a language with no reflections), so no button.
     var onRetry: (() -> Void)? = nil
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: "text.magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MirrorTheme.violetLight)
+                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             if let onRetry {
                 Button("Try Again", action: onRetry)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             }
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
-private struct ErrorCard: View {
+struct ErrorCard: View {
     let message: String
     let onRetry: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Couldn't load", systemImage: "exclamationmark.triangle")
-                .font(.system(size: 15, weight: .semibold))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             Button("Try Again", action: onRetry)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
+                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
