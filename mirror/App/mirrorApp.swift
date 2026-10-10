@@ -20,6 +20,19 @@ struct mirrorApp: App {
     // Foreground proactive generation task — cancelled immediately when app backgrounds
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
+
+    /// Starts `work` once a cancelled `previous` pass has finished. Coming back to the app cancels
+    /// the running pre-generation and starts another; the cancelled one still holds its
+    /// `InsightGenerationCoordinator` claim until it unwinds, so the new pass found the key taken
+    /// and gave up, and nothing generated until the next activation (backlog A14; on Mac every app
+    /// switch is an activation).
+    static func afterCancelling(_ previous: Task<Void, Never>?, priority: TaskPriority = .background, _ work: @escaping @Sendable () async -> Void) -> Task<Void, Never> {
+        Task(priority: priority) {
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            await work()
+        }
+    }
     // The one-time regrade of old digests/reports; cancelled on background like the task above.
     nonisolated(unsafe) static var regradeTask: Task<Void, Never>?
 
@@ -349,12 +362,15 @@ struct mirrorApp: App {
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
-                mirrorApp.activeGenerationTask?.cancel()
+                let previousGeneration = mirrorApp.activeGenerationTask
+                previousGeneration?.cancel()
                 // Not in perf runs: it loads the model and can post a "reflection ready" notification.
                 if !perfRun {
-                    mirrorApp.activeGenerationTask = Task(priority: .background) {
+                    mirrorApp.activeGenerationTask = mirrorApp.afterCancelling(previousGeneration) {
                         await PerfSignpost.interval("active.preGenerateInsights") { await preGenerateInsightsIfNeeded() }
                     }
+                } else {
+                    mirrorApp.activeGenerationTask = nil
                 }
             case .background:
                 // Cancel any foreground GPU generation immediately — LocalLLMService will
