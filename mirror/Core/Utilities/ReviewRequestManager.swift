@@ -28,11 +28,17 @@ enum ReviewRequestManager {
         UserDefaults.standard.bool(forKey: entryMilestoneShownKey)
     }
 
-    /// Consumed by `ContentView` at the moment `RateUsPromptSheet` is actually
-    /// presented — never before. If presentation is blocked (another sheet is
-    /// up), the flag stays unset and the milestone can be retried.
+    /// Consumed by `RateUsPromptSheet` when it actually appears, never when it's requested: a
+    /// presentation dropped because another sheet was up (a child view's, which `ContentView`
+    /// can't see) used to spend the once-per-install prompt unseen (backlog A17).
     static func markEntryMilestonePromptShown() {
         UserDefaults.standard.set(true, forKey: entryMilestoneShownKey)
+    }
+
+    /// Whether the root view may present the rate prompt now. `childSheetUp` covers sheets the
+    /// root can't see (`MoodCheckInPresenter.blockedByOtherSheet`, set by Insights).
+    static func canPresentPrompt(pending: Bool, alreadyShown: Bool, rootSheetUp: Bool, childSheetUp: Bool, onboardingComplete: Bool) -> Bool {
+        pending && !alreadyShown && !rootSheetUp && !childSheetUp && onboardingComplete
     }
 
     #if DEBUG

@@ -27,6 +27,9 @@ final class ReviewPromptCoordinator {
 struct RateUsPromptSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
+    /// Whether appearing spends the once-per-install milestone prompt. Off for UI tests and the
+    /// DEBUG `--showRatePrompt` launch, which must not consume it.
+    var consumesMilestone = true
     @State private var step: Step = .ask
     /// The content's own height: the sheet is exactly that tall. A fixed detent (372) left a third
     /// of the floating iOS 26 sheet empty under "Not now".
@@ -62,6 +65,9 @@ struct RateUsPromptSheet: View {
         .presentationDetents([.height(max(200, contentHeight - floatingBottomInset))])
         .presentationDragIndicator(.visible)
         .animation(.easeInOut(duration: 0.25), value: step)
+        .onAppear {
+            if consumesMilestone { ReviewRequestManager.markEntryMilestonePromptShown() }
+        }
     }
 
     private var appLogo: some View {

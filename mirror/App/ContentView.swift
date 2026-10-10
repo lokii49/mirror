@@ -138,10 +138,13 @@ struct ContentView: View {
     /// The milestone flag is consumed only on a real presentation, so a session
     /// that never clears just defers to the next qualifying entry save.
     private var canPresentRatePrompt: Bool {
-        reviewPromptCoordinator.isPending
-            && !ReviewRequestManager.hasShownEntryMilestonePrompt
-            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
-            && onboardingComplete
+        ReviewRequestManager.canPresentPrompt(
+            pending: reviewPromptCoordinator.isPending,
+            alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
+            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn,
+            childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
+            onboardingComplete: onboardingComplete
+        )
     }
 
     /// The mood check-in sheet is triggered by tapping the daily reminder —
@@ -269,7 +272,8 @@ struct ContentView: View {
         }
         #endif
         .sheet(isPresented: $showRatePrompt) {
-            RateUsPromptSheet()
+            // Neither UI tests nor the DEBUG --showRatePrompt launch may spend the real prompt.
+            RateUsPromptSheet(consumesMilestone: !isUITesting && !ProcessInfo.processInfo.arguments.contains("--showRatePrompt"))
                 .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showMoodCheckIn) {
@@ -288,7 +292,7 @@ struct ContentView: View {
             // UI tests and synthetic runs must not consume the once-per-install prompt.
             guard canPresent, !isUITesting else { return }
             reviewPromptCoordinator.isPending = false
-            ReviewRequestManager.markEntryMilestonePromptShown()
+            // The once-per-install flag is set by the sheet when it appears (A17).
             showRatePrompt = true
         }
         .onChange(of: canPresentMoodCheckIn, initial: true) { _, canPresent in
