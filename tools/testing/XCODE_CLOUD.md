@@ -12,6 +12,8 @@ Set up 2026-10-10 for the `3.1.2` backlog: build and unit-test every push on App
 
 Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which includes the runner-level reflection tests. A clean CI run is therefore not the full device evidence the backlog asks for. Run those on the 14 Pro later (see "When the laptop is back").
 
+**Baseline (2026-10-10, commit 8a26361, local Xcode 27.1 RC, iPhone 17 simulator):** `mirror CI` ran 863 passed, 32 skipped (model-gated and env-gated harnesses), 0 failed, with parallel simulator clones. No tests are excluded beyond `mirrorUITests`. A red Xcode Cloud run is therefore a real regression, or a difference in the Xcode/simulator version.
+
 ## Files in the repo
 
 - `ci_scripts/ci_post_clone.sh`: runs after Xcode Cloud clones the repo. It creates `mirror/LocalModels` and logs the branch, commit and Xcode version. It must stay executable and next to `mirror.xcodeproj`.
