@@ -376,8 +376,9 @@ struct mirrorApp: App {
                 // Cancel any foreground GPU generation immediately — LocalLLMService will
                 // stop at the next Task.checkCancellation() and the nightly BGProcessingTask
                 // will retry on CPU.
+                // Cancelled but kept: the next .active pass waits for it to unwind and release its
+                // claim (A14). Home and back is the common way back in on iPhone.
                 mirrorApp.activeGenerationTask?.cancel()
-                mirrorApp.activeGenerationTask = nil
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = nil
                 WidgetSaveRefresher.shared.flushNow()
