@@ -1,11 +1,5 @@
-Smarter search in Ask, reflection styles and a steadier editor
+Smarter search fixes
 
-• Smarter search in Ask (optional): find entries by meaning, not only matching words. It's a one-time 334 MB download on Wi-Fi that runs on your device, and your journal never leaves it. Turn it on in Ask or in Settings.
-• Ask finds better matches even without it: whole words count, and rare words count for more than common ones.
-• Reflection styles (Core): choose how today's reflection reads. Gentle as before, Quiet with only your own words, or Curious with a question about what you wrote. Choose it in Settings.
-• Writing: the cursor starts at the end of your draft, and a draft keeps its date, font, tags and formatting.
-• Lists and checklists: Return after a checked item or a heading behaves as it should, bold and italic stay where you put them, and checklist changes can be undone with Command-Z.
-• Typing in Japanese, Chinese and Korean is handled better in the editor.
-• Tags: typing #work, or several tags separated by commas, now does what you'd expect.
-• Export and import now include your saved views.
-• On-device AI model download (for devices without Apple Intelligence): Pause and Resume, and Try Again after a lost connection, now carry on from where they stopped. The model now comes from our own server and is checked against a fixed fingerprint before it's used.
+• Smarter search in Ask: the search model no longer downloads again after you quit and reopen MirrorNotes. It now downloads in the background, and you can pause and resume it.
+• Model downloads show a clearer progress bar with one Pause/Resume button, and a clearer Download button.
+• What's New shows only the latest changes, and a Mac that skipped 1.1.0 still sees them.

@@ -1,15 +1,8 @@
-Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
+Correções na busca inteligente, na escrita e no check-in de humor
 
-• Busca inteligente no Perguntar (opcional): encontre entradas pelo significado, não só por palavras iguais. Download único de 334 MB no Wi-Fi, roda no seu dispositivo e seu diário nunca sai dele. Ative no Perguntar ou em Ajustes.
-• Mesmo sem ela, o Perguntar encontra resultados melhores: palavras inteiras contam, e palavras raras contam mais que as comuns.
-• Estilos de reflexão (Core): escolha como a reflexão de hoje aparece. Suave como antes, Silencioso só com as suas palavras ou Curioso com uma pergunta sobre o que você escreveu. Escolha em Ajustes.
-• Escrever: o teclado abre na hora, o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
-• Formatação: o painel Aa foi redesenhado para que todos os controles caibam na tela, mesmo com texto grande, e as ações de checklist ficam em um só menu.
-• Listas e checklists: Apagar em um marcador sai da lista, Return em um item vazio a encerra, negrito e itálico ficam onde você colocou, e desfazer funciona também com a formatação.
-• Um painel Formatar mais claro (Aa): todos os estilos, listas e cores aparecem de uma vez, cada cor mostra o que faz antes de você tocar, e as ações de checklist ficam em um único menu Lista de tarefas.
-• A digitação em japonês, chinês e coreano funciona melhor no editor.
-• Entradas longas e com fotos ficaram mais rápidas de editar.
-• Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.
-• Exportar e importar agora incluem suas visualizações salvas.
-• As palavras buscadas também são destacadas nas transcrições das notas de voz.
-• Download do modelo de IA no dispositivo (para dispositivos sem Apple Intelligence): Pausar e Retomar, e Tentar novamente após perder a conexão, agora continuam de onde pararam. O modelo agora vem do nosso próprio servidor e é verificado com uma impressão digital fixa antes de ser usado.
+• Busca inteligente no Perguntar: o modelo de busca não é mais baixado de novo quando você reabre o app. Agora ele é baixado em segundo plano, no Wi-Fi ou nos dados móveis, e você pode pausar e retomar o download.
+• Os downloads de modelos mostram uma barra de progresso mais clara com um único botão Pausar/Retomar, e um botão de download mais claro.
+• Escrita: escolher Título, Cabeçalho ou Subcabeçalho em uma entrada vazia agora vale para o que você digita.
+• Check-in de humor: o nome de cada humor cabe no seu botão, e cada humor mantém sua cor.
+• Novidades mostra só as mudanças mais recentes, não todas as versões anteriores.
+• As telas de avaliação e de check-in de humor agora se ajustam ao conteúdo.

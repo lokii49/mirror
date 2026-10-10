@@ -1,11 +1,5 @@
-Búsqueda inteligente en Preguntar, estilos de reflexión y un editor más fiable
+Correcciones en la búsqueda inteligente
 
-• Búsqueda inteligente en Preguntar (opcional): encuentra entradas por su significado, no solo por palabras que coinciden. Descarga única de 334 MB con Wi-Fi, funciona en tu dispositivo y tu diario nunca sale de él. Actívala en Preguntar o en Ajustes.
-• Preguntar encuentra mejores resultados incluso sin ella: cuentan las palabras completas y las palabras poco comunes pesan más que las frecuentes.
-• Estilos de reflexión (Core): elige cómo se lee la reflexión de hoy. Suave como antes, Silencioso solo con tus propias palabras o Curioso con una pregunta sobre lo que escribiste. Elígelo en Ajustes.
-• Escribir: el cursor empieza al final de tu borrador y un borrador conserva su fecha, fuente, etiquetas y formato.
-• Listas y listas de tareas: Intro después de un elemento marcado o un encabezado funciona como debe, la negrita y la cursiva se quedan donde las pusiste y los cambios en listas de tareas se pueden deshacer con Comando-Z.
-• La escritura en japonés, chino y coreano funciona mejor en el editor.
-• Etiquetas: escribir #trabajo, o varias etiquetas separadas por comas, ahora funciona como esperas.
-• Exportar e importar ahora incluyen tus vistas guardadas.
-• Descarga del modelo de IA en el dispositivo (para dispositivos sin Apple Intelligence): Pausar y Reanudar, e Intentar de nuevo tras perder la conexión, ahora siguen desde donde se quedaron. El modelo ahora se descarga de nuestro propio servidor y se comprueba con una huella fija antes de usarse.
+• Búsqueda inteligente en Preguntar: el modelo de búsqueda ya no se vuelve a descargar al cerrar y abrir de nuevo MirrorNotes. Ahora se descarga en segundo plano, y puedes pausar y reanudar la descarga.
+• Las descargas de modelos muestran una barra de progreso más clara con un solo botón para pausar y reanudar, y un botón de descarga más claro.
+• Novedades muestra solo los últimos cambios, y un Mac que se saltó la 1.1.0 también los ve.

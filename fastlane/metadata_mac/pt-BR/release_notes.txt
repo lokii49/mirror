@@ -1,11 +1,5 @@
-Busca inteligente no Perguntar, estilos de reflexão e um editor mais confiável
+Correções na busca inteligente
 
-• Busca inteligente no Perguntar (opcional): encontre entradas pelo significado, não só por palavras iguais. Download único de 334 MB no Wi-Fi, roda no seu dispositivo e seu diário nunca sai dele. Ative no Perguntar ou em Ajustes.
-• Mesmo sem ela, o Perguntar encontra resultados melhores: palavras inteiras contam, e palavras raras contam mais que as comuns.
-• Estilos de reflexão (Core): escolha como a reflexão de hoje aparece. Suave como antes, Silencioso só com as suas palavras ou Curioso com uma pergunta sobre o que você escreveu. Escolha em Ajustes.
-• Escrever: o cursor começa no fim do rascunho e um rascunho mantém data, fonte, tags e formatação.
-• Listas e checklists: Return depois de um item marcado ou de um título funciona como deveria, negrito e itálico ficam onde você colocou, e mudanças em checklists podem ser desfeitas com Command-Z.
-• A digitação em japonês, chinês e coreano funciona melhor no editor.
-• Tags: digitar #trabalho, ou várias tags separadas por vírgulas, agora funciona como esperado.
-• Exportar e importar agora incluem suas visualizações salvas.
-• Download do modelo de IA no dispositivo (para dispositivos sem Apple Intelligence): Pausar e Retomar, e Tentar novamente após perder a conexão, agora continuam de onde pararam. O modelo agora vem do nosso próprio servidor e é verificado com uma impressão digital fixa antes de ser usado.
+• Busca inteligente no Perguntar: o modelo de busca não é mais baixado de novo quando você fecha e reabre o MirrorNotes. Agora ele é baixado em segundo plano, e você pode pausar e retomar o download.
+• Os downloads de modelos mostram uma barra de progresso mais clara com um único botão Pausar/Retomar, e um botão de download mais claro.
+• Novidades mostra só as mudanças mais recentes, e um Mac que pulou a 1.1.0 também as vê.

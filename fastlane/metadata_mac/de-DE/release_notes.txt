@@ -1,11 +1,5 @@
-Smarte Suche in Fragen, Reflexionsstile und ein zuverlässigerer Editor
+Korrekturen für die smarte Suche
 
-• Smarte Suche in Fragen (optional): Finde Einträge nach Bedeutung, nicht nur nach passenden Wörtern. Einmaliger Download (334 MB) über WLAN, läuft auf deinem Gerät, und dein Journal verlässt es nie. Einschalten in Fragen oder in den Einstellungen.
-• Fragen findet auch ohne sie bessere Treffer: Ganze Wörter zählen, und seltene Wörter zählen mehr als häufige.
-• Reflexionsstile (Core): Wähle, wie sich die heutige Reflexion liest. Sanft wie bisher, Still nur mit deinen eigenen Worten oder Neugierig mit einer Frage zu dem, was du geschrieben hast. Auswahl in den Einstellungen.
-• Schreiben: Der Cursor steht am Ende deines Entwurfs, und ein Entwurf behält Datum, Schrift, Tags und Formatierung.
-• Listen und Checklisten: Return nach einem abgehakten Punkt oder einer Überschrift verhält sich richtig, Fett und Kursiv bleiben, wo du sie gesetzt hast, und Checklisten-Änderungen lassen sich mit Befehl-Z widerrufen.
-• Japanische, chinesische und koreanische Eingabe wird im Editor besser behandelt.
-• Tags: #arbeit oder mehrere durch Kommas getrennte Tags funktionieren jetzt wie erwartet.
-• Export und Import enthalten jetzt deine gespeicherten Ansichten.
-• Download des KI-Modells auf dem Gerät (für Geräte ohne Apple Intelligence): Pausieren und Fortsetzen sowie Erneut versuchen nach einem Verbindungsabbruch machen jetzt dort weiter, wo sie aufgehört haben. Das Modell kommt jetzt von unserem eigenen Server und wird vor der Verwendung mit einem festen Fingerabdruck geprüft.
+• Smarte Suche in Fragen: Das Suchmodell wird nach dem Beenden und erneuten Öffnen von MirrorNotes nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund, und du kannst den Download pausieren und fortsetzen.
+• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
+• Neuigkeiten zeigt nur die neuesten Änderungen, und ein Mac, der 1.1.0 übersprungen hat, sieht sie trotzdem.

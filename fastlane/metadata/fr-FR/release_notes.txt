@@ -1,15 +1,8 @@
-Recherche intelligente dans Demander, styles de réflexion et un éditeur plus fiable
+Corrections pour la recherche intelligente, l'écriture et le point humeur
 
-• Recherche intelligente dans Demander (facultative) : trouvez des entrées par leur sens, pas seulement par des mots identiques. Téléchargement unique de 334 Mo en Wi-Fi, fonctionne sur votre appareil, et votre journal ne le quitte jamais. À activer dans Demander ou dans Réglages.
-• Même sans elle, Demander trouve de meilleurs résultats : les mots entiers comptent, et les mots rares comptent plus que les mots courants.
-• Styles de réflexion (Core) : choisissez comment se lit la réflexion du jour. Doux comme avant, Discret avec seulement vos propres mots, ou Curieux avec une question sur ce que vous avez écrit. À choisir dans Réglages.
-• Écriture : le clavier s'ouvre tout de suite, le curseur se place à la fin de votre brouillon, et un brouillon garde sa date, sa police, ses tags et sa mise en forme.
-• Mise en forme : le panneau Aa est repensé pour que toutes les commandes tiennent à l'écran, même avec un texte agrandi, et les actions des listes de tâches sont réunies dans un menu.
-• Listes et listes de tâches : Retour arrière sur une puce quitte la liste, Retour sur un élément vide la termine, le gras et l'italique restent là où vous les avez mis, et l'annulation fonctionne aussi avec la mise en forme.
-• Un panneau Format plus clair (Aa) : tous les styles, listes et couleurs sont visibles à la fois, chaque couleur montre son effet avant que vous la touchiez, et les actions des listes de tâches sont réunies dans un menu Liste de tâches.
-• La saisie en japonais, chinois et coréen est mieux prise en charge dans l'éditeur.
-• Les entrées longues et celles avec des photos se modifient plus vite.
-• Tags : taper #travail, ou plusieurs tags séparés par des virgules, fonctionne désormais comme prévu.
-• L'export et l'import incluent désormais vos vues enregistrées.
-• Les mots recherchés sont aussi surlignés dans les transcriptions des notes vocales.
-• Téléchargement du modèle d'IA sur l'appareil (pour les appareils sans Apple Intelligence) : Pause et Reprendre, ainsi que Réessayer après une coupure de connexion, repartent désormais là où ils s'étaient arrêtés. Le modèle provient maintenant de notre propre serveur et est vérifié avec une empreinte fixe avant utilisation.
+• Recherche intelligente dans Demander : le modèle de recherche n'est plus téléchargé à nouveau quand vous rouvrez l'app. Il se télécharge désormais en arrière-plan, en Wi-Fi ou en données mobiles, et vous pouvez mettre le téléchargement en pause puis le reprendre.
+• Les téléchargements de modèles affichent une barre de progression plus claire avec un seul bouton Pause/Reprendre, et un bouton de téléchargement plus clair.
+• Écriture : choisir Titre, En-tête ou Sous-en-tête dans une entrée vide s'applique désormais à ce que vous tapez.
+• Point humeur : chaque nom d'humeur tient dans son bouton, et chaque humeur garde sa couleur.
+• Nouveautés n'affiche plus que les derniers changements, pas toutes les versions précédentes.
+• Les fenêtres de notation et du point humeur s'adaptent désormais à leur contenu.
