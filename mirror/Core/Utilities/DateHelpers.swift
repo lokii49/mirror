@@ -60,4 +60,34 @@ enum DateHelpers {
     static func isSunday(_ date: Date = Date()) -> Bool {
         Calendar.current.component(.weekday, from: date) == 1
     }
+
+    /// Earliest date for the weekly digest's background refresh: the next Sunday 7 AM after
+    /// `now` (a week on when it's Sunday past 7). Weekday 1 is Sunday whatever `firstWeekday` is.
+    static func nextSunday7AM(after now: Date = Date(), calendar: Calendar = .current) -> Date {
+        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+        components.weekday = 1
+        components.hour = 7
+        components.minute = 0
+        components.second = 0
+        guard var next = calendar.date(from: components) else { return now }
+        if next <= now {
+            next = calendar.date(byAdding: .weekOfYear, value: 1, to: next) ?? next
+        }
+        return next
+    }
+
+    /// Earliest date for the monthly report's background refresh: 9 PM on this month's last day,
+    /// or next month's once that has passed.
+    static func lastDayOfMonth9PM(after now: Date = Date(), calendar: Calendar = .current) -> Date {
+        func lastDay9PM(monthsAhead: Int) -> Date? {
+            guard let any = calendar.date(byAdding: .month, value: monthsAhead + 1, to: now),
+                  let nextStart = calendar.date(from: calendar.dateComponents([.year, .month], from: any)),
+                  let last = calendar.date(byAdding: .day, value: -1, to: nextStart) else { return nil }
+            var comps = calendar.dateComponents([.year, .month, .day], from: last)
+            comps.hour = 21; comps.minute = 0; comps.second = 0
+            return calendar.date(from: comps)
+        }
+        guard let target = lastDay9PM(monthsAhead: 0) else { return now }
+        return target > now ? target : (lastDay9PM(monthsAhead: 1) ?? target)
+    }
 }

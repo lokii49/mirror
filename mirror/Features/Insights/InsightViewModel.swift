@@ -321,6 +321,9 @@ final class InsightViewModel {
             digestState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
+            // Cancelled with the view (or the app backgrounding): not an error to show. The
+            // next load resolves the card again.
+            if Task.isCancelled { return }
             digestState = .error(friendlyLLMError(error))
         }
     }
@@ -425,6 +428,7 @@ final class InsightViewModel {
             monthlyReportState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {
+            if Task.isCancelled { return }  // see loadWeeklyDigest
             monthlyReportState = .error(friendlyLLMError(error))
         }
     }

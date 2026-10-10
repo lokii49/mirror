@@ -366,8 +366,10 @@ struct mirrorApp: App {
                 scheduleDailyNudgeFallback()
                 // The digest and report refreshes re-arm themselves after each run, so they
                 // need a first request from somewhere: before this, none was ever submitted.
-                scheduleWeeklyDigestFallback()
-                scheduleMonthlyReportFallback()
+                #if os(iOS)
+                armRefreshIfNotPending("com.lokesh.mirror.weeklyDigest") { scheduleWeeklyDigestFallback() }
+                armRefreshIfNotPending("com.lokesh.mirror.monthlyReport") { scheduleMonthlyReportFallback() }
+                #endif
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
                 // A true backgrounding, unlike an .active->.inactive->.active flicker from a
@@ -1107,7 +1109,7 @@ struct mirrorApp: App {
         #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.dailyNudge")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 10 * 60)
-        try? BGTaskScheduler.shared.submit(request)
+        Self.submitRefresh(request)
         #endif
     }
 
@@ -1149,9 +1151,35 @@ struct mirrorApp: App {
         #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
         request.earliestBeginDate = nextSunday7AM()
-        try? BGTaskScheduler.shared.submit(request)
+        Self.submitRefresh(request)
         #endif
     }
+
+    #if os(iOS)
+    /// First request for a refresh that re-arms itself in its handler. Only when none is pending:
+    /// a new submit replaces the pending one, and on a Sunday after 7 AM (or the month's last
+    /// evening) a fresh earliest date is a week (or a month) away, so a quick open-and-close would
+    /// push back a refresh that hadn't run yet.
+    private func armRefreshIfNotPending(_ identifier: String, schedule: @escaping @Sendable () -> Void) {
+        BGTaskScheduler.shared.getPendingTaskRequests { requests in
+            guard !requests.contains(where: { $0.identifier == identifier }) else { return }
+            schedule()
+        }
+    }
+
+    private static func submitRefresh(_ request: BGTaskRequest) {
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
+            print("[bg] submitted \(request.identifier)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[bg] submit failed \(request.identifier): \(error)")
+            #endif
+        }
+    }
+    #endif
 
     // MARK: - Monthly report BGAppRefreshTask (fallback: last day of the month, 9 PM)
 
@@ -1168,46 +1196,13 @@ struct mirrorApp: App {
         #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
         request.earliestBeginDate = lastDayOfCurrentMonth9PM()
-        try? BGTaskScheduler.shared.submit(request)
+        Self.submitRefresh(request)
         #endif
     }
 
-    private func lastDayOfCurrentMonth9PM() -> Date {
-        let cal = Calendar.current
-        let now = Date()
-        // Last day of current month = first day of next month minus 1 day
-        guard let nextMonthAny = cal.date(byAdding: .month, value: 1, to: now),
-              let nextMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: nextMonthAny)),
-              let lastDay = cal.date(byAdding: .day, value: -1, to: nextMonthStart) else { return now }
-        var comps = cal.dateComponents([.year, .month, .day], from: lastDay)
-        comps.hour = 21; comps.minute = 0; comps.second = 0
-        guard var target = cal.date(from: comps) else { return now }
-        if target <= now {
-            // Already past end of this month — target last day of next month
-            guard let twoMonthsAny = cal.date(byAdding: .month, value: 2, to: now),
-                  let twoMonthsStart = cal.date(from: cal.dateComponents([.year, .month], from: twoMonthsAny)),
-                  let nextLastDay = cal.date(byAdding: .day, value: -1, to: twoMonthsStart) else { return target }
-            var nextComps = cal.dateComponents([.year, .month, .day], from: nextLastDay)
-            nextComps.hour = 21; nextComps.minute = 0; nextComps.second = 0
-            target = cal.date(from: nextComps) ?? target
-        }
-        return target
-    }
+    private func lastDayOfCurrentMonth9PM() -> Date { DateHelpers.lastDayOfMonth9PM() }
 
-    private func nextSunday7AM() -> Date {
-        let calendar = Calendar.current
-        let now = Date()
-        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
-        components.weekday = 1
-        components.hour = 7
-        components.minute = 0
-        components.second = 0
-        guard var next = calendar.date(from: components) else { return now }
-        if next <= now {
-            next = calendar.date(byAdding: .weekOfYear, value: 1, to: next) ?? next
-        }
-        return next
-    }
+    private func nextSunday7AM() -> Date { DateHelpers.nextSunday7AM() }
 
     // MARK: - Widget data bridge
 

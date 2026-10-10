@@ -870,8 +870,9 @@ enum InsightService {
                 // on yet. A fabricated one still isn't shown as-is — see the shared fallback
                 // logic after the loop, which this jumps into instead of returning directly.
                 // A cancelled pass (app backgrounded, background task expired) isn't a failed
-                // attempt: give up without a result, so nothing is saved.
-                if Task.isCancelled { throw CancellationError() }
+                // attempt. Keep an earlier truthful result, but don't turn a flawed one into
+                // the fallback, which would be saved and block the day.
+                if Task.isCancelled, lastResult == nil || lastViolatesGrounding { throw CancellationError() }
                 guard let lastResult else { throw error }
                 return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
             }
@@ -953,6 +954,7 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("nudge generation produced no result")
         }
+        if lastViolatesGrounding { try Task.checkCancellation() }
         return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
     }
 
