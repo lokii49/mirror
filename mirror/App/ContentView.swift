@@ -338,6 +338,14 @@ struct ContentView: View {
                 selectedTab = 0
                 selectedSidebarItem = .entries
             }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--showRatePrompt") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(2))
+                    showRatePrompt = true
+                }
+            }
+            #endif
             if onboardingComplete && !isUITesting && featureCardService.shouldShowWhatsNew {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
