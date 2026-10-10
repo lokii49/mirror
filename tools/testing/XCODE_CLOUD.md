@@ -14,6 +14,13 @@ Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which
 
 **Baseline (2026-10-10, commit 8a26361, local Xcode 27.1 RC, iPhone 17 simulator):** `mirror CI` ran 863 passed, 32 skipped (model-gated and env-gated harnesses), 0 failed, with parallel simulator clones. No tests are excluded beyond `mirrorUITests`. A red Xcode Cloud run is therefore a real regression, or a difference in the Xcode/simulator version.
 
+**Skipped on Xcode Cloud only** (the `mirror CI` scheme sets `MIRROR_CI_SIMULATOR=1`; the suites carry `.disabled(if:)` on it, and they still run under the `mirror` scheme and on device):
+- `ThemeExtractionServiceTests`: NLTagger returns no keywords on Xcode Cloud simulators.
+- `LargeJournalPerformanceTests`: its timing ceilings are for local machines.
+- `GuidedQuestionGemmaTests`: Xcode Cloud simulators report Foundation Models available, but no engine answers.
+
+These were the only 8 failures on the A15 commits (`9353317`). The 202-failure run on `78a9db5` was a one-off crash; the same code passed apart from these 8 on re-run.
+
 ## Files in the repo
 
 - `ci_scripts/ci_post_clone.sh`: runs after Xcode Cloud clones the repo. It creates `mirror/LocalModels` and logs the branch, commit and Xcode version. It must stay executable and next to `mirror.xcodeproj`.

@@ -74,7 +74,7 @@ private enum NLAssetPreparation {
 // NLTagger/on-device model loading isn't safe under truly concurrent first-use across threads,
 // serializing removes that variable regardless of whether the verified-warm-up above was the
 // whole story or not.
-@Suite(.serialized)
+@Suite(.serialized, .disabled(if: ProcessInfo.processInfo.environment["MIRROR_CI_SIMULATOR"] == "1", "NLTagger finds no keywords on Xcode Cloud simulators (mirror CI scheme)"))
 struct ThemeExtractionServiceTests {
 
     @Test func shortTextYieldsNothing() {
