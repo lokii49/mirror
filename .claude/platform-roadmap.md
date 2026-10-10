@@ -14,6 +14,8 @@ Background work: no `BGTaskScheduler` on Mac. Generation runs on app-active (sam
 
 Not done: a signed Mac build (needs a Mac provisioning profile with iCloud, push and the app group), real-device sync check, widget rendering, translations of the new Mac strings, App Store screenshots, global hotkey for quick capture, time-triggered check-in popup, app lock, Sentinel on Mac, visionOS.
 
+**Update 2026-10-10 (checked in code and git):** Mac 1.0 shipped and Mac 1.1.0/1.1.1 were merged to `main`, so the signed build exists. Built since: the global hotkey (`App/MacGlobalHotKey.swift`, ⌥⌘J), app lock on Mac (`Core/Security/AppLock.swift`, menu actions gated in `App/MacSupport.swift`), and the check-in *reminder* (a notification shown even in the foreground; tapping it opens Log Mood). Still open: the time-triggered check-in popup, Sentinel on Mac, visionOS, and the hardware checks in `3.1.2-backlog.md` D6 (sync, widgets, hotkey under the sandbox, Mac string translations, screenshots).
+
 ## Where it stands [checked, as of 2026-10-01, before the Mac port]
 
 - The app is iPhone and iPad only: `TARGETED_DEVICE_FAMILY = "1,2"`, `SDKROOT = iphoneos`, no `SUPPORTS_MACCATALYST` or `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD` set anywhere in `mirror.xcodeproj`.

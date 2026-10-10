@@ -35,6 +35,5 @@ Shims checked: `UIApplication.open` goes to `NSWorkspace` (About links, Rate, fe
 - Today: iOS has a mood chart, streak and a Log mood button that the approved board does not show. Needs the owner's OK before adding visible UI.
 - Write: daily word goal and word-goal UI from iOS (needs the owner's OK; not on the board).
 - Mood timeline, Monthly report, Digest: no hover or keyboard work yet; Mood timeline chart has faint wedges inside the plot (area fill with several entries per day), likely also on iPhone.
-- Ask: Esc, focus order and Tab order not checked. Brain View: wheel zoom, pinch and trackpad pan untested.
-- Brain 2D: mouse-wheel zoom (3D has it; the flat view relies on drag, pinch and the +/- buttons).
-- Report: Left/Right arrows for the month switch (the chevrons work).
+- Ask: Esc, focus order and Tab order not checked. Brain View: pinch and trackpad pan untested.
+- **Done (checked in code 2026-10-10):** Brain 2D mouse-wheel zoom (`BrainConstellationView.swift`, `scrollWheel`), and Report Left/Right arrows for the month switch (`MonthlyReportView.swift`, `onKeyPress(.leftArrow/.rightArrow)`). Not re-verified on hardware.
