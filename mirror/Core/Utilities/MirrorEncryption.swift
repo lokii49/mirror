@@ -90,7 +90,10 @@ enum MirrorEncryption {
             || starts(Array("caff".utf8))                        // CAF
             || starts(Array("RIFF".utf8))                        // WAV
             || starts(Array("bplist".utf8))                      // binary plist
-            || starts(Array("{".utf8)) || starts(Array("[".utf8)) // JSON
+            // JSON style data. Parsed, not sniffed: a sealed box starts with a random nonce, so
+            // one byte in 128 begins with "{" or "[".
+            || ((starts(Array("{".utf8)) || starts(Array("[".utf8)))
+                && (try? JSONSerialization.jsonObject(with: data)) != nil)
     }
 
     static func encryptOptionalData(_ value: Data?) -> Data? {

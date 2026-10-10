@@ -29,6 +29,8 @@ final class MoodAutoDetector {
         guard sub.tier == .core || sub.tier == .deep else { return nil }
         guard LocalLLMService.isModelAvailable else { return nil }
         guard !entry.textDecryptionFailed else { return nil }
+        // A mood sealed under a key this device lacks reads as nil: don't take that for "no mood".
+        guard !MirrorEncryption.encryptedStringNeedsUnavailableKey(entry.encryptedMood ?? "") else { return nil }
         let text = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
 

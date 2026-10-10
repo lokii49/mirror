@@ -26,6 +26,9 @@ enum PhotoMarkerRepair {
             // Formatting that can't be read now must not be overwritten with nothing.
             let inline = entry.inlineStyleData
             if entry.encryptedInlineStyleData != nil, inline == nil { continue }
+            // Nor formatting this device can't decrypt (handed back as ciphertext, not nil).
+            if MirrorEncryption.encryptedDataNeedsUnavailableKey(entry.encryptedInlineStyleData)
+                || MirrorEncryption.encryptedDataNeedsUnavailableKey(entry.encryptedTextStyleData) { continue }
             guard let repaired = NoteEditorCodec.repairPhotoMarkerDamage(
                 text: text, textStyleData: entry.textStyleData, inlineStyleData: inline
             ) else { continue }

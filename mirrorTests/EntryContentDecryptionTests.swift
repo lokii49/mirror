@@ -21,6 +21,9 @@ struct EntryContentDecryptionTests {
         let entry = Entry(text: "")
         entry.voiceNoteData = Data([0, 0, 0, 0x20] + Array("ftypM4A ".utf8) + Array(repeating: 7, count: 40))
         entry.voiceNoteTranscript = "A short synthetic note."
+        // Sealed for real: encryptOptionalData returns nil if the key can't be read.
+        #expect(entry.encryptedVoiceNoteData != nil)
+        #expect(entry.encryptedVoiceNoteData != entry.voiceNoteData)
         #expect(!entry.contentDecryptionFailed)
     }
 
@@ -33,15 +36,27 @@ struct EntryContentDecryptionTests {
         #expect(entry.contentDecryptionFailed)
     }
 
+    @Test func foreignCiphertextStartingLikeJSONIsFlagged() {
+        let entry = Entry(text: "")
+        entry.encryptedVoiceNoteData = Data([0x7B] + (1..<64).map { UInt8($0) })
+        entry.encryptedPhotoData = nil
+        #expect(entry.contentDecryptionFailed)
+        let bracket = Entry(text: "")
+        bracket.encryptedInlineStyleData = Data([0x5B] + (1..<64).map { UInt8($0) })
+        #expect(bracket.contentDecryptionFailed)
+    }
+
     @Test func foreignAdditionalVoiceNoteIsFlagged() {
         let entry = Entry(text: "")
         entry.encryptedAdditionalVoiceNoteDataStorage = try? JSONEncoder().encode([Self.foreignCiphertext])
+        #expect(Entry.decodedDataArray(from: entry.encryptedAdditionalVoiceNoteDataStorage) == [Self.foreignCiphertext])
         #expect(entry.contentDecryptionFailed)
     }
 
     @Test func foreignTagIsFlagged() throws {
         let entry = Entry(text: "Readable text.")
         entry.encryptedTagsStorage = try JSONEncoder().encode([Self.foreignString])
+        #expect(Entry.decodedStringArray(from: entry.encryptedTagsStorage) == [Self.foreignString])
         #expect(entry.contentDecryptionFailed)
     }
 
