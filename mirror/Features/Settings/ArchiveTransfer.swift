@@ -230,6 +230,10 @@ enum ArchiveTransfer {
             context.delete(entry)
             removed += 1
         }
+        // Synced, so no device's backup offers the undone import back (backlog A13).
+        if !removedIDs.isEmpty {
+            context.insert(JournalErasure(erasedEntryIDs: Array(removedIDs)))
+        }
         // Collections the import created go too, unless an entry that stays uses them.
         for id in batch.createdCollections {
             let members = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.collectionID == id }))) ?? []

@@ -54,6 +54,45 @@ enum LocalJournalBackup {
         return current == 0 || (current * 2 < backup && backup - current >= 5)
     }
 
+    /// What a restore would bring back: in the backup, not in the journal, and not removed on
+    /// purpose, either by a synced `JournalErasure` (Delete Everything, undo import) or by a user
+    /// delete on this device since the backup was taken (backlog A13). Without the last, undoing
+    /// an import or deleting several entries froze the backup and offered them back.
+    static func offeredIDs(backup: Set<UUID>, journal: Set<UUID>, erased: Set<UUID>, userDeleted: Set<UUID>) -> Set<UUID> {
+        backup.subtracting(journal).subtracting(erased).subtracting(userDeleted)
+    }
+
+    // MARK: - User deletions since the backup (local ledger)
+
+    private static let userDeletedKey = "mirror.localJournalBackup.userDeleted"
+
+    /// Entry and check-in ids this device deleted, with when. Kept apart from `State`, whose
+    /// decoding must never fail (it would drop `frozen`). Pruned at each snapshot.
+    static func recordUserDeleted(_ ids: [UUID], at date: Date = Date(), defaults: UserDefaults = .standard) {
+        guard !ids.isEmpty else { return }
+        stateLock.withLock {
+            var ledger = defaults.dictionary(forKey: userDeletedKey) as? [String: Date] ?? [:]
+            for id in ids { ledger[id.uuidString] = date }
+            defaults.set(ledger, forKey: userDeletedKey)
+        }
+    }
+
+    static func userDeletedIDs(defaults: UserDefaults = .standard) -> Set<UUID> {
+        stateLock.withLock {
+            let ledger = defaults.dictionary(forKey: userDeletedKey) as? [String: Date] ?? [:]
+            return Set(ledger.keys.compactMap(UUID.init(uuidString:)))
+        }
+    }
+
+    /// A snapshot started at `date` no longer holds rows deleted before it.
+    static func forgetUserDeleted(before date: Date, defaults: UserDefaults = .standard) {
+        stateLock.withLock {
+            guard var ledger = defaults.dictionary(forKey: userDeletedKey) as? [String: Date] else { return }
+            ledger = ledger.filter { $0.value > date }
+            defaults.set(ledger, forKey: userDeletedKey)
+        }
+    }
+
     static func decide(current: Count, state: State) -> Decision {
         guard !state.frozen, case .entries(let count) = current else { return .keep }
         if looksPurged(current: count, backup: state.entryCount) { return .freeze }
@@ -191,6 +230,7 @@ enum LocalJournalBackup {
                 state.entryCount = copied
                 state.snapshotAt = startedAt
             }
+            forgetUserDeleted(before: startedAt, defaults: defaults)
             return .refresh
         }
     }
@@ -200,6 +240,7 @@ enum LocalJournalBackup {
     static func deleteBackup(backupURL: URL = backupURL, defaults: UserDefaults = .standard) {
         removeDatabase(at: backupURL)
         updateState(defaults) { $0 = State() }
+        forgetUserDeleted(before: .distantFuture, defaults: defaults)
     }
 
     /// Unfreezes without deleting, keeping the restored-row bookkeeping.

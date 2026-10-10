@@ -95,6 +95,12 @@ final class JournalSafety {
                 self?.handleEvent(type: type, succeeded: succeeded, startDate: started, ended: ended)
             }
         })
+        // Rows the user deletes here are not a purge: noted before the save, while their ids are
+        // still readable, so the backup never offers them back (backlog A13).
+        observers.append(center.addObserver(forName: ModelContext.willSave, object: nil, queue: .main) { note in
+            guard let context = note.object as? ModelContext else { return }
+            MainActor.assumeIsolated { Self.recordDeletions(in: context) }
+        })
         observers.append(center.addObserver(forName: ModelContext.didSave, object: nil, queue: .main) { [weak self] note in
             // An autosave that changed nothing triggers no upload; counting it would leave a
             // "not backed up" banner waiting for an export that never comes.
@@ -230,10 +236,15 @@ final class JournalSafety {
               let journalCheckInIDs = try? Self.ids(of: MoodCheckIn.self, \.id, in: container.mainContext)
         else { return }
         // Entries a "Delete Everything" (on any device) erased are never offered back.
-        let erased = JournalErasure.allErasedEntryIDs(in: container.mainContext)
-        let entries = backupIDs.entries.subtracting(journalEntryIDs).subtracting(erased).count
-        let checkIns = backupIDs.checkIns.subtracting(journalCheckInIDs)
-            .subtracting(JournalErasure.allErasedCheckInIDs(in: container.mainContext)).count
+        let userDeleted = LocalJournalBackup.userDeletedIDs()
+        let entries = LocalJournalBackup.offeredIDs(
+            backup: backupIDs.entries, journal: journalEntryIDs,
+            erased: JournalErasure.allErasedEntryIDs(in: container.mainContext), userDeleted: userDeleted
+        ).count
+        let checkIns = LocalJournalBackup.offeredIDs(
+            backup: backupIDs.checkIns, journal: journalCheckInIDs,
+            erased: JournalErasure.allErasedCheckInIDs(in: container.mainContext), userDeleted: userDeleted
+        ).count
         if entries == 0 && checkIns == 0 {
             // Everything came back (re-download finished): nothing to offer, resume snapshots.
             LocalJournalBackup.unfreeze()
@@ -329,6 +340,18 @@ final class JournalSafety {
 
     /// "Delete Everything" on this device: drop the local backup. Other devices are covered
     /// by the synced `JournalErasure` the caller inserted.
+    private static var recordingDeletions = true
+
+    static func recordDeletions(in context: ModelContext) {
+        guard recordingDeletions else { return }
+        let ids = context.deletedModelsArray.compactMap { model -> UUID? in
+            if let entry = model as? Entry { return entry.id }
+            if let checkIn = model as? MoodCheckIn { return checkIn.id }
+            return nil
+        }
+        LocalJournalBackup.recordUserDeleted(ids)
+    }
+
     func journalWasErased() {
         LocalJournalBackup.deleteBackup()
         restoreOffer = nil
@@ -349,6 +372,11 @@ final class JournalSafety {
         let keptEntries = reconcile(state.restoredEntryIDs, of: Entry.self, uuid: \.id, context: context)
         let keptCheckIns = reconcile(state.restoredCheckInIDs, of: MoodCheckIn.self, uuid: \.id, context: context)
         guard keptEntries != state.restoredEntryIDs || keptCheckIns != state.restoredCheckInIDs else { return }
+        // These deletes remove duplicate copies whose originals are present, not writing the user
+        // removed: keep their ids out of the user-deletion ledger, or a purge before the next
+        // snapshot would leave the originals out of the restore.
+        Self.recordingDeletions = false
+        defer { Self.recordingDeletions = true }
         do {
             try context.save()
             LocalJournalBackup.updateState {
@@ -413,10 +441,11 @@ final class JournalSafety {
     }
 
     private func missingFromJournal(context: ModelContext, backup: ModelContext) throws -> (entries: [Entry], checkIns: [MoodCheckIn]) {
+        let userDeleted = LocalJournalBackup.userDeletedIDs()
         let entryIDs = try Self.ids(of: Entry.self, \.id, in: context)
-            .union(JournalErasure.allErasedEntryIDs(in: context))
+            .union(JournalErasure.allErasedEntryIDs(in: context)).union(userDeleted)
         let checkInIDs = try Self.ids(of: MoodCheckIn.self, \.id, in: context)
-            .union(JournalErasure.allErasedCheckInIDs(in: context))
+            .union(JournalErasure.allErasedCheckInIDs(in: context)).union(userDeleted)
         let entries = try backup.fetch(FetchDescriptor<Entry>()).filter { !entryIDs.contains($0.id) }
         let checkIns = try backup.fetch(FetchDescriptor<MoodCheckIn>()).filter { !checkInIDs.contains($0.id) }
         return (entries, checkIns)
