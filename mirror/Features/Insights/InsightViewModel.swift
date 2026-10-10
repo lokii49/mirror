@@ -355,7 +355,7 @@ final class InsightViewModel {
         let cal = Calendar.current
         let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
-        let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }.filter(InsightService.hasReadableContext)  // A11
+        let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
         // Generation is gated on being in the last week of the month FIRST — a report about
         // "this month" generated from only the first two weeks isn't actually a monthly report,
@@ -376,8 +376,11 @@ final class InsightViewModel {
             return
         }
 
-        guard thisMonthEntries.count >= InsightService.monthlyReportMinimumEntries else {
-            monthlyReportState = .endOfMonthTooFewEntries(count: thisMonthEntries.count)
+        // Readable only, as the runner counts them (backlog A11). After the date gate, so the three
+        // weeks of "waiting for month end" (which shows the plain count) decrypt nothing.
+        let readableThisMonth = thisMonthEntries.filter(InsightService.hasReadableContext)
+        guard readableThisMonth.count >= InsightService.monthlyReportMinimumEntries else {
+            monthlyReportState = .endOfMonthTooFewEntries(count: readableThisMonth.count)
             return
         }
 
@@ -411,7 +414,7 @@ final class InsightViewModel {
         if !forceRegenerate, let cached = cachedThisMonth,
            !InsightService.weeklyDigestIsStale(
                generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .monthlyReport, period: thisMonth),
-               newestWeekEntry: thisMonthEntries.map(\.createdAt).max()
+               newestWeekEntry: readableThisMonth.map(\.createdAt).max()
            ) {
             // Same reasoning as loadWeeklyDigest's cache-serve branch: a cached fallback's "Try
             // Again" needs the model, so don't show it as actionable when the model isn't ready.
@@ -446,7 +449,7 @@ final class InsightViewModel {
         monthlyReportState = .loading
         do {
             let (text, engine) = try await InsightService.generateMonthlyReport(
-                monthEntries: thisMonthEntries, allEntries: entries
+                monthEntries: readableThisMonth, allEntries: entries
             )
             if let cached = cachedThisMonth, InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cached.content) {
                 InsightService.recordKeptRealRow(.monthlyReport, period: thisMonth)
