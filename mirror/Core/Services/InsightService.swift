@@ -77,7 +77,7 @@ You wrote, "<copy the one sentence from the entry that shows the biggest thing t
 // the model fills two fields instead (`FoundationModelEngine.generateDailyReflection`): a quote, which the app
 // finds in today's entries and shows in the entry's own words, and a short insight, which `FMDailyGuard`
 // checks sentence by sentence. Kept byte-identical to tools/llmrig/fm/system_v1b_easy.txt, the prompt the
-// rig measured; change both together and re-measure. DAILY_NUDGE_LEGACY_SYSTEM stays for other languages.
+// rig measured; change both together and re-measure. DAILY_NUDGE_LEGACY_SYSTEM is never sent as free prose (A9, 3.1.2).
 let DAILY_REFLECTION_FM_SYSTEM = """
 You write the daily reflection for MirrorNotes, a private on-device journal. You are given the person's recent journal entries. Work only from what they wrote.
 
@@ -2904,7 +2904,8 @@ extension InsightService {
 
     /// The Gemma plan for a daily nudge, with the quote options its validator needs.
     /// English only: the grammar's fixed phrases and lowercase-only character class are English.
-    /// Other languages keep DAILY_NUDGE_LEGACY_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
+    /// Other languages get `.samePrompt`, which `generateNudge` never sends: they take the localized
+    /// grounded path or the honest card (A9, 3.1.2).
     static func groundedNudgePlan(recent: [Entry], background: [Entry], recentNudges: [String]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
         let target = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
         guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
