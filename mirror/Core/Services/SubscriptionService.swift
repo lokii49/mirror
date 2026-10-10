@@ -114,6 +114,6 @@ final class SubscriptionService {
     }
 
     private static func publishTierToWidgets(_ tier: SubscriptionTier) {
-        UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(tier.rawValue, forKey: "widget.tier")
+        UserDefaults(suiteName: WidgetShared.appGroupID)?.set(tier.rawValue, forKey: "widget.tier")
     }
 }
