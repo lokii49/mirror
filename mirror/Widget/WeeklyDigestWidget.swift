@@ -19,6 +19,8 @@ struct DigestWidgetEntry: TimelineEntry {
     /// True when the stored digest is for the current ISO week — a Monday rollover
     /// makes last week's theme stale before the new digest generates (Sunday task).
     let isCurrentWeek: Bool
+    /// The stored theme is last week's: shown labelled until this week's arrives (A16).
+    var isPreviousWeek = false
 }
 
 struct DigestWidgetProvider: TimelineProvider {
@@ -42,8 +44,10 @@ struct DigestWidgetProvider: TimelineProvider {
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         let text = defaults?.string(forKey: WidgetShared.digestThemeKey)
         let storedWeek = defaults?.string(forKey: WidgetShared.digestWeekKey) ?? ""
-        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
-        return DigestWidgetEntry(date: .now, themeText: text, isCurrentWeek: storedWeek == thisWeek)
+        let period = WidgetShared.storedPeriod(
+            storedWeek, current: DateHelpers.digestWeekIdentifier(for: Date()), previous: WidgetShared.previousDigestWeek(before: Date())
+        )
+        return DigestWidgetEntry(date: .now, themeText: text, isCurrentWeek: period == .current, isPreviousWeek: period == .previous)
     }
 }
 
@@ -74,7 +78,15 @@ private struct DigestUnlockedView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
 
-                if let text = entry.themeText, entry.isCurrentWeek {
+                if let text = entry.themeText, entry.isCurrentWeek || entry.isPreviousWeek {
+                    if entry.isPreviousWeek {
+                        Text("Last week")
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, isLarge ? 6 : 4)
+                    }
                     Text(text)
                         .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white)

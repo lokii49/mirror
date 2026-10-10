@@ -67,4 +67,25 @@ enum WidgetShared {
     static func isDeep() -> Bool {
         tier() == "deep"
     }
+
+    /// Which period a stored digest or report is from, relative to now (backlog A16). Between
+    /// digests (Monday–Saturday) and before the month-end report, the widgets show the previous
+    /// one, labelled, instead of an empty placeholder; anything older shows the placeholder.
+    enum StoredPeriod { case current, previous, older }
+
+    static func storedPeriod(_ stored: String?, current: String, previous: String) -> StoredPeriod {
+        switch stored {
+        case current?: .current
+        case previous?: .previous
+        default: .older
+        }
+    }
+
+    static func previousDigestWeek(before now: Date) -> String {
+        DateHelpers.digestWeekIdentifier(for: Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now)
+    }
+
+    static func previousMonth(before now: Date) -> String {
+        DateHelpers.monthIdentifier(for: Calendar.current.date(byAdding: .month, value: -1, to: now) ?? now)
+    }
 }
