@@ -1672,15 +1672,7 @@ enum InsightService {
     // persisted, never written anywhere until the user explicitly inserts the composed result
     // into a real draft.
     static func generateGuidedQuestion(conversationSoFar: [(question: String, answer: String)]) async throws -> (text: String, engine: LLMEngine) {
-        let userMessage: String
-        if conversationSoFar.isEmpty {
-            userMessage = "This is the start of a new guided journal entry. Ask your first question."
-        } else {
-            let transcript = conversationSoFar
-                .map { "Q: \($0.question)\nA: \($0.answer)" }
-                .joined(separator: "\n\n")
-            userMessage = "Conversation so far:\n\(transcript)\n\nAsk the next question."
-        }
+        let userMessage = guidedQuestionUserMessage(conversationSoFar: conversationSoFar)
         let allAnswers = conversationSoFar.map(\.answer).joined(separator: " ")
         let target = responseLanguageTarget(from: [], extraText: allAnswers) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
@@ -1690,6 +1682,21 @@ enum InsightService {
             task: .followUp,
             responseLanguageInstruction: languageInstruction
         )
+    }
+
+    /// Same cap as the follow-up chip's draft (same .followUp task, so it fits Gemma's context).
+    static let guidedTranscriptBudget = 3_000
+
+    // Answers have no length cap in TalkItOutView, so the transcript is cut to its newest
+    // characters: security rule 3 (oldest content first), and an uncapped one overflowed Gemma.
+    static func guidedQuestionUserMessage(conversationSoFar: [(question: String, answer: String)]) -> String {
+        guard !conversationSoFar.isEmpty else {
+            return "This is the start of a new guided journal entry. Ask your first question."
+        }
+        let transcript = conversationSoFar
+            .map { "Q: \($0.question)\nA: \($0.answer)" }
+            .joined(separator: "\n\n")
+        return "Conversation so far:\n\(String(transcript.suffix(guidedTranscriptBudget)))\n\nAsk the next question."
     }
 
     /// The AI voice's form of address where the fixed Gemma text (`groundedLocales`, and the
