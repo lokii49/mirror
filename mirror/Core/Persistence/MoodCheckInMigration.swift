@@ -23,6 +23,9 @@ enum MoodCheckInMigration {
     @MainActor
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        // Rewrites encrypted fields: wait for a readable key (next activation) rather than
+        // write plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
 
         let legacy = legacyRecords()
         guard !legacy.isEmpty else {

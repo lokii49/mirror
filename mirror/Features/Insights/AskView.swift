@@ -650,6 +650,8 @@ struct AskView: View {
         // starts or retries its download: only a tap does (3.1.1 downloads on mobile data too,
         // and 3.1.0 users agreed to Wi-Fi only).
         do {
+            // The answer and question are saved encrypted.
+            guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { throw InsightError.serviceUnavailable("content key unavailable") }
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
             let insight = Insight(
                 type: .askResponse,

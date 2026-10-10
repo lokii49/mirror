@@ -19,7 +19,7 @@ enum ArchiveTransfer {
         var unreadable: Int
     }
 
-    enum TransferError: Error { case zipFailed }
+    enum TransferError: Error { case zipFailed, keyUnavailable }
 
     struct StagedArchive {
         var root: URL
@@ -170,6 +170,8 @@ enum ArchiveTransfer {
     /// copies with new IDs. Existing entries are never modified. One save: either
     /// everything is added or nothing is.
     static func applyImport(_ plan: ImportPlan, importChangedAsCopies: Bool, context: ModelContext) throws -> ImportBatch {
+        // Imported text, photos and recordings are sealed on insert; never store them unsealed.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { throw TransferError.keyUnavailable }
         var batch = ImportBatch(digests: [:])
         // Membership needs the collection: create the ones this journal lacks (same
         // id, so a re-import lines up). Unknown ids without a record become Unfiled.

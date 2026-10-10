@@ -64,6 +64,9 @@ enum UngroundedInsightCleanup {
     @MainActor
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        // Rewrites encrypted fields: wait for a readable key (next activation) rather than
+        // write plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard UserDefaults.standard.integer(forKey: backgroundingCountKey) >= minBackgroundings else { return }
         // Nothing cached yet: retry later without loading every entry (52 ms of main-thread work per
         // activation at 2,000 entries, every activation, on a store with no insights; Mac baseline).

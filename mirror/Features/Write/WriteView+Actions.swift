@@ -85,6 +85,13 @@ extension WriteView {
                 DispatchQueue.main.async { onSaveComplete?() }
                 return
             }
+            // Sealing needs the key; with it unreadable the setters would store plaintext.
+            // Keep the editor open with the edits, like a failed save.
+            guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {
+                flushDraftSave()
+                entrySaveFailed = true
+                return
+            }
             // Keep the edits recoverable until the save below has actually landed.
             flushDraftSave()
             editCommitted = true
@@ -128,6 +135,11 @@ extension WriteView {
             }
         } else {
             if hasDraftContent {
+                guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see the edit path above
+                    flushDraftSave()
+                    entrySaveFailed = true
+                    return
+                }
                 let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let entry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
                 entry.createdAt = entryDate
@@ -189,6 +201,11 @@ extension WriteView {
     func saveDraft() {
         commitPendingTag()
         guard entry == nil, hasDraftContent else { return }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see saveAndDismiss
+            flushDraftSave()
+            entrySaveFailed = true
+            return
+        }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
         savedEntry.createdAt = entryDate

@@ -305,6 +305,11 @@ final class InsightViewModel {
             return
         }
 
+        // Saved encrypted: with the key unreadable, show the error card instead of a plaintext row.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {
+            digestState = .error(friendlyLLMError(InsightError.serviceUnavailable("content key unavailable")))
+            return
+        }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
             digestState = .loading
             return
@@ -410,6 +415,10 @@ final class InsightViewModel {
             return
         }
 
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {  // see loadWeeklyDigest
+            monthlyReportState = .error(friendlyLLMError(InsightError.serviceUnavailable("content key unavailable")))
+            return
+        }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
             monthlyReportState = .loading
             return

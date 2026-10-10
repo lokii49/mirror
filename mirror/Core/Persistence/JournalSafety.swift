@@ -274,6 +274,9 @@ final class JournalSafety {
 
     func restore() {
         guard let container, !isRestoring else { return }
+        // Restored copies carry their stored ciphertext; restore only once this device's key is
+        // readable (never minting one, which would not open them).
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         isRestoring = true
         defer { isRestoring = false }
         let context = container.mainContext

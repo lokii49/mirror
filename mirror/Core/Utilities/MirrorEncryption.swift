@@ -34,6 +34,24 @@ enum MirrorEncryption {
             : PerfSeed.isRequested ? PerfSeed.key : nil
     #endif
 
+    #if DEBUG
+    /// Tests only: sealing fails as if the key couldn't be read, while opening still works.
+    @TaskLocal static var sealFailsForTesting = false
+    #endif
+
+    /// Whether this device can seal new journal data right now. The `encrypt*` helpers below fail
+    /// open when it can't (plaintext strings; nil data, which a setter would save as a deleted
+    /// photo or recording), so every writer checks this first (backlog A3). User saves pass
+    /// `creatingIfNeeded: true`, as sealing does (the first entry mints the key); automatic
+    /// writers pass false, so a check can never mint a key before iCloud Keychain delivers the
+    /// real one, or wait out its retry loop.
+    static func canEncrypt(creatingIfNeeded: Bool) -> Bool {
+        #if DEBUG
+        if sealFailsForTesting { return false }
+        #endif
+        return (try? key(creatingIfNeeded: creatingIfNeeded)) != nil
+    }
+
     static func encryptString(_ value: String) -> String {
         guard !value.isEmpty, !isEncryptedString(value) else { return value }
         guard let encrypted = try? encryptData(Data(value.utf8)) else { return value }
@@ -142,6 +160,9 @@ enum MirrorEncryption {
     }
 
     private static func encryptData(_ data: Data) throws -> Data {
+        #if DEBUG
+        if sealFailsForTesting { throw CryptoKitError.incorrectKeySize }
+        #endif
         let sealed = try AES.GCM.seal(data, using: key(creatingIfNeeded: true))
         return sealed.combined ?? data
     }

@@ -34,6 +34,10 @@ final class MacQuickCaptureModel {
             errorMessage = String(localized: "MirrorNotes couldn't open your journal, so this wasn't saved. Open the app to fix it.")
             return false
         }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {
+            errorMessage = String(localized: "Couldn't save this entry")
+            return false
+        }
         let entry = Entry(text: trimmed, mood: mood, source: .typed)
         entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
         context.insert(entry)

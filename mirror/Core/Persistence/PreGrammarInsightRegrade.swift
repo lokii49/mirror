@@ -32,6 +32,7 @@ enum PreGrammarInsightRegrade {
     static func runIfNeeded(context: ModelContext) async {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: flag) else { return }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }  // writes encrypted rows; retry next activation
         // Same wait-for-CloudKit deferral as UngroundedInsightCleanup: a store that hasn't
         // finished syncing could look like it has nothing (or the wrong latest row).
         guard defaults.integer(forKey: UngroundedInsightCleanup.backgroundingCountKey) >= 1 else { return }

@@ -88,12 +88,12 @@ enum EntrySource: String, Codable {
 
     var textStyleData: Data? {
         get { MirrorEncryption.decryptOptionalData(encryptedTextStyleData) }
-        set { encryptedTextStyleData = MirrorEncryption.encryptOptionalData(newValue) }
+        set { encryptedTextStyleData = Self.sealed(newValue, keeping: encryptedTextStyleData) }
     }
 
     var inlineStyleData: Data? {
         get { MirrorEncryption.decryptOptionalData(encryptedInlineStyleData) }
-        set { encryptedInlineStyleData = MirrorEncryption.encryptOptionalData(newValue) }
+        set { encryptedInlineStyleData = Self.sealed(newValue, keeping: encryptedInlineStyleData) }
     }
 
     var mood: String? {
@@ -103,7 +103,7 @@ enum EntrySource: String, Codable {
 
     var photoData: Data? {
         get { MirrorEncryption.decryptOptionalData(encryptedPhotoData) }
-        set { encryptedPhotoData = MirrorEncryption.encryptOptionalData(newValue) }
+        set { encryptedPhotoData = Self.sealed(newValue, keeping: encryptedPhotoData) }
     }
 
     var hasPhoto: Bool {
@@ -112,7 +112,7 @@ enum EntrySource: String, Codable {
 
     var additionalPhotoData: [Data] {
         get { MirrorEncryption.decryptDataArray(Self.decodedDataArray(from: encryptedAdditionalPhotoDataStorage)) }
-        set { encryptedAdditionalPhotoDataStorage = Self.encoded(MirrorEncryption.encryptDataArray(newValue)) }
+        set { encryptedAdditionalPhotoDataStorage = Self.sealedArray(newValue, keeping: encryptedAdditionalPhotoDataStorage) }
     }
 
     // All photos in insertion order: [photoData (index 0), additionalPhotoData...]
@@ -131,7 +131,7 @@ enum EntrySource: String, Codable {
 
     var voiceNoteData: Data? {
         get { MirrorEncryption.decryptOptionalData(encryptedVoiceNoteData) }
-        set { encryptedVoiceNoteData = MirrorEncryption.encryptOptionalData(newValue) }
+        set { encryptedVoiceNoteData = Self.sealed(newValue, keeping: encryptedVoiceNoteData) }
     }
 
     var voiceNoteTranscript: String? {
@@ -156,7 +156,7 @@ enum EntrySource: String, Codable {
 
     var additionalVoiceNoteData: [Data] {
         get { MirrorEncryption.decryptDataArray(Self.decodedDataArray(from: encryptedAdditionalVoiceNoteDataStorage)) }
-        set { encryptedAdditionalVoiceNoteDataStorage = Self.encoded(MirrorEncryption.encryptDataArray(newValue)) }
+        set { encryptedAdditionalVoiceNoteDataStorage = Self.sealedArray(newValue, keeping: encryptedAdditionalVoiceNoteDataStorage) }
     }
 
     var additionalVoiceNoteDurations: [Double] {
@@ -282,6 +282,24 @@ enum EntrySource: String, Codable {
 
     private static func encoded<T: Encodable>(_ value: T) -> Data? {
         try? JSONEncoder().encode(value)
+    }
+
+    /// A data field's new sealed value. If sealing fails (key unreadable; writers check
+    /// `MirrorEncryption.canEncrypt` first, so this is the backstop), keep what was stored rather
+    /// than nil, which would save as a deleted photo or recording, or plaintext.
+    private static func sealed(_ value: Data?, keeping stored: Data?) -> Data? {
+        guard let value, !value.isEmpty else { return value }
+        return MirrorEncryption.sealData(value) ?? stored
+    }
+
+    private static func sealedArray(_ values: [Data], keeping stored: Data?) -> Data? {
+        var sealed: [Data] = []
+        for value in values {
+            if value.isEmpty { sealed.append(value); continue }
+            guard let box = MirrorEncryption.sealData(value) else { return stored }
+            sealed.append(box)
+        }
+        return encoded(sealed)
     }
 
     static func decodedDataArray(from data: Data?) -> [Data] {

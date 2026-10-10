@@ -31,6 +31,8 @@ final class MoodAutoDetector {
         guard !entry.textDecryptionFailed else { return nil }
         // A mood sealed under a key this device lacks reads as nil: don't take that for "no mood".
         guard !MirrorEncryption.encryptedStringNeedsUnavailableKey(entry.encryptedMood ?? "") else { return nil }
+        // The mood is saved encrypted: never write it in plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return nil }
         let text = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
 

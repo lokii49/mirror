@@ -45,6 +45,8 @@ struct MoodCheckInView: View {
     @State private var floatingBottomInset: CGFloat = 0
 
     private func log(_ mood: String) {
+        // Saved encrypted; with the key unreadable, log nothing rather than plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return }
         modelContext.insert(MoodCheckIn(mood: mood))
         try? modelContext.save()
         // Rebuild the widget mood-map blob (entries + check-ins) and refresh so

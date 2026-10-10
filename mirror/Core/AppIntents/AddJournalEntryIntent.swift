@@ -25,6 +25,9 @@ struct AddJournalEntryIntent: AppIntent {
         guard MirrorModelContainer.isStoreAvailable else {
             return .result(dialog: "MirrorNotes couldn't open your journal, so this wasn't saved. Open the app to fix it.")
         }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {
+            return .result(dialog: "Couldn't save this entry")
+        }
         let context = MirrorModelContainer.shared.mainContext
         let entry = Entry(text: trimmed, source: .typed)
         entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)

@@ -690,6 +690,13 @@ struct mirrorApp: App {
             #endif
             return
         }
+        // The reflection is saved encrypted: don't generate one that would be stored in plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {
+            #if DEBUG
+            print("[nudge] blocked: key-unavailable")
+            #endif
+            return
+        }
 
         // First nudge is free; subsequent require subscription. A fallback doesn't count as
         // "seen" — otherwise a free user whose very first attempt happened to fail the grounding
@@ -943,7 +950,7 @@ struct mirrorApp: App {
             ) else { return }
         }
 
-        guard modelAvailable() else { return }
+        guard modelAvailable(), MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
@@ -1009,7 +1016,7 @@ struct mirrorApp: App {
         guard DateHelpers.isInLastWeekOfMonth(now),
               monthEntries.count >= InsightService.monthlyReportMinimumEntries,
               SubscriptionService.shared.isDeep else { return }
-        guard modelAvailable() else { return }
+        guard modelAvailable(), MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
