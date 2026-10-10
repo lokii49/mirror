@@ -20,6 +20,7 @@
 		5C11E0A2CBDE4D6044A79CC3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E752852FB44FE800C6362E /* SwiftUI.framework */; };
 		874A6658760F43242C27D3C7 /* NudgeContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3E8AF6C8029FE2C096B5691 /* NudgeContentView.swift */; };
 		A15F1A0000000000000000C2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A15F1A0000000000000000C1 /* PrivacyInfo.xcprivacy */; };
+		A15F1A0000000000000000C4 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A15F1A0000000000000000C3 /* Localizable.xcstrings */; };
 		B83E27CB16CA580495291573 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8E07FB40F9F76D9DFAD6F67 /* UIKit.framework */; };
 		C9A5DDDB474001B3BC013FFA /* MirrorNotificationContentExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 343CCF1F3C7AC186F44DC6A2 /* MirrorNotificationContentExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DE1E4DCED50FB0CD5F7A8078 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9D0E3B54081E7DC818B20E /* NotificationViewController.swift */; };
@@ -87,6 +88,7 @@
 		8CD86132797862DC2B459B34 /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
 		B3E8AF6C8029FE2C096B5691 /* NudgeContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NudgeContentView.swift; sourceTree = "<group>"; };
 		A15F1A0000000000000000C1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A15F1A0000000000000000C3 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		BA27CC9A2CE7F541846A8490 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		CDB6C7B9AEC1F01EB79C0F39 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		D799A2D527ACB11DA3011917 /* MirrorNotificationContentExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MirrorNotificationContentExtension.entitlements; sourceTree = "<group>"; };
@@ -267,6 +269,7 @@
 			isa = PBXGroup;
 			children = (
 				42E941F173668728DBD25370 /* Info.plist */,
+				A15F1A0000000000000000C3 /* Localizable.xcstrings */,
 				D799A2D527ACB11DA3011917 /* MirrorNotificationContentExtension.entitlements */,
 				FE9D0E3B54081E7DC818B20E /* NotificationViewController.swift */,
 				B3E8AF6C8029FE2C096B5691 /* NudgeContentView.swift */,
@@ -489,6 +492,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A15F1A0000000000000000C2 /* PrivacyInfo.xcprivacy in Resources */,
+				A15F1A0000000000000000C4 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
