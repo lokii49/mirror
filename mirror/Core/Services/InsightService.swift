@@ -732,7 +732,11 @@ enum InsightService {
     /// Foundation Models and no Gemma file, the card offers the download instead of waiting on a
     /// generation that throws `modelMissing` every time (backlog A15).
     static func nudgeNeedsGemma(entries: [Entry], foundationModelsSupports: (String) -> Bool = FoundationModelEngine.supports(languageCode:)) -> Bool {
-        let (recent, background) = dailyNudgeContext(from: entries.filter(hasReadableContext), asOf: Date())
+        // The context reads at most the 23 newest readable entries (3 recent + 20 background), so
+        // decrypt only until those are found: this runs on every card refresh, on Foundation
+        // Models devices without Gemma, and the whole journal took one decrypt per entry.
+        let newestReadable = Array(entries.sorted { $0.createdAt > $1.createdAt }.lazy.filter(hasReadableContext).prefix(23))
+        let (recent, background) = dailyNudgeContext(from: newestReadable, asOf: Date())
         guard !recent.isEmpty, let code = groundedLocaleCode(for: recent + background) else { return false }
         return !foundationModelsSupports(code)
     }

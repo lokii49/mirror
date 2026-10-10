@@ -57,3 +57,20 @@ struct NudgeNeedsGemmaTests {
         #expect(!InsightService.nudgeNeedsGemma(entries: [], foundationModelsSupports: fmLanguages))
     }
 }
+
+extension NudgeNeedsGemmaTests {
+    /// Only the newest readable entries decide (the 23 the reflection reads): older ones in
+    /// another language don't change the answer.
+    @Test func olderEntriesBeyondTheContextDontCount() {
+        let now = Date()
+        var entries: [Entry] = (0..<25).map { i in
+            let e = Entry(text: "A synthetic English note about the walk home number \(i).")
+            e.createdAt = now.addingTimeInterval(Double(-i) * 3_600)
+            return e
+        }
+        let old = Entry(text: "Сегодня был длинный день на работе, и вечером я долго гулял по парку.")
+        old.createdAt = now.addingTimeInterval(-60 * 86_400)
+        entries.append(old)
+        #expect(!InsightService.nudgeNeedsGemma(entries: entries, foundationModelsSupports: { $0 != "ru" }))
+    }
+}
