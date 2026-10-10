@@ -113,7 +113,7 @@ The app has grown past what the rest of this doc describes. Not exhaustive, but 
 - **`GamificationEngine`** (`Core/Utilities/`) — XP, levels, and `SentinelRank` derived from entry history.
 - **Siri App Intent** — `AddJournalEntryIntent` (`Core/AppIntents/`), quick-capture via Siri/Shortcuts.
 - **App Store review prompt** — `ReviewRequestManager`, milestone-based, wired into `WriteView+Actions` and `AddJournalEntryIntent`.
-- **5 widgets**, not 2 — see iOS Project Structure below.
+- **7 widgets**, not 2 — see `MirrorWidgetExtension/MirrorWidgetExtensionBundle.swift`.
 
 ---
 
@@ -162,7 +162,7 @@ Layout is derivable via `ls`/`find`. Notable additions not obvious from a first 
 
 **Monthly Report trigger** (Deep only): generates during the last 7 days of the month (`DateHelpers.isInLastWeekOfMonth`) once the month has `monthlyReportMinimumEntries` (10) entries, via app-active + `BGProcessingTask` nightly pass — not on the 1st. User can also manually regenerate (respects 24h cache). `periodIdentifier` = `"2025-05"` format.
 
-**Mood Alert** (Deep only): Checked every app-active + nightly. Fires notification if last 3 consecutive entries have negative mood (Anxious/Overwhelmed/Frustrated/Drained/Sad/Numb).
+**Mood Alert** (Deep only): Checked every app-active + nightly. Fires a notification when the most recent 3 days *with a mood reading* are negative (Anxious/Overwhelmed/Frustrated/Drained/Sad/Numb), counting entry moods and mood check-ins with the day's latest reading winning. Days with no reading are skipped, the lookback is 12 days, and the newest reading must be within 2 days (`MoodLog.recentNegativeMoodDays`). It is not "3 consecutive entries".
 
 **Insight caching**: Before generating, check SwiftData for an existing `Insight` with a matching `periodIdentifier` and a `generatedAt` within 24h, and never regenerate inside that window. When today's newest daily reflection is the fallback, automatic triggers retry only after the writing it read changes (a text-free signature in `mirrorApp.fallbackRetrySignatureKey`, since 3.1.2); Try Again always runs. A digest/report regeneration that comes back as the fallback never replaces a real row for its period; the attempt is recorded per device and staleness counts from it (`InsightService.recordKeptRealRow`, 3.1.2).
 

@@ -547,7 +547,7 @@ struct mirrorApp: App {
         if DateHelpers.isSunday() {
             await runWeeklyDigestIfNeeded(context: context)
         }
-        // Monthly report: generate once 20+ entries exist (Deep only)
+        // Monthly report (Deep only): last 7 days of the month, 10+ entries (the runner's gates)
         await runMonthlyReportIfNeeded(context: context)
         // Fill in moods the save-time auto-detect missed, then check alerts
         await backfillMissingMoodsIfNeeded(context: context)
@@ -592,7 +592,7 @@ struct mirrorApp: App {
         if DateHelpers.isSunday() {
             await mirrorApp.runWeeklyDigestIfNeeded(context: context)
         }
-        // Monthly report: generate as soon as 20+ entries exist, not only on the 1st.
+        // Monthly report (Deep only): last 7 days of the month, 10+ entries (the runner's gates).
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
         // Fill in moods the save-time auto-detect missed, then check alerts
         await mirrorApp.backfillMissingMoodsIfNeeded(context: context)
