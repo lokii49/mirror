@@ -29,5 +29,7 @@ enum JournalErase {
         WriteView.eraseAllDraftStorage()
         // So is what the widgets and lock screen show (backlog A10).
         WidgetBridge.clearJournalDerived()
+        // And the lock-screen reminder, which can quote a line of today's reflection.
+        Task { await NotificationService.dropNudgePreview() }
     }
 }

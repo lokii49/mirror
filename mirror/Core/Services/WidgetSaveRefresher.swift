@@ -11,9 +11,11 @@ final class WidgetSaveRefresher {
     static let shared = WidgetSaveRefresher()
     private var observer: NSObjectProtocol?
     private var pending: Task<Void, Never>?
+    private var container: ModelContainer?
 
     func start(container: ModelContainer) {
         guard observer == nil else { return }
+        self.container = container
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: .main) { [weak self] note in
             guard Self.touchesJournal(note.userInfo) else { return }
             MainActor.assumeIsolated { self?.schedule(container: container) }
@@ -29,11 +31,21 @@ final class WidgetSaveRefresher {
         }
     }
 
+    /// The app is backgrounding: run a pending refresh now rather than after the debounce, so
+    /// saving and leaving straight away still updates the widgets.
+    func flushNow() {
+        guard pending != nil, let container else { return }
+        pending?.cancel()
+        pending = nil
+        mirrorApp.updateWidgetHeatmaps(context: container.mainContext)
+    }
+
     private func schedule(container: ModelContainer) {
         pending?.cancel()
         pending = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(800))
             guard !Task.isCancelled else { return }
+            pending = nil
             mirrorApp.updateWidgetHeatmaps(context: container.mainContext)
         }
     }

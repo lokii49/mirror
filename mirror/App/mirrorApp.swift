@@ -364,6 +364,7 @@ struct mirrorApp: App {
                 mirrorApp.activeGenerationTask = nil
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = nil
+                WidgetSaveRefresher.shared.flushNow()
                 scheduleDailyNudgeFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()

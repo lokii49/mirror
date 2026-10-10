@@ -39,6 +39,19 @@ extension SharedLLMState {
             #expect(defaults?.object(forKey: WidgetShared.digestThemeKey) == nil)
         }
 
+        /// A check-ins-only journal: the empty-journal clear must leave its mood map.
+        @Test func checkInsOnlyJournalKeepsItsMoodMap() throws {
+            let context = try makeContext()
+            context.insert(MoodCheckIn(mood: "Content"))
+            try context.save()
+            seedWidgetKeys()
+            mirrorApp.updateWidgetHeatmaps(context: context)
+            WidgetBridge.clearIfJournalEmpty(context: context)
+            #expect(defaults?.object(forKey: "widget.mood.heatmap") != nil)
+            #expect(defaults?.object(forKey: "widget.nudge.text") == nil, "the reflection text still goes")
+            WidgetBridge.clearJournalDerived()
+        }
+
         @Test func aJournalWithAnythingInItKeepsTheWidgets() throws {
             let context = try makeContext()
             context.insert(Entry(text: "A synthetic entry from yesterday."))

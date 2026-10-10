@@ -83,11 +83,16 @@ enum WidgetBridge {
 
     /// Every app-group key holding journal-derived content. Not `widget.tier` or
     /// `widget.displayMode`, which are settings.
-    static let journalDerivedKeys = [
+    static let journalDerivedKeys = insightTextKeys + [
+        "widget.entries.heatmap", "widget.mood.heatmap", "widget.streak", "widget.wrote.today",
+    ]
+
+    /// The reflection, digest and monthly text. The heatmap and streak keys are rewritten from the
+    /// store on every app-active (`updateWidgetHeatmaps`), so they never need clearing there.
+    static let insightTextKeys = [
         "widget.nudge.text", "widget.nudge.date", "widget.nudge.aboutDate", "widget.nudge.mood",
         WidgetShared.digestThemeKey, WidgetShared.digestWeekKey,
         WidgetShared.monthlyImageKey, WidgetShared.monthlyPeriodKey,
-        "widget.entries.heatmap", "widget.mood.heatmap", "widget.streak", "widget.wrote.today",
     ]
 
     /// After Delete Everything: the widgets and lock screen otherwise kept showing the last
@@ -109,8 +114,11 @@ enum WidgetBridge {
         } catch {
             return
         }
-        guard journalDerivedKeys.contains(where: { defaults?.object(forKey: $0) != nil }) else { return }
-        clearJournalDerived()
+        // Text only: a journal of mood check-ins alone has no entries or insights, and its mood map
+        // (written from the store just before this runs) must stay.
+        guard insightTextKeys.contains(where: { defaults?.object(forKey: $0) != nil }) else { return }
+        insightTextKeys.forEach { defaults?.removeObject(forKey: $0) }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Trim to the last sentence end within `max` characters, else the last word
