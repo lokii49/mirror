@@ -869,6 +869,9 @@ enum InsightService {
                 // beats no nudge at all that day. Only propagate if there's nothing to fall back
                 // on yet. A fabricated one still isn't shown as-is — see the shared fallback
                 // logic after the loop, which this jumps into instead of returning directly.
+                // A cancelled pass (app backgrounded, background task expired) isn't a failed
+                // attempt: give up without a result, so nothing is saved.
+                if Task.isCancelled { throw CancellationError() }
                 guard let lastResult else { throw error }
                 return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
             }
@@ -1311,6 +1314,9 @@ enum InsightService {
                 // it, unlike generateNudge's fail-open where a repeat-only violation is still
                 // truthful, would mean showing fabricated content. Use the honest fallback
                 // instead, same as the exhaustion path below.
+                // Cancelled (backgrounded, or the refresh task's time ran out): not a failed
+                // attempt. Saving the fallback here would show it all week (24h cache).
+                if Task.isCancelled { throw CancellationError() }
                 guard let previous = lastResult else { throw error }
                 return (weeklyDigestUngroundedFallback, previous.engine)
             }
@@ -1339,6 +1345,7 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("weekly digest generation produced no result")
         }
+        try Task.checkCancellation()
         return (weeklyDigestUngroundedFallback, lastResult.engine)
     }
 
@@ -1392,6 +1399,7 @@ enum InsightService {
                     gemmaValidator: monthlyValidator
                 )
             } catch {
+                if Task.isCancelled { throw CancellationError() }  // see generateWeeklyDigest
                 guard let previous = lastResult else { throw error }
                 return (monthlyReportUngroundedFallback, previous.engine)
             }
@@ -1419,6 +1427,7 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("monthly report generation produced no result")
         }
+        try Task.checkCancellation()
         return (monthlyReportUngroundedFallback, lastResult.engine)
     }
 

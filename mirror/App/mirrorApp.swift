@@ -364,6 +364,10 @@ struct mirrorApp: App {
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = nil
                 scheduleDailyNudgeFallback()
+                // The digest and report refreshes re-arm themselves after each run, so they
+                // need a first request from somewhere: before this, none was ever submitted.
+                scheduleWeeklyDigestFallback()
+                scheduleMonthlyReportFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
                 // A true backgrounding, unlike an .active->.inactive->.active flicker from a
@@ -1149,7 +1153,7 @@ struct mirrorApp: App {
         #endif
     }
 
-    // MARK: - Monthly report BGAppRefreshTask (fallback for 1st of month)
+    // MARK: - Monthly report BGAppRefreshTask (fallback: last day of the month, 9 PM)
 
     @MainActor
     private func runMonthlyReportFallback() async {
