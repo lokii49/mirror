@@ -523,8 +523,8 @@ func friendlyLLMError(_ error: Error) -> String {
         return String(localized: "MirrorNotes couldn't finish the reflection. Tap retry — it usually works on the next try.")
     case InsightError.emptyResponse:
         return String(localized: "MirrorNotes didn't get a response. Tap retry in a moment.")
-    case InsightError.serviceUnavailable:
-        return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
+    // serviceUnavailable used to promise "Mirror will try again tonight while your phone
+    // charges", but nothing retries Ask, and the nightly digest runs only on Sundays (backlog A15a).
     default:
         return String(localized: "Something went wrong. Tap retry or come back in a moment.")
     }
