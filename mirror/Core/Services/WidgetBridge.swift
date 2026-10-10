@@ -34,15 +34,27 @@ enum WidgetBridge {
     }
 
     /// Push the current week's digest "THIS WEEK'S THEME" line to `MirrorWeeklyDigestWidget`.
-    /// No-op (leaves the last value in place) if there's no digest for this week yet.
+    /// The newest *real* digest for the week: a fallback has no theme to show. No-op if the week
+    /// has none yet, except that a theme already stored for this week is cleared when the week
+    /// now has only fallbacks (`UngroundedInsightCleanup` turned it into one), so invented text
+    /// doesn't stay on the home screen. A failed fetch changes nothing.
     @MainActor
     static func syncWeeklyDigest(from context: ModelContext) {
         let week = DateHelpers.digestWeekIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == week }
         )
-        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
-        let digest = rows.filter { $0.type == .weeklyDigest }.max { $0.generatedAt < $1.generatedAt }
+        guard let rows = try? context.fetch(descriptor) else { return }
+        let digests = rows.filter { $0.type == .weeklyDigest }
+        let digest = digests
+            .filter { !InsightService.isUngroundedFallback($0.content) }
+            .max { $0.generatedAt < $1.generatedAt }
+        if digest == nil, !digests.isEmpty, defaults?.string(forKey: WidgetShared.digestWeekKey) == week {
+            defaults?.removeObject(forKey: WidgetShared.digestThemeKey)
+            defaults?.removeObject(forKey: WidgetShared.digestWeekKey)
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorWeeklyDigestWidget")
+            return
+        }
         guard let digest,
               let theme = InsightService.firstSectionBody(
                   of: digest.content, labels: InsightService.weeklyDigestSectionLabels
@@ -58,15 +70,25 @@ enum WidgetBridge {
     }
 
     /// Push the current month's "YOUR MONTH IN ONE IMAGE" metaphor to `MirrorMonthlyReportWidget`.
-    /// No-op if there's no monthly report for this month yet.
+    /// The newest real report for the month; clears this month's stored image when the month now
+    /// has only fallbacks (see `syncWeeklyDigest`).
     @MainActor
     static func syncMonthlyReport(from context: ModelContext) {
         let month = DateHelpers.monthIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == month }
         )
-        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
-        let report = rows.filter { $0.type == .monthlyReport }.max { $0.generatedAt < $1.generatedAt }
+        guard let rows = try? context.fetch(descriptor) else { return }
+        let reports = rows.filter { $0.type == .monthlyReport }
+        let report = reports
+            .filter { !InsightService.isUngroundedFallback($0.content) }
+            .max { $0.generatedAt < $1.generatedAt }
+        if report == nil, !reports.isEmpty, defaults?.string(forKey: WidgetShared.monthlyPeriodKey) == month {
+            defaults?.removeObject(forKey: WidgetShared.monthlyImageKey)
+            defaults?.removeObject(forKey: WidgetShared.monthlyPeriodKey)
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget")
+            return
+        }
         guard let report,
               let image = InsightService.firstSectionBody(
                   of: report.content, labels: InsightService.monthlyReportSectionLabels

@@ -524,14 +524,16 @@ struct mirrorApp: App {
         #endif
     }
 
-    private func next3AM() -> Date {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+    private func next3AM() -> Date { Self.next3AM(after: Date()) }
+
+    /// Earliest start for the nightly processing task: 3 AM today, or tomorrow once that's passed.
+    static func next3AM(after now: Date, calendar: Calendar = .current) -> Date {
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = 3
         components.minute = 0
         components.second = 0
-        guard var target = calendar.date(from: components) else { return Date() }
-        if target <= Date() {
+        guard var target = calendar.date(from: components) else { return now }
+        if target <= now {
             target = calendar.date(byAdding: .day, value: 1, to: target) ?? target
         }
         return target
@@ -1288,11 +1290,22 @@ struct mirrorApp: App {
         // this function (CachedInsightRepair, UngroundedInsightCleanup, preGenerateInsightsIfNeeded)
         // could otherwise push that text to the widget even when the in-app card correctly shows
         // the retry state instead.
-        guard let insights = try? context.fetch(descriptor),
-              let nudge = insights
-                  .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
-                  .max(by: { $0.generatedAt < $1.generatedAt }) else { return }
+        guard let insights = try? context.fetch(descriptor) else { return }
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
+        guard let nudge = insights
+            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
+            .max(by: { $0.generatedAt < $1.generatedAt }) else {
+            // Today has only fallbacks, yet the widget holds a line from today: it was today's
+            // reflection until `UngroundedInsightCleanup` turned it into a fallback. Clear it. A line
+            // from an earlier day stays (the next-morning widget keeps it until new writing).
+            if insights.contains(where: { $0.type == .dailyNudge }),
+               defaults?.string(forKey: "widget.nudge.date") == today {
+                ["widget.nudge.text", "widget.nudge.date", "widget.nudge.aboutDate", "widget.nudge.mood"]
+                    .forEach { defaults?.removeObject(forKey: $0) }
+                WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
+            }
+            return
+        }
         defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
