@@ -675,7 +675,7 @@ private struct MonthlyReportCard: View {
 
             if sections.isEmpty {
                 Text(insight.content)
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .readingFont(size: 16)
                     .lineSpacing(7)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .selectableUnlessSentinel(isSentinel)
@@ -712,7 +712,7 @@ private struct MonthlyReportCard: View {
             }
             if isQuestion {
                 Text(section.body)
-                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .readingFont(size: 17)
                     .italic()
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
@@ -720,7 +720,7 @@ private struct MonthlyReportCard: View {
                     .padding(.top, 2)
             } else {
                 Text(section.body)
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .readingFont(size: 16)
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .selectableUnlessSentinel(isSentinel)

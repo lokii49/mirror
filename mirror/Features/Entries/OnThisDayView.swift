@@ -105,7 +105,7 @@ private struct OnThisDayCard: View {
             }
 
             Text(snippet)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .foregroundStyle(MirrorTheme.textPrimary.opacity(0.9))
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)

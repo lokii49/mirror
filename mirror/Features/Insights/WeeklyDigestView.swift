@@ -54,7 +54,7 @@ struct WeeklyDigestView: View {
             if isExpanded {
                 if sections.isEmpty {
                     Text(insight.content)
-                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .readingFont(size: 15)
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .selectableUnlessSentinel(isSentinel)
@@ -91,7 +91,7 @@ struct WeeklyDigestView: View {
                     }
 
                     Text(previewText)
-                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .readingFont(size: 15)
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .lineLimit(4)
@@ -277,7 +277,7 @@ struct DigestSectionView: View {
             }
 
             Text(content)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .lineSpacing(6)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .selectableUnlessSentinel(isSentinel)

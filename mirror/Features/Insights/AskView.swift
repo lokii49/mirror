@@ -763,7 +763,7 @@ private struct AskBubblePair: View {
                 InsightSourceButton(insight: insight)
             }
             Text(insight.content)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .lineSpacing(6)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .textSelection(.disabled)
@@ -790,7 +790,7 @@ private struct AskBubblePair: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(insight.content)
-                    .font(.system(size: 15, weight: .regular, design: .serif))
+                    .readingFont(size: 15)
                     .lineSpacing(6)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .textSelection(.enabled)

@@ -882,7 +882,7 @@ private struct PastNudgeCard: View {
                     .padding(.top, -4)
             }
             Text(insight.content)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .lineSpacing(5)
                 .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
                 .lineLimit(isExpanded ? nil : 3)
@@ -1579,7 +1579,7 @@ private struct InsightTextView: View {
                 )
                 .frame(height: 1)
             Text(displayText ?? insight.content)
-                .font(.system(size: 18, weight: .regular, design: .serif))
+                .readingFont(size: 18)
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
@@ -1933,7 +1933,7 @@ extension InsightView {
                                 .font(.system(size: 12))
                                 .foregroundStyle(MacTokens.secondaryInk)
                             Text(Self.macCurlyQuotes(row.text))
-                                .font(.system(size: 15, design: .serif))
+                                .readingFont(size: 15)
                                 .lineSpacing(3)
                                 .foregroundStyle(MacTokens.ink)
                                 .lineLimit(3)
@@ -2152,7 +2152,7 @@ private struct MacInsightInspector: View {
                     if today.isGrounded, let parts = today.parts {
                         block(title: "YOUR SENTENCE") {
                             Text("\u{201C}\(parts.quote)\u{201D}")
-                                .font(.system(size: 15, design: .serif))
+                                .readingFont(size: 15)
                                 .lineSpacing(3)
                                 .foregroundStyle(MacTokens.ink)
                                 .padding(.horizontal, 14).padding(.vertical, 12)
