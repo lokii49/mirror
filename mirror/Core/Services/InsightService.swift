@@ -1203,8 +1203,43 @@ enum InsightService {
     )
 
     static func isUnsupportedLanguageNotice(_ content: String) -> Bool {
-        content == dailyNudgeUnsupportedLanguageNotice
+        unsupportedLanguageNoticeTexts.contains(content)
     }
+
+    // The fallbacks are saved in the device's language and sync. Matching only the current
+    // language's text missed one saved on a device in another language, or before the user
+    // switched (backlog A6): it then read as a real reflection, blocked the day's generation and
+    // reached the widget. These are the catalog keys (the English source text); every bundled
+    // language's translation is added from its .lproj. The translations have not been reworded
+    // since they were added (git history of Localizable.xcstrings, 2026-10-10); a rewording must
+    // keep the old text matchable, like `legacyUngroundedFallbacks`.
+    static let fallbackCatalogKeys = (
+        nudge: "MirrorNotes couldn't find today's reflection clearly grounded in what you wrote. Add a bit more to today's entry and it'll try again.",
+        unsupportedLanguage: "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese.",
+        digest: "MirrorNotes couldn't find this week's digest clearly grounded in your entries. Try again, or write a bit more this week.",
+        monthly: "MirrorNotes couldn't find this month's report clearly grounded in your entries. Try again, or write a bit more this month."
+    )
+
+    /// `key` in every language the app bundle carries, plus the key itself and this device's text.
+    static func everyLanguage(ofCatalogKey key: String, current: String) -> Set<String> {
+        var texts: Set<String> = [key, current]
+        for language in Bundle.main.localizations where language != "Base" {
+            guard let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+                  let bundle = Bundle(path: path) else { continue }
+            texts.insert(bundle.localizedString(forKey: key, value: nil, table: nil))
+        }
+        return texts
+    }
+
+    private static let unsupportedLanguageNoticeTexts = everyLanguage(
+        ofCatalogKey: fallbackCatalogKeys.unsupportedLanguage, current: dailyNudgeUnsupportedLanguageNotice
+    )
+
+    private static let ungroundedFallbackTexts: Set<String> = everyLanguage(ofCatalogKey: fallbackCatalogKeys.nudge, current: dailyNudgeUngroundedFallback)
+        .union(unsupportedLanguageNoticeTexts)
+        .union(everyLanguage(ofCatalogKey: fallbackCatalogKeys.digest, current: weeklyDigestUngroundedFallback))
+        .union(everyLanguage(ofCatalogKey: fallbackCatalogKeys.monthly, current: monthlyReportUngroundedFallback))
+        .union(legacyUngroundedFallbacks)
 
     /// Advisor-suggested detection: a fallback insight needs no schema change (no new field on
     /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
@@ -1222,11 +1257,7 @@ enum InsightService {
     /// staying schema-free; a `resolvedDigestState`-style pure function (flagged separately) is
     /// the more durable fix if this set grows unwieldy.
     static func isUngroundedFallback(_ content: String) -> Bool {
-        content == dailyNudgeUngroundedFallback
-            || content == dailyNudgeUnsupportedLanguageNotice
-            || content == weeklyDigestUngroundedFallback
-            || content == monthlyReportUngroundedFallback
-            || legacyUngroundedFallbacks.contains(content)
+        ungroundedFallbackTexts.contains(content)
     }
 
     private static let legacyUngroundedFallbacks: Set<String> = [
