@@ -1913,7 +1913,8 @@ enum InsightService {
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
-                await LocalLLMService.shared.resetContext()
+                // No resetContext() here: outside the queue it could stop another caller's
+                // stream, and the retry's generate() resets inside it (backlog A15).
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             }
