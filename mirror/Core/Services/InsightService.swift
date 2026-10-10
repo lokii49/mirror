@@ -766,7 +766,11 @@ enum InsightService {
         // `groundedLocales`; Russian is in that list, it runs on Gemma). The free-prose prompt that used
         // to answer here invented in most Foundation Models outputs, and no translated opener or mood
         // line exists to compose a grounded one, so no model runs: the honest card, like the case above.
-        if localized == nil, let code = responseLanguageTarget(from: recent + background)?.code, code != "en", groundedLocales[code] == nil {
+        // Resolved like `groundedNudgePlan` and `groundedLocaleCode`: the entries' language, else the
+        // device's. Detection alone missed entries too short to detect on a device in an unsupported
+        // language, and the retired free-prose prompt answered (backlog A9).
+        let nudgeTarget = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
+        if localized == nil, let code = nudgeTarget?.code, code != "en", groundedLocales[code] == nil {
             return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
 
@@ -820,6 +824,12 @@ enum InsightService {
             }
             try Task.checkCancellation()
             return (dailyNudgeUngroundedFallback, .foundationModels, true)
+        }
+        // Only grounded plans go on from here. A `.samePrompt` plan would send the retired
+        // DAILY_NUDGE_LEGACY_SYSTEM as free prose; every language it could come from is answered
+        // above, so this is a backstop: the honest card, no model.
+        if case .samePrompt = nudgePlan {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
         // A language Foundation Models cannot work in (Russian) goes to Gemma without a doomed first call.
         let fmHandlesNudgeLanguage = nudgeLanguageCode.map { FoundationModelEngine.supports(languageCode: $0) } ?? true
@@ -1732,7 +1742,15 @@ enum InsightService {
         return responseLanguageTarget(forCode: code)
     }
 
+    #if DEBUG
+    /// Tests only: stands in for the device language.
+    @TaskLocal static var deviceLanguageForTesting: String?
+    #endif
+
     private static func responseLanguageTargetFromCurrentLocale() -> ResponseLanguageTarget? {
+        #if DEBUG
+        if let code = deviceLanguageForTesting { return responseLanguageTarget(forCode: code) }
+        #endif
         guard let code = Locale.current.language.languageCode?.identifier else { return nil }
         return responseLanguageTarget(forCode: code)
     }
