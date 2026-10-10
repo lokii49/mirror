@@ -28,7 +28,6 @@ enum NoteTextCommand: Equatable {
     case sortCheckedToBottom
     case indentMore
     case indentLess
-    case photo(index: Int)
     case undo
     case redo
     /// Explicitly places the caret at a character offset — needed whenever `text` is set

@@ -915,8 +915,6 @@ struct NoteEditorTextView: NSViewRepresentable {
             case .uncheckAllItems: setAllChecklistItems(checked: false, in: textView)
             case .deleteCheckedItems: deleteCheckedItems(in: textView)
             case .sortCheckedToBottom: sortCheckedToBottom(in: textView)
-            case .photo:
-                break  // photos are attached under the editor on Mac
             }
         }
 

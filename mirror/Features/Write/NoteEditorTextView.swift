@@ -1012,9 +1012,6 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .indentLess:
                 applyIndent(delta: -1, in: textView)
                 return
-            case .photo(let index):
-                insertPhotoToken(at: index, in: textView)
-                return
             case .undo, .redo:
                 return   // handled in apply(_:to:)
             case .moveCursor(let location):
@@ -1585,63 +1582,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                 .foregroundColor: UIColor.label,
                 .paragraphStyle: ps
             ]
-        }
-
-        private func insertPhotoToken(at photoIndex: Int, in textView: UITextView) {
-            let logical = logicalText(from: textView)
-            let selectedRange = bounded(textView.selectedRange, in: logical)
-            let nsText = logical as NSString
-            var insertion = inlinePhotoToken(at: photoIndex)
-
-            if selectedRange.location > 0 {
-                let previous = nsText.substring(with: NSRange(location: selectedRange.location - 1, length: 1))
-                if previous != "\n" {
-                    insertion = "\n" + insertion
-                }
-            }
-
-            let end = selectedRange.location + selectedRange.length
-            if end < nsText.length {
-                let next = nsText.substring(with: NSRange(location: end, length: 1))
-                if next != "\n" {
-                    insertion += "\n"
-                }
-            } else {
-                insertion += "\n"
-            }
-
-            let updated = nsText.replacingCharacters(in: selectedRange, with: insertion)
-            parent.text = updated
-            // applyStyledText's own updateTypingAttributes call (at its end)
-            // runs BEFORE the selectedRange move below, so it computes typing
-            // attributes against the pre-insert cursor location, not where the
-            // cursor is about to land — stale by construction, not a guard
-            // misfiring. photoAttachmentString's attachment run carries no
-            // .font / .foregroundColor of its own either, so with nothing
-            // correct ever computed for the new position, UIKit fell back to
-            // its own default (small, black) typing attributes — text typed
-            // right after an attached photo rendered wrong-colored and
-            // wrong-sized until the next edit forced a real recompute.
-            applyStyledText(to: textView, preservingSelection: false)
-            textView.selectedRange = bounded(NSRange(location: selectedRange.location + insertion.count, length: 0), in: textView.text)
-            updatePlaceholder(in: textView)
-            // Recompute against the actual post-move cursor position.
-            // Usually that's a real character (e.g. a photo inserted right
-            // before existing text takes on that text's own style) — but a
-            // photo appended at the end lands the cursor on a genuinely empty
-            // trailing paragraph with no character to read attributes from,
-            // the same case bodyAttributes covers at the top of
-            // updateTypingAttributes for a wholly empty document.
-            let newCursorLoc = textView.selectedRange.location
-            let currentLength = (textView.text as NSString?)?.length ?? 0
-            if newCursorLoc >= currentLength {
-                textView.typingAttributes = bodyAttributes
-            } else {
-                let style = textStyle(at: newCursorLoc, in: textView.attributedText)
-                let level = indentLevelValue(at: newCursorLoc, in: textView.attributedText)
-                let fontChoice = fontChoiceValue(at: newCursorLoc, in: textView.attributedText)
-                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
-            }
         }
 
         private func renderedAttributedText(for rawText: String, width: CGFloat) -> NSMutableAttributedString {
