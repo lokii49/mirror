@@ -364,12 +364,6 @@ struct mirrorApp: App {
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = nil
                 scheduleDailyNudgeFallback()
-                // The digest and report refreshes re-arm themselves after each run, so they
-                // need a first request from somewhere: before this, none was ever submitted.
-                #if os(iOS)
-                armRefreshIfNotPending("com.lokesh.mirror.weeklyDigest") { scheduleWeeklyDigestFallback() }
-                armRefreshIfNotPending("com.lokesh.mirror.monthlyReport") { scheduleMonthlyReportFallback() }
-                #endif
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
                 // A true backgrounding, unlike an .active->.inactive->.active flicker from a
@@ -386,17 +380,11 @@ struct mirrorApp: App {
                 break
             }
         }
-        // Keep BGAppRefreshTask as a lightweight fallback for weekly digest on devices
-        // that don't charge overnight (power requirement not met for nightly task).
+        // One app refresh for everything the nightly task does, for devices that don't charge
+        // overnight (the nightly BGProcessingTask needs power): see runDailyNudgeFallback.
         #if os(iOS)
-        .backgroundTask(.appRefresh("com.lokesh.mirror.weeklyDigest")) {
-            await runWeeklyDigestFallback()
-        }
         .backgroundTask(.appRefresh("com.lokesh.mirror.dailyNudge")) {
             await runDailyNudgeFallback()
-        }
-        .backgroundTask(.appRefresh("com.lokesh.mirror.monthlyReport")) {
-            await runMonthlyReportFallback()
         }
         #endif
 
@@ -1100,9 +1088,21 @@ struct mirrorApp: App {
     private func runDailyNudgeFallback() async {
         // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
         guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+        // Re-arm first: once the task's time runs out, nothing after this point runs.
         scheduleDailyNudgeFallback()
+        let context = sharedModelContainer.mainContext
+        // The digest and report ride on this refresh. Separate weekly and monthly refresh
+        // requests were never submitted before 3.1.2, and when they were, they didn't stay
+        // pending next to this one on device (2026-10-10). They go first: each is due rarely
+        // and returns at once when it isn't, while the nudge has other triggers (app-active,
+        // the nightly task) and a refresh window fits about one generation.
+        if DateHelpers.isSunday() {
+            await mirrorApp.runWeeklyDigestIfNeeded(context: context)
+            guard !Task.isCancelled else { return }
+        }
+        await mirrorApp.runMonthlyReportIfNeeded(context: context)
+        guard !Task.isCancelled else { return }
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
     }
 
     private func scheduleDailyNudgeFallback() {
@@ -1136,37 +1136,7 @@ struct mirrorApp: App {
         }
     }
 
-    // MARK: - BGAppRefreshTask fallback for weekly digest
-
-    @MainActor
-    private func runWeeklyDigestFallback() async {
-        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
-        guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runWeeklyDigestIfNeeded(context: context)
-        scheduleWeeklyDigestFallback()
-    }
-
-    private func scheduleWeeklyDigestFallback() {
-        #if os(iOS)
-        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
-        request.earliestBeginDate = nextSunday7AM()
-        Self.submitRefresh(request)
-        #endif
-    }
-
     #if os(iOS)
-    /// First request for a refresh that re-arms itself in its handler. Only when none is pending:
-    /// a new submit replaces the pending one, and on a Sunday after 7 AM (or the month's last
-    /// evening) a fresh earliest date is a week (or a month) away, so a quick open-and-close would
-    /// push back a refresh that hadn't run yet.
-    private func armRefreshIfNotPending(_ identifier: String, schedule: @escaping @Sendable () -> Void) {
-        BGTaskScheduler.shared.getPendingTaskRequests { requests in
-            guard !requests.contains(where: { $0.identifier == identifier }) else { return }
-            schedule()
-        }
-    }
-
     private static func submitRefresh(_ request: BGTaskRequest) {
         do {
             try BGTaskScheduler.shared.submit(request)
@@ -1180,29 +1150,6 @@ struct mirrorApp: App {
         }
     }
     #endif
-
-    // MARK: - Monthly report BGAppRefreshTask (fallback: last day of the month, 9 PM)
-
-    @MainActor
-    private func runMonthlyReportFallback() async {
-        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
-        guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runMonthlyReportIfNeeded(context: context)
-        scheduleMonthlyReportFallback()
-    }
-
-    private func scheduleMonthlyReportFallback() {
-        #if os(iOS)
-        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
-        request.earliestBeginDate = lastDayOfCurrentMonth9PM()
-        Self.submitRefresh(request)
-        #endif
-    }
-
-    private func lastDayOfCurrentMonth9PM() -> Date { DateHelpers.lastDayOfMonth9PM() }
-
-    private func nextSunday7AM() -> Date { DateHelpers.nextSunday7AM() }
 
     // MARK: - Widget data bridge
 
