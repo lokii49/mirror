@@ -50,7 +50,9 @@ Use a **Claude Code cloud session** (claude.ai/code, or `/schedule` for a routin
 
 Prompt to start a session:
 
-> Work on branch `3.1.2` of lokii49/mirror. Follow `CLAUDE.md` (repo root) and read `.claude/3.1.2-backlog.md`. Take the next open item in order, starting with A15 (Talk It Out answers have no length cap; CLAUDE.md security rule 3: at most 10,000 characters sent to the local LLM, oldest content truncated first).
+> Work on branch `3.1.2` of lokii49/mirror. Follow `CLAUDE.md` (repo root). Read `.claude/3.1.2-backlog.md`, starting with its "Fixed" section, so you don't redo finished work. Take the next open item in order, starting at A17.
+>
+> Skip A16, A18's engine-tag question, A19, the B (translations) section and A15a (its copy needs translations): they need product decisions. Never touch release versions, App Store metadata or CloudKit schema.
 >
 > For each item:
 > - Write a failing Swift Testing test first, using synthetic text only.
@@ -59,14 +61,12 @@ Prompt to start a session:
 > - Commit with a message explaining the defect and the fix, then push.
 >
 > You can't run Xcode here, so say so in the commit message ("not built locally; see Xcode Cloud"). After each push, poll the commit's checks with `gh` (e.g. `gh api repos/lokii49/mirror/commits/<sha>/check-runs`) until Xcode Cloud finishes. If it's red, read the check details, fix and push again. Stop after 3 red rounds on one item and write what failed in the backlog. Add the item to the backlog's "Fixed" section, marked "pending device verification".
->
-> Stop and ask before A16, A19 or the B (translations) section: they need product decisions. Never touch release versions, App Store metadata or CloudKit schema.
 
 After each push, the `3.1.2 CI` workflow builds and tests it. A red run is emailed to the owner and shown in App Store Connect → Xcode Cloud. The next session, cloud or laptop, reads that result before starting new work.
 
 ## Laptop sessions don't use Xcode Cloud
 
-Work done on the laptop is built and tested locally: simulator compile checks, plus on-device tests on the iPhone 14 Pro (and the iPhone 13 for widgets and iCloud). Commits pushed from the laptop carry `[ci skip]` in the message, so Xcode Cloud doesn't spend compute hours on them. Only Claude app (cloud) sessions push without it.
+Work done on the laptop is built and tested locally: simulator compile checks, plus on-device tests on the iPhone 14 Pro (and the iPhone 13 for widgets and iCloud). Laptop commits stay local until the owner says to push. They don't carry `[ci skip]`: Xcode Cloud reads the pushed head commit, so a batch pushed later should still get one cloud check.
 
 ## When the laptop is back
 
