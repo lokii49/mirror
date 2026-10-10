@@ -72,8 +72,8 @@ actor SemanticSearchService {
         try LocalLLMService.modelDirectory().appendingPathComponent(modelFileName)
     }
 
-    /// Starts the download once the user has agreed, or retries one that failed (each Ask makes one
-    /// call). A download the user paused stays paused.
+    /// Starts the download right after the user agrees (Ask's card). Never called without a tap:
+    /// the download may use mobile data. A download the user paused stays paused.
     func ensureModelDownloadStarted() async {
         guard Self.consent == .accepted, !Self.isModelOnDisk else { return }
         await MainActor.run { ModelDownloadManager.searchModel.startIfIdle() }

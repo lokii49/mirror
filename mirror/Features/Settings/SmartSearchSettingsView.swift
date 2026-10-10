@@ -87,7 +87,7 @@ struct SmartSearchSettingsView: View {
     private var statusText: LocalizedStringKey {
         switch state {
         case .installed: return "Ready"
-        case .failed: return "Download didn't finish. It'll retry."
+        case .failed: return "Download didn't finish."
         default: return "Off"
         }
     }
@@ -224,7 +224,7 @@ struct SmartSearchOfferCard: View {
                 .transition(.opacity)
         case .failed:
             HStack(spacing: 10) {
-                Text("Download didn't finish. It'll retry.")
+                Text("Download didn't finish.")
                     .font(.system(size: 12.5))
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
