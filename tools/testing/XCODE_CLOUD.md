@@ -33,7 +33,7 @@ Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which
    - **Post-actions:** none. Archive, TestFlight and notarization are left out deliberately: releases stay manual, with the API-key upload method.
 5. **Save**, then **Start Build** once to confirm the first run is green.
 
-Signing is cloud-managed for build and test; nothing to configure. Xcode Cloud's free tier is 25 compute hours a month. One build-and-test run of this project is about 15–25 minutes.
+Signing is cloud-managed for build and test; nothing to configure. Check your included compute hours in App Store Connect → Xcode Cloud → Usage. A full local run of `mirror CI` on a simulator takes over 10 minutes; expect similar or longer per Xcode Cloud run.
 
 ## Continuing the backlog while the laptop is closed
 
@@ -41,7 +41,7 @@ Use a **Claude Code cloud session** (claude.ai/code, or `/schedule` for a routin
 
 Prompt to start a session:
 
-> Work on branch `3.1.2` of lokii49/mirror. Read `CLAUDE.md` (workspace copy if present) and `.claude/3.1.2-backlog.md`. Take the next open item in order, starting with A15 (Talk It Out answers have no length cap; CLAUDE.md security rule 3: at most 10,000 characters sent to the local LLM, oldest content truncated first).
+> Work on branch `3.1.2` of lokii49/mirror. Follow `CLAUDE.md` (repo root) and read `.claude/3.1.2-backlog.md`. Take the next open item in order, starting with A15 (Talk It Out answers have no length cap; CLAUDE.md security rule 3: at most 10,000 characters sent to the local LLM, oldest content truncated first).
 >
 > For each item:
 > - Write a failing Swift Testing test first, using synthetic text only.
@@ -49,7 +49,7 @@ Prompt to start a session:
 > - Get an advisor audit of the change.
 > - Commit with a message explaining the defect and the fix, then push.
 >
-> You can't run Xcode here, so say so in the commit message ("not built locally; see Xcode Cloud"). Add the item to the backlog's "Fixed" section, marked "pending device verification".
+> You can't run Xcode here, so say so in the commit message ("not built locally; see Xcode Cloud"). After each push, poll the commit's checks with `gh` (e.g. `gh api repos/lokii49/mirror/commits/<sha>/check-runs`) until Xcode Cloud finishes. If it's red, read the check details, fix and push again. Stop after 3 red rounds on one item and write what failed in the backlog. Add the item to the backlog's "Fixed" section, marked "pending device verification".
 >
 > Stop and ask before A16, A19 or the B (translations) section: they need product decisions. Never touch release versions, App Store metadata or CloudKit schema.
 
