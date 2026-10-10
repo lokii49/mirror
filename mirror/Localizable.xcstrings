@@ -65,6 +65,204 @@
         }
       }
     },
+    "1 earlier entry summarized · %lld quoted" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: one earlier entry summarized; the argument is how many were quoted (1).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 früherer Eintrag zusammengefasst · %lld zitiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 earlier entry summarized · %lld quoted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrada anterior resumida · %lld citada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrée antérieure résumée · %lld citée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 voce precedente riassunta · %lld citata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "以前のエントリー1件を要約・%lld件を引用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이전 항목 1개 요약 · %lld개 인용"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrada anterior resumida · %lld citada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "кратко: 1 более ранняя запись · цитат: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已概括 1 篇较早条目 · 引用 %lld 篇"
+          }
+        }
+      }
+    },
+    "1 entry carried in" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: one earlier entry was included.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 Eintrag übernommen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 entry carried in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrada incluida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrée reprise"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 voce inclusa"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1件のエントリーを引き継ぎ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목 1개 포함"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrada incluída"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "перенесена 1 запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "带入 1 篇条目"
+          }
+        }
+      }
+    },
+    "1 more entry" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: one further entry Ask looked through.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 weiterer Eintrag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 more entry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrada más"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 entrée de plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1 altra voce"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ほか1件のエントリー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목 1개 더"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "mais 1 entrada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ещё 1 запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "另外 1 篇条目"
+          }
+        }
+      }
+    },
     "\n\nBecause…" : {
       "comment" : "Mood log entry template seed text, after the cursor",
       "localizations" : {
@@ -127,6 +325,204 @@
     "\n2. \n3. " : {
       "comment" : "3 Wins entry template seed text, after the cursor",
       "shouldTranslate" : false
+    },
+    "%lld earlier entries summarized · %lld quoted" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: earlier entries summarized (first argument), of which some are quoted (second).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$lld frühere Einträge zusammengefasst · %2$lld zitiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld earlier entries summarized · %2$lld quoted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$lld entradas anteriores resumidas · %2$lld citadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$lld entrées antérieures résumées · %2$lld citées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$lld voci precedenti riassunte · %2$lld citate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "以前のエントリー%1$lld件を要約・%2$lld件を引用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이전 항목 %1$lld개 요약 · %2$lld개 인용"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$lld entradas anteriores resumidas · %2$lld citadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "кратко о более ранних записях: %1$lld · цитат: %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已概括 %1$lld 篇较早条目 · 引用 %2$lld 篇"
+          }
+        }
+      }
+    },
+    "%lld entries carried in" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: number of earlier entries included.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld Einträge übernommen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld entries carried in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld entradas incluidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld entrées reprises"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld voci incluse"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld件のエントリーを引き継ぎ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목 %lld개 포함"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld entradas incluídas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "перенесено записей: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "带入 %lld 篇条目"
+          }
+        }
+      }
+    },
+    "%lld more entries" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: further entries Ask looked through.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld weitere Einträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld more entries"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld entradas más"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld entrées de plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "altre %lld voci"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ほか%lld件のエントリー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목 %lld개 더"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "mais %lld entradas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ещё записей: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "另外 %lld 篇条目"
+          }
+        }
+      }
     },
     "?" : {
       "localizations" : {
@@ -445,6 +841,72 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "换一个提示"
+          }
+        }
+      }
+    },
+    "APPLE FOUNDATION MODELS · ON-DEVICE" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value. Keep the product name in English.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · AUF DEM GERÄT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APPLE FOUNDATION MODELS · ON-DEVICE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · EN EL DISPOSITIVO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · SUR L'APPAREIL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · SUL DISPOSITIVO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS・端末上"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · 기기 내"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · NO DISPOSITIVO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · НА УСТРОЙСТВЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "APPLE FOUNDATION MODELS · 设备端"
           }
         }
       }
@@ -829,6 +1291,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择今天的反思如何呈现：“温和”，只有你自己的话的“安静”，或带一个关于你所写内容的问题的“好奇”。在设置中选择。"
+          }
+        }
+      }
+    },
+    "CONTEXT" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: earlier entries sent as background.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "KONTEXT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CONTEXT"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CONTEXTO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CONTEXTE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CONTESTO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "コンテキスト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "맥락"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CONTEXTO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "КОНТЕКСТ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "上下文"
           }
         }
       }
@@ -1409,6 +1937,72 @@
         }
       }
     },
+    "EARLIER" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: entries from before this week/month.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "FRÜHER"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EARLIER"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ANTERIORES"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ANTÉRIEURES"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "PRECEDENTI"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "それ以前"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이전"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ANTERIORES"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "РАНЕЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更早"
+          }
+        }
+      }
+    },
     "EmbeddingGemma 300M by Google, downloaded from models.mirrornotes.org. Provided under and subject to the Gemma Terms of Use." : {
       "localizations" : {
         "de" : {
@@ -1537,6 +2131,138 @@
         }
       }
     },
+    "ENGINE" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: which on-device model wrote the insight.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODELL"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENGINE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MOTOR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MOTEUR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MOTORE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "エンジン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "엔진"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MOTOR"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ДВИЖОК"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引擎"
+          }
+        }
+      }
+    },
+    "Every quote is copied word for word from these entries. Long entries are shortened to fit." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note under the rows.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jedes Zitat ist wortwörtlich aus diesen Einträgen übernommen. Lange Einträge werden gekürzt, damit sie passen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every quote is copied word for word from these entries. Long entries are shortened to fit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada cita está copiada palabra por palabra de estas entradas. Las entradas largas se acortan para que quepan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chaque citation est copiée mot pour mot de ces entrées. Les entrées longues sont raccourcies pour tenir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ogni citazione è copiata parola per parola da queste voci. Le voci lunghe vengono accorciate per starci."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引用はすべてこれらのエントリーからそのまま写したものです。長いエントリーは収まるように短くしています。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "모든 인용은 이 항목들에서 그대로 옮긴 것입니다. 긴 항목은 분량에 맞게 줄입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada citação é copiada palavra por palavra destas entradas. Entradas longas são encurtadas para caber."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Каждая цитата скопирована дословно из этих записей. Длинные записи сокращаются, чтобы поместиться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "每段引用都逐字摘自这些条目。较长的条目会被缩短以便容纳。"
+          }
+        }
+      }
+    },
     "Every style, list and color is on screen at once, and each color shows what it does before you tap it." : {
       "localizations" : {
         "de" : {
@@ -1597,6 +2323,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "所有样式、列表和颜色一目了然，每种颜色在点按前就能看出效果。"
+          }
+        }
+      }
+    },
+    "Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note: second sentence for a non-English reflection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Alles nach dem Zitat ist fester Text, den MirrorNotes nach Stimmung auswählt; das Modell hat nur das Zitat gewählt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todo lo que sigue a la cita es texto fijo que MirrorNotes elige según el estado de ánimo; el modelo solo eligió la cita."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tout ce qui suit la citation est un texte fixe que MirrorNotes choisit selon l'humeur ; le modèle n'a choisi que la citation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tutto ciò che segue la citazione è testo fisso che MirrorNotes sceglie in base all'umore; il modello ha scelto solo la citazione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引用のあとの文はすべて、MirrorNotesが気分に応じて選ぶ固定の文章です。モデルが選んだのは引用だけです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "인용 뒤의 내용은 모두 MirrorNotes가 기분에 따라 고르는 고정 문구이며, 모델은 인용만 골랐습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tudo depois da citação é texto fixo que o MirrorNotes escolhe conforme o humor; o modelo só escolheu a citação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Всё после цитаты — фиксированный текст, который MirrorNotes подбирает по настроению; модель выбрала только цитату."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引用之后的内容都是 MirrorNotes 按情绪选用的固定文字；模型只选择了引用。"
           }
         }
       }
@@ -1793,6 +2585,72 @@
         }
       }
     },
+    "GEMMA 3 1B · ON-DEVICE" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value. Keep the model name in English.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · AUF DEM GERÄT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GEMMA 3 1B · ON-DEVICE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · EN EL DISPOSITIVO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · SUR L'APPAREIL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · SUL DISPOSITIVO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B・端末上"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · 기기 내"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · NO DISPOSITIVO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · НА УСТРОЙСТВЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GEMMA 3 1B · 设备端"
+          }
+        }
+      }
+    },
     "Gemma Terms of Use" : {
       "localizations" : {
         "de" : {
@@ -1853,6 +2711,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gemma 使用条款"
+          }
+        }
+      }
+    },
+    "GENERATED" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: when the insight was generated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ERSTELLT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GENERATED"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GENERADO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GÉNÉRÉ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GENERATO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "生成日時"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "생성 시각"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GERADO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "СОЗДАНО"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "生成时间"
           }
         }
       }
@@ -2242,6 +3166,72 @@
         }
       }
     },
+    "MATCHED" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: entries that matched the Ask question.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TREFFER"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MATCHED"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "COINCIDENCIAS"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CORRESPONDANCES"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CORRISPONDENZE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "一致"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "일치"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CORRESPONDÊNCIAS"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "СОВПАДЕНИЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "匹配"
+          }
+        }
+      }
+    },
     "Mint" : {
       "localizations" : {
         "de" : {
@@ -2370,6 +3360,138 @@
         }
       }
     },
+    "MOOD ARC" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: the month's moods.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "STIMMUNGSVERLAUF"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOOD ARC"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARCO DE ÁNIMO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARC D'HUMEUR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARCO DELL'UMORE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "気分の流れ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "기분 흐름"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARCO DE HUMOR"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ДИНАМИКА НАСТРОЕНИЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "情绪走向"
+          }
+        }
+      }
+    },
+    "MOOD READ" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: the moods of the entries the model read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "STIMMUNG"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOOD READ"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ÁNIMO LEÍDO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "HUMEUR LUE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "UMORE LETTO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "読み取った気分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "읽은 기분"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "HUMOR LIDO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "НАСТРОЕНИЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "读取的情绪"
+          }
+        }
+      }
+    },
     "Morning pages" : {
       "localizations" : {
         "de" : {
@@ -2430,6 +3552,204 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "晨间随笔"
+          }
+        }
+      }
+    },
+    "no entries matched" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: Ask found no matching entries.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "keine passenden Einträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no entries matched"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ninguna entrada coincidió"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "aucune entrée correspondante"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "nessuna voce corrispondente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "一致するエントリーなし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "일치하는 항목 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "nenhuma entrada correspondente"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "совпадений нет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "没有匹配的条目"
+          }
+        }
+      }
+    },
+    "none sent" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: no earlier entries were sent to the model.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "nichts gesendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "none sent"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "no se envió nada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "rien d'envoyé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "nulla inviato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "送信なし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "보내지 않음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "nada enviado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ничего не отправлено"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "未发送"
+          }
+        }
+      }
+    },
+    "ON-DEVICE MODEL" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value when the engine isn't recorded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODELL AUF DEM GERÄT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON-DEVICE MODEL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODELO EN EL DISPOSITIVO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODÈLE SUR L'APPAREIL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODELLO SUL DISPOSITIVO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "端末上のモデル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "기기 내 모델"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MODELO NO DISPOSITIVO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "МОДЕЛЬ НА УСТРОЙСТВЕ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "设备端模型"
           }
         }
       }
@@ -2948,6 +4268,204 @@
         }
       }
     },
+    "QUESTION" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: the question asked in Ask.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "FRAGE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QUESTION"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "PREGUNTA"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "QUESTION"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "DOMANDA"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "質問"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "질문"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "PERGUNTA"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ВОПРОС"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "问题"
+          }
+        }
+      }
+    },
+    "Read as monthly aggregates, not entry-by-entry." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note for a free-prose monthly report.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Als Monatsübersicht gelesen, nicht Eintrag für Eintrag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read as monthly aggregates, not entry-by-entry."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Leído como datos agregados del mes, no entrada por entrada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lu sous forme d'agrégats mensuels, pas entrée par entrée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Letto come dati aggregati del mese, non voce per voce."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "エントリーごとではなく、月全体の集計として読み込みました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목별이 아니라 월간 집계로 읽었습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lido como dados agregados do mês, não entrada por entrada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Прочитано как сводные данные за месяц, а не запись за записью."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "按月度汇总读取，而非逐条读取。"
+          }
+        }
+      }
+    },
+    "READ CLOSELY" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: the entries the reflection read in full.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "GENAU GELESEN"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "READ CLOSELY"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "LEÍDO A FONDO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "LU EN DÉTAIL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "LETTO CON CURA"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "精読"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "자세히 읽음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "LIDO COM ATENÇÃO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ПРОЧИТАНО ВНИМАТЕЛЬНО"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "细读"
+          }
+        }
+      }
+    },
     "Ready" : {
       "localizations" : {
         "de" : {
@@ -3393,6 +4911,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "晚饭后坐在阳台上。终于安静了。"
+          }
+        }
+      }
+    },
+    "SCANNED" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: further entries Ask looked through.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "DURCHSUCHT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCANNED"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "REVISADAS"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "PARCOURUES"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ESAMINATE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "走査"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "훑어봄"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "VERIFICADAS"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ПРОСМОТРЕНО"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已浏览"
           }
         }
       }
@@ -3845,6 +5429,72 @@
         }
       }
     },
+    "system prompt" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Fallback name of the linked system prompt.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Systemprompt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "system prompt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "prompt del sistema"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "prompt système"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "prompt di sistema"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "システムプロンプト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "시스템 프롬프트"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "prompt do sistema"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "системный промпт"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "系统提示词"
+          }
+        }
+      }
+    },
     "The cursor starts where you left off, and a draft keeps its date, font and tags. Type #work, or several tags separated by commas." : {
       "localizations" : {
         "de" : {
@@ -3905,6 +5555,402 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光标会停在你上次停下的位置，草稿会保留日期、字体和标签。输入 #工作，或用逗号分隔多个标签。"
+          }
+        }
+      }
+    },
+    "The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note: second sentence when the reflection ends with the app's tip.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Der letzte Satz ist fester Text, den MirrorNotes an schweren Tagen anfügt; das Modell hat ihn nicht geschrieben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La última frase es texto fijo que MirrorNotes añade en los días difíciles; el modelo no la escribió."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La dernière phrase est un texte fixe que MirrorNotes ajoute les jours difficiles ; le modèle ne l'a pas écrite."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "L'ultima frase è testo fisso che MirrorNotes aggiunge nei giorni difficili; il modello non l'ha scritta."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最後の一文は、つらい日にMirrorNotesが添える固定の文章です。モデルが書いたものではありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "마지막 문장은 힘든 날에 MirrorNotes가 덧붙이는 고정 문구이며, 모델이 쓴 것이 아닙니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A última frase é texto fixo que o MirrorNotes acrescenta nos dias difíceis; o modelo não a escreveu."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последнее предложение — фиксированный текст, который MirrorNotes добавляет в трудные дни; модель его не писала."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最后一句是 MirrorNotes 在难熬的日子里添加的固定文字，不是模型写的。"
+          }
+        }
+      }
+    },
+    "The quote is copied word for word from your newest entries, and MirrorNotes checked the sentence after it against what you wrote. When it can't confirm one, or on difficult days, the last sentence is fixed text MirrorNotes adds by mood." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note for an English Foundation Models reflection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Das Zitat ist wortwörtlich aus deinen neuesten Einträgen übernommen, und MirrorNotes hat den Satz danach mit deinem Text abgeglichen. Wenn es einen nicht bestätigen kann, oder an schweren Tagen, ist der letzte Satz fester Text, den MirrorNotes nach Stimmung hinzufügt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The quote is copied word for word from your newest entries, and MirrorNotes checked the sentence after it against what you wrote. When it can't confirm one, or on difficult days, the last sentence is fixed text MirrorNotes adds by mood."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La cita está copiada palabra por palabra de tus entradas más recientes, y MirrorNotes comprobó la frase siguiente con lo que escribiste. Cuando no puede confirmarla, o en los días difíciles, la última frase es texto fijo que MirrorNotes añade según el estado de ánimo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La citation est copiée mot pour mot de vos entrées les plus récentes, et MirrorNotes a vérifié la phrase suivante par rapport à ce que vous avez écrit. Quand il ne peut pas la confirmer, ou les jours difficiles, la dernière phrase est un texte fixe que MirrorNotes ajoute selon l'humeur."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La citazione è copiata parola per parola dalle tue voci più recenti e MirrorNotes ha verificato la frase successiva rispetto a ciò che hai scritto. Quando non riesce a confermarla, o nei giorni difficili, l'ultima frase è testo fisso che MirrorNotes aggiunge in base all'umore."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引用はあなたの最新のエントリーからそのまま写したもので、そのあとの文はMirrorNotesがあなたの書いた内容と照らし合わせて確認しています。確認できなかったときや、つらい日には、最後の一文はMirrorNotesが気分に応じて添える固定の文章です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "인용은 최근 항목에서 그대로 옮긴 것이며, 그 뒤의 문장은 MirrorNotes가 당신이 쓴 내용과 대조해 확인했습니다. 확인할 수 없을 때나 힘든 날에는 마지막 문장이 MirrorNotes가 기분에 따라 덧붙이는 고정 문구입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A citação é copiada palavra por palavra das suas entradas mais recentes, e o MirrorNotes conferiu a frase seguinte com o que você escreveu. Quando não consegue confirmá-la, ou nos dias difíceis, a última frase é texto fixo que o MirrorNotes acrescenta conforme o humor."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Цитата скопирована дословно из ваших последних записей, а следующее за ней предложение MirrorNotes сверил с тем, что вы написали. Если подтвердить его не удаётся, или в трудные дни, последнее предложение — фиксированный текст, который MirrorNotes добавляет по настроению."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "引用逐字摘自你最新的条目，之后的句子由 MirrorNotes 对照你写的内容核对过。无法核对时，或在难熬的日子里，最后一句是 MirrorNotes 按情绪添加的固定文字。"
+          }
+        }
+      }
+    },
+    "The sentence after “You also wrote” is another one of yours, copied word for word; the app picked it, not the model." : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note: last sentence when an English reflection shows the app-picked second quote. Keep “You also wrote” in English: it quotes the English reflection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Der Satz nach „You also wrote“ ist ein weiterer von dir, wortwörtlich übernommen; ausgewählt hat ihn die App, nicht das Modell."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sentence after “You also wrote” is another one of yours, copied word for word; the app picked it, not the model."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La frase después de «You also wrote» es otra tuya, copiada palabra por palabra; la eligió la app, no el modelo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La phrase après « You also wrote » est une autre des vôtres, copiée mot pour mot ; c'est l'app qui l'a choisie, pas le modèle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La frase dopo «You also wrote» è un'altra delle tue, copiata parola per parola; l'ha scelta l'app, non il modello."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "「You also wrote」のあとの文もあなたが書いたもので、そのまま写しています。選んだのはアプリで、モデルではありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“You also wrote” 뒤의 문장도 당신이 쓴 문장을 그대로 옮긴 것입니다. 모델이 아니라 앱이 골랐습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A frase depois de “You also wrote” é outra sua, copiada palavra por palavra; quem a escolheu foi o app, não o modelo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Предложение после «You also wrote» — тоже ваше, скопировано дословно; его выбрало приложение, а не модель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“You also wrote”之后的句子也是你写的，逐字摘录；是应用选的，不是模型。"
+          }
+        }
+      }
+    },
+    "THIS MONTH" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: this month's entries the report read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "DIESER MONAT"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "THIS MONTH"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ESTE MES"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CE MOIS-CI"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "QUESTO MESE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今月"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이번 달"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ESTE MÊS"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ЭТОТ МЕСЯЦ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "本月"
+          }
+        }
+      }
+    },
+    "THIS WEEK" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: this week's entries the digest read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "DIESE WOCHE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "THIS WEEK"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ESTA SEMANA"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "CETTE SEMAINE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "QUESTA SETTIMANA"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今週"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이번 주"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ESTA SEMANA"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ЭТА НЕДЕЛЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "本周"
+          }
+        }
+      }
+    },
+    "Untitled" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Snippet for an entry with no text, voice note or photo.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ohne Titel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sin título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sans titre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Senza titolo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "無題"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "제목 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sem título"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Без названия"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "无标题"
           }
         }
       }

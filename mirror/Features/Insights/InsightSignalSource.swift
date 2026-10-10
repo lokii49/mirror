@@ -57,19 +57,22 @@ struct InsightSignalSource: View {
 
     private func engineLabel() -> String {
         switch insight.generatedByEngine {
-        case "foundationModels": return "APPLE FOUNDATION MODELS · ON-DEVICE"
-        case "gemma":            return "GEMMA 3 1B · ON-DEVICE"
-        default:                 return "ON-DEVICE MODEL"
+        case "foundationModels": return String(localized: "APPLE FOUNDATION MODELS · ON-DEVICE")
+        case "gemma":            return String(localized: "GEMMA 3 1B · ON-DEVICE")
+        default:                 return String(localized: "ON-DEVICE MODEL")
         }
     }
 
-    private static func span(_ list: [Entry]) -> String {
-        guard let newest = list.first?.createdAt, let oldest = list.last?.createdAt else { return "no entries" }
-        let n = list.count
+    private static func entryCount(_ n: Int, _ bundle: Bundle) -> String {
+        n == 1 ? String(localized: "1 entry", bundle: bundle) : String(localized: "\(n) entries", bundle: bundle)
+    }
+
+    private static func span(_ list: [Entry], _ bundle: Bundle) -> String {
+        guard let newest = list.first?.createdAt, let oldest = list.last?.createdAt else { return String(localized: "no entries", bundle: bundle) }
         let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
             ? dayMonth.string(from: newest)
             : "\(dayMonth.string(from: oldest)) – \(dayMonth.string(from: newest))"
-        return "\(n) \(n == 1 ? "entry" : "entries") · \(range)"
+        return "\(entryCount(list.count, bundle)) · \(range)"
     }
 
     private static func moods(_ list: [Entry]) -> String {
@@ -78,8 +81,8 @@ struct InsightSignalSource: View {
         return seen.isEmpty ? "—" : seen.prefix(4).map { MirrorTheme.localizedMoodName(for: $0).uppercased() }.joined(separator: ", ")
     }
 
-    private static func snippet(for entry: Entry) -> String {
-        if entry.textDecryptionFailed { return "Encrypted entry unavailable" }
+    private static func snippet(for entry: Entry, _ bundle: Bundle) -> String {
+        if entry.textDecryptionFailed { return String(localized: "Encrypted entry unavailable", bundle: bundle) }
         var raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
         for (range, _) in allPhotoTokens(in: raw).reversed() { raw.removeSubrange(range) }
         let oneLine = raw
@@ -88,13 +91,13 @@ struct InsightSignalSource: View {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
         if !oneLine.isEmpty { return oneLine }
-        if entry.hasVoiceNotes { return "Voice note" }
-        if entry.hasPhoto { return "Photo entry" }
-        return "Untitled"
+        if entry.hasVoiceNotes { return String(localized: "Voice note", bundle: bundle) }
+        if entry.hasPhoto { return String(localized: "Photo entry", bundle: bundle) }
+        return String(localized: "Untitled", bundle: bundle)
     }
 
-    private static func readingList(_ list: [Entry]) -> [(day: String, snippet: String)] {
-        list.prefix(3).map { (day: dayMonth.string(from: $0.createdAt), snippet: snippet(for: $0)) }
+    private static func readingList(_ list: [Entry], _ bundle: Bundle) -> [(day: String, snippet: String)] {
+        list.prefix(3).map { (day: dayMonth.string(from: $0.createdAt), snippet: snippet(for: $0, bundle)) }
     }
 
     private func resolve() -> Resolved {
@@ -106,7 +109,8 @@ struct InsightSignalSource: View {
     /// the monthly report only this month's, with no earlier entries or summary at all. Those
     /// insights are recognized by their shape (`isGrammarGrounded`), the same test the saved-
     /// insight repair passes use; Foundation Models output never takes that path.
-    static func resolve(insight: Insight, entries: [Entry], engineLabel: String) -> Resolved {
+    /// Every label, value and note is looked up in `bundle`'s catalog (tests pass an .lproj).
+    static func resolve(insight: Insight, entries: [Entry], engineLabel: String, bundle: Bundle = .main) -> Resolved {
         let asOf = insight.generatedAt
         // Readability (hasReadableContext, which the generators filter on) decrypts, so it's
         // checked lazily on each case's slice, never across the whole history per render.
@@ -114,10 +118,13 @@ struct InsightSignalSource: View {
         let readable = InsightService.hasReadableContext
         let grammarPath = InsightService.isGrammarGrounded(insight.content)
             && insight.generatedByEngine != LLMEngine.foundationModels.rawValue
-        let quotedNote = "Every quote is copied word for word from these entries. Long entries are shortened to fit."
+        func localized(_ text: String.LocalizationValue) -> String { String(localized: text, bundle: bundle) }
+        let quotedNote = localized("Every quote is copied word for word from these entries. Long entries are shortened to fit.")
+        let noneSent = localized("none sent")
+        func carriedIn(_ n: Int) -> String { n == 1 ? localized("1 entry carried in") : localized("\(n) entries carried in") }
         var rows: [(String, String)] = [
-            ("ENGINE", engineLabel),
-            ("GENERATED", Self.stamp.string(from: asOf)),
+            (localized("ENGINE"), engineLabel),
+            (localized("GENERATED"), Self.stamp.string(from: asOf)),
         ]
 
         switch insight.type {
@@ -125,38 +132,38 @@ struct InsightSignalSource: View {
             let wk = DateHelpers.digestWeekIdentifier(for: asOf)
             let thisWeek = Array(prior.lazy.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == wk }.filter(readable).prefix(12))
             let earlier = prior.lazy.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) != wk }.filter(readable).prefix(14).count
-            rows.append(("THIS WEEK", Self.span(thisWeek)))
+            rows.append((localized("THIS WEEK"), Self.span(thisWeek, bundle)))
             if grammarPath {
-                rows.append(("EARLIER", "none sent"))
+                rows.append((localized("EARLIER"), noneSent))
             } else if earlier > 0 {
-                rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in"))
+                rows.append((localized("EARLIER"), carriedIn(earlier)))
             }
-            rows.append(("MOOD READ", Self.moods(thisWeek)))
-            return Resolved(rows: rows, reading: Self.readingList(thisWeek), note: grammarPath ? quotedNote : nil)
+            rows.append((localized("MOOD READ"), Self.moods(thisWeek)))
+            return Resolved(rows: rows, reading: Self.readingList(thisWeek, bundle), note: grammarPath ? quotedNote : nil)
 
         case .monthlyReport:
             let mo = DateHelpers.monthIdentifier(for: asOf)
             let monthE = prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == mo }.filter(readable)
             let earlier = prior.lazy.filter { DateHelpers.monthIdentifier(for: $0.createdAt) != mo }.filter(readable).prefix(20).count
-            rows.append(("THIS MONTH", Self.span(monthE)))
+            rows.append((localized("THIS MONTH"), Self.span(monthE, bundle)))
             if grammarPath {
-                rows.append(("EARLIER", "none sent"))
+                rows.append((localized("EARLIER"), noneSent))
             } else if earlier > 0 {
-                rows.append(("EARLIER", "\(earlier) \(earlier == 1 ? "entry" : "entries") carried in"))
+                rows.append((localized("EARLIER"), carriedIn(earlier)))
             }
-            rows.append(("MOOD ARC", Self.moods(monthE)))
-            return Resolved(rows: rows, reading: [], note: grammarPath ? quotedNote : "Read as monthly aggregates, not entry-by-entry.")
+            rows.append((localized("MOOD ARC"), Self.moods(monthE)))
+            return Resolved(rows: rows, reading: [], note: grammarPath ? quotedNote : localized("Read as monthly aggregates, not entry-by-entry."))
 
         case .askResponse:
             let q = (insight.question ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let pool = prior.filter(readable)   // Ask searches every readable entry, as ask() does
             let matched = SearchService.search(query: q, in: pool, limit: 10)
             let scanned = pool.filter { !Set(matched.map(\.id)).contains($0.id) }.prefix(8).count
-            if !q.isEmpty { rows.append(("QUESTION", q)) }
-            rows.append(("MATCHED", matched.isEmpty ? "no entries matched" : "\(matched.count) \(matched.count == 1 ? "entry" : "entries")"))
-            if scanned > 0 { rows.append(("SCANNED", "\(scanned) more \(scanned == 1 ? "entry" : "entries")")) }
-            rows.append(("MOOD READ", Self.moods(matched)))
-            return Resolved(rows: rows, reading: Self.readingList(matched), note: nil)
+            if !q.isEmpty { rows.append((localized("QUESTION"), q)) }
+            rows.append((localized("MATCHED"), matched.isEmpty ? localized("no entries matched") : Self.entryCount(matched.count, bundle)))
+            if scanned > 0 { rows.append((localized("SCANNED"), scanned == 1 ? localized("1 more entry") : localized("\(scanned) more entries"))) }
+            rows.append((localized("MOOD READ"), Self.moods(matched)))
+            return Resolved(rows: rows, reading: Self.readingList(matched, bundle), note: nil)
 
         case .dailyNudge:
             // dailyNudgeContext keeps at most 3 recent + 20 background, all from the newest
@@ -166,9 +173,9 @@ struct InsightSignalSource: View {
                 // groundedNudgePlan / localizedGroundedNudge: the newest entry and any others
                 // from the same day, nothing else.
                 let source = InsightService.groundedNudgeSourceEntries(recent)
-                rows.append(("READ CLOSELY", Self.span(source)))
-                rows.append(("CONTEXT", "none sent"))
-                rows.append(("MOOD READ", Self.moods(source)))
+                rows.append((localized("READ CLOSELY"), Self.span(source, bundle)))
+                rows.append((localized("CONTEXT"), noneSent))
+                rows.append((localized("MOOD READ"), Self.moods(source)))
                 // The linked instructions say "Do not give advice"; a closing tip is the app's.
                 // Outside English the whole line after the quote is the app's fixed text.
                 let endsWithFixedTip = InsightService.groundedNudgeTips.values.joined().contains { insight.content.hasSuffix($0) }
@@ -176,20 +183,20 @@ struct InsightSignalSource: View {
                     loc.feel.values.joined().contains { insight.content.hasSuffix($0) }
                 }
                 let base = endsWithLocalizedLine
-                    ? quotedNote + " Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote."
+                    ? quotedNote + " " + localized("Everything after the quote is fixed text MirrorNotes picks by mood; the model only chose the quote.")
                     : endsWithFixedTip
-                    ? quotedNote + " The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it."
+                    ? quotedNote + " " + localized("The last sentence is fixed text MirrorNotes adds on difficult days; the model didn't write it.")
                     : quotedNote
                 // Since 3.0.8: in the app, an English reflection is shown with a second sentence of theirs the
                 // app picked (display-time; see reflectionWithAlsoQuote).
                 let hasAlso = InsightService.reflectionWithAlsoQuote(insight.content, entries: source, generatedAt: insight.generatedAt).parts?.alsoQuote != nil
                 let note = hasAlso
-                    ? base + " The sentence after \u{201C}You also wrote\u{201D} is another one of yours, copied word for word; the app picked it, not the model."
+                    ? base + " " + localized("The sentence after \u{201C}You also wrote\u{201D} is another one of yours, copied word for word; the app picked it, not the model.")
                     : base
-                return Resolved(rows: rows, reading: Self.readingList(source), note: note)
+                return Resolved(rows: rows, reading: Self.readingList(source, bundle), note: note)
             }
             let background = backgroundEntries.count
-            rows.append(("READ CLOSELY", Self.span(recent)))
+            rows.append((localized("READ CLOSELY"), Self.span(recent, bundle)))
             if background > 0 {
                 // Honest about what actually reaches the model: `background` entries
                 // are never sent in full — only a handful of short excerpts plus
@@ -197,15 +204,17 @@ struct InsightSignalSource: View {
                 // "N earlier entries" read as "N entries fully read," which is what
                 // prompted the question this label now answers directly.
                 let quoted = min(background, InsightService.memoryBriefExcerptLimit)
-                rows.append(("CONTEXT", "\(background) earlier \(background == 1 ? "entry" : "entries") summarized · \(quoted) quoted"))
+                rows.append((localized("CONTEXT"), background == 1
+                    ? localized("1 earlier entry summarized · \(quoted) quoted")
+                    : localized("\(background) earlier entries summarized · \(quoted) quoted")))
             }
-            rows.append(("MOOD READ", Self.moods(recent)))
+            rows.append((localized("MOOD READ"), Self.moods(recent)))
             // English Foundation Models reflections (2026-10-02): the model returns a quote and one or two
             // sentences; the app finds the quote in the entries and checks the sentences.
             let checkedByApp = InsightService.isGrammarGrounded(insight.content)
             return Resolved(
-                rows: rows, reading: Self.readingList(recent),
-                note: checkedByApp ? "The quote is copied word for word from your newest entries, and MirrorNotes checked the sentence after it against what you wrote. When it can't confirm one, or on difficult days, the last sentence is fixed text MirrorNotes adds by mood." : nil
+                rows: rows, reading: Self.readingList(recent, bundle),
+                note: checkedByApp ? localized("The quote is copied word for word from your newest entries, and MirrorNotes checked the sentence after it against what you wrote. When it can't confirm one, or on difficult days, the last sentence is fixed text MirrorNotes adds by mood.") : nil
             )
         }
     }
@@ -214,7 +223,7 @@ struct InsightSignalSource: View {
         let r = resolve()
         let symbol = InsightService.systemPrompt(for: insight.type, content: insight.content, engine: insight.generatedByEngine).ref
             .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
-            ?? "system prompt"
+            ?? String(localized: "system prompt")
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
