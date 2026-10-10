@@ -28,6 +28,8 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "NO"
+      testTimeoutsEnabled = "YES"
+      defaultTestExecutionTimeAllowance = "300"
       shouldAutocreateTestPlan = "YES">
       <Testables>
          <TestableReference
