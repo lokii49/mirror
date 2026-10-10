@@ -8,7 +8,7 @@ Set up 2026-10-10 for the `3.1.2` backlog: build and unit-test every push on App
 |---|---|
 | iOS build (and macOS build, if added) of every push to `3.1.2` | Physical iPhone tests (14 Pro, iPhone 13): those need the laptop |
 | Unit tests (`mirrorTests`) on an iOS simulator | UI tests (`mirrorUITests`): left out, as XCUITest is unreliable on the Xcode 27 betas |
-| Results in App Store Connect and Xcode's Report navigator, emailed on failure | Model-gated tests: they skip, because simulators have no Foundation Models and no Gemma file |
+| Results in App Store Connect and Xcode's Report navigator (⌘9 → Cloud), emailed on failure | Model-gated tests: they skip, because simulators have no Foundation Models and no Gemma file |
 
 Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which includes the runner-level reflection tests. A clean CI run is therefore not the full device evidence the backlog asks for. Run those on the 14 Pro later (see "When the laptop is back").
 
@@ -19,8 +19,8 @@ Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which
 
 ## One-time setup (owner, in Xcode, about 10 minutes)
 
-1. Open `mirror.xcodeproj` in Xcode with the `3.1.2` branch checked out (the `mirror-3.1.2` worktree, or `git switch 3.1.2`).
-2. **Product → Xcode Cloud → Create Workflow…**, then pick the **mirror** app (bundle id `com.lokesh.mirror`; it already exists in App Store Connect).
+1. Open `mirror.xcodeproj` in Xcode with the `3.1.2` branch checked out (the `mirror-3.1.2` worktree, or `git switch 3.1.2`). The `mirror CI` scheme only exists on `3.1.2`.
+2. **Integrate → Create Workflow…** (Xcode 27 has it in the Integrate menu, not Product; the first time it may say "Get Started…"), then pick the **mirror** app (bundle id `com.lokesh.mirror`; it already exists in App Store Connect).
 3. When asked, **grant access to the GitHub repository** `lokii49/mirror`. Xcode opens App Store Connect to install the Xcode Cloud GitHub app on that repo. Allow only this repo.
 4. Edit the default workflow:
    - **Name:** `3.1.2 CI`
