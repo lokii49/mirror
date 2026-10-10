@@ -126,7 +126,6 @@ extension SharedLLMState {
             await viewModel.loadNudge(entries: try context.fetch(FetchDescriptor<Entry>()), insights: try context.fetch(FetchDescriptor<Insight>()), context: context)
             switch viewModel.nudgeState {
             case .loaded(let shown): #expect(shown.persistentModelID == lastNight.persistentModelID)
-            case .subscriptionRequired: break   // depends on the test host's tier
             default: Issue.record("expected last night's reflection on the card, got \(viewModel.nudgeState)")
             }
 

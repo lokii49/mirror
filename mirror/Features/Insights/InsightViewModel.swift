@@ -149,10 +149,25 @@ final class InsightViewModel {
             return .needsMoreEntries(3 - readable)
         }
 
-        // A fallback doesn't count as "seen" — a free user whose only nudge attempt so far
-        // failed the grounding check shouldn't be paywalled for a nudge they never got.
-        let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
-        if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
+        let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
+        // A reflection still current for the card: today's, or (next morning) one about
+        // yesterday's or today's writing with nothing written since.
+        func isCurrent(_ nudge: Insight) -> Bool {
+            if nudge.periodIdentifier == today { return true }
+            guard nudge.generatedAt >= startOfYesterday,
+                  !entries.contains(where: { $0.createdAt > nudge.generatedAt }),
+                  let aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: entries.sorted { $0.createdAt > $1.createdAt })
+            else { return false }
+            return aboutDay >= startOfYesterday
+        }
+
+        // The first reflection is free (CLAUDE.md, staged onboarding): a free user sees it, and
+        // the paywall follows it. This used to return .subscriptionRequired as soon as any real
+        // reflection existed, so the first one was never shown and that paywall never fired. A
+        // fallback doesn't count as "seen" either.
+        let realNudges = insights.filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+        if !realNudges.isEmpty && !SubscriptionService.shared.isSubscribed {
+            if realNudges.count == 1, let first = realNudges.first, isCurrent(first) { return .loaded(first) }
             return .subscriptionRequired
         }
 
@@ -181,14 +196,7 @@ final class InsightViewModel {
         // at 8:00" card nothing new is coming for, but only while it's about yesterday's or
         // today's writing and nothing has been written since: someone who skipped yesterday
         // still gets the "write today" card, not a reflection about the day before.
-        let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
-        if let latest = insights
-            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
-            .max(by: { $0.generatedAt < $1.generatedAt }),
-           latest.generatedAt >= startOfYesterday,
-           !entries.contains(where: { $0.createdAt > latest.generatedAt }),
-           let aboutDay = InsightService.reflectedDay(of: latest, entriesNewestFirst: entries.sorted { $0.createdAt > $1.createdAt }),
-           aboutDay >= startOfYesterday {
+        if let latest = realNudges.max(by: { $0.generatedAt < $1.generatedAt }), isCurrent(latest) {
             return .loaded(latest)
         }
 

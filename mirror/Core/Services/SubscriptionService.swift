@@ -29,11 +29,24 @@ final class SubscriptionService {
     var isSubscribed: Bool { tier != .free }
     var isDeep: Bool { tier == .deep }
 
+    /// Ask questions a month: none on Free, 15 on Core, unlimited on Deep (CLAUDE.md tiers).
+    static func askMonthlyLimit(for tier: SubscriptionTier) -> Int {
+        switch tier {
+        case .free: 0
+        case .core: 15
+        case .deep: .max
+        }
+    }
+
     private init() {
         // Widgets read the tier from the app group and treat a missing key as "free". With
         // everything free the answer is known now, so write it before RevenueCat replies (or
         // fails, offline): otherwise the widgets show a locked view with a price.
         if Self.allFeaturesFree { Self.publishTierToWidgets(.deep) }
+        // Paid tiers: start from RevenueCat's cached customer info so a cold launch (a background
+        // refresh, the nightly task) doesn't treat a subscriber as Free until the network answers
+        // and skip their digest, report or mood alert. Purchases is configured before this runs.
+        else if let cached = Purchases.shared.cachedCustomerInfo { updateTier(from: cached) }
         Task {
             // RevenueCat: restorePurchases "may force your users to enter the App Store password
             // so should only be performed on request of the user" (5.89.0 docs). While every

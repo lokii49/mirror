@@ -35,7 +35,7 @@ struct AskView: View {
     @FocusState private var isInputFocused: Bool
 
     private var monthLimit: Int {
-        subscriptionService.isDeep ? Int.max : 15
+        SubscriptionService.askMonthlyLimit(for: subscriptionService.tier)
     }
     private let bottomAnchorID = "ask-bottom-anchor"
 

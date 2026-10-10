@@ -60,6 +60,9 @@ enum PreGrammarInsightRegrade {
 
         var allDone = true
         for old in todo {
+            // Same tiers as the normal runners: digests are Core and up, reports Deep only.
+            let entitled = old.type == .weeklyDigest ? SubscriptionService.shared.isSubscribed : SubscriptionService.shared.isDeep
+            guard entitled else { continue }
             let period = old.periodIdentifier
             // The normal runners' keys, so this can't generate the same period at the same time.
             let key = old.type == .weeklyDigest ? "digest_\(period)" : "monthlyReport_\(period)"
