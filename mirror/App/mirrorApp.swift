@@ -941,6 +941,9 @@ struct mirrorApp: App {
 
     @MainActor
     static func runMonthlyReportIfNeeded(context: ModelContext) async {
+        // Cheap gates first: this runs on every app refresh, and everything below fetches and
+        // decrypts the whole journal.
+        guard DateHelpers.isInLastWeekOfMonth(), SubscriptionService.shared.isDeep else { return }
         let thisMonth = DateHelpers.monthIdentifier(for: Date())
         let coordinatorKey = "monthlyReport_\(thisMonth)"
 
