@@ -14,6 +14,8 @@ Model-gated means `@Test(.enabled(if: LocalLLMService.isModelAvailable))`, which
 
 **Baseline (2026-10-10, commit 8a26361, local Xcode 27.1 RC, iPhone 17 simulator):** `mirror CI` ran 863 passed, 32 skipped (model-gated and env-gated harnesses), 0 failed, with parallel simulator clones. No tests are excluded beyond `mirrorUITests`. A red Xcode Cloud run is therefore a real regression, or a difference in the Xcode/simulator version.
 
+**Baseline at the laptop HEAD (2026-10-10 late, 16 local commits after `aba735e`):** `mirror CI` on the local iPhone 17 simulator gave 891 passed, 41 skipped, 0 failed, with no hang. The `aba735e` Xcode Cloud test step ran over 2 hours without finishing, so that hang is specific to Xcode Cloud. Read its log in App Store Connect before the next cloud run.
+
 **Skipped on Xcode Cloud only** (the `mirror CI` scheme sets `MIRROR_CI_SIMULATOR=1`; the suites carry `.disabled(if:)` on it, and they still run under the `mirror` scheme and on device):
 - `ThemeExtractionServiceTests`: NLTagger returns no keywords on Xcode Cloud simulators.
 - `LargeJournalPerformanceTests`: its timing ceilings are for local machines.
