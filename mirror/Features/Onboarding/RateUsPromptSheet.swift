@@ -39,17 +39,21 @@ struct RateUsPromptSheet: View {
     private enum Step { case ask, notGreat }
 
     var body: some View {
-        VStack(spacing: 0) {
-            switch step {
-            case .ask: askStep
-            case .notGreat: notGreatStep
+        // Scrolls only if the sheet ends up shorter than its content (iOS 17/18 sheets, large
+        // Dynamic Type), so "Not now" is never cut off.
+        ScrollView {
+            VStack(spacing: 0) {
+                switch step {
+                case .ask: askStep
+                case .notGreat: notGreatStep
+                }
             }
+            .padding(.horizontal, 28)
+            .padding(.top, 36)
+            .padding(.bottom, 4)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = ceil($0) }
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 36)
-        .padding(.bottom, 4)
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = ceil($0) }
+        .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
             if #available(iOS 26, macOS 26, *) { floatingBottomInset = inset }
