@@ -64,6 +64,10 @@ Prompt to start a session:
 
 After each push, the `3.1.2 CI` workflow builds and tests it. A red run is emailed to the owner and shown in App Store Connect → Xcode Cloud. The next session, cloud or laptop, reads that result before starting new work.
 
+## Laptop sessions don't use Xcode Cloud
+
+Work done on the laptop is built and tested locally: simulator compile checks, plus on-device tests on the iPhone 14 Pro (and the iPhone 13 for widgets and iCloud). Commits pushed from the laptop carry `[ci skip]` in the message, so Xcode Cloud doesn't spend compute hours on them. Only Claude app (cloud) sessions push without it.
+
 ## When the laptop is back
 
 1. `git pull` in `mirror-3.1.2`.
