@@ -64,7 +64,11 @@ private struct MonthlyReportUnlockedView: View {
     @Environment(\.widgetFamily) private var family
     private let sentinel = widgetIsSentinel()
 
-    private var monthName: String { monthLabelFormatter.string(from: entry.date).uppercased() }
+    /// The month the shown image is about: last month's name while it's last month's (A16).
+    private var monthName: String {
+        let month = entry.isPreviousMonth ? (Calendar.current.date(byAdding: .month, value: -1, to: entry.date) ?? entry.date) : entry.date
+        return monthLabelFormatter.string(from: month).uppercased()
+    }
     private var isLarge: Bool { family == .systemLarge }
     private var glyphSize: CGFloat { isLarge ? 168 : 96 }
     private var bodySize: CGFloat { isLarge ? 18 : (sentinel ? 13 : 15) }
