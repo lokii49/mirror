@@ -387,17 +387,27 @@ final class FeatureCardService {
         #if os(macOS)
         return Self.macWhatsNewCards(current: currentAppVersion)
         #endif
-        guard let last = AppVersion(lastSeenVersion),
-              let current = AppVersion(currentAppVersion) else { return [] }
+        return Self.iOSWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion)
+    }
+
+    /// Only the newest release with cards since the last seen version, never the backlog. A device
+    /// with no last seen version but a synced profile (a reinstall or a new phone restored from
+    /// iCloud skips onboarding, which is what marks a new install seen) read as 0.0.0 and got all 28
+    /// cards since 1.0.0 as pages in 3.1.0. The newest release, not the current version's cards: a
+    /// version with no cards of its own (3.1.1) must still show the 3.1.0 privacy notice to someone
+    /// who skipped 3.1.0.
+    static func iOSWhatsNewCards(lastSeen: String, current: String) -> [FeatureCard] {
+        guard let last = AppVersion(lastSeen),
+              let currentVersion = AppVersion(current) else { return [] }
         let newSinceUpgrade = FeatureCardRegistry.all.filter {
             guard let cardVersion = AppVersion($0.sinceVersion) else { return false }
-            return cardVersion > last && cardVersion <= current
+            return cardVersion > last && cardVersion <= currentVersion
         }
         // Fallback: if already seen this version, still show current version's cards
-        if newSinceUpgrade.isEmpty {
-            return FeatureCardRegistry.all.filter { $0.sinceVersion == currentAppVersion }
+        guard let newest = newSinceUpgrade.compactMap({ AppVersion($0.sinceVersion) }).max() else {
+            return FeatureCardRegistry.all.filter { $0.sinceVersion == current }
         }
-        return newSinceUpgrade
+        return newSinceUpgrade.filter { AppVersion($0.sinceVersion) == newest }
     }
 
     var shouldShowWhatsNew: Bool {
