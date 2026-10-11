@@ -84,3 +84,50 @@ private struct EntrySelectionGuard: View {
     }
 }
 #endif
+
+#if os(iOS)
+/// Reports whether the system can place a vertical bar here (iPhone Duo: yes; iPad: no), from
+/// UIKit's `verticalBarEdge` trait (iOS 27.1). SwiftUI has no environment value for it.
+struct VerticalBarProbe: UIViewRepresentable {
+    @Binding var hasVerticalBar: Bool
+
+    func makeUIView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.onChange = { value in
+            if hasVerticalBar != value { hasVerticalBar = value }
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: ProbeView, context: Context) {}
+
+    final class ProbeView: UIView {
+        var onChange: ((Bool) -> Void)?
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            if #available(iOS 27.1, *) {
+                registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) { (view: ProbeView, _) in
+                    view.report()
+                }
+            }
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            report()
+        }
+
+        func report() {
+            guard window != nil else { return }
+            var value = false
+            if #available(iOS 27.1, *) { value = traitCollection.verticalBarEdge != .unspecified }
+            let callback = onChange
+            DispatchQueue.main.async { callback?(value) }
+        }
+    }
+}
+#endif

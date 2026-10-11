@@ -12,6 +12,11 @@ struct EntriesTabView: View {
     /// False when a parent (EntriesSplitView) provides the NavigationStack, so this list's toolbar
     /// shares one bar with the reader beside it.
     var ownsNavigationStack = true
+    #if os(iOS)
+    /// Whether the system can place a vertical bar here (VerticalBarProbe): the Duo moves this
+    /// list's toolbar into it; iPad has none.
+    @State private var hasVerticalBar = false
+    #endif
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
@@ -365,6 +370,34 @@ struct EntriesTabView: View {
         .accessibilityLabel("Search entries")
     }
 
+    /// Beside the reader on iPad, the system bar keeps one slot next to the centred tabs, so the
+    /// toolbar folded into a "More" button (owner: two taps for search is too many). The list
+    /// shows its title and actions in a header row instead. The Duo keeps them in its vertical bar.
+    private var actionsInListHeader: Bool {
+        #if os(iOS)
+        macSelection != nil && !hasVerticalBar
+        #else
+        false
+        #endif
+    }
+
+    #if os(iOS)
+    private var listHeaderRow: some View {
+        HStack(spacing: 16) {
+            Text(displayMode == .sentinel ? "Log" : "Entries")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 26, weight: .bold))
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            trailingToolbar
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .background(MirrorTheme.bgBase)
+    }
+    #endif
+
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
         OptionalNavigationStack(enabled: ownsNavigationStack) {
@@ -383,13 +416,17 @@ struct EntriesTabView: View {
             .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             #if os(iOS)
+            .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar))
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    trailingToolbar
+                if !actionsInListHeader {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        trailingToolbar
+                    }
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
+                    if actionsInListHeader { listHeaderRow }
                     if showSearch { searchBar }
                     if !collectionModels.isEmpty {
                         CollectionsBar(lookup: collectionLookup, scope: $filters.collection) { showOrganizer = true }
