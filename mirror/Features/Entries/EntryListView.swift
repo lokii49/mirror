@@ -877,8 +877,8 @@ struct EntriesTabView: View {
     #if os(iOS)
     /// Opening or closing an iPhone Duo (or resizing an iPad window) moves the open entry between
     /// the pushed reader and the reader column, so the user keeps reading what they had open.
-    /// Unfolding with nothing pushed clears the column, so it never shows an entry from before
-    /// (one that may since have been deleted).
+    /// Unfolding with nothing pushed leaves the column empty (EntriesSplitView clears its
+    /// selection on the way to compact), so it never shows an entry deleted meanwhile.
     private func handOverReader(toSideBySide: Bool) {
         var transaction = Transaction()
         transaction.disablesAnimations = true

@@ -55,6 +55,9 @@ struct EntriesSplitView: View {
             .onFoldChange { fold = $0 }
         }
         .onChange(of: navResetID) { _, _ in listResetID = UUID() }
+        // Compact, the list pushes the entry itself. Clearing here means an unfold can't draw
+        // the reader for an entry deleted meanwhile before the list hands its pushed one over.
+        .onChange(of: sideBySide) { _, side in if !side { selection = nil } }
     }
 
     private var listWidth: CGFloat { foldSplit?.leading ?? 420 }
