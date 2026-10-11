@@ -2856,7 +2856,10 @@ extension String {
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
             result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) —", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) –", with: "\(header):")
         }
+        result = result.withoutDigestDashes()
 
         result = result
             .components(separatedBy: .newlines)
@@ -2867,6 +2870,51 @@ extension String {
             .joined(separator: "\n")
 
         return softenDigestFragments(result)
+    }
+
+    /// Foundation Models writes the free-prose digest as "thing — why it matters" in nearly every
+    /// section: 20/20 rig digests had a dash, ~3.5 each (2026-10-11, scratch rig, synthetic weeks).
+    /// The prompt can't fix it: a no-dash rule left 5-8 of 20 with dashes, often unspaced
+    /// ("worry—it's"), and editing WEEKLY_DIGEST_SYSTEM would mislabel older digests in "How this
+    /// was generated". So the dash becomes a comma here, at save and again at display time
+    /// (WeeklyDigestView, the widget) for digests already stored. Never inside a quote: the
+    /// user's own words keep their dashes. A hyphen counts only when spaced (" - "), so "tug-of-war"
+    /// stays. CJK text is left alone (a dash there isn't a comma, and the ASCII ", " would look wrong).
+    func withoutDigestDashes() -> String {
+        guard contains(where: { "—–".contains($0) }) || contains("--") || contains(" - ") else { return self }
+        guard !unicodeScalars.contains(where: { (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) || (0xAC00...0xD7AF).contains($0.value) }) else { return self }
+
+        let closers: [Character: Character] = ["\"": "\"", "“": "”", "„": "“", "«": "»"]
+        var out = ""
+        var plain = ""
+        var closer: Character?
+        // Anchors only at the real start and end of the text, not at a quote's edge, so the comma
+        // in `You wrote, "…"` and the one after a quote both survive.
+        func flushPlain(atEnd: Bool = false) {
+            var s = plain
+                .replacingOccurrences(of: #"[ \t]*(?:[—–]|--)[ \t]*|[ \t]+-[ \t]+"#, with: ", ", options: .regularExpression)
+                .replacingOccurrences(of: #"([,;:]) *, "#, with: "$1 ", options: .regularExpression)
+                .replacingOccurrences(of: #"\n, "#, with: "\n", options: .regularExpression)
+                .replacingOccurrences(of: #", *([.!?…]|\n)"#, with: "$1", options: .regularExpression)
+            if out.isEmpty { s = s.replacingOccurrences(of: #"^, "#, with: "", options: .regularExpression) }
+            if atEnd { s = s.replacingOccurrences(of: #", *$"#, with: "", options: .regularExpression) }
+            out += s
+            plain = ""
+        }
+        for ch in self {
+            if let open = closer {
+                out.append(ch)
+                if ch == open { closer = nil }
+            } else if let match = closers[ch] {
+                flushPlain()
+                out.append(ch)
+                closer = match
+            } else {
+                plain.append(ch)
+            }
+        }
+        flushPlain(atEnd: true)
+        return out
     }
 
     private func softenDigestFragments(_ text: String) -> String {

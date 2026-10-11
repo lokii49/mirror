@@ -155,6 +155,7 @@ struct WeeklyDigestView: View {
             let body = String(afterHeader[..<bodyEnd])
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .replacingOccurrences(of: "\n\n", with: "\n")
+                .withoutDigestDashes()   // digests saved before 3.1.2 still carry FM's dashes
             results.append((title: header.canonical, body: body))
         }
 

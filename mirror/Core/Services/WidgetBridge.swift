@@ -61,7 +61,7 @@ enum WidgetBridge {
               )
         else { return }
 
-        let clipped = clip(theme, max: 200)
+        let clipped = clip(theme.withoutDigestDashes(), max: 200)
         let changed = defaults?.string(forKey: WidgetShared.digestThemeKey) != clipped
             || defaults?.string(forKey: WidgetShared.digestWeekKey) != week
         defaults?.set(clipped, forKey: WidgetShared.digestThemeKey)

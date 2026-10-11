@@ -91,5 +91,30 @@ extension SharedLLMState {
             #expect(InsightService.systemPrompt(for: .weeklyDigest, content: validDigest).body == WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
             #expect(InsightService.systemPrompt(for: .weeklyDigest, content: "THIS WEEK'S THEME: Settling in.").body != WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
         }
+
+        // Foundation Models' free-prose digest puts a dash in nearly every section (2026-10-11).
+        @Test func digestDashesBecomeCommasOutsideQuotes() {
+            #expect("Moving the desk — this small chore kept pulling you back.".withoutDigestDashes()
+                == "Moving the desk, this small chore kept pulling you back.")
+            #expect("The worry is real—it's costing you sleep.".withoutDigestDashes()
+                == "The worry is real, it's costing you sleep.")
+            #expect("A tug-of-war between the launch and sleep.".withoutDigestDashes()
+                == "A tug-of-war between the launch and sleep.")
+            #expect(#"You wrote, "Fixed it — finally." That sounds like relief — a real one."#.withoutDigestDashes()
+                == #"You wrote, "Fixed it — finally." That sounds like relief, a real one."#)
+            #expect("Start small with one walk — ".withoutDigestDashes() == "Start small with one walk")
+            #expect("今週は——疲れた".withoutDigestDashes() == "今週は——疲れた")
+        }
+
+        @Test func cleanedDigestDropsDashesAndKeepsHeaders() {
+            let raw = """
+                THIS WEEK'S THEME — Repainting the hallway — it took all week.
+                YOUR ENERGY: Most alive by the lake — most drained on Thursday.
+                """
+            let cleaned = raw.cleanedDigestOutput()
+            #expect(!cleaned.contains("—"))
+            #expect(cleaned.contains("THIS WEEK'S THEME: Repainting the hallway, it took all week."))
+            #expect(cleaned.contains("YOUR ENERGY: Most alive by the lake, most drained on Thursday."))
+        }
     }
 }
