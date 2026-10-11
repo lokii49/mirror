@@ -315,49 +315,51 @@ struct EntriesTabView: View {
         OnThisDayService.matches(in: entries)
     }
 
+    /// Separate toolbar buttons, not one custom HStack: the system can then lay them out itself —
+    /// a glass group on iPhone, and in the vertical bar beside the tabs on iPhone Duo. One
+    /// custom view counts as a single wide control, which stays in the top bar.
+    @ViewBuilder
     private var trailingToolbar: some View {
-        HStack(spacing: 16) {
-            filtersButton
-            if !onThisDayMatches.isEmpty {
-                Button {
-                    showOnThisDay = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
-                }
-                .accessibilityLabel("On This Day")
-            }
-            SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
-                Image(systemName: "bookmark")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.primary)
-            }
-            .accessibilityLabel("Saved views")
-            Menu {
-                ForEach(availableSortOrders, id: \.self) { order in
-                    Button {
-                        withAnimation { sortOrder = order }
-                    } label: {
-                        Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
-                    }
-                }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
-            }
-            .accessibilityLabel("Sort by")
+        filtersButton
+        if !onThisDayMatches.isEmpty {
             Button {
-                withAnimation { showSearch.toggle() }
+                showOnThisDay = true
             } label: {
-                Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
             }
-            .accessibilityLabel("Search entries")
+            .accessibilityLabel("On This Day")
         }
+        SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
+                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+            Image(systemName: "bookmark")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.primary)
+        }
+        .accessibilityLabel("Saved views")
+        Menu {
+            ForEach(availableSortOrders, id: \.self) { order in
+                Button {
+                    withAnimation { sortOrder = order }
+                } label: {
+                    Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
+        }
+        .accessibilityLabel("Sort by")
+        Button {
+            withAnimation { showSearch.toggle() }
+        } label: {
+            Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
+        }
+        .accessibilityLabel("Search entries")
     }
 
     var body: some View {
@@ -379,7 +381,7 @@ struct EntriesTabView: View {
             .navigationBarTitleDisplayMode(.inline)
             #if os(iOS)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     trailingToolbar
                 }
             }

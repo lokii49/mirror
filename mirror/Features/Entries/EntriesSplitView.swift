@@ -26,8 +26,8 @@ struct EntriesSplitView: View {
                 deepLinkEntryID: deepLinkEntryID,
                 macSelection: sideBySide ? $selection : nil
             )
-            .frame(width: sideBySide ? 360 : nil)
-            .frame(maxWidth: sideBySide ? 360 : .infinity)
+            .frame(width: sideBySide ? 420 : nil)
+            .frame(maxWidth: sideBySide ? 420 : .infinity)
 
             if sideBySide {
                 Rectangle()
