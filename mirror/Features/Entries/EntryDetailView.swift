@@ -311,8 +311,10 @@ struct EntryDetailView: View {
     }
 
     private var editButton: some View {
-        Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
-            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+        // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
+        // moves to the vertical one, splitting the reader's two buttons (owner, 2026-10-11).
+        Button("Edit", systemImage: "pencil") { showEditor = true }
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
             .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
