@@ -16,6 +16,7 @@
 | Downloads | Unknown. The July audit found ~0 [unverified now]. Pull App Analytics before growth spend. |
 
 ## Before 3.1.2 ships
+- **iPhone Duo support (owner, 2026-10-11):** the Duo ships Oct 23, and the live 3.1.1 (iOS 27.1 SDK) already renders natively on it. Plan: `3.1.2-iphone-duo.md` (audit → must-fix → Duo design → submit by about Oct 20). The remaining E items move to 3.2.0.
 - [owner] Native-speaker review of model-translated strings: everything marked `needs_review`. That covers release notes 3.0.7–3.1.1, the Write view, reflection styles, the search model, What's New, the privacy policy, plus all of 3.1.2's B work and the A16/A18 labels.
 - [owner] Siri phrases and the nudge notification in a non-English system language.
 - [owner] Device checks (`3.1.2-backlog.md` D3, D5, D6). These are listed under "Verify in production" below.
