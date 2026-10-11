@@ -16,6 +16,8 @@ struct EntriesTabView: View {
     /// Whether the system can place a vertical bar here (VerticalBarProbe): the Duo moves this
     /// list's toolbar into it; iPad has none.
     @State private var hasVerticalBar = false
+    /// The entry in the reader column, kept so a fold to compact can push it (handOverReader).
+    @State private var lastSideBySideEntry: Entry?
     #endif
 
     @Environment(\.modelContext) private var modelContext
@@ -564,6 +566,16 @@ struct EntriesTabView: View {
                 selectedEntry = nil
                 macSelection?.wrappedValue = nil
             }
+            #if os(iOS)
+            .onChange(of: macSelection?.wrappedValue?.id) { _, _ in
+                // Only while side by side: when the binding goes away the last reader is kept
+                // for the hand-over below.
+                if let macSelection { lastSideBySideEntry = macSelection.wrappedValue }
+            }
+            .onChange(of: macSelection != nil) { _, sideBySide in
+                handOverReader(toSideBySide: sideBySide)
+            }
+            #endif
             .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
                 guard let id = newID,
                       let match = entries.first(where: { $0.id == id }) else { return }
@@ -861,6 +873,29 @@ struct EntriesTabView: View {
             showEntryDetail = true
         }
     }
+
+    #if os(iOS)
+    /// Opening or closing an iPhone Duo (or resizing an iPad window) moves the open entry between
+    /// the pushed reader and the reader column, so the user keeps reading what they had open.
+    /// Unfolding with nothing pushed clears the column, so it never shows an entry from before
+    /// (one that may since have been deleted).
+    private func handOverReader(toSideBySide: Bool) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if toSideBySide {
+                let pushed = showEntryDetail ? selectedEntry : nil
+                showEntryDetail = false
+                selectedEntry = nil
+                macSelection?.wrappedValue = pushed
+            } else if let entry = lastSideBySideEntry {
+                lastSideBySideEntry = nil
+                selectedEntry = entry
+                showEntryDetail = true
+            }
+        }
+    }
+    #endif
 
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {

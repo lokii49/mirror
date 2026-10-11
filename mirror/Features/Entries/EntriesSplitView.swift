@@ -13,8 +13,8 @@ struct EntriesSplitView: View {
 
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selection: Entry?
-    /// Forwarded to the list's own reset. It also fires when the width class changes, so a reader
-    /// pushed while compact doesn't stay stacked inside the narrow list column after an unfold.
+    /// Forwarded to the list's own reset. A width-class change doesn't reset: the list hands the
+    /// open entry between the pushed reader and the reader column (`handOverReader`).
     @State private var listResetID = UUID()
     /// Half-folded iPhone Duo: the list ends at the fold and the reader starts after it.
     @State private var fold: FoldSpan?
@@ -55,7 +55,6 @@ struct EntriesSplitView: View {
             .onFoldChange { fold = $0 }
         }
         .onChange(of: navResetID) { _, _ in listResetID = UUID() }
-        .onChange(of: sideBySide) { _, _ in listResetID = UUID() }
     }
 
     private var listWidth: CGFloat { foldSplit?.leading ?? 420 }
