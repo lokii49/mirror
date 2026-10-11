@@ -42,12 +42,19 @@ struct InsightSignalSource: View {
     let insight: Insight
     let entries: [Entry]
 
-    private static let stamp: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "d MMM yyyy · HH:mm"; return f
+    /// Dates follow the locale ("11 Oct", "11. Okt.", "10月11日"); a fixed "d MMM" pattern read
+    /// "11 10月" in Japanese. The time stays 24-hour HH:mm in every language.
+    private static let clock: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm"; return f
     }()
-    private static let dayMonth: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "d MMM"; return f
-    }()
+
+    static func stampText(_ date: Date, locale: Locale = .current) -> String {
+        "\(date.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))) · \(clock.string(from: date))"
+    }
+
+    static func dayMonthText(_ date: Date, locale: Locale = .current) -> String {
+        date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+    }
 
     struct Resolved {
         var rows: [(label: String, value: String)]
@@ -70,8 +77,8 @@ struct InsightSignalSource: View {
     private static func span(_ list: [Entry], _ bundle: Bundle) -> String {
         guard let newest = list.first?.createdAt, let oldest = list.last?.createdAt else { return String(localized: "no entries", bundle: bundle) }
         let range = Calendar.current.isDate(newest, inSameDayAs: oldest)
-            ? dayMonth.string(from: newest)
-            : "\(dayMonth.string(from: oldest)) – \(dayMonth.string(from: newest))"
+            ? dayMonthText(newest)
+            : "\(dayMonthText(oldest)) – \(dayMonthText(newest))"
         return "\(entryCount(list.count, bundle)) · \(range)"
     }
 
@@ -97,7 +104,7 @@ struct InsightSignalSource: View {
     }
 
     private static func readingList(_ list: [Entry], _ bundle: Bundle) -> [(day: String, snippet: String)] {
-        list.prefix(3).map { (day: dayMonth.string(from: $0.createdAt), snippet: snippet(for: $0, bundle)) }
+        list.prefix(3).map { (day: dayMonthText($0.createdAt), snippet: snippet(for: $0, bundle)) }
     }
 
     private func resolve() -> Resolved {
@@ -124,7 +131,7 @@ struct InsightSignalSource: View {
         func carriedIn(_ n: Int) -> String { n == 1 ? localized("1 entry carried in") : localized("\(n) entries carried in") }
         var rows: [(String, String)] = [
             (localized("ENGINE"), engineLabel),
-            (localized("GENERATED"), Self.stamp.string(from: asOf)),
+            (localized("GENERATED"), Self.stampText(asOf)),
         ]
 
         switch insight.type {

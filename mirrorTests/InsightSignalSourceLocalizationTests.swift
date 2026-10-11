@@ -81,4 +81,16 @@ struct InsightSignalSourceLocalizationTests {
             if let note = english.note { #expect(note != translated.note, "\(language) \(i.type): note is still English") }
         }
     }
+
+    /// A fixed "d MMM" pattern put Japanese month names in English word order ("11 10月").
+    @Test func datesFollowTheLocale() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let date = cal.date(from: DateComponents(year: 2026, month: 10, day: 11, hour: 20, minute: 5))!
+        let ja = Locale(identifier: "ja_JP"), de = Locale(identifier: "de_DE")
+        #expect(InsightSignalSource.dayMonthText(date, locale: ja) == "10月11日")
+        #expect(InsightSignalSource.dayMonthText(date, locale: de).hasPrefix("11. Okt"))
+        #expect(InsightSignalSource.stampText(date, locale: ja) == "2026年10月11日 · 20:05")
+        #expect(InsightSignalSource.stampText(date, locale: Locale(identifier: "en_US")).hasSuffix(" · 20:05"))
+    }
 }
