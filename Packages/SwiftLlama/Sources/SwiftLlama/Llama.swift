@@ -33,17 +33,17 @@ final actor Llama {
 
         #if targetEnvironment(simulator)
                 model_params.n_gpu_layers = 0
-                print("Running on simulator, force use n_gpu_layers = 0")
+                debugLog("Running on simulator, force use n_gpu_layers = 0")
         #endif
 
         let model = LlamaModel(path: modelPath, parameters: model_params)
         guard let model else {
-            print("Could not load model at \(modelPath)")
+            debugLog("Could not load model at \(modelPath)")
             throw LlamaError.couldNotInitializeContext
         }
 
         let n_threads = ProcessInfo.processInfo.processorCount - 1
-        print("Using \(n_threads) threads")
+        debugLog("Using \(n_threads) threads")
 
         var contextParam = llama_context_default_params()
         contextParam.n_ctx = config.maxTokenCount
@@ -55,7 +55,7 @@ final actor Llama {
 
         let context = LlamaContext(model: model, parameters: contextParam)
         guard let context else {
-            print("Could not load context!")
+            debugLog("Could not load context!")
             throw LlamaError.couldNotInitializeContext
         }
 
@@ -110,23 +110,23 @@ final actor Llama {
         }
 
         if tokenList.starts(with: processedTokens) {
-            print("### Using cached processing")
+            debugLog("### Using cached processing")
             try processPrompt(tokens: Array(tokenList[processedTokens.count...]), startIndex: processedTokens.count)
         } else {
             // Check if we can optimize by only clearing from the divergence point
             let divergenceIndex = findDivergenceIndex(newTokenList: tokenList, processedTokens: processedTokens)
             
             if divergenceIndex > 0 && shouldUsePartialOptimization(divergenceIndex: divergenceIndex, totalProcessed: processedTokens.count) {
-                print("### Using partial optimization from position \(divergenceIndex)")
+                debugLog("### Using partial optimization from position \(divergenceIndex)")
                 do {
                     try optimizedReprocessing(newTokenList: tokenList, divergenceIndex: divergenceIndex)
                 } catch {
-                    print("Partial optimization failed, falling back to full reprocessing")
+                    debugLog("Partial optimization failed, falling back to full reprocessing")
                     clear()
                     try processPrompt(tokens: tokenList, startIndex: 0)
                 }
             } else {
-                print("### Full reprocessing required")
+                debugLog("### Full reprocessing required")
                 clear()
                 try processPrompt(tokens: tokenList, startIndex: 0)
             }
@@ -206,7 +206,7 @@ final actor Llama {
         do {
             try context.decode(batch: batch)
         } catch {
-            print("llama_decode() failed")
+            debugLog("llama_decode() failed")
             throw LlamaError.decodingError
         }
     }
@@ -238,4 +238,13 @@ final actor Llama {
         currentTokenPosition = Int32(processedTokens.count)
 
     }
+}
+
+/// mirror patch: llama's status lines go to stdout only in debug builds. None carries journal
+/// text, but release builds stay quiet (the model path, thread count, cache decisions).
+@inline(__always)
+private func debugLog(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    print(message())
+    #endif
 }
