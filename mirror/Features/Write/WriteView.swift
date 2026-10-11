@@ -381,6 +381,13 @@ struct WriteView: View {
                 #endif
 
             }
+            #if os(iOS)
+            // A readable column where there's room (iPad, an opened iPhone Duo), like the Mac's
+            // MacEditorColumn. Only the width limit changes with the size class, never the views,
+            // so a fold keeps the editor (and its undo history).
+            .frame(maxWidth: horizontalSizeClass == .regular ? 680 : .infinity)
+            .frame(maxWidth: .infinity)
+            #endif
 
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")

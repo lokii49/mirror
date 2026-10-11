@@ -439,7 +439,8 @@ struct ContentView: View {
         )
         return TabView(selection: selection) {
             Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
-                EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+                // List and reader side by side where there's room; compact keeps the pushed reader.
+                EntriesSplitView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
             }
             Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
                 WriteTabView(onSave: {
