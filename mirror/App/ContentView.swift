@@ -42,7 +42,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = ContentView.launchTab  // 0=Entries, 1=Write, 2=Insights
-    @State private var selectedSidebarItem: AppSidebarItem? = .write
+    @State private var selectedSidebarItem: AppSidebarItem? = ContentView.launchTab == 0 ? .entries : .write
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
@@ -215,7 +215,9 @@ struct ContentView: View {
             #if os(macOS)
             macLayout
             #else
-            if sizeClass == .regular {
+            if #available(iOS 18.0, *) {
+                adaptiveTabLayout
+            } else if sizeClass == .regular {
                 ipadLayout
             } else {
                 phoneLayout
@@ -310,6 +312,8 @@ struct ContentView: View {
             if phase == .active { maybeAutoPromptMoodCheckIn() }
         }
         .onChange(of: sizeClass) { _, newClass in
+            // iOS 18+ keeps one TabView across size classes, so there's nothing to map.
+            guard !Self.usesAdaptiveTabs else { return }
             if newClass == .regular {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
@@ -407,7 +411,57 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - iPhone layout (TabView)
+    // MARK: - One TabView for every size class (iOS 18+)
+
+    static var usesAdaptiveTabs: Bool {
+        #if os(iOS)
+        if #available(iOS 18.0, *) { return true }
+        #endif
+        return false
+    }
+
+    #if os(iOS)
+    /// The same tabs in every size class: a tab bar when compact, a sidebar on iPad, and the
+    /// vertical bar beside the status bar on iPhone Duo. Folding or unfolding a Duo changes
+    /// the size class but keeps these views, so the editor keeps its focus and undo history.
+    /// (The iOS 17 path swapped `phoneLayout` and `ipadLayout`, rebuilding every screen.)
+    /// No size-class branch may wrap a tab's content, or that rebuild comes back.
+    @available(iOS 18.0, *)
+    private var adaptiveTabLayout: some View {
+        let sentinel = displayMode == .sentinel
+        let selection = Binding<AppSidebarItem>(
+            get: { selectedSidebarItem ?? .write },
+            set: { selectedSidebarItem = $0 }
+        )
+        return TabView(selection: selection) {
+            Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
+                EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+            }
+            Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
+                WriteTabView(onSave: {
+                    selectedSidebarItem = .entries
+                    entriesNavResetID = UUID()
+                })
+            }
+            Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
+                InsightView(viewModel: insightViewModel)
+            }
+            // Its own item where there's room (owner, 2026-10-11); a compact tab bar leaves it
+            // out, and iPhone reaches Settings from the Insights toolbar as before.
+            Tab(sentinel ? "Config" : "Settings", systemImage: "gearshape", value: AppSidebarItem.settings) {
+                SettingsView()
+            }
+            .tabPlacement(.sidebarOnly)
+        }
+        .tabViewStyle(.sidebarAdaptable)
+        .defaultAdaptableTabBarPlacement(.sidebar)
+        .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .tint(sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+    }
+    #endif
+
+    // MARK: - iPhone layout (TabView), iOS 17
 
     private var phoneLayout: some View {
         TabView(selection: $selectedTab) {
