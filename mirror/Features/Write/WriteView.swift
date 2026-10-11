@@ -384,9 +384,10 @@ struct WriteView: View {
             #if os(iOS)
             // A readable column where there's room (iPad, an opened iPhone Duo), like the Mac's
             // MacEditorColumn. Only the width limit changes with the size class, never the views,
-            // so a fold keeps the editor (and its undo history).
+            // so a fold keeps the editor (and its undo history). Half-folded on the iPhone Duo the
+            // column moves to one side of the fold instead of sitting across it.
             .frame(maxWidth: horizontalSizeClass == .regular ? 680 : .infinity)
-            .frame(maxWidth: .infinity)
+            .avoidingFold()
             #endif
 
             if showSaved {
@@ -488,6 +489,8 @@ struct WriteView: View {
                     onDismiss: { dismissFollowUp() }
                 )
                 .padding(.horizontal, 16)
+                // Half-folded iPhone Duo: on the same side of the fold as the writing column.
+                .avoidingFold()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))

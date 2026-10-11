@@ -16,8 +16,14 @@ struct EntriesSplitView: View {
     /// Forwarded to the list's own reset. It also fires when the width class changes, so a reader
     /// pushed while compact doesn't stay stacked inside the narrow list column after an unfold.
     @State private var listResetID = UUID()
+    /// Half-folded iPhone Duo: the list ends at the fold and the reader starts after it.
+    @State private var fold: FoldSpan?
+    @State private var width: CGFloat = 0
 
     private var sideBySide: Bool { sizeClass == .regular }
+    private var foldSplit: FoldColumnSplit? {
+        sideBySide ? FoldColumnSplit(fold: fold, width: width, minimumColumn: 300) : nil
+    }
 
     var body: some View {
         // One NavigationStack for the whole tab, not one per column: the list's buttons and the
@@ -32,22 +38,27 @@ struct EntriesSplitView: View {
                     macSelection: sideBySide ? $selection : nil,
                     ownsNavigationStack: false
                 )
-                .frame(width: sideBySide ? 420 : nil)
-                .frame(maxWidth: sideBySide ? 420 : .infinity)
+                .frame(width: sideBySide ? listWidth : nil)
+                .frame(maxWidth: sideBySide ? listWidth : .infinity)
 
                 if sideBySide {
+                    // Flat: a hairline. Half-folded: the fold is the gap, so no text sits on it.
                     Rectangle()
-                        .fill(MirrorTheme.inkBorder)
-                        .frame(width: 1)
+                        .fill(foldSplit == nil ? MirrorTheme.inkBorder : MirrorTheme.bgBase)
+                        .frame(width: foldSplit?.gap ?? 1)
                         .ignoresSafeArea(edges: .vertical)
                     reader
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .onWidthChange($width)
+            .onFoldChange { fold = $0 }
         }
         .onChange(of: navResetID) { _, _ in listResetID = UUID() }
         .onChange(of: sideBySide) { _, _ in listResetID = UUID() }
     }
+
+    private var listWidth: CGFloat { foldSplit?.leading ?? 420 }
 
     @ViewBuilder
     private var reader: some View {

@@ -6,6 +6,8 @@ struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @State private var insightsFold: FoldSpan?
+    @State private var insightsWidth: CGFloat = 0
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw = ReflectionStyle.gentle.rawValue
@@ -82,8 +84,13 @@ struct InsightView: View {
 
     private var insightsColumnsLayout: AnyLayout {
         hSizeClass == .regular
-            ? AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: insightsFoldSplit?.gap ?? 16))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
+    }
+
+    /// Half-folded iPhone Duo: the left column ends at the fold and the right one starts after it.
+    private var insightsFoldSplit: FoldColumnSplit? {
+        hSizeClass == .regular ? FoldColumnSplit(fold: insightsFold, width: insightsWidth) : nil
     }
 
     private var iosContent: some View {
@@ -110,7 +117,8 @@ struct InsightView: View {
                                 MoodWeekChartView(events: cachedWeekMoodEvents)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .frame(width: insightsFoldSplit?.leading)
+                        .frame(maxWidth: insightsFoldSplit == nil ? .infinity : nil, alignment: .topLeading)
 
                         VStack(alignment: .leading, spacing: 20) {
                             digestSection
@@ -123,6 +131,8 @@ struct InsightView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
+                    .onWidthChange($insightsWidth)
+                    .onFoldChange { insightsFold = $0 }
                 }
                 .padding(16)
                 .padding(.bottom, 16)
