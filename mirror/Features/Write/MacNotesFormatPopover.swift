@@ -182,8 +182,8 @@ struct MacNotesFormatPopover: View {
     // MARK: - Colours
 
     /// A row of swatches spread across the popover, with no visible label (as on the iPhone panel):
-    /// highlights are filled dots, text colours are an "A" in that colour, so the rows tell themselves
-    /// apart. VoiceOver reads each swatch with its row ("Purple, Highlight").
+    /// a highlight is an ink "A" on that colour, a text colour is an "A" in that colour, so each swatch
+    /// previews its result and the rows tell themselves apart. VoiceOver reads each swatch with its row ("Purple, Highlight").
     private func swatchRow(row: LocalizedStringKey, noneLabel: LocalizedStringKey, colors: [Color], active: Int?,
                            asLetter: Bool, name: @escaping (Int) -> String,
                            apply: @escaping (Int?) -> Void) -> some View {
@@ -213,11 +213,12 @@ struct MacNotesFormatPopover: View {
                                 .frame(width: 18, height: 18)
                                 .overlay { if active == index { Circle().stroke(Color.accentColor, lineWidth: 2) } }
                         } else {
-                            Circle()
-                                .fill(color)
-                                .frame(width: 16, height: 16)
+                            Text(verbatim: "A")
+                                .font(.system(size: 13, weight: .heavy))
+                                .foregroundStyle(MacTokens.ink)
+                                .frame(width: 18, height: 18)
+                                .background(Circle().fill(color))
                                 .overlay { Circle().stroke(active == index ? Color.accentColor : MacTokens.controlBorder, lineWidth: active == index ? 2 : 1) }
-                                .padding(1)
                         }
                     }
                     .contentShape(Rectangle())

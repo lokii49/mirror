@@ -282,7 +282,7 @@ struct FormattingPanelView: View {
     }
 
     /// A row of swatches, one per column, spread to line up with the six cells of the bars above.
-    /// No visible label: the swatches show what they do (filled dots vs. coloured "A"s), and VoiceOver
+    /// No visible label: the swatches preview what they do (an "A" on a colour vs. a coloured "A"), and VoiceOver
     /// reads each one with its row ("Purple, Highlight").
     private func colorRow<Content: View>(@ViewBuilder _ swatches: () -> Content) -> some View {
         HStack(spacing: 0) { swatches() }
@@ -527,17 +527,20 @@ struct FormattingPanelView: View {
 
     // MARK: - Colour dots
 
-    /// A highlight swatch is the highlight colour itself.
+    /// A highlight swatch is an "A" in the text colour on the highlight colour, so it previews the
+    /// result and reads apart from the text-colour row (colour behind the letter vs. in it).
     private func highlightButton(index: Int) -> some View {
         let isActive = state.activeHighlightIndex == index
         return Button {
             let newIndex = isActive ? nil : index
             DispatchQueue.main.async { state.onCommand?(.highlight(index: newIndex)) }
         } label: {
-            Circle()
-                .fill(HighlightPalette.colors(for: displayMode)[index])
-                .overlay(Circle().stroke(Color.primary.opacity(0.12), lineWidth: 1))
+            Text("A")
+                .font(.system(size: 15 * typeScale, weight: .heavy))
+                .foregroundStyle(Color.primary)
                 .frame(width: swatchSize, height: swatchSize)
+                .background(Circle().fill(HighlightPalette.colors(for: displayMode)[index]))
+                .overlay(Circle().stroke(Color.primary.opacity(0.12), lineWidth: 1))
                 .overlay(Circle().stroke(isActive ? accent : Color.clear, lineWidth: 2).padding(-3))
                 .padding(3)
                 .contentShape(Circle())
