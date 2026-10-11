@@ -1,5 +1,7 @@
 # Platform roadmap: Mac, then visionOS
 
+> **Superseded 2026-10-11 by [`roadmap.md`](roadmap.md)**, the single roadmap. Open items, gates and decisions from this file were carried there. Kept for history; don't add new work here.
+
 Date: 2026-10-01. Updated 2026-10-02: native macOS is built on branch `mac` (see Status). visionOS is still only a plan.
 
 **Legend.** **[checked]** means I read the code, project file or binary this pass. **[unverified]** means it comes from memory of Apple's platform behaviour; confirm before building on it.

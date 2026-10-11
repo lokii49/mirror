@@ -94,7 +94,7 @@ Measure prompt changes off-device with `mirror/tools/llmrig` (README has method 
 
 ```
 ❌ Android / Web
-(Mac, then visionOS: on the platform roadmap — see `mirror/.claude/platform-roadmap.md`)
+(Mac, then visionOS: on the roadmap — see `mirror/.claude/roadmap.md`)
 ❌ Social features (never — private by design)
 ❌ Export to Notion/Obsidian (Phase 2)
 ❌ Multiple journals / folders (Phase 2)

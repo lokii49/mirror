@@ -1,5 +1,7 @@
 # Mac vs iPhone/iPad parity audit
 
+> **Superseded 2026-10-11 by [`roadmap.md`](roadmap.md)**, the single roadmap. Open items, gates and decisions from this file were carried there. Kept for history; don't add new work here.
+
 Started 2026-10-01. Method: grep every `#if os(iOS)` branch and shim (`PlatformCompat`), then go view by view and check the Mac expectations (keyboard, menus, context menus, dead actions). Each fix is verified in the Mac harness (`--macSnapshotParityOnly`, `--macSnapshotMenusOnly`, `--macEditorSelfTest`) against real state, not screenshots alone.
 
 Shims checked: `UIApplication.open` goes to `NSWorkspace` (About links, Rate, feedback work); `presentShareSheet` opens `NSSharingServicePicker`, anchored at the window origin (see open items); haptics are no-ops (fine); `fullScreenCover` becomes a sheet.

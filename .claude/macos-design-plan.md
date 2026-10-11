@@ -1,5 +1,7 @@
 # MirrorNotes for Mac: design plan
 
+> **Superseded 2026-10-11 by [`roadmap.md`](roadmap.md)**, the single roadmap. Open items, gates and decisions from this file were carried there. Kept for history; don't add new work here.
+
 **Update 2026-10-10:** built and shipped as a native macOS target (Mac 1.0 on sale; 1.1.0/1.1.1 merged to `main`), so the Catalyst question is closed. App lock was built after all (`Core/Security/AppLock.swift`, also gating the Mac menus). Sentinel on Mac is still deferred. The decisions below are kept as they were made.
 
 Date: 2026-10-01. Design only; nothing built. Companion to `platform-roadmap.md` (engineering path, sync rules, native-vs-Catalyst decision). This doc covers what the Mac app should look and behave like.
