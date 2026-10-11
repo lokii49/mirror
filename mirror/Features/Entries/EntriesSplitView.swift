@@ -47,10 +47,16 @@ struct EntriesSplitView: View {
                         .fill(foldSplit == nil ? MirrorTheme.inkBorder : MirrorTheme.bgBase)
                         .frame(width: foldSplit?.gap ?? 1)
                         .ignoresSafeArea(edges: .vertical)
+                    // Opaque and drawn after the list, so the list header's scrolling rows (moods,
+                    // week strip) end at the column edge instead of running into the reader.
+                    // (Clipping the list instead cut its background off under the bars.)
                     reader
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(MirrorTheme.bgBase.ignoresSafeArea())
                 }
             }
+            // Half-folding slides the columns apart to either side of the fold, and back.
+            .animation(.foldSplit, value: foldSplit)
             .onWidthChange($width)
             .onFoldChange { fold = $0 }
         }

@@ -131,6 +131,7 @@ struct InsightView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
+                    .animation(.foldSplit, value: insightsFoldSplit)
                     .onWidthChange($insightsWidth)
                     .onFoldChange { insightsFold = $0 }
                 }

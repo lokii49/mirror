@@ -26,6 +26,11 @@ nonisolated struct FoldSpan: Equatable, Sendable {
     }
 }
 
+extension Animation {
+    /// Columns sliding to either side of the fold as the Duo half-folds, and back as it opens.
+    static let foldSplit = Animation.spring(response: 0.45, dampingFraction: 0.86)
+}
+
 extension View {
     /// Tracks this view's width, ignoring sub-point changes (see `FoldSpan.differs`).
     func onWidthChange(_ width: Binding<CGFloat>) -> some View {
@@ -130,6 +135,7 @@ private struct FoldAvoidingModifier: ViewModifier {
         content
             .padding(.leading, insets.leading)
             .padding(.trailing, insets.trailing)
+            .animation(.foldSplit, value: fold)
             // Measured outside the padding, so the measured width doesn't change with it
             .frame(maxWidth: .infinity)
             .onWidthChange($width)
