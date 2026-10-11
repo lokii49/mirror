@@ -38,9 +38,11 @@ struct MacNotesFormatPopover: View {
                 checklistActions
             }
             Divider()
-            swatchRow(title: "Highlight", colors: HighlightPalette.colors(for: displayMode), active: state.activeHighlightIndex,
+            swatchRow(row: "Highlight", noneLabel: "No highlight", colors: HighlightPalette.colors(for: displayMode),
+                      active: state.activeHighlightIndex, asLetter: false,
                       name: { HighlightPalette.name(for: $0, displayMode: displayMode) }) { send(.highlight(index: $0)) }
-            swatchRow(title: "Text color", colors: TextColorPalette.colors(for: displayMode), active: state.activeTextColorIndex,
+            swatchRow(row: "Text color", noneLabel: "Default text color", colors: TextColorPalette.colors(for: displayMode),
+                      active: state.activeTextColorIndex, asLetter: true,
                       name: { TextColorPalette.name(for: $0, displayMode: displayMode) }) { send(.textColor(index: $0)) }
             Divider()
             bottomRow
@@ -179,32 +181,50 @@ struct MacNotesFormatPopover: View {
 
     // MARK: - Colours
 
-    private func swatchRow(title: LocalizedStringKey, colors: [Color], active: Int?, name: @escaping (Int) -> String,
+    /// A row of swatches spread across the popover, with no visible label (as on the iPhone panel):
+    /// highlights are filled dots, text colours are an "A" in that colour, so the rows tell themselves
+    /// apart. VoiceOver reads each swatch with its row ("Purple, Highlight").
+    private func swatchRow(row: LocalizedStringKey, noneLabel: LocalizedStringKey, colors: [Color], active: Int?,
+                           asLetter: Bool, name: @escaping (Int) -> String,
                            apply: @escaping (Int?) -> Void) -> some View {
-        HStack(spacing: 7) {
-            Text(title)
-                .font(.system(size: 11.5))
-                .foregroundStyle(MacTokens.secondaryInk)
-                .frame(width: 66, alignment: .leading)
+        HStack(spacing: 0) {
             Button { apply(nil) } label: {
-                Image(systemName: "circle.slash")
-                    .font(.system(size: 13))
-                    .foregroundStyle(MacTokens.secondaryInk)
-                    .frame(width: 18, height: 18)
+                Group {
+                    if asLetter {
+                        Text(verbatim: "A").font(.system(size: 13, weight: .bold)).foregroundStyle(MacTokens.ink)
+                    } else {
+                        Image(systemName: "circle.slash").font(.system(size: 13)).foregroundStyle(MacTokens.secondaryInk)
+                    }
+                }
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text("None"))
-            .help("None")
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(Text(noneLabel))
+            .help(Text(noneLabel))
             ForEach(Array(colors.enumerated()), id: \.offset) { index, color in
                 Button { apply(index) } label: {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 16, height: 16)
-                        .overlay { Circle().stroke(active == index ? Color.accentColor : MacTokens.controlBorder, lineWidth: active == index ? 2 : 1) }
-                        .padding(1)
+                    Group {
+                        if asLetter {
+                            Text(verbatim: "A")
+                                .font(.system(size: 13, weight: .heavy))
+                                .foregroundStyle(color)
+                                .frame(width: 18, height: 18)
+                                .overlay { if active == index { Circle().stroke(Color.accentColor, lineWidth: 2) } }
+                        } else {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 16, height: 16)
+                                .overlay { Circle().stroke(active == index ? Color.accentColor : MacTokens.controlBorder, lineWidth: active == index ? 2 : 1) }
+                                .padding(1)
+                        }
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Text(name(index)))
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(Text(verbatim: name(index) + ", ") + Text(row))
                 .accessibilityAddTraits(active == index ? .isSelected : [])
                 .help(name(index))
             }
