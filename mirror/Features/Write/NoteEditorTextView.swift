@@ -30,6 +30,9 @@ struct NoteEditorTextView: UIViewRepresentable {
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
+    /// WriteView's `usesPopoverPanel`: a popover off the Aa button where there's room,
+    /// otherwise the panel replaces the keyboard.
+    var panelAsPopover = false
     var onPhotoTapped: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> UITextView {
@@ -362,13 +365,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                         PHAssetChangeRequest.creationRequestForAsset(from: image)
                     }, completionHandler: nil)
                 }
-                let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { [weak textView] _ in
                     guard let image = UIImage(data: data) else { return }
-                    let vc = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-                    UIApplication.shared.connectedScenes
-                        .compactMap { $0 as? UIWindowScene }
-                        .first?.windows.first?.rootViewController?
-                        .present(vc, animated: true)
+                    presentShareSheet(items: [image], from: textView, rect: CGRect(origin: location, size: CGSize(width: 1, height: 1)))
                 }
                 return UIMenu(title: "", children: [copy, save, share])
             }
@@ -3396,14 +3395,14 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private var formattingPanelHost: UIHostingController<AnyView>?
 
-        /// iPad presents the panel as a SwiftUI `.popover` off the Aa button, so
+        /// With room (iPad, an opened iPhone Duo) the panel is a SwiftUI `.popover` off the Aa button, so
         /// the keyboard is never touched. iPhone swaps the panel in as the text
         /// view's `inputView`: the keyboard is visually replaced but the text
         /// view keeps first responder, so the selection survives and typing
         /// resumes the moment the panel closes — the Apple Notes model. (A panel
         /// stacked above a live keyboard leaves no room for the editor on a phone.)
         func updateFormattingPanel(textView: UITextView, visible: Bool) {
-            let usesInputView = UIDevice.current.userInterfaceIdiom == .phone
+            let usesInputView = !parent.panelAsPopover
 
             guard usesInputView else {
                 if textView.inputView != nil {

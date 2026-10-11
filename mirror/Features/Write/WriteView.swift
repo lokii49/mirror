@@ -33,11 +33,8 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
-    /// iPad presents the formatting panel as a popover off the Aa button;
-    /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
-    /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
-    /// class reports `.compact` on iPad, which sent it down the iPhone path.
     /// There is no keyboard to appear on Mac, and the row must stay put while a button is clicked.
     var toolRowAlwaysVisible: Bool {
         #if os(macOS)
@@ -62,7 +59,12 @@ struct WriteView: View {
 
     var usesPopoverPanel: Bool {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad
+        // Where there's room (iPad, an opened iPhone Duo) the panel is a popover off the Aa
+        // button; a compact width swaps it in for the keyboard. Keyed off the width class, not
+        // the idiom: an opened Duo is a phone idiom with regular width. Test `.regular`, so an
+        // unknown class takes the compact path. (The old note about iPad reporting `.compact`
+        // applied to the NavigationSplitView detail, which iOS 18+ no longer uses.)
+        horizontalSizeClass == .regular
         #else
         true
         #endif
@@ -356,6 +358,7 @@ struct WriteView: View {
                             fontChoiceRaw: $entryFontChoiceRaw,
                             panelState: panelState,
                             displayMode: displayMode,
+                            panelAsPopover: usesPopoverPanel,
                             onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                         )
                         .padding(.horizontal, 20)

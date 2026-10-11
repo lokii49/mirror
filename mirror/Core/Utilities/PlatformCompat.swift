@@ -184,11 +184,7 @@ struct PlatformNavigationStack<Content: View>: View {
 /// Presents the system share sheet for `items`.
 @MainActor func presentShareSheet(items: [Any]) {
     #if os(iOS)
-    let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
-    UIApplication.shared.connectedScenes
-        .compactMap { $0 as? UIWindowScene }
-        .first?.windows.first?.rootViewController?
-        .present(av, animated: true)
+    presentShareSheet(items: items, from: nil, rect: nil)
     #else
     guard let window = NSApp.keyWindow, let view = window.contentView else { return }
     // Anchored where the pointer is (the row or button just used), not at the window's corner.
@@ -197,6 +193,29 @@ struct PlatformNavigationStack<Content: View>: View {
         .show(relativeTo: NSRect(x: point.x, y: point.y, width: 1, height: 1), of: view, preferredEdge: .minY)
     #endif
 }
+
+#if os(iOS)
+/// Presents the share sheet from `anchor`'s own window, on top of anything already presented
+/// there, anchored at `rect` in `anchor` (a popover on iPad and an opened iPhone Duo needs a
+/// source). Without an anchor it uses the foreground scene's key window. It used to present from
+/// the first scene's root view controller: the wrong window with several open, nothing at all
+/// while a sheet was up, and no popover source where one is required.
+@MainActor func presentShareSheet(items: [Any], from anchor: UIView?, rect: CGRect?) {
+    let window = anchor?.window ?? UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .first { $0.activationState == .foregroundActive }?
+        .keyWindow
+    guard var presenter = window?.rootViewController else { return }
+    while let next = presenter.presentedViewController, !next.isBeingDismissed { presenter = next }
+    let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
+    if let popover = av.popoverPresentationController {
+        let source = anchor ?? presenter.view!
+        popover.sourceView = source
+        popover.sourceRect = rect ?? CGRect(x: source.bounds.midX, y: source.bounds.midY, width: 1, height: 1)
+    }
+    presenter.present(av, animated: true)
+}
+#endif
 
 extension Color {
     /// The system hairline/separator color on both platforms.
