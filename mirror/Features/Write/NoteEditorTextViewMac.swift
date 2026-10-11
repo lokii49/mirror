@@ -327,8 +327,6 @@ struct NoteEditorTextView: NSViewRepresentable {
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
-    /// Shared with iOS's call site; the Mac always shows the popover.
-    var panelAsPopover = true
     var onPhotoTapped: ((Int) -> Void)?
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize

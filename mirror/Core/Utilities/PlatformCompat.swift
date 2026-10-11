@@ -172,21 +172,6 @@ struct PlatformNavigationStack<Content: View>: View {
     }
 }
 
-/// A NavigationStack, or just the content when a parent already provides one (the Entries list
-/// beside the reader shares one stack, so both toolbars sit in a single bar).
-struct OptionalNavigationStack<Content: View>: View {
-    var enabled: Bool
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        #if os(macOS)
-        content()
-        #else
-        if enabled { NavigationStack { content() } } else { content() }
-        #endif
-    }
-}
-
 /// Resigns the text-input focus (hides the keyboard on iOS).
 @MainActor func dismissKeyboard() {
     #if os(iOS)
@@ -211,7 +196,7 @@ struct OptionalNavigationStack<Content: View>: View {
 
 #if os(iOS)
 /// Presents the share sheet from `anchor`'s own window, on top of anything already presented
-/// there, anchored at `rect` in `anchor` (a popover on iPad and an opened iPhone Duo needs a
+/// there, anchored at `rect` in `anchor` (a popover on iPad needs a
 /// source). Without an anchor it uses the foreground scene's key window. It used to present from
 /// the first scene's root view controller: the wrong window with several open, nothing at all
 /// while a sheet was up, and no popover source where one is required.

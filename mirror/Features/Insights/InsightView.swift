@@ -5,9 +5,6 @@ import Charts
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
-    @Environment(\.horizontalSizeClass) private var hSizeClass
-    @State private var insightsFold: FoldSpan?
-    @State private var insightsWidth: CGFloat = 0
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw = ReflectionStyle.gentle.rawValue
@@ -82,17 +79,6 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var insightsColumnsLayout: AnyLayout {
-        hSizeClass == .regular
-            ? AnyLayout(HStackLayout(alignment: .top, spacing: insightsFoldSplit?.gap ?? 16))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
-    }
-
-    /// Half-folded iPhone Duo: the left column ends at the fold and the right one starts after it.
-    private var insightsFoldSplit: FoldColumnSplit? {
-        hSizeClass == .regular ? FoldColumnSplit(fold: insightsFold, width: insightsWidth) : nil
-    }
-
     private var iosContent: some View {
         NavigationStack {
             ScrollView {
@@ -101,39 +87,23 @@ struct InsightView: View {
                         sentinelStatusLine
                     }
 
-                    // Two columns where there's room (iPad, an opened iPhone Duo): today on the
-                    // left, the week and Explore on the right. AnyLayout keeps every section's view
-                    // (and its expanded state) across a fold; compact stacks the columns in the
-                    // same order as before.
-                    insightsColumnsLayout {
-                        VStack(alignment: .leading, spacing: 20) {
-                            nudgeSection
+                    nudgeSection
 
-                            if !pastNudges.isEmpty {
-                                pastNudgesSection
-                            }
-
-                            if cachedWeekMoodEvents.count >= 2, chartVisible {
-                                MoodWeekChartView(events: cachedWeekMoodEvents)
-                            }
-                        }
-                        .frame(width: insightsFoldSplit?.leading)
-                        .frame(maxWidth: insightsFoldSplit == nil ? .infinity : nil, alignment: .topLeading)
-
-                        VStack(alignment: .leading, spacing: 20) {
-                            digestSection
-
-                            if !pastDigests.isEmpty {
-                                pastDigestsSection
-                            }
-
-                            explorationSection
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    if !pastNudges.isEmpty {
+                        pastNudgesSection
                     }
-                    .animation(.foldSplit, value: insightsFoldSplit)
-                    .onWidthChange($insightsWidth)
-                    .onFoldChange { insightsFold = $0 }
+
+                    if cachedWeekMoodEvents.count >= 2, chartVisible {
+                        MoodWeekChartView(events: cachedWeekMoodEvents)
+                    }
+
+                    digestSection
+
+                    if !pastDigests.isEmpty {
+                        pastDigestsSection
+                    }
+
+                    explorationSection
                 }
                 .padding(16)
                 .padding(.bottom, 16)

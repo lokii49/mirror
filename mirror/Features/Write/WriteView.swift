@@ -33,8 +33,11 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
+    /// iPad presents the formatting panel as a popover off the Aa button;
+    /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
+    /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
+    /// class reports `.compact` on iPad, which sent it down the iPhone path.
     /// There is no keyboard to appear on Mac, and the row must stay put while a button is clicked.
     var toolRowAlwaysVisible: Bool {
         #if os(macOS)
@@ -59,12 +62,7 @@ struct WriteView: View {
 
     var usesPopoverPanel: Bool {
         #if os(iOS)
-        // Where there's room (iPad, an opened iPhone Duo) the panel is a popover off the Aa
-        // button; a compact width swaps it in for the keyboard. Keyed off the width class, not
-        // the idiom: an opened Duo is a phone idiom with regular width. Test `.regular`, so an
-        // unknown class takes the compact path. (The old note about iPad reporting `.compact`
-        // applied to the NavigationSplitView detail, which iOS 18+ no longer uses.)
-        horizontalSizeClass == .regular
+        UIDevice.current.userInterfaceIdiom == .pad
         #else
         true
         #endif
@@ -358,7 +356,6 @@ struct WriteView: View {
                             fontChoiceRaw: $entryFontChoiceRaw,
                             panelState: panelState,
                             displayMode: displayMode,
-                            panelAsPopover: usesPopoverPanel,
                             onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                         )
                         .padding(.horizontal, 20)
@@ -381,14 +378,6 @@ struct WriteView: View {
                 #endif
 
             }
-            #if os(iOS)
-            // A readable column where there's room (iPad, an opened iPhone Duo), like the Mac's
-            // MacEditorColumn. Only the width limit changes with the size class, never the views,
-            // so a fold keeps the editor (and its undo history). Half-folded on the iPhone Duo the
-            // column moves to one side of the fold instead of sitting across it.
-            .frame(maxWidth: horizontalSizeClass == .regular ? 680 : .infinity)
-            .avoidingFold()
-            #endif
 
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")
@@ -489,8 +478,6 @@ struct WriteView: View {
                     onDismiss: { dismissFollowUp() }
                 )
                 .padding(.horizontal, 16)
-                // Half-folded iPhone Duo: on the same side of the fold as the writing column.
-                .avoidingFold()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
