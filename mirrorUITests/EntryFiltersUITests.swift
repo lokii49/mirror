@@ -10,7 +10,8 @@ final class EntryFiltersUITests: XCTestCase {
 
     @MainActor private func checkFilters(mode: String, tab: String) throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--perfSeed=50", "--entryFilterFixture", "--forceDisplayMode=\(mode)", "-AppleLanguages", "(en)"]
+        // Start on Entries: Write (the default tab) focuses its editor, and the keyboard covers the tab bar.
+        app.launchArguments = ["--uitesting", "--perfSeed=50", "--initialTab=entries", "--entryFilterFixture", "--forceDisplayMode=\(mode)", "-AppleLanguages", "(en)"]
         app.launch()
         let entriesTab = app.tabBars.buttons[tab]
         XCTAssertTrue(entriesTab.waitForExistence(timeout: 10))

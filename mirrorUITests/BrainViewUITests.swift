@@ -8,7 +8,10 @@ final class BrainViewUITests: XCTestCase {
 
     private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        // The synthetic scratch journal (--perfSeed) gives Brain View recurring themes without the
+        // Settings debug section, which moved to Sentinel's Diagnostics screen. Start on Entries so
+        // Write's keyboard doesn't cover the tab bar.
+        app.launchArguments = ["--uitesting", "--perfSeed=50", "--initialTab=entries", "--forceDisplayMode=classic"]
         app.launch()
         Thread.sleep(forTimeInterval: 2)
         return app
@@ -34,26 +37,7 @@ final class BrainViewUITests: XCTestCase {
     func testBrainView_seedMixed_showsGraph_andNodeSheet() throws {
         let app = launchApp()
 
-        // 1. Go to Insights tab, open Settings.
-        app.tabBars.buttons["Insights"].tap()
-        Thread.sleep(forTimeInterval: 1)
-        let settingsButton = app.buttons["Settings"]
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
-        settingsButton.tap()
-        Thread.sleep(forTimeInterval: 1)
-
-        // 2. Seed mixed sample entries via the debug section.
-        let seedButton = app.buttons["Load Sample Entries (Mixed)"]
-        scrollUntilHittable(seedButton, in: app, maxSwipes: 12)
-        XCTAssertTrue(seedButton.exists, "Debug seed button must exist in DEBUG builds")
-        seedButton.tap()
-        Thread.sleep(forTimeInterval: 1.5)
-
-        // 3. Relaunch instead of fighting sheet dismissal — entries persist.
-        app.terminate()
-        Thread.sleep(forTimeInterval: 1)
-        app.launch()
-        Thread.sleep(forTimeInterval: 2)
+        // 1. Go to Insights.
         app.tabBars.buttons["Insights"].tap()
         Thread.sleep(forTimeInterval: 1)
 

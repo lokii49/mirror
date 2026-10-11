@@ -12,7 +12,8 @@ final class EntrySearchUITests: XCTestCase {
     @MainActor private func checkSearch(mode: String, tab: String) throws {
         let app = XCUIApplication()
         // Separate synthetic store and fixed key; no deletion or real journal access.
-        app.launchArguments = ["--uitesting", "--perfSeed=50", "--forceDisplayMode=\(mode)", "-AppleLanguages", "(en)"]
+        // Start on Entries: Write (the default tab) focuses its editor, and the keyboard covers the tab bar.
+        app.launchArguments = ["--uitesting", "--perfSeed=50", "--initialTab=entries", "--forceDisplayMode=\(mode)", "-AppleLanguages", "(en)"]
         app.launch()
         let entriesTab = app.tabBars.buttons[tab]
         XCTAssertTrue(entriesTab.waitForExistence(timeout: 10))
