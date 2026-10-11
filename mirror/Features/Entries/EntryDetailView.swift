@@ -257,41 +257,42 @@ struct EntryDetailView: View {
         }
         #endif
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    #if os(macOS)
-                    // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
-                    // stay read-only here so an edit cannot change what iPhone and iPad read back.
-                    if macCanEditPlainText {
-                        editButton
-                    }
-                    #else
+            // Separate items, not one custom HStack: the system lays them out itself, so on
+            // iPhone Duo they move into the vertical bar beside the list's buttons. One custom
+            // view counts as a single wide control, which stays in the top bar.
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                #if os(macOS)
+                // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
+                // stay read-only here so an edit cannot change what iPhone and iPad read back.
+                if macCanEditPlainText {
                     editButton
-                    #endif
-
-                    Menu {
-                        Button(
-                            entry.isPinned ? "Unpin Entry" : "Pin Entry",
-                            systemImage: entry.isPinned ? "pin.slash" : "pin"
-                        ) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            entry.isPinned.toggle()
-                            try? modelContext.save()
-                        }
-                        Button("Share as text") { shareText() }
-                        #if os(iOS)
-                        Button("Export as PDF") { sharePDF() }
-                        #endif
-                        Button("Delete Entry", systemImage: "trash", role: .destructive) {
-                            showDeleteConfirm = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-                    }
-                    .accessibilityLabel("More")
                 }
+                #else
+                editButton
+                #endif
+
+                Menu {
+                    Button(
+                        entry.isPinned ? "Unpin Entry" : "Pin Entry",
+                        systemImage: entry.isPinned ? "pin.slash" : "pin"
+                    ) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        entry.isPinned.toggle()
+                        try? modelContext.save()
+                    }
+                    Button("Share as text") { shareText() }
+                    #if os(iOS)
+                    Button("Export as PDF") { sharePDF() }
+                    #endif
+                    Button("Delete Entry", systemImage: "trash", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+                }
+                .accessibilityLabel("More")
             }
         }
         .navigationDestination(isPresented: $showEditor) {
@@ -310,8 +311,10 @@ struct EntryDetailView: View {
     }
 
     private var editButton: some View {
-        Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
-            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+        // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
+        // moves to the vertical one, splitting the reader's two buttons (owner, 2026-10-11).
+        Button("Edit", systemImage: "pencil") { showEditor = true }
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
             .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
