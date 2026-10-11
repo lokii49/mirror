@@ -144,7 +144,7 @@ struct FormattingPanelView: View {
     /// Every control is on screen at once: no row scrolls sideways, so nothing hides past the edge
     /// (2026-10-09 redesign). Header (font, close); paragraph styles as a 3 x 2 grid, each label in its
     /// own style; one bar for B / I / U / S + link + clear; one for the list types + indent; the
-    /// checklist actions when on a checklist line; labelled Highlight and Text color rows. At large
+    /// checklist actions when on a checklist line; the Highlight and Text color swatch rows. At large
     /// Dynamic Type sizes the sheet scrolls vertically. Every control still sends the same command.
     private var panelRows: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -195,7 +195,7 @@ struct FormattingPanelView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            colorRow("Highlight") {
+            colorRow {
                 noneSwatch(isActive: state.activeHighlightIndex == nil, accessibilityLabel: "No highlight") {
                     state.onCommand?(.highlight(index: nil))
                 } label: {
@@ -207,7 +207,7 @@ struct FormattingPanelView: View {
                 }
             }
 
-            colorRow("Text color") {
+            colorRow {
                 noneSwatch(isActive: state.activeTextColorIndex == nil, accessibilityLabel: "Default text color") {
                     state.onCommand?(.textColor(index: nil))
                 } label: {
@@ -281,33 +281,14 @@ struct FormattingPanelView: View {
         Rectangle().fill(Color.primary.opacity(0.22)).frame(width: 1.5, height: 26 * typeScale)
     }
 
-    /// A labelled row of swatches: the label says what the dots do. The label sits beside the swatches
-    /// when it fits whole, otherwise above them (long translations, narrow popover, large text sizes).
-    private func colorRow<Content: View>(_ title: LocalizedStringKey, @ViewBuilder _ swatches: () -> Content) -> some View {
-        let dots = HStack(spacing: 6) { swatches() }
-        return ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                colorLabel(title).fixedSize()
-                Spacer(minLength: 4)
-                dots
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                colorLabel(title).fixedSize(horizontal: false, vertical: true)
-                dots
-            }
-        }
-        .padding(.horizontal, 16)
-    }
-
-    @ViewBuilder private func colorLabel(_ title: LocalizedStringKey) -> some View {
-        Group {
-            if displayMode == .sentinel {
-                Text(title).font(MirrorTheme.mono(11 * typeScale, weight: .bold)).textCase(.uppercase).tracking(0.6)
-            } else {
-                Text(title).font(.system(size: 13 * typeScale, weight: .medium))
-            }
-        }
-        .foregroundStyle(Color.secondary)
+    /// A row of swatches, one per column, spread to line up with the six cells of the bars above.
+    /// No visible label: the swatches show what they do (filled dots vs. coloured "A"s), and VoiceOver
+    /// reads each one with its row ("Purple, Highlight").
+    private func colorRow<Content: View>(@ViewBuilder _ swatches: () -> Content) -> some View {
+        HStack(spacing: 0) { swatches() }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 2)
     }
 
     private var swatchSize: CGFloat { min(26 * typeScale, 36) }
@@ -327,6 +308,7 @@ struct FormattingPanelView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
@@ -561,6 +543,7 @@ struct FormattingPanelView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         // Both rows share colour names, so the label says which row ("Purple, Highlight").
         .accessibilityLabel(Text(verbatim: HighlightPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Highlight"))
         .accessibilityIdentifier("highlight-\(index)")
@@ -585,6 +568,7 @@ struct FormattingPanelView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .accessibilityLabel(Text(verbatim: TextColorPalette.name(for: index, displayMode: displayMode) + ", ") + Text("Text color"))
         .accessibilityIdentifier("textColor-\(index)")
         .accessibilityAddTraits(isActive ? .isSelected : [])
