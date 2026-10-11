@@ -152,10 +152,9 @@ struct WeeklyDigestView: View {
                 }
             }
 
-            let body = String(afterHeader[..<bodyEnd])
+            let body = InsightService.sectionBodyForDisplay(String(afterHeader[..<bodyEnd])
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                .replacingOccurrences(of: "\n\n", with: "\n")
-                .withoutDigestDashes()   // digests saved before 3.1.2 still carry FM's dashes
+                .replacingOccurrences(of: "\n\n", with: "\n"))
             results.append((title: header.canonical, body: body))
         }
 

@@ -2345,6 +2345,13 @@ enum InsightService {
     /// (headers un-wrapped, colon-normalized) but a caller may pass raw text.
     ///
     /// Returns nil if the first section's header isn't present.
+    /// One digest / monthly-report section body as every surface shows it (the cards in both
+    /// themes, the widgets): no model dashes, first letter capitalized. Display-time so reports
+    /// already stored (and synced from older versions) read the same as new ones.
+    static func sectionBodyForDisplay(_ body: String) -> String {
+        body.withoutModelDashes().capitalizingFirstLetter()
+    }
+
     static func firstSectionBody(of content: String, labels: [[String: String]]) -> String? {
         guard let firstSection = labels.first else { return nil }
         let normalized = content
@@ -2834,7 +2841,10 @@ extension String {
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
             result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) —", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) –", with: "\(header):")
         }
+        result = result.withoutModelDashes()
 
         result = result
             .components(separatedBy: .newlines)
@@ -2859,7 +2869,7 @@ extension String {
             result = result.replacingOccurrences(of: "\(header) —", with: "\(header):")
             result = result.replacingOccurrences(of: "\(header) –", with: "\(header):")
         }
-        result = result.withoutDigestDashes()
+        result = result.withoutModelDashes()
 
         result = result
             .components(separatedBy: .newlines)
@@ -2877,12 +2887,14 @@ extension String {
     /// The prompt can't fix it: a no-dash rule left 5-8 of 20 with dashes, often unspaced
     /// ("worry—it's"), and editing WEEKLY_DIGEST_SYSTEM would mislabel older digests in "How this
     /// was generated". So the dash becomes a comma here, at save and again at display time
-    /// (WeeklyDigestView, the widget) for digests already stored. Never inside a quote: the
-    /// user's own words keep their dashes. A hyphen counts only when spaced (" - "), so "tug-of-war"
-    /// stays. CJK text is left alone (a dash there isn't a comma, and the ASCII ", " would look wrong).
-    func withoutDigestDashes() -> String {
+    /// (`InsightService.sectionBodyForDisplay`) for digests and monthly reports already stored
+    /// (MONTHLY_REPORT_SYSTEM is written the same way). Never inside a quote: the user's own words
+    /// keep their dashes. A hyphen counts only when spaced (" - "), so "tug-of-war" stays. CJK and
+    /// Cyrillic text is left alone: a dash there is grammar ("Москва — столица"), not a comma, and
+    /// the ASCII ", " would look wrong in CJK.
+    func withoutModelDashes() -> String {
         guard contains(where: { "—–".contains($0) }) || contains("--") || contains(" - ") else { return self }
-        guard !unicodeScalars.contains(where: { (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) || (0xAC00...0xD7AF).contains($0.value) }) else { return self }
+        guard !unicodeScalars.contains(where: { (0x0400...0x04FF).contains($0.value) || (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) || (0xAC00...0xD7AF).contains($0.value) }) else { return self }
 
         let closers: [Character: Character] = ["\"": "\"", "“": "”", "„": "“", "«": "»"]
         var out = ""
@@ -2915,6 +2927,17 @@ extension String {
         }
         flushPlain(atEnd: true)
         return out
+    }
+
+    /// A section that opens lowercase ("you felt most alive…"): Foundation Models often carries on
+    /// from the header as if mid-sentence, and the Gemma digest's theme grammar allows only
+    /// lowercase. Capitalizes the first letter, unless the word reads like a name with its own
+    /// casing ("iPhone"). Display only (`InsightService.sectionBodyForDisplay`).
+    func capitalizingFirstLetter() -> String {
+        guard let first = first, first.isLowercase else { return self }
+        let rest = dropFirst()
+        if let second = rest.first, second.isUppercase { return self }
+        return first.uppercased() + rest
     }
 
     private func softenDigestFragments(_ text: String) -> String {

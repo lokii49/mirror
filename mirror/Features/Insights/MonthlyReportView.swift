@@ -744,7 +744,7 @@ private struct MonthlyReportCard: View {
                 }
             }
         }
-        return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return InsightService.sectionBodyForDisplay(String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private func firstHeaderRange(in text: String, aliases: [String]) -> Range<String.Index>? {

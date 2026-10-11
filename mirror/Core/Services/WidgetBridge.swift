@@ -61,7 +61,7 @@ enum WidgetBridge {
               )
         else { return }
 
-        let clipped = clip(theme.withoutDigestDashes(), max: 200)
+        let clipped = clip(InsightService.sectionBodyForDisplay(theme), max: 200)
         let changed = defaults?.string(forKey: WidgetShared.digestThemeKey) != clipped
             || defaults?.string(forKey: WidgetShared.digestWeekKey) != week
         defaults?.set(clipped, forKey: WidgetShared.digestThemeKey)
@@ -95,7 +95,7 @@ enum WidgetBridge {
               )
         else { return }
 
-        let clipped = clip(image, max: 280)
+        let clipped = clip(InsightService.sectionBodyForDisplay(image), max: 280)
         let changed = defaults?.string(forKey: WidgetShared.monthlyImageKey) != clipped
             || defaults?.string(forKey: WidgetShared.monthlyPeriodKey) != month
         defaults?.set(clipped, forKey: WidgetShared.monthlyImageKey)
