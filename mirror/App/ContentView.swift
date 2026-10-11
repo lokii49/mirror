@@ -312,8 +312,12 @@ struct ContentView: View {
             if phase == .active { maybeAutoPromptMoodCheckIn() }
         }
         .onChange(of: sizeClass) { _, newClass in
-            // iOS 18+ keeps one TabView across size classes, so there's nothing to map.
-            guard !Self.usesAdaptiveTabs else { return }
+            // iOS 18+ keeps one TabView across size classes. Only Settings needs a new home:
+            // it has no tab when compact, so fall back to Insights, where its toolbar button is.
+            if Self.usesAdaptiveTabs {
+                if newClass != .regular && selectedSidebarItem == .settings { selectedSidebarItem = .insights }
+                return
+            }
             if newClass == .regular {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
@@ -446,12 +450,15 @@ struct ContentView: View {
             Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
                 InsightView(viewModel: insightViewModel)
             }
-            // Its own item where there's room (owner, 2026-10-11); a compact tab bar leaves it
-            // out, and iPhone reaches Settings from the Insights toolbar as before.
-            Tab(sentinel ? "Config" : "Settings", systemImage: "gearshape", value: AppSidebarItem.settings) {
-                SettingsView()
+            // Its own item where there's room (owner, 2026-10-11). A compact tab bar leaves it
+            // out (iOS 26's floating bar ignores .sidebarOnly and .defaultVisibility), and iPhone
+            // reaches Settings from the Insights toolbar as before. Adding or removing this one
+            // tab leaves the others' views in place.
+            if sizeClass == .regular {
+                Tab(sentinel ? "Config" : "Settings", systemImage: "gearshape", value: AppSidebarItem.settings) {
+                    SettingsView()
+                }
             }
-            .tabPlacement(.sidebarOnly)
         }
         .tabViewStyle(.sidebarAdaptable)
         .defaultAdaptableTabBarPlacement(.sidebar)
