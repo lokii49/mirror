@@ -1,6 +1,6 @@
 # MirrorNotes roadmap
 
-**The single roadmap** (consolidated 2026-10-11 from `roadmap.md`, `3.1.0-roadmap.md`, `3.0.9-product-plan.md`, `platform-roadmap.md`, `macos-design-plan.md` and `mac-parity-audit.md`). Those files are kept for history, each with a pointer here at the top. Day-to-day work for the current branch lives in that branch's backlog (now `3.1.2-backlog.md`). This file keeps what is open across releases, the gates, and the settled decisions.
+**The single roadmap.** Day-to-day work for the current branch lives in that branch's backlog (now `3.1.2-backlog.md`). Bigger plans sit beside it: `3.1.2-iphone-duo.md` and `november-paid-activation.md`. This file keeps what is open across releases, the gates and the settled decisions. Consolidated 2026-10-11 from `3.1.0-roadmap.md`, `3.0.9-product-plan.md`, `platform-roadmap.md`, `macos-design-plan.md` and `mac-parity-audit.md`, which were then deleted. Read them in git history (before the deleting commit) if a detail is missing here.
 
 **Legend.** **[owner]** needs the owner's hands (signed build, device, App Store Connect, a decision). **[rig]** needs an llmrig round first (N ≥ 10, rubric written before running). **[unverified]** comes from earlier notes.
 
