@@ -117,7 +117,7 @@ struct InsightSignalSource: View {
     /// insights are recognized by their shape (`isGrammarGrounded`), the same test the saved-
     /// insight repair passes use; Foundation Models output never takes that path.
     /// Every label, value and note is looked up in `bundle`'s catalog (tests pass an .lproj).
-    static func resolve(insight: Insight, entries: [Entry], engineLabel: String, bundle: Bundle = .main) -> Resolved {
+    @MainActor static func resolve(insight: Insight, entries: [Entry], engineLabel: String, bundle: Bundle = .main) -> Resolved {
         let asOf = insight.generatedAt
         // Readability (hasReadableContext, which the generators filter on) decrypts, so it's
         // checked lazily on each case's slice, never across the whole history per render.

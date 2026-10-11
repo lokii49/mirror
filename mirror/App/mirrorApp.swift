@@ -1040,9 +1040,7 @@ struct mirrorApp: App {
 
         // Same last-week-of-month gate as InsightViewModel.loadMonthlyReport (see its comment) —
         // this background pass must not generate early just because entries happen to be there.
-        guard DateHelpers.isInLastWeekOfMonth(now),
-              monthEntries.count >= InsightService.monthlyReportMinimumEntries,
-              SubscriptionService.shared.isDeep else { return }
+        guard monthlyReportIsDue(now: now, monthEntryCount: monthEntries.count, isDeep: SubscriptionService.shared.isDeep) else { return }
         guard modelAvailable(), MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
@@ -1059,6 +1057,13 @@ struct mirrorApp: App {
             WidgetBridge.syncMonthlyReport(from: context)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch { /* Non-fatal */ }
+    }
+
+    /// The monthly report's gate before any model work: Deep, the last 7 days of the month, and
+    /// at least `monthlyReportMinimumEntries` entries this month. Pure, so tests can reach it
+    /// without a model.
+    static func monthlyReportIsDue(now: Date, monthEntryCount: Int, isDeep: Bool) -> Bool {
+        isDeep && DateHelpers.isInLastWeekOfMonth(now) && monthEntryCount >= InsightService.monthlyReportMinimumEntries
     }
 
     // MARK: - Model availability
