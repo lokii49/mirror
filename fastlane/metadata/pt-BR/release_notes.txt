@@ -1,8 +1,9 @@
-Correções na busca inteligente, na escrita e no check-in de humor
+Resumos, widgets e traduções mais confiáveis
 
-• Busca inteligente no Perguntar: o modelo de busca não é mais baixado de novo quando você reabre o app. Agora ele é baixado em segundo plano, no Wi-Fi ou nos dados móveis, e você pode pausar e retomar o download.
-• Os downloads de modelos mostram uma barra de progresso mais clara com um único botão Pausar/Retomar, e um botão de download mais claro.
-• Escrita: escolher Título, Cabeçalho ou Subcabeçalho em uma entrada vazia agora vale para o que você digita.
-• Check-in de humor: o nome de cada humor cabe no seu botão, e cada humor mantém sua cor.
-• Novidades mostra só as mudanças mais recentes, não todas as versões anteriores.
-• As telas de avaliação e de check-in de humor agora se ajustam ao conteúdo.
+• O Resumo semanal e o Relatório mensal agora chegam de forma mais confiável, e uma nova tentativa que falha nunca substitui o que você já tem.
+• Os widgets não mostram mais um cadeado com preço. Os widgets de sequência e de mapa são atualizados assim que você salva, e os do resumo e do relatório mensal mostram a semana e o mês anteriores até o novo chegar.
+• Excluir tudo agora também apaga seu texto dos widgets e dos lembretes.
+• Editar uma entrada que tem só uma nota de voz não corre mais o risco de danificá-la.
+• As reflexões e as entradas seguem o seu tamanho de texto, e o VoiceOver lê com clareza os dias do calendário e os botões.
+• A Linha do tempo de humor desenha um ponto por dia, então dias com vários registros não deixam mais formas estranhas no gráfico.
+• Mais partes do app estão traduzidas, incluindo widgets, frases da Siri e notificações.

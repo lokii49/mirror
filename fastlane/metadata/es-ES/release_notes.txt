@@ -1,8 +1,9 @@
-Correcciones en la búsqueda inteligente, la escritura y el registro de ánimo
+Resúmenes, widgets y traducciones más fiables
 
-• Búsqueda inteligente en Preguntar: el modelo de búsqueda ya no se vuelve a descargar al abrir de nuevo la app. Ahora se descarga en segundo plano con Wi-Fi o datos móviles, y puedes pausar y reanudar la descarga.
-• Las descargas de modelos muestran una barra de progreso más clara con un solo botón para pausar y reanudar, y un botón de descarga más claro.
-• Escritura: elegir Título, Encabezado o Subtítulo en una entrada vacía ahora se aplica a lo que escribes.
-• Registro de ánimo: cada estado de ánimo cabe en su botón y conserva su color.
-• Novedades muestra solo los últimos cambios, no todas las versiones anteriores.
-• Las hojas de valoración y de registro de ánimo ahora se ajustan a su contenido.
+• El Resumen semanal y el Informe mensual llegan ahora de forma más fiable, y un reintento fallido nunca sustituye al que ya tienes.
+• Los widgets ya no muestran un candado ni un precio. Los widgets de racha y de mapa se actualizan en cuanto guardas, y los del resumen y el informe mensual muestran los de la semana y el mes anteriores hasta que llega el nuevo.
+• Eliminar todo ahora también borra tu texto de los widgets y los recordatorios.
+• Editar una entrada que solo tiene una nota de voz ya no pone en riesgo esa entrada.
+• Las reflexiones y las entradas siguen tu tamaño de texto, y VoiceOver lee con claridad los días del calendario y los botones.
+• La Cronología del estado de ánimo dibuja un punto por día, así que los días con varios registros ya no dejan formas extrañas en el gráfico.
+• Más partes de la app están traducidas, como los widgets, las frases de Siri y las notificaciones.

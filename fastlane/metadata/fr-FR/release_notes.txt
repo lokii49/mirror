@@ -1,8 +1,9 @@
-Corrections pour la recherche intelligente, l'écriture et le point humeur
+Résumés, widgets et traductions plus fiables
 
-• Recherche intelligente dans Demander : le modèle de recherche n'est plus téléchargé à nouveau quand vous rouvrez l'app. Il se télécharge désormais en arrière-plan, en Wi-Fi ou en données mobiles, et vous pouvez mettre le téléchargement en pause puis le reprendre.
-• Les téléchargements de modèles affichent une barre de progression plus claire avec un seul bouton Pause/Reprendre, et un bouton de téléchargement plus clair.
-• Écriture : choisir Titre, En-tête ou Sous-en-tête dans une entrée vide s'applique désormais à ce que vous tapez.
-• Point humeur : chaque nom d'humeur tient dans son bouton, et chaque humeur garde sa couleur.
-• Nouveautés n'affiche plus que les derniers changements, pas toutes les versions précédentes.
-• Les fenêtres de notation et du point humeur s'adaptent désormais à leur contenu.
+• Le Résumé hebdomadaire et le Rapport mensuel arrivent désormais de façon plus fiable, et une nouvelle tentative qui échoue ne remplace jamais celui que vous avez déjà.
+• Les widgets n'affichent plus de cadenas ni de prix. Les widgets de série et de carte se mettent à jour dès que vous enregistrez, et ceux du résumé et du rapport mensuel affichent la semaine et le mois précédents jusqu'à l'arrivée du nouveau.
+• Tout supprimer efface désormais aussi votre texte des widgets et des rappels.
+• Modifier une entrée qui ne contient qu'une note vocale ne risque plus de l'abîmer.
+• Les réflexions et les entrées suivent votre taille de texte, et VoiceOver lit clairement les jours du calendrier et les boutons.
+• La Chronologie de l'humeur trace un point par jour : les journées chargées ne laissent plus de formes étranges dans le graphique.
+• Une plus grande partie de l'app est traduite, notamment les widgets, les phrases Siri et les notifications.

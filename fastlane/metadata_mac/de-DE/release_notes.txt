@@ -1,5 +1,8 @@
-Korrekturen für die smarte Suche
+Zuverlässigere Zusammenfassungen und Entwürfe
 
-• Smarte Suche in Fragen: Das Suchmodell wird nach dem Beenden und erneuten Öffnen von MirrorNotes nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund, und du kannst den Download pausieren und fortsetzen.
-• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
-• Neuigkeiten zeigt nur die neuesten Änderungen, und ein Mac, der 1.1.0 übersprungen hat, sieht sie trotzdem.
+• Wöchentliche Zusammenfassung und Monatsbericht: Ein fehlgeschlagener neuer Versuch ersetzt nie einen, den du schon hast.
+• Ein Fenster „Neuer Eintrag“ behält jetzt seinen eigenen Entwurf und überschreibt nicht mehr den Entwurf im Haupteditor.
+• Einen Eintrag, der nur eine Sprachnotiz enthält, kannst du jetzt bearbeiten, ohne ihn zu beschädigen.
+• VoiceOver liest Kalendertage und Tasten klar vor.
+• Der Stimmungsverlauf zeigt einen Punkt pro Tag, sodass volle Tage keine seltsamen Formen mehr im Diagramm hinterlassen.
+• Mehr von der App ist übersetzt.

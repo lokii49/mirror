@@ -1,8 +1,9 @@
-Korrekturen für die smarte Suche, das Schreiben und den Stimmungs-Check
+Zuverlässigere Zusammenfassungen, Widgets und Übersetzungen
 
-• Smarte Suche in Fragen: Das Suchmodell wird nach dem erneuten Öffnen der App nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund über WLAN oder Mobilfunk, und du kannst den Download pausieren und fortsetzen.
-• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
-• Schreiben: Titel, Überschrift oder Unterüberschrift in einem leeren Eintrag gelten jetzt für das, was du tippst.
-• Stimmungs-Check: Jeder Stimmungsname passt in seine Taste, und jede Stimmung behält ihre Farbe.
-• Neuigkeiten zeigt nur noch die neuesten Änderungen, nicht jede frühere Version.
-• Die Fenster für die Bewertung und den Stimmungs-Check passen jetzt zu ihrem Inhalt.
+• Wöchentliche Zusammenfassung und Monatsbericht kommen jetzt zuverlässiger, und ein fehlgeschlagener neuer Versuch ersetzt nie einen, den du schon hast.
+• Widgets zeigen kein Schloss und keinen Preis mehr. Die Widgets für Serie und Karte aktualisieren sich, sobald du speicherst, und die Widgets für Zusammenfassung und Monatsbericht zeigen die letzte Woche und den letzten Monat, bis die neuen da sind.
+• „Alles löschen“ entfernt deinen Text jetzt auch aus Widgets und Erinnerungen.
+• Einen Eintrag, der nur eine Sprachnotiz enthält, kannst du jetzt bearbeiten, ohne ihn zu beschädigen.
+• Reflexionen und Einträge folgen deiner Textgröße, und VoiceOver liest Kalendertage und Tasten klar vor.
+• Der Stimmungsverlauf zeigt einen Punkt pro Tag, sodass volle Tage keine seltsamen Formen mehr im Diagramm hinterlassen.
+• Mehr von der App ist übersetzt, darunter Widgets, Siri-Befehle und Mitteilungen.

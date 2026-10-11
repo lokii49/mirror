@@ -1,5 +1,8 @@
-Correcciones en la búsqueda inteligente
+Resúmenes y borradores más fiables
 
-• Búsqueda inteligente en Preguntar: el modelo de búsqueda ya no se vuelve a descargar al cerrar y abrir de nuevo MirrorNotes. Ahora se descarga en segundo plano, y puedes pausar y reanudar la descarga.
-• Las descargas de modelos muestran una barra de progreso más clara con un solo botón para pausar y reanudar, y un botón de descarga más claro.
-• Novedades muestra solo los últimos cambios, y un Mac que se saltó la 1.1.0 también los ve.
+• Resumen semanal e Informe mensual: un reintento fallido nunca sustituye al que ya tienes.
+• Una ventana de Nueva entrada ahora conserva su propio borrador, así que ya no sobrescribe el del editor principal.
+• Editar una entrada que solo tiene una nota de voz ya no pone en riesgo esa entrada.
+• VoiceOver lee con claridad los días del calendario y los botones.
+• La Cronología del estado de ánimo dibuja un punto por día, así que los días con varios registros ya no dejan formas extrañas en el gráfico.
+• Más partes de la app están traducidas.

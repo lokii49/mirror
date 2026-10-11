@@ -1,8 +1,9 @@
-Fixes for smarter search, writing and check-ins
+More reliable digests, widgets and translations
 
-• Smarter search in Ask: the search model no longer downloads again after you reopen the app. It now downloads in the background over Wi-Fi or mobile data, and you can pause and resume it.
-• Model downloads show a clearer progress bar with one Pause/Resume button, and a clearer Download button.
-• Writing: choosing Title, Heading or Subheading in an empty entry now applies to what you type.
-• Mood check-in: every mood name fits its button, and each mood keeps its colour.
-• What's New shows only the latest changes, not every past release.
-• The rating and mood check-in sheets now fit their content.
+• Weekly Digest and Monthly Report now arrive more reliably, and a failed retry never replaces one you already have.
+• Widgets no longer show a lock and a price. The streak and map widgets update as soon as you save, and the digest and monthly widgets show last week's and last month's until the new one arrives.
+• Delete Everything now also clears your text from widgets and reminders.
+• Editing an entry that has only a voice note no longer risks damaging it.
+• Reflections and entries follow your text size, and VoiceOver reads calendar days and buttons clearly.
+• Mood Timeline draws one point per day, so busy days no longer leave stray shapes in the chart.
+• More of the app is translated, including widgets, Siri phrases and notifications.

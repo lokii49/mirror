@@ -1,8 +1,9 @@
-Correzioni per la ricerca intelligente, la scrittura e il check-in umore
+Riepiloghi, widget e traduzioni più affidabili
 
-• Ricerca intelligente in Chiedi: il modello di ricerca non viene più scaricato di nuovo quando riapri l'app. Ora si scarica in background con il Wi-Fi o la rete cellulare, e puoi mettere in pausa e riprendere il download.
-• I download dei modelli mostrano una barra di avanzamento più chiara con un solo pulsante Pausa/Riprendi, e un pulsante di download più chiaro.
-• Scrittura: scegliere Titolo, Intestazione o Sottointestazione in una voce vuota ora si applica a ciò che scrivi.
-• Check-in umore: ogni nome di umore entra nel suo pulsante, e ogni umore mantiene il suo colore.
-• Novità mostra solo le ultime modifiche, non tutte le versioni precedenti.
-• Le schermate di valutazione e del check-in umore ora si adattano al loro contenuto.
+• Il Riepilogo settimanale e il Report mensile ora arrivano in modo più affidabile, e un nuovo tentativo fallito non sostituisce mai quello che hai già.
+• I widget non mostrano più un lucchetto e un prezzo. I widget della serie e della mappa si aggiornano appena salvi, e quelli del riepilogo e del report mensile mostrano la settimana e il mese precedenti finché non arriva quello nuovo.
+• Elimina tutto ora cancella il tuo testo anche dai widget e dai promemoria.
+• Modificare una voce che contiene solo una nota vocale non rischia più di danneggiarla.
+• Le riflessioni e le voci seguono la dimensione del testo, e VoiceOver legge con chiarezza i giorni del calendario e i pulsanti.
+• La Cronologia dell'umore disegna un punto al giorno, così le giornate piene non lasciano più forme strane nel grafico.
+• Più parti dell'app sono tradotte, tra cui i widget, le frasi di Siri e le notifiche.
