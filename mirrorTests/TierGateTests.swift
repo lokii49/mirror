@@ -36,6 +36,12 @@ extension SharedLLMState {
             #expect(SubscriptionService.askMonthlyLimit(for: .deep) == .max)
         }
 
+        @Test func talkItOutIsHiddenOnFree() {
+            #expect(!SubscriptionService.offersTalkItOut(for: .free))
+            #expect(SubscriptionService.offersTalkItOut(for: .core))
+            #expect(SubscriptionService.offersTalkItOut(for: .deep))
+        }
+
         @Test func freeSeesTheFirstReflectionThenThePaywall() async throws {
             let context = try makeContext()
             let all = entries(3, in: context)

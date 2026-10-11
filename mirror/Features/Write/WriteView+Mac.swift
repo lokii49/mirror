@@ -107,19 +107,21 @@ extension WriteView {
             }
             .modifier(MacToolbarCapsule())
 
-            Button { presentTalkItOut() } label: {
-                Text("Talk it out")
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(MacTokens.accentInk)
-                    .padding(.horizontal, 14)
-                    .frame(height: 30)
-                    .background(MacTokens.surface, in: Capsule())
-                    .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+            if SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier) {
+                Button { presentTalkItOut() } label: {
+                    Text("Talk it out")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(MacTokens.accentInk)
+                        .padding(.horizontal, 14)
+                        .frame(height: 30)
+                        .background(MacTokens.surface, in: Capsule())
+                        .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 6)
+                .fixedSize()
+                .help("Talk it out")
             }
-            .buttonStyle(.plain)
-            .padding(.leading, 6)
-            .fixedSize()
-            .help("Talk it out")
         }
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)

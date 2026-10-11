@@ -325,6 +325,7 @@ struct WriteView: View {
                         // that point the user is already writing and doesn't need a starter.
                         if entry == nil && !hasDraftContent {
                             WritingStarterChip(
+                                showsTalkItOut: SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier),
                                 onTalkItOut: { presentTalkItOut() },
                                 onUseTemplate: { template in
                                     viewModel.text = template.seedText

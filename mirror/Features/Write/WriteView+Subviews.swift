@@ -861,6 +861,8 @@ struct FollowUpChip: View {
 /// Reuses this chip's already-verified-on-device placement/timing rather than adding a second
 /// chip alongside it.
 struct WritingStarterChip: View {
+    /// False on Free: the menu offers only the templates (no paywall before the first nudge).
+    var showsTalkItOut = true
     let onTalkItOut: () -> Void
     let onUseTemplate: (WritingTemplate) -> Void
 
@@ -870,10 +872,12 @@ struct WritingStarterChip: View {
 
     var body: some View {
         Menu {
-            Button(action: onTalkItOut) {
-                Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+            if showsTalkItOut {
+                Button(action: onTalkItOut) {
+                    Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+                }
+                Divider()
             }
-            Divider()
             ForEach(WritingTemplate.allCases) { template in
                 Button { onUseTemplate(template) } label: {
                     Label(template.title, systemImage: template.icon)
@@ -907,6 +911,6 @@ struct WritingStarterChip: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Need a starting point? Talk it out, or use a template")
+        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
     }
 }

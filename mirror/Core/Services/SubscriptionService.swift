@@ -38,6 +38,12 @@ final class SubscriptionService {
         }
     }
 
+    /// Talk It Out is offered on Core and Deep only. Free users don't see it at all, so it never
+    /// shows a paywall before the first nudge (CLAUDE.md, staged onboarding; owner, 2026-10-11).
+    static func offersTalkItOut(for tier: SubscriptionTier) -> Bool {
+        tier != .free
+    }
+
     private init() {
         // Widgets read the tier from the app group and treat a missing key as "free". With
         // everything free the answer is known now, so write it before RevenueCat replies (or
@@ -49,10 +55,11 @@ final class SubscriptionService {
         else if let cached = Purchases.shared.cachedCustomerInfo { updateTier(from: cached) }
         Task {
             // RevenueCat: restorePurchases "may force your users to enter the App Store password
-            // so should only be performed on request of the user" (5.89.0 docs). While every
-            // feature is free its result is thrown away anyway (`updateTier`), so launch skips it;
-            // what replaces it when gating returns is the November IAP decision (backlog C).
-            if !Self.allFeaturesFree { await restorePurchases() }
+            // so should only be performed on request of the user" (5.89.0 docs), so launch uses
+            // the silent syncPurchases instead (owner, 2026-10-11); the Restore buttons keep
+            // restorePurchases. While every feature is free the result is thrown away anyway
+            // (`updateTier`), so launch skips it.
+            if !Self.allFeaturesFree { await syncPurchasesSilently() }
             await refresh()
         }
     }
@@ -94,6 +101,14 @@ final class SubscriptionService {
             updateTier(from: customerInfo)
         } catch {
             purchaseError = error.localizedDescription
+        }
+    }
+
+    /// Launch-time sync: no password prompt, and a failure stays quiet (no `purchaseError`),
+    /// since the user didn't ask for anything. `refresh()` runs right after either way.
+    private func syncPurchasesSilently() async {
+        if let customerInfo = try? await Purchases.shared.syncPurchases() {
+            updateTier(from: customerInfo)
         }
     }
 

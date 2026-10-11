@@ -56,6 +56,8 @@ iOS (SwiftUI + SwiftData)
 
 **Ask cap**: Core = 15/month. Deep = unlimited. Cut immediately — no grandfathering.
 
+**Everything is free for now**: `SubscriptionService.allFeaturesFree = true` (since 3.1.1) makes every user Deep, so the paywall and the Ask cap never apply. It stays on in 3.1.2. Paid gating returns in a November build: an in-app notice about 2 weeks ahead, then gating with the 7-day trial (owner, 2026-10-11; plan in `mirror/.claude/november-paid-activation.md`). When it's flipped off, launch restores with RevenueCat's silent `syncPurchases`, never `restorePurchases`, and Free users don't see Talk It Out.
+
 App Store Connect products:
 - `mirror_core_monthly` — $2.99/mo, 7-day free trial
 - `mirror_core_yearly` — $29.99/yr (~16% savings), 7-day free trial
