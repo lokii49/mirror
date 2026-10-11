@@ -997,6 +997,11 @@ struct EntriesTabView: View {
         .contentMargins(.top, 0, for: .scrollContent)
         .contentMargins(.bottom, 96, for: .scrollContent)
         #if os(iOS)
+        // Beside the reader (macSelection set: iPad, an opened iPhone Duo), this stack's toolbar
+        // moves into the Duo's vertical bar at the screen edge, and the stack reserved that bar's
+        // width inside the list, leaving a ~100 pt empty strip on the list column's right. The
+        // reader sits between the list and the bar, so the list ignores that inset there.
+        .ignoresSafeArea(.container, edges: macSelection == nil ? [] : .trailing)
         .listSectionSpacing(4)
         #endif
         .environment(\.defaultMinListHeaderHeight, 0)
