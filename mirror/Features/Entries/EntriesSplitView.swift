@@ -19,6 +19,12 @@ struct EntriesSplitView: View {
     /// Half-folded iPhone Duo: the list ends at the fold and the reader starts after it.
     @State private var fold: FoldSpan?
     @State private var width: CGFloat = 0
+    /// iPhone Duo (a vertical bar beside the status bar): flat, the list ends at the middle of the
+    /// screen, where the fold is, so half-folding only opens a gap there (owner, 2026-10-11).
+    @State private var hasVerticalBar = false
+    /// The screen's middle and this split's leading edge, in window coordinates.
+    @State private var screenMidX: CGFloat = 0
+    @State private var splitMinX: CGFloat = 0
 
     private var sideBySide: Bool { sizeClass == .regular }
     private var foldSplit: FoldColumnSplit? {
@@ -59,14 +65,25 @@ struct EntriesSplitView: View {
             .animation(.foldSplit, value: foldSplit)
             .onWidthChange($width)
             .onFoldChange { fold = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minX.rounded() } action: { splitMinX = $0 }
         }
+        // The window's own middle: SwiftUI lays the tab content out beside the vertical bar, so
+        // even a safe-area-ignoring background stops short of the screen's edge.
+        .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar, windowMidX: $screenMidX))
         .onChange(of: navResetID) { _, _ in listResetID = UUID() }
         // Compact, the list pushes the entry itself. Clearing here means an unfold can't draw
         // the reader for an entry deleted meanwhile before the list hands its pushed one over.
         .onChange(of: sideBySide) { _, side in if !side { selection = nil } }
     }
 
-    private var listWidth: CGFloat { foldSplit?.leading ?? 420 }
+    /// Half-folded: up to the fold. Flat on iPhone Duo: up to the screen's middle, so half-folding
+    /// springs the columns apart toward the screen's edges. Elsewhere (iPad): 420 pt.
+    private var listWidth: CGFloat {
+        if let foldSplit { return foldSplit.leading }
+        let toMiddle = screenMidX - splitMinX
+        if hasVerticalBar, toMiddle >= 300, width - toMiddle >= 300 { return toMiddle }
+        return 420
+    }
 
     @ViewBuilder
     private var reader: some View {
@@ -109,11 +126,19 @@ private struct EntrySelectionGuard: View {
 /// UIKit's `verticalBarEdge` trait (iOS 27.1). SwiftUI has no environment value for it.
 struct VerticalBarProbe: UIViewRepresentable {
     @Binding var hasVerticalBar: Bool
+    /// The window's horizontal middle, in window (SwiftUI `.global`) coordinates.
+    var windowMidX: Binding<CGFloat>? = nil
 
     func makeUIView(context: Context) -> ProbeView {
         let view = ProbeView()
         view.onChange = { value in
             if hasVerticalBar != value { hasVerticalBar = value }
+        }
+        if let windowMidX {
+            view.onWindowWidth = { width in
+                let mid = (width / 2).rounded()
+                if abs(windowMidX.wrappedValue - mid) >= 1 { windowMidX.wrappedValue = mid }
+            }
         }
         return view
     }
@@ -122,6 +147,8 @@ struct VerticalBarProbe: UIViewRepresentable {
 
     final class ProbeView: UIView {
         var onChange: ((Bool) -> Void)?
+        var onWindowWidth: ((CGFloat) -> Void)?
+        private var reportedWindowWidth: CGFloat = 0
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -138,6 +165,15 @@ struct VerticalBarProbe: UIViewRepresentable {
         override func didMoveToWindow() {
             super.didMoveToWindow()
             report()
+        }
+
+        /// A fold or unfold resizes the window, which lays this view out again.
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let width = window?.bounds.width, width != reportedWindowWidth else { return }
+            reportedWindowWidth = width
+            let callback = onWindowWidth
+            DispatchQueue.main.async { callback?(width) }
         }
 
         func report() {

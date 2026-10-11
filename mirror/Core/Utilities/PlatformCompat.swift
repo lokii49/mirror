@@ -232,6 +232,23 @@ struct OptionalNavigationStack<Content: View>: View {
 }
 #endif
 
+extension View {
+    /// Fades a horizontal scroll row out at both ends, so a row cut off by a column's edge reads
+    /// as scrollable instead of cropped. The rows already pad their content by 16 pt, so at rest
+    /// the fade falls on that padding.
+    func horizontalEdgeFade(_ width: CGFloat = 16) -> some View {
+        mask {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+                Rectangle()
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+            }
+        }
+    }
+}
+
 extension Color {
     /// The system hairline/separator color on both platforms.
     static var platformSeparator: Color {

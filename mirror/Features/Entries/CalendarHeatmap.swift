@@ -554,6 +554,7 @@ struct CalendarHeatmap: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 2)
                 }
+                .horizontalEdgeFade()
                 .onAppear {
                     if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
                         proxy.scrollTo(todayInMonth, anchor: .center)
@@ -676,6 +677,7 @@ struct CalendarHeatmap: View {
                 .padding(.top, 2)
                 .padding(.bottom, 2)
             }
+            .horizontalEdgeFade()
             // A horizontal ScrollView takes all the height it is offered; the grid is the month
             // label row plus seven rows of cells, so that is the height it gets.
             .frame(height: 14 + CGFloat(7) * (cellSize + cellGap) + 8)
