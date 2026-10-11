@@ -20,22 +20,29 @@ struct EntriesSplitView: View {
     private var sideBySide: Bool { sizeClass == .regular }
 
     var body: some View {
-        HStack(spacing: 0) {
-            EntriesTabView(
-                navResetID: listResetID,
-                deepLinkEntryID: deepLinkEntryID,
-                macSelection: sideBySide ? $selection : nil
-            )
-            .frame(width: sideBySide ? 420 : nil)
-            .frame(maxWidth: sideBySide ? 420 : .infinity)
+        // One NavigationStack for the whole tab, not one per column: the list's buttons and the
+        // reader's Edit/More share a single bar at the trailing edge (beside iPad's top tab bar,
+        // in the Duo's vertical bar). A narrow list column's own bar had its buttons collapsed
+        // under iPad's centred tab bar, and reserved the Duo bar's width inside the list.
+        NavigationStack {
+            HStack(spacing: 0) {
+                EntriesTabView(
+                    navResetID: listResetID,
+                    deepLinkEntryID: deepLinkEntryID,
+                    macSelection: sideBySide ? $selection : nil,
+                    ownsNavigationStack: false
+                )
+                .frame(width: sideBySide ? 420 : nil)
+                .frame(maxWidth: sideBySide ? 420 : .infinity)
 
-            if sideBySide {
-                Rectangle()
-                    .fill(MirrorTheme.inkBorder)
-                    .frame(width: 1)
-                    .ignoresSafeArea(edges: .vertical)
-                reader
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if sideBySide {
+                    Rectangle()
+                        .fill(MirrorTheme.inkBorder)
+                        .frame(width: 1)
+                        .ignoresSafeArea(edges: .vertical)
+                    reader
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .onChange(of: navResetID) { _, _ in listResetID = UUID() }
@@ -45,9 +52,7 @@ struct EntriesSplitView: View {
     @ViewBuilder
     private var reader: some View {
         if let selection {
-            NavigationStack {
-                EntryDetailView(entry: selection) { self.selection = nil }
-            }
+            EntryDetailView(entry: selection) { self.selection = nil }
             .id(selection.id)
             // Deleted from the list (swipe) or on another device: close the reader instead of
             // showing a deleted record.

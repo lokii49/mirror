@@ -9,6 +9,9 @@ struct EntriesTabView: View {
     /// macOS shows the reader beside the list instead of pushing it. When set, opening an
     /// entry writes it here and the list never navigates.
     var macSelection: Binding<Entry?>? = nil
+    /// False when a parent (EntriesSplitView) provides the NavigationStack, so this list's toolbar
+    /// shares one bar with the reader beside it.
+    var ownsNavigationStack = true
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
@@ -364,7 +367,7 @@ struct EntriesTabView: View {
 
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
-        PlatformNavigationStack {
+        OptionalNavigationStack(enabled: ownsNavigationStack) {
             Group {
                 if entries.isEmpty {
                     emptyState
@@ -997,11 +1000,6 @@ struct EntriesTabView: View {
         .contentMargins(.top, 0, for: .scrollContent)
         .contentMargins(.bottom, 96, for: .scrollContent)
         #if os(iOS)
-        // Beside the reader (macSelection set: iPad, an opened iPhone Duo), this stack's toolbar
-        // moves into the Duo's vertical bar at the screen edge, and the stack reserved that bar's
-        // width inside the list, leaving a ~100 pt empty strip on the list column's right. The
-        // reader sits between the list and the bar, so the list ignores that inset there.
-        .ignoresSafeArea(.container, edges: macSelection == nil ? [] : .trailing)
         .listSectionSpacing(4)
         #endif
         .environment(\.defaultMinListHeaderHeight, 0)

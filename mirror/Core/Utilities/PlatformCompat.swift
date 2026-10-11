@@ -172,6 +172,21 @@ struct PlatformNavigationStack<Content: View>: View {
     }
 }
 
+/// A NavigationStack, or just the content when a parent already provides one (the Entries list
+/// beside the reader shares one stack, so both toolbars sit in a single bar).
+struct OptionalNavigationStack<Content: View>: View {
+    var enabled: Bool
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        #if os(macOS)
+        content()
+        #else
+        if enabled { NavigationStack { content() } } else { content() }
+        #endif
+    }
+}
+
 /// Resigns the text-input focus (hides the keyboard on iOS).
 @MainActor func dismissKeyboard() {
     #if os(iOS)

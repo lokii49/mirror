@@ -425,8 +425,8 @@ struct ContentView: View {
     }
 
     #if os(iOS)
-    /// The same tabs in every size class: a tab bar when compact, a sidebar on iPad, and the
-    /// vertical bar beside the status bar on iPhone Duo. Folding or unfolding a Duo changes
+    /// The same tabs in every size class: a tab bar when compact, a top tab bar on iPad (sidebar
+    /// on request), and the vertical bar beside the status bar on iPhone Duo. Folding or unfolding a Duo changes
     /// the size class but keeps these views, so the editor keeps its focus and undo history.
     /// (The iOS 17 path swapped `phoneLayout` and `ipadLayout`, rebuilding every screen.)
     /// No size-class branch may wrap a tab's content, or that rebuild comes back.
@@ -461,8 +461,10 @@ struct ContentView: View {
                 }
             }
         }
+        // The default placement: iPad opens with the tabs as a top bar and its sidebar button
+        // switches (iOS remembers the choice). Forcing .sidebar slid the sidebar over the content
+        // on every upright launch (owner, 2026-10-11). The Duo uses its vertical bar either way.
         .tabViewStyle(.sidebarAdaptable)
-        .defaultAdaptableTabBarPlacement(.sidebar)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .tint(sentinel ? MirrorTheme.ember : MirrorTheme.primary)
