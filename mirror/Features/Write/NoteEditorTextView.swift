@@ -1936,7 +1936,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Cursor is in a virtual empty paragraph past the last character (e.g. after "Hello\n").
             // Reading attributed text at length-1 would return the \n's style (the *previous* paragraph),
             // which would wrongly overwrite typing attrs the user just set via the format panel.
-            if cursorLoc >= nsText.length { return }
+            if cursorLoc >= nsText.length {
+                restoreInlineIndexKeys(in: textView, at: cursorLoc)
+                return
+            }
 
             let style = textStyle(at: cursorLoc, in: textView.attributedText)
             let level = indentLevelValue(at: cursorLoc, in: textView.attributedText)
@@ -1954,6 +1957,41 @@ struct NoteEditorTextView: UIViewRepresentable {
                 }
             }
             textView.typingAttributes = typing
+        }
+
+        /// After each keystroke UIKit rebuilds the typing attributes from the text it just inserted.
+        /// The highlight and text colors survive, but the index keys don't, so at the end of the
+        /// text only the first character typed carried them: the rest showed the color but were
+        /// saved without it, and the bar's highlight toggle read as off. Puts the keys back when the
+        /// character before the caret has them and its color is still being typed.
+        private func restoreInlineIndexKeys(in textView: UITextView, at location: Int) {
+            guard let attributed = textView.attributedText,
+                  let previous = inheritedTypingInline(before: location, in: attributed) else { return }
+            var typing = textView.typingAttributes
+            var changed = false
+            if typing[Self.highlightIndexAttribute] == nil, let idx = previous.highlightIndex,
+               typingColor(typing[.backgroundColor], matches: HighlightPalette.colors(for: parent.displayMode), at: idx, traits: textView.traitCollection) {
+                typing[Self.highlightIndexAttribute] = idx
+                changed = true
+            }
+            if typing[Self.textColorIndexAttribute] == nil, let idx = previous.textColorIndex,
+               typingColor(typing[.foregroundColor], matches: TextColorPalette.colors(for: parent.displayMode), at: idx, traits: textView.traitCollection) {
+                typing[Self.textColorIndexAttribute] = idx
+                changed = true
+            }
+            if changed { textView.typingAttributes = typing }
+        }
+
+        /// Compares resolved components: two `UIColor(Color)` conversions of the same adaptive
+        /// palette entry are separate objects that `isEqual` doesn't match.
+        private func typingColor(_ value: Any?, matches palette: [Color], at index: Int, traits: UITraitCollection) -> Bool {
+            guard let color = value as? UIColor, palette.indices.contains(index) else { return false }
+            var a: (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+            var b: (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+            guard color.resolvedColor(with: traits).getRed(&a.0, green: &a.1, blue: &a.2, alpha: &a.3),
+                  UIColor(palette[index]).resolvedColor(with: traits).getRed(&b.0, green: &b.1, blue: &b.2, alpha: &b.3)
+            else { return false }
+            return abs(a.0 - b.0) < 0.01 && abs(a.1 - b.1) < 0.01 && abs(a.2 - b.2) < 0.01 && abs(a.3 - b.3) < 0.01
         }
 
         /// The inline formatting of the character before `location`, if it is in the same paragraph

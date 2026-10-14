@@ -340,7 +340,7 @@ extension WriteView {
     /// explanation, surfaced on long-press rather than always-visible copy
     /// cluttering an otherwise icon-only toolbar row.
     @ViewBuilder
-    private var voiceButtonHintContent: some View {
+    var voiceButtonHintContent: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Voice Note")
                 .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
@@ -536,6 +536,9 @@ extension WriteView {
     #endif
 
     var toolRow: some View {
+        #if os(iOS)
+        keyboardBar
+        #else
         VStack(spacing: 0) {
             if dailyWordGoal > 0 && viewModel.wordCount > 0 {
                 let progress = min(Double(viewModel.wordCount) / Double(dailyWordGoal), 1.0)
@@ -554,20 +557,6 @@ extension WriteView {
             }
             Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.inkBorder)
             HStack(spacing: 0) {
-                #if os(iOS)
-                // Keyboard dismiss
-                Button {
-                    dismissKeyboard()
-                } label: {
-                    Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: toolbarIconSize(20)))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Hide keyboard")
-                #endif
-
                 // Undo
                 Button {
                     applyTextCommand(.undo)
@@ -594,28 +583,7 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
-                // iOS opens the Aa panel; Mac shows formatting controls right in the row.
-                #if os(macOS)
                 macFormattingControls
-                #endif
-                #if os(iOS)
-                // Formatting panel — popover off this button on iPad, overlay
-                // above the keyboard on iPhone (see WriteView.safeAreaInset).
-                FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showFormattingPanel.toggle()
-                }
-                .popover(isPresented: Binding(
-                    get: { showFormattingPanel && usesPopoverPanel },
-                    set: { if !$0 { showFormattingPanel = false } }
-                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
-                    FormattingPanelView(state: panelState, presentation: .popover)
-                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
-                        .presentationCompactAdaptation(.popover)
-                        .environment(\.appDisplayMode, displayMode)
-                }
-                #endif
-
                 Spacer(minLength: 0)
 
                 // Checklist quick-ops — appear only when cursor is on a checklist paragraph
@@ -646,125 +614,12 @@ extension WriteView {
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
 
-                // Photos are written into the rich-text editor as inline tokens, which the Mac
-                // plain-text editor cannot do yet; attaching from Mac would desync them.
-                #if os(iOS)
-                // Photo button
-                Menu {
-                    if CameraPickerController.isAvailable {
-                        Button {
-                            editorFocused = false
-                            isKeyboardVisible = false
-                            dismissKeyboard()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showCameraPicker = true }
-                        } label: {
-                            Label("Camera", systemImage: "camera")
-                        }
-                    }
-                    Button {
-                        editorFocused = false
-                        isKeyboardVisible = false
-                        dismissKeyboard()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showPhotoPicker = true }
-                    } label: {
-                        Label("Photo Library", systemImage: "photo.on.rectangle")
-                    }
-                    if DocumentScannerController.isSupported {
-                        Button {
-                            editorFocused = false
-                            isKeyboardVisible = false
-                            dismissKeyboard()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showDocumentScanner = true }
-                        } label: {
-                            Label("Scan Text", systemImage: "text.viewfinder")
-                        }
-                    }
-                } label: {
-                    Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
-                        .font(.system(size: toolbarIconSize(20)))
-                        .foregroundStyle(!photoDataArray.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : .primary)
-                        .frame(width: 44, height: 44)
-                        .overlay(alignment: .topTrailing) {
-                            if photoDataArray.count > 1 {
-                                Text("\(photoDataArray.count)")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                    )
-                                    .offset(x: 4, y: -2)
-                            }
-                        }
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add photo")
-                .accessibilityValue(photoDataArray.isEmpty ? Text("") : Text("\(photoDataArray.count) attached"))
-                #endif
-
-                // Voice button — records inline; keyboard and caret stay put.
-                // Plain view + explicit tap/long-press gestures, not a Button:
-                // a Button's own tap gesture recognizer still fires alongside a
-                // .simultaneousGesture long-press (they don't mutually exclude),
-                // which would start a recording behind the long-press hint
-                // popover below (audit 2.3) — the worst outcome for a
-                // discoverability affordance. .onTapGesture/.onLongPressGesture
-                // on a plain view are mutually exclusive by construction.
-                Image(systemName: iconForVoiceButton)
-                    .font(.system(size: toolbarIconSize(20)))
-                    .foregroundStyle(
-                        isRecordingInline ? Color.red
-                            : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
-                    )
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-                    .overlay(alignment: .topTrailing) {
-                        if isTranscribingVoiceNotes {
-                            ProgressView()
-                                .scaleEffect(0.55)
-                                .frame(width: 16, height: 16)
-                                .background(Color(.systemBackground).opacity(0.85), in: Circle())
-                                .offset(x: 6, y: -6)
-                        } else if draftVoiceNotes.count > 1 {
-                            Text("\(draftVoiceNotes.count)")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 2)
-                                .background(
-                                    displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                )
-                                .offset(x: 4, y: -2)
-                        }
-                    }
-                    .onTapGesture {
-                        toggleInlineRecording()
-                    }
-                    .onLongPressGesture(minimumDuration: 0.45) {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        showVoiceButtonHint = true
-                    }
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(voiceButtonAccessibilityLabel)
-                    // VoiceOver has no long-press gesture — this is the only way
-                    // a VoiceOver user reaches the same explanation (audit 2.3).
-                    .accessibilityAction(named: Text("What this does")) {
-                        showVoiceButtonHint = true
-                    }
-                    .popover(isPresented: $showVoiceButtonHint) {
-                        voiceButtonHintContent
-                            .presentationCompactAdaptation(.popover)
-                    }
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
-            .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
         .background(MirrorTheme.inkMid)
+        #endif
     }
 }
 
