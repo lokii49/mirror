@@ -141,43 +141,7 @@ struct InsightView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle(displayMode == .sentinel ? "Briefing" : "Insights")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "person.circle")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .accessibilityLabel("Settings")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        // Same single presentation site as the daily reminder /
-                        // auto-prompt (ContentView owns the sheet) — a second
-                        // concurrent .sheet here would be silently dropped.
-                        MoodCheckInPresenter.shared.pending = true
-                    } label: {
-                        Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                    }
-                    .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if shouldShowRefresh {
-                        Button {
-                            Task {
-                                await refreshInsights()
-                            }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .accessibilityLabel("Retry insights")
-                    }
-                }
-            }
+            .toolbar { iosToolbar }
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
@@ -513,11 +477,43 @@ struct InsightView: View {
         }
     }
 
-    private var shouldShowRefresh: Bool {
-        if case .error = viewModel.nudgeState { return true }
-        if case .error = viewModel.digestState { return true }
-        return false
+    #if os(iOS)
+    /// Each item exists from the first layout: on iPhone Duo the system moves toolbar items into
+    /// the vertical bar, and an item that renders nothing, or appears only once data loads, can
+    /// leave its group floating at the bottom centre (seen in TinyAct). The old Retry button was
+    /// such an item; it's gone because the nudge and digest error cards have their own Try Again,
+    /// which regenerates (the button only re-read saved state).
+    @ToolbarContentBuilder
+    private var iosToolbar: some ToolbarContent {
+        // Where there's room, Settings is a tab (ContentView); the button would duplicate it.
+        if hSizeClass != .regular {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "person.circle")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .accessibilityLabel("Settings")
+            }
+            .preferringVerticalBar()
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                // Same single presentation site as the daily reminder /
+                // auto-prompt (ContentView owns the sheet) — a second
+                // concurrent .sheet here would be silently dropped.
+                MoodCheckInPresenter.shared.pending = true
+            } label: {
+                Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            }
+            .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
+        }
+        .preferringVerticalBar()
     }
+    #endif
 
     private func refreshInsights() async {
         await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)

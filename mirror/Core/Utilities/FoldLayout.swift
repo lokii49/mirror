@@ -40,6 +40,22 @@ extension View {
     }
 }
 
+#if os(iOS)
+extension ToolbarContent {
+    /// Prefers the vertical side bar for this item where the system shows one (iPhone Duo). Left
+    /// to the system, a leading item can stay in a horizontal bar at the top while the trailing
+    /// ones move to the side (TinyAct). Elsewhere there is no vertical bar and nothing changes.
+    @ToolbarContentBuilder
+    func preferringVerticalBar() -> some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            axisBehavior(.verticalPreferred)
+        } else {
+            self
+        }
+    }
+}
+#endif
+
 #if os(macOS)
 extension View {
     func onFoldChange(_ action: @escaping (FoldSpan?) -> Void) -> some View { self }
