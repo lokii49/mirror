@@ -141,7 +141,9 @@ struct InsightView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle(displayMode == .sentinel ? "Briefing" : "Insights")
+            #if os(iOS)
             .toolbar { iosToolbar }
+            #endif
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
