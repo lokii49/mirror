@@ -6,7 +6,8 @@ import UIKit
 /// scrolls sideways, with the Aa panel, checklist and attach menu first and the direct formatting
 /// controls after them. Voice notes are recorded from the attach menu (Notes' Record Audio). Bar
 /// buttons carry `keyboardBar.*` identifiers so UI tests that look up the Aa panel's "B", "I" or
-/// "S" still find exactly one.
+/// "S" still find exactly one. Their on/off states read the Aa panel's state, the same source the
+/// panel draws from, so the two always agree.
 extension WriteView {
     var keyboardBar: some View {
         ScrollView(.horizontal) {
@@ -36,16 +37,16 @@ extension WriteView {
                 attachMenu
                 fontMenu
 
-                barButton("bold", label: "Bold", id: "bold", isOn: activeInlineStyles.bold) {
+                barButton("bold", label: "Bold", id: "bold", isOn: panelState.activeInlineStyles.bold) {
                     applyTextCommand(.bold)
                 }
-                barButton("italic", label: "Italic", id: "italic", isOn: activeInlineStyles.italic) {
+                barButton("italic", label: "Italic", id: "italic", isOn: panelState.activeInlineStyles.italic) {
                     applyTextCommand(.italic)
                 }
-                barButton("underline", label: "Underline", id: "underline", isOn: activeInlineStyles.underline) {
+                barButton("underline", label: "Underline", id: "underline", isOn: panelState.activeInlineStyles.underline) {
                     applyTextCommand(.underline)
                 }
-                barButton("strikethrough", label: "Strikethrough", id: "strikethrough", isOn: activeInlineStyles.strikethrough) {
+                barButton("strikethrough", label: "Strikethrough", id: "strikethrough", isOn: panelState.activeInlineStyles.strikethrough) {
                     applyTextCommand(.strikethrough)
                 }
                 // Highlights in the swatch last picked in the Aa panel; a second tap removes it.
@@ -64,10 +65,10 @@ extension WriteView {
                 barButton("increase.indent", label: "Increase indent", id: "indentMore", isOn: false) {
                     applyTextCommand(.indentMore)
                 }
-                barButton("text.quote", label: "Quote", id: "blockQuote", isOn: activeParagraphStyle == .blockQuote) {
+                barButton("text.quote", label: "Quote", id: "blockQuote", isOn: panelState.activeParagraphStyle == .blockQuote) {
                     applyTextCommand(.blockQuote)
                 }
-                barButton("list.bullet", label: "Bulleted list", id: "bulletedList", isOn: activeParagraphStyle == .bulletedList) {
+                barButton("list.bullet", label: "Bulleted list", id: "bulletedList", isOn: panelState.activeParagraphStyle == .bulletedList) {
                     applyTextCommand(.bulletedList)
                 }
                 barButton("arrow.uturn.backward", label: "Undo", id: "undo", isOn: false, isEnabled: canUndo) {
@@ -85,7 +86,7 @@ extension WriteView {
         .barSurface(isSentinel: displayMode == .sentinel)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
+        .animation(.easeInOut(duration: 0.15), value: panelState.activeParagraphStyle)
     }
 
     /// The bar while the keyboard is down, as in a Notes note: checklist, attach and record in one
@@ -143,7 +144,7 @@ extension WriteView {
     private var barItemWidth: CGFloat { 58 }
 
     private var isInChecklist: Bool {
-        activeParagraphStyle == .checklistUnchecked || activeParagraphStyle == .checklistChecked
+        panelState.activeParagraphStyle == .checklistUnchecked || panelState.activeParagraphStyle == .checklistChecked
     }
 
     private var barAccent: Color {

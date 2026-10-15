@@ -257,6 +257,10 @@ extension WriteView {
         photoDataArray = []
         inlineStyleData = nil
         activeInlineStyles = InlineStyleSet()
+        panelState.activeInlineStyles = InlineStyleSet()
+        panelState.activeHighlightIndex = nil
+        panelState.activeTextColorIndex = nil
+        panelState.activeLinkURL = nil
         showFormattingPanel = false
         voiceNoteData = nil
         voiceNoteDuration = 0

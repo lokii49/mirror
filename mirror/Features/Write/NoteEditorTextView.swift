@@ -1092,21 +1092,26 @@ struct NoteEditorTextView: UIViewRepresentable {
                 } else if targetStyle == .numberedList {
                     textView.selectedRange = bounded(NSRange(location: "1.\t".count, length: 0), in: textView.text)
                 }
-                textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: emptyFontChoice)
+                var typing = styledAttributesForTyping(targetStyle, numberedIndex: 1, level: cursorLevel, fontChoice: emptyFontChoice)
+                // An empty entry: keep a B / I / U / S picked before the style, at the caret's new
+                // place past any list marker.
+                if let pending = pendingTypingInline {
+                    overlay(pending.inline, onto: &typing)
+                    textView.typingAttributes = typing
+                    rememberTypingInline(in: textView)
+                } else {
+                    textView.typingAttributes = typing
+                }
                 updatePlaceholder(in: textView)
-                parent.activeParagraphStyle = targetStyle
-                parent.panelState.activeParagraphStyle = targetStyle
+                setActiveParagraphStyle(targetStyle)
+                refreshActiveInlineStyles(in: textView)
                 return
             }
 
             // Strip the visual list marker whenever transitioning from any list style to any non-list style.
             if isListStyle(currentStyle) && !isListStyle(targetStyle) {
                 stripListMarkerAndApply(targetStyle, at: cursorLocation, in: textView)
-                parent.activeParagraphStyle = targetStyle
-                // Keep the Aa panel highlight in lockstep, same as every sibling
-                // branch — the strip's selection change usually refreshes it, but
-                // don't leave it to that.
-                parent.panelState.activeParagraphStyle = targetStyle
+                setActiveParagraphStyle(targetStyle)
                 return
             }
 
@@ -1172,8 +1177,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
                 }
                 updatePlaceholder(in: textView)
-                parent.activeParagraphStyle = targetStyle
-                parent.panelState.activeParagraphStyle = targetStyle
+                setActiveParagraphStyle(targetStyle)
                 refreshActiveInlineStyles(in: textView)
                 return
             }
@@ -1209,8 +1213,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     )
                 }
                 textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
-                parent.activeParagraphStyle = targetStyle
-                parent.panelState.activeParagraphStyle = targetStyle
+                setActiveParagraphStyle(targetStyle)
                 refreshActiveInlineStyles(in: textView)
                 return
             }
@@ -1242,7 +1245,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             textView.typingAttributes = styledAttributesForTyping(targetStyle, numberedIndex: nil, level: cursorLevel, fontChoice: cursorFontChoice)
             updatePlaceholder(in: textView)
-            parent.activeParagraphStyle = targetStyle
+            setActiveParagraphStyle(targetStyle)
         }
 
         // Strips the list marker from the current paragraph and applies targetStyle.
@@ -1364,20 +1367,20 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func refreshActiveParagraphStyle(in textView: UITextView) {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
-                parent.activeParagraphStyle = emptyDocumentStyle().0
+                setActiveParagraphStyle(emptyDocumentStyle().0)
                 return
             }
             if lastKnownCursorLocation >= attributed.length {
                 if let raw = textView.typingAttributes[Self.paragraphStyleAttribute] as? String,
                    let style = NoteParagraphTextStyle(rawValue: raw) {
-                    parent.activeParagraphStyle = style
+                    setActiveParagraphStyle(style)
                 } else {
-                    parent.activeParagraphStyle = .body
+                    setActiveParagraphStyle(.body)
                 }
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
-            parent.activeParagraphStyle = textStyle(at: loc, in: attributed)
+            setActiveParagraphStyle(textStyle(at: loc, in: attributed))
         }
 
         private func refreshActiveFontChoice(in textView: UITextView) {
@@ -1928,7 +1931,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // in Aa before typing). Every SwiftUI update re-runs this, so resetting to body
                 // here made the first word typed after picking Title come out as body.
                 let (style, fontChoice) = emptyDocumentStyle()
-                textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: 1, level: 0, fontChoice: fontChoice)
+                var typing = styledAttributesForTyping(style, numberedIndex: 1, level: 0, fontChoice: fontChoice)
+                // B / I / U / S or a color picked before the first character lives only in the
+                // typing attributes; rebuilding them here dropped it, so the first word came out
+                // plain and the bar and panel showed the style off.
+                if let pending = pendingTypingInline, pending.location == 0 {
+                    overlay(pending.inline, onto: &typing)
+                }
+                textView.typingAttributes = typing
                 return
             }
 
@@ -3372,10 +3382,16 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func refreshActiveInlineStyles(in textView: UITextView) {
             guard let attributed = textView.attributedText, attributed.length > 0 else {
-                parent.activeInlineStyles = InlineStyleSet()
-                parent.panelState.activeInlineStyles = InlineStyleSet()
-                parent.panelState.activeLinkURL = nil
-                parent.panelState.activeTextColorIndex = nil
+                // An empty entry: what the first character will get is all there is to show.
+                let style = emptyDocumentStyle().0
+                let typing = typingInline(from: textView.typingAttributes, style: style)
+                var styles = InlineStyleSet()
+                styles.bold = typing.bold
+                styles.italic = typing.italic
+                styles.underline = typing.underline
+                styles.strikethrough = typing.strikethrough
+                publishActiveStyles(styles, paragraph: style, highlightIndex: typing.highlightIndex,
+                                    textColorIndex: typing.textColorIndex, linkURL: nil)
                 return
             }
             let loc = min(lastKnownCursorLocation, attributed.length - 1)
@@ -3421,12 +3437,27 @@ struct NoteEditorTextView: UIViewRepresentable {
             styles.italic = font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false
             styles.underline = underlineActive
             styles.strikethrough = strikethroughActive
+            publishActiveStyles(styles, paragraph: paraStyle, highlightIndex: highlightIndex,
+                                textColorIndex: textColorIndex, linkURL: linkURL)
+        }
+
+        /// The one place the caret's inline styles are published, to the binding the bar reads and
+        /// to the Aa panel's state, so the two can't disagree.
+        private func publishActiveStyles(_ styles: InlineStyleSet, paragraph: NoteParagraphTextStyle,
+                                         highlightIndex: Int?, textColorIndex: Int?, linkURL: String?) {
             parent.activeInlineStyles = styles
             parent.panelState.activeInlineStyles = styles
-            parent.panelState.activeParagraphStyle = paraStyle
+            setActiveParagraphStyle(paragraph)
             parent.panelState.activeHighlightIndex = highlightIndex
             parent.panelState.activeTextColorIndex = textColorIndex
             parent.panelState.activeLinkURL = linkURL
+        }
+
+        /// Sets the caret's paragraph style for both the bar's binding and the Aa panel; several
+        /// paths used to set only the binding, leaving the panel's style pill behind.
+        private func setActiveParagraphStyle(_ style: NoteParagraphTextStyle) {
+            parent.activeParagraphStyle = style
+            parent.panelState.activeParagraphStyle = style
         }
 
         // MARK: - Formatting panel
