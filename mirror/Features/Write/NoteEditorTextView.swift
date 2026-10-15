@@ -88,6 +88,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         tapGesture.cancelsTouchesInView = false
         tapGesture.delegate = context.coordinator
         textView.addGestureRecognizer(tapGesture)
+        textView.checklistTapRecognizer = tapGesture
+        textView.isChecklistMarker = { [weak coordinator = context.coordinator, weak textView] point in
+            guard let coordinator, let textView else { return false }
+            return coordinator.checklistMarkerParagraph(at: point, in: textView) != nil
+        }
 
         textView.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
 
@@ -203,7 +208,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         private var lastRenderedWidth: CGFloat = 0
         private var lastRenderedFontChoice: WritingFontChoice?
         // Tracks cursor position across focus changes (Menu dismissal resets selectedRange)
-        private var lastKnownCursorLocation: Int = 0
+        var lastKnownCursorLocation: Int = 0  // internal for tests
         /// Inline formatting chosen with nothing selected (B/I/U/S, highlight, colour, clear),
         /// kept for as long as the caret stays where it was chosen. Without it the next render pass
         /// rebuilt typing attributes from the paragraph style and the choice was lost.
@@ -304,14 +309,36 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             }
 
+            guard let paraRange = checklistMarkerParagraph(at: location, in: textView) else { return }
+            // Notes: checking an item leaves the caret where you were typing and doesn't raise the
+            // keyboard (MirrorEditorTextView keeps UIKit's own tap from moving it).
+            toggleChecklistItem(paragraphRange: paraRange, caret: textView.selectedRange.location, in: textView)
+        }
+
+        /// The checklist item whose circle is under `location` (text view coordinates): the marker
+        /// plus a margin, as wide as the item's text indent.
+        func checklistMarkerParagraph(at location: CGPoint, in textView: UITextView) -> NSRange? {
+            let nsText = (textView.text ?? "") as NSString
+            guard nsText.length > 0 else { return nil }
+            let inset = textView.textContainerInset
+            let charIndex = textView.layoutManager.characterIndex(
+                for: CGPoint(x: location.x - inset.left, y: location.y - inset.top),
+                in: textView.textContainer,
+                fractionOfDistanceBetweenInsertionPoints: nil
+            )
+            guard charIndex < nsText.length else { return nil }
             let paraRange = nsText.paragraphRange(for: NSRange(location: charIndex, length: 0))
-            let currentStyle = textStyle(at: paraRange.location, in: textView.attributedText)
-            let iLevel = indentLevelValue(at: paraRange.location, in: textView.attributedText)
-            let markerStart = textView.textContainerInset.left + CGFloat(iLevel) * 20
-            let markerEnd = textView.textContainerInset.left + 44 + CGFloat(iLevel) * 20
-            guard location.x >= markerStart && location.x <= markerEnd else { return }
-            guard currentStyle == .checklistUnchecked || currentStyle == .checklistChecked else { return }
-            toggleChecklistItem(paragraphRange: paraRange, caret: charIndex, in: textView)
+            let style = textStyle(at: paraRange.location, in: textView.attributedText)
+            guard style == .checklistUnchecked || style == .checklistChecked else { return nil }
+            // The tap must be on the item's first line, where the circle is.
+            let glyph = textView.layoutManager.glyphIndexForCharacter(at: paraRange.location)
+            let line = textView.layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+            guard location.y - inset.top >= line.minY - 4, location.y - inset.top <= line.maxY + 4 else { return nil }
+            let level = indentLevelValue(at: paraRange.location, in: textView.attributedText)
+            let markerStart = inset.left + CGFloat(level) * 20
+            let markerEnd = markerStart + ChecklistLayoutManager.textIndent + 4
+            guard location.x >= markerStart - 8, location.x <= markerEnd else { return nil }
+            return paraRange
         }
 
         /// Checks or unchecks the checklist item in `paraRange` (a tap on its marker, or the
@@ -871,6 +898,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             let paraLevel = indentLevelValue(at: paragraphRange.location, in: textView.attributedText)
             let content = listContent(fromDisplayedParagraph: updatedParagraph, style: style, level: paraLevel)
             guard content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+            // As in Notes: deleting an item's last letter leaves an empty item; only a Backspace on an
+            // item that is already empty takes its circle away.
+            let before = listContent(fromDisplayedParagraph: paragraph, style: style, level: paraLevel)
+            guard before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
 
             exitList(at: paragraphRange, in: textView)
             return true
@@ -1075,14 +1106,18 @@ struct NoteEditorTextView: UIViewRepresentable {
             // (e.g. .body→.numberedList reads as an active-list toggle-off) and routes into
             // the "strip list marker" branch instead of the dedicated virtual-empty-paragraph
             // branch further down — which then strips the *preceding* real paragraph's marker.
+            let paragraphStart = nsText.length > 0
+                ? nsText.paragraphRange(for: NSRange(location: min(cursorLocation, nsText.length - 1), length: 0)).location
+                : 0
             let currentStyle: NoteParagraphTextStyle
             if cursorLocation >= nsText.length, nsText.length > 0, nsText.character(at: nsText.length - 1) == 10 {
                 currentStyle = .body
             } else {
-                currentStyle = textStyle(
-                    at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)),
-                    in: textView.attributedText
-                )
+                // Read the paragraph's style where it starts: with the caret at the end of a row,
+                // the character under it is the row's line break, which can still carry the style
+                // of the row Return made it from (a body line typed after leaving a checklist
+                // read as a checklist, so the button turned the list off instead of on).
+                currentStyle = textStyle(at: paragraphStart, in: textView.attributedText)
             }
             let targetStyle: NoteParagraphTextStyle
             if command == .checklist {
@@ -1103,7 +1138,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 targetStyle = paragraphStyle(for: command)
             }
 
-            let cursorLevel = isListStyle(targetStyle) ? indentLevelValue(at: min(cursorLocation, max(0, (textView.attributedText?.length ?? 1) - 1)), in: textView.attributedText) : 0
+            let cursorLevel = isListStyle(targetStyle) ? indentLevelValue(at: paragraphStart, in: textView.attributedText) : 0
             // A paragraph-STYLE command (Heading/Body/list toggle) must never silently
             // reset the cursor's current font — resolve and carry it through every
             // branch below, same as cursorLevel already does for indent.
@@ -1245,28 +1280,17 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return
             }
 
+            // The caret as a row and a distance from that row's end, so it lands in the same place
+            // whether the re-render that adds the marker happens now or on the next update.
+            let anchor = paragraphCaretAnchor(cursorLocation, in: nsText)
             nsText.enumerateSubstrings(in: paragraphRange, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
                 self.setParagraphStyle(targetStyle, range: range, in: textView)
             }
             if staticListMarkerPrefix(for: targetStyle) != nil || targetStyle == .numberedList {
+                pendingParagraphCaret = anchor
                 invalidateRenderedCache()
                 applyStyledText(to: textView, preservingSelection: false)
-                let markerLen: Int
-                if targetStyle == .numberedList {
-                    // After re-render the displayed marker is "1.  " or similar — measure it
-                    let displayText = textView.text ?? ""
-                    let nsDisplay = displayText as NSString
-                    let safePos = min(cursorLocation, max(0, nsDisplay.length - 1))
-                    let pRange = nsDisplay.paragraphRange(for: NSRange(location: safePos, length: 0))
-                    let pText = nsDisplay.substring(with: pRange)
-                    markerLen = numberedListMarkerLength(in: pText)
-                } else {
-                    markerLen = (staticListMarkerPrefix(for: targetStyle) as NSString?)?.length ?? 0
-                }
-                textView.selectedRange = bounded(
-                    NSRange(location: cursorLocation + markerLen, length: 0),
-                    in: textView.text
-                )
+                applyPendingParagraphCaret(in: textView)
             } else {
                 textView.selectedRange = bounded(NSRange(location: cursorLocation, length: 0), in: textView.text)
             }
@@ -1381,6 +1405,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             if preservingSelection {
                 textView.selectedRange = bounded(selectedRange, in: textView.text)
             }
+            applyPendingParagraphCaret(in: textView)
             updateTypingAttributes(for: textView)
             // The first render is the undo baseline (before any updateUIView has run).
             if committedSnapshot == nil { committedSnapshot = currentSnapshot(of: textView) }
@@ -1577,7 +1602,8 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func checklistAttributes(checked: Bool, level: Int = 0, fontChoice: WritingFontChoice) -> [NSAttributedString.Key: Any] {
             let offset = CGFloat(level) * 20
-            let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 5)
+            // Rows 35pt apart at body size, as in Notes (5 left them about 32pt apart).
+            let ps = paragraphStyle(lineSpacing: 6, paragraphSpacing: 8)
             ps.firstLineHeadIndent = offset
             // Text starts 36pt in, past the circle (ChecklistLayoutManager), as in Notes; the
             // marker is kerned out to the same edge, so wrapped lines line up with the first.
@@ -2239,6 +2265,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func insertListRow(replacing range: NSRange, style: NoteParagraphTextStyle, in textView: UITextView) {
             // For numbered lists, the new row will be numbered after render; just insert unchecked for checklist
             let newStyle: NoteParagraphTextStyle = (style == .checklistChecked) ? .checklistUnchecked : style
+            if range.length == 0, insertListRowAbove(at: range.location, style: style, newStyle: newStyle, in: textView) { return }
             let rowLevel = indentLevelValue(at: max(0, range.location - 1), in: textView.attributedText)
             let rowFontChoice = fontChoiceValue(at: max(0, range.location - 1), in: textView.attributedText)
             // Numbered placeholder must be digit-shaped ("1.\t", not "N.\t"): the
@@ -2287,6 +2314,46 @@ struct NoteEditorTextView: UIViewRepresentable {
             textView.typingAttributes = styledAttributesForTyping(newStyle, numberedIndex: nil, level: rowLevel, fontChoice: rowFontChoice)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
+        }
+
+        /// Return with the caret at the start of an item's text, as Notes does it: an empty item goes
+        /// in above and the item keeps its text and its check (splitting there handed the check to
+        /// the empty half). The caret stays at the start of the item's text. false when the caret is
+        /// not at the start of the text.
+        private func insertListRowAbove(at location: Int, style: NoteParagraphTextStyle, newStyle: NoteParagraphTextStyle, in textView: UITextView) -> Bool {
+            guard style == .checklistUnchecked || style == .checklistChecked,
+                  let attributed = textView.attributedText, attributed.length > 0 else { return false }
+            let text = attributed.string as NSString
+            let para = text.paragraphRange(for: NSRange(location: min(location, text.length - 1), length: 0))
+            let level = indentLevelValue(at: para.location, in: attributed)
+            let marker = staticListMarkerPrefix(for: style, level: level) ?? ""
+            let markerLen = (marker as NSString).length
+            guard markerLen > 0, displayedMarkerLength(of: para, in: attributed) == markerLen,
+                  location == para.location + markerLen else { return false }
+            var contentEnd = NSMaxRange(para)
+            if contentEnd > para.location, text.character(at: contentEnd - 1) == 10 { contentEnd -= 1 }
+            let contentLength = contentEnd - location
+            guard contentLength > 0 else { return false }   // an empty item: Return ends the list instead
+
+            let fontChoice = fontChoiceValue(at: para.location, in: attributed)
+            let newMarker = staticListMarkerPrefix(for: newStyle, level: level) ?? ""
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+            mutable.insert(NSAttributedString(string: newMarker + "\n",
+                                              attributes: styledAttributesForTyping(newStyle, numberedIndex: nil, level: level, fontChoice: fontChoice)),
+                           at: para.location)
+            let row = text.substring(to: para.location).components(separatedBy: "\n").count - 1
+            isApplyingStyledText = true
+            applyAttributedText(mutable, to: textView)
+            isApplyingStyledText = false
+            storeDocuments(from: textView)
+            pendingParagraphCaret = (row + 1, contentLength)
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: false)
+            applyPendingParagraphCaret(in: textView)
+            textView.typingAttributes = styledAttributesForTyping(style, numberedIndex: nil, level: level, fontChoice: fontChoice)
+            syncRenderedCache(from: textView)
+            updatePlaceholder(in: textView)
+            return true
         }
 
         private func exitList(at paragraphRange: NSRange, in textView: UITextView) {
@@ -3112,6 +3179,44 @@ struct NoteEditorTextView: UIViewRepresentable {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
+        /// A caret to restore as (row, characters before the row's end), until a render shows the
+        /// row's list marker. See `apply(_:to:)`'s list toggle.
+        private var pendingParagraphCaret: (row: Int, fromEnd: Int)?
+
+        private func paragraphCaretAnchor(_ location: Int, in text: NSString) -> (row: Int, fromEnd: Int) {
+            let clamped = min(max(0, location), text.length)
+            let row = text.substring(to: clamped).components(separatedBy: "\n").count - 1
+            let para = text.paragraphRange(for: NSRange(location: min(clamped, max(0, text.length - 1)), length: 0))
+            var contentEnd = NSMaxRange(para)
+            if contentEnd > para.location, contentEnd <= text.length, text.character(at: contentEnd - 1) == 10 { contentEnd -= 1 }
+            return (row, max(0, contentEnd - clamped))
+        }
+
+        /// Puts a pending row-anchored caret back; done once the row shows its marker.
+        func applyPendingParagraphCaret(in textView: UITextView) {
+            guard let pending = pendingParagraphCaret, let attributed = textView.attributedText else { return }
+            let text = attributed.string as NSString
+            var row = 0
+            var target: (location: Int, hasMarker: Bool)?
+            text.enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: [.byParagraphs, .substringNotRequired]) { _, range, enclosing, stop in
+                if row == pending.row {
+                    let marker = self.displayedMarkerLength(of: enclosing, in: attributed)
+                    target = (max(range.location + marker, NSMaxRange(range) - pending.fromEnd), marker > 0)
+                    stop.pointee = true
+                }
+                row += 1
+            }
+            if target == nil, pending.row == row, text.length > 0, text.character(at: text.length - 1) == 10 {
+                target = (text.length, false)   // the empty row after a final line break
+            }
+            guard let target else { pendingParagraphCaret = nil; return }
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(NSRange(location: target.location, length: 0), in: textView.text)
+            isApplyingStyledText = false
+            lastKnownCursorLocation = textView.selectedRange.location
+            if target.hasMarker { pendingParagraphCaret = nil }
+        }
+
         /// Where the caret goes when editing resumes, if it was placed while the editor was unfocused.
         private var pendingCaretLocation: Int?
         /// The caret a checkbox tap just left, for the sort that may follow it.
@@ -3779,20 +3884,26 @@ final class ChecklistLayoutManager: NSLayoutManager {
         let line = lineFragmentRect(forGlyphAt: marker.glyph, effectiveRange: nil)
         let glyphX = location(forGlyphAt: marker.glyph).x
         let baseline = line.minY + location(forGlyphAt: marker.glyph).y
+        // Notes' circle is about 22pt across at body size, a light grey ring when open.
         let diameter = (font.pointSize * 1.3).rounded()
         // Centred on the text's x-height band, so the circle sits level with lowercase letters.
         let centerY = origin.y + baseline - font.xHeight / 2 - font.descender * 0.15
-        let rect = CGRect(x: origin.x + line.minX + glyphX, y: centerY - diameter / 2, width: diameter, height: diameter)
-        let config = UIImage.SymbolConfiguration(pointSize: diameter, weight: .light)
+        let config = UIImage.SymbolConfiguration(pointSize: diameter, weight: .regular)
         let image: UIImage?
         if marker.checked {
             image = UIImage(systemName: "checkmark.circle.fill", withConfiguration: config.applying(
                 UIImage.SymbolConfiguration(paletteColors: [.white, accentColor])))
         } else {
             image = UIImage(systemName: "circle", withConfiguration: config)?
-                .withTintColor(.tertiaryLabel, renderingMode: .alwaysOriginal)
+                .withTintColor(.systemGray3, renderingMode: .alwaysOriginal)
         }
-        image?.draw(in: rect)
+        guard let image, image.size.width > 0 else { return }
+        // A symbol image carries padding around its glyph; scale it so the circle itself is
+        // `diameter` across (it used to come out near 19pt instead of 22).
+        let scale = diameter / (image.size.width * 0.84)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let x = origin.x + line.minX + glyphX - (size.width - diameter) / 2
+        image.draw(in: CGRect(x: x, y: centerY - size.height / 2, width: size.width, height: size.height))
     }
 }
 
@@ -3831,6 +3942,21 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
 
 final class MirrorEditorTextView: UITextView {
     weak var editorUndo: UndoManager?
+    /// The editor's own tap recognizer, which toggles a checklist item when its circle is tapped.
+    weak var checklistTapRecognizer: UIGestureRecognizer?
+    /// Whether a point (text view coordinates) is on a checklist item's circle.
+    var isChecklistMarker: ((CGPoint) -> Bool)?
+
+    /// A tap on a checklist circle only toggles the item, as in Notes: UIKit's own text gestures
+    /// would also move the caret there and raise the keyboard.
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer !== checklistTapRecognizer, gestureRecognizer.view === self,
+           let isChecklistMarker, isChecklistMarker(gestureRecognizer.location(in: self)) {
+            return false
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+
     override var undoManager: UndoManager? { editorUndo ?? super.undoManager }
 
     /// Extra VoiceOver actions for the caret's paragraph (checking a checklist item).

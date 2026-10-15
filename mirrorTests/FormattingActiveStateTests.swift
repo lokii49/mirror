@@ -139,3 +139,87 @@ struct ChecklistMarkerSpacingTests {
         }
     }
 }
+
+/// Return and the checklist button behave as in Notes.
+@MainActor
+struct ChecklistNotesBehaviourTests {
+    private func editor(_ rows: [(String, NoteParagraphTextStyle)]) throws -> (FormattingActiveStateTests.Box, NoteEditorTextView.Coordinator, UITextView) {
+        let box = FormattingActiveStateTests.Box()
+        box.text = rows.map(\.0).joined(separator: "\n")
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: rows.map(\.1)))
+        let (c, tv) = FormattingActiveStateTests.makeEditor(box)
+        return (box, c, tv)
+    }
+
+    private func styles(_ box: FormattingActiveStateTests.Box) -> [NoteParagraphTextStyle] {
+        (try? JSONDecoder().decode(NoteTextStyleDocument.self, from: box.textStyleData ?? Data()))?.paragraphStyles ?? []
+    }
+
+    private func pressReturn(at location: Int, _ c: NoteEditorTextView.Coordinator, _ tv: UITextView) {
+        tv.selectedRange = NSRange(location: location, length: 0)
+        if c.textView(tv, shouldChangeTextIn: NSRange(location: location, length: 0), replacementText: "\n") {
+            tv.textStorage.replaceCharacters(in: NSRange(location: location, length: 0), with: "\n")
+            c.textViewDidChange(tv)
+        }
+    }
+
+    @Test func returnAtTheStartOfACheckedItemAddsAnEmptyItemAboveAndKeepsTheCheck() throws {
+        let (box, c, tv) = try editor([("Milk", .checklistUnchecked), ("Bread", .checklistChecked)])
+        let bread = (tv.text as NSString).range(of: "Bread")
+        pressReturn(at: bread.location, c, tv)
+        #expect(box.text == "Milk\n\nBread")
+        #expect(styles(box) == [.checklistUnchecked, .checklistUnchecked, .checklistChecked])
+        let after = (tv.text as NSString).range(of: "Bread")
+        #expect(tv.selectedRange.location == after.location, "the caret stays at the start of Bread")
+    }
+
+    @Test func returnAtTheEndOfACheckedItemAddsAnUncheckedItemBelow() throws {
+        let (box, c, tv) = try editor([("Bread", .checklistChecked)])
+        let bread = (tv.text as NSString).range(of: "Bread")
+        pressReturn(at: NSMaxRange(bread), c, tv)
+        #expect(box.text == "Bread\n")
+        #expect(styles(box).prefix(2) == [.checklistChecked, .checklistUnchecked])
+    }
+
+    @Test func returnOnAnEmptyItemEndsTheList() throws {
+        let (box, c, tv) = try editor([("Milk", .checklistUnchecked), ("", .checklistUnchecked)])
+        pressReturn(at: (tv.text as NSString).length, c, tv)
+        // The stored styles may drop a trailing body row; what matters is that no second item is left.
+        #expect(styles(box).filter { $0 == .checklistUnchecked || $0 == .checklistChecked }.count == 1, "the empty item becomes body text")
+        #expect(!(tv.text ?? "").hasSuffix("○  "), "no empty circle is left")
+    }
+
+    /// A body line typed after leaving a list, between two lists: the button turns it into an
+    /// item (its line break still carried a checklist style, so it read as one and turned off).
+    @Test func checklistButtonOnABodyLineBetweenListsMakesItAnItem() throws {
+        let (box, c, tv) = try editor([("Item 4", .checklistUnchecked), ("Hello here", .body), ("Item 2", .checklistChecked)])
+        let hello = (tv.text as NSString).range(of: "Hello here")
+        // The line break of "Hello here" carrying the next row's style, as Return leaves it.
+        if let key = tv.textStorage.attributes(at: 0, effectiveRange: nil).keys.first(where: { $0.rawValue == "mirror.paragraphStyle" }) {
+            tv.textStorage.addAttribute(key, value: NoteParagraphTextStyle.checklistChecked.rawValue, range: NSRange(location: NSMaxRange(hello), length: 1))
+        }
+        c.lastKnownCursorLocation = NSMaxRange(hello)
+        c.apply(.checklist, to: tv)
+        #expect(styles(box) == [.checklistUnchecked, .checklistUnchecked, .checklistChecked])
+        let after = (tv.text as NSString).range(of: "Hello here")
+        #expect(tv.selectedRange.location == NSMaxRange(after), "the caret stays at the end of Hello here")
+    }
+}
+
+@MainActor
+struct ChecklistBackspaceTests {
+    /// Deleting the last letter keeps the empty item; a Backspace on the empty item makes it body.
+    @Test func deletingTheLastLetterKeepsTheCircle() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nA"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.checklistUnchecked, .checklistUnchecked]))
+        let (c, tv) = FormattingActiveStateTests.makeEditor(box)
+        let a = (tv.text as NSString).range(of: "A", options: .backwards)
+        let delete = NSRange(location: a.location, length: 1)
+        if c.textView(tv, shouldChangeTextIn: delete, replacementText: "") {
+            tv.textStorage.replaceCharacters(in: delete, with: "")
+            c.textViewDidChange(tv)
+        }
+        #expect((tv.text ?? "").hasSuffix("○  "), "the empty item keeps its circle. Got: \(tv.text ?? "")")
+    }
+}
