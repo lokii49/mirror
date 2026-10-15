@@ -1150,6 +1150,22 @@ final class GroundingSampleHarness: XCTestCase {
     /// Round 12 held-out cases (tools/llmrig/fm/RUBRIC_FM.md, reflection styles Tier 2), written
     /// before the run, all synthetic. Shapes a short plain line or a question could get wrong: a plan
     /// asked about as if done, another person's grief given to the writer, two moods the same day.
+    /// Round 13 (RUBRIC_FM.md): held out for the FMDailyGuard name-casing change (39fcab8). Everyday
+    /// words that open a sentence (the insight may reuse them mid-sentence), and names that appear only
+    /// at a sentence start (the trade-off: a lowercase name the model writes stays lowercase). Synthetic.
+    static let heldOutRound13: [(label: String, entries: [Entry])] = [
+        ("hold5_work", [Entry(text: "Work was relentless today. Three deadlines moved up and my manager wanted the slides by noon.", mood: "Drained")]),
+        ("hold5_gym", [Entry(text: "Gym before work felt good for once. Lifted a bit more than last week and didn't rush the stretches.", mood: "Energized")]),
+        ("hold5_dinner", [Entry(text: "Dinner with my sister ran late. We talked about mum's surgery next month and both went quiet.", mood: "Anxious")]),
+        ("hold5_interview", [Entry(text: "Interview went better than I expected. They asked about the migration project and I didn't freeze.", mood: "Hopeful")]),
+        ("hold5_grief", [Entry(text: "Grief comes in waves this week. Lena sent flowers and a note about dad that I read three times.", mood: "Sad")]),
+        ("hold5_priya", [Entry(text: "Priya called after lunch to say the biopsy was clear. I cried in the car before driving home.", mood: "Grateful")]),
+        ("hold5_tomas", [Entry(text: "Tomás fixed the bike chain for me this morning. Rode to the market and back without it slipping once.", mood: "Grateful")]),
+        ("hold5_arjun", [Entry(text: "Spent the evening helping Arjun move his desk. We ate pizza on the floor of his empty room.", mood: "Content")]),
+        ("hold5_lisbon", [Entry(text: "Lisbon was hotter than the forecast said. Walked the whole riverfront anyway and my feet hurt.", mood: "Drained")]),
+        ("hold5_rent", [Entry(text: "Rent went up again and the email came on my birthday. Spent the evening redoing the budget.", mood: "Frustrated")]),
+    ]
+
     static let heldOutRound12: [(label: String, entries: [Entry])] = {
         let morning = Entry(text: "Slept badly, kept thinking about the rent going up next month.", mood: "Anxious")
         let evening = Entry(text: "The landlord agreed to wait until March for the increase. Breathing easier tonight.", mood: "Hopeful")
@@ -1176,7 +1192,7 @@ final class GroundingSampleHarness: XCTestCase {
             throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 + Self.heldOutRound12 {
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 + Self.heldOutRound12 + Self.heldOutRound13 {
             let (recent, background) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
             let system = InsightService.structuredNudgeSystemPrompt(for: recent + background)
             let user = InsightService.buildUserMessage(

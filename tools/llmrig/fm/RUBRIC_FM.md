@@ -420,3 +420,36 @@ rate is known from rounds 5-10).
     line and `@Guide`, so that wording affects the refusal, and round 11's "no prompt can fix a decline on the input
     itself" does not hold for these variants. One case, one round, with variants that failed elsewhere: this is a
     lead for its own round, not evidence that a guide change fixes the refusal.
+
+## Round 13: FMDailyGuard name casing (plan fixed BEFORE running, 2026-10-15)
+
+**Change under test** (`39fcab8`, unpushed): `FMDailyGuard.personNames` now counts a tagged name only where it is
+capitalized mid-sentence. Reason: on iOS 27 the NLTagger labels a sentence-initial noun as a name ("Exam is on
+Friday" tags Exam as a PlaceName on an iPhone 14 Pro), so `restoreNames` turned the insight's "the exam" into
+"the Exam" (SecondQuoteTests failed on 3.1.3). The guard's accept/reject decisions are not meant to change; only
+the casing step. The trade-off: a name the person writes only at a sentence start, if the model writes it in
+lowercase, stays lowercase.
+
+**Method.** One model, one prompt: prod (the shipped V1e, `DAILY_REFLECTION_FM_SYSTEM` dumped by
+`test_dumpStructuredNudgePromptsForRig`, `@Guide` and 3-attempt loop unchanged). fmrig built with the NEW
+`FMDailyGuard.swift` records every attempt's raw quote and insight (`raws`). The OLD guard (`FMDailyGuard.swift` at
+`39fcab8^`) is then replayed over the same raws offline (`replay13.swift`), so both guards judge identical model
+outputs and only the guard differs. Note: the dev Mac's tagger, not an iPhone's, decides names here (macOS 27.0.1).
+
+**Cases**: the 33 cases of round 12 plus 10 NEW held-out synthetic cases written before this run
+(`heldOutRound13`, labels `hold5_*`): everyday words opening a sentence (Work, Gym, Dinner, Interview, Grief, Rent)
+and names or places only at a sentence start (Priya, Tomás, Lena, Lisbon), plus a name mid-sentence (Arjun).
+N = 10 per case, temperature 0.45: 43 x 10 = 430 runs.
+
+**Gates (mechanical, all must hold):**
+- G1 no regression: for every run, old and new guards show the same attempt or both fall back, with the same
+  number of dropped sentences; shown texts differ only in letter case.
+- G2 the fix: under the new guard, 0 shown insights capitalize mid-sentence a word that the entries capitalize
+  only at sentence starts (old guard's count reported beside it).
+- G3 the trade-off: under the new guard, at most 5% of shown outputs on hold5_priya, hold5_tomas, hold5_grief and
+  hold5_lisbon contain Priya / Tomás / Lena / Lisbon in lowercase.
+- G4 sanity (model drift since round 12): prod fallback <= 10% overall; errors only on hold3_hospital.
+
+**Decision rule**: all pass -> 39fcab8 stays and 3.1.3 is pushed. G1 or G2 fails -> 39fcab8 is reverted before the
+push and the SecondQuoteTests failure goes back to the owner. Only G3 or G4 fails -> report to the owner before
+pushing. One round only.
