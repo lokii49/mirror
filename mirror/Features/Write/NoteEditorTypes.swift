@@ -1,5 +1,13 @@
 import Foundation
 
+/// Whether a checked checklist item moves to the bottom of its list, as Notes' "Automatic
+/// Sorting" does. Per device (no CloudKit schema). Unset until the first checkbox tap asks.
+enum ChecklistSorting {
+    static let storageKey = "checklistAutoSort"
+    static let on = "on"
+    static let off = "off"
+}
+
 // MARK: - Commands
 
 enum NoteTextCommand: Equatable {

@@ -463,12 +463,10 @@ final class mirrorUITests: XCTestCase {
 
         applyChecklist(in: app)
 
-        // The bar's Checklist actions menu appears because activeParagraphStyle changed to
-        // checklist, and it holds the four actions.
-        let actions = app.buttons["checklistActions"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 3),
-                      "Checklist actions menu must appear once checklist is applied from the bar")
-        actions.tap()
+        // A long press on the bar's Checklist button opens the four actions.
+        let actions = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist button must stay in the bar")
+        actions.press(forDuration: 0.8)
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3), "Menu must list Check All")
         XCTAssertTrue(app.buttons["Delete Done"].exists, "Menu must list Delete Done")
         app.buttons["Check All"].tap()
@@ -730,7 +728,7 @@ final class mirrorUITests: XCTestCase {
 
         // Checklist actions live in the keyboard bar now (panel closed).
         XCTAssertTrue(app.buttons["keyboardBar.checklist"].waitForExistence(timeout: 5), "Bar must be up")
-        XCTAssertFalse(app.buttons["checklistActions"].exists, "Checklist actions must not appear on body text")
+        XCTAssertEqual(app.buttons.matching(identifier: "keyboardBar.checklist").count, 1, "One checklist button, no second actions icon")
         XCTAssertFalse(app.buttons["Check All"].exists,   "Check All must not appear on body text")
         XCTAssertFalse(app.buttons["Uncheck All"].exists, "Uncheck All must not appear on body text")
         XCTAssertFalse(app.buttons["Delete Done"].exists, "Delete Done must not appear on body text")
@@ -739,11 +737,12 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "panel_no_bulk_ops_on_body")
     }
 
-    /// Checklist actions live in the keyboard bar's Checklist menu (panel closed): open it, return the action.
+    /// Checklist actions are a long press on the keyboard bar's Checklist button (panel closed):
+    /// open the menu, return the action.
     @MainActor
     private func checklistAction(_ name: String, in app: XCUIApplication) -> XCUIElement {
-        let actions = app.buttons["checklistActions"]
-        if actions.waitForExistence(timeout: 3) { actions.tap() }
+        let checklist = app.buttons["keyboardBar.checklist"]
+        if checklist.waitForExistence(timeout: 3) { checklist.press(forDuration: 0.8) }
         return app.buttons[name]
     }
 
@@ -762,9 +761,9 @@ final class mirrorUITests: XCTestCase {
         openFormattingPanel(in: app)      // bar hides while the panel is open
         closeFormattingPanel(in: app)     // bar back — activeParagraphStyle must still be checklist
 
-        let actions = app.buttons["checklistActions"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist actions menu must appear")
-        actions.tap()
+        let actions = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist button must be in the bar")
+        actions.press(forDuration: 0.8)
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),   "Check All must appear")
         XCTAssertTrue(app.buttons["Uncheck All"].waitForExistence(timeout: 3), "Uncheck All must appear")
         XCTAssertTrue(app.buttons["Delete Done"].waitForExistence(timeout: 3), "Delete Done must appear")
@@ -1011,10 +1010,10 @@ final class mirrorUITests: XCTestCase {
         closeFormattingPanel(in: app)
 
         // Bulk ops must be present on the first render — tight timeout, no re-open.
-        let actions = app.buttons["checklistActions"]
+        let actions = app.buttons["keyboardBar.checklist"]
         XCTAssertTrue(actions.waitForExistence(timeout: 1),
-                      "Checklist actions must appear immediately after the panel closes (regression Fix 1)")
-        actions.tap()
+                      "Checklist button must be back immediately after the panel closes (regression Fix 1)")
+        actions.press(forDuration: 0.8)
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),
                       "Check All must appear (regression Fix 1)")
         XCTAssertTrue(app.buttons["Uncheck All"].exists, "Uncheck All must appear (regression Fix 1)")
@@ -1065,6 +1064,65 @@ final class mirrorUITests: XCTestCase {
         )
 
         snapshot(app, name: "regression_fix3_heading_no_marker")
+    }
+
+    // MARK: - Checklist: automatic sorting
+
+    /// Taps the circle of the checklist row whose text is `item`.
+    @MainActor
+    private func tapCircle(of item: String, in app: XCUIApplication) {
+        let tv = app.textViews.firstMatch
+        let text = tv.value as? String ?? ""
+        let lines = text.components(separatedBy: "\n")
+        guard let row = lines.firstIndex(where: { $0.contains(item) }) else { return XCTFail("No row \(item)") }
+        // Rows sit about 34pt apart below the 8pt inset; the circle is at the row's left edge.
+        let point = tv.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 12, dy: 8 + 17 + CGFloat(row) * 34))
+        point.tap()
+        Thread.sleep(forTimeInterval: 0.8)
+    }
+
+    /// The first checkbox tap asks, as Notes does. Not Now leaves the list in place; turning it
+    /// on (Enable Sorting) moves a checked item below the unchecked ones.
+    @MainActor
+    func testChecklist_firstCheckAsksAboutSorting() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+        let tv = focusEditor(in: app)
+        applyChecklist(in: app)
+        tv.typeText("Milk\nEggs\nBread")
+        Thread.sleep(forTimeInterval: 0.5)
+
+        tapCircle(of: "Milk", in: app)
+        let prompt = app.alerts["Enable Automatic Sorting?"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 3), "The first check must ask about automatic sorting")
+        prompt.buttons["Enable Sorting"].tap()
+        Thread.sleep(forTimeInterval: 1.2)
+        // The text view's accessibility value can stop at the first line, so check the first row:
+        // Milk (checked) must have left it.
+        let lines = (tv.value as? String ?? "").components(separatedBy: "\n")
+        XCTAssertTrue(lines.first?.contains("Eggs") == true, "Enable Sorting must move the checked item below the others. Got: \(lines)")
+        snapshot(app, name: "checklist_sorted")
+
+        // Asked once: the next check sorts without asking.
+        tapCircle(of: "Eggs", in: app)
+        XCTAssertFalse(app.alerts["Enable Automatic Sorting?"].waitForExistence(timeout: 1.5), "Sorting is asked only once")
+    }
+
+    @MainActor
+    func testChecklist_notNowKeepsTheOrder() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+        let tv = focusEditor(in: app)
+        applyChecklist(in: app)
+        tv.typeText("Milk\nEggs")
+        Thread.sleep(forTimeInterval: 0.5)
+        tapCircle(of: "Milk", in: app)
+        let prompt = app.alerts["Enable Automatic Sorting?"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 3))
+        prompt.buttons["Not Now"].tap()
+        Thread.sleep(forTimeInterval: 1)
+        let lines = (tv.value as? String ?? "").components(separatedBy: "\n")
+        XCTAssertTrue(lines.first?.contains("Milk") == true, "Not Now must leave the list in place. Got: \(lines)")
     }
 
     // MARK: - Voice: recorder sheet

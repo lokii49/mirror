@@ -9,7 +9,7 @@ import UIKit
 /// refresh reset the state to off, so the first word came out plain.
 @MainActor
 struct FormattingActiveStateTests {
-    private final class Box {
+    final class Box {
         var text = ""
         var textStyleData: Data?
         var inlineStyleData: Data?
@@ -26,7 +26,7 @@ struct FormattingActiveStateTests {
         let panelState = FormattingPanelState()
     }
 
-    private func makeEditor(_ box: Box) -> (NoteEditorTextView.Coordinator, UITextView) {
+    static func makeEditor(_ box: Box) -> (NoteEditorTextView.Coordinator, UITextView) {
         let editor = NoteEditorTextView(
             text: Binding(get: { box.text }, set: { box.text = $0 }),
             textStyleData: Binding(get: { box.textStyleData }, set: { box.textStyleData = $0 }),
@@ -56,7 +56,7 @@ struct FormattingActiveStateTests {
 
     @Test func boldOnAnEmptyEntryShowsInTheBarAndThePanel() {
         let box = Box()
-        let (coordinator, textView) = makeEditor(box)
+        let (coordinator, textView) = Self.makeEditor(box)
         coordinator.toggleInlineStyle(.bold, in: textView)
         #expect(typingIsBold(textView))
         #expect(box.activeInlineStyles.bold, "the bar's state must show B on")
@@ -65,7 +65,7 @@ struct FormattingActiveStateTests {
 
     @Test func boldOnAnEmptyEntrySurvivesARerender() {
         let box = Box()
-        let (coordinator, textView) = makeEditor(box)
+        let (coordinator, textView) = Self.makeEditor(box)
         coordinator.toggleInlineStyle(.bold, in: textView)
         // Every SwiftUI update re-renders the editor; this used to rebuild the empty entry's
         // typing attributes without the bold.
@@ -76,7 +76,7 @@ struct FormattingActiveStateTests {
 
     @Test func turningBoldOffOnAnEmptyEntryShowsOffInBoth() {
         let box = Box()
-        let (coordinator, textView) = makeEditor(box)
+        let (coordinator, textView) = Self.makeEditor(box)
         coordinator.toggleInlineStyle(.bold, in: textView)
         coordinator.toggleInlineStyle(.bold, in: textView)
         coordinator.applyStyledText(to: textView, preservingSelection: true)
@@ -87,11 +87,31 @@ struct FormattingActiveStateTests {
 
     @Test func italicAndBoldTogetherOnAnEmptyEntry() {
         let box = Box()
-        let (coordinator, textView) = makeEditor(box)
+        let (coordinator, textView) = Self.makeEditor(box)
         coordinator.toggleInlineStyle(.bold, in: textView)
         coordinator.toggleInlineStyle(.italic, in: textView)
         coordinator.applyStyledText(to: textView, preservingSelection: true)
         #expect(box.panelState.activeInlineStyles.bold && box.panelState.activeInlineStyles.italic)
         #expect(box.activeInlineStyles == box.panelState.activeInlineStyles)
+    }
+}
+
+/// Checklist sorting: a checked item moves to the bottom of its own list and the caret goes with it.
+@MainActor
+struct ChecklistSortCaretTests {
+    @Test func sortKeepsTheCaretInTheRowThatMoved() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nEggs\nBread"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.checklistChecked, .checklistUnchecked, .checklistUnchecked]))
+        let (coordinator, textView) = FormattingActiveStateTests.makeEditor(box)
+        // Caret inside "Milk" (the checked first row), after its marker.
+        let shown = textView.text as NSString
+        let milk = shown.range(of: "Milk")
+        textView.selectedRange = NSRange(location: milk.location + 2, length: 0)
+        coordinator.sortCheckedToBottom(in: textView)
+        #expect(box.text == "Eggs\nBread\nMilk")
+        let after = textView.text as NSString
+        let moved = after.range(of: "Milk")
+        #expect(textView.selectedRange.location == moved.location + 2, "the caret must stay in Milk, now the last row")
     }
 }

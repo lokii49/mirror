@@ -27,13 +27,7 @@ extension WriteView {
                         .environment(\.appDisplayMode, displayMode)
                 }
 
-                barButton("checklist", label: "Checklist", id: "checklist", isOn: isInChecklist) {
-                    applyTextCommand(.checklist)
-                }
-                if isInChecklist {
-                    checklistActionsMenu
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                }
+                checklistButton
                 attachMenu
                 fontMenu
 
@@ -171,20 +165,26 @@ extension WriteView {
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 
-    /// Check All / Uncheck All / Sort Done / Delete Done, shown while the caret is on a checklist line.
-    private var checklistActionsMenu: some View {
+    /// One checklist button, as in Notes: a tap starts or ends a checklist, a long press offers
+    /// Check All / Uncheck All / Sort Done / Delete Done. (A second icon for those, shown on
+    /// checklist lines, read as a duplicate checklist button.)
+    private var checklistButton: some View {
         Menu {
             Button { applyTextCommand(.checkAllItems) } label: { Label("Check All", systemImage: "checkmark.circle") }
             Button { applyTextCommand(.uncheckAllItems) } label: { Label("Uncheck All", systemImage: "circle") }
             Button { applyTextCommand(.sortCheckedToBottom) } label: { Label("Sort Done", systemImage: "arrow.down.to.line") }
             Button(role: .destructive) { applyTextCommand(.deleteCheckedItems) } label: { Label("Delete Done", systemImage: "trash") }
         } label: {
-            barGlyph("checklist.checked")
+            barGlyph("checklist", isOn: isInChecklist)
+        } primaryAction: {
+            applyTextCommand(.checklist)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
-        .accessibilityLabel("Checklist actions")
-        .accessibilityIdentifier("checklistActions")
+        .accessibilityLabel("Checklist")
+        .accessibilityHint("Touch and hold for checklist actions")
+        .accessibilityIdentifier("keyboardBar.checklist")
+        .accessibilityAddTraits(isInChecklist ? .isSelected : [])
     }
 
     /// Font family for this entry's body text (Write, entry list preview, entry detail).

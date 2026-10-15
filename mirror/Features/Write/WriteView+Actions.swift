@@ -22,6 +22,22 @@ extension WriteView {
         sendTextCommand(command)
     }
 
+    /// A checkbox tap checked an item: the first time, ask about automatic sorting (Notes asks
+    /// the same); after that, move checked items down if the person chose to, once the check
+    /// has shown.
+    func checklistItemChecked() {
+        // Read the stored value, not `checklistSortingRaw`: this runs from a closure captured once
+        // in onAppear, whose copy of the property wrapper can be stale.
+        switch UserDefaults.standard.string(forKey: ChecklistSorting.storageKey) ?? "" {
+        case ChecklistSorting.on:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { sendTextCommand(.sortCheckedToBottom) }
+        case ChecklistSorting.off:
+            break
+        default:
+            showChecklistSortPrompt = true
+        }
+    }
+
     /// Hands a command to the editor without any confirmation step.
     func sendTextCommand(_ command: NoteTextCommand) {
         // Doesn't focus the editor: a formatting tap shouldn't pop the keyboard (this line used

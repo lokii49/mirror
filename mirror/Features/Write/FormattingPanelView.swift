@@ -100,6 +100,9 @@ enum TextColorPalette {
     var onRequestLinkEditor: (() -> Void)?
     /// The swatch the highlighter pen applies; the color dot picks it, as in Notes.
     var lastHighlightIndex = 0
+    /// A checklist item was just checked by a tap on its circle (or VoiceOver's action), so
+    /// WriteView can ask about, or apply, automatic sorting.
+    var onChecklistItemChecked: (() -> Void)?
 }
 
 

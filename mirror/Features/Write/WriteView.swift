@@ -82,6 +82,9 @@ struct WriteView: View {
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
     @State var showDeleteCheckedConfirm = false
+    /// Asked once, on the first checkbox tap, as Notes asks: move checked items to the bottom?
+    @State var showChecklistSortPrompt = false
+    @AppStorage(ChecklistSorting.storageKey) var checklistSortingRaw = ""
     @State var pendingDelete = false
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
@@ -659,6 +662,7 @@ struct WriteView: View {
             loadedContentHash = currentContentHash()
             checkForEditDraft()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
+            panelState.onChecklistItemChecked = { checklistItemChecked() }
             panelState.onRequestLinkEditor = {
                 linkEditorURLText = panelState.activeLinkURL ?? ""
                 linkEditorHasExisting = panelState.activeLinkURL != nil
@@ -770,6 +774,15 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(textScanError ?? "")
+        }
+        .alert("Enable Automatic Sorting?", isPresented: $showChecklistSortPrompt) {
+            Button("Enable Sorting") {
+                checklistSortingRaw = ChecklistSorting.on
+                sendTextCommand(.sortCheckedToBottom)
+            }
+            Button("Not Now", role: .cancel) { checklistSortingRaw = ChecklistSorting.off }
+        } message: {
+            Text("Would you like checked items to move to the bottom of your lists automatically? You can change this later in Settings.")
         }
         .alert("Delete checked items?", isPresented: $showDeleteCheckedConfirm) {
             Button("Delete", role: .destructive) { sendTextCommand(.deleteCheckedItems) }

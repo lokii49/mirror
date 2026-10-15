@@ -30,6 +30,7 @@ struct ProtocolSettingsView: View {
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw: String = ReflectionStyle.gentle.rawValue
+    @AppStorage(ChecklistSorting.storageKey) private var checklistSortingRaw = ""
     @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
     @State private var showSubscription = false
@@ -289,6 +290,25 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
                 }
+                }
+
+                SettingsGroup(title: "Checklists") {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Toggle(isOn: Binding(
+                            get: { checklistSortingRaw == ChecklistSorting.on },
+                            set: { checklistSortingRaw = $0 ? ChecklistSorting.on : ChecklistSorting.off }
+                        )) {
+                            SettingsRowLabel(title: "Sort checked items", systemImage: "checklist.checked", iconColor: MirrorTheme.green)
+                        }
+                        .tint(MirrorTheme.primary)
+                        Text("Checked items move to the bottom of their list.")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .padding(.top, -4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 2)
                 }
 
                 SettingsGroup(title: "Input") {

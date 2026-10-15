@@ -204,6 +204,8 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearWriteTestState") {
             WriteView.clearAllDraftStorage()
             SampleData.clear(from: sharedModelContainer.mainContext)
+            // The first checkbox tap asks about automatic sorting; tests start before that.
+            UserDefaults.standard.removeObject(forKey: ChecklistSorting.storageKey)
         }
         // Design-review capture for MirrorNotificationContentExtension: fires the real
         // "ready" nudge notification (matching category, App Group mood) a few seconds
