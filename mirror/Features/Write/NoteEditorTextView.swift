@@ -88,7 +88,19 @@ struct NoteEditorTextView: UIViewRepresentable {
         tapGesture.cancelsTouchesInView = false
         tapGesture.delegate = context.coordinator
         textView.addGestureRecognizer(tapGesture)
-        textView.checklistTapRecognizer = tapGesture
+        // Notes' list gestures: swipe an item right or left to indent it, touch and hold its circle
+        // to drag it to another place in the list.
+        let swipeRight = UISwipeGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleListSwipe(_:)))
+        swipeRight.direction = .right
+        let swipeLeft = UISwipeGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleListSwipe(_:)))
+        swipeLeft.direction = .left
+        let drag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleChecklistDrag(_:)))
+        drag.minimumPressDuration = 0.3
+        for recognizer in [swipeRight, swipeLeft, drag] as [UIGestureRecognizer] {
+            recognizer.delegate = context.coordinator
+            textView.addGestureRecognizer(recognizer)
+        }
+        textView.checklistGestureRecognizers = [tapGesture, swipeRight, swipeLeft, drag]
         textView.isChecklistMarker = { [weak coordinator = context.coordinator, weak textView] point in
             guard let coordinator, let textView else { return false }
             return coordinator.checklistMarkerParagraph(at: point, in: textView) != nil
@@ -315,6 +327,26 @@ struct NoteEditorTextView: UIViewRepresentable {
             toggleChecklistItem(paragraphRange: paraRange, caret: textView.selectedRange.location, in: textView)
         }
 
+        /// The circle of an item just checked springs in, as Notes' does: the drawn one is hidden for
+        /// a moment and an image of it scales up in its place.
+        private func popCheckedCircle(at marker: Int, in textView: UITextView) {
+            guard UIView.areAnimationsEnabled, let lm = textView.layoutManager as? ChecklistLayoutManager,
+                  let circle = lm.circle(forMarkerAt: marker, checked: true) else { return }
+            let view = UIImageView(image: circle.image)
+            view.frame = circle.rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
+            view.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
+            textView.addSubview(view)
+            lm.hiddenCharacterRanges.append(NSRange(location: marker, length: 1))
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: marker, length: 1))
+            UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.55, initialSpringVelocity: 0.8, options: [.allowUserInteraction]) {
+                view.transform = .identity
+            } completion: { _ in
+                view.removeFromSuperview()
+                lm.hiddenCharacterRanges.removeAll { $0 == NSRange(location: marker, length: 1) }
+                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            }
+        }
+
         /// The checklist item whose circle is under `location` (text view coordinates): the marker
         /// plus a margin, as wide as the item's text indent.
         func checklistMarkerParagraph(at location: CGPoint, in textView: UITextView) -> NSRange? {
@@ -391,6 +423,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             // as Notes asks (WriteView owns the prompt and the setting, then sends Sort Done).
             if nextStyle == .checklistChecked {
                 checkedItemCaret = (textView.selectedRange.location, Date())
+                popCheckedCircle(at: paraRange.location, in: textView)
                 parent.panelState.onChecklistItemChecked?()
             }
             commitUndoPoint(in: textView)
@@ -951,7 +984,176 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            true
+            // A drag owns the touch; the others share it as before.
+            !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let textView = gestureRecognizer.view as? UITextView else { return true }
+            let point = gestureRecognizer.location(in: textView)
+            if gestureRecognizer is UISwipeGestureRecognizer { return listParagraph(at: point, in: textView) != nil }
+            if gestureRecognizer is UILongPressGestureRecognizer { return checklistMarkerParagraph(at: point, in: textView) != nil }
+            return true
+        }
+
+        /// The list paragraph (any list style) under `point`, anywhere on its row.
+        private func listParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
+            let text = (textView.text ?? "") as NSString
+            guard text.length > 0 else { return nil }
+            let inset = textView.textContainerInset
+            let index = textView.layoutManager.characterIndex(for: CGPoint(x: point.x - inset.left, y: point.y - inset.top),
+                                                              in: textView.textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+            guard index < text.length else { return nil }
+            let para = text.paragraphRange(for: NSRange(location: index, length: 0))
+            return isListStyle(textStyle(at: para.location, in: textView.attributedText)) ? para : nil
+        }
+
+        /// Swipe right on a list item indents it, left outdents it; the caret stays where it was.
+        @objc func handleListSwipe(_ gesture: UISwipeGestureRecognizer) {
+            guard let textView = gesture.view as? UITextView,
+                  let para = listParagraph(at: gesture.location(in: textView), in: textView) else { return }
+            let text = (textView.text ?? "") as NSString
+            let caret = paragraphCaretAnchor(textView.selectedRange.location, in: text)
+            let marker = displayedMarkerLength(of: para, in: textView.attributedText ?? NSAttributedString())
+            isApplyingStyledText = true
+            textView.selectedRange = NSRange(location: para.location + marker, length: 0)
+            isApplyingStyledText = false
+            applyIndent(delta: gesture.direction == .right ? 1 : -1, in: textView)
+            pendingParagraphCaret = caret
+            applyPendingParagraphCaret(in: textView)
+            pendingParagraphCaret = nil
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        // MARK: Drag to reorder
+
+        private struct ChecklistDrag {
+            var row: Int
+            var target: Int
+            var block: Range<Int>
+            var frames: [(chars: NSRange, rect: CGRect)]
+            var snapshot: UIView
+            var grabOffset: CGFloat
+            var indicator: UIView
+        }
+        private var checklistDrag: ChecklistDrag?
+
+        /// Touch and hold a circle, then drag: the item lifts and moves within its list, as in Notes.
+        @objc func handleChecklistDrag(_ gesture: UILongPressGestureRecognizer) {
+            guard let textView = gesture.view as? UITextView, let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
+            let point = gesture.location(in: textView)
+            switch gesture.state {
+            case .began:
+                guard let para = checklistMarkerParagraph(at: point, in: textView) else { return }
+                let frames = rowFrames(in: textView)
+                guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0,
+                      let snapshot = textView.resizableSnapshotView(from: frames[row].rect, afterScreenUpdates: false, withCapInsets: .zero) else { return }
+                let attributed = textView.attributedText ?? NSAttributedString()
+                let isItem = { (i: Int) -> Bool in
+                    let style = self.textStyle(at: frames[i].chars.location, in: attributed)
+                    return style == .checklistUnchecked || style == .checklistChecked
+                }
+                var lower = row, upper = row + 1
+                while lower > 0 && isItem(lower - 1) { lower -= 1 }
+                while upper < frames.count && isItem(upper) { upper += 1 }
+                snapshot.frame = frames[row].rect
+                snapshot.layer.shadowColor = UIColor.black.cgColor
+                snapshot.layer.shadowOpacity = 0.18
+                snapshot.layer.shadowRadius = 10
+                snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
+                textView.addSubview(snapshot)
+                let indicator = UIView(frame: CGRect(x: textView.textContainerInset.left, y: 0, width: textView.bounds.width - textView.textContainerInset.left - textView.textContainerInset.right, height: 2))
+                indicator.backgroundColor = lm.accentColor
+                indicator.layer.cornerRadius = 1
+                indicator.isHidden = true
+                textView.addSubview(indicator)
+                lm.hiddenCharacterRanges = [frames[row].chars]
+                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+                UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
+                checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
+                                              grabOffset: point.y - frames[row].rect.midY, indicator: indicator)
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            case .changed:
+                guard var drag = checklistDrag else { return }
+                let top = drag.frames[drag.block.lowerBound].rect.midY
+                let bottom = drag.frames[drag.block.upperBound - 1].rect.midY
+                let centerY = min(max(point.y - drag.grabOffset, top), bottom)
+                drag.snapshot.center.y = centerY
+                // The other rows of the list, in order: the drop goes before the first whose middle
+                // is below the dragged row's middle.
+                let others = drag.block.filter { $0 != drag.row }
+                let before = others.filter { drag.frames[$0].rect.midY < centerY }.count
+                let target = drag.block.lowerBound + before
+                if target != drag.target {
+                    drag.target = target
+                    UISelectionFeedbackGenerator().selectionChanged()
+                }
+                // The line shows where it will land (nothing when it would stay put).
+                if target == drag.row {
+                    drag.indicator.isHidden = true
+                } else {
+                    let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
+                    drag.indicator.frame.origin.y = y - 1
+                    drag.indicator.isHidden = false
+                }
+                checklistDrag = drag
+            case .ended:
+                guard let drag = checklistDrag else { return }
+                checklistDrag = nil
+                drag.indicator.removeFromSuperview()
+                guard drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+                let moved = rows.remove(at: drag.row)
+                rows.insert(moved, at: drag.target)
+                commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
+                let after = rowFrames(in: textView)
+                guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+                lm.hiddenCharacterRanges = [after[drag.target].chars]
+                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+                settleDrag(drag, to: after[drag.target].rect, in: textView)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            case .cancelled, .failed:
+                guard let drag = checklistDrag else { return }
+                checklistDrag = nil
+                drag.indicator.removeFromSuperview()
+                settleDrag(drag, to: drag.frames[drag.row].rect, in: textView)
+            default:
+                break
+            }
+        }
+
+        private func settleDrag(_ drag: ChecklistDrag, to frame: CGRect, in textView: UITextView) {
+            let lm = textView.layoutManager as? ChecklistLayoutManager
+            UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
+                drag.snapshot.transform = .identity
+                drag.snapshot.frame = frame
+                drag.snapshot.layer.shadowOpacity = 0
+            } completion: { _ in
+                drag.snapshot.removeFromSuperview()
+                lm?.hiddenCharacterRanges = []
+                lm?.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            }
+        }
+
+        // MARK: Edit menu: check or uncheck selected items
+
+        func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
+            guard range.length > 0, let attributed = textView.attributedText else { return nil }
+            let text = attributed.string as NSString
+            let covered = text.paragraphRange(for: bounded(range, in: attributed.string))
+            var items = 0, checked = 0
+            text.enumerateSubstrings(in: covered, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+                let style = self.textStyle(at: enclosing.location, in: attributed)
+                if style == .checklistUnchecked || style == .checklistChecked { items += 1 }
+                if style == .checklistChecked { checked += 1 }
+            }
+            guard items > 0 else { return nil }
+            let allChecked = checked == items
+            let action = UIAction(title: allChecked ? String(localized: "Uncheck") : String(localized: "Check"),
+                                  image: UIImage(systemName: allChecked ? "circle" : "checkmark.circle")) { [weak self, weak textView] _ in
+                guard let self, let textView else { return }
+                self.bulkSetChecklist(allChecked ? .checklistUnchecked : .checklistChecked, in: textView, within: covered)
+            }
+            return UIMenu(children: [action] + suggestedActions)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -3043,7 +3245,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         // MARK: - Bulk checklist operations
 
-        func bulkSetChecklist(_ targetStyle: NoteParagraphTextStyle, in textView: UITextView) {
+        func bulkSetChecklist(_ targetStyle: NoteParagraphTextStyle, in textView: UITextView, within scope: NSRange? = nil) {
             guard let attributed = textView.attributedText else { return }
             let nsText = attributed.string as NSString
             var styles: [NoteParagraphTextStyle] = []
@@ -3052,7 +3254,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             var changed = false
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
                 let current = self.textStyle(at: enclosing.location, in: attributed)
-                let isChecklist = current == .checklistUnchecked || current == .checklistChecked
+                let inScope = scope.map { NSLocationInRange(enclosing.location, $0) } ?? true
+                let isChecklist = (current == .checklistUnchecked || current == .checklistChecked) && inScope
                 let newStyle = isChecklist ? targetStyle : current
                 if isChecklist && current != targetStyle { changed = true }
                 styles.append(newStyle)
@@ -3073,24 +3276,77 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func sortCheckedToBottom(in textView: UITextView) {
-            guard let attributed = textView.attributedText else { return }
-            let nsText = attributed.string as NSString
-            var paraInfos: [(style: NoteParagraphTextStyle, level: Int, fontChoice: String)] = []
-            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
-                paraInfos.append((
-                    self.textStyle(at: enclosing.location, in: attributed),
-                    self.indentLevelValue(at: enclosing.location, in: attributed),
-                    self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue
-                ))
+            guard var rows = editorRows(in: textView) else { return }
+            let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
+            var i = 0
+            var changed = false
+            while i < rows.count {
+                guard isChecklist(rows[i].style) else { i += 1; continue }
+                var j = i
+                while j < rows.count && isChecklist(rows[j].style) { j += 1 }
+                let block = Array(rows[i..<j])
+                // Stable: an item just checked goes to the top of the checked ones, as in Notes.
+                let sorted = block.filter { $0.style != .checklistChecked } + block.filter { $0.style == .checklistChecked }
+                if sorted.map({ $0.source }) != block.map({ $0.source }) {
+                    changed = true
+                    rows.replaceSubrange(i..<j, with: sorted)
+                }
+                i = j
             }
-            let logicalParas = parent.text.components(separatedBy: "\n")
-            guard logicalParas.count == paraInfos.count else { return }
-            // The caret's row and its place in it, so it can follow the row to where it moves.
-            var caret = textView.selectedRange.location
+            guard changed else { return }
             // Right after a checkbox tap, the caret it set wins: closing the sorting prompt refocuses
             // the editor with the caret reset to the start (iPhone 14 Pro, iOS 27).
+            var caret = textView.selectedRange.location
             if let checked = checkedItemCaret, Date().timeIntervalSince(checked.at) < 10 { caret = checked.location }
             checkedItemCaret = nil
+            commitRowOrder(rows, caret: caret, in: textView, slide: true)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        // MARK: - Rows (sort, drag)
+
+        /// One paragraph as the reordering code moves it: its stored text and per-paragraph style
+        /// data, and its index before the move. fontChoice is index-based like level (one entry per
+        /// paragraph), not offset-based like inlineStyleData, so it moves with its row.
+        typealias EditorRow = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String, source: Int)
+
+        func editorRows(in textView: UITextView) -> [EditorRow]? {
+            guard let attributed = textView.attributedText else { return nil }
+            let nsText = attributed.string as NSString
+            var infos: [(NoteParagraphTextStyle, Int, String)] = []
+            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+                infos.append((self.textStyle(at: enclosing.location, in: attributed),
+                              self.indentLevelValue(at: enclosing.location, in: attributed),
+                              self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue))
+            }
+            let logical = parent.text.components(separatedBy: "\n")
+            guard logical.count == infos.count else { return nil }
+            return zip(logical, infos).enumerated().map { ($1.0, $1.1.0, $1.1.1, $1.1.2, $0) }
+        }
+
+        /// Each paragraph's character range (without its line break) and its rect in text view
+        /// coordinates, full width.
+        func rowFrames(in textView: UITextView) -> [(chars: NSRange, rect: CGRect)] {
+            let text = (textView.text ?? "") as NSString
+            let lm = textView.layoutManager
+            let inset = textView.textContainerInset
+            var out: [(NSRange, CGRect)] = []
+            text.enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: [.byParagraphs, .substringNotRequired]) { _, range, enclosing, _ in
+                let glyphs = lm.glyphRange(forCharacterRange: NSRange(location: enclosing.location, length: max(1, range.length)), actualCharacterRange: nil)
+                guard glyphs.length > 0 else { out.append((range, .zero)); return }
+                var rect = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                rect = rect.union(lm.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil))
+                out.append((range, CGRect(x: 0, y: rect.minY + inset.top, width: textView.bounds.width, height: rect.height)))
+            }
+            return out
+        }
+
+        /// Writes `rows` in their new order (text, styles, inline ranges), keeps the caret in the
+        /// row it was in, and, with `slide`, moves each row that changed place from where it was to
+        /// where it lands, as Notes' list does.
+        func commitRowOrder(_ rows: [EditorRow], caret: Int, in textView: UITextView, slide: Bool) {
+            guard let attributed = textView.attributedText else { return }
+            let nsText = attributed.string as NSString
             var caretRow = 0
             var caretOffset = 0
             var rowIndex = 0
@@ -3102,38 +3358,18 @@ struct NoteEditorTextView: UIViewRepresentable {
                 }
                 rowIndex += 1
             }
-
-            // fontChoice is index-based like level (one entry per paragraph), not
-            // offset-based like inlineStyleData — it must be reordered in lockstep with
-            // the row, not nil'd out, or a "Sort Done"/"Delete Done" tap would silently
-            // wipe every font override in the entry.
-            typealias Row = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String, source: Int)
-            var rows: [Row] = zip(logicalParas, paraInfos).enumerated().map { ($1.0, $1.1.style, $1.1.level, $1.1.fontChoice, $0) }
-            let isChecklist = { (s: NoteParagraphTextStyle) in s == .checklistUnchecked || s == .checklistChecked }
-            var i = 0
-            var changed = false
-            while i < rows.count {
-                guard isChecklist(rows[i].style) else { i += 1; continue }
-                var j = i
-                while j < rows.count && isChecklist(rows[j].style) { j += 1 }
-                let block = Array(rows[i..<j])
-                let sorted = block.sorted { a, b in
-                    let aChecked = a.style == .checklistChecked
-                    let bChecked = b.style == .checklistChecked
-                    if aChecked != bChecked { return !aChecked }
-                    return false
+            let moving = rows.enumerated().filter { $0.offset != $0.element.source }.map(\.element.source)
+            let before = slide && UIView.areAnimationsEnabled ? rowFrames(in: textView) : []
+            var snapshots: [Int: UIView] = [:]
+            for source in moving where source < before.count && before[source].rect.height > 0 {
+                if let view = textView.resizableSnapshotView(from: before[source].rect, afterScreenUpdates: false, withCapInsets: .zero) {
+                    snapshots[source] = view
                 }
-                if sorted.map({ $0.style }) != block.map({ $0.style }) {
-                    changed = true
-                    rows.replaceSubrange(i..<j, with: sorted)
-                }
-                i = j
             }
-            guard changed else { return }
 
             // Inline ranges move with their rows (they used to be dropped, wiping every bold,
             // link and highlight in the entry).
-            parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: logicalParas.count, displayed: attributed)
+            parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: rows.count, displayed: attributed)
             parent.text = rows.map { $0.text }.joined(separator: "\n")
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
@@ -3148,35 +3384,58 @@ struct NoteEditorTextView: UIViewRepresentable {
                 ))
             invalidateRenderedCache()
             let movedRow = rows.firstIndex { $0.source == caretRow } ?? caretRow
-            UIView.transition(with: textView, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction]) {
-                self.applyStyledText(to: textView, preservingSelection: true)
-                // Keep the caret in the row it was in, not at the same offset (which now points
-                // into whichever row moved there).
-                let shown = (textView.text ?? "") as NSString
-                var index = 0
-                var target: Int?
-                shown.enumerateSubstrings(in: NSRange(location: 0, length: shown.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, stop in
-                    if index == movedRow { target = range.location + min(caretOffset, range.length); stop.pointee = true }
-                    index += 1
+            if snapshots.isEmpty {
+                UIView.transition(with: textView, duration: 0.2, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+                    self.applyStyledText(to: textView, preservingSelection: true)
                 }
-                if let target { self.placeCaret(at: target, in: textView) }
+            } else {
+                applyStyledText(to: textView, preservingSelection: true)
+                slideRows(snapshots, from: before, rows: rows, in: textView)
             }
-            // The re-render that follows the stored text change puts the old offset back; place the
-            // caret again once it has run.
+            // Keep the caret in the row it was in, not at the same offset (which now points into
+            // whichever row moved there); again once the re-render that follows has run.
+            placeCaret(inRow: movedRow, offset: caretOffset, in: textView)
             DispatchQueue.main.async { [weak self, weak textView] in
                 guard let self, let textView else { return }
-                let shown = (textView.text ?? "") as NSString
-                var index = 0
-                shown.enumerateSubstrings(in: NSRange(location: 0, length: shown.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, stop in
-                    if index == movedRow {
-                        self.placeCaret(at: range.location + min(caretOffset, range.length), in: textView)
-                        stop.pointee = true
-                    }
-                    index += 1
-                }
+                self.placeCaret(inRow: movedRow, offset: caretOffset, in: textView)
             }
             refreshActiveInlineStyles(in: textView)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        private func placeCaret(inRow row: Int, offset: Int, in textView: UITextView) {
+            let shown = (textView.text ?? "") as NSString
+            var index = 0
+            shown.enumerateSubstrings(in: NSRange(location: 0, length: shown.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, stop in
+                if index == row {
+                    self.placeCaret(at: range.location + min(offset, range.length), in: textView)
+                    stop.pointee = true
+                }
+                index += 1
+            }
+        }
+
+        /// Hides the moved rows in their new places and slides snapshots of them there.
+        private func slideRows(_ snapshots: [Int: UIView], from before: [(chars: NSRange, rect: CGRect)], rows: [EditorRow], in textView: UITextView) {
+            guard let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
+            let after = rowFrames(in: textView)
+            var hidden: [NSRange] = []
+            var moves: [(UIView, CGRect)] = []
+            for (newIndex, row) in rows.enumerated() {
+                guard let view = snapshots[row.source], newIndex < after.count else { continue }
+                hidden.append(after[newIndex].chars)
+                view.frame = before[row.source].rect
+                textView.addSubview(view)
+                moves.append((view, CGRect(origin: CGPoint(x: 0, y: after[newIndex].rect.minY), size: before[row.source].rect.size)))
+            }
+            lm.hiddenCharacterRanges = hidden
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
+                for (view, frame) in moves { view.frame = frame }
+            } completion: { _ in
+                for (view, _) in moves { view.removeFromSuperview() }
+                lm.hiddenCharacterRanges = []
+                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            }
         }
 
         /// A caret to restore as (row, characters before the row's end), until a render shows the
@@ -3861,25 +4120,65 @@ final class ChecklistLayoutManager: NSLayoutManager {
             guard next > paragraph.location, next < text.length else { break }
             paragraph = text.paragraphRange(for: NSRange(location: next, length: 0))
         }
-        guard !markers.isEmpty else {
+        guard !markers.isEmpty || !hiddenCharacterRanges.isEmpty else {
             super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
             return
         }
         // Everything but the marker glyphs, then the circles.
-        var cursor = glyphsToShow.location
-        for marker in markers where NSLocationInRange(marker.glyph, glyphsToShow) {
-            if marker.glyph > cursor { super.drawGlyphs(forGlyphRange: NSRange(location: cursor, length: marker.glyph - cursor), at: origin) }
-            cursor = marker.glyph + 1
-        }
-        if cursor < NSMaxRange(glyphsToShow) {
-            super.drawGlyphs(forGlyphRange: NSRange(location: cursor, length: NSMaxRange(glyphsToShow) - cursor), at: origin)
-        }
-        for marker in markers where NSLocationInRange(marker.glyph, glyphsToShow) {
+        drawSkipping(glyphsToShow, markers: markers.map(\.glyph), at: origin)
+        for marker in markers where NSLocationInRange(marker.glyph, glyphsToShow) && !isHidden(character: marker.char) {
             drawCircle(for: marker, storage: storage, origin: origin)
         }
     }
 
+    /// Characters not drawn for now: rows a slide or drag animates as snapshots, or a circle that
+    /// is popping in.
+    var hiddenCharacterRanges: [NSRange] = []
+
+    private func isHidden(character index: Int) -> Bool {
+        hiddenCharacterRanges.contains { NSLocationInRange(index, $0) }
+    }
+
+    /// Draws `range` except the marker glyphs and any hidden characters.
+    private func drawSkipping(_ range: NSRange, markers: [Int], at origin: CGPoint) {
+        var skip = Set(markers.filter { NSLocationInRange($0, range) })
+        for hidden in hiddenCharacterRanges {
+            let glyphs = glyphRange(forCharacterRange: hidden, actualCharacterRange: nil)
+            for g in glyphs.location..<NSMaxRange(glyphs) where NSLocationInRange(g, range) { skip.insert(g) }
+        }
+        guard !skip.isEmpty else {
+            super.drawGlyphs(forGlyphRange: range, at: origin)
+            return
+        }
+        var start = range.location
+        for g in skip.sorted() {
+            if g > start { super.drawGlyphs(forGlyphRange: NSRange(location: start, length: g - start), at: origin) }
+            start = g + 1
+        }
+        if start < NSMaxRange(range) {
+            super.drawGlyphs(forGlyphRange: NSRange(location: start, length: NSMaxRange(range) - start), at: origin)
+        }
+    }
+
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
+        // A hidden row's highlight goes with it (the snapshot carries it).
+        guard !hiddenCharacterRanges.isEmpty else { return super.drawBackground(forGlyphRange: glyphsToShow, at: origin) }
+        let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        if hiddenCharacterRanges.contains(where: { NSIntersectionRange($0, chars).length == chars.length }) { return }
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+    }
+
     private func drawCircle(for marker: (glyph: Int, char: Int, checked: Bool), storage: NSTextStorage, origin: CGPoint) {
+        guard let circle = circle(forMarkerAt: marker.char, checked: marker.checked) else { return }
+        circle.image.draw(in: circle.rect.offsetBy(dx: origin.x, dy: origin.y))
+    }
+
+    /// The circle image for the marker at `char` and where it goes, in text container coordinates.
+    func circle(forMarkerAt char: Int, checked: Bool) -> (image: UIImage, rect: CGRect)? {
+        guard let storage = textStorage, char < storage.length else { return nil }
+        let glyph = glyphIndexForCharacter(at: char)
+        let marker = (glyph: glyph, char: char, checked: checked)
+        let origin = CGPoint.zero
         let font = (storage.attribute(.font, at: marker.char, effectiveRange: nil) as? UIFont) ?? .preferredFont(forTextStyle: .body)
         let line = lineFragmentRect(forGlyphAt: marker.glyph, effectiveRange: nil)
         let glyphX = location(forGlyphAt: marker.glyph).x
@@ -3897,13 +4196,13 @@ final class ChecklistLayoutManager: NSLayoutManager {
             image = UIImage(systemName: "circle", withConfiguration: config)?
                 .withTintColor(.systemGray3, renderingMode: .alwaysOriginal)
         }
-        guard let image, image.size.width > 0 else { return }
+        guard let image, image.size.width > 0 else { return nil }
         // A symbol image carries padding around its glyph; scale it so the circle itself is
         // `diameter` across (it used to come out near 19pt instead of 22).
         let scale = diameter / (image.size.width * 0.84)
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let x = origin.x + line.minX + glyphX - (size.width - diameter) / 2
-        image.draw(in: CGRect(x: x, y: centerY - size.height / 2, width: size.width, height: size.height))
+        return (image, CGRect(x: x, y: centerY - size.height / 2, width: size.width, height: size.height))
     }
 }
 
@@ -3942,15 +4241,15 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
 
 final class MirrorEditorTextView: UITextView {
     weak var editorUndo: UndoManager?
-    /// The editor's own tap recognizer, which toggles a checklist item when its circle is tapped.
-    weak var checklistTapRecognizer: UIGestureRecognizer?
+    /// The editor's own list gestures (circle tap, swipe to indent, drag to reorder).
+    var checklistGestureRecognizers: [UIGestureRecognizer] = []
     /// Whether a point (text view coordinates) is on a checklist item's circle.
     var isChecklistMarker: ((CGPoint) -> Bool)?
 
     /// A tap on a checklist circle only toggles the item, as in Notes: UIKit's own text gestures
     /// would also move the caret there and raise the keyboard.
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        if gestureRecognizer !== checklistTapRecognizer, gestureRecognizer.view === self,
+        if !checklistGestureRecognizers.contains(where: { $0 === gestureRecognizer }), gestureRecognizer.view === self,
            let isChecklistMarker, isChecklistMarker(gestureRecognizer.location(in: self)) {
             return false
         }
