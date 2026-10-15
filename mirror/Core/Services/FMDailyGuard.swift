@@ -165,6 +165,11 @@ nonisolated enum FMDailyGuard {
 
     /// Names the entries write (people and places), lowercased -> as written. The model sometimes
     /// writes a name in lowercase ("worried about maya").
+    ///
+    /// Only names capitalized mid-sentence count. At a sentence start the capital says nothing,
+    /// and iOS 27's tagger calls such nouns names ("Exam is on Friday" tags Exam as a place on an
+    /// iPhone 14 Pro, 2026-10-15), which turned the insight's "the exam" into "the Exam". A name
+    /// written only at sentence starts stays as the model wrote it.
     private static func personNames(in text: String) -> [String: String] {
         let tagger = NLTagger(tagSchemes: [.nameType])
         tagger.string = text
@@ -172,11 +177,26 @@ nonisolated enum FMDailyGuard {
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
             if let tag, tag == .personalName || tag == .placeName {
                 let name = String(text[range])
-                if name.first?.isUppercase == true { names[name.lowercased()] = name }
+                if name.first?.isUppercase == true, !startsSentence(range.lowerBound, in: text) {
+                    names[name.lowercased()] = name
+                }
             }
             return true
         }
         return names
+    }
+
+    /// Whether `index` begins a sentence: nothing but spaces and opening quotes or brackets between
+    /// it and the start of the text, a line break, or sentence-ending punctuation.
+    private static func startsSentence(_ index: String.Index, in text: String) -> Bool {
+        var i = index
+        while i > text.startIndex {
+            i = text.index(before: i)
+            let ch = text[i]
+            if ch == " " || ch == "\t" || "\"'\u{201C}\u{2018}([".contains(ch) { continue }
+            return ch.isNewline || ".!?…。！？".contains(ch)
+        }
+        return true
     }
 
     private static func restoreNames(_ sentence: String, names: [String: String]) -> String {

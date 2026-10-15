@@ -33,6 +33,15 @@ struct FMDailyGuardTests {
         #expect(v.quote == "I didn\u{2019}t sleep well. The call went long and I was tired.")
     }
 
+    /// On iOS 27 the name tagger calls a noun at a sentence start a name ("Exam" as a place, iPhone
+    /// 14 Pro); the insight's "the exam" must not become "the Exam". (Name restoring itself isn't
+    /// tested here: the simulator's tagger finds no names at all.)
+    @Test func aCapitalAtTheStartOfASentenceIsNotTakenForAName() throws {
+        let exam = FMDailyGuard.Source(text: "Exam is on Friday and I've only covered half the syllabus. Studied in the library till nine.", mood: "Anxious")
+        let v = try #require(verify("Exam is on Friday and I've only covered half the syllabus.", "You seem anxious about the exam.", exam))
+        #expect(v.insight == "You seem anxious about the exam.")
+    }
+
     @Test func aQuoteNotInTodaysEntriesIsRejected() {
         #expect(verify("The rain outside kept me inside all afternoon.", "You feel calm.", walk) == nil)
     }
