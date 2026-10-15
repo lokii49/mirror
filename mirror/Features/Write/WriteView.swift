@@ -132,7 +132,6 @@ struct WriteView: View {
     /// app ever points to it. Rather than inventing a new coach-mark system
     /// for one button, or building in-app streaming recognition (the L-effort
     /// option), this makes the existing distinction discoverable in place.
-    @State var showVoiceButtonHint = false
     @State var canUndo = false
     @State var canRedo = false
     /// Toolbar icons follow the person's text size (capped so they stay inside 44 pt buttons).
@@ -375,7 +374,13 @@ struct WriteView: View {
                     #endif
                 }
                 .scrollDismissesKeyboard(.interactively)
+                #if os(iOS)
+                // Always bounces, as Notes' editor does: a short entry otherwise can't be dragged,
+                // so swiping down never dismissed the keyboard, and the bar has no hide button.
+                .scrollBounceBehavior(.always, axes: .vertical)
+                #else
                 .scrollBounceBehavior(.basedOnSize)
+                #endif
                 #if os(macOS)
                 .modifier(MacNoScrollEdgeEffect())
                 #endif
@@ -561,7 +566,9 @@ struct WriteView: View {
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
+            // Hidden while the Aa panel stands in for the keyboard, as Notes hides its bar.
+            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode
+                && !(showFormattingPanel && !usesPopoverPanel) {
                 toolRow
             }
         }

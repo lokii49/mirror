@@ -183,8 +183,7 @@ struct FormatToggleButton: View {
         Button(action: onTap) {
             let inlineStyles = panelState.activeInlineStyles
             let paraStyle = panelState.activeParagraphStyle
-            let hasActive = !inlineStyles.isEmpty || paraStyle != .body
-            let aaSize: CGFloat = paraStyle == .title ? 19 : paraStyle == .heading ? 18 : 16
+            let aaSize: CGFloat = paraStyle == .title ? 24 : paraStyle == .heading ? 23 : 22
             let aaWeight: Font.Weight = (inlineStyles.bold || paraStyle == .heading || paraStyle == .title) ? .bold : (paraStyle == .subheading ? .semibold : .regular)
             let aaDesign: Font.Design = paraStyle == .monospaced ? .monospaced : .default
             let accent: Color = displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor
@@ -193,8 +192,9 @@ struct FormatToggleButton: View {
                 .italic(inlineStyles.italic)
                 .strikethrough(inlineStyles.strikethrough)
                 .underline(inlineStyles.underline)
-                .foregroundStyle(isShowingPanel ? accent : hasActive ? Color.primary : Color.secondary)
-                .frame(width: 38, height: 44)
+                .foregroundStyle(isShowingPanel ? accent : Color.primary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isShowingPanel ? "Hide formatting" : "Formatting")

@@ -2,170 +2,115 @@
 import SwiftUI
 import UIKit
 
-/// The iPhone/iPad row above the keyboard, shaped like Apple Notes': one floating capsule that
-/// scrolls sideways, with the Aa panel, checklist and attach menu first and the direct
-/// formatting toggles after them. Voice and hide-keyboard sit in a second capsule outside the
-/// scroll so they never scroll away. Bar buttons carry `keyboardBar.*` identifiers so UI tests that look up the Aa
-/// panel's "B", "I", "S" or "checklist" buttons still find exactly one.
+/// The iPhone/iPad row above the keyboard, laid out like Apple Notes': one floating capsule that
+/// scrolls sideways, with the Aa panel, checklist and attach menu first and the direct formatting
+/// controls after them. Voice notes are recorded from the attach menu (Notes' Record Audio). Bar
+/// buttons carry `keyboardBar.*` identifiers so UI tests that look up the Aa panel's "B", "I" or
+/// "S" still find exactly one.
 extension WriteView {
     var keyboardBar: some View {
-        HStack(spacing: 8) {
-            ScrollView(.horizontal) {
-                HStack(spacing: 0) {
-                    FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        showFormattingPanel.toggle()
-                    }
-                    .popover(isPresented: Binding(
-                        get: { showFormattingPanel && usesPopoverPanel },
-                        set: { if !$0 { showFormattingPanel = false } }
-                    ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
-                        FormattingPanelView(state: panelState, presentation: .popover)
-                            .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
-                            .presentationCompactAdaptation(.popover)
-                            .environment(\.appDisplayMode, displayMode)
-                    }
-
-                    barToggle("checklist", label: "Checklist", id: "checklist", isOn: isInChecklist) {
-                        applyTextCommand(.checklist)
-                    }
-                    attachMenu
-
-                    if isInChecklist {
-                        checklistQuickOps
-                    }
-
-                    barDivider
-
-                    barToggle("bold", label: "Bold", id: "bold", isOn: activeInlineStyles.bold) {
-                        applyTextCommand(.bold)
-                    }
-                    barToggle("italic", label: "Italic", id: "italic", isOn: activeInlineStyles.italic) {
-                        applyTextCommand(.italic)
-                    }
-                    barToggle("underline", label: "Underline", id: "underline", isOn: activeInlineStyles.underline) {
-                        applyTextCommand(.underline)
-                    }
-                    barToggle("strikethrough", label: "Strikethrough", id: "strikethrough", isOn: activeInlineStyles.strikethrough) {
-                        applyTextCommand(.strikethrough)
-                    }
-                    // One tap highlights in the first swatch, a second tap removes it; the other
-                    // swatches stay in the Aa panel.
-                    barToggle("highlighter", label: "Highlight", id: "highlight", isOn: panelState.activeHighlightIndex != nil) {
-                        applyTextCommand(.highlight(index: panelState.activeHighlightIndex == nil ? 0 : nil))
-                    }
-                    barToggle("link", label: "Link", id: "link", isOn: panelState.activeLinkURL != nil) {
-                        panelState.onRequestLinkEditor?()
-                    }
-
-                    barDivider
-
-                    barToggle("list.bullet", label: "Bulleted list", id: "bulletedList", isOn: activeParagraphStyle == .bulletedList) {
-                        applyTextCommand(.bulletedList)
-                    }
-                    barToggle("decrease.indent", label: "Decrease indent", id: "indentLess", isOn: false) {
-                        applyTextCommand(.indentLess)
-                    }
-                    barToggle("increase.indent", label: "Increase indent", id: "indentMore", isOn: false) {
-                        applyTextCommand(.indentMore)
-                    }
-                    barToggle("text.quote", label: "Quote", id: "blockQuote", isOn: activeParagraphStyle == .blockQuote) {
-                        applyTextCommand(.blockQuote)
-                    }
-
-                    barDivider
-
-                    barToggle("arrow.uturn.backward", label: "Undo", id: "undo", isOn: false, isEnabled: canUndo) {
-                        applyTextCommand(.undo)
-                    }
-                    barToggle("arrow.uturn.forward", label: "Redo", id: "redo", isOn: false, isEnabled: canRedo) {
-                        applyTextCommand(.redo)
-                    }
-                }
-                .padding(.horizontal, 6)
-            }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-            .barSurface(isSentinel: displayMode == .sentinel, shape: barShape)
-            .overlay(alignment: .bottom) { wordGoalProgress.padding(.horizontal, 18) }
-
-            // Kept out of the scroll view: there the mic's tap gesture lost to the scroll's pan
-            // and a tap never started a recording.
+        ScrollView(.horizontal) {
             HStack(spacing: 0) {
-                voiceButton
-                Button {
-                    dismissKeyboard()
-                } label: {
-                    Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: toolbarIconSize(18)))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 40, height: 44)
+                FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showFormattingPanel.toggle()
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Hide keyboard")
+                .frame(width: barItemWidth, height: barHeight)
+                .popover(isPresented: Binding(
+                    get: { showFormattingPanel && usesPopoverPanel },
+                    set: { if !$0 { showFormattingPanel = false } }
+                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
+                    FormattingPanelView(state: panelState, presentation: .popover)
+                        .frame(minWidth: 340, idealWidth: 370, maxWidth: 390)
+                        .presentationCompactAdaptation(.popover)
+                        .environment(\.appDisplayMode, displayMode)
+                }
+
+                barButton("checklist", label: "Checklist", id: "checklist", isOn: isInChecklist) {
+                    applyTextCommand(.checklist)
+                }
+                if isInChecklist {
+                    checklistActionsMenu
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
+                attachMenu
+                fontMenu
+
+                barButton("bold", label: "Bold", id: "bold", isOn: activeInlineStyles.bold) {
+                    applyTextCommand(.bold)
+                }
+                barButton("italic", label: "Italic", id: "italic", isOn: activeInlineStyles.italic) {
+                    applyTextCommand(.italic)
+                }
+                barButton("underline", label: "Underline", id: "underline", isOn: activeInlineStyles.underline) {
+                    applyTextCommand(.underline)
+                }
+                barButton("strikethrough", label: "Strikethrough", id: "strikethrough", isOn: activeInlineStyles.strikethrough) {
+                    applyTextCommand(.strikethrough)
+                }
+                // Highlights in the swatch last picked in the Aa panel; a second tap removes it.
+                barButton("highlighter", label: "Highlight", id: "highlight", isOn: panelState.activeHighlightIndex != nil) {
+                    applyTextCommand(.highlight(index: panelState.activeHighlightIndex == nil ? panelState.lastHighlightIndex : nil))
+                }
+                barButton("link", label: "Link", id: "link", isOn: panelState.activeLinkURL != nil) {
+                    panelState.onRequestLinkEditor?()
+                }
+                barButton("eraser", label: "Clear formatting", id: "clearFormatting", isOn: false) {
+                    applyTextCommand(.clearFormatting)
+                }
+                barButton("decrease.indent", label: "Decrease indent", id: "indentLess", isOn: false) {
+                    applyTextCommand(.indentLess)
+                }
+                barButton("increase.indent", label: "Increase indent", id: "indentMore", isOn: false) {
+                    applyTextCommand(.indentMore)
+                }
+                barButton("text.quote", label: "Quote", id: "blockQuote", isOn: activeParagraphStyle == .blockQuote) {
+                    applyTextCommand(.blockQuote)
+                }
+                barButton("list.bullet", label: "Bulleted list", id: "bulletedList", isOn: activeParagraphStyle == .bulletedList) {
+                    applyTextCommand(.bulletedList)
+                }
+                barButton("arrow.uturn.backward", label: "Undo", id: "undo", isOn: false, isEnabled: canUndo) {
+                    applyTextCommand(.undo)
+                }
+                barButton("arrow.uturn.forward", label: "Redo", id: "redo", isOn: false, isEnabled: canRedo) {
+                    applyTextCommand(.redo)
+                }
             }
-            .padding(.horizontal, 4)
-            .barSurface(isSentinel: displayMode == .sentinel, shape: barShape)
+            .padding(.horizontal, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 6)
-        .padding(.bottom, 6)
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .frame(height: barHeight)
+        .barSurface(isSentinel: displayMode == .sentinel)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
-        .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
     }
+
+    private var barHeight: CGFloat { min(toolbarIconSize(48), 64) }
+    private var barItemWidth: CGFloat { 58 }
 
     private var isInChecklist: Bool {
         activeParagraphStyle == .checklistUnchecked || activeParagraphStyle == .checklistChecked
-    }
-
-    private var barShape: AnyShape {
-        displayMode == .sentinel
-            ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            : AnyShape(Capsule())
     }
 
     private var barAccent: Color {
         displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor
     }
 
-    private var barDivider: some View {
-        Rectangle()
-            .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : Color.secondary.opacity(0.25))
-            .frame(width: 1, height: 20)
-            .padding(.horizontal, 4)
-            .accessibilityHidden(true)
+    private func barGlyph(_ systemImage: String, isOn: Bool = false, isEnabled: Bool = true) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: toolbarIconSize(20), weight: isOn ? .semibold : .regular))
+            .foregroundStyle(!isEnabled ? Color.secondary.opacity(0.35) : isOn ? barAccent : Color.primary)
+            .frame(width: barItemWidth, height: barHeight)
+            .contentShape(Rectangle())
     }
 
-    /// The daily word goal, drawn as a hairline along the bottom of the capsule.
-    @ViewBuilder
-    private var wordGoalProgress: some View {
-        if dailyWordGoal > 0 && viewModel.wordCount > 0 {
-            let progress = min(Double(viewModel.wordCount) / Double(dailyWordGoal), 1.0)
-            let isComplete = viewModel.wordCount >= dailyWordGoal
-            GeometryReader { geo in
-                Capsule()
-                    .fill(isComplete ? MirrorTheme.green : barAccent)
-                    .frame(width: geo.size.width * progress)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: progress)
-            }
-            .frame(height: 2)
-            .accessibilityHidden(true)
-        }
-    }
-
-    private func barToggle(_ systemImage: String, label: LocalizedStringKey, id: String,
+    private func barButton(_ systemImage: String, label: LocalizedStringKey, id: String,
                            isOn: Bool, isEnabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: toolbarIconSize(17), weight: isOn ? .semibold : .regular))
-                .foregroundStyle(!isEnabled ? Color.secondary.opacity(0.35) : isOn ? barAccent : Color.primary)
-                .frame(width: 40, height: 44)
-                .background {
-                    if isOn {
-                        barShape.fill(barAccent.opacity(0.14)).padding(.vertical, 6)
-                    }
-                }
-                .contentShape(Rectangle())
+            barGlyph(systemImage, isOn: isOn, isEnabled: isEnabled)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -174,35 +119,48 @@ extension WriteView {
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 
-    @ViewBuilder
-    private var checklistQuickOps: some View {
-        Button {
-            applyTextCommand(.checkAllItems)
+    /// Check All / Uncheck All / Sort Done / Delete Done, shown while the caret is on a checklist line.
+    private var checklistActionsMenu: some View {
+        Menu {
+            Button { applyTextCommand(.checkAllItems) } label: { Label("Check All", systemImage: "checkmark.circle") }
+            Button { applyTextCommand(.uncheckAllItems) } label: { Label("Uncheck All", systemImage: "circle") }
+            Button { applyTextCommand(.sortCheckedToBottom) } label: { Label("Sort Done", systemImage: "arrow.down.to.line") }
+            Button(role: .destructive) { applyTextCommand(.deleteCheckedItems) } label: { Label("Delete Done", systemImage: "trash") }
         } label: {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: toolbarIconSize(18)))
-                .foregroundStyle(.primary)
-                .frame(width: 40, height: 44)
+            barGlyph("checklist.checked")
         }
+        .menuStyle(.button)
         .buttonStyle(.plain)
-        .accessibilityLabel("Check all items")
-        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+        .accessibilityLabel("Checklist actions")
+        .accessibilityIdentifier("checklistActions")
+    }
 
-        Button {
-            applyTextCommand(.deleteCheckedItems)
+    /// Font family for this entry's body text (Write, entry list preview, entry detail).
+    private var fontMenu: some View {
+        Menu {
+            ForEach(WritingFontChoice.allCases) { choice in
+                Button {
+                    applyTextCommand(.fontFamily(choice))
+                } label: {
+                    if choice == panelState.activeFontChoice {
+                        Label(choice.label, systemImage: "checkmark")
+                    } else {
+                        Text(choice.label)
+                    }
+                }
+            }
         } label: {
-            Image(systemName: "trash.circle")
-                .font(.system(size: toolbarIconSize(18)))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, height: 44)
+            barGlyph("f.cursive")
         }
+        .menuStyle(.button)
         .buttonStyle(.plain)
-        .accessibilityLabel("Delete checked items")
-        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+        .accessibilityLabel("Font")
+        .accessibilityValue(Text(panelState.activeFontChoice.label))
+        .accessibilityIdentifier("fontMenu")
     }
 
     /// Notes' paperclip menu, limited to what an entry can hold: scanned text, a photo from the
-    /// camera or the library. Voice has its own button next to it.
+    /// camera or the library, and a voice note.
     private var attachMenu: some View {
         Menu {
             if DocumentScannerController.isSupported {
@@ -216,29 +174,51 @@ extension WriteView {
                 Button {
                     presentAfterKeyboard { showCameraPicker = true }
                 } label: {
-                    Label("Camera", systemImage: "camera")
+                    Label("Take Photo", systemImage: "camera")
                 }
             }
             Button {
                 presentAfterKeyboard { showPhotoPicker = true }
             } label: {
-                Label("Photo Library", systemImage: "photo.on.rectangle")
+                Label("Choose Photo", systemImage: "photo.on.rectangle")
             }
+            Divider()
+            // Records inline; keyboard and caret stay put. This is an audio memo, transcribed
+            // afterwards; the keyboard's own mic key dictates straight into the text.
+            Button {
+                toggleInlineRecording()
+            } label: {
+                if isRecordingInline {
+                    Label("Stop Recording", systemImage: "stop.circle")
+                } else {
+                    Label("Record Audio", systemImage: "waveform")
+                }
+            }
+            .disabled(isTranscribingVoiceNotes)
         } label: {
-            Image(systemName: "paperclip")
-                .font(.system(size: toolbarIconSize(17)))
-                .foregroundStyle(!photoDataArray.isEmpty ? barAccent : .primary)
-                .frame(width: 40, height: 44)
+            Image(systemName: isRecordingInline ? "waveform" : "paperclip")
+                .font(.system(size: toolbarIconSize(20)))
+                .foregroundStyle(isRecordingInline ? Color.red : Color.primary)
+                .frame(width: barItemWidth, height: barHeight)
+                .contentShape(Rectangle())
                 .overlay(alignment: .topTrailing) {
-                    if !photoDataArray.isEmpty {
-                        countBadge(photoDataArray.count)
+                    let count = photoDataArray.count + draftVoiceNotes.count
+                    if count > 0 {
+                        countBadge(count).padding(.top, 6).padding(.trailing, 8)
                     }
                 }
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
-        .accessibilityLabel("Add photo")
-        .accessibilityValue(photoDataArray.isEmpty ? Text("") : Text("\(photoDataArray.count) attached"))
+        .accessibilityLabel("Attach")
+        .accessibilityIdentifier("keyboardBar.attach")
+        .accessibilityValue(attachAccessibilityValue)
+    }
+
+    private var attachAccessibilityValue: Text {
+        if isRecordingInline { return Text(voiceButtonAccessibilityLabel) }
+        let count = photoDataArray.count + draftVoiceNotes.count
+        return count == 0 ? Text("") : Text("\(count) attached")
     }
 
     private func presentAfterKeyboard(_ present: @escaping () -> Void) {
@@ -258,50 +238,6 @@ extension WriteView {
                 barAccent,
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
             )
-            .offset(x: 2, y: 4)
-    }
-
-    /// Records inline; keyboard and caret stay put. A plain view with tap and long-press
-    /// gestures, not a Button: a Button's tap still fires alongside a long-press, which would
-    /// start a recording behind the hint popover (audit 2.3).
-    private var voiceButton: some View {
-        Image(systemName: iconForVoiceButton)
-            .font(.system(size: toolbarIconSize(17)))
-            .foregroundStyle(
-                isRecordingInline ? Color.red
-                    : (!draftVoiceNotes.isEmpty ? barAccent : Color.primary)
-            )
-            .frame(width: 40, height: 44)
-            .contentShape(Rectangle())
-            .overlay(alignment: .topTrailing) {
-                if isTranscribingVoiceNotes {
-                    ProgressView()
-                        .scaleEffect(0.55)
-                        .frame(width: 16, height: 16)
-                        .background(Color(.systemBackground).opacity(0.85), in: Circle())
-                        .offset(x: 2, y: 2)
-                } else if draftVoiceNotes.count > 1 {
-                    countBadge(draftVoiceNotes.count)
-                }
-            }
-            .onTapGesture {
-                toggleInlineRecording()
-            }
-            .onLongPressGesture(minimumDuration: 0.45) {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                showVoiceButtonHint = true
-            }
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(voiceButtonAccessibilityLabel)
-            // VoiceOver has no long-press gesture — this is the only way
-            // a VoiceOver user reaches the same explanation (audit 2.3).
-            .accessibilityAction(named: Text("What this does")) {
-                showVoiceButtonHint = true
-            }
-            .popover(isPresented: $showVoiceButtonHint) {
-                voiceButtonHintContent
-                    .presentationCompactAdaptation(.popover)
-            }
     }
 }
 
@@ -309,17 +245,21 @@ private extension View {
     /// Liquid Glass on iOS 26, a material capsule before it. Sentinel keeps its flat ink card with
     /// an ember hairline instead of glass.
     @ViewBuilder
-    func barSurface(isSentinel: Bool, shape: AnyShape) -> some View {
+    func barSurface(isSentinel: Bool) -> some View {
         if isSentinel {
             self
-                .background(MirrorTheme.inkMid, in: shape)
-                .overlay(shape.stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
         } else if #available(iOS 26, *) {
-            self.glassEffect(.regular.interactive(), in: shape)
+            self
+                .clipShape(Capsule())
+                .glassEffect(.regular, in: Capsule())
         } else {
             self
-                .background(.regularMaterial, in: shape)
-                .overlay(shape.stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
+                .background(.regularMaterial, in: Capsule())
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
                 .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
         }
     }

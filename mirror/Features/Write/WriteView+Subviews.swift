@@ -322,38 +322,10 @@ extension WriteView {
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
-    var iconForVoiceButton: String {
-        if isRecordingInline { return "stop.circle.fill" }
-        return draftVoiceNotes.isEmpty ? "mic" : "waveform.circle.fill"
-    }
-
     var voiceButtonAccessibilityLabel: String {
         if isRecordingInline { return String(localized: "Stop recording") }
         if isTranscribingVoiceNotes { return String(localized: "Transcribing voice note") }
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
-    }
-
-    /// Two mic affordances exist and do different things (audit 2.3): this
-    /// button attaches an audio memo, transcribed after the fact; the system
-    /// keyboard's own mic key does live, word-by-word dictation straight into
-    /// the text. Nothing else in the app ever says so — this is that
-    /// explanation, surfaced on long-press rather than always-visible copy
-    /// cluttering an otherwise icon-only toolbar row.
-    @ViewBuilder
-    var voiceButtonHintContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Voice Note")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-            Text("Records audio and transcribes it afterward — good for a longer memo.")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
-                .foregroundStyle(.secondary)
-            Text("For live dictation as you type, use the mic key on your keyboard.")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
-                .foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .frame(width: 240, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ToolbarContentBuilder
