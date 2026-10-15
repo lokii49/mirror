@@ -1067,14 +1067,13 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "regression_fix3_heading_no_marker")
     }
 
-    // MARK: - Voice: inline recording (2.2)
+    // MARK: - Voice: recorder sheet
 
-    /// The attach menu's Record Audio starts recording INLINE — no modal sheet. The
-    /// keyboard and the editor's toolRow stay put; an `InlineRecordingRow`
-    /// (or, if mic access is denied, an inline `MicPermissionNotice`) appears
-    /// where the finished note will land.
+    /// The attach menu's Record Audio opens the recorder sheet (as Notes does). Recording starts
+    /// from the red button; Delete Recording closes the sheet and leaves the entry's text alone.
+    /// The microphone prompt may appear on a fresh install, so a denied state is accepted too.
     @MainActor
-    func testVoice_micButton_recordsInlineWithoutModal() throws {
+    func testVoice_recordAudio_opensRecorderSheet() throws {
         let app = launchApp()
         tapWriteTab(in: app)
         let tv = focusEditor(in: app)
@@ -1087,37 +1086,38 @@ final class mirrorUITests: XCTestCase {
         let record = app.buttons["Record Audio"]
         XCTAssertTrue(record.waitForExistence(timeout: 3), "Attach menu must list Record Audio")
         record.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-        dismissSystemDialogs(app) // grant the mic-permission prompt if it appears
-        Thread.sleep(forTimeInterval: 0.8)
 
-        let recordingRow = app.otherElements["Recording"]
-        let stopButton   = app.buttons["Stop and add recording"]
-        let permissionNotice = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Microphone access is off")
-        ).firstMatch
-
-        let recording = recordingRow.waitForExistence(timeout: 3) || stopButton.exists
-        let denied = permissionNotice.exists
-        XCTAssertTrue(recording || denied,
-                      "Record Audio must show the inline recording row or the inline permission notice")
-
-        // No modal: the editor's toolRow is still on screen either way.
-        XCTAssertTrue(app.buttons["Formatting"].exists,
-                      "The toolRow (Aa button) must stay visible — recording is not modal")
-
-        snapshot(app, name: recording ? "voice_inline_recording" : "voice_permission_denied_inline")
-
-        if recording {
-            let cancel = app.buttons["Cancel recording"]
-            XCTAssertTrue(cancel.waitForExistence(timeout: 3), "Inline recording row must have a Cancel control")
-            cancel.tap()
-            Thread.sleep(forTimeInterval: 0.6)
-            XCTAssertFalse(app.buttons["Stop and add recording"].exists, "Cancel must dismiss the recording row")
-            let editorText = tv.value as? String ?? ""
-            XCTAssertTrue(editorText.contains("Narrating while I record"),
-                          "Editor text must survive an inline recording that was cancelled")
+        XCTAssertTrue(app.staticTexts["New Recording"].waitForExistence(timeout: 3), "Record Audio must open the recorder sheet")
+        let recordButton = app.buttons["recorderRecord"]
+        XCTAssertTrue(recordButton.exists, "The recorder must have the record button")
+        recordButton.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.buttons["Allow"].waitForExistence(timeout: 2) {
+            springboard.buttons["Allow"].tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            if recordButton.label == "Record" { recordButton.tap() }
         }
+        Thread.sleep(forTimeInterval: 1.5)
+        let recording = recordButton.label == "Pause recording"
+        let denied = app.staticTexts["Microphone access is off"].exists
+        XCTAssertTrue(recording || denied, "The red button must start recording, or say microphone access is off")
+
+        // Pause first: while recording, the timer and waveform redraw 20 times a second, so the
+        // app never goes idle and XCUITest can't tap the menu.
+        if recording {
+            recordButton.tap()
+            XCTAssertTrue(app.buttons["recorderPlay"].waitForExistence(timeout: 3))
+            Thread.sleep(forTimeInterval: 1)
+            XCTAssertEqual(recordButton.label, "Record", "The red button must pause the recording")
+        }
+
+        app.buttons["recorderMore"].tap()
+        let delete = app.buttons["Delete Recording"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3), "The more menu must offer Delete Recording")
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["New Recording"].waitForNonExistence(timeout: 3), "Delete Recording must close the sheet")
+        let editorText = tv.value as? String ?? ""
+        XCTAssertTrue(editorText.contains("Narrating while I record"), "Editor text must survive a deleted recording")
     }
 
     // MARK: - Performance

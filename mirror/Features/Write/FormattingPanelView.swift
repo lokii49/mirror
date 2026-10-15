@@ -135,11 +135,11 @@ struct FormattingPanelView: View {
 
     var body: some View {
         if presentation == .sheet {
+            // Fills the input view edge to edge: the keyboard's backdrop sits behind it, and an
+            // inset card left that backdrop showing as a grey frame.
             ScrollView { panelContent }
                 .scrollBounceBehavior(.basedOnSize)
                 .panelCard(isSentinel: isSentinel)
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
         } else {
             panelContent
         }
@@ -161,7 +161,7 @@ struct FormattingPanelView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
-            .padding(.bottom, 18)
+            .padding(.bottom, presentation == .sheet ? 34 : 18)
         }
         .animation(.easeInOut(duration: 0.2), value: showingColors)
     }
@@ -543,9 +543,9 @@ struct FormattingPanelView: View {
 private let panelCardFill = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .secondarySystemBackground : .systemBackground })
 
 private extension View {
-    /// The floating card that replaces the keyboard: an opaque sheet with a hairline edge and soft
-    /// shadow, corners concentric to the screen on iOS 26. Sentinel keeps its ink card with an
-    /// ember hairline.
+    /// The card that replaces the keyboard: an opaque sheet with a hairline edge, shaped like the
+    /// keyboard it stands in for (corners concentric to the screen on iOS 26). Sentinel keeps its
+    /// ink card with an ember hairline.
     @ViewBuilder
     func panelCard(isSentinel: Bool) -> some View {
         if isSentinel {
@@ -558,13 +558,11 @@ private extension View {
                 .background(panelCardFill, in: shape)
                 .clipShape(shape)
                 .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.1), radius: 18, y: 2)
         } else {
             self
                 .background(panelCardFill, in: RoundedRectangle(cornerRadius: 38, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 38, style: .continuous).stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.1), radius: 18, y: 2)
         }
     }
 

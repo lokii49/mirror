@@ -113,6 +113,7 @@ struct WriteView: View {
     @State var isRecordingInline = false
     @State var recordingPermissionDenied = false
     @State var showPhotoPicker = false
+    @State var showRecorderSheet = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
     @State var showDocumentScanner = false
@@ -566,10 +567,12 @@ struct WriteView: View {
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Hidden while the Aa panel stands in for the keyboard, as Notes hides its bar.
-            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode
-                && !(showFormattingPanel && !usesPopoverPanel) {
-                toolRow
+            // Hidden while the Aa panel stands in for the keyboard, as Notes hides its bar. With the
+            // keyboard down, the short bar a Notes note shows (checklist, attach, record, compose).
+            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
+                if !(showFormattingPanel && !usesPopoverPanel) { toolRow }
+            } else if !focusMode {
+                closedKeyboardBar
             }
         }
         #endif
@@ -684,6 +687,14 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        #if os(iOS)
+        .sheet(isPresented: $showRecorderSheet) {
+            VoiceRecorderSheet { data, duration in
+                appendVoiceNote(data: data, duration: duration)
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
+        #endif
         .sheet(isPresented: $showDocumentScanner) {
             DocumentScannerController { result in
                 handleScannedPages(result)
