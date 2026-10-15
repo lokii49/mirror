@@ -223,3 +223,45 @@ struct ChecklistBackspaceTests {
         #expect((tv.text ?? "").hasSuffix("○  "), "the empty item keeps its circle. Got: \(tv.text ?? "")")
     }
 }
+
+/// In the app, a write through the textStyleData binding (WriteViewModel) reads back only after
+/// SwiftUI's next update. This binding behaves that way: reads return what was committed, writes
+/// wait for `commit()`. The editor must still see its own writes in the meantime.
+@MainActor
+struct LaggingStyleBindingTests {
+    @Test func aListButtonBetweenListsShowsItsMarkerAtOnce() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Two\nMiddle line\nThree"
+        var committed: Data? = try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.checklistUnchecked, .body, .checklistUnchecked]))
+        var pending: Data?? = nil
+        let lagging = Binding<Data?>(get: { committed }, set: { pending = .some($0) })
+        let editor = NoteEditorTextView(
+            text: Binding(get: { box.text }, set: { box.text = $0 }),
+            textStyleData: lagging,
+            inlineStyleData: Binding(get: { box.inlineStyleData }, set: { box.inlineStyleData = $0 }),
+            photoDataArray: Binding(get: { box.photos }, set: { box.photos = $0 }),
+            command: Binding(get: { box.command }, set: { box.command = $0 }),
+            commandRevision: Binding(get: { box.commandRevision }, set: { box.commandRevision = $0 }),
+            isFocused: Binding(get: { box.isFocused }, set: { box.isFocused = $0 }),
+            activeParagraphStyle: Binding(get: { box.activeParagraphStyle }, set: { box.activeParagraphStyle = $0 }),
+            activeInlineStyles: Binding(get: { box.activeInlineStyles }, set: { box.activeInlineStyles = $0 }),
+            showFormattingPanel: Binding(get: { box.showFormattingPanel }, set: { box.showFormattingPanel = $0 }),
+            canUndo: Binding(get: { box.canUndo }, set: { box.canUndo = $0 }),
+            canRedo: Binding(get: { box.canRedo }, set: { box.canRedo = $0 }),
+            fontChoiceRaw: Binding(get: { box.fontChoiceRaw }, set: { box.fontChoiceRaw = $0 }),
+            panelState: box.panelState,
+            displayMode: .classic
+        )
+        let c = editor.makeCoordinator()
+        let tv = UITextView()
+        c.applyStyledText(to: tv, preservingSelection: false)
+        let middle = (tv.text as NSString).range(of: "Middle line")
+        c.lastKnownCursorLocation = NSMaxRange(middle)
+        c.apply(.bulletedList, to: tv)
+        #expect((tv.text ?? "").contains("•  Middle line"), "the bullet shows before SwiftUI's next update. Got: \(tv.text ?? "")")
+        let after = (tv.text as NSString).range(of: "Middle line")
+        #expect(tv.selectedRange.location == NSMaxRange(after), "the caret stays at the end of Middle line")
+        if case .some(let value) = pending { committed = value }
+        _ = committed
+    }
+}

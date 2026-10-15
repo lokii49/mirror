@@ -121,6 +121,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
         context.coordinator.parent = self
+        context.coordinator.didReceiveParent()
         context.coordinator.noteOutsideChange(in: textView)
 
         // The full comparison rebuilds the logical text (several ms at 50k characters). When the
@@ -204,6 +205,27 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+        /// The paragraph styles as the editor last wrote them, until SwiftUI's next update. In the app
+        /// a write through `parent.textStyleData` (WriteViewModel via a binding) does not read back
+        /// until then, so a re-render right after a style change drew the old styles: a list button
+        /// on a line between two lists added its marker one update late and the caret landed in the
+        /// next row. Every read and write in the coordinator goes through here.
+        private var writtenTextStyleData: Data??
+        var textStyleData: Data? {
+            get {
+                if case .some(let written) = writtenTextStyleData { return written }
+                return parent.textStyleData
+            }
+            set {
+                writtenTextStyleData = .some(newValue)
+                parent.textStyleData = newValue
+            }
+        }
+
+        /// Called with each new `parent`: the binding now reflects what was written (and any change
+        /// made outside the editor wins).
+        func didReceiveParent() { writtenTextStyleData = nil }
+
         static let placeholderTag = 701
 
         var parent: NoteEditorTextView
@@ -535,7 +557,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 applyStyledText(to: textView, preservingSelection: true)
             }
             parent.text = logicalText(from: textView)
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            textStyleData = encodedTextStyleData(from: textView)
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
             syncRenderedCache(from: textView)
             updatePlaceholder(in: textView)
@@ -973,7 +995,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             // first character is untouched), and inline ranges are captured fresh here
             // — before the structural rebuild below touches paragraph-level font/color —
             // so bold/italic/highlight on either half survive the merge.
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            textStyleData = encodedTextStyleData(from: textView)
             parent.inlineStyleData = extractedInlineStyleData(from: textView)
             invalidateRenderedCache()
             applyStyledText(to: textView, preservingSelection: true)
@@ -1415,7 +1437,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     }
                     let hasIndent = indentLevels.contains { $0 != 0 }
                     let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
-                    parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
+                    textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
                         paragraphStyles: styles,
                         indentLevels: hasIndent ? indentLevels : nil,
                         fontChoices: hasFontOverride ? fontChoices : nil
@@ -1563,7 +1585,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         func applyStyledText(to textView: UITextView, preservingSelection: Bool) {
             let selectedRange = textView.selectedRange
             let rawText = parent.text
-            let styleSignature = parent.textStyleData?.hashValue
+            let styleSignature = textStyleData?.hashValue
             let inlineSignature = parent.inlineStyleData?.hashValue
             let photoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             let width = textView.bounds.width.rounded()
@@ -1615,7 +1637,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func updatePlaceholder(in textView: UITextView) {
             let placeholder = textView.viewWithTag(Self.placeholderTag) as? UILabel
-            placeholder?.isHidden = !parent.text.isEmpty || parent.textStyleData != nil
+            placeholder?.isHidden = !parent.text.isEmpty || textStyleData != nil
             placeholder?.font = serifBodyFont
         }
 
@@ -2653,7 +2675,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func decodedTextStyles() -> [NoteParagraphTextStyle] {
-            guard let data = parent.textStyleData,
+            guard let data = textStyleData,
                   let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data) else {
                 return []
             }
@@ -2661,7 +2683,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func decodedIndentLevels() -> [Int] {
-            guard let data = parent.textStyleData,
+            guard let data = textStyleData,
                   let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data),
                   let levels = document.indentLevels else {
                 return []
@@ -2670,7 +2692,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func decodedFontChoices() -> [String] {
-            guard let data = parent.textStyleData,
+            guard let data = textStyleData,
                   let document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data),
                   let choices = document.fontChoices else {
                 return []
@@ -2689,10 +2711,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// first character takes them on. Plain body in the entry's font stores nothing.
         private func storeEmptyDocumentStyle(_ style: NoteParagraphTextStyle, fontChoice: WritingFontChoice) {
             guard style != .body || fontChoice != entryDefaultFontChoice else {
-                parent.textStyleData = nil
+                textStyleData = nil
                 return
             }
-            parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [style], fontChoices: [fontChoice.rawValue]))
+            textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [style], fontChoices: [fontChoice.rawValue]))
         }
 
         private var entryDefaultFontChoice: WritingFontChoice {
@@ -2763,7 +2785,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let text = logicalText(from: textView)
             let moved = text != parent.text
             parent.text = text
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            textStyleData = encodedTextStyleData(from: textView)
             if moved { parent.inlineStyleData = extractedInlineStyleData(from: textView) }
         }
 
@@ -2827,7 +2849,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         lazy var editorUndoManager = EditorUndoManager(coordinator: self)
 
         func currentSnapshot(of textView: UITextView) -> EditorSnapshot {
-            EditorSnapshot(text: parent.text, textStyleData: parent.textStyleData, inlineStyleData: parent.inlineStyleData,
+            EditorSnapshot(text: parent.text, textStyleData: textStyleData, inlineStyleData: parent.inlineStyleData,
                            photos: parent.photoDataArray, selection: textView.selectedRange)
         }
 
@@ -2893,7 +2915,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func restore(_ snapshot: EditorSnapshot, in textView: UITextView) {
             parent.text = snapshot.text
-            parent.textStyleData = snapshot.textStyleData
+            textStyleData = snapshot.textStyleData
             parent.inlineStyleData = snapshot.inlineStyleData
             if parent.photoDataArray.map(\.count) != snapshot.photos.map(\.count) { parent.photoDataArray = snapshot.photos }
             pendingTypingInline = nil
@@ -2935,7 +2957,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func syncRenderedCache(from textView: UITextView) {
             lastRenderedText = parent.text
-            lastRenderedStyleSignature = parent.textStyleData?.hashValue
+            lastRenderedStyleSignature = textStyleData?.hashValue
             lastRenderedInlineSignature = parent.inlineStyleData?.hashValue
             lastRenderedPhotoSignature = parent.photoDataArray.map(\.count).reduce(0, +)
             lastRenderedWidth = textView.bounds.width.rounded()
@@ -3264,7 +3286,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard changed else { return }
             let hasIndent = levels.contains(where: { $0 > 0 })
-            parent.textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
+            textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(
                 paragraphStyles: styles,
                 indentLevels: hasIndent ? levels : nil,
                 fontChoices: fontChoices
@@ -3376,7 +3398,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let fontChoices = rows.map { $0.fontChoice }
             let hasIndent = levels.contains(where: { $0 > 0 })
             let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
-            parent.textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
+            textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
                 try? JSONEncoder().encode(NoteTextStyleDocument(
                     paragraphStyles: styles,
                     indentLevels: hasIndent ? levels : nil,
@@ -3525,7 +3547,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             let fontChoices = kept.map { $0.1.fontChoice }
             let hasIndent = levels.contains(where: { $0 > 0 })
             let hasFontOverride = fontChoices.contains { WritingFontChoice(rawValue: $0) != entryDefaultFontChoice }
-            parent.textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
+            textStyleData = (styles.allSatisfy({ $0 == .body }) && !hasIndent && !hasFontOverride) ? nil :
                 try? JSONEncoder().encode(NoteTextStyleDocument(
                     paragraphStyles: styles,
                     indentLevels: hasIndent ? levels : nil,
@@ -3586,7 +3608,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             applyAttributedText(mutable, to: textView)
             textView.selectedRange = bounded(textView.selectedRange, in: textView.text)
             isApplyingStyledText = false
-            parent.textStyleData = encodedTextStyleData(from: textView)
+            textStyleData = encodedTextStyleData(from: textView)
             if style == .numberedList {
                 // Unlike bullet/dash, a numbered marker's digits depend on every
                 // sibling paragraph's level, not just this row's own level —
