@@ -115,3 +115,27 @@ struct ChecklistSortCaretTests {
         #expect(textView.selectedRange.location == moved.location + 2, "the caret must stay in Milk, now the last row")
     }
 }
+
+/// The checklist marker's spacer is kerned so text clears the drawn circle; nothing else may be.
+/// Typed text inherited the kern once ("t e s t").
+@MainActor
+struct ChecklistMarkerSpacingTests {
+    @Test func onlyTheMarkerSpacerIsKerned() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "test"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.checklistUnchecked]))
+        let (_, rendered) = FormattingActiveStateTests.makeEditor(box)
+        let spacing = ChecklistMarkerSpacing()
+        let storage = NSTextStorage()
+        storage.delegate = spacing
+        storage.setAttributedString(rendered.attributedText)
+        // A character typed with the spacer's kern in its typing attributes.
+        let typed = NSAttributedString(string: "s", attributes: [.kern: 14.0, .font: UIFont.preferredFont(forTextStyle: .body)])
+        storage.replaceCharacters(in: NSRange(location: storage.length, length: 0), with: typed)
+        let marker = 3   // "○  "
+        #expect(storage.attribute(.kern, at: marker - 1, effectiveRange: nil) != nil, "the marker's spacer is kerned")
+        for i in marker..<storage.length {
+            #expect(storage.attribute(.kern, at: i, effectiveRange: nil) == nil, "text at \(i) must not be kerned")
+        }
+    }
+}

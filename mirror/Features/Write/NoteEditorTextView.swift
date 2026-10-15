@@ -1955,6 +1955,8 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func updateTypingAttributes(for textView: UITextView) {
             guard textView.markedTextRange == nil else { return }
+            // A checklist marker's spacer is kerned (ChecklistMarkerSpacing); typed text must not be.
+            if textView.typingAttributes[.kern] != nil { textView.typingAttributes.removeValue(forKey: .kern) }
             let nsText = (textView.text ?? "") as NSString
             guard nsText.length > 0 else {
                 // An empty entry's style lives in the stored style data (Title or a font picked
@@ -3809,6 +3811,9 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
         guard text.length > 0 else { return }
         let scope = text.paragraphRange(for: NSRange(location: min(editedRange.location, text.length - 1),
                                                      length: min(editedRange.length, text.length - min(editedRange.location, text.length - 1))))
+        // Only a marker's spacer is kerned. Text typed after it inherits the kern from the typing
+        // attributes ("t e s t"), and a marker removed by a style change leaves it on its row.
+        textStorage.removeAttribute(.kern, range: scope)
         text.enumerateSubstrings(in: scope, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
             let at = range.location
             guard range.length >= 3,
@@ -3819,10 +3824,7 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
             let font = (textStorage.attribute(.font, at: at, effectiveRange: nil) as? UIFont) ?? .preferredFont(forTextStyle: .body)
             let width = text.substring(with: NSRange(location: at, length: 3)).size(withAttributes: [.font: font]).width
             let kern = max(0, ChecklistLayoutManager.textIndent - width)
-            let current = textStorage.attribute(.kern, at: at + 2, effectiveRange: nil) as? CGFloat
-            if current.map({ abs($0 - kern) > 0.5 }) ?? true {
-                textStorage.addAttribute(.kern, value: kern, range: NSRange(location: at + 2, length: 1))
-            }
+            textStorage.addAttribute(.kern, value: kern, range: NSRange(location: at + 2, length: 1))
         }
     }
 }
