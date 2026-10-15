@@ -453,3 +453,22 @@ N = 10 per case, temperature 0.45: 43 x 10 = 430 runs.
 **Decision rule**: all pass -> 39fcab8 stays and 3.1.3 is pushed. G1 or G2 fails -> 39fcab8 is reverted before the
 push and the SecondQuoteTests failure goes back to the owner. Only G3 or G4 fails -> report to the owner before
 pushing. One round only.
+
+### Round 13 result (2026-10-15, 43 cases x 10 = 430 runs, prod, mechanical): G1, G2, G3 pass; G4 fails (not the guard); owner decides
+Tools: `fmrig.swift` (new guard) + `replay13.swift` built with each guard + `gates13.py`. The new replay reproduces
+fmrig's shown outputs exactly (0 mismatches).
+- **G1 pass**: 0 runs where old and new differ beyond letter case (same attempt, quote, fallback, dropped count). 14
+  runs differ in casing only.
+- **G2 pass**: sentence-start words capitalized mid-sentence: old 14, new 0. All 10 hold3_exam runs read "the Exam"
+  under the old guard ("You feel anxious about the Exam."), as on the iPhone.
+- **G3 pass as defined**: 0/30 lowercase names on the hold5 name cases, but only because the model never named
+  Priya, Tomás, Lena or Lisbon there. **The trade-off did show elsewhere**: hold4_colleague ("Kai came back to the
+  office today…", Kai only at a sentence start) shows "kai" in lowercase in 4/10 runs under the new guard (old: 2/10;
+  the model writes "kai" and the old guard fixed two of them).
+- **G4 fails (model, not guard)**: fallback 28/430 = 6.5% (round 12: 5.8%; hold4_weekends 10/10 and hold4_garden
+  8/10 as before). Errors: hold5_grief refused 10/10 "May contain sensitive content" (a grief entry mentioning a
+  dad); hold3_hospital was not refused this time (0/10). Production finding: grief days can get no reflection;
+  `refusedDayNudge` covers it in the app.
+- Tagger on the dev Mac: Kai and Priya are PersonalName, Exam and Lisbon PlaceName. A sharper rule (at a sentence
+  start trust only PersonalName) would keep Kai and drop Exam; it is not this round's change.
+Per the decision rule (G4 failed) this goes to the owner before the push.
