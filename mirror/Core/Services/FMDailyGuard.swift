@@ -166,10 +166,11 @@ nonisolated enum FMDailyGuard {
     /// Names the entries write (people and places), lowercased -> as written. The model sometimes
     /// writes a name in lowercase ("worried about maya").
     ///
-    /// Only names capitalized mid-sentence count. At a sentence start the capital says nothing,
-    /// and iOS 27's tagger calls such nouns names ("Exam is on Friday" tags Exam as a place on an
-    /// iPhone 14 Pro, 2026-10-15), which turned the insight's "the exam" into "the Exam". A name
-    /// written only at sentence starts stays as the model wrote it.
+    /// At a sentence start the capital says nothing, and iOS 27's tagger calls such nouns places
+    /// ("Exam is on Friday" tags Exam as a PlaceName on an iPhone 14 Pro, 2026-10-15), which turned
+    /// the insight's "the exam" into "the Exam". So a word that opens a sentence counts only when the
+    /// tagger calls it a person ("Kai came back…" is a PersonalName). Mid-sentence, any name counts.
+    /// Measured in llmrig rounds 13 and 14 (RUBRIC_FM.md).
     private static func personNames(in text: String) -> [String: String] {
         let tagger = NLTagger(tagSchemes: [.nameType])
         tagger.string = text
@@ -177,7 +178,7 @@ nonisolated enum FMDailyGuard {
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
             if let tag, tag == .personalName || tag == .placeName {
                 let name = String(text[range])
-                if name.first?.isUppercase == true, !startsSentence(range.lowerBound, in: text) {
+                if name.first?.isUppercase == true, tag == .personalName || !startsSentence(range.lowerBound, in: text) {
                     names[name.lowercased()] = name
                 }
             }

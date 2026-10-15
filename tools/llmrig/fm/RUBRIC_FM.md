@@ -472,3 +472,21 @@ fmrig's shown outputs exactly (0 mismatches).
 - Tagger on the dev Mac: Kai and Priya are PersonalName, Exam and Lisbon PlaceName. A sharper rule (at a sentence
   start trust only PersonalName) would keep Kai and drop Exam; it is not this round's change.
 Per the decision rule (G4 failed) this goes to the owner before the push.
+
+## Round 14: sentence-start names, PersonalName only (plan fixed BEFORE running, 2026-10-15)
+Owner, after round 13: sharpen the rule. **Change**: at a sentence start, a tagged word counts as a name only when the
+tagger calls it PersonalName (mid-sentence, any name tag counts, as before 39fcab8). Round 13 showed Kai/Priya tagged
+PersonalName and Exam/Lisbon PlaceName on the dev Mac; on the iPhone 14 Pro, Exam was PlaceName.
+**Method**: no new model runs. The same 430 raw outputs of round 13 replayed with the round-14 guard
+(`replay13.swift` built against it) beside the old guard (`39fcab8^`).
+**Gates**: G1 as round 13 (old vs round-14: differences in letter case only). G2: no mid-sentence capital on a word
+the entries capitalize only at sentence starts, except words the dev Mac's tagger calls PersonalName there (listed);
+hold3_exam shows "exam" 10/10. G3: hold4_colleague shows "kai" in lowercase in no more runs than the old guard (2/10).
+Pass -> commit the guard change and push 3.1.3. Fail -> back to the owner.
+
+### Round 14 result (2026-10-15, round 13's 430 raw outputs replayed): PASSED; the PersonalName rule ships
+- G1 pass: 0 runs differ from the old guard beyond letter case (10 differ in case: all hold3_exam).
+- G2 pass: hold3_exam shows "the exam" 10/10 (old guard: "the Exam" 10/10). The only other mid-sentence capitals
+  on sentence-start words are "Kai" (hold4_colleague, 4 runs), which the tagger calls a PersonalName: the exception.
+- G3 pass: hold4_colleague shows "kai" in lowercase in 0/10 runs (old guard 2/10, round 13's rule 4/10).
+- Model numbers are round 13's (same outputs): fallback 6.5%, hold5_grief refused 10/10.
