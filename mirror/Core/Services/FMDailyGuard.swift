@@ -40,13 +40,20 @@ nonisolated enum FMDailyGuard {
     /// measures 3, tools/llmrig/fm/RUBRIC_FM.md).
     static func verify(quote: String, insight: String, sources: [Source], maxSentences: Int = maxInsightSentences) -> Verified? {
         guard let (shownQuote, index) = locate(quote: quote, in: sources.map(\.text)) else { return nil }
+        guard let clean = cleanSentences(of: insight, sources: sources, maxSentences: maxSentences) else { return nil }
+        return Verified(quote: shownQuote, insight: clean.text, sourceIndex: index, droppedSentences: clean.dropped)
+    }
+
+    /// The sentences of `text` that pass the insight checks, tidied, at most `maxSentences`; nil when
+    /// none passes. The weekly digest (`FMDigestGuard`) checks each of its model-written lines with it.
+    static func cleanSentences(of text: String, sources: [Source], maxSentences: Int) -> (text: String, dropped: Int)? {
         let allowed = allowedWords(sources)
         let sourceWords = Set(sources.flatMap { words($0.text) })
         let sourceText = sources.map(\.text).joined(separator: " ")
         let names = personNames(in: sourceText)
         var kept: [String] = []
         var dropped = 0
-        for sentence in sentences(of: insight) {
+        for sentence in sentences(of: text) {
             let restored = restoreNames(sentence, names: names)
             let duplicate = kept.contains { $0.lowercased() == tidy(restored).lowercased() }
             if !duplicate, sentenceIsClean(restored, allowed: allowed, sourceWords: sourceWords, sourceText: sourceText) {
@@ -56,7 +63,7 @@ nonisolated enum FMDailyGuard {
             }
         }
         guard !kept.isEmpty else { return nil }
-        return Verified(quote: shownQuote, insight: kept.joined(separator: " "), sourceIndex: index, droppedSentences: dropped)
+        return (kept.joined(separator: " "), dropped)
     }
 
     // MARK: - Quote

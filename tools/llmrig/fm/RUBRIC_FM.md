@@ -490,3 +490,70 @@ Pass -> commit the guard change and push 3.1.3. Fail -> back to the owner.
   on sentence-start words are "Kai" (hold4_colleague, 4 runs), which the tagger calls a PersonalName: the exception.
 - G3 pass: hold4_colleague shows "kai" in lowercase in 0/10 runs (old guard 2/10, round 13's rule 4/10).
 - Model numbers are round 13's (same outputs): fallback 6.5%, hold5_grief refused 10/10.
+
+## Round 15: the weekly digest on Foundation Models, in the Gemma digest's shape (plan fixed BEFORE running, 2026-10-15)
+Owner, 2026-10-15: FM insights paraphrase the context instead of using the person's words, and the Gemma weekly
+digest (quotes + a line after each) reads better. FM weekly/monthly/Ask have never had a rig round: they are free
+prose with only the word-overlap backstop. Weekly first; monthly and Ask get their own rounds after.
+
+**Variants** (same dumped user message, `test_dumpDigestPromptsForRig`, byte-identical to the app):
+- **W0 baseline**: shipped `WEEKLY_DIGEST_SYSTEM`, free prose (`fmrig free`).
+- **W1**: `system_digest_d1.txt` + `@Generable WeeklyDigestD1` (theme, then quote + one line for energy / building /
+  watch, then boost and next week). The app composes the Gemma digest's text (same six labels, `You seemed most
+  <entry's mood> when you wrote, "<quote>" …`, `You wrote, "<quote>" …`), and `FMDigestGuard` (compiled into the rig)
+  must accept it: each quote found in this week's entries, the three quotes different, building not from a hard-mood
+  entry when the week has another, every model line passing `FMDailyGuard.cleanSentences` against the week. Up to 3
+  attempts; none accepted -> fallback (the app's honest card).
+
+**Cases**: 10 synthetic weeks, no real journal text: `wk_rigA` (the 13 daily rig cases as one week), `wk_rigB`
+(digestWeekB) and 8 new weeks written for this round (`digestRigWeeks`: caregiver, good, hard, neutral, sparse,
+runon, breakup, exam). N = 10 per case per variant, temperature 0.45 (`dailyNudge`'s, as the daily rounds).
+
+**Scored per shown digest**, blind (variant labels removed, shuffled), one section at a time, 0/1:
+1. **INVENT**: no event, object, place, person, sensation or scenery the entries don't contain; no feeling the
+   entries don't state or plainly show.
+2. **SWAP**: no person given another's action; plans not stated as done.
+3. **VALUE**: the section says something a reader would not get from the quote or entry alone (a meaning, a link
+   between two days, a concrete next step tied to their words). A restatement of the quote, or generic advice
+   ("take some time for yourself") scores 0.
+A digest PASSES when all six sections pass 1 and 2.
+
+**Gates for W1 to ship (all must hold)**:
+- G1 fallback <= 10% of runs, and no case above 30%.
+- G2 shown PASS >= 95% of shown digests, and W1's invented-section rate below W0's.
+- G3 VALUE: W1's mean VALUE per section >= W0's.
+- G4 quotes: 100% of shown quotes verbatim (by construction; checked by script).
+Pass -> `WEEKLY_DIGEST_FM_SYSTEM` + `WeeklyDigestDraft` ship for English FM digests; other languages keep the
+shipped path this round. Fail -> report to the owner with the numbers; no prompt change ships. One round, plus at
+most one revision (W2) if only G1 fails, fixed in writing before it runs.
+
+### Round 15, W2 (fixed BEFORE running, 2026-10-15; owner said go after W1's partial numbers)
+W1 partial (7 of 10 weeks): fallback ~70% (wk_hard and wk_neutral 10/10); W0 shown 10/10. Most rejected lines
+contained "quiet"/"quietly", which `FMDailyGuard` counts as an added state word; the W1 prompt itself said "quietly
+costing them". The rest were real catches ("before the grant review", "find a quiet space").
+**W2 changes, nothing else:**
+1. Prompt (`system_digest_d2.txt`) and the watch `@Guide` say "may be costing them or wearing on them", never
+   "quietly"; one added rule: do not call anything quiet unless they did.
+2. `FMDigestGuard.merge`: each section is taken from the first attempt in which it passes (same checks as W1), quotes
+   still distinct across the chosen sections. Attempts stop as soon as all six sections are filled; at most 3.
+   The guard itself (`FMDailyGuard.cleanSentences`) is unchanged.
+Same cases, N, temperature, scoring and gates G1-G4 as W1. W2 is the last revision this round.
+
+### Round 15 result (2026-10-16): W1 and W2 FAILED; nothing ships. The shipped FM digest (W0) invents in half its sections
+Runs: W0 100/100 shown; W1 25/100 shown (75% fallback); W2 47/100 shown (53% fallback; wk_exam 10/10, wk_neutral 9/10).
+W2's unfilled sections at fallback: energy 26, boost 15, nextWeek 10, watch 7, building 6.
+Blind scoring (3 scorers, 97 digests shuffled, labels removed: all 47 shown W2 + 5 W0 per week; the two shapes
+are recognisable, so blind only in labels):
+
+| | digests PASS | sections invented | swap | VALUE / section |
+|---|---|---|---|---|
+| W0 shipped free prose | **0/50** | **146/300 (48.7%)** | 9 | 0.51 |
+| W2 structured + guard | 30/47 (64%) | 20/282 (7.1%) | 1 | 0.19 |
+
+- G1 fail (53%), G2 fail (64% < 95%, though invented rate is far below W0's), G3 fail (0.19 < 0.51), G4 pass.
+- W0 inventions are scenery and events ("the dent in the wall", "the notebook from the corner", "your breath steady
+  as the pavement warmed") in every section, worst in YOUR ENERGY (44/50) and MOOD BOOST (34/50). This is what
+  English FM users get today.
+- W2's inventions are mostly in YOUR ENERGY (12/20) and come from the "connect it to another day" instruction:
+  false links ("especially after skipping dinner", "after the quiet time with Chris"). W2's low VALUE: theme reads
+  as a list of nouns (0/47), and most reads restate the quote; MOOD BOOST is its best section (25/47).

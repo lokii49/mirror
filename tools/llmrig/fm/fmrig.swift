@@ -74,6 +74,69 @@ import Foundation
     var insight: String
 }
 
+
+// Round 15 (RUBRIC_FM.md): the weekly digest in the Gemma digest's shape. If it passes, this exact text
+// becomes FoundationModelEngine.WeeklyDigestDraft's.
+@Generable struct WeeklyDigestD1 {
+    @Guide(description: "What this week was mostly about, in 3 to 10 plain words that finish 'A week of'. Name real things they wrote about")
+    var theme: String
+    @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+    var energyQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that moment shows about their week, or how it connects to another day they wrote about. Only feelings they wrote or plainly showed")
+    var energyRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+    var buildingQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that might mean for them. Say nothing about anything they did not write")
+    var buildingRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be quietly costing them")
+    var watchQuote: String
+    @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on. Say nothing about anything they did not write")
+    var watchRead: String
+    @Guide(description: "One small thing they could do in the next few days, using a person, task or thing they named this week")
+    var boost: String
+    @Guide(description: "One kind, practical sentence for next week about something they wrote is coming up or still unfinished")
+    var nextWeek: String
+}
+
+// Round 15 W2: only the watch guide differs from W1 ("quietly" removed).
+@Generable struct WeeklyDigestD2 {
+    @Guide(description: "What this week was mostly about, in 3 to 10 plain words that finish 'A week of'. Name real things they wrote about")
+    var theme: String
+    @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+    var energyQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that moment shows about their week, or how it connects to another day they wrote about. Only feelings they wrote or plainly showed")
+    var energyRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+    var buildingQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that might mean for them. Say nothing about anything they did not write")
+    var buildingRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be costing them or wearing on them")
+    var watchQuote: String
+    @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on. Say nothing about anything they did not write")
+    var watchRead: String
+    @Guide(description: "One small thing they could do in the next few days, using a person, task or thing they named this week")
+    var boost: String
+    @Guide(description: "One kind, practical sentence for next week about something they wrote is coming up or still unfinished")
+    var nextWeek: String
+}
+
+/// Every entry of a dumped "Weekly digest context" prompt's Recent entries, with its mood.
+func weekSources(_ user: String) -> [FMDailyGuard.Source] {
+    let head = user.components(separatedBy: "Long-term context:")[0]
+    guard let r = head.range(of: "Recent entries:\n") else { return [] }
+    var out: [FMDailyGuard.Source] = []
+    for b in String(head[r.upperBound...]).components(separatedBy: "\n---\n") {
+        var lines = b.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.count >= 3, lines[0].hasPrefix("Entry ") else { continue }
+        let mood = lines[1].replacingOccurrences(of: "Mood: ", with: "").components(separatedBy: ".")[0]
+        lines.removeFirst(2)
+        out.append(FMDailyGuard.Source(text: lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), mood: mood))
+    }
+    return out
+}
+
+let digestLabels = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
+
 /// Capitalises every sentence and makes sure the text ends with punctuation (what the app does).
 func tidyAll(_ s: String) -> String {
     let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -239,6 +302,45 @@ func emit(_ obj: [String: Any]) {
                         rec["quoteVerbatim"] = source.contains(norm(v.quote))
                         rec["fields"] = ["quote": v.quote, "insight": v.insight]
                         rec["dropped"] = v.droppedSentences
+                    } else {
+                        rec["fallback"] = true
+                    }
+                case "digest_d1", "digest_d2":
+                    // Round 15. W1: an attempt shows only when all six sections pass in it. W2: each section
+                    // comes from the first attempt where it passes (FMDigestGuard.merge). At most 3 attempts.
+                    let sources = weekSources(user)
+                    var raws: [[String: String]] = []
+                    var drafts: [FMDigestGuard.Draft] = []
+                    var missing: [[String]] = []
+                    var shown: FMDigestGuard.Verified?
+                    for _ in 1...3 {
+                        let session = LanguageModelSession(instructions: system)
+                        let d: FMDigestGuard.Draft
+                        if variant == "digest_d1" {
+                            let r = try await session.respond(to: user, generating: WeeklyDigestD1.self, options: opts).content
+                            d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+                                                    buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+                                                    watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
+                        } else {
+                            let r = try await session.respond(to: user, generating: WeeklyDigestD2.self, options: opts).content
+                            d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+                                                    buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+                                                    watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
+                        }
+                        raws.append(["theme": d.theme, "energyQuote": d.energyQuote, "energyRead": d.energyRead,
+                                     "buildingQuote": d.buildingQuote, "buildingRead": d.buildingRead,
+                                     "watchQuote": d.watchQuote, "watchRead": d.watchRead, "boost": d.boost, "nextWeek": d.nextWeek])
+                        drafts = variant == "digest_d1" ? [d] : drafts + [d]
+                        let filled = FMDigestGuard.sections(from: drafts, sources: sources)
+                        missing.append(FMDigestGuard.Section.allCases.filter { filled[$0] == nil }.map(\.rawValue))
+                        shown = FMDigestGuard.merge(drafts, sources: sources)
+                        if shown != nil { break }
+                    }
+                    rec["attempts"] = raws.count
+                    rec["raws"] = raws
+                    rec["missing"] = missing
+                    if let v = shown {
+                        rec["text"] = zip(digestLabels, v.sections).map { "\($0): \($1)" }.joined(separator: "\n")
                     } else {
                         rec["fallback"] = true
                     }

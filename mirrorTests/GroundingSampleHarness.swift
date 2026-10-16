@@ -1538,6 +1538,102 @@ final class GroundingSampleHarness: XCTestCase {
     }
 
 
+    /// Synthetic weeks for the Foundation Models weekly digest (tools/llmrig/fm/RUBRIC_FM.md, round 15).
+    /// Same traps as the rig cases: several named people with distinct roles, a pet, plans that have
+    /// not happened, plus an all-good, an all-hard, an ordinary, a sparse and a messy run-on week.
+    static let digestRigWeeks: [(label: String, entries: [Entry])] = {
+        func week(_ texts: [(String, String)]) -> [Entry] {
+            texts.enumerated().map { i, item in
+                let e = Entry(text: item.0, mood: item.1)
+                e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)   // hours, so all stay in this week
+                return e
+            }
+        }
+        return [
+            ("wk_caregiver", week([
+                ("Mom's knee surgery is booked for the 14th. Tara says she can take the first week but I'll need to cover the second. Not sure how I'll do that with the audit going on.", "Anxious"),
+                ("Long day at work, the audit team wants every invoice from March. Came home and Miso was asleep on my laptop bag, which made me laugh for the first time all day.", "Drained"),
+                ("Called Mom tonight. She sounded calmer than me about the whole thing. We talked about her garden for almost an hour.", "Peaceful"),
+                ("Asked my manager, Deepa, if I can work from Mom's place for a week. She said she'll think about it.", "Hopeful"),
+                ("Skipped the gym again. Ate cereal for dinner. I keep making lists and not doing anything on them.", "Overwhelmed"),
+            ])),
+            ("wk_good", week([
+                ("Second pottery class tonight. My bowl actually came out round this time and the teacher, Ines, said my centering is getting better.", "Joyful"),
+                ("Leo visited from Montreal for the weekend. We walked across the whole city and talked about everything, like when we were twenty.", "Grateful"),
+                ("My manager wants to talk about the senior role next month. Trying not to get my hopes up but it's hard not to.", "Hopeful"),
+                ("Quiet Sunday. Glazed two mugs and read on the balcony. Felt like I had nowhere to be.", "Content"),
+                ("Ran 5k without stopping for the first time since spring.", "Energized"),
+            ])),
+            ("wk_hard", week([
+                ("Couldn't sleep again, up until 3 scrolling. Everything feels heavy and slow.", "Drained"),
+                ("Jun left his dishes in the sink for the fourth day and I finally said something. It turned into a fight about rent. I hate living like this.", "Frustrated"),
+                ("Missed the grant deadline by one day. Dr. Okafor was kind about it but I felt so stupid.", "Sad"),
+                ("Didn't really feel anything today. Went to work, came home, stared at the wall.", "Numb"),
+                ("My sister keeps asking if I'm okay and I don't know what to tell her.", "Anxious"),
+                ("Too many tabs open in my head. Need to find a new place, finish the report, call the dentist back.", "Overwhelmed"),
+            ])),
+            ("wk_neutral", week([
+                ("Groceries, laundry, finished the library book about lighthouses. Nothing much else.", "Content"),
+                ("Normal work day. Fixed two small bugs and had lunch at my desk.", "Peaceful"),
+                ("Watered the plants and cleaned out the fridge. Called Grandpa for his weekly chat about the cricket.", "Content"),
+                ("Rain all day so I stayed in and sorted old receipts. Pretty uneventful.", "Peaceful"),
+            ])),
+            ("wk_sparse", week([
+                ("Tired. Work was long.", "Drained"),
+                ("Had dinner with Priyanka at the new ramen place, it was really good.", "Joyful"),
+                ("Thinking about whether to sign up for the evening Spanish course.", "Hopeful"),
+            ])),
+            ("wk_runon", week([
+                ("ok so today: dentist at 9, standup, then the whole afternoon lost to the migration bug. raj thinks its a race condition i think its the cache. didnt eat till 4", "Frustrated"),
+                ("- paid the electricity bill\n- booked flights for dad's 60th 🎉\n- still need to find a gift\n- haven't replied to the group chat", "Energized"),
+                ("felt kind of low all day for no reason?? maybe its the weather maybe its me", "Sad"),
+                ("migration finally fixed!!! it WAS the cache. raj bought me a coffee to admit defeat lol", "Joyful"),
+                ("lazy saturday, played games with Noor until 2am, no regrets", "Content"),
+            ])),
+            ("wk_breakup", week([
+                ("Told Chris I think we should stop seeing each other. He was quiet for a long time and then said he understood. I cried the whole drive home.", "Sad"),
+                ("Ana came over with takeout and we watched bad movies. Pepper wouldn't leave my side all night.", "Grateful"),
+                ("Keep picking up my phone to text him and then putting it down.", "Anxious"),
+                ("Took Pepper to the beach early before anyone was there. First morning I didn't wake up thinking about it.", "Peaceful"),
+                ("Deleted the shared playlist. Felt petty and also lighter.", "Frustrated"),
+            ])),
+            ("wk_exam", week([
+                ("Organic chem final is on Friday and I still don't understand the reaction mechanisms chapter.", "Anxious"),
+                ("Study group with Malik and Sofia in the library until 11. Malik explained substitution reactions with a drawing and it finally clicked.", "Hopeful"),
+                ("Mom and Dad called to ask about grades. I said it's going fine, which isn't totally true.", "Frustrated"),
+                ("Did three practice exams today. Got 61, 70, 78. Going up at least.", "Energized"),
+                ("Woke up with my heart racing before I even remembered why.", "Overwhelmed"),
+            ])),
+        ]
+    }()
+
+    /// Dumps the first (system, user) prompt the weekly digest sends for each of `digestRigWeeks`
+    /// plus the two older digest weeks, for the FM weekly digest round (RUBRIC_FM.md, round 15).
+    func test_dumpDigestPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        let weekA: [Entry] = Self.rigCases.enumerated().map { i, c in
+            let e = Entry(text: c.entries[0].text, mood: c.entries[0].mood)
+            e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)
+            return e
+        }
+        let weeks = [("wk_rigA", weekA), ("wk_rigB", Self.digestWeekB)] + Self.digestRigWeeks
+        for (label, entries) in weeks {
+            var first: (String, String)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                if first == nil { first = (system, user) }
+                return ("x", .foundationModels)
+            }
+            _ = try? await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries)
+            guard let first else { XCTFail("no generation captured for \(label)"); continue }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+    }
+
     /// A second synthetic week, unlike the rig cases: new job, rent rise, a grief anniversary.
     static let digestWeekB: [Entry] = {
         let texts: [(String, String, Double)] = [
