@@ -1607,6 +1607,54 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Held-out weeks for round 17 (RUBRIC_FM.md), written while W4 ran and before any W4 result was
+    /// seen. W4's guard rules were shaped by `digestRigWeeks`; these test them on new names, plans and moods.
+    static let digestHeldOutWeeks: [(label: String, entries: [Entry])] = {
+        func week(_ texts: [(String, String)]) -> [Entry] {
+            texts.enumerated().map { i, item in
+                let e = Entry(text: item.0, mood: item.1)
+                e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)
+                return e
+            }
+        }
+        return [
+            ("ho_move", week([
+                ("Signed the lease for the flat in Leeds. Wen is still nervous about leaving her job but she says she's ready.", "Hopeful"),
+                ("Packed eleven boxes of books and argued with Wen about whether we need the old couch. Probably selling it.", "Frustrated"),
+                ("Kiwi screamed every time I taped a box. Even the parrot hates moving.", "Drained"),
+                ("Said goodbye to the neighbours downstairs. Mr. Patel gave us a jar of his lime pickle.", "Grateful"),
+                ("Still haven't told my manager about the move. Thinking I'll do it after the long weekend.", "Anxious"),
+            ])),
+            ("ho_newparent", week([
+                ("Ava slept four hours in a row last night and I woke up panicking because it was so quiet.", "Anxious"),
+                ("Sam did both night feeds so I could sleep. I cried when I woke up, I was so grateful.", "Grateful"),
+                ("My mother-in-law wants to stay for two weeks next month. Not sure how to say that's too long.", "Overwhelmed"),
+                ("Ava smiled at the ceiling fan for ten minutes. Best part of the day.", "Joyful"),
+                ("Haven't had a real conversation with anyone but Sam in days.", "Sad"),
+            ])),
+            ("ho_volunteer", week([
+                ("Four-hour shift at the food bank. Bea put me in charge of the new volunteers and nobody got lost.", "Energized"),
+                ("Choir rehearsal felt like a chore again. I'm thinking about taking a break after the winter concert.", "Content"),
+                ("A man at the food bank remembered my name from last month. Small thing but it stayed with me.", "Grateful"),
+                ("Long video call with my brother Theo. He might visit in spring if work calms down.", "Hopeful"),
+                ("Did nothing on Sunday except bake bread. It came out flat but I didn't mind.", "Peaceful"),
+            ])),
+            ("ho_flu", week([
+                ("Woke up with a fever and chills. Lucas said he'd cover my Tuesday meetings.", "Drained"),
+                ("Still sick. Mira dropped off groceries at the door and waved through the window.", "Grateful"),
+                ("Watched three seasons of a baking show from the couch. Brain is mush.", "Numb"),
+                ("Booked a doctor's appointment for Thursday because the cough won't go away.", "Anxious"),
+                ("Felt well enough to answer emails. Way too many of them.", "Overwhelmed"),
+            ])),
+            ("ho_short", week([
+                ("omar called, yusuf didnt. figures", "Frustrated"),
+                ("good run this morning 🏃 legs felt strong for once", "Energized"),
+                ("Might ask Omar if he wants to split the cabin for New Year's.", "Hopeful"),
+                ("bad sleep. again. everything annoying today", "Frustrated"),
+            ])),
+        ]
+    }()
+
     /// Dumps the first (system, user) prompt the weekly digest sends for each of `digestRigWeeks`
     /// plus the two older digest weeks, for the FM weekly digest round (RUBRIC_FM.md, round 15).
     func test_dumpDigestPromptsForRig() async throws {
@@ -1620,7 +1668,7 @@ final class GroundingSampleHarness: XCTestCase {
             e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)
             return e
         }
-        let weeks = [("wk_rigA", weekA), ("wk_rigB", Self.digestWeekB)] + Self.digestRigWeeks
+        let weeks = [("wk_rigA", weekA), ("wk_rigB", Self.digestWeekB)] + Self.digestRigWeeks + Self.digestHeldOutWeeks
         for (label, entries) in weeks {
             var first: (String, String)?
             LocalLLMService.generateInterceptForTesting = { system, user, _, _ in

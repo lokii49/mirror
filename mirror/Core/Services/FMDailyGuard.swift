@@ -178,7 +178,8 @@ nonisolated enum FMDailyGuard {
     /// the insight's "the exam" into "the Exam". So a word that opens a sentence counts only when the
     /// tagger calls it a person ("Kai came back…" is a PersonalName). Mid-sentence, any name counts.
     /// Measured in llmrig rounds 13 and 14 (RUBRIC_FM.md).
-    private static func personNames(in text: String) -> [String: String] {
+    /// Also used by `FMDigestGuard` to keep each name with its own entry.
+    static func personNames(in text: String) -> [String: String] {
         let tagger = NLTagger(tagSchemes: [.nameType])
         tagger.string = text
         var names: [String: String] = [:]

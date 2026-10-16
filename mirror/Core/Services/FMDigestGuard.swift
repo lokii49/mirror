@@ -53,8 +53,10 @@ nonisolated enum FMDigestGuard {
         var filled: [Section: (text: String, quote: String?)] = [:]
         let texts = sources.map(\.text)
         let goodExists = sources.contains { !isHard($0.mood) }
-        func line(_ text: String) -> String? {
-            FMDailyGuard.cleanSentences(of: text, sources: sources, maxSentences: 1)?.text
+        func line(_ text: String, scope: [FMDailyGuard.Source]? = nil) -> String? {
+            guard let clean = FMDailyGuard.cleanSentences(of: text, sources: scope ?? sources, maxSentences: 1)?.text,
+                  !hasUnsupportedTiming(clean, texts: texts), namesStayWithTheirEntry(clean, texts: texts) else { return nil }
+            return clean
         }
         func distinct(_ quote: String) -> Bool {
             let key = quote.lowercased()
@@ -75,8 +77,9 @@ nonisolated enum FMDigestGuard {
                 (.watch, draft.watchQuote, draft.watchRead),
             ]
             for (section, quoteText, read) in quoted where filled[section] == nil {
+                // The line under a quote is checked against the quoted entry alone (round 17).
                 guard let found = FMDailyGuard.locate(quote: quoteText, in: texts), distinct(found.quote),
-                      let readLine = line(read) else { continue }
+                      let readLine = line(read, scope: [sources[found.index]]) else { continue }
                 let mood = sources[found.index].mood
                 // Something growing comes from a day that wasn't hard, when the week has one (the Gemma
                 // digest's rule: a hopeful section quoting a grief entry reads wrong).
@@ -180,6 +183,54 @@ nonisolated enum FMDigestGuard {
             if (4...25).contains(count), !sentence.contains(where: { "\"“”".contains($0) }) { out.append(sentence) }
         }
         return out
+    }
+
+    /// Words that put something on the calendar. The model used them to invent upcoming events
+    /// ("Next week, the talk about the senior role" when the entry said next month; round 16).
+    static let timingPhrases = ["next week", "next month", "tomorrow", "coming up", "soon", "will begin", "as it nears", "this weekend", "upcoming"]
+
+    static func hasUnsupportedTiming(_ line: String, texts: [String]) -> Bool {
+        let padded = " " + FMDailyGuard.words(line).joined(separator: " ") + " "
+        let source = " " + texts.flatMap { FMDailyGuard.words($0) }.joined(separator: " ") + " "
+        return timingPhrases.contains { padded.contains(" \($0) ") && !source.contains(" \($0) ") }
+    }
+
+    private static let stopWords: Set<String> = [
+        "that", "this", "with", "about", "from", "what", "when", "have", "they", "them", "your", "their", "some",
+        "more", "been", "just", "into", "will", "would", "could", "might", "maybe", "keep", "talk", "still", "feel",
+        "feels", "week", "something", "things", "thing", "help", "small", "next", "time", "there", "here", "which",
+        "seems", "like", "even", "also", "much", "very", "make", "take", "give", "over", "where", "while", "after",
+    ]
+
+    /// Every name the line mentions comes with the rest of the line from one entry that names them:
+    /// at least 60% of its other content words are in such an entry. Catches "Talk to Tara about working
+    /// from Mom's place" when the request was to Deepa (round 16).
+    static func namesStayWithTheirEntry(_ line: String, texts: [String]) -> Bool {
+        let names = Set(texts.flatMap(nameWords))
+        let tokens = FMDailyGuard.words(line).map { $0.replacingOccurrences(of: "'s", with: "") }
+        let mentioned = Set(tokens.filter(names.contains))
+        guard !mentioned.isEmpty else { return true }
+        let content = tokens.filter { $0.count >= 4 && !stopWords.contains($0) && !names.contains($0) && $0 != "you're" }
+        guard !content.isEmpty else { return true }
+        func near(_ a: String, _ b: String) -> Bool {
+            let n = min(a.count, b.count, 5)
+            return n >= 3 ? a.prefix(n) == b.prefix(n) : a == b
+        }
+        for name in mentioned {
+            let entries = texts.filter { FMDailyGuard.words($0).map { $0.replacingOccurrences(of: "'s", with: "") }.contains(name) }
+            let best = entries.map { entry -> Int in
+                let words = FMDailyGuard.words(entry)
+                return content.filter { word in words.contains { near(word, $0) } }.count
+            }.max() ?? 0
+            if best * 10 < content.count * 6 { return false }
+        }
+        return true
+    }
+
+    /// Names in an entry, lowercased, as `FMDailyGuard` finds them (tagger; at a sentence start only a
+    /// PersonalName counts).
+    private static func nameWords(in text: String) -> [String] {
+        FMDailyGuard.personNames(in: text).keys.map { $0.replacingOccurrences(of: "'s", with: "") }
     }
 
     /// "You seemed most drained when you wrote," with the mood the person chose for that entry.

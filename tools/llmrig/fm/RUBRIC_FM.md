@@ -595,3 +595,39 @@ Scoring: blind, 3 scorers, W3 shown digests only (W0's round-15 scores are reuse
   MOOD BOOST swaps people ("Talk to Tara about working from Mom's place": the request was to Deepa, 4 runs).
   Reads add feelings the week-wide guard allows because another entry used the word ("heavy", "strain").
 - The 49 app-fixed sections scored VALUE 0/49, as expected.
+
+## Round 17: W4 = W3 aimed at round 16's three causes (plan fixed BEFORE running, 2026-10-16)
+Owner chose another round. **Changes from W3, nothing else:**
+1. NEXT WEEK: prompt/guide ask for one kind, practical sentence about something they wrote is still unfinished or
+   undecided, without saying when anything will happen. Guard: a model line with a timing phrase the entries don't
+   contain ("next week", "next month", "tomorrow", "coming up", "soon", "will begin", "as it nears") is dropped
+   (`FMDigestGuard.timingPhrases`).
+2. Names stay with their entry: for every name in a model line, at least 60% of the line's other content words
+   (4+ letters, not stop words) must appear in one entry that contains that name. Checked on every model line.
+3. A read under a quote is checked against the quoted entry only (feeling words, names), not the whole week.
+4. (Added before running.) MOOD BOOST prompt/guide: "using a person and a task from the same entry, or a task or
+   thing they named" instead of "in the next few days, using a person, task or thing they named this week".
+Names are found with `FMDailyGuard.personNames` (tagger, PersonalName only at a sentence start), now internal.
+Same weeks, N, temperature, fixed lines and gates G1-G5 as round 16. Scored blind by 3 scorers with round 16's
+scorer prompt. Last weekly round: pass -> wire into the app for English FM digests; fail -> owner picks W3 interim or
+leaving W0.
+**Held-out (added 2026-10-16 while W4 ran, before any W4 result was seen):** W4's rules were shaped by the 10 weeks
+above, so 5 new synthetic weeks (`digestHeldOutWeeks`: ho_move, ho_newparent, ho_volunteer, ho_flu, ho_short; new
+names incl. one only at sentence starts, a pet, future plans, two similar friends) run W4 and W0 at N = 10. Gates
+G1-G5 must also hold on the held-out weeks alone (W0's held-out VALUE is the G3 bar there). A pass on the old weeks
+only is not a pass.
+
+### Round 17 result (2026-10-16, W4, 10 original weeks x 10, blind-scored by 3 scorers, round 16's prompt): FAILED
+| | shown | digests PASS | sections invented | swap | useful-and-clean / section | app-fixed |
+|---|---|---|---|---|---|---|
+| W3 (round 16) | 100% | 46/100 | 9.5% | 7 | 0.25 | 8% |
+| **W4** | **100%** | **48/100** | **12.2%** | **2** | **0.17** | **21.5%** |
+
+- G1 pass, G4 pass, G5 pass (21.5%, MOOD BOOST app-fixed in 52/100). G2 fail, G3 fail (0.17 < 0.39).
+- Swaps fell (7 -> 2): the names rule works. The timing rule ended invented dates. But NEXT WEEK now invents
+  indecision instead (35 invented: "you haven't decided what to do with them", "the chat with Grandpa is still
+  waiting to unfold"): asked for something unfinished, the model makes something unfinished up.
+- Pattern across W1-W4: each field that asks for a kind of content (an upcoming event, something undecided,
+  something costing them on a peaceful week) gets that content invented when the week has none.
+- Held-out weeks: stopped after ho_move (W4 already failed on the original weeks); not scored.
+Per the plan, the owner picks: W3 as an interim, or keep W0.

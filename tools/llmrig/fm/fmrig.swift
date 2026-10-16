@@ -142,6 +142,28 @@ import Foundation
     var nextWeek: String
 }
 
+// Round 17 W4: next week and boost guides changed.
+@Generable struct WeeklyDigestD4 {
+    @Guide(description: "One short phrase, 3 to 8 words, that finishes 'A week of' and says what the week was about for them. Not a list of names")
+    var theme: String
+    @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+    var energyQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that moment seems to show they need, hope for or worry about. Do not retell it. Only feelings they wrote or plainly showed")
+    var energyRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+    var buildingQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that might mean for them from here on. Do not retell it. Say nothing about anything they did not write")
+    var buildingRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be costing them or wearing on them")
+    var watchQuote: String
+    @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on and why it matters to them. Say nothing about anything they did not write")
+    var watchRead: String
+    @Guide(description: "One small thing they could do, using a person and a task from the same entry, or a task or thing they named")
+    var boost: String
+    @Guide(description: "One kind, practical sentence about something they wrote is still unfinished or undecided. Do not say when anything will happen")
+    var nextWeek: String
+}
+
 /// Every entry of a dumped "Weekly digest context" prompt's Recent entries, with its mood.
 func weekSources(_ user: String) -> [FMDailyGuard.Source] {
     let head = user.components(separatedBy: "Long-term context:")[0]
@@ -327,7 +349,7 @@ func emit(_ obj: [String: Any]) {
                     } else {
                         rec["fallback"] = true
                     }
-                case "digest_d1", "digest_d2", "digest_d3":
+                case "digest_d1", "digest_d2", "digest_d3", "digest_d4":
                     // Round 15. W1: an attempt shows only when all six sections pass in it. W2: each section
                     // comes from the first attempt where it passes (FMDigestGuard.merge). At most 3 attempts.
                     let sources = weekSources(user)
@@ -340,6 +362,11 @@ func emit(_ obj: [String: Any]) {
                         let d: FMDigestGuard.Draft
                         if variant == "digest_d1" {
                             let r = try await session.respond(to: user, generating: WeeklyDigestD1.self, options: opts).content
+                            d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+                                                    buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+                                                    watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
+                        } else if variant == "digest_d4" {
+                            let r = try await session.respond(to: user, generating: WeeklyDigestD4.self, options: opts).content
                             d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
                                                     buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
                                                     watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
@@ -363,7 +390,7 @@ func emit(_ obj: [String: Any]) {
                         shown = FMDigestGuard.merge(drafts, sources: sources)
                         if shown != nil { break }
                     }
-                    if shown == nil, variant == "digest_d3", let a = FMDigestGuard.assemble(drafts, sources: sources) {
+                    if shown == nil, variant == "digest_d3" || variant == "digest_d4", let a = FMDigestGuard.assemble(drafts, sources: sources) {
                         shown = a.verified
                         rec["fixed"] = a.fixed.map(\.rawValue)
                     }
