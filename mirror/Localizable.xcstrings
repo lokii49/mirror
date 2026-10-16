@@ -271,6 +271,12 @@
             "value" : "15 fundierte Fragen pro Monat, basierend auf deinen eigenen Texten."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 grounded questions per month from your own writing."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -327,6 +333,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diagramm für 30/90 Tage/gesamten Zeitraum + Analysen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30/90/all-time chart + analytics."
           }
         },
         "es" : {
@@ -448,6 +460,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ / Jahr"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / year"
           }
         },
         "es" : {
@@ -898,6 +916,12 @@
             "value" : "Eine vollständige Reflexion über deinen Monat."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A full reflection on your month."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -956,6 +980,12 @@
             "value" : "Ein Hinweis nach drei Tagen mit gedrückter Stimmung."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A heads-up after three low-mood days."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1012,6 +1042,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Jeden Sonntag eine Übersicht deiner Muster."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pattern summary every Sunday."
           }
         },
         "es" : {
@@ -1645,6 +1681,12 @@
             "value" : "Jederzeit in den App-Store-Einstellungen kündbar."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel anytime in App Store settings."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2239,6 +2281,12 @@
             "value" : "Pläne konnten nicht geladen werden. Prüfe deine Verbindung."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load plans. Check your connection."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2359,6 +2407,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aktueller Plan"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current plan"
           }
         },
         "es" : {
@@ -4101,6 +4155,12 @@
             "value" : "VOLLES SPEKTRUM: STIMMUNG, MUSTER\nUND MONATLICHES DEEP-DEBRIEFING."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FULL SPECTRUM: MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -5704,6 +5764,12 @@
             "value" : "Die Stimmung wird bei jedem Speichern automatisch erkannt."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood tagged automatically on every save."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -5882,6 +5948,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Für diese Apple-ID wurde kein aktives Abo gefunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No active subscription found for this Apple ID."
           }
         },
         "es" : {
@@ -6692,6 +6764,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Persönliche Beobachtungen aus deinen letzten Einträgen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal observations from your recent entries."
           }
         },
         "es" : {
@@ -8743,6 +8821,12 @@
             "value" : "Abonnieren"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -8987,6 +9071,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Gesamtbild: Stimmung, Muster\nund eine monatliche Tiefenreflexion."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The full picture: mood, patterns,\nand monthly deep reflection."
           }
         },
         "es" : {
@@ -9609,6 +9699,12 @@
             "value" : "Unbegrenzte Fragen, kein monatliches Limit."
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited questions, no monthly cap."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -9731,6 +9827,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Warte auf Genehmigung. Dein Plan startet, sobald der Kauf genehmigt ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for approval. Your plan starts as soon as the purchase is approved."
           }
         },
         "es" : {
