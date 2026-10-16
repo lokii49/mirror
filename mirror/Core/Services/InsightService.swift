@@ -1675,7 +1675,10 @@ enum InsightService {
         // English on Foundation Models: the model only picks the three sentences, as in the other languages;
         // every other line is `englishMonthlyText` (owner decision after RUBRIC_FM.md round 19).
         if localized == nil, case .grammarConstrained = grounded.plan, usesStructuredFMNudge,
-           let parts = groundedMonthlyParts(monthEntries: monthEntries, code: "en", text: englishMonthlyText) {
+           let parts = groundedMonthlyParts(
+               monthEntries: monthEntries, code: "en",
+               text: englishMonthlyText(month: Calendar.current.component(.month, from: monthEntries.map(\.createdAt).max() ?? Date()))
+           ) {
             let text = try await structuredFMLocalizedMonthly(
                 options: parts.options, validator: parts.compose,
                 systemPrompt: MONTHLY_REPORT_FM_SYSTEM, userMessage: userMessage
@@ -4663,36 +4666,71 @@ extension InsightService {
     }
 
     /// English monthly report on Foundation Models (owner decision 2026-10-16, after round 19: the model's
-    /// own lines were honest but clumsy and rarely useful). Same shape as the other languages' fixed lines.
-    static let englishMonthlyText = GroundedMonthlyText(
-        quoteLead: "You wrote, ", open: "\"", close: "\"", joiner: " ",
-        monthImage: [
-            .tired: "A candle burning at both ends.",
-            .stressed: "A pot about to boil over.",
-            .sad: "A grey sky that hasn't cleared yet.",
-            .good: "A window opening onto morning light.",
-            .neutral: "Weather that kept changing: sun, then rain, then sun again.",
-        ],
-        monthTension: [
-            .tired: "Between everything that asks for your energy and the rest you need.",
-            .stressed: "Between what's expected of you and what you can carry.",
-            .sad: "Between wanting to move forward and the time you need to feel it.",
-            .good: "Between enjoying what's good and wondering if it will last.",
-            .neutral: "Between the days that cost you energy and the ones that gave it back.",
-        ],
-        monthQuestion: [
-            .tired: "What could you let go of to have more energy next month?",
-            .stressed: "Which task could you hand off or drop next month?",
-            .sad: "Who or what could support you a little more next month?",
-            .good: "What would help you keep more of this next month?",
-            .neutral: "What gave you energy this month, and how could you make more room for it?",
-        ],
-        momentLead: "On {date}, you wrote, ",
-        momentSuffix: "Moments like that say a lot about your month.",
-        becomingSuffix: "You seem to be learning to notice what's good for you.",
-        releaseSuffix: "Maybe it's time to hold on to this a little less.",
-        releaseFallback: "Nothing this month seems to need letting go; keep noticing what's good for you."
-    )
+    /// own lines were honest but clumsy and rarely useful). Same shape as the other languages' fixed lines,
+    /// with three versions of each line rotated by calendar month, so two months with the same overall mood
+    /// don't read the same. `month` is 1-12.
+    static func englishMonthlyText(month: Int) -> GroundedMonthlyText {
+        let k = max(0, month - 1) % 3
+        func pick(_ options: [GroundedMoodBucket: [String]]) -> [GroundedMoodBucket: String] {
+            options.mapValues { $0[k % $0.count] }
+        }
+        return GroundedMonthlyText(
+            quoteLead: "You wrote, ", open: "\"", close: "\"", joiner: " ",
+            monthImage: pick([
+                .tired: ["A candle burning at both ends.", "A phone on two percent, still ringing.", "A long road with no rest stop yet."],
+                .stressed: ["A pot about to boil over.", "A desk buried under paper.", "A kettle that won't stop whistling."],
+                .sad: ["A grey sky that hasn't cleared yet.", "A room with the curtains still drawn.", "A song playing softly in another room."],
+                .good: ["A window opening onto morning light.", "A garden starting to come up.", "A path that kept getting easier to walk."],
+                .neutral: ["Weather that kept changing: sun, then rain, then sun again.", "A tide going in and out.", "A busy street with one calm corner."],
+            ]),
+            monthTension: pick([
+                .tired: ["Between everything that asks for your energy and the rest you need.",
+                         "Between keeping up with everything and finding time to recover.",
+                         "Between what you push through and what you need to put down."],
+                .stressed: ["Between what's expected of you and what you can carry.",
+                            "Between the pressure of what's due and the pace you can keep.",
+                            "Between holding everything together and asking for help."],
+                .sad: ["Between wanting to move forward and the time you need to feel it.",
+                       "Between carrying on as usual and making room for how you feel.",
+                       "Between what feels heavy and what still holds you up."],
+                .good: ["Between enjoying what's good and wondering if it will last.",
+                        "Between enjoying this stretch and planning what comes next.",
+                        "Between the good things growing and the time they need."],
+                .neutral: ["Between the days that cost you energy and the ones that gave it back.",
+                           "Between the steady days and the ones that pulled at you.",
+                           "Between what you keep up with and what you'd like more of."],
+            ]),
+            monthQuestion: pick([
+                .tired: ["What could you let go of to have more energy next month?",
+                         "What is one thing you could say no to next month?",
+                         "When did you feel most rested this month, and how could you have more of that?"],
+                .stressed: ["Which task could you hand off or drop next month?",
+                            "What would make next month feel even a little lighter?",
+                            "Who could you ask for help with one thing next month?"],
+                .sad: ["Who or what could support you a little more next month?",
+                       "What small thing could you do for yourself next month?",
+                       "Who would you like to be closer to next month?"],
+                .good: ["What would help you keep more of this next month?",
+                        "What made this month good, and how could you protect it?",
+                        "What do you want to keep doing next month?"],
+                .neutral: ["What gave you energy this month, and how could you make more room for it?",
+                           "Which days this month do you want more of?",
+                           "What would you like next month to hold?"],
+            ]),
+            momentLead: "On {date}, you wrote, ",
+            momentSuffix: ["Moments like that say a lot about your month.",
+                           "That moment seems to have stayed with you.",
+                           "Small moments like that can shift a whole month."][k],
+            becomingSuffix: ["You seem to be learning to notice what's good for you.",
+                             "You seem to be making room for what matters to you.",
+                             "You seem to be growing into someone who notices the good."][k],
+            releaseSuffix: ["Maybe it's time to hold on to this a little less.",
+                            "Maybe this doesn't need to be carried alone.",
+                            "Maybe some of this can be set down next month."][k],
+            releaseFallback: "Nothing this month seems to need letting go; keep noticing what's good for you."
+        )
+    }
+
 
     // MARK: Ask relevance outside English
 

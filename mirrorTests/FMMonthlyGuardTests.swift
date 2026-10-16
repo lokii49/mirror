@@ -90,7 +90,8 @@ struct FMMonthlyGuardTests {
             let hopeful = Entry(text: "Signed up for the evening Spanish course after thinking about it all week.", mood: "Hopeful")
             hopeful.createdAt = Date().addingTimeInterval(-3 * 86_400)
             let hard = Entry(text: "Missed the grant deadline by one day. Felt so stupid about it.", mood: "Frustrated")
-            let parts = try #require(InsightService.groundedMonthlyParts(monthEntries: [hopeful, hard], code: "en", text: InsightService.englishMonthlyText))
+            let english = InsightService.englishMonthlyText(month: 1)
+            let parts = try #require(InsightService.groundedMonthlyParts(monthEntries: [hopeful, hard], code: "en", text: english))
             let text = try #require(try await InsightService.structuredFMLocalizedMonthly(
                 options: parts.options, validator: parts.compose, systemPrompt: "", userMessage: ""
             ) {
@@ -103,9 +104,18 @@ struct FMMonthlyGuardTests {
             #expect(lines.count == 6)
             #expect(lines[2].hasPrefix("A MOMENT THAT SHIFTED SOMETHING: On "))
             #expect(lines[2].contains(", you wrote, \"Missed the grant deadline by one day.\" Moments like that"))
-            #expect(lines[3] == "WHAT YOU'RE BECOMING: You wrote, \"Signed up for the evening Spanish course after thinking about it all week.\" " + InsightService.englishMonthlyText.becomingSuffix)
-            #expect(lines[4] == "WHAT WANTS TO BE RELEASED: You wrote, \"Felt so stupid about it.\" " + InsightService.englishMonthlyText.releaseSuffix)
+            #expect(lines[3] == "WHAT YOU'RE BECOMING: You wrote, \"Signed up for the evening Spanish course after thinking about it all week.\" " + english.becomingSuffix)
+            #expect(lines[4] == "WHAT WANTS TO BE RELEASED: You wrote, \"Felt so stupid about it.\" " + english.releaseSuffix)
             #expect(!text.lowercased().contains("invented"))
+        }
+
+        /// Two months with the same overall mood read differently (rotation by calendar month).
+        @Test func consecutiveMonthsGetDifferentEnglishLines() {
+            let a = InsightService.englishMonthlyText(month: 10), b = InsightService.englishMonthlyText(month: 11)
+            #expect(a.monthImage[.stressed] != b.monthImage[.stressed])
+            #expect(a.monthQuestion[.stressed] != b.monthQuestion[.stressed])
+            #expect(a.momentSuffix != b.momentSuffix)
+            #expect(InsightService.englishMonthlyText(month: 1).monthImage == InsightService.englishMonthlyText(month: 4).monthImage)
         }
 
         @Test func otherLanguagesUseOnlyThePickedQuotes() async throws {
