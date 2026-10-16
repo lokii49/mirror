@@ -99,6 +99,21 @@ struct FMDigestGuardTests {
         #expect(!a.verified.building.contains("holding on to"))
     }
 
+    /// Round 23: a line about the person instead of to them is dropped; one that names others and speaks to "you" stays.
+    @Test func aLineThatSaysTheyInsteadOfYouIsDropped() {
+        #expect(FMDigestGuard.speaksAboutThem("That moment seems to show they need space."))
+        #expect(!FMDigestGuard.speaksAboutThem("They seem to lean on you, and you notice it."))
+        #expect(!FMDigestGuard.speaksAboutThem("You seem to need space."))
+    }
+
+    /// Round 23: "over" is not "overwhelmed" and "numbers" is not "numb" any more.
+    @Test func shortWordsNoLongerLookLikeFeelings() throws {
+        let line = "Go over the budget numbers once more."
+        #expect(FMDailyGuard.cleanSentences(of: line, sources: sources, maxSentences: 1)?.text == line)
+        // A real feeling the entries don't carry is still dropped.
+        #expect(FMDailyGuard.cleanSentences(of: "You feel overwhelmed by the budget.", sources: sources, maxSentences: 1) == nil)
+    }
+
     @Test func nothingQuotableMeansNoDigest() {
         let short = [FMDailyGuard.Source(text: "tired", mood: "Drained"), FMDailyGuard.Source(text: "ok day", mood: "Content")]
         #expect(FMDigestGuard.assemble([], sources: short) == nil)

@@ -286,12 +286,19 @@ nonisolated enum FMDailyGuard {
         return allowed.filter { $0.count >= 3 }
     }
 
-    /// Same word, ignoring endings: compares up to the first five letters of the shorter word.
+    /// Same word, ignoring endings: compares up to the first five letters of the shorter word. A word shorter than
+    /// five letters matches only itself plus a plain ending ("calm" / "calmer", "hope" / "hopeful"), so "over" is not
+    /// "overwhelmed" and "numbers" is not "numb" (rig round 23, RUBRIC_FM.md).
     private static func matches(_ a: String, _ b: String) -> Bool {
-        let n = min(a.count, b.count, 5)
-        guard n >= 3 else { return a == b }
-        return a.prefix(n) == b.prefix(n)
+        let (short, long) = a.count <= b.count ? (a, b) : (b, a)
+        guard short.count >= 5 else {
+            guard long.hasPrefix(short) else { return false }
+            return plainEndings.contains(String(long.dropFirst(short.count)))
+        }
+        return a.prefix(5) == b.prefix(5)
     }
+
+    private static let plainEndings: Set<String> = ["", "s", "es", "ed", "d", "er", "r", "est", "ness", "ing", "ful", "ly", "y"]
 
     static func words(_ text: String) -> [String] {
         straighten(text).lowercased()

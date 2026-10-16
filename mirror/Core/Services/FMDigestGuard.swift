@@ -54,7 +54,9 @@ nonisolated enum FMDigestGuard {
         let texts = sources.map(\.text)
         let goodExists = sources.contains { !isHard($0.mood) }
         func line(_ text: String) -> String? {
-            FMDailyGuard.cleanSentences(of: text, sources: sources, maxSentences: 1)?.text
+            guard let clean = FMDailyGuard.cleanSentences(of: text, sources: sources, maxSentences: 1)?.text,
+                  !speaksAboutThem(clean) else { return nil }
+            return clean
         }
         func distinct(_ quote: String) -> Bool {
             let key = quote.lowercased()
@@ -184,6 +186,13 @@ nonisolated enum FMDigestGuard {
             if (4...25).contains(count), !sentence.contains(where: { "\"“”".contains($0) }) { out.append(sentence) }
         }
         return out
+    }
+
+    /// "That moment seems to show they need space": the line talks about the person instead of to them (round 23).
+    static func speaksAboutThem(_ line: String) -> Bool {
+        let tokens = Set(FMDailyGuard.words(line))
+        let third: Set<String> = ["they", "them", "their", "themselves", "they're", "they've"]
+        return !tokens.isDisjoint(with: third) && tokens.isDisjoint(with: ["you", "your", "you're", "you've", "yourself"])
     }
 
     /// "You seemed most drained when you wrote," with the mood the person chose for that entry.

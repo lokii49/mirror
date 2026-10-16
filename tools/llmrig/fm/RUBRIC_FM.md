@@ -791,3 +791,26 @@ neither. Ship if R's pick wins more often than the app's and G1-G3 hold. N = 5 p
 - Blind pairs, 46 runs where the picks differ (2 scorers): the app's longest-sentence pick connected better 26, R's
   15, neither 5; on the 6 new held-out days the app won 10-0. The model's pick is not better than the app's, so no
   related-quote field ships; `secondGroundedQuote` stays.
+
+## Round 23: two guard fixes, replayed (plan fixed BEFORE running, 2026-10-16)
+Owner: fix the "they" lines and the prefix matching. **Changes:**
+1. `FMDailyGuard.matches` (shared by the daily reflection and every FM digest/report line): a word shorter than five
+   letters matches only itself or itself plus a plain ending (s, es, ed, er, est, ness, ing, ful, ly, y). Today it
+   compares the first 3-4 letters, so "over" counts as "overwhelmed" and "numbers" as "numb" (the line is dropped
+   unless the entries carry that feeling).
+2. `FMDigestGuard` lines only: a line that speaks about "they / them / their" and never to "you / your" is dropped
+   ("That moment seems to show they need space"). The daily guard is not changed by this.
+**Method**: no new model runs. Old and new guards judge the same saved outputs: round 22's 490 daily runs (every
+attempt), round 16's 100 W3 digests and round 18's 40 held-out W3 digests. Every line whose verdict flips is listed.
+**Gates**: G1 daily: every newly accepted insight sentence is read by hand and contains no feeling the entries
+don't carry (0 allowed); fallback not higher than before. G2 weekly: every newly accepted line read by hand, 0
+invented feelings; no shown line speaks of "they" without "you"; app-fixed sections not higher than before.
+Pass -> ship both. Fail -> owner.
+
+### Round 23 result (2026-10-16, replay): G1 passes; G2 misses on app-fixed sections only
+- Daily (587 attempts of round 22): 1 verdict changes (sickday: "You feel drained and uncomfortable, with many ups and
+  downs." now kept; "ups" no longer counts as "upset"); no invented feeling. Fallback unchanged.
+- Weekly: lines that speak of "they" without "you": 61 -> 0 (round 16's 100 digests), 18 -> 0 (round 18's 40). App-fixed
+  sections 49 -> 88 of 600 (8% -> 15%) and 39 -> 43 of 240 (16% -> 18%): under the interim's 25%, but higher, so G2
+  as written misses. Cause found: W3's own guide says "what that moment seems to show they need", and the model
+  copies "they"; a "you" wording needs a model round. To the owner.
