@@ -323,12 +323,8 @@ struct ContentView: View {
             if phase == .active { maybeAutoPromptMoodCheckIn() }
         }
         .onChange(of: sizeClass) { _, newClass in
-            // iOS 18+ keeps one TabView across size classes. Only Settings needs a new home:
-            // it has no tab when compact, so fall back to Insights, where its toolbar button is.
-            if Self.usesAdaptiveTabs {
-                if newClass != .regular && selectedSidebarItem == .settings { selectedSidebarItem = .insights }
-                return
-            }
+            // iOS 18+ keeps one TabView across size classes, with the same tabs in each.
+            if Self.usesAdaptiveTabs { return }
             if newClass == .regular {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
@@ -462,15 +458,8 @@ struct ContentView: View {
             Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
                 InsightView(viewModel: insightViewModel)
             }
-            // Its own item where there's room (owner, 2026-10-11). A compact tab bar leaves it
-            // out (iOS 26's floating bar ignores .sidebarOnly and .defaultVisibility), and iPhone
-            // reaches Settings from the Insights toolbar as before. Adding or removing this one
-            // tab leaves the others' views in place.
-            if sizeClass == .regular {
-                Tab(sentinel ? "Config" : "Settings", systemImage: "gearshape", value: AppSidebarItem.settings) {
-                    SettingsView()
-                }
-            }
+            // No Settings tab (owner, 2026-10-16; it was one where there's room since
+            // 2026-10-11): every width reaches Settings from the Insights toolbar.
         }
         // The default placement: iPad opens with the tabs as a top bar and its sidebar button
         // switches (iOS remembers the choice). Forcing .sidebar slid the sidebar over the content
@@ -652,7 +641,8 @@ struct ContentView: View {
 
     private var ipadLayout: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(AppSidebarItem.allCases, id: \.self, selection: $selectedSidebarItem) { item in
+            // Settings opens from the Insights toolbar, as on iPhone (owner, 2026-10-16).
+            List(AppSidebarItem.allCases.filter { $0 != .settings }, id: \.self, selection: $selectedSidebarItem) { item in
                 Label(item.title, systemImage: item.icon)
             }
             .navigationTitle("MirrorNotes")

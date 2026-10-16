@@ -487,19 +487,18 @@ struct InsightView: View {
     /// which regenerates (the button only re-read saved state).
     @ToolbarContentBuilder
     private var iosToolbar: some ToolbarContent {
-        // Where there's room, Settings is a tab (ContentView); the button would duplicate it.
-        if hSizeClass != .regular {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "person.circle")
-                        .font(.system(size: 17, weight: .semibold))
-                }
-                .accessibilityLabel("Settings")
+        // The only way to Settings on iOS, in every width: there is no Settings tab (owner,
+        // 2026-10-16).
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "person.circle")
+                    .font(.system(size: 17, weight: .semibold))
             }
-            .preferringVerticalBar()
+            .accessibilityLabel("Settings")
         }
+        .preferringVerticalBar()
         ToolbarItem(placement: .topBarTrailing) {
             Button {
                 // Same single presentation site as the daily reminder /
