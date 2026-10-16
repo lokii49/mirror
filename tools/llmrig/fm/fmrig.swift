@@ -181,6 +181,50 @@ func weekSources(_ user: String) -> [FMDailyGuard.Source] {
 
 let digestLabels = ["THIS WEEK'S THEME", "YOUR ENERGY", "WHAT'S BUILDING", "WATCH OUT FOR", "MOOD BOOST", "NEXT WEEK"]
 
+
+// Round 19 (RUBRIC_FM.md): the monthly report in the Gemma report's shape. If it ships, this exact text becomes
+// FoundationModelEngine.MonthlyReportDraft's.
+@Generable struct MonthlyM1 {
+    @Guide(description: "A short image, 3 to 10 words, for how the month felt. A picture, not a fact about their life")
+    var image: String
+    @Guide(description: "One thing from their entries that asked for their time or heart this month, a few plain words")
+    var tensionA: String
+    @Guide(description: "A second, different thing from their entries that also asked for their time or heart, a few plain words")
+    var tensionB: String
+    @Guide(description: "One sentence copied word for word, with the same punctuation, from this month's entries: one that seems to have changed something for them")
+    var momentQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that moment might have changed. Do not retell it. Say nothing about anything they did not write")
+    var momentRead: String
+    @Guide(description: "A different sentence copied word for word from a day that was not hard, that shows who they are growing into")
+    var becomingQuote: String
+    @Guide(description: "The end of the sentence 'You seem to be becoming someone who ...', a few plain words, using only what they wrote")
+    var becomingRest: String
+    @Guide(description: "A different sentence copied word for word from a hard day, about something that weighed on them")
+    var releaseQuote: String
+    @Guide(description: "The end of the sentence 'Maybe it's time to let go of ...', a few plain words about that weight")
+    var releaseRest: String
+    @Guide(description: "One honest, open question for next month about something they wrote, ending with a question mark")
+    var question: String
+}
+
+/// Every entry of a dumped "Monthly deep report context" prompt, with its mood and "d MMM" day.
+func monthSources(_ user: String) -> [FMMonthlyGuard.Source] {
+    guard let r = user.range(of: "This month's entries (newest first):\n") else { return [] }
+    var out: [FMMonthlyGuard.Source] = []
+    for b in String(user[r.upperBound...]).components(separatedBy: "\n---\n") {
+        var lines = b.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.count >= 3, lines[0].hasPrefix("Entry ") else { continue }
+        let date = lines[0].components(separatedBy: " - ").dropFirst().joined(separator: " - ")
+        let day = date.split(separator: " ").prefix(2).joined(separator: " ")
+        let mood = lines[1].replacingOccurrences(of: "Mood: ", with: "").components(separatedBy: ".")[0]
+        lines.removeFirst(2)
+        out.append(FMMonthlyGuard.Source(text: lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), mood: mood, day: day))
+    }
+    return out
+}
+
+let monthlyLabels = ["YOUR MONTH IN ONE IMAGE", "THE TENSION AT THE CENTER", "A MOMENT THAT SHIFTED SOMETHING", "WHAT YOU'RE BECOMING", "WHAT WANTS TO BE RELEASED", "YOUR QUESTION FOR NEXT MONTH"]
+
 /// Capitalises every sentence and makes sure the text ends with punctuation (what the app does).
 func tidyAll(_ s: String) -> String {
     let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -399,6 +443,43 @@ func emit(_ obj: [String: Any]) {
                     rec["missing"] = missing
                     if let v = shown {
                         rec["text"] = zip(digestLabels, v.sections).map { "\($0): \($1)" }.joined(separator: "\n")
+                    } else {
+                        rec["fallback"] = true
+                    }
+                case "monthly_m1":
+                    // Round 19. Each section from the first of up to 3 attempts where it passes; the rest app-filled.
+                    let sources = monthSources(user)
+                    var raws: [[String: String]] = []
+                    var drafts: [FMMonthlyGuard.Draft] = []
+                    var shown: [String]?
+                    var refusals = 0
+                    for _ in 1...3 {
+                        do {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: MonthlyM1.self, options: opts).content
+                            let d = FMMonthlyGuard.Draft(image: r.image, tensionA: r.tensionA, tensionB: r.tensionB,
+                                                         momentQuote: r.momentQuote, momentRead: r.momentRead,
+                                                         becomingQuote: r.becomingQuote, becomingRest: r.becomingRest,
+                                                         releaseQuote: r.releaseQuote, releaseRest: r.releaseRest, question: r.question)
+                            raws.append(["image": d.image, "tensionA": d.tensionA, "tensionB": d.tensionB, "momentQuote": d.momentQuote,
+                                         "momentRead": d.momentRead, "becomingQuote": d.becomingQuote, "becomingRest": d.becomingRest,
+                                         "releaseQuote": d.releaseQuote, "releaseRest": d.releaseRest, "question": d.question])
+                            drafts.append(d)
+                            shown = FMMonthlyGuard.merge(drafts, sources: sources)
+                            if shown != nil { break }
+                        } catch {
+                            refusals += 1
+                            rec["lastError"] = String(describing: error)
+                        }
+                    }
+                    if shown == nil, let a = FMMonthlyGuard.assemble(drafts, sources: sources) {
+                        shown = a.sections
+                        rec["fixed"] = a.fixed.map(\.rawValue)
+                    }
+                    rec["attempts"] = raws.count + refusals
+                    rec["refusals"] = refusals
+                    rec["raws"] = raws
+                    if let v = shown {
+                        rec["text"] = zip(monthlyLabels, v).map { "\($0): \($1)" }.joined(separator: "\n")
                     } else {
                         rec["fallback"] = true
                     }

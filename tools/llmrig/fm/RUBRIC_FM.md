@@ -665,3 +665,60 @@ Per the plan this goes back to the owner before anything ships.
   `groundedLocales`' fixed translated lines, as on Gemma (`structuredFMLocalizedDigest`). No model-written text is
   shown, so nothing can be invented; NOT rig-measured for how often the model's picks match (app picks fill gaps).
 - Still open: languages outside the 10 keep the free-prose digest on FM; reads can say "they" instead of "you".
+
+## Round 19: the monthly report on Foundation Models, in the Gemma report's shape (plan fixed BEFORE running, 2026-10-16)
+Owner: go ahead with the next items (monthly, then Ask, then the daily two quotes). FM monthly is free prose on
+`MONTHLY_REPORT_SYSTEM` with only the word-overlap backstop, never measured.
+**Variants** (same dumped user message, `test_dumpMonthlyPromptsForRig`, byte-identical to the app):
+- **M0**: shipped `MONTHLY_REPORT_SYSTEM`, free prose.
+- **M1**: `system_monthly_m1.txt` + `@Generable MonthlyM1`, built on round 15-17's lessons from the start: no field
+  asks for something the month may not have (no "upcoming", no "undecided", no link between days); every line
+  hangs off a quote or a fixed opener. Composed in the Gemma report's text: `A <image>.` / `You seem pulled between
+  <a> and <b>.` / `On <date>, you wrote, "<quote>" <line>` / `You wrote, "<good-day quote>" You seem to be becoming
+  someone who <...>.` / `You wrote, "<hard-day quote, not Sad/Numb>" Maybe it's time to let go of <...>.` /
+  `<question>?`. `FMMonthlyGuard` (compiled into the rig): quotes found in the month, distinct, mood rules as Gemma's;
+  every model line through `FMDailyGuard.cleanSentences`; each section from the first of up to 3 attempts where it
+  passes; still-empty sections filled by the app (its own quote + a fixed line, or a fixed line).
+**Cases**: 6 synthetic months of 10-14 entries spread over the month (`digestRigMonths`), built from the round-15/17
+weeks: 4 from the original weeks, 2 (`mo_ho_*`) from the held-out weeks. N = 10, temperature 0.45.
+**Scoring**: blind, 3 scorers, round 16's scorer prompt with the monthly section names; M0 and M1 mixed.
+**Ship bar** (the interim bar the owner accepted for the weekly digest): M1 fallback <= 10%, invented-section rate
+at most half of M0's, app-fixed sections <= 25% (refused months reported apart); usefulness reported, not gated.
+Also on the 2 held-out months alone. Miss -> owner.
+
+### Round 19 result (2026-10-16, 6 months x 10 x 2 variants, blind-scored by 4 scorers): ship bar met; usefulness very low
+| | shown | reports PASS | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|---|
+| M0 shipped, all months | 60/60 | 2/60 | 175/360 (48.6%) | 14 | 0.19 |
+| **M1, all months** | **60/60** | 17/60 | **43/360 (11.9%)** | 16 | **0.03** |
+| M0, held-out months | 20/20 | 1/20 | 46.7% | 10 | 0.16 |
+| M1, held-out months | 20/20 | 1/20 | 17.5% | 11 | 0.06 |
+
+- Bar: fallback 0% (no refusals), invented at most half of M0's (11.9% vs 48.6%; held-out 17.5% vs 46.7%), app-fixed
+  58/360 = 16% (release 21, image 15, tension 13). Met.
+- Usefulness (reported, not gated) is far below M0's: the model's lines mostly restate the quote.
+- M1's invented sections: A MOMENT THAT SHIFTED SOMETHING (25: its line restates another day's entry), TENSION (10:
+  "Omar didn't call" from "omar called, yusuf didnt"). Swaps are about the same as M0's.
+
+### Shipped (2026-10-16, owner decision after round 19): monthly report = the person's sentences + app lines, every FM language
+M1's own lines were honest but clumsy ("someone who baking bread", "let go of everything feels heavy and slow") and
+scored 0.03 useful. Owner chose: on FM the model only picks the moment / becoming / release sentences (matched with
+`FMDailyGuard.matchOption` to the Gemma report's options); image, tension, the line after each quote and the question
+are fixed text by the month's dominant mood: `englishMonthlyText` in English, `groundedLocales` elsewhere
+(`groundedMonthlyParts` is the one composer for both). Nothing model-written is shown, so nothing can be invented.
+
+## Round 20: Ask on Foundation Models (plan fixed BEFORE running, 2026-10-16)
+FM Ask is free prose on `ASK_SYSTEM`, never measured; Gemma Ask answers only with the person's dated sentences.
+**Variants** (dumped user message, `test_dumpAskPromptsForRig`; entries found by the app's own retrieval):
+- **A0**: shipped `ASK_SYSTEM`, free prose (plus the no-answer line the app appends).
+- **A1**: `system_ask_a1.txt` + `@Generable AskA1`: `answer` (one or two sentences to "you"), `quote1`, `quote2` (may be
+  empty). Shown: `<answer> The closest things you've written: On <date>, you wrote, "<quote>" …`. Each quote must be
+  found in the retrieved entries; `answer` goes through `FMDailyGuard.cleanSentences` against them. Up to 3 attempts;
+  if no answer passes, the quotes alone (Gemma's shape); no quote found -> the app's first retrieved sentence.
+**Cases**: 4 synthetic month pools x 5 questions (20), each pool with one question the entries can't answer.
+N = 5, temperature 0.45 (`ask`'s).
+**Scoring** (blind, A0/A1 mixed): per answer, INVENT (no fact, person, event or feeling the entries lack; for an
+unanswerable question, any claimed answer = invented), SWAP, ANSWERS (the text actually answers the question from the
+entries, or honestly says it isn't there), VALUE.
+**Ship bar**: A1 invented-answer rate at most half of A0's, 0 invented answers on unanswerable questions beyond
+A0's count, fallback (no text) 0%. ANSWERS and VALUE reported. Miss -> owner.

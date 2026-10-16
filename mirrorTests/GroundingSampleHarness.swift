@@ -1655,6 +1655,81 @@ final class GroundingSampleHarness: XCTestCase {
         ]
     }()
 
+    /// Synthetic months for the Foundation Models monthly report (RUBRIC_FM.md, round 19): the round-15/17
+    /// weeks joined, entries spread over the month (one every ~2.5 days, all inside it when run late in the
+    /// month; the prompt content is what matters, not the calendar gate). `mo_ho_*` use the held-out weeks.
+    static let digestRigMonths: [(label: String, entries: [Entry])] = {
+        func entries(_ label: String, in weeks: [(label: String, entries: [Entry])]) -> [Entry] {
+            weeks.first { $0.label == label }?.entries.map { Entry(text: $0.text, mood: $0.mood) } ?? []
+        }
+        func month(_ labels: [String]) -> [Entry] {
+            let all = labels.flatMap { entries($0, in: digestRigWeeks + digestHeldOutWeeks) }
+            for (i, e) in all.enumerated() { e.createdAt = Date().addingTimeInterval(-Double(i) * 0.9 * 86_400) }
+            return all
+        }
+        return [
+            ("mo_caregiver_hard", month(["wk_caregiver", "wk_hard"])),
+            ("mo_good_neutral", month(["wk_good", "wk_neutral", "wk_sparse"])),
+            ("mo_runon_breakup", month(["wk_runon", "wk_breakup"])),
+            ("mo_exam_good", month(["wk_exam", "wk_good"])),
+            ("mo_ho_move_parent", month(["ho_move", "ho_newparent"])),
+            ("mo_ho_volunteer_flu", month(["ho_volunteer", "ho_flu", "ho_short"])),
+        ]
+    }()
+
+    /// Ask rig cases (RUBRIC_FM.md, round 20): questions over four of `digestRigMonths`, the last of each
+    /// pool's five not answerable from its entries.
+    static let askRigQuestions: [(pool: String, questions: [String])] = [
+        ("mo_caregiver_hard", ["How has work been?", "How is my mom doing?", "Have I been sleeping well?", "What made me laugh?", "Did I go on any trips?"]),
+        ("mo_good_neutral", ["How is the pottery going?", "Who did I see this month?", "Was I stressed?", "How is my running going?", "How is my new car?"]),
+        ("mo_runon_breakup", ["How am I handling the breakup?", "What happened with the migration bug?", "Who has been there for me?", "Did I exercise?", "How is my garden?"]),
+        ("mo_ho_move_parent", ["How is the move going?", "How is Ava sleeping?", "What is worrying me?", "Who helped me?", "How was my vacation?"]),
+    ]
+
+    /// Dumps the first (system, user) prompt Ask sends for each of `askRigQuestions`.
+    func test_dumpAskPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for (pool, questions) in Self.askRigQuestions {
+            guard let entries = Self.digestRigMonths.first(where: { $0.label == pool })?.entries else { XCTFail(pool); continue }
+            for (i, question) in questions.enumerated() {
+                var first: (String, String)?
+                LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                    if first == nil { first = (system, user) }
+                    return ("x", .foundationModels)
+                }
+                _ = try? await InsightService.ask(question: question, entries: entries)
+                let label = "\(pool)_q\(i)"
+                guard let first else { XCTFail("no generation captured for \(label)"); continue }
+                try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+                try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
+    /// Dumps the first (system, user) prompt the monthly report sends for each of `digestRigMonths`.
+    func test_dumpMonthlyPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for (label, entries) in Self.digestRigMonths {
+            var first: (String, String)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                if first == nil { first = (system, user) }
+                return ("x", .foundationModels)
+            }
+            _ = try? await InsightService.generateMonthlyReport(monthEntries: entries, allEntries: entries)
+            guard let first else { XCTFail("no generation captured for \(label)"); continue }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Dumps the first (system, user) prompt the weekly digest sends for each of `digestRigWeeks`
     /// plus the two older digest weeks, for the FM weekly digest round (RUBRIC_FM.md, round 15).
     func test_dumpDigestPromptsForRig() async throws {

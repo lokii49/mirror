@@ -167,6 +167,53 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// The structured monthly report (tools/llmrig/fm/RUBRIC_FM.md, round 19). `FMMonthlyGuard` checks every
+    /// field before anything is shown. Guide text is fmrig.swift's MonthlyM1, word for word.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct MonthlyReportDraft {
+        @Guide(description: "A short image, 3 to 10 words, for how the month felt. A picture, not a fact about their life")
+        var image: String
+        @Guide(description: "One thing from their entries that asked for their time or heart this month, a few plain words")
+        var tensionA: String
+        @Guide(description: "A second, different thing from their entries that also asked for their time or heart, a few plain words")
+        var tensionB: String
+        @Guide(description: "One sentence copied word for word, with the same punctuation, from this month's entries: one that seems to have changed something for them")
+        var momentQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that moment might have changed. Do not retell it. Say nothing about anything they did not write")
+        var momentRead: String
+        @Guide(description: "A different sentence copied word for word from a day that was not hard, that shows who they are growing into")
+        var becomingQuote: String
+        @Guide(description: "The end of the sentence 'You seem to be becoming someone who ...', a few plain words, using only what they wrote")
+        var becomingRest: String
+        @Guide(description: "A different sentence copied word for word from a hard day, about something that weighed on them")
+        var releaseQuote: String
+        @Guide(description: "The end of the sentence 'Maybe it's time to let go of ...', a few plain words about that weight")
+        var releaseRest: String
+        @Guide(description: "One honest, open question for next month about something they wrote, ending with a question mark")
+        var question: String
+    }
+    #endif
+
+    /// One structured monthly report draft, at the measured temperature (the daily reflection's).
+    nonisolated static func generateMonthlyReport(systemPrompt: String, userMessage: String) async throws -> FMMonthlyGuard.Draft {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let r = try await session.respond(to: userMessage, generating: MonthlyReportDraft.self, options: options).content
+        return FMMonthlyGuard.Draft(
+            image: r.image, tensionA: r.tensionA, tensionB: r.tensionB,
+            momentQuote: r.momentQuote, momentRead: r.momentRead,
+            becomingQuote: r.becomingQuote, becomingRest: r.becomingRest,
+            releaseQuote: r.releaseQuote, releaseRest: r.releaseRest, question: r.question
+        )
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
     /// Marks a test error as a guardrail refusal (a real `GenerationError` can't be built in tests).
     protocol GuardrailRefusalForTesting: Error {}
 
