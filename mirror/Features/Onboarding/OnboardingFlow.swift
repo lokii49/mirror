@@ -245,72 +245,47 @@ struct OnboardingFlow: View {
         GeometryReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
-                    // Fixed, not flexible — the icon should stay put near the
-                    // progress dots. Only the bottom Spacer below absorbs the
-                    // leftover space, so slack doesn't split into two gaps.
-                    Spacer().frame(height: 16)
+                    // Fixed, not flexible: only the bottom Spacer absorbs leftover space.
+                    Spacer().frame(height: 8)
 
-                    // App icon
-                    Image("AppIconDisplay")
-                        .resizable()
-                        .frame(width: 110, height: 110)
-                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                        .shadow(color: MirrorTheme.primary.opacity(0.32), radius: 36, x: 0, y: 16)
-                        .opacity(welcomeAppeared ? 1 : 0)
-                        .scaleEffect(welcomeAppeared ? 1 : 0.85)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: welcomeAppeared)
+                    HStack(spacing: 12) {
+                        Image("AppIconDisplay")
+                            .resizable()
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 14, x: 0, y: 6)
+                        Text("MirrorNotes")
+                            .font(.system(size: 30, weight: .bold, design: .serif))
+                            .foregroundStyle(MirrorTheme.textPrimary)
+                            .tracking(-0.4)
+                    }
+                    .welcomeReveal(welcomeAppeared, delay: 0)
 
-                    // Title — New York serif, tight tracking, strong weight
-                    Text("MirrorNotes")
-                        .font(.system(size: 44, weight: .bold, design: .serif))
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                        .tracking(-0.5)
-                        .padding(.top, 32)
-                        .opacity(welcomeAppeared ? 1 : 0)
-                        .offset(y: welcomeAppeared ? 0 : 10)
-                        .animation(.easeOut(duration: 0.5).delay(0.15), value: welcomeAppeared)
-
-                    // Tagline — same serif family, lighter, italic
                     Text("Understand yourself\nthrough writing.")
-                        .font(.system(size: 18, weight: .regular, design: .serif))
+                        .font(.system(size: 22, weight: .regular, design: .serif))
                         .italic()
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .multilineTextAlignment(.center)
-                        .lineSpacing(5)
-                        .padding(.top, 10)
-                        .opacity(welcomeAppeared ? 1 : 0)
-                        .offset(y: welcomeAppeared ? 0 : 10)
-                        .animation(.easeOut(duration: 0.5).delay(0.28), value: welcomeAppeared)
+                        .lineSpacing(4)
+                        .padding(.top, 14)
+                        .welcomeReveal(welcomeAppeared, delay: 0.12)
 
-                    // Divider — visual rhythm break
-                    Divider()
-                        .overlay(MirrorTheme.inkBorder)
-                        .padding(.top, 40)
-                        .padding(.bottom, 36)
-                        .padding(.horizontal, 4)
-                        .opacity(welcomeAppeared ? 1 : 0)
-                        .animation(.easeOut(duration: 0.5).delay(0.4), value: welcomeAppeared)
+                    WelcomeReflectionDemo(reduceMotion: reduceMotion)
+                        .padding(.top, 30)
+                        .welcomeReveal(welcomeAppeared, delay: 0.25)
 
-                    // Feature list
-                    VStack(alignment: .leading, spacing: 20) {
-                        welcomeFeatureItem(icon: "sparkles",   text: "Daily AI reflections from your writing", color: MirrorTheme.primary)
-                            .opacity(welcomeAppeared ? 1 : 0)
-                            .offset(y: welcomeAppeared ? 0 : 8)
-                            .animation(.easeOut(duration: 0.45).delay(0.5), value: welcomeAppeared)
-                        welcomeFeatureItem(icon: "cpu.fill",    text: "All AI runs on device — nothing leaves", color: .green)
-                            .opacity(welcomeAppeared ? 1 : 0)
-                            .offset(y: welcomeAppeared ? 0 : 8)
-                            .animation(.easeOut(duration: 0.45).delay(0.58), value: welcomeAppeared)
-                        welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted",   color: .blue)
-                            .opacity(welcomeAppeared ? 1 : 0)
-                            .offset(y: welcomeAppeared ? 0 : 8)
-                            .animation(.easeOut(duration: 0.45).delay(0.66), value: welcomeAppeared)
+                    VStack(alignment: .leading, spacing: 10) {
+                        welcomeFeatureItem(icon: "lock.shield.fill", text: "AI runs on your device", color: .green)
+                        welcomeFeatureItem(icon: "icloud.fill", text: "iCloud backup, private and encrypted", color: .blue)
                     }
+                    .padding(.top, 26)
+                    .welcomeReveal(welcomeAppeared, delay: 0.4)
 
                     Spacer(minLength: 16)
                 }
-                .frame(minHeight: proxy.size.height)
-                .padding(.horizontal, 36)
+                .frame(maxWidth: 420)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+                .padding(.horizontal, 24)
             }
         }
         .onAppear {
@@ -319,19 +294,16 @@ struct OnboardingFlow: View {
     }
 
     private func welcomeFeatureItem(icon: String, text: LocalizedStringKey, color: Color) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.14))
-                    .frame(width: 34, height: 34)
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(color)
-            }
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 20)
             Text(text)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(MirrorTheme.textPrimary)
-            Spacer()
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
     }
 
@@ -928,4 +900,160 @@ struct OnboardingFlow: View {
     )
     return OnboardingFlow()
         .modelContainer(container)
+}
+
+private extension View {
+    /// The welcome step's staggered fade-up.
+    func welcomeReveal(_ shown: Bool, delay: Double) -> some View {
+        opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : 10)
+            .animation(.easeOut(duration: 0.5).delay(delay), value: shown)
+    }
+}
+
+/// The welcome screen's demo: a short entry types itself, then the reflection the app would write
+/// for it appears, quoting the entry's own sentence. The reflection uses the same fixed lines as a
+/// real one (English `groundedNudgeMoodLines`, other languages `groundedLocales`) for a good-mood
+/// entry, which gets no tip, so the screen never shows something the app can't produce. The entry
+/// text is synthetic sample text, never anyone's journal.
+private struct WelcomeReflectionDemo: View {
+    let reduceMotion: Bool
+    @State private var typed = 0
+    @State private var showsReflection = false
+
+    private let opening = String(localized: "Walked home the long way tonight.")
+    private let quote = String(localized: "I finally finished the chapter I'd been putting off.")
+
+    /// The UI language's code as `groundedLocales` keys it ("pt-BR" → "pt", "zh-Hans" → "zh").
+    private static var languageCode: String {
+        let id = Bundle.main.preferredLocalizations.first ?? "en"
+        return String(id.prefix { $0 != "-" && $0 != "_" })
+    }
+
+    private var entry: String {
+        ["ja", "zh"].contains(Self.languageCode) ? opening + quote : opening + " " + quote
+    }
+
+    private var reflectionParts: (lead: String, tail: String) {
+        if let loc = InsightService.groundedLocales[Self.languageCode] {
+            return (loc.youWrote + loc.open, loc.close + loc.joiner + (loc.feel[.good]?.first ?? ""))
+        }
+        return (InsightService.groundedNudgePrefix, "\" " + (InsightService.groundedNudgeMoodLines[.good] ?? ""))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            entryCard
+            thread
+            reflectionCard
+            Text("After a few entries, MirrorNotes reflects your own words back to you.")
+                .font(.system(size: 13))
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 14)
+                .opacity(showsReflection ? 1 : 0)
+        }
+        .task { await play() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(entry + "\n" + reflectionParts.lead + quote + reflectionParts.tail)
+    }
+
+    private var entryCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 7, height: 7)
+                Text(Date.now, format: .dateTime.weekday(.wide))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            }
+            ZStack(alignment: .topLeading) {
+                // The full text, hidden, holds the card's final height so nothing shifts while typing.
+                Text(entry).hidden()
+                Text(typedEntry)
+            }
+            .font(.system(size: 17, design: .serif))
+            .lineSpacing(4)
+            .foregroundStyle(MirrorTheme.textPrimary)
+            // Grow to every line; inside a ScrollView the Mac otherwise truncates to one.
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
+        }
+    }
+
+    private var typedEntry: AttributedString {
+        var text = AttributedString(String(entry.prefix(typed)))
+        if showsReflection, let range = text.range(of: quote) {
+            text[range].backgroundColor = MirrorTheme.violet.opacity(0.18)
+        }
+        if typed < entry.count {
+            var caret = AttributedString("|")
+            caret.foregroundColor = MirrorTheme.violetLight
+            text += caret
+        }
+        return text
+    }
+
+    /// The app icon's connected-dot mark, linking the quoted sentence to the reflection.
+    private var thread: some View {
+        VStack(spacing: 0) {
+            Circle().fill(MirrorTheme.violetLight).frame(width: 6, height: 6)
+            Rectangle().fill(MirrorTheme.violetLight.opacity(0.5)).frame(width: 1.5, height: 16)
+            Circle().fill(MirrorTheme.violetLight).frame(width: 6, height: 6)
+        }
+        .padding(.vertical, 4)
+        .opacity(showsReflection ? 1 : 0)
+    }
+
+    private var reflectionCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Daily Reflection", systemImage: "sparkles")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MirrorTheme.violetLight)
+            Text(reflectionText)
+                .font(.system(size: 15))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MirrorTheme.violetDim.opacity(0.55), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .opacity(showsReflection ? 1 : 0)
+        .offset(y: showsReflection || reduceMotion ? 0 : 10)
+    }
+
+    private var reflectionText: AttributedString {
+        let parts = reflectionParts
+        var lead = AttributedString(parts.lead)
+        lead.foregroundColor = MirrorTheme.textSecondary
+        var quoted = AttributedString(quote)
+        quoted.foregroundColor = MirrorTheme.textPrimary
+        quoted.font = .system(size: 15, weight: .semibold)
+        var tail = AttributedString(parts.tail)
+        tail.foregroundColor = MirrorTheme.textSecondary
+        return lead + quoted + tail
+    }
+
+    private func play() async {
+        guard !reduceMotion else {
+            typed = entry.count
+            showsReflection = true
+            return
+        }
+        guard (try? await Task.sleep(for: .seconds(0.9))) != nil else { return }
+        for count in 1...entry.count {
+            typed = count
+            guard (try? await Task.sleep(for: .milliseconds(26))) != nil else { return }
+        }
+        guard (try? await Task.sleep(for: .seconds(0.45))) != nil else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) { showsReflection = true }
+    }
 }

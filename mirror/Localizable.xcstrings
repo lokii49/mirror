@@ -1100,6 +1100,70 @@
         }
       }
     },
+    "After a few entries, MirrorNotes reflects your own words back to you." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach ein paar Einträgen spiegelt dir MirrorNotes deine eigenen Worte zurück."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a few entries, MirrorNotes reflects your own words back to you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tras unas cuantas entradas, MirrorNotes te devuelve tus propias palabras."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après quelques entrées, MirrorNotes vous renvoie vos propres mots."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopo qualche voce, MirrorNotes ti restituisce le tue stesse parole."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "何回か書くと、MirrorNotesがあなた自身の言葉を映し返します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "몇 번 쓰고 나면 MirrorNotes가 당신의 말을 그대로 비춰 줍니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depois de algumas entradas, o MirrorNotes devolve suas próprias palavras para você."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "После нескольких записей MirrorNotes отразит ваши собственные слова."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写过几篇之后，MirrorNotes 会把你自己的话映照给你。"
+          }
+        }
+      }
+    },
     "Amber" : {
       "localizations" : {
         "de" : {
@@ -4699,6 +4763,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "家"
+          }
+        }
+      }
+    },
+    "I finally finished the chapter I'd been putting off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endlich habe ich das Kapitel fertig, das ich ewig vor mir hergeschoben habe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I finally finished the chapter I'd been putting off."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por fin terminé el capítulo que llevaba tiempo posponiendo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "J'ai enfin terminé le chapitre que je repoussais depuis longtemps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finalmente ho finito il capitolo che continuavo a rimandare."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ずっと先延ばしにしていた章を、やっと終わらせた。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "계속 미뤄 두었던 챕터를 드디어 끝냈다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finalmente terminei o capítulo que eu vinha adiando."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наконец-то готова глава, которую так долго откладывали."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终于把一直拖着的那一章完成了。"
           }
         }
       }
@@ -9945,6 +10073,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在等待 Wi-Fi"
+          }
+        }
+      }
+    },
+    "Walked home the long way tonight." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute Abend bin ich den langen Weg nach Hause gegangen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Walked home the long way tonight."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta noche volví a casa por el camino largo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce soir, j'ai pris le chemin le plus long pour rentrer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stasera ho fatto la strada lunga per tornare a casa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今夜は遠回りして歩いて帰った。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘 밤은 먼 길로 걸어서 집에 왔다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoje à noite voltei para casa pelo caminho mais longo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня вечером дорога домой вышла долгой и спокойной."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今晚绕了远路走回家。"
           }
         }
       }
@@ -21779,70 +21971,6 @@
         }
       }
     },
-    "All AI runs on device — nothing leaves" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die gesamte KI läuft auf dem Gerät — nichts verlässt es"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All AI runs on device — nothing leaves"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toda la IA se ejecuta en el dispositivo, nada sale de él"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toute l'IA fonctionne sur l'appareil — rien n'en sort"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tutta l'IA funziona sul dispositivo: nulla ne esce"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AIはすべて端末内で動作 ― 外部へは何も送信されません"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "모든 AI는 기기 내에서 실행되며 외부로 전송되지 않습니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toda a IA roda no dispositivo — nada sai dele"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Весь ИИ работает на устройстве — ничего не передаётся наружу"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所有 AI 均在设备端运行 —— 数据不会离开设备"
-          }
-        }
-      }
-    },
     "All entries" : {
       "comment" : "Collections and saved views. Model-translated; native review pending.",
       "localizations" : {
@@ -31937,70 +32065,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义"
-          }
-        }
-      }
-    },
-    "Daily AI reflections from your writing" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tägliche KI-Reflexionen aus deinen Texten"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily AI reflections from your writing"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reflexiones diarias de IA basadas en lo que escribes"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réflexions quotidiennes de l'IA basées sur vos écrits"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riflessioni quotidiane dell'IA basate sui tuoi scritti"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "あなたの文章から生まれる毎日のAIの気づき"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "당신의 글에서 나오는 매일의 AI 통찰"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reflexões diárias de IA a partir do que você escreve"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ежедневные размышления от ИИ на основе ваших записей"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "根据你的文字生成每日 AI 感悟"
           }
         }
       }
@@ -43560,7 +43624,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Резервное копирование в iCloud — приватно и с шифрованием"
+            "value" : "Резервное копирование в iCloud: приватно и с шифрованием"
           }
         },
         "zh-Hans" : {
