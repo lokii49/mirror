@@ -384,6 +384,11 @@ struct EntriesTabView: View {
     }
 
     #if os(iOS)
+    /// With no entries there's nothing to filter, save, sort or search, so the empty journal
+    /// shows no actions. The Duo's vertical bar keeps them: an item that appears only once data
+    /// loads can leave its group floating there (see InsightView's toolbar).
+    private var showsListActions: Bool { !entries.isEmpty || hasVerticalBar }
+
     private var listHeaderRow: some View {
         HStack(spacing: 16) {
             Text(displayMode == .sentinel ? "Log" : "Entries")
@@ -391,7 +396,7 @@ struct EntriesTabView: View {
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
-            trailingToolbar
+            if showsListActions { trailingToolbar }
         }
         .padding(.horizontal, 18)
         .padding(.top, 8)
@@ -420,7 +425,7 @@ struct EntriesTabView: View {
             #if os(iOS)
             .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar))
             .toolbar {
-                if !actionsInListHeader {
+                if !actionsInListHeader && showsListActions {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         trailingToolbar
                     }
@@ -429,8 +434,8 @@ struct EntriesTabView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if actionsInListHeader { listHeaderRow }
-                    if showSearch { searchBar }
-                    if !collectionModels.isEmpty {
+                    if showSearch && showsListActions { searchBar }
+                    if !collectionModels.isEmpty && !entries.isEmpty {
                         CollectionsBar(lookup: collectionLookup, scope: $filters.collection) { showOrganizer = true }
                     }
                     if !snapshot.usedMoods.isEmpty { moodFilterBar(snapshot.usedMoods) }
