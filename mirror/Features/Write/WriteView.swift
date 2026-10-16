@@ -78,6 +78,20 @@ struct WriteView: View {
 
     @State var viewModel = WriteViewModel()
     @State var isKeyboardVisible = false
+    /// A hardware keyboard is typing: iOS put up only its short shortcuts bar.
+    @State var keyboardIsShortcutsBarOnly = false
+
+    /// How much of the keyboard a keyboard notification leaves on screen, in points. The Mac
+    /// gets no keyboard notifications (PlatformCompat's names are never posted there).
+    static func visibleKeyboardHeight(_ note: Notification) -> CGFloat {
+        #if os(iOS)
+        guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return 0 }
+        let screenHeight = (note.object as? UIScreen)?.bounds.height ?? frame.maxY
+        return max(0, min(frame.height, screenHeight - frame.minY))
+        #else
+        return 0
+        #endif
+    }
     @State var showSaved = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
@@ -587,11 +601,16 @@ struct WriteView: View {
             .animation(.spring(duration: 0.3, bounce: 0), value: showsOpenBar)
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            isKeyboardVisible = true
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            // An on-screen keyboard (or the Aa panel in its place) is a full keyboard's height;
+            // with a hardware keyboard iOS sends this for the short shortcuts bar it leaves.
+            let height = Self.visibleKeyboardHeight(note)
+            isKeyboardVisible = height > 120
+            keyboardIsShortcutsBarOnly = height > 0 && height <= 120
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             isKeyboardVisible = false
+            keyboardIsShortcutsBarOnly = false
         }
         .onAppear {
             viewModel.configure(entry: entry)

@@ -1,4 +1,5 @@
 #if os(iOS)
+import GameController
 import SwiftUI
 import UIKit
 
@@ -86,10 +87,19 @@ extension WriteView {
         .animation(.easeInOut(duration: 0.15), value: panelState.activeParagraphStyle)
     }
 
-    /// The bar shows only while the keyboard is up (always on Mac), and never in focus mode.
+    /// The bar shows while the on-screen keyboard is up, and while the editor has focus with a
+    /// hardware keyboard, which puts no keyboard on screen but still needs Aa, checklist and the
+    /// paperclip menu (owner, 2026-10-16). Dismissing the on-screen keyboard hides it. Always on
+    /// Mac; never in focus mode.
     var showsOpenBar: Bool {
-        (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode
+        (isKeyboardVisible || (editorFocused && usesHardwareKeyboard) || toolRowAlwaysVisible) && !focusMode
     }
+
+    /// A hardware keyboard is connected (`GCKeyboard`), or iOS showed only its shortcuts bar.
+    private var usesHardwareKeyboard: Bool {
+        keyboardIsShortcutsBarOnly || GCKeyboard.coalesced != nil
+    }
+
 
     private var barHeight: CGFloat { min(toolbarIconSize(48), 64) }
     private var barItemWidth: CGFloat { 58 }
