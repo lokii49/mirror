@@ -112,8 +112,8 @@ extension SettingsView {
     }
 
     // Support row, English only on purpose: it is for the owner, not part of the app's copy.
-    // The ID is RevenueCat's current app user ID (anonymous today, so it is per install: a
-    // reinstall or another device gets a new one).
+    // The ID is RevenueCat's current app user ID: per iCloud account (`RevenueCatIdentity`), or
+    // anonymous and per install when iCloud is off or the login hasn't happened yet.
     var revenueCatIDRow: some View {
         let appUserID = Purchases.shared.appUserID
         return VStack(alignment: .leading, spacing: 6) {

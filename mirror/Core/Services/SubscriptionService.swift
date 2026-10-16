@@ -64,6 +64,9 @@ final class SubscriptionService {
         // and skip their digest, report or mood alert. Purchases is configured before this runs.
         else if let cached = Purchases.shared.cachedCustomerInfo { updateTier(from: cached) }
         Task {
+            // First, so the sync and refresh below already run as the iCloud account's customer
+            // (where any granted entitlement lives) rather than this install's anonymous one.
+            await RevenueCatIdentity.logInWithICloudAccount()
             // RevenueCat: restorePurchases "may force your users to enter the App Store password
             // so should only be performed on request of the user" (5.89.0 docs), so launch uses
             // the silent syncPurchases instead (owner, 2026-10-11); the Restore buttons keep
