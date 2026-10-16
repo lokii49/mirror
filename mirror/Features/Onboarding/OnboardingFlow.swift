@@ -91,6 +91,11 @@ private enum OnboardingReason: CaseIterable, Hashable {
 }
 
 struct OnboardingFlow: View {
+    /// Called when the user taps Get started, and after the final step saves. ContentView keeps the
+    /// flow up in between, even if an already-onboarded profile syncs in from iCloud.
+    var onBegin: () -> Void = {}
+    var onFinish: () -> Void = {}
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var profiles: [UserProfile]
@@ -853,6 +858,7 @@ struct OnboardingFlow: View {
 
     private func advanceStep() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if step == 0 { onBegin() }
         if step == 1 {
             // Pre-select suggested preset based on reason
             nudgePreset = suggestedPreset
@@ -939,6 +945,7 @@ struct OnboardingFlow: View {
 
         // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
         FeatureCardService.shared.markWhatsNewSeen()
+        onFinish()
 
         // Notification permission was asked on the reminder step (enableDailyReminder), right
         // after the time was picked (owner, 2026-10-16). mirrorApp's

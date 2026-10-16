@@ -128,8 +128,15 @@ struct ContentView: View {
         UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(displayMode.rawValue, forKey: "widget.displayMode")
     }
 
+    /// Set once the user taps Get started, cleared when they finish. A profile synced from iCloud
+    /// (already onboarded on another device) used to close the flow on whatever screen it reached,
+    /// skipping the mode choice and dropping a typed first entry; while this is set the flow stays
+    /// up and everything gated on onboarding waits (owner, 2026-10-16). Not set at launch, so an
+    /// existing user whose profile loads a moment late can't get stuck in onboarding.
+    @State private var onboardingInProgress = false
+
     private var onboardingComplete: Bool {
-        profiles.first?.onboardingComplete ?? false
+        !onboardingInProgress && (profiles.first?.onboardingComplete ?? false)
     }
 
     /// True only when the rate-us gate is wanted AND the screen is free to show
@@ -254,7 +261,10 @@ struct ContentView: View {
             syncWidgetDisplayMode()
         }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
-            OnboardingFlow()
+            OnboardingFlow(
+                onBegin: { onboardingInProgress = true },
+                onFinish: { onboardingInProgress = false }
+            )
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
