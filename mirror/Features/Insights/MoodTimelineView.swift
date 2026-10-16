@@ -86,7 +86,7 @@ struct MoodTimelineView: View {
         MoodLog.events(in: rangeInterval, entries: entries, checkIns: moodCheckIns)
             .compactMap { event in
                 guard let score = event.score else { return nil }
-                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
             }
     }
 
@@ -96,7 +96,7 @@ struct MoodTimelineView: View {
         cachedAllMoodPoints = MoodLog.events(entries: entries, checkIns: moodCheckIns)
             .compactMap { event in
                 guard let score = event.score else { return nil }
-                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
             }
 
         // One mood per calendar day, latest reading wins — the shared rule.
@@ -480,7 +480,7 @@ struct MoodTimelineView: View {
     // MARK: - Scatter chart (30D / 90D)
 
     private var moodChartCard: some View {
-        MoodChartCard(points: points)
+        MoodChartCard(points: points) { id in entries.first { $0.id == id } }
     }
 
     // MARK: - Calendar heatmap (All)
@@ -694,10 +694,10 @@ struct MoodTimelineView: View {
         let today = Date()
         func d(_ offset: Int) -> Date { cal.date(byAdding: .day, value: offset, to: today) ?? today }
         return [
-            MoodPoint(id: UUID(), date: d(-4), mood: "Hopeful",  score: 4),
-            MoodPoint(id: UUID(), date: d(-3), mood: "Anxious",  score: 2),
-            MoodPoint(id: UUID(), date: d(-2), mood: "Hopeful",  score: 4),
-            MoodPoint(id: UUID(), date: d(-1), mood: "Anxious",  score: 2),
+            MoodPoint(id: UUID(), date: d(-4), mood: "Hopeful",  score: 4, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-3), mood: "Anxious",  score: 2, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-2), mood: "Hopeful",  score: 4, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-1), mood: "Anxious",  score: 2, origin: .entry),
         ]
     }
 
@@ -862,12 +862,7 @@ struct MoodTimelineView: View {
 
 // MARK: - Shared chart card (used by both real view and blurred preview)
 
-private struct MoodPoint: Identifiable {
-    let id: UUID
-    let date: Date
-    let mood: String
-    let score: Double
-}
+private typealias MoodPoint = MoodDot
 
 /// The line and area of the mood chart: one point per calendar day, at the mean of that day's
 /// readings. Through every reading, several on one day gave the marks duplicate x values, which
@@ -887,7 +882,11 @@ nonisolated enum MoodChartSeries {
 
 private struct MoodChartCard: View {
     let points: [MoodPoint]
+    /// The entry behind a held dot; nil (the locked preview) turns holding off.
+    var entry: ((UUID) -> Entry?)? = nil
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var selected: MoodDot?
+    @State private var previewText = ""
 
     private var dailyLine: [MoodDayMean] {
         MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
@@ -896,7 +895,16 @@ private struct MoodChartCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Group {
-                if displayMode == .sentinel {
+                if let selected {
+                    // While a dot is held, the header names it (same line, so the chart stays put).
+                    HStack(spacing: 6) {
+                        Circle().fill(MirrorTheme.moodColor(for: selected.mood)).frame(width: 7, height: 7)
+                        Text(verbatim: "\(selected.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())) · \(MirrorTheme.localizedMoodName(for: selected.mood))")
+                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                            .foregroundStyle(MirrorTheme.textPrimary)
+                    }
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                } else if displayMode == .sentinel {
                     Label("SIGNAL OVER TIME", systemImage: "chart.line.uptrend.xyaxis")
                         .font(MirrorTheme.mono(11, weight: .semibold))
                         .tracking(0.5)
@@ -945,16 +953,32 @@ private struct MoodChartCard: View {
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 }
 
+                if let selected {
+                    RuleMark(x: .value("Day", selected.date, unit: .day))
+                        .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+
                 ForEach(points) { point in
                     PointMark(
                         x: .value("Day", point.date, unit: .day),
                         y: .value("Mood", point.score)
                     )
                     .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                    .symbolSize(80)
+                    .symbolSize(point.id == selected?.id ? 180 : 80)
+                    .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
                 }
             }
             .chartYScale(domain: 0...6)
+            .chartOverlay { proxy in
+                if entry != nil {
+                    MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected, previewText: previewText)
+                }
+            }
+            .onChange(of: selected?.id) {
+                guard let selected, let entry else { return }
+                previewText = moodDotPreviewText(for: selected, entry: entry)
+            }
             #if os(macOS)
             // Days with several entries give the smoothed area fill duplicate x values, which
             // overshoots; on Mac the spikes were drawn outside the card. Keep it in the plot.

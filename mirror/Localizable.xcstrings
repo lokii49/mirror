@@ -6068,6 +6068,64 @@
         }
       }
     },
+    "Mood check-in, no writing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimmungs-Check-in, ohne Text"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registro de ánimo, sin escribir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Point humeur, sans écrit"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in dell'umore, senza testo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気分チェックイン（記述なし）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기분 체크인 (작성한 글 없음)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in de humor, sem texto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметка настроения, без записи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心情打卡，未写内容"
+          }
+        }
+      }
+    },
     "MOOD READ" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: the moods of the entries the model read.",
       "extractionState" : "manual",

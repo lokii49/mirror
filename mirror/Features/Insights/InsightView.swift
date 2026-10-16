@@ -114,7 +114,7 @@ struct InsightView: View {
                             }
 
                             if cachedWeekMoodEvents.count >= 2, chartVisible {
-                                MoodWeekChartView(events: cachedWeekMoodEvents)
+                                MoodWeekChartView(events: cachedWeekMoodEvents) { id in entries.first { $0.id == id } }
                             }
                         }
                         .frame(width: insightsFoldSplit?.leading)
@@ -1742,24 +1742,45 @@ private extension View {
 private struct MoodWeekChartView: View {
     /// Merged entry moods + daily check-ins for the last 7 days (`MoodLog`).
     let events: [MoodEvent]
+    /// The entry behind a held dot, looked up only when one is selected.
+    let entry: (UUID) -> Entry?
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var selected: MoodDot?
+    @State private var previewText = ""
     private var isSentinel: Bool { displayMode == .sentinel }
 
-    private struct MoodPoint: Identifiable {
-        let id: UUID
-        let date: Date
-        let mood: String
-        let score: Double
-    }
-
-    private var points: [MoodPoint] {
+    private var points: [MoodDot] {
         events.compactMap { event in
             guard let score = event.score else { return nil }
-            return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+            return MoodDot(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
         }
     }
 
     private var dominantMood: String? { MoodLog.dominantMood(events) }
+
+    private func moodChip(_ mood: String, label: Text) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(MirrorTheme.moodColor(for: mood))
+                .frame(width: 7, height: 7)
+            label
+                .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
+                .kerning(isSentinel ? 0.2 : 0)
+                .foregroundStyle(MirrorTheme.textSecondary)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            MirrorTheme.moodColor(for: mood).opacity(0.1),
+            in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+        )
+        .overlay {
+            if isSentinel {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
+            }
+        }
+    }
 
     /// One line point per day, as on the Mood Timeline: two readings on a day drew a vertical
     /// spike. The dots still show every reading.
@@ -1770,35 +1791,27 @@ private struct MoodWeekChartView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                    .kerning(isSentinel ? 0.3 : 0)
-                    .textCase(isSentinel ? .uppercase : nil)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                Spacer()
-                if let mood = dominantMood {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(MirrorTheme.moodColor(for: mood))
-                            .frame(width: 7, height: 7)
-                        Text(isSentinel
-                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
-                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))")
-                            .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
-                            .kerning(isSentinel ? 0.2 : 0)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(
-                        MirrorTheme.moodColor(for: mood).opacity(0.1),
-                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if isSentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
-                        }
+                if let selected {
+                    // While a dot is held, the header names it; same height, so the chart stays put.
+                    Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                        .textCase(isSentinel ? .uppercase : nil)
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                    Spacer()
+                    moodChip(selected.mood, label: Text(isSentinel
+                        ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
+                        : MirrorTheme.localizedMoodName(for: selected.mood)))
+                } else {
+                    Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                        .kerning(isSentinel ? 0.3 : 0)
+                        .textCase(isSentinel ? .uppercase : nil)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Spacer()
+                    if let mood = dominantMood {
+                        moodChip(mood, label: Text(isSentinel
+                            ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
+                            : "Mostly \(MirrorTheme.localizedMoodName(for: mood))"))
                     }
                 }
             }
@@ -1820,16 +1833,30 @@ private struct MoodWeekChartView: View {
                     .interpolationMethod(.catmullRom)
                 }
 
+                if let selected {
+                    RuleMark(x: .value("Day", selected.date, unit: .day))
+                        .foregroundStyle((isSentinel ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+
                 ForEach(points) { point in
                     PointMark(
                         x: .value("Day", point.date, unit: .day),
                         y: .value("Mood", point.score)
                     )
                     .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                    .symbolSize(120)
+                    .symbolSize(point.id == selected?.id ? 240 : 120)
+                    .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
                 }
             }
             .chartYScale(domain: 0...6)
+            .chartOverlay { proxy in
+                MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected, previewText: previewText)
+            }
+            .onChange(of: selected?.id) {
+                guard let selected else { return }
+                previewText = moodDotPreviewText(for: selected, entry: entry)
+            }
             .chartYAxis {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
