@@ -214,6 +214,31 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// The sentences shown under a Foundation Models Ask answer (tools/llmrig/fm/RUBRIC_FM.md, round 21).
+    /// Guide text is fmrig.swift's AskQuotes, word for word.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct AskQuotesDraft {
+        @Guide(description: "The sentence from the entries that best backs up the answer, copied word for word with the same punctuation, or empty")
+        var quote1: String
+        @Guide(description: "A different sentence from the entries that also backs up the answer, copied word for word, or empty")
+        var quote2: String
+    }
+    #endif
+
+    nonisolated static func pickAskQuotes(systemPrompt: String, userMessage: String) async throws -> [String] {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.ask.temperature))
+        let r = try await session.respond(to: userMessage, generating: AskQuotesDraft.self, options: options).content
+        return [r.quote1, r.quote2]
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
     /// Marks a test error as a guardrail refusal (a real `GenerationError` can't be built in tests).
     protocol GuardrailRefusalForTesting: Error {}
 

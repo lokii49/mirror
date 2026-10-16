@@ -722,3 +722,46 @@ unanswerable question, any claimed answer = invented), SWAP, ANSWERS (the text a
 entries, or honestly says it isn't there), VALUE.
 **Ship bar**: A1 invented-answer rate at most half of A0's, 0 invented answers on unanswerable questions beyond
 A0's count, fallback (no text) 0%. ANSWERS and VALUE reported. Miss -> owner.
+**A1 revised before the round (2 probes on mo_caregiver_hard, 2026-10-16):** the first A1 copied "me" from the
+entry, appended the no-answer phrase to real answers and rewrote quotes. Now `found` comes first and A1 never says
+"you haven't written about this" (Gemma's measured lesson: model no-answer judgements were often wrong); when nothing
+is found or the answer fails, the closest sentences are shown under "The closest things you've written:".
+
+### Round 20 result (2026-10-16, 20 questions x 5 x 2 variants, blind-scored by 4 scorers): bar met by a hair; A1 far less useful
+| | shown | answers invented | swap | answers the question | useful |
+|---|---|---|---|---|---|
+| A0 shipped | 96/100 (4 errors) | 21/96 (22%) | 3 | 95% | 59% |
+| A1 | 100/100 | 10/100 (10%) | 6 | 74% | 14% |
+
+- Unanswerable questions: 0/20 invented for both.
+- A1: 73 answers + quotes, 27 quotes only; 24 runs needed an app-picked quote (the model's wasn't verbatim).
+- A1's errors are mostly swaps and false negatives: "You did not see anyone this month" (Leo visited), "You helped with
+  the night feeds" (Sam did), "raj said it WAS the cache" (the writer did).
+- Unlike the digest (49-68% invented) and the monthly report (49%), free-prose Ask invents in 22% and is the most
+  useful text FM writes in this app. Goes to the owner.
+
+## Round 21: Ask = today's answer + the person's own sentences under it (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 20: keep the free-prose answer (useful 59%) and show 1-2 of the person's dated sentences under it
+as evidence. **A2**: unchanged `ASK_SYSTEM` answer, then one structured call (`system_ask_quotes.txt` + `@Generable
+AskQuotes`: quote1, quote2) given the question, the retrieved entries and that answer, asked for the sentences that
+back the answer. Each quote must be found in the retrieved entries (`FMDailyGuard.locate`) and is shown as `On <date>,
+you wrote, "<quote>"` under "The closest things you've written:". None found -> the answer alone (today's behaviour).
+No quotes after the no-answer phrase.
+**Inputs**: round 20's 96 A0 answers (same prompts), so only the quote step is new. N = 1 per answer.
+**Scoring** (blind, 3 scorers): per shown quote, SUPPORTS (it backs what the answer says, or is the entry the answer
+is about) and DATE (the date is that entry's).
+**Ship bar**: >= 80% of answered (non-no-answer) responses get at least one verified quote; >= 90% of shown quotes
+SUPPORT; 100% DATE. Miss -> owner.
+**Round 21 first count (before scoring): coverage 52/82 = 63%, under the bar.** 10 were refusals ("May contain
+sensitive content"); most of the other 20 were verbatim quotes from the prompt's *older excerpts*, which the rig's
+matcher did not search. Fix decided before re-counting: quotes are matched against every entry the model was shown
+(retrieved + older excerpts, with their dates). Replayed offline over the same 96 outputs; no new model runs.
+
+### Round 21 result (2026-10-16): shipped by the owner with coverage under the bar
+- Shown quotes: 86/90 (96%) back the answer they sit under; dates 90/90 right. Both bars met.
+- Coverage: 61/82 answered responses get a quote (74%; 61/72 = 85% without the 10 refusals of the quote call), under
+  the 80% bar. Without a quote the answer shows alone, as before; the owner shipped it on that basis.
+- In the app (`InsightService.askEvidenceQuotes`): quotes matched against every entry the Ask prompt shows; English
+  with `FMDailyGuard.locate` (as measured), the other grounded languages with `matchOption` and their `askPrefix`
+  lines (not rig-measured); other languages and the no-answer phrase get no quotes. End to end on the Mac's FM
+  (simulator): the mom question got two dated sentences, the sleep question none, the trips question the no-answer.

@@ -225,6 +225,46 @@ func monthSources(_ user: String) -> [FMMonthlyGuard.Source] {
 
 let monthlyLabels = ["YOUR MONTH IN ONE IMAGE", "THE TENSION AT THE CENTER", "A MOMENT THAT SHIFTED SOMETHING", "WHAT YOU'RE BECOMING", "WHAT WANTS TO BE RELEASED", "YOUR QUESTION FOR NEXT MONTH"]
 
+
+// Round 20 (RUBRIC_FM.md): Ask with a checked answer plus the person's dated sentences.
+@Generable struct AskA1 {
+    @Guide(description: "True if the entries say anything about the question, otherwise false")
+    var found: Bool
+    @Guide(description: "If found: one or two sentences to the person as 'you' answering the question from what they wrote, in your own words, never 'I', 'me' or 'my'. Otherwise empty")
+    var answer: String
+    @Guide(description: "The one sentence from the entries that best answers the question, copied word for word with the same punctuation")
+    var quote1: String
+    @Guide(description: "A different sentence copied word for word that also answers the question, or empty")
+    var quote2: String
+}
+
+/// The "Most relevant entries" of a dumped Ask prompt, with "d MMM" days.
+func askSources(_ user: String) -> [(text: String, mood: String, day: String)] {
+    guard let r = user.range(of: "Most relevant entries:\n") else { return [] }
+    let block = String(user[r.upperBound...]).components(separatedBy: "\n\nQuestion:")[0]
+    var out: [(String, String, String)] = []
+    for b in block.components(separatedBy: "\n---\n") {
+        var lines = b.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.count >= 3, lines[0].hasPrefix("Entry ") else { continue }
+        let date = lines[0].components(separatedBy: " - ").dropFirst().joined(separator: " - ")
+        let mood = lines[1].replacingOccurrences(of: "Mood: ", with: "").components(separatedBy: ".")[0]
+        lines.removeFirst(2)
+        out.append((lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), mood, date.split(separator: " ").prefix(2).joined(separator: " ")))
+    }
+    return out
+}
+
+let askNoAnswer = "You haven't written about this yet."
+
+
+// Round 21 (RUBRIC_FM.md): the sentences under today's Ask answer.
+@Generable struct AskQuotes {
+    @Guide(description: "The sentence from the entries that best backs up the answer, copied word for word with the same punctuation, or empty")
+    var quote1: String
+    @Guide(description: "A different sentence from the entries that also backs up the answer, copied word for word, or empty")
+    var quote2: String
+}
+
 /// Capitalises every sentence and makes sure the text ends with punctuation (what the app does).
 func tidyAll(_ s: String) -> String {
     let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -483,6 +523,55 @@ func emit(_ obj: [String: Any]) {
                     } else {
                         rec["fallback"] = true
                     }
+                case "ask_a1":
+                    // Round 20. Answer checked against the retrieved entries; quotes located in them; up to 3 attempts.
+                    let src = askSources(user)
+                    let guardSources = src.map { FMDailyGuard.Source(text: $0.text, mood: $0.mood) }
+                    let texts = src.map(\.text)
+                    var raws: [[String: String]] = []
+                    var answer: String?
+                    var quotes: [String] = []
+                    var noAnswer = false
+                    for _ in 1...3 {
+                        let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: AskA1.self, options: opts).content
+                        raws.append(["found": r.found ? "true" : "false", "answer": r.answer, "quote1": r.quote1, "quote2": r.quote2])
+                        if quotes.isEmpty {
+                            for q in [r.quote1, r.quote2] {
+                                guard let found = FMDailyGuard.locate(quote: q, in: texts) else { continue }
+                                let dated = "On \(src[found.index].day), you wrote, \"\(found.quote)\""
+                                if !quotes.contains(where: { $0.contains(found.quote) || found.quote.contains($0) }) { quotes.append(dated) }
+                            }
+                        }
+                        if answer == nil, r.found { answer = FMDailyGuard.cleanSentences(of: r.answer, sources: guardSources, maxSentences: 2)?.text }
+                        if !r.found, !quotes.isEmpty { break }
+                        if answer != nil, !quotes.isEmpty { break }
+                    }
+                    rec["raws"] = raws
+                    if noAnswer {
+                        rec["text"] = askNoAnswer
+                        rec["noAnswer"] = true
+                    } else {
+                        if quotes.isEmpty, let first = src.first, let sentence = FMDigestGuard.quotableSentences(of: first.text).first {
+                            quotes = ["On \(first.day), you wrote, \"\(sentence)\""]
+                            rec["appQuote"] = true
+                        }
+                        rec["answerShown"] = answer != nil
+                        rec["text"] = ((answer.map { $0 + " " } ?? "") + "The closest things you've written: " + quotes.joined(separator: " "))
+                    }
+                case "ask_quotes":
+                    // Round 21. user = the Ask prompt + "\n\nAnswer given: <answer>"; quotes located in its entries.
+                    let src = askSources(user)
+                    let texts = src.map(\.text)
+                    let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: AskQuotes.self, options: opts).content
+                    var shownQuotes: [String] = []
+                    for q in [r.quote1, r.quote2] {
+                        guard let found = FMDailyGuard.locate(quote: q, in: texts),
+                              !shownQuotes.contains(where: { $0.contains(found.quote) }) else { continue }
+                        shownQuotes.append("On \(src[found.index].day), you wrote, \"\(found.quote)\"")
+                    }
+                    rec["raws"] = [["quote1": r.quote1, "quote2": r.quote2]]
+                    rec["quotes"] = shownQuotes
+                    rec["text"] = shownQuotes.isEmpty ? "" : "The closest things you've written: " + shownQuotes.joined(separator: " ")
                 default:
                     rec["error"] = "unknown variant"
                 }

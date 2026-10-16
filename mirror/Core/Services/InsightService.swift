@@ -198,6 +198,17 @@ Rules for everything you write:
 - Plain everyday words, like a close friend. No therapy language, no generic advice, do not mention AI or a model.
 """
 
+// The sentences under a Foundation Models Ask answer (2026-10-16). The answer itself is unchanged ASK_SYSTEM free
+// prose (round 20: the most useful text FM writes here, 22% invented); a second, structured call picks one or two
+// of the person's sentences that back it up, each checked to be in the entries the model was shown, and they're
+// shown under it with their dates. Round 21: 96% of shown quotes back the answer, every date right, 74% of answers
+// get one; otherwise the answer shows alone. Kept byte-identical to tools/llmrig/fm/system_ask_quotes.txt.
+let ASK_QUOTES_FM_SYSTEM = """
+You help MirrorNotes, a private on-device journal, show the person where an answer about their journal comes from. You are given their journal entries, a question they asked and the answer they were given.
+
+Copy the one or two sentences from the entries that best back up that answer, each exactly as written, every word and mark. Use only sentences that are in the entries. If no sentence in the entries backs up the answer, leave both empty.
+"""
+
 private let ASK_SYSTEM = """
 You are MirrorNotes, a private journaling companion. Read the journal entries and answer the question based on what the person actually wrote.
 Rules:
@@ -1830,19 +1841,71 @@ enum InsightService {
         if case .unsuitable = askPlan, !grounded.noAnswer, !LocalLLMService.prefersFoundationModels {
             return (askNoAnswerPhrase(for: target), .gemma)
         }
-        return try await localGenerate(
+        let askMessage = buildAskMessage(entries: relevant, backgroundEntries: Array(background), question: question)
+        let result = try await localGenerate(
             systemPrompt: ASK_SYSTEM,
-            userMessage: buildAskMessage(
-                entries: relevant,
-                backgroundEntries: Array(background),
-                question: question
-            ),
+            userMessage: askMessage,
             task: .ask,
             responseLanguageInstruction: languageInstruction,
             askNoAnswerPhrase: askNoAnswerPhrase(for: target),
             gemmaPlan: askPlan,
             gemmaValidator: askValidator
         )
+        guard result.engine == .foundationModels, result.text != askNoAnswerPhrase(for: target), usesStructuredFMNudge else { return result }
+        let quotes = await askEvidenceQuotes(
+            answer: result.text, askMessage: askMessage, pool: relevant + Array(background), languageCode: target?.code ?? "en"
+        )
+        return (quotes.map { result.text + "\n\n" + $0 } ?? result.text, result.engine)
+    }
+
+    /// The person's own sentences backing a Foundation Models Ask answer, formatted like Gemma's grounded Ask
+    /// ("The closest things you've written: On 12 Oct, you wrote, "…"", or the language's `askPrefix` lines),
+    /// or nil when none of the model's picks is in `pool` (or the call fails): the answer then shows alone.
+    /// English matches with `FMDailyGuard.locate` as round 21 measured; the other grounded languages with
+    /// `matchOption` against whole sentences, as their daily reflection does. Other languages get none.
+    static func askEvidenceQuotes(
+        answer: String,
+        askMessage: String,
+        pool: [Entry],
+        languageCode: String,
+        picker: (() async throws -> [String])? = nil
+    ) async -> String? {
+        let loc = groundedLocales[languageCode]
+        guard languageCode == "en" || loc != nil else { return nil }
+        let pick = picker ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.pickAskQuotes(systemPrompt: ASK_QUOTES_FM_SYSTEM, userMessage: askMessage + "\n\nAnswer given: " + answer)
+            }
+        }
+        guard let picks = try? await pick() else { return nil }
+        let dayFormatter = DateFormatter()
+        if let _ = loc {
+            dayFormatter.locale = Locale(identifier: languageCode)
+            dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        } else {
+            dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dayFormatter.dateFormat = "d MMM"
+        }
+        let texts = pool.map(quotableText(of:))
+        var shown: [(quote: String, day: String)] = []
+        for pickText in picks {
+            let found: (quote: String, index: Int)?
+            if loc == nil {
+                found = FMDailyGuard.locate(quote: pickText, in: texts)
+            } else {
+                let options = pool.enumerated().flatMap { i, entry in groundedQuoteCandidates(of: entry).map { ($0, i) } }
+                found = FMDailyGuard.matchOption(quote: pickText, in: options.map(\.0)).flatMap { option in
+                    options.first { $0.0 == option }.map { ($0.0, $0.1) }
+                }
+            }
+            guard let found, !shown.contains(where: { $0.quote.contains(found.quote) || found.quote.contains($0.quote) }) else { continue }
+            shown.append((found.quote, dayFormatter.string(from: pool[found.index].createdAt)))
+        }
+        guard !shown.isEmpty else { return nil }
+        if let loc {
+            return ([loc.askPrefix] + shown.map { "\($0.day) – \(loc.open)\($0.quote)\(loc.close)" }).joined(separator: "\n")
+        }
+        return groundedAskPrefix + shown.map { "On \($0.day), you wrote, \"\($0.quote)\"" }.joined(separator: " ")
     }
 
     static func detectEmotion(text: String) async throws -> String {
