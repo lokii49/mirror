@@ -82,20 +82,17 @@ struct PaywallView: View {
             .background(MirrorTheme.bgBase)
             .safeAreaInset(edge: .bottom, spacing: 0) { ctaBar }
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            // A Mac sheet puts toolbar items in a strip under the content, below the pinned bar,
+            // so the close button sits on the hero's corner instead, and the sheet opens big
+            // enough to show the features without scrolling first.
+            .overlay(alignment: .topTrailing) { closeButton.padding(28) }
+            .frame(minWidth: 500, idealWidth: 540, minHeight: 720, idealHeight: 840)
+            #else
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                    }
-                    .accessibilityLabel("Close")
-                    .buttonStyle(.plain)
-                }
+                ToolbarItem(placement: .topBarTrailing) { closeButton }
             }
+            #endif
             .task {
                 // A previous open's message must not greet this one (the service is shared).
                 subscriptionService.clearMessages()
@@ -116,6 +113,20 @@ struct PaywallView: View {
             .onChange(of: subscriptionService.corePackages) { _, _ in selectDefaultIfNeeded() }
             .onChange(of: subscriptionService.deepPackages) { _, _ in selectDefaultIfNeeded() }
         }
+    }
+
+    private var closeButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 22))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(MirrorTheme.textSecondary)
+        }
+        .accessibilityLabel("Close")
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
     }
 
     private static func rank(_ tier: SubscriptionTier) -> Int {
