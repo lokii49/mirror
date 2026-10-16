@@ -371,6 +371,8 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.8)
 
         XCTAssertFalse(aaBtn.exists, "Aa button (toolRow) must disappear when keyboard is dismissed")
+        // No keyboard-down bar either (owner, 2026-10-16): the attach menu was its last button.
+        XCTAssertFalse(app.buttons["keyboardBar.attach"].exists, "No bar may show while the keyboard is down")
 
         snapshot(app, name: "toolrow_hidden_after_dismiss")
     }

@@ -81,39 +81,12 @@ extension WriteView {
         // button in half; that reads as "scrolls", not as cropped. Masks the row, not the glass.
         .horizontalEdgeFade(14)
         .barSurface(isSentinel: displayMode == .sentinel)
-        .matchedGeometryEffect(id: "barCapsule", in: barNamespace)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: panelState.activeParagraphStyle)
     }
 
-    /// The bar while the keyboard is down, as in a Notes note: checklist, attach and record in one
-    /// capsule on the left.
-    var closedKeyboardBar: some View {
-        HStack(alignment: .bottom) {
-            HStack(spacing: 0) {
-                barButton("checklist", label: "Checklist", id: "closed.checklist", isOn: false) {
-                    editorFocused = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { applyTextCommand(.checklist) }
-                }
-                .matchedGeometryEffect(id: "checklist", in: barNamespace)
-                attachMenu
-                barButton("waveform", label: "Record Audio", id: "closed.record", isOn: false) {
-                    showRecorderSheet = true
-                }
-                .disabled(isTranscribingVoiceNotes)
-            }
-            .padding(.horizontal, 6)
-            .frame(height: barHeight)
-            .barSurface(isSentinel: displayMode == .sentinel)
-            .matchedGeometryEffect(id: "barCapsule", in: barNamespace)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-    }
-
-    /// The keyboard-up bar shows instead of the short keyboard-down one.
+    /// The bar shows only while the keyboard is up (always on Mac), and never in focus mode.
     var showsOpenBar: Bool {
         (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode
     }
@@ -170,7 +143,6 @@ extension WriteView {
         .accessibilityHint("Touch and hold for checklist actions")
         .accessibilityIdentifier("keyboardBar.checklist")
         .accessibilityAddTraits(isInChecklist ? .isSelected : [])
-        .matchedGeometryEffect(id: "checklist", in: barNamespace)
     }
 
     /// Font family for this entry's body text (Write, entry list preview, entry detail).
@@ -243,7 +215,6 @@ extension WriteView {
         .accessibilityLabel("Attach")
         .accessibilityIdentifier("keyboardBar.attach")
         .accessibilityValue(attachAccessibilityValue)
-        .matchedGeometryEffect(id: "attach", in: barNamespace)
     }
 
     private var attachAccessibilityValue: Text {

@@ -205,9 +205,6 @@ struct WriteView: View {
     /// writes it back on begin/end editing. As a `@FocusState` with no `.focused` view, every
     /// assignment was dropped, so `autoFocus` never opened the keyboard (fixed 2026-10-09).
     @State var editorFocused = false
-    /// Ties the keyboard-up bar and the keyboard-down bar together so the capsule and its shared
-    /// icons morph between them, as Notes' bar does.
-    @Namespace var barNamespace
     @FocusState var tagFieldFocused: Bool
 
     /// Drives the inline voice-recording timer; the handler no-ops unless
@@ -580,15 +577,12 @@ struct WriteView: View {
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Hidden while the Aa panel stands in for the keyboard, as Notes hides its bar. With the
-            // keyboard down, the short bar a Notes note shows (checklist, attach, record).
-            // Animated on this one value only, so the Aa panel hiding the bar still snaps.
+            // Only with the keyboard up: with it down there is no bar (owner, 2026-10-16; the
+            // short checklist/attach/record bar is gone). Hidden while the Aa panel stands in for
+            // the keyboard, as Notes hides its bar. Animated on this one value only, so the Aa
+            // panel hiding the bar still snaps.
             ZStack(alignment: .bottomLeading) {
-                if showsOpenBar {
-                    if !(showFormattingPanel && !usesPopoverPanel) { toolRow }
-                } else if !focusMode {
-                    closedKeyboardBar
-                }
+                if showsOpenBar && !(showFormattingPanel && !usesPopoverPanel) { toolRow }
             }
             .animation(.spring(duration: 0.3, bounce: 0), value: showsOpenBar)
         }
