@@ -124,14 +124,14 @@ private extension View {
     /// On iOS 18+ a UIKit long press: it reports the location as soon as the hold begins, even
     /// with the finger still, and a swipe that starts here still scrolls the page. SwiftUI's
     /// long press + drag reported nothing until the finger moved, and kept the page from
-    /// scrolling.
+    /// scrolling, so iOS 17 gets no hold at all rather than a chart that blocks scrolling.
     @ViewBuilder
     func holdToScrub(_ onChange: @escaping (CGPoint?) -> Void) -> some View {
         #if os(iOS)
         if #available(iOS 18.0, *) {
             gesture(HoldToScrubGesture(onChange: onChange))
         } else {
-            swiftUIHoldToScrub(onChange)
+            self
         }
         #else
         swiftUIHoldToScrub(onChange)
