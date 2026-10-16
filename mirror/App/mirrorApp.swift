@@ -1373,9 +1373,8 @@ struct mirrorApp: App {
         // *before* the first nudge generates, or scheduleFirstNudgeHook's isAuthorized() check
         // silently no-ops and, since the Insight it would have announced is already saved by
         // then, never gets a second chance (hasSeenFirst locks out that path for non-subscribers
-        // for good). This backfill (originally added for users who onboarded before a permission
-        // prompt existed at all) is now the ONLY place permission is requested — OnboardingFlow
-        // no longer asks at Day 0.
+        // for good). Since 2026-10-16 OnboardingFlow asks on its reminder step, so this only
+        // reaches people who onboarded before that and were never asked.
         let context = sharedModelContainer.mainContext
         let entryCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
         guard entryCount >= 3 else { return }

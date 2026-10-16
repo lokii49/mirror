@@ -908,6 +908,70 @@
         }
       }
     },
+    "A few quiet minutes a day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein paar ruhige Minuten am Tag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A few quiet minutes a day."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unos minutos tranquilos al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelques minutes calmes par jour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pochi minuti tranquilli al giorno."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一日数分の静かな時間。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "하루 몇 분의 조용한 시간."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alguns minutos tranquilos por dia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Несколько спокойных минут в день."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天几分钟的安静时光。"
+          }
+        }
+      }
+    },
     "A full reflection on your month." : {
       "localizations" : {
         "de" : {
@@ -1096,6 +1160,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每周日呈现的规律总结。"
+          }
+        }
+      }
+    },
+    "A sentence is enough. MirrorNotes learns from everything you write." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Satz genügt. MirrorNotes lernt aus allem, was du schreibst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sentence is enough. MirrorNotes learns from everything you write."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con una frase basta. MirrorNotes aprende de todo lo que escribes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une phrase suffit. MirrorNotes apprend de tout ce que vous écrivez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basta anche una sola frase. MirrorNotes impara da tutto ciò che scrivi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一文だけで十分です。MirrorNotesはあなたが書くすべてから学びます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한 문장이면 충분해요. MirrorNotes는 당신이 쓰는 모든 것에서 배웁니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma frase já basta. O MirrorNotes aprende com tudo o que você escreve."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Достаточно одного предложения. MirrorNotes учится на всём, что вы пишете."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一句话就够了。MirrorNotes 会从你写下的一切中学习。"
           }
         }
       }
@@ -3529,6 +3657,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "引擎"
+          }
+        }
+      }
+    },
+    "Even one line teaches MirrorNotes something." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schon eine Zeile bringt MirrorNotes etwas bei."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Even one line teaches MirrorNotes something."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasta una sola línea le enseña algo a MirrorNotes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même une seule ligne apprend quelque chose à MirrorNotes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anche una sola riga insegna qualcosa a MirrorNotes."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一行だけでもMirrorNotesは何かを学びます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한 줄만 써도 MirrorNotes는 무언가를 배웁니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Até uma única linha ensina algo ao MirrorNotes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Даже одна строка чему-то учит MirrorNotes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪怕只写一行，MirrorNotes 也能从中学到东西。"
           }
         }
       }
@@ -6324,6 +6516,70 @@
         }
       }
     },
+    "Notice patterns in how you think and feel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erkenne Muster in deinem Denken und Fühlen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notice patterns in how you think and feel."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descubre patrones en cómo piensas y sientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repérez des schémas dans vos pensées et vos émotions."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nota gli schemi nel modo in cui pensi e senti."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "考え方や気持ちのパターンに気づく。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "생각과 감정의 패턴을 알아차려요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perceba padrões no que você pensa e sente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замечайте закономерности в мыслях и чувствах."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现自己思考和感受中的规律。"
+          }
+        }
+      }
+    },
     "ON-DEVICE MODEL" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value when the engine isn't recorded.",
       "extractionState" : "manual",
@@ -8209,6 +8465,70 @@
         }
       }
     },
+    "See how you're doing week by week." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sieh Woche für Woche, wie es dir geht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See how you're doing week by week."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira cómo vas semana a semana."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voyez où vous en êtes, semaine après semaine."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda come procedi settimana dopo settimana."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "週ごとの歩みを振り返る。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "주마다 어떻게 지내는지 살펴봐요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veja como você está, semana a semana."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Смотрите, как идут дела, неделя за неделей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一周一周地看看自己的进展。"
+          }
+        }
+      }
+    },
     "Skip back 15 seconds" : {
       "localizations" : {
         "de" : {
@@ -8263,6 +8583,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "后退15秒"
+          }
+        }
+      }
+    },
+    "Skip for now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorerst überspringen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip for now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir por ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer pour l'instant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salta per ora"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今はスキップ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금은 건너뛰기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pular por enquanto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустить пока"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时跳过"
           }
         }
       }
@@ -9587,6 +9971,70 @@
         }
       }
     },
+    "Today felt lighter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute fühlte sich leichter an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today felt lighter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoy se sintió más ligero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aujourd'hui, c'était plus léger."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oggi è stato più leggero."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日は少し軽く感じた。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘은 조금 가벼웠다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoje foi mais leve."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня было легче."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天感觉轻松了些。"
+          }
+        }
+      }
+    },
     "Today, %@" : {
       "localizations" : {
         "de" : {
@@ -10269,6 +10717,70 @@
         }
       }
     },
+    "When should MirrorNotes nudge you?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wann soll MirrorNotes dich erinnern?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When should MirrorNotes nudge you?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuándo debería MirrorNotes avisarte?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand MirrorNotes doit-il vous relancer ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando dovrebbe avvisarti MirrorNotes?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotesはいつあなたに知らせるべきですか?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes가 언제 알려드리면 좋을까요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando o MirrorNotes deve te lembrar?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда MirrorNotes должен вам напоминать?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes 应该在什么时候提醒你？"
+          }
+        }
+      }
+    },
     "Work" : {
       "localizations" : {
         "de" : {
@@ -10381,6 +10893,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要将已勾选的项目自动移到列表底部吗？你可以稍后在设置中更改。"
+          }
+        }
+      }
+    },
+    "Write it out and get a little distance." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreib es dir von der Seele und gewinne etwas Abstand."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write it out and get a little distance."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escríbelo y toma un poco de distancia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettez-le par écrit et prenez un peu de recul."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrivilo e prendi un po' di distanza."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出して、少し距離を置く。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글로 털어놓고 한 걸음 떨어져 봐요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escreva e ganhe um pouco de distância."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выпишите это и посмотрите со стороны."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写下来，和它拉开一点距离。"
           }
         }
       }
@@ -19022,70 +19598,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "已存视图保存搜索和筛选条件。删除它绝不会删除条目。"
-          }
-        }
-      }
-    },
-    "A sentence is enough. Mirror learns from everything you write." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Satz genügt. Mirror lernt aus allem, was du schreibst."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A sentence is enough. Mirror learns from everything you write."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Con una frase basta. Mirror aprende de todo lo que escribes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une phrase suffit. Mirror apprend de tout ce que vous écrivez."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basta anche una sola frase. Mirror impara da tutto ciò che scrivi."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一文だけで十分です。Mirrorはあなたが書くすべてから学びます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "한 문장이면 충분해요. Mirror는 당신이 쓰는 모든 것에서 배웁니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uma frase já basta. O Mirror aprende com tudo o que você escreve."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Достаточно одного предложения. Mirror учится на всём, что вы пишете."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一句话就够了。Mirror 会从你写下的一切中学习。"
           }
         }
       }
@@ -38507,72 +39019,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "错误"
-          }
-        }
-      }
-    },
-    "Even one line teaches Mirror something." : {
-      "comment" : "A description of the benefits of writing.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schon eine Zeile bringt Mirror etwas bei."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Even one line teaches Mirror something."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hasta una sola línea le enseña algo a Mirror."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Même une seule ligne apprend quelque chose à Mirror."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anche una sola riga insegna qualcosa a Mirror."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一行だけでもMirrorは何かを学びます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "한 줄만 써도 Mirror는 무언가를 배웁니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Até uma única linha ensina algo ao Mirror."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Даже одна строка чему-то учит Mirror."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "哪怕只写一行，Mirror 也能从中学到东西。"
           }
         }
       }
@@ -71970,134 +72416,6 @@
         }
       }
     },
-    "Suggested: **Evening** (%@) — best for capturing the full day before it fades." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Empfohlen: **Abend** (%@) — am besten, um den ganzen Tag festzuhalten, bevor er verblasst."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggested: **Evening** (%@) — best for capturing the full day before it fades."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sugerido: **Noche** (%@) — ideal para capturar el día completo antes de que se desvanezca."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggéré : **Soir** (%@) — idéal pour capturer toute la journée avant qu'elle ne s'estompe."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consigliato: **Sera** (%@) — ideale per catturare l'intera giornata prima che svanisca."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "おすすめ：**夜**（%@）― 一日の記憶が薄れる前に全体を書き留めるのに最適です。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "추천: **저녁** (%@) — 하루가 희미해지기 전에 온전히 기록하기 좋아요."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sugerido: **Noite** (%@) — ideal para registrar o dia inteiro antes que ele se apague da memória."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Рекомендовано: **Вечер** (%@) — отлично подходит, чтобы запечатлеть весь день, пока он не забылся."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推荐：**晚上**（%@）—— 最适合在记忆消退前记录完整的一天。"
-          }
-        }
-      }
-    },
-    "Suggested: **Morning** (%@) — great for intention-setting before the day starts." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Empfohlen: **Morgen** (%@) — ideal, um sich vor Tagesbeginn Vorsätze zu setzen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggested: **Morning** (%@) — great for intention-setting before the day starts."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sugerido: **Mañana** (%@) — ideal para marcar intenciones antes de que empiece el día."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggéré : **Matin** (%@) — idéal pour définir vos intentions avant que la journée commence."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consigliato: **Mattina** (%@) — ideale per fissare le intenzioni prima che la giornata inizi."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "おすすめ：**朝**（%@）― 一日を始める前に意図を定めるのに最適です。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "추천: **아침** (%@) — 하루를 시작하기 전에 의도를 정하기 좋아요."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sugerido: **Manhã** (%@) — ótimo para definir intenções antes que o dia comece."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Рекомендовано: **Утро** (%@) — отлично подходит, чтобы задать настрой перед началом дня."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推荐：**早上**（%@）—— 非常适合在一天开始前设定意图。"
-          }
-        }
-      }
-    },
     "Sunday" : {
       "localizations" : {
         "de" : {
@@ -76020,72 +76338,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今天"
-          }
-        }
-      }
-    },
-    "Today felt lighter than—" : {
-      "comment" : "A journal entry describing a user's mood.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heute fühlte sich leichter an als—"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today felt lighter than—"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hoy se sintió más ligero que—"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aujourd'hui semblait plus léger que—"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oggi sembrava più leggero di—"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日はいつもより軽く感じた——"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "오늘은 왠지 더 가볍게 느껴졌다—"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hoje pareceu mais leve do que—"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сегодня было легче, чем—"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今天感觉比往常轻松——"
           }
         }
       }
@@ -86498,70 +86750,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我什么时候感觉最有活力？"
-          }
-        }
-      }
-    },
-    "When should mirror nudge you?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wann soll mirror dich erinnern?"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When should mirror nudge you?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Cuándo debería mirror avisarte?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quand mirror doit-il vous relancer ?"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quando dovrebbe avvisarti mirror?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "mirrorはいつあなたに知らせるべきですか?"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "mirror가 언제 알려드리면 좋을까요?"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quando o mirror deve te lembrar?"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Когда mirror должен вам напоминать?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "mirror 应该在什么时候提醒你？"
           }
         }
       }
