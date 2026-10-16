@@ -42,7 +42,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = ContentView.launchTab  // 0=Entries, 1=Write, 2=Insights
-    @State private var selectedSidebarItem: AppSidebarItem? = ContentView.launchTab == 0 ? .entries : .write
+    @State private var selectedSidebarItem: AppSidebarItem? = ContentView.launchTab == 0 ? .entries : ContentView.launchTab == 2 ? .insights : .write
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
@@ -111,11 +111,12 @@ struct ContentView: View {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
     }
 
-    /// Write, except DEBUG `--initialTab=entries` (headless simulator screenshots,
+    /// Write, except DEBUG `--initialTab=entries`/`=insights` (headless simulator screenshots,
     /// where a mirror:// link would stop at the system's open confirmation).
     private static var launchTab: Int {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=insights") { return 2 }
         #endif
         return 1
     }

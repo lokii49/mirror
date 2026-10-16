@@ -120,4 +120,19 @@ enum MoodLog {
         }
         return count
     }
+
+    /// The mood read most often in `events`. A tie goes to the mood read most recently, so the
+    /// answer doesn't change from launch to launch (a bare `Dictionary.max` picked a tied mood
+    /// by hash order: "Mostly Anxious", then "Mostly Hopeful" on the same week).
+    static func dominantMood(_ events: [MoodEvent]) -> String? {
+        var counts: [String: Int] = [:]
+        var latest: [String: Date] = [:]
+        for event in events {
+            counts[event.mood, default: 0] += 1
+            latest[event.mood] = max(latest[event.mood] ?? .distantPast, event.date)
+        }
+        return counts.max { a, b in
+            a.value != b.value ? a.value < b.value : (latest[a.key] ?? .distantPast) < (latest[b.key] ?? .distantPast)
+        }?.key
+    }
 }

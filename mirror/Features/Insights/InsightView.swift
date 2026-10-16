@@ -572,7 +572,7 @@ struct InsightView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "Today",
-                subtitle: nudgeExpanded ? "Full daily reflection" : "A short read first; expand when you want depth",
+                subtitle: Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day()),
                 icon: "sparkles",
                 color: MirrorTheme.primary
             ) {
@@ -736,11 +736,7 @@ struct InsightView: View {
         .buttonStyle(.plain)
     }
 
-    private var dominantMoodThisWeek: String? {
-        guard !cachedWeekMoodEvents.isEmpty else { return nil }
-        let counts = Dictionary(grouping: cachedWeekMoodEvents, by: { $0.mood }).mapValues { $0.count }
-        return counts.max(by: { $0.value < $1.value })?.key
-    }
+    private var dominantMoodThisWeek: String? { MoodLog.dominantMood(cachedWeekMoodEvents) }
 
     private var daysRemainingInMonth: Int {
         let cal = Calendar.current
@@ -756,12 +752,18 @@ struct InsightView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "This Week",
-                subtitle: digestExpanded ? "Full weekly digest" : "Collapsed so deeper reports stay within reach",
+                subtitle: digestWeekLabel,
                 icon: "calendar.badge.clock",
                 color: .indigo
             )
             digestStatusContent
         }
+    }
+
+    /// "13 – 19 Oct": the digest's Monday–Sunday week (`DateHelpers.digestWeekDays`), not the locale week.
+    private var digestWeekLabel: Text {
+        guard let week = DateHelpers.digestWeekDays(for: Date()) else { return Text(verbatim: "") }
+        return Text(verbatim: (week.monday..<week.sunday).formatted(.interval.month(.abbreviated).day()))
     }
 
     @ViewBuilder
@@ -894,6 +896,7 @@ private struct PastNudgeCard: View {
     /// The day it's about; labelled only when that isn't the day it was made.
     var aboutDay: Date? = nil
     @State private var isExpanded = false
+    @State private var overflows = false
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
@@ -916,9 +919,9 @@ private struct PastNudgeCard: View {
                 .readingFont(size: 15)
                 .lineSpacing(5)
                 .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
-                .lineLimit(isExpanded ? nil : 3)
+                .collapsibleLines(3, isExpanded: isExpanded, overflows: $overflows)
                 .textSelection(.enabled)
-            if insight.content.count > 120 {
+            if overflows {
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                         isExpanded.toggle()
@@ -940,13 +943,13 @@ private struct PastNudgeCard: View {
 
 private struct SectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let subtitle: Text
     /// Sentinel-mode overrides. Sentinel doesn't just re-case the Classic title
     /// (SectionHeader already uppercases it) — some sections are renamed outright
     /// in this mode, the way the tiles under them are (Ask→Comms, etc.). nil =
     /// use the Classic string.
     let sentinelTitle: LocalizedStringKey?
-    let sentinelSubtitle: LocalizedStringKey?
+    let sentinelSubtitle: Text?
     let icon: String
     let color: Color
     var trailing: Trailing
@@ -955,13 +958,27 @@ private struct SectionHeader<Trailing: View>: View {
     private var isSentinel: Bool { displayMode == .sentinel }
 
     private var displayTitle: LocalizedStringKey { isSentinel ? (sentinelTitle ?? title) : title }
-    private var displaySubtitle: LocalizedStringKey { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
+    private var displaySubtitle: Text { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
 
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
         sentinelTitle: LocalizedStringKey? = nil,
         sentinelSubtitle: LocalizedStringKey? = nil,
+        icon: String,
+        color: Color,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.init(title: title, subtitle: Text(subtitle), sentinelTitle: sentinelTitle,
+                  sentinelSubtitle: sentinelSubtitle.map { Text($0) }, icon: icon, color: color, trailing: trailing)
+    }
+
+    /// A subtitle that is already text, such as a formatted date.
+    init(
+        title: LocalizedStringKey,
+        subtitle: Text,
+        sentinelTitle: LocalizedStringKey? = nil,
+        sentinelSubtitle: Text? = nil,
         icon: String,
         color: Color,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
@@ -997,7 +1014,7 @@ private struct SectionHeader<Trailing: View>: View {
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
-                Text(displaySubtitle)
+                displaySubtitle
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
@@ -1027,13 +1044,14 @@ private struct BrainEntryCard: View {
 
     private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
     private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    // Ends at 0.86 of the width so the chevron has clear space (at 0.94 it sat on a dot).
     private static let dots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)] = [
-        (0.68, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
-        (0.84, 0.36, 4, .teal),
-        (0.76, 0.6, 6, .orange),
-        (0.94, 0.5, 3, .red),
-        (0.88, 0.78, 4, .yellow),
-        (0.6, 0.72, 3, .teal),
+        (0.62, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
+        (0.78, 0.36, 4, .teal),
+        (0.70, 0.6, 6, .orange),
+        (0.86, 0.5, 3, .red),
+        (0.82, 0.78, 4, .yellow),
+        (0.56, 0.72, 3, .teal),
     ]
 
     var body: some View {
@@ -1058,8 +1076,11 @@ private struct BrainEntryCard: View {
                 Text("A living map of your people & themes")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 60)
+            // Keeps the text left of the constellation (from 0.56 of the width); at 60 the
+            // subtitle ran across the dots.
+            Spacer(minLength: 112)
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white.opacity(0.4))
@@ -1070,7 +1091,7 @@ private struct BrainEntryCard: View {
             ZStack {
                 Self.bg
                 Canvas { context, size in
-                    let hub = CGPoint(x: size.width * 0.78, y: size.height * 0.5)
+                    let hub = CGPoint(x: size.width * 0.72, y: size.height * 0.5)
                     for dot in Self.dots {
                         let p = CGPoint(x: size.width * dot.x, y: size.height * dot.y)
                         var path = Path()
@@ -1581,7 +1602,15 @@ private struct InsightTextView: View {
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var overflows = false
     private var isSentinel: Bool { displayMode == .sentinel }
+
+    /// The section header above already says the date, so today's card gives the time only.
+    private var stampFormat: Date.FormatStyle {
+        Calendar.current.isDateInToday(insight.generatedAt)
+            ? .dateTime.hour().minute()
+            : .dateTime.month(.abbreviated).day().hour().minute()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1592,7 +1621,7 @@ private struct InsightTextView: View {
                     .tracking(0.8)
                 Spacer()
                 if showSourceButton { InsightSourceButton(insight: insight) }
-                Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                Text(insight.generatedAt, format: stampFormat)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
@@ -1613,10 +1642,11 @@ private struct InsightTextView: View {
                 .readingFont(size: 18)
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .lineLimit(isExpanded ? nil : collapsedLineLimit)
+                .collapsibleLines(collapsedLineLimit, isExpanded: isExpanded, overflows: $overflows)
                 .selectableUnlessSentinel(isSentinel)
 
-            if let onToggleExpanded {
+            // Only when there's more to read: most reflections fit in the collapsed lines.
+            if let onToggleExpanded, overflows {
                 Button(action: onToggleExpanded) {
                     HStack(spacing: 6) {
                         Text(isSentinel
@@ -1660,12 +1690,52 @@ private struct InsightTextView: View {
             Text("\u{201C}")
                 .font(.system(size: 80, weight: .bold, design: .serif))
                 .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
-                .offset(x: -18, y: 8)
+                // Below the header row: higher up, it sat on top of the timestamp.
+                .offset(x: -18, y: 40)
                 .allowsHitTesting(false)
         }
     }
 }
 
+/// Shows `limit` lines until expanded, and reports whether the full text needs more than that,
+/// so a "Read more" control appears only when it would reveal something.
+private struct CollapsibleLines: ViewModifier {
+    let limit: Int
+    let isExpanded: Bool
+    @Binding var overflows: Bool
+    @State private var fullHeight: CGFloat = 0
+    @State private var limitedHeight: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .lineLimit(isExpanded ? nil : limit)
+            .background(alignment: .topLeading) {
+                ZStack(alignment: .topLeading) {
+                    content
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0; update() }
+                    content
+                        .lineLimit(limit)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { limitedHeight = $0; update() }
+                }
+                .hidden()
+                .accessibilityHidden(true)
+            }
+    }
+
+    private func update() {
+        let next = fullHeight > limitedHeight + 1
+        if next != overflows { overflows = next }
+    }
+}
+
+private extension View {
+    func collapsibleLines(_ limit: Int, isExpanded: Bool, overflows: Binding<Bool>) -> some View {
+        modifier(CollapsibleLines(limit: limit, isExpanded: isExpanded, overflows: overflows))
+    }
+}
 
 // MARK: - Mood Week Chart
 
@@ -1689,14 +1759,12 @@ private struct MoodWeekChartView: View {
         }
     }
 
-    private var dominantMood: String? {
-        let counts = Dictionary(grouping: points, by: { $0.mood }).mapValues { $0.count }
-        return counts.max(by: { $0.value < $1.value })?.key
-    }
+    private var dominantMood: String? { MoodLog.dominantMood(events) }
 
-    private var avgScore: Double {
-        guard !points.isEmpty else { return 0 }
-        return points.map { $0.score }.reduce(0, +) / Double(points.count)
+    /// One line point per day, as on the Mood Timeline: two readings on a day drew a vertical
+    /// spike. The dots still show every reading.
+    private var dailyLine: [MoodDayMean] {
+        MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
     }
 
     var body: some View {
@@ -1735,27 +1803,31 @@ private struct MoodWeekChartView: View {
                 }
             }
 
-            Chart(points) { point in
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                .symbolSize(120)
-
-                LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet, MirrorTheme.violetLight],
-                        startPoint: .leading,
-                        endPoint: .trailing
+            Chart {
+                ForEach(dailyLine, id: \.day) { day in
+                    LineMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
                     )
-                )
-                .lineStyle(StrokeStyle(lineWidth: 2))
-                .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet, MirrorTheme.violetLight],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .interpolationMethod(.catmullRom)
+                }
+
+                ForEach(points) { point in
+                    PointMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Mood", point.score)
+                    )
+                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                    .symbolSize(120)
+                }
             }
             .chartYScale(domain: 0...6)
             .chartYAxis {

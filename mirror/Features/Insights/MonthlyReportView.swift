@@ -561,10 +561,9 @@ private struct MonthlyStatsStrip: View {
     }
 
     private var topMood: String? {
-        Dictionary(grouping: entries.compactMap(\.mood), by: { $0 })
-            .mapValues(\.count)
-            .max(by: { $0.value < $1.value })?
-            .key
+        MoodLog.dominantMood(entries.compactMap { entry in
+            entry.mood.map { MoodEvent(id: entry.id, date: entry.createdAt, mood: $0, origin: .entry) }
+        })
     }
 
     private var voiceCount: Int {

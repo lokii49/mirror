@@ -41,3 +41,29 @@ struct MoodChartSeriesTests {
         #expect(MoodChartSeries.dailyMeans([], calendar: calendar).isEmpty)
     }
 }
+
+// "This Week's Mood" said "Mostly Anxious" on one launch and "Mostly Hopeful" on the next for the
+// same readings: a tie was settled by dictionary order. Ties now go to the latest reading.
+@Suite("Dominant mood")
+struct DominantMoodTests {
+    private func event(_ mood: String, _ minutes: Double) -> MoodEvent {
+        MoodEvent(id: UUID(), date: Date(timeIntervalSince1970: 1_800_000_000 + minutes * 60), mood: mood, origin: .entry)
+    }
+
+    @Test func mostFrequentWins() {
+        let events = [event("Calm", 0), event("Anxious", 1), event("Calm", 2), event("Hopeful", 3)]
+        #expect(MoodLog.dominantMood(events) == "Calm")
+    }
+
+    @Test func tieGoesToTheLatestReading_everyTime() {
+        let events = [event("Anxious", 0), event("Hopeful", 1), event("Anxious", 2), event("Hopeful", 3)]
+        for _ in 0..<50 {
+            #expect(MoodLog.dominantMood(events) == "Hopeful")
+            #expect(MoodLog.dominantMood(events.reversed()) == "Hopeful")
+        }
+    }
+
+    @Test func noReadings_noMood() {
+        #expect(MoodLog.dominantMood([]) == nil)
+    }
+}

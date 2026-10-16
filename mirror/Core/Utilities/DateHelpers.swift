@@ -43,6 +43,16 @@ enum DateHelpers {
         return String(format: "%d-W%02d", year, week)
     }
 
+    /// Monday and Sunday (start of day) of the digest week containing `date`, the same
+    /// ISO 8601 week as `digestWeekIdentifier`.
+    static func digestWeekDays(for date: Date) -> (monday: Date, sunday: Date)? {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = Calendar.current.timeZone
+        guard let week = cal.dateInterval(of: .weekOfYear, for: date),
+              let sunday = cal.date(byAdding: .day, value: 6, to: week.start) else { return nil }
+        return (week.start, sunday)
+    }
+
     static func dayIdentifier(for date: Date) -> String {
         let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
