@@ -142,6 +142,28 @@ import Foundation
     var nextWeek: String
 }
 
+// Round 24 W5: "you" instead of "they" in three guides.
+@Generable struct WeeklyDigestD5 {
+    @Guide(description: "One short phrase, 3 to 8 words, that finishes 'A week of' and says what the week was about for them. Not a list of names")
+    var theme: String
+    @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+    var energyQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that moment seems to show you need, hope for or worry about. Do not retell it. Only feelings they wrote or plainly showed")
+    var energyRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+    var buildingQuote: String
+    @Guide(description: "One sentence to the person as 'you': what that might mean for you from here on. Do not retell it. Say nothing about anything they did not write")
+    var buildingRead: String
+    @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be costing them or wearing on them")
+    var watchQuote: String
+    @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on and why it matters to you. Say nothing about anything they did not write")
+    var watchRead: String
+    @Guide(description: "One small thing they could do in the next few days, using a person, task or thing they named this week")
+    var boost: String
+    @Guide(description: "One kind, practical sentence for next week about something they wrote is coming up or still unfinished")
+    var nextWeek: String
+}
+
 // Round 17 W4: next week and boost guides changed.
 @Generable struct WeeklyDigestD4 {
     @Guide(description: "One short phrase, 3 to 8 words, that finishes 'A week of' and says what the week was about for them. Not a list of names")
@@ -486,7 +508,7 @@ func emit(_ obj: [String: Any]) {
                     } else {
                         rec["fallback"] = true
                     }
-                case "digest_d1", "digest_d2", "digest_d3", "digest_d4":
+                case "digest_d1", "digest_d2", "digest_d3", "digest_d4", "digest_d5":
                     // Round 15. W1: an attempt shows only when all six sections pass in it. W2: each section
                     // comes from the first attempt where it passes (FMDigestGuard.merge). At most 3 attempts.
                     let sources = weekSources(user)
@@ -499,6 +521,11 @@ func emit(_ obj: [String: Any]) {
                         let d: FMDigestGuard.Draft
                         if variant == "digest_d1" {
                             let r = try await session.respond(to: user, generating: WeeklyDigestD1.self, options: opts).content
+                            d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+                                                    buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+                                                    watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
+                        } else if variant == "digest_d5" {
+                            let r = try await session.respond(to: user, generating: WeeklyDigestD5.self, options: opts).content
                             d = FMDigestGuard.Draft(theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
                                                     buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
                                                     watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek)
@@ -527,7 +554,7 @@ func emit(_ obj: [String: Any]) {
                         shown = FMDigestGuard.merge(drafts, sources: sources)
                         if shown != nil { break }
                     }
-                    if shown == nil, variant == "digest_d3" || variant == "digest_d4", let a = FMDigestGuard.assemble(drafts, sources: sources) {
+                    if shown == nil, variant == "digest_d3" || variant == "digest_d4" || variant == "digest_d5", let a = FMDigestGuard.assemble(drafts, sources: sources) {
                         shown = a.verified
                         rec["fixed"] = a.fixed.map(\.rawValue)
                     }

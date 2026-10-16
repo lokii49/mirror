@@ -814,3 +814,23 @@ Pass -> ship both. Fail -> owner.
   sections 49 -> 88 of 600 (8% -> 15%) and 39 -> 43 of 240 (16% -> 18%): under the interim's 25%, but higher, so G2
   as written misses. Cause found: W3's own guide says "what that moment seems to show they need", and the model
   copies "they"; a "you" wording needs a model round. To the owner.
+
+## Round 24: W5 = W3 with "you" instead of "they" in the prompt (plan fixed BEFORE running, 2026-10-16)
+Owner shipped round 23 and asked for the wording fix. **Change, nothing else**: in `system_digest_d3.txt` and
+WeeklyDigestD3's guides, "seems to show they need" -> "seems to show you need", "what that might mean for them" ->
+"for you", "why it matters to them" -> "to you" (`system_digest_d5.txt`, `WeeklyDigestD5`). Guard = round 23's.
+**Cases**: round 15's 10 weeks + round 17's 5 held-out weeks, N = 10. **Gates**: G1 app-fixed sections no higher
+than W3's before round 23 (8% original, 16% held-out); G2 blind invented-section rate not above W3's (9.5% original,
+7.9% held-out; round 16/18 scorer prompt), 3 scorers. Pass -> W5 replaces W3 in the app. Fail -> W3 stays.
+
+### Round 24 result (2026-10-16, W5, 15 weeks x 10, blind-scored by 3 scorers): both gates missed by about a point
+| | app-fixed | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|
+| W3 + round-23 guard (shipped), original weeks | 15% | (not re-scored) | | |
+| W3 (round 16 / 18 scores), original / held-out | 8% / 16% | 9.5% / 7.9% | 7 / 10 | 0.25 / 0.20 |
+| **W5, original / held-out** | **9% / 12%** | **6.3% / 8.8%** | 4 / 1 | 0.26 / 0.27 |
+
+- G1: 9% vs the 8% bar on the original weeks (missed by 1 point); held-out 12% vs 16% (met).
+- G2: original weeks 6.3% vs 9.5% (better); held-out 8.8% vs 7.9% (worse by 0.9 points). ho_move refused 10/10 again.
+- Against what ships today (W3 + round-23 guard, 15% app-fixed), W5 cuts app-written sections by about 40%.
+Goes to the owner.
