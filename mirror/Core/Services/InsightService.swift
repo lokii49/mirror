@@ -1295,6 +1295,12 @@ enum InsightService {
         localized: "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese."
     )
 
+    /// The notice as the card shows it: the saved text (which lists the languages and must stay matchable), then
+    /// what to do about it. Display only; nothing is saved with the hint.
+    static func unsupportedLanguageCardMessage(_ notice: String) -> String {
+        notice + "\n\n" + String(localized: "For now, write your entries in one of these languages to get reflections.")
+    }
+
     static func isUnsupportedLanguageNotice(_ content: String) -> Bool {
         unsupportedLanguageNoticeTexts.contains(content)
     }
@@ -4028,12 +4034,34 @@ struct GroundedLocale {
     let partsLabel: String
     /// Two question templates; `{quote}` becomes `open` + the picked phrase + `close`.
     let followUpQuestion: [String]
+    /// Two more versions of the monthly image, tension and question per mood, and of the lines after the moment and
+    /// the heavy quote, rotated by month with the originals (`monthlyText(month:)`). `becomingSuffix` and
+    /// `releaseFallback` don't rotate: saved reports are recognized by them (`systemPrompt(for:)`).
+    let monthImageMore: [GroundedMoodBucket: [String]]
+    let monthTensionMore: [GroundedMoodBucket: [String]]
+    let monthQuestionMore: [GroundedMoodBucket: [String]]
+    let momentSuffixMore: [String]
+    let releaseSuffixMore: [String]
 
-    var monthlyText: GroundedMonthlyText {
-        GroundedMonthlyText(
-            open: open, close: close, joiner: joiner, monthImage: monthImage, monthTension: monthTension,
-            monthQuestion: monthQuestion, momentLead: momentLead, momentSuffix: momentSuffix,
-            becomingSuffix: becomingSuffix, releaseSuffix: releaseSuffix, releaseFallback: releaseFallback
+    /// The monthly report's fixed lines for calendar `month` (1-12): the original in months 1, 4, 7, 10 and the two
+    /// alternates in the months after, so a month never reads like the one before it.
+    func monthlyText(month: Int) -> GroundedMonthlyText {
+        let k = max(0, month - 1) % 3
+        func pick(_ base: [GroundedMoodBucket: String], _ more: [GroundedMoodBucket: [String]]) -> [GroundedMoodBucket: String] {
+            guard k > 0 else { return base }
+            return base.reduce(into: [:]) { out, item in
+                let alternates = more[item.key] ?? []
+                out[item.key] = alternates.indices.contains(k - 1) ? alternates[k - 1] : item.value
+            }
+        }
+        return GroundedMonthlyText(
+            open: open, close: close, joiner: joiner,
+            monthImage: pick(monthImage, monthImageMore), monthTension: pick(monthTension, monthTensionMore),
+            monthQuestion: pick(monthQuestion, monthQuestionMore), momentLead: momentLead,
+            momentSuffix: k > 0 && momentSuffixMore.indices.contains(k - 1) ? momentSuffixMore[k - 1] : momentSuffix,
+            becomingSuffix: becomingSuffix,
+            releaseSuffix: k > 0 && releaseSuffixMore.indices.contains(k - 1) ? releaseSuffixMore[k - 1] : releaseSuffix,
+            releaseFallback: releaseFallback
         )
     }
 }
@@ -4075,7 +4103,12 @@ extension InsightService {
             releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut.",
             pickFollowUp: "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
             partsLabel: "Teile des Eintrags:",
-            followUpQuestion: ["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"]
+            followUpQuestion: ["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"],
+            monthImageMore: [.tired: ["Ein Handy auf zwei Prozent, das trotzdem klingelt.", "Eine lange Straße ohne Rastplatz."], .stressed: ["Ein Schreibtisch unter einem Berg Papier.", "Ein Wasserkessel, der nicht aufhört zu pfeifen."], .sad: ["Ein Zimmer mit noch zugezogenen Vorhängen.", "Ein Lied, das leise in einem anderen Zimmer läuft."], .good: ["Ein Garten, in dem die ersten Triebe kommen.", "Ein Weg, der sich immer leichter gehen ließ."], .neutral: ["Ebbe und Flut.", "Eine belebte Straße mit einer ruhigen Ecke."]],
+            monthTensionMore: [.tired: ["Zwischen dem Versuch, mit allem Schritt zu halten, und der Zeit, die du zum Erholen brauchst.", "Zwischen dem, was du durchziehst, und dem, was du ablegen müsstest."], .stressed: ["Zwischen dem Druck dessen, was fällig ist, und dem Tempo, das du halten kannst.", "Zwischen dem Zusammenhalten von allem und der Bitte um Hilfe."], .sad: ["Zwischen dem Weitermachen wie immer und dem Raum für das, was du fühlst.", "Zwischen dem, was schwer wiegt, und dem, was dich noch trägt."], .good: ["Zwischen der Freude an dieser Zeit und dem Planen, was als Nächstes kommt.", "Zwischen dem Guten, das wächst, und der Zeit, die es braucht."], .neutral: ["Zwischen den ruhigen Tagen und denen, die an dir gezerrt haben.", "Zwischen dem, was du bewältigst, und dem, wovon du gern mehr hättest."]],
+            monthQuestionMore: [.tired: ["Wozu könntest du im nächsten Monat einmal Nein sagen?", "Wann hast du dich diesen Monat am besten erholt, und wie könntest du mehr davon haben?"], .stressed: ["Was würde den nächsten Monat ein kleines bisschen leichter machen?", "Wen könntest du im nächsten Monat bei einer Sache um Hilfe bitten?"], .sad: ["Was Kleines könntest du im nächsten Monat für dich tun?", "Wem möchtest du im nächsten Monat näher sein?"], .good: ["Was hat diesen Monat gut gemacht, und wie kannst du es schützen?", "Was möchtest du im nächsten Monat weiter tun?"], .neutral: ["Von welchen Tagen dieses Monats möchtest du mehr?", "Was soll der nächste Monat für dich bereithalten?"]],
+            momentSuffixMore: ["Dieser Moment scheint dich begleitet zu haben.", "Kleine Momente wie dieser können einen ganzen Monat verändern."],
+            releaseSuffixMore: ["Vielleicht musst du das nicht allein tragen.", "Vielleicht kannst du einiges davon im nächsten Monat ablegen."]
         ),
         "es": GroundedLocale(
             open: "“",
@@ -4112,7 +4145,12 @@ extension InsightService {
             releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien.",
             pickFollowUp: "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
             partsLabel: "Partes de la entrada:",
-            followUpQuestion: ["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"]
+            followUpQuestion: ["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"],
+            monthImageMore: [.tired: ["Un móvil al dos por ciento que no deja de sonar.", "Una carretera larga sin un sitio donde parar."], .stressed: ["Un escritorio enterrado bajo papeles.", "Una tetera que no deja de silbar."], .sad: ["Una habitación con las cortinas todavía cerradas.", "Una canción sonando bajito en otra habitación."], .good: ["Un jardín que empieza a brotar.", "Un camino que cada vez costaba menos andar."], .neutral: ["Una marea que sube y baja.", "Una calle llena de gente con un rincón tranquilo."]],
+            monthTensionMore: [.tired: ["Entre llegar a todo y encontrar tiempo para recuperarte.", "Entre lo que sacas adelante a pulso y lo que necesitas soltar."], .stressed: ["Entre la presión de lo que vence y el ritmo que puedes mantener.", "Entre sostenerlo todo y pedir ayuda."], .sad: ["Entre seguir como siempre y hacer espacio para lo que sientes.", "Entre lo que pesa y lo que todavía te sostiene."], .good: ["Entre disfrutar esta racha y planear lo que viene.", "Entre lo bueno que crece y el tiempo que necesita."], .neutral: ["Entre los días tranquilos y los que tiraron de ti.", "Entre lo que llevas al día y aquello de lo que te gustaría más."]],
+            monthQuestionMore: [.tired: ["¿A qué podrías decir que no el próximo mes?", "¿Cuándo descansaste mejor este mes y cómo podrías tener más de eso?"], .stressed: ["¿Qué haría que el próximo mes se sintiera un poco más ligero?", "¿A quién podrías pedirle ayuda con una cosa el próximo mes?"], .sad: ["¿Qué pequeño gesto podrías tener contigo el próximo mes?", "¿De quién te gustaría estar más cerca el próximo mes?"], .good: ["¿Qué hizo bueno este mes y cómo podrías cuidarlo?", "¿Qué quieres seguir haciendo el próximo mes?"], .neutral: ["¿De qué días de este mes te gustaría tener más?", "¿Qué te gustaría que trajera el próximo mes?"]],
+            momentSuffixMore: ["Parece que ese momento se quedó contigo.", "Momentos pequeños como ese pueden cambiar un mes entero."],
+            releaseSuffixMore: ["Quizás no tienes que cargar con esto sin ayuda.", "Quizás parte de esto pueda quedarse atrás el próximo mes."]
         ),
         "fr": GroundedLocale(
             open: "«\u{00A0}",
@@ -4149,7 +4187,12 @@ extension InsightService {
             releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien.",
             pickFollowUp: "Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
             partsLabel: "Parties de l'entrée\u{00A0}:",
-            followUpQuestion: ["Qu'est-ce qui se cache derrière {quote}\u{00A0}?", "Tu veux en dire plus sur {quote}\u{00A0}?"]
+            followUpQuestion: ["Qu'est-ce qui se cache derrière {quote}\u{00A0}?", "Tu veux en dire plus sur {quote}\u{00A0}?"],
+            monthImageMore: [.tired: ["Un téléphone à deux pour cent qui sonne encore.", "Une longue route sans aire de repos."], .stressed: ["Un bureau enseveli sous les papiers.", "Une bouilloire qui n'arrête pas de siffler."], .sad: ["Une chambre aux rideaux encore tirés.", "Une chanson qui joue doucement dans une autre pièce."], .good: ["Un jardin qui commence à pousser.", "Un chemin de plus en plus facile à suivre."], .neutral: ["Une marée qui monte et descend.", "Une rue animée avec un coin calme."]],
+            monthTensionMore: [.tired: ["Entre suivre le rythme de tout et trouver le temps de récupérer.", "Entre ce que tu tiens à bout de bras et ce que tu aurais besoin de poser."], .stressed: ["Entre la pression de ce qui est dû et le rythme que tu peux tenir.", "Entre tout tenir ensemble et demander de l'aide."], .sad: ["Entre continuer comme d'habitude et faire de la place à ce que tu ressens.", "Entre ce qui pèse et ce qui te porte encore."], .good: ["Entre profiter de cette période et préparer la suite.", "Entre les belles choses qui grandissent et le temps qu'il leur faut."], .neutral: ["Entre les jours calmes et ceux qui t'ont tiré dans tous les sens.", "Entre ce que tu gères et ce dont tu aimerais davantage."]],
+            monthQuestionMore: [.tired: ["À quoi pourrais-tu dire non le mois prochain\u{00A0}?", "Quels moments de repos t'ont fait du bien ce mois-ci, et comment en avoir plus\u{00A0}?"], .stressed: ["Qu'est-ce qui rendrait le mois prochain un peu plus léger\u{00A0}?", "À qui pourrais-tu demander de l'aide pour une chose le mois prochain\u{00A0}?"], .sad: ["Quelle petite chose pourrais-tu faire pour toi le mois prochain\u{00A0}?", "De qui aimerais-tu te rapprocher le mois prochain\u{00A0}?"], .good: ["Qu'est-ce qui a rendu ce mois agréable, et comment le préserver\u{00A0}?", "Qu'est-ce que tu veux continuer à faire le mois prochain\u{00A0}?"], .neutral: ["De quels jours de ce mois aimerais-tu en avoir plus\u{00A0}?", "Qu'aimerais-tu que le mois prochain t'apporte\u{00A0}?"]],
+            momentSuffixMore: ["Ce moment semble être resté avec toi.", "De petits moments comme celui-là peuvent changer tout un mois."],
+            releaseSuffixMore: ["Tu n'as peut-être pas à porter ça sans aide.", "Une partie de tout ça peut peut-être être posée le mois prochain."]
         ),
         "it": GroundedLocale(
             open: "“",
@@ -4186,7 +4229,12 @@ extension InsightService {
             releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene.",
             pickFollowUp: "Copia parola per parola la parte della voce del diario su cui la persona vorrebbe scrivere di più: un sentimento, una preoccupazione o qualcosa che le è successo. Scrivi solo quella parte.",
             partsLabel: "Parti della voce:",
-            followUpQuestion: ["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"]
+            followUpQuestion: ["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"],
+            monthImageMore: [.tired: ["Un telefono al due per cento che continua a squillare.", "Una lunga strada senza un'area di sosta."], .stressed: ["Una scrivania sommersa dalle carte.", "Un bollitore che non smette di fischiare."], .sad: ["Una stanza con le tende ancora tirate.", "Una canzone che suona piano in un'altra stanza."], .good: ["Un giardino che inizia a germogliare.", "Un sentiero sempre più facile da percorrere."], .neutral: ["Una marea che sale e scende.", "Una strada affollata con un angolo tranquillo."]],
+            monthTensionMore: [.tired: ["Tra stare dietro a tutto e trovare il tempo per riprenderti.", "Tra ciò che porti avanti a fatica e ciò che avresti bisogno di posare."], .stressed: ["Tra la pressione delle scadenze e il ritmo che riesci a tenere.", "Tra tenere tutto insieme e chiedere aiuto."], .sad: ["Tra andare avanti come sempre e fare spazio a ciò che senti.", "Tra ciò che pesa e ciò che ancora ti sostiene."], .good: ["Tra il goderti questo periodo e il pensare a cosa verrà.", "Tra le cose belle che crescono e il tempo che serve loro."], .neutral: ["Tra i giorni tranquilli e quelli che ti hanno tirato da ogni parte.", "Tra ciò che riesci a gestire e ciò di cui vorresti di più."]],
+            monthQuestionMore: [.tired: ["A cosa potresti dire di no il mese prossimo?", "Quali momenti di riposo ti hanno fatto bene questo mese, e come averne di più?"], .stressed: ["Cosa renderebbe il mese prossimo anche solo un po' più leggero?", "A chi potresti chiedere aiuto per una cosa il mese prossimo?"], .sad: ["Quale piccola cosa potresti fare per te il mese prossimo?", "Con chi vorresti avere più contatto il mese prossimo?"], .good: ["Cosa ha reso buono questo mese, e come potresti proteggerlo?", "Cosa vuoi continuare a fare il mese prossimo?"], .neutral: ["Di quali giorni di questo mese vorresti averne di più?", "Cosa vorresti che portasse il mese prossimo?"]],
+            momentSuffixMore: ["Sembra che quel momento ti sia rimasto dentro.", "Piccoli momenti così possono cambiare un mese intero."],
+            releaseSuffixMore: ["Forse non devi portare tutto questo senza aiuto.", "Forse una parte di questo può restare indietro il mese prossimo."]
         ),
         "pt": GroundedLocale(
             open: "“",
@@ -4223,7 +4271,12 @@ extension InsightService {
             releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você.",
             pickFollowUp: "Copie palavra por palavra a parte da entrada do diário sobre a qual a pessoa mais gostaria de escrever: um sentimento, uma preocupação ou algo que aconteceu com ela. Escreva só essa parte.",
             partsLabel: "Partes da entrada:",
-            followUpQuestion: ["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"]
+            followUpQuestion: ["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"],
+            monthImageMore: [.tired: ["Um celular com dois por cento de bateria, ainda tocando.", "Uma estrada longa sem nenhum lugar para parar."], .stressed: ["Uma mesa soterrada de papéis.", "Uma chaleira que não para de apitar."], .sad: ["Um quarto com as cortinas ainda fechadas.", "Uma música tocando baixinho em outro cômodo."], .good: ["Um jardim começando a brotar.", "Um caminho cada vez mais fácil de seguir."], .neutral: ["Uma maré que sobe e desce.", "Uma rua movimentada com um cantinho tranquilo."]],
+            monthTensionMore: [.tired: ["Entre dar conta de tudo e encontrar tempo para se recuperar.", "Entre o que você leva no braço e o que precisaria deixar de lado."], .stressed: ["Entre a pressão dos prazos e o ritmo que você consegue manter.", "Entre segurar tudo e pedir ajuda."], .sad: ["Entre seguir como sempre e abrir espaço para o que você sente.", "Entre o que pesa e o que ainda te sustenta."], .good: ["Entre aproveitar esta fase e planejar o que vem depois.", "Entre as coisas boas que crescem e o tempo de que elas precisam."], .neutral: ["Entre os dias tranquilos e os que puxaram você para todos os lados.", "Entre o que você dá conta e aquilo de que gostaria de ter mais."]],
+            monthQuestionMore: [.tired: ["Para o que você poderia dizer não no próximo mês?", "Que momentos de descanso fizeram bem a você este mês, e como ter mais deles?"], .stressed: ["O que deixaria o próximo mês um pouquinho mais leve?", "A quem você poderia pedir ajuda com uma coisa no próximo mês?"], .sad: ["Que coisa pequena você poderia fazer por você no próximo mês?", "De quem você gostaria de estar mais perto no próximo mês?"], .good: ["O que fez este mês ser bom, e como você poderia proteger isso?", "O que você quer continuar fazendo no próximo mês?"], .neutral: ["De quais dias deste mês você gostaria de ter mais?", "O que você gostaria que o próximo mês trouxesse?"]],
+            momentSuffixMore: ["Esse momento parece ter ficado com você.", "Pequenos momentos assim podem mudar um mês inteiro."],
+            releaseSuffixMore: ["Talvez você não precise carregar isso sem ajuda.", "Talvez parte disso possa ficar para trás no próximo mês."]
         ),
         "ru": GroundedLocale(
             open: "«",
@@ -4260,7 +4313,12 @@ extension InsightService {
             releaseFallback: "Похоже, в этом месяце нет ничего, что нужно отпустить, — продолжай замечать, что тебе помогает.",
             pickFollowUp: "Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
             partsLabel: "Части записи:",
-            followUpQuestion: ["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"]
+            followUpQuestion: ["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"],
+            monthImageMore: [.tired: ["Телефон на двух процентах, который всё ещё звонит.", "Длинная дорога без единой остановки."], .stressed: ["Стол, заваленный бумагами.", "Чайник, который никак не перестаёт свистеть."], .sad: ["Комната с всё ещё задёрнутыми шторами.", "Песня, тихо звучащая в другой комнате."], .good: ["Сад, в котором начинают появляться всходы.", "Дорога, по которой идти становилось всё легче."], .neutral: ["Прилив и отлив.", "Шумная улица с одним тихим уголком."]],
+            monthTensionMore: [.tired: ["Между тем, чтобы всё успевать, и временем, чтобы восстановиться.", "Между тем, что ты тянешь через силу, и тем, что пора бы отложить."], .stressed: ["Между давлением сроков и темпом, который ты можешь выдержать.", "Между тем, чтобы держать всё на себе, и просьбой о помощи."], .sad: ["Между тем, чтобы жить как обычно, и местом для того, что ты чувствуешь.", "Между тем, что тяготит, и тем, что ещё держит тебя."], .good: ["Между радостью от этого периода и мыслями о том, что дальше.", "Между хорошим, что растёт, и временем, которое ему нужно."], .neutral: ["Между спокойными днями и теми, что тянули тебя в разные стороны.", "Между тем, с чем ты справляешься, и тем, чего хотелось бы больше."]],
+            monthQuestionMore: [.tired: ["Чему можно было бы сказать «нет» в следующем месяце?", "Какие моменты отдыха в этом месяце помогли тебе, и как сделать их больше?"], .stressed: ["Что сделало бы следующий месяц хоть немного легче?", "Кого можно было бы попросить о помощи с одним делом в следующем месяце?"], .sad: ["Что маленькое можно сделать для себя в следующем месяце?", "С кем хотелось бы быть ближе в следующем месяце?"], .good: ["Что сделало этот месяц хорошим и как это сберечь?", "Что хочется продолжать делать в следующем месяце?"], .neutral: ["Каких дней из этого месяца хотелось бы больше?", "Чего ты ждёшь от следующего месяца?"]],
+            momentSuffixMore: ["Похоже, этот момент остался с тобой.", "Такие маленькие моменты могут изменить целый месяц."],
+            releaseSuffixMore: ["Может быть, это не нужно нести в одиночку.", "Может быть, что-то из этого можно оставить позади в следующем месяце."]
         ),
         "ja": GroundedLocale(
             open: "「",
@@ -4297,7 +4355,12 @@ extension InsightService {
             releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。",
             pickFollowUp: "この日記の中から、書いた人がいちばん詳しく書きたいと思いそうな部分（気持ち、心配ごと、または起きた出来事）をそのまま書き写してください。その部分だけを出力してください。",
             partsLabel: "日記の各部分：",
-            followUpQuestion: ["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"]
+            followUpQuestion: ["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"],
+            monthImageMore: [.tired: ["残り2%なのに鳴り続けるスマホ。", "休憩所のない長い道。"], .stressed: ["書類に埋もれた机。", "鳴りやまないやかん。"], .sad: ["カーテンが閉じたままの部屋。", "隣の部屋で静かに流れる歌。"], .good: ["芽が出はじめた庭。", "だんだん歩きやすくなっていく道。"], .neutral: ["満ち引きを繰り返す潮。", "にぎやかな通りの、静かな一角。"]],
+            monthTensionMore: [.tired: ["すべてについていくことと、回復する時間を見つけることとのあいだ。", "無理して続けていることと、手放したほうがいいこととのあいだ。"], .stressed: ["締め切りのプレッシャーと、保てるペースとのあいだ。", "すべてを一人で支えることと、助けを求めることとのあいだ。"], .sad: ["いつもどおりに過ごすことと、自分の気持ちに場所をつくることとのあいだ。", "重く感じるものと、まだ支えてくれているものとのあいだ。"], .good: ["この時期を楽しむことと、次のことを考えることとのあいだ。", "育っているいいことと、それに必要な時間とのあいだ。"], .neutral: ["穏やかな日々と、あちこちに引っぱられた日々とのあいだ。", "こなせていることと、もっと増やしたいこととのあいだ。"]],
+            monthQuestionMore: [.tired: ["来月、断ってもいいことは何でしょうか？", "今月いちばん休めたのはいつでしたか？それを増やすにはどうしたらいいでしょう？"], .stressed: ["来月を少しでも軽くしてくれるものは何でしょうか？", "来月、一つのことで助けを頼めそうな人はいますか？"], .sad: ["来月、自分のためにできる小さなことは何でしょうか？", "来月、もっと近くにいたい人は誰ですか？"], .good: ["今月をいい月にしたのは何でしたか？それをどう守れるでしょう？", "来月も続けたいことは何ですか？"], .neutral: ["今月のどんな日を、もっと増やしたいですか？", "来月はどんな月になってほしいですか？"]],
+            momentSuffixMore: ["――その瞬間は、今も心に残っているようです。", "――こんな小さな瞬間が、ひと月を変えることもあります。"],
+            releaseSuffixMore: ["――これは一人で抱えなくてもいいのかもしれません。", "――来月は、このうちの少しを置いていけるかもしれません。"]
         ),
         "ko": GroundedLocale(
             open: "“",
@@ -4334,7 +4397,12 @@ extension InsightService {
             releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요.",
             pickFollowUp: "이 일기에서 쓴 사람이 가장 더 이야기하고 싶어 할 부분(감정, 걱정, 또는 있었던 일)을 그대로 옮겨 적어 주세요. 그 부분만 출력하세요.",
             partsLabel: "일기의 부분:",
-            followUpQuestion: ["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"]
+            followUpQuestion: ["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"],
+            monthImageMore: [.tired: ["배터리 2%인데도 계속 울리는 휴대폰.", "쉴 곳 없는 긴 길."], .stressed: ["서류 더미에 파묻힌 책상.", "멈추지 않고 우는 주전자."], .sad: ["아직 커튼이 쳐진 방.", "다른 방에서 조용히 흘러나오는 노래."], .good: ["싹이 트기 시작한 정원.", "걸을수록 점점 쉬워진 길."], .neutral: ["밀려왔다 빠져나가는 바닷물.", "북적이는 거리의 조용한 한구석."]],
+            monthTensionMore: [.tired: ["모든 걸 따라잡는 것과 회복할 시간을 찾는 것 사이.", "버티며 해내는 일과 내려놓아야 할 일 사이."], .stressed: ["마감의 압박과 지킬 수 있는 속도 사이.", "모든 걸 혼자 붙잡는 것과 도움을 청하는 것 사이."], .sad: ["평소처럼 지내는 것과 마음에 자리를 내주는 것 사이.", "무겁게 느껴지는 것과 아직 붙잡아 주는 것 사이."], .good: ["지금 이 시기를 누리는 것과 다음을 계획하는 것 사이.", "자라나는 좋은 것들과 그것에 필요한 시간 사이."], .neutral: ["잔잔한 날들과 이리저리 끌려다닌 날들 사이.", "해내고 있는 것과 더 갖고 싶은 것 사이."]],
+            monthQuestionMore: [.tired: ["다음 달에는 무엇에 '아니요'라고 말할 수 있을까요?", "이번 달 가장 잘 쉬었던 때는 언제였나요? 그런 시간을 어떻게 더 늘릴 수 있을까요?"], .stressed: ["다음 달을 조금이라도 가볍게 해 줄 건 무엇일까요?", "다음 달에 한 가지 일로 도움을 청할 수 있는 사람이 있을까요?"], .sad: ["다음 달에 자신을 위해 할 수 있는 작은 일은 무엇일까요?", "다음 달에 더 가까워지고 싶은 사람은 누구인가요?"], .good: ["무엇이 이번 달을 좋은 달로 만들었나요? 그걸 어떻게 지킬 수 있을까요?", "다음 달에도 계속하고 싶은 일은 무엇인가요?"], .neutral: ["이번 달의 어떤 날들이 더 많았으면 하나요?", "다음 달은 어떤 달이었으면 하나요?"]],
+            momentSuffixMore: ["그 순간이 마음에 남아 있는 것 같아요.", "이런 작은 순간이 한 달 전체를 바꾸기도 해요."],
+            releaseSuffixMore: ["이건 혼자 짊어지지 않아도 될지 몰라요.", "다음 달에는 이 중 일부를 내려놓을 수 있을지도 몰라요."]
         ),
         "zh": GroundedLocale(
             open: "“",
@@ -4371,7 +4439,12 @@ extension InsightService {
             releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。",
             pickFollowUp: "请从这篇日记中，把作者最想多写一些的那一部分（一种感受、一个担心，或发生在他们身上的事）原样抄写下来。只输出这一部分。",
             partsLabel: "日记的各部分：",
-            followUpQuestion: ["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"]
+            followUpQuestion: ["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"],
+            monthImageMore: [.tired: ["电量只剩2%却还在响的手机。", "一条没有休息站的长路。"], .stressed: ["被文件淹没的书桌。", "一直响个不停的水壶。"], .sad: ["窗帘还拉着的房间。", "隔壁房间里轻轻放着的一首歌。"], .good: ["开始冒芽的花园。", "越走越顺的一条路。"], .neutral: ["涨了又退的潮水。", "热闹街道上一个安静的角落。"]],
+            monthTensionMore: [.tired: ["在跟上所有事和找时间恢复之间。", "在你硬撑着做的事和需要放下的事之间。"], .stressed: ["在截止日期的压力和你能维持的节奏之间。", "在独自撑起一切和开口求助之间。"], .sad: ["在照常生活和给自己的感受留出空间之间。", "在让你感到沉重的事和仍在支撑你的事之间。"], .good: ["在享受这段时光和计划接下来之间。", "在正在生长的美好和它需要的时间之间。"], .neutral: ["在平静的日子和把你拉向四面八方的日子之间。", "在你能应付的事和你想要更多的事之间。"]],
+            monthQuestionMore: [.tired: ["下个月，有什么事你可以拒绝？", "这个月你什么时候休息得最好？怎样才能多一些这样的时候？"], .stressed: ["什么能让下个月轻松一点点？", "下个月，有一件事你可以找谁帮忙？"], .sad: ["下个月，你能为自己做的一件小事是什么？", "下个月，你想和谁更亲近一些？"], .good: ["是什么让这个月变得美好？你可以怎样守护它？", "下个月你想继续做什么？"], .neutral: ["这个月的哪些日子，你希望能更多一些？", "你希望下个月是什么样的？"]],
+            momentSuffixMore: ["那个时刻似乎一直留在你心里。", "像这样的小时刻，可能会改变整个月。"],
+            releaseSuffixMore: ["也许这件事不必一个人扛。", "也许下个月可以把其中一部分放下。"]
         ),
     ]
 
@@ -4658,7 +4731,8 @@ extension InsightService {
     /// `releaseFallback`. Options are taken round-robin across the month, like the English path.
     static func localizedGroundedMonthly(monthEntries: [Entry]) -> LocalizedGrounded? {
         guard let code = groundedLocaleCode(for: monthEntries), let loc = groundedLocales[code] else { return nil }
-        guard let parts = groundedMonthlyParts(monthEntries: monthEntries, code: code, text: loc.monthlyText) else {
+        let month = Calendar.current.component(.month, from: monthEntries.map(\.createdAt).max() ?? Date())
+        guard let parts = groundedMonthlyParts(monthEntries: monthEntries, code: code, text: loc.monthlyText(month: month)) else {
             return LocalizedGrounded(plan: .unsuitable, validator: nil)
         }
         let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }

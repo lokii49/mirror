@@ -4281,6 +4281,64 @@
         }
       }
     },
+    "For now, write your entries in one of these languages to get reflections." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreib deine Einträge vorerst in einer dieser Sprachen, um Reflexionen zu bekommen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por ahora, escribe tus entradas en uno de estos idiomas para recibir reflexiones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour l'instant, écris tes entrées dans l'une de ces langues pour recevoir des réflexions."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per ora, scrivi le tue voci in una di queste lingue per ricevere le riflessioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今のところ、リフレクションを受け取るには、これらの言語のいずれかで書いてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금은 이 언어 중 하나로 일기를 쓰면 리플렉션을 받을 수 있어요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por enquanto, escreva suas entradas em um destes idiomas para receber reflexões."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока что пиши записи на одном из этих языков, чтобы получать рефлексии."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前，请用这些语言之一写日记，即可收到反思。"
+          }
+        }
+      }
+    },
     "Found by meaning" : {
       "localizations" : {
         "de" : {

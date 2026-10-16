@@ -208,7 +208,7 @@ struct MonthlyReportView: View {
                 ModelNotInstalledCard()
             case .groundingFallback(let insight) where InsightService.isUnsupportedLanguageNotice(insight.content):
                 // Retrying can't help: say which languages work, with no "Try Again".
-                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: insight.content)
+                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: InsightService.unsupportedLanguageCardMessage(insight.content))
             case .groundingFallback(let insight):
                 groundingFallbackCard(message: insight.content) {
                     // Instant feedback — generation gives no progress callback of its

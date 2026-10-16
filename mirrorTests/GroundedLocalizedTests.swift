@@ -177,7 +177,8 @@ extension SharedLLMState {
             let loc = try #require(InsightService.groundedLocales[code])
             #expect(lines[2].contains(loc.open + q[0][0] + loc.close))
             #expect(lines[2].contains(code == "de" ? "24." : "9月24日"), "moment carries its entry's localized date: \(lines[2])")
-            #expect(lines[4].contains(loc.releaseSuffix))
+            // The line after the heavy quote rotates by month (any of its three versions).
+            #expect(([loc.releaseSuffix] + loc.releaseSuffixMore).contains { lines[4].contains($0) })
             #expect(InsightService.isGrammarGrounded(text))
             #expect(InsightService.systemPrompt(for: .monthlyReport, content: text).body == loc.pickMonthly)
         }

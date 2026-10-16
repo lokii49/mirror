@@ -156,3 +156,36 @@ extension SharedLLMState {
         }
     }
 }
+
+// Monthly variety outside English (2026-10-16): the other languages' fixed lines rotate by month too.
+@Suite("Localized monthly rotation")
+struct LocalizedMonthlyRotationTests {
+    @Test func consecutiveMonthsReadDifferentlyButStayRecognizable() throws {
+        let de = try #require(InsightService.groundedLocales["de"])
+        let october = de.monthlyText(month: 10), november = de.monthlyText(month: 11)
+        #expect(october.monthImage[.stressed] != november.monthImage[.stressed])
+        #expect(october.monthQuestion[.good] != november.monthQuestion[.good])
+        #expect(october.momentSuffix != november.momentSuffix)
+        // Saved reports are recognized by these, so they never rotate.
+        #expect(october.becomingSuffix == november.becomingSuffix)
+        #expect(october.releaseFallback == november.releaseFallback)
+        #expect(de.monthlyText(month: 1).monthImage == de.monthImage)
+    }
+
+    @Test func everyLanguageHasTwoAlternatesForEveryMood() {
+        for (code, loc) in InsightService.groundedLocales {
+            for bucket in [GroundedMoodBucket.tired, .stressed, .sad, .good, .neutral] {
+                #expect(loc.monthImageMore[bucket]?.count == 2, "\(code) image \(bucket)")
+                #expect(loc.monthTensionMore[bucket]?.count == 2, "\(code) tension \(bucket)")
+                #expect(loc.monthQuestionMore[bucket]?.count == 2, "\(code) question \(bucket)")
+            }
+            #expect(loc.momentSuffixMore.count == 2 && loc.releaseSuffixMore.count == 2, "\(code) suffixes")
+        }
+    }
+
+    @Test func theLanguageCardSaysWhatToDo() {
+        let message = InsightService.unsupportedLanguageCardMessage(InsightService.dailyNudgeUnsupportedLanguageNotice)
+        #expect(message.hasPrefix(InsightService.dailyNudgeUnsupportedLanguageNotice))
+        #expect(message.count > InsightService.dailyNudgeUnsupportedLanguageNotice.count + 10)
+    }
+}
