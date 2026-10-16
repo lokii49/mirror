@@ -453,7 +453,20 @@ extension WriteView {
         Binding(get: { entryDate }, set: { entryDate = $0; entryDateChosen = true })
     }
 
+    /// Bounces the save checkmark once when a new entry becomes saveable. Called from the draft
+    /// save path, which every text and formatting change goes through, instead of from an
+    /// `onChange` of its own: `WriteView.body` has no stack to spare in Debug (see BarGlyph).
+    func noteSaveability() {
+        let saveable = hasDraftContent
+        guard saveable != wasSaveable else { return }
+        wasSaveable = saveable
+        guard saveable, entry == nil, !reduceMotion else { return }
+        // A beat after the button enables: a bounce started in the same update never showed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { saveGlyphBounces &+= 1 }
+    }
+
     func scheduleDraftSave() {
+        noteSaveability()
         guard Self.usesPersistentDraftStorage(), !pendingDelete, !editCommitted else { return }
         // No content comparison here: it hashes attachments, too slow per keystroke.
         // saveEditDraft compares once the debounce settles.
@@ -828,6 +841,15 @@ struct DraftSaveStatusLabel: View {
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
+        Group {
+            status
+        }
+        // Crossfades "Saving…" and "Draft saved", so the check below can draw itself on.
+        .animation(.easeOut(duration: 0.2), value: state)
+    }
+
+    @ViewBuilder
+    private var status: some View {
         switch state {
         case .idle:
             EmptyView()
@@ -845,6 +867,7 @@ struct DraftSaveStatusLabel: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Draft kept on this device"))
                 .accessibilityIdentifier("draft.saveStatus")
+                .glyphDrawOnInsertion()
             } else {
                 label("Draft kept on this device")
             }

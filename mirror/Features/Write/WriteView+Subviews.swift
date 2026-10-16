@@ -97,6 +97,7 @@ extension WriteView {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.green)
+                                .glyphPopIn()
                         } else if viewModel.wordCount >= 50 {
                             Text("/ \(dailyWordGoal)w")
                                 .font(.system(size: 12, weight: .regular, design: .monospaced))
@@ -104,15 +105,18 @@ extension WriteView {
                         }
                     }
                     .lineLimit(1)
+                    .animation(.easeOut(duration: 0.25), value: goalMet)
                     .transition(.opacity)
                 } else {
                     // Classic reads in the system face like the rest of the header: "30 words",
                     // with a small ring toward the daily goal once it's in sight.
                     HStack(spacing: 5) {
                         if goalMet {
+                            // Pops in the moment the goal is reached.
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(MirrorTheme.green)
+                                .glyphPopIn()
                         } else if viewModel.wordCount >= 50 {
                             WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
                         }
@@ -122,6 +126,7 @@ extension WriteView {
                             .contentTransition(.numericText())
                     }
                     .lineLimit(1)
+                    .animation(.easeOut(duration: 0.25), value: goalMet)
                     .accessibilityElement(children: .combine)
                     .accessibilityValue(goalMet || viewModel.wordCount < 50 ? Text("") : Text("\(viewModel.wordCount) of \(dailyWordGoal)"))
                     .transition(.opacity)
@@ -360,6 +365,8 @@ extension WriteView {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
+                        // The lid lifts as the entry goes to the undo countdown.
+                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete entry")
@@ -395,6 +402,7 @@ extension WriteView {
                                 ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                                 : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         )
+                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasDraftContent && !pendingDelete)
@@ -413,6 +421,10 @@ extension WriteView {
                                 ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                                 : AnyShapeStyle(Color.secondary)
                         )
+                        // One bounce when the first words make the entry saveable. Driven from
+                        // WriteView state a beat after the button enables: a bounce started in
+                        // the same update as the enable never shows (sim recording, 2026-10-16).
+                        .symbolEffect(.bounce, value: saveGlyphBounces)
                 }
                 .accessibilityLabel("Save entry")
                 .buttonStyle(.plain)
@@ -440,6 +452,7 @@ extension WriteView {
                       : "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
+                    .glyphReplaceTransition()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")

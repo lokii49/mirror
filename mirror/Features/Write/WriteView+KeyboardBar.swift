@@ -129,18 +129,18 @@ extension WriteView {
         displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor
     }
 
-    private func barGlyph(_ systemImage: String, isOn: Bool = false, isEnabled: Bool = true) -> some View {
-        Image(systemName: systemImage)
-            .font(.system(size: toolbarIconSize(20), weight: isOn ? .semibold : .regular))
-            .foregroundStyle(!isEnabled ? Color.secondary.opacity(0.35) : isOn ? barAccent : Color.primary)
-            .frame(width: barItemWidth, height: barHeight)
-            .contentShape(Rectangle())
+    private func barGlyph(_ systemImage: String, isOn: Bool = false, isEnabled: Bool = true, taps: Int = 0) -> BarGlyph {
+        BarGlyph(systemName: systemImage, isOn: isOn, isEnabled: isEnabled, taps: taps,
+                 iconSize: toolbarIconSize(20), width: barItemWidth, height: barHeight, accent: barAccent)
     }
 
     private func barButton(_ systemImage: String, label: LocalizedStringKey, id: String,
                            isOn: Bool, isEnabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            barGlyph(systemImage, isOn: isOn, isEnabled: isEnabled)
+        Button {
+            barGlyphTaps[id, default: 0] &+= 1
+            action()
+        } label: {
+            barGlyph(systemImage, isOn: isOn, isEnabled: isEnabled, taps: barGlyphTaps[id, default: 0])
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -159,8 +159,9 @@ extension WriteView {
             Button { applyTextCommand(.sortCheckedToBottom) } label: { Label("Sort Done", systemImage: "arrow.down.to.line") }
             Button(role: .destructive) { applyTextCommand(.deleteCheckedItems) } label: { Label("Delete Done", systemImage: "trash") }
         } label: {
-            barGlyph("checklist", isOn: isInChecklist)
+            barGlyph("checklist", isOn: isInChecklist, taps: barGlyphTaps["checklist", default: 0])
         } primaryAction: {
+            barGlyphTaps["checklist", default: 0] &+= 1
             applyTextCommand(.checklist)
         }
         .menuStyle(.button)
@@ -267,6 +268,32 @@ extension WriteView {
                 barAccent,
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
             )
+    }
+}
+
+/// One keyboard-bar glyph. A view of its own rather than a modifier chain returned by a function:
+/// the chain was stored inline in all 17 bar buttons and copied by every modifier on the bar, and
+/// a Debug build of the Write screen sits at the iOS main-thread stack limit (adding the tap
+/// bounce to the chain crashed Debug launches on an iPhone 14 Pro, 2026-10-16; the simulator's
+/// 8 MB stack never shows it).
+private struct BarGlyph: View {
+    let systemName: String
+    let isOn: Bool
+    let isEnabled: Bool
+    let taps: Int
+    let iconSize: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+    let accent: Color
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: iconSize, weight: isOn ? .semibold : .regular))
+            .foregroundStyle(!isEnabled ? Color.secondary.opacity(0.35) : isOn ? accent : Color.primary)
+            // A small bounce answers each tap (not each caret move into bold text).
+            .glyphBounce(value: taps)
+            .frame(width: width, height: height)
+            .contentShape(Rectangle())
     }
 }
 

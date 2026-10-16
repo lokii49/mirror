@@ -141,6 +141,13 @@ struct WriteView: View {
     /// Toolbar icons follow the person's text size (capped so they stay inside 44 pt buttons).
     @ScaledMetric(relativeTo: .title3) var toolbarIconMetric: CGFloat = 20
     @State var panelState = FormattingPanelState()
+    /// Taps per keyboard-bar button id; each new tap bounces that button's glyph once.
+    @State var barGlyphTaps: [String: Int] = [:]
+    /// Bumped when the first words make a new entry saveable; bounces the save checkmark.
+    @State var saveGlyphBounces = 0
+    /// `hasDraftContent` as `noteSaveability()` last saw it.
+    @State var wasSaveable = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @State var fullscreenPhotoIndex: Int? = nil
     @State var voiceNoteData: Data? = nil
     /// `Entry.contentDecryptionFailed`, checked once when the entry loads (it opens every
