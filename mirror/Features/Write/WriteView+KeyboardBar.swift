@@ -84,7 +84,7 @@ extension WriteView {
     }
 
     /// The bar while the keyboard is down, as in a Notes note: checklist, attach and record in one
-    /// capsule on the left, and a round compose button on the right that starts a new entry.
+    /// capsule on the left.
     var closedKeyboardBar: some View {
         HStack(alignment: .bottom) {
             HStack(spacing: 0) {
@@ -101,37 +101,10 @@ extension WriteView {
             .padding(.horizontal, 6)
             .frame(height: barHeight)
             .barSurface(isSentinel: displayMode == .sentinel)
-            Spacer(minLength: 12)
-            Button {
-                composeNewEntry()
-            } label: {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: toolbarIconSize(21)))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: barHeight + 8, height: barHeight + 8)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .composeSurface(isSentinel: displayMode == .sentinel)
-            .accessibilityLabel("New Entry")
-            .accessibilityIdentifier("keyboardBar.compose")
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
-    }
-
-    /// Saves what's here and opens a blank entry: in the Write tab the editor clears in place; an
-    /// entry opened for editing is saved and closed, then the Write tab opens.
-    func composeNewEntry() {
-        if entry == nil {
-            if hasDraftContent { saveDraft() }
-            editorFocused = true
-        } else {
-            saveAndDismiss()
-            if let url = URL(string: "mirror://write") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { UIApplication.shared.open(url) }
-            }
-        }
     }
 
     private var barHeight: CGFloat { min(toolbarIconSize(48), 64) }
@@ -285,22 +258,6 @@ extension WriteView {
 }
 
 private extension View {
-    @ViewBuilder
-    func composeSurface(isSentinel: Bool) -> some View {
-        if isSentinel {
-            self
-                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
-        } else if #available(iOS 26, *) {
-            self.glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            self
-                .background(.regularMaterial, in: Circle())
-                .overlay(Circle().stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-        }
-    }
-
     /// Liquid Glass on iOS 26, a material capsule before it. Sentinel keeps its flat ink card with
     /// an ember hairline instead of glass.
     @ViewBuilder
