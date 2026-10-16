@@ -92,6 +92,9 @@ struct mirrorApp: App {
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
+            if FMInsightProbe.isRequested {
+                Task { @MainActor in await FMInsightProbe.run() }
+            }
             if GemmaMemoryProbe.isRequested {
                 Task { @MainActor in await GemmaMemoryProbe.run() }
             } else if PerfSeed.draftRecoveryPhase != nil {
