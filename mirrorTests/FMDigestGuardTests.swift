@@ -258,3 +258,36 @@ extension SharedLLMState {
         }
     }
 }
+
+// A language with no grounded digest or report gets the daily reflection's notice, and no model runs.
+extension SharedLLMState {
+    @Suite(.serialized)
+    @MainActor
+    struct UnsupportedLanguageDigestTests {
+        private let dutch = [
+            "Vandaag twaalf dozen ingepakt en de oude bank verkocht aan de buren.",
+            "Mijn zus belde en we hebben lang gepraat over de verhuizing naar Utrecht.",
+            "Slecht geslapen, de hele nacht wakker gelegen van het werk.",
+            "Een lange wandeling gemaakt met de hond langs het kanaal.",
+        ].map { Entry(text: $0, mood: "Content") }
+
+        @Test func aDigestInAnUnsupportedLanguageIsTheNotice() async throws {
+            var calls = 0
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .foundationModels) }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+            let (text, _) = try await InsightService.generateWeeklyDigest(weekEntries: dutch, allEntries: dutch)
+            #expect(text == InsightService.dailyNudgeUnsupportedLanguageNotice)
+            #expect(InsightService.isUnsupportedLanguageNotice(text))
+            #expect(calls == 0)
+        }
+
+        @Test func aMonthlyReportInAnUnsupportedLanguageIsTheNotice() async throws {
+            var calls = 0
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .foundationModels) }
+            defer { LocalLLMService.generateInterceptForTesting = nil }
+            let (text, _) = try await InsightService.generateMonthlyReport(monthEntries: dutch, allEntries: dutch)
+            #expect(text == InsightService.dailyNudgeUnsupportedLanguageNotice)
+            #expect(calls == 0)
+        }
+    }
+}

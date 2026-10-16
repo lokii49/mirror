@@ -824,6 +824,9 @@ struct InsightView: View {
             nightlyPendingDigestCard
         case .modelNotInstalled:
             ModelNotInstalledCard()
+        case .groundingFallback(let insight) where InsightService.isUnsupportedLanguageNotice(insight.content):
+            // Retrying can't help: say which languages work, with no "Try Again".
+            GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: insight.content)
         case .groundingFallback(let insight):
             GroundingFallbackCard(message: insight.content) {
                 // Instant feedback — loadWeeklyDigest's own generation call is

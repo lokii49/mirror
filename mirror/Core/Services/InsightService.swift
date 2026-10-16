@@ -1446,6 +1446,13 @@ enum InsightService {
         )
         let grounded = groundedDigestPlan(weekEntries: recentEntries, languageSource: languageSource)
         let localized = localizedGroundedDigest(weekEntries: recentEntries, languageSource: languageSource)
+        // A language with no grounded digest (anything outside English and `groundedLocales`): the free-prose
+        // prompt that answered here invented in about half its sections in English (RUBRIC_FM.md rounds 15-18), and
+        // nothing checks it in other languages, so no model runs: the same notice the daily reflection shows.
+        if localized == nil, let code = (responseLanguageTarget(from: languageSource) ?? responseLanguageTargetFromCurrentLocale())?.code,
+           code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let digestPlan = localized?.plan ?? grounded.plan
         let digestValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedDigest(text, quoteOptions: grounded.quoteOptions)
@@ -1659,6 +1666,11 @@ enum InsightService {
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
         let grounded = groundedMonthlyPlan(monthEntries: monthEntries)
         let localized = localizedGroundedMonthly(monthEntries: monthEntries)
+        // Same as the weekly digest: no grounded report in this language, so the daily reflection's notice.
+        if localized == nil, let code = (responseLanguageTarget(from: monthEntries) ?? responseLanguageTargetFromCurrentLocale())?.code,
+           code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let monthlyPlan = localized?.plan ?? grounded.plan
         let monthlyValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
