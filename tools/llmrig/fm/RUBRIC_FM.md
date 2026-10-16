@@ -765,3 +765,29 @@ matcher did not search. Fix decided before re-counting: quotes are matched again
   with `FMDailyGuard.locate` (as measured), the other grounded languages with `matchOption` and their `askPrefix`
   lines (not rig-measured); other languages and the no-answer phrase get no quotes. End to end on the Mac's FM
   (simulator): the mom question got two dated sentences, the sleep question none, the trips question the no-answer.
+
+## Round 22: the daily reflection's second quote, picked by the model (plan fixed BEFORE running, 2026-10-16)
+Owner: tie two of the person's own sentences together. Today the second quote ("You also wrote, …", display only,
+never stored) is the day's longest other sentence (`secondGroundedQuote`), not a related one. Lesson from rounds
+15-17: a model-written link between two sentences is where FM invents, so the model only *picks* the related
+sentence; the app writes the joining words. Not stored in `Insight.content` (old versions would leak it): kept per
+device as a reference (entry id + sentence index), never as text.
+**Variants** (same dumped prompts as rounds 12-14, `test_dumpStructuredNudgePromptsForRig`, + 6 new held-out days):
+- **P**: shipped V1e (`DailyV1bEasy`, `FMDailyGuard`, 3 attempts), plus the app's `secondGroundedQuote` pick.
+- **R**: the same struct with one more field after `insight`: `relatedQuote` ("a different sentence from today's
+  entries that connects to the quote, copied word for word, or empty"); everything else unchanged.
+**Mechanical gates (R vs P, same cases):** G1 fallback (no reflection) at most P's + 2 points; G2 the shown quote and
+insight pass the same guard, so the reflection itself must not change: shown-insight PASS on a blind sample of 60
+R vs 60 P not lower by more than 5 points; G3 `relatedQuote` found in today's entries, distinct from the main quote,
+in >= 80% of runs where today has another quotable sentence.
+**Blind (pairs):** for each run with both picks, the scorer sees today's entries, the main quote, and two candidate
+second quotes (R's pick, the app's pick) in random order and says which one connects better to the main quote, or
+neither. Ship if R's pick wins more often than the app's and G1-G3 hold. N = 5 per case.
+
+### Round 22 result (2026-10-16, 49 cases x 5 x 2 variants): FAILED; the daily reflection stays as it is
+- G1 pass: fallback/error 30/245 (R) vs 29/245 (P); adding the field does not hurt the reflection.
+- G3 fail: R's related sentence was a real, different sentence of today in 98/143 runs (69% < 80%); misses: the main
+  quote repeated (32), empty (7), not verbatim (6). In 52 of the 98 it was the sentence the app already picks.
+- Blind pairs, 46 runs where the picks differ (2 scorers): the app's longest-sentence pick connected better 26, R's
+  15, neither 5; on the 6 new held-out days the app won 10-0. The model's pick is not better than the app's, so no
+  related-quote field ships; `secondGroundedQuote` stays.

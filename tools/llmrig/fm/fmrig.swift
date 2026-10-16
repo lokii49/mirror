@@ -265,6 +265,26 @@ let askNoAnswer = "You haven't written about this yet."
     var quote2: String
 }
 
+
+// Round 22 (RUBRIC_FM.md): the shipped daily guides plus a model-picked related sentence.
+@Generable struct DailyR {
+    @Guide(description: "The single most important sentence from TODAY's entry, copied word for word with the same punctuation, at most 25 words")
+    var quote: String
+    @Guide(description: "One or two sentences speaking to the person as 'you': what this seems to mean for them, using only feelings they wrote or plainly showed. If the day was ordinary, say so. Plain everyday words. Say nothing about anything they did not write")
+    var insight: String
+    @Guide(description: "A different sentence from TODAY's entry that connects to the quote, copied word for word with the same punctuation, or empty if none does")
+    var relatedQuote: String
+}
+
+/// The app's display-time second quote (InsightService.secondGroundedQuote): the longest other whole sentence of
+/// at least 4 words ending in . ! ? or …, without quote marks, not overlapping the main quote.
+func appSecondQuote(main: String, sources: [FMDailyGuard.Source]) -> String? {
+    let m = norm(main)
+    return sources.flatMap { FMDigestGuard.quotableSentences(of: $0.text) }
+        .filter { !m.contains(norm($0)) && !norm($0).contains(m) }
+        .max { $0.count < $1.count }
+}
+
 /// Capitalises every sentence and makes sure the text ends with punctuation (what the app does).
 func tidyAll(_ s: String) -> String {
     let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -393,6 +413,39 @@ func emit(_ obj: [String: Any]) {
                         rec["quoteVerbatim"] = source.contains(norm(v.quote))
                         rec["fields"] = ["quote": v.quote, "insight": v.insight]
                         rec["dropped"] = v.droppedSentences
+                    } else {
+                        rec["fallback"] = true
+                    }
+                case "rel", "prodpair":
+                    // Round 22. rel: DailyR; prodpair: the shipped DailyV1bEasy. Both record the app's second-quote pick.
+                    let sources = todaySources(user)
+                    var shown: FMDailyGuard.Verified?
+                    var related = ""
+                    var attempts = 0
+                    var raws: [[String: String]] = []
+                    for _ in 1...3 {
+                        attempts += 1
+                        let (quote, insight, rq): (String, String, String)
+                        if variant == "rel" {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyR.self, options: opts).content
+                            (quote, insight, rq) = (r.quote, r.insight, r.relatedQuote)
+                        } else {
+                            let r = try await LanguageModelSession(instructions: system).respond(to: user, generating: DailyV1bEasy.self, options: opts).content
+                            (quote, insight, rq) = (r.quote, r.insight, "")
+                        }
+                        raws.append(["quote": quote, "insight": insight, "relatedQuote": rq])
+                        if let v = FMDailyGuard.verify(quote: quote, insight: insight, sources: sources) { shown = v; related = rq; break }
+                    }
+                    rec["attempts"] = attempts
+                    rec["raws"] = raws
+                    if let v = shown {
+                        rec["text"] = "You wrote, \"\(v.quote)\" \(v.insight)"
+                        rec["fields"] = ["quote": v.quote, "insight": v.insight]
+                        rec["appSecond"] = appSecondQuote(main: v.quote, sources: sources) ?? ""
+                        if let f = FMDailyGuard.locate(quote: related, in: sources.map(\.text)),
+                           !norm(v.quote).contains(norm(f.quote)), !norm(f.quote).contains(norm(v.quote)) {
+                            rec["related"] = f.quote
+                        }
                     } else {
                         rec["fallback"] = true
                     }
