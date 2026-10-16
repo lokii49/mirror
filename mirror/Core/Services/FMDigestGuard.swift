@@ -45,10 +45,7 @@ nonisolated enum FMDigestGuard {
     /// The digest built from `drafts`, each section from the first draft where it passes; nil while
     /// any section has no passing draft yet.
     static func merge(_ drafts: [Draft], sources: [FMDailyGuard.Source]) -> Verified? {
-        let filled = sections(from: drafts, sources: sources)
-        guard let theme = filled[.theme], let energy = filled[.energy], let building = filled[.building],
-              let watch = filled[.watch], let boost = filled[.boost], let nextWeek = filled[.nextWeek] else { return nil }
-        return Verified(theme: theme.text, energy: energy.text, building: building.text, watch: watch.text, boost: boost.text, nextWeek: nextWeek.text)
+        merge(from: sections(from: drafts, sources: sources))
     }
 
     /// The sections `drafts` fill so far (for the rig: which ones are still missing).
@@ -91,6 +88,98 @@ nonisolated enum FMDigestGuard {
             if filled[.nextWeek] == nil, let next = line(draft.nextWeek) { filled[.nextWeek] = (next, nil) }
         }
         return filled
+    }
+
+    /// A digest whose sections the model could not fill are filled by the app (round 16).
+    struct Assembled: Equatable {
+        let verified: Verified
+        /// The sections the app filled with a fixed line (and, for quote sections, maybe its own quote).
+        let fixed: [Section]
+    }
+
+    static let fixedTheme = "A week of putting things into words."
+    static let fixedReads: [Section: String] = [
+        .energy: "That moment seems to have stayed with you.",
+        .building: "That sounds like something worth holding on to.",
+        .watch: "That may be worth keeping an eye on.",
+    ]
+    static let fixedBoost = "Pick one sentence from this week and write a little more about it."
+    static let fixedNextWeek = "Next week, notice which of these comes up again."
+
+    /// `merge`, then every section still empty after the model's attempts filled by the app: a quote
+    /// section keeps a quote the model got right (else the app picks one from the week) with a fixed
+    /// line; theme, boost and next week get fixed lines. nil only when the week has nothing to quote.
+    static func assemble(_ drafts: [Draft], sources: [FMDailyGuard.Source]) -> Assembled? {
+        var filled = sections(from: drafts, sources: sources)
+        var fixed: [Section] = []
+        let texts = sources.map(\.text)
+        let goodExists = sources.contains { !isHard($0.mood) }
+        let hardExists = sources.contains { isHard($0.mood) }
+        func distinct(_ quote: String) -> Bool {
+            let key = quote.lowercased()
+            return !filled.values.contains { taken in
+                guard let other = taken.quote?.lowercased() else { return false }
+                return other.contains(key) || key.contains(other)
+            }
+        }
+        func fits(_ section: Section, mood: String?) -> Bool {
+            switch section {
+            case .building: return !(goodExists && isHard(mood))
+            case .watch: return !(hardExists && !isHard(mood))
+            default: return true
+            }
+        }
+        for section in [Section.energy, .building, .watch] where filled[section] == nil {
+            var picked: (quote: String, mood: String?)?
+            for draft in drafts {
+                let text = section == .energy ? draft.energyQuote : section == .building ? draft.buildingQuote : draft.watchQuote
+                guard let found = FMDailyGuard.locate(quote: text, in: texts), distinct(found.quote),
+                      section != .building || fits(.building, mood: sources[found.index].mood) else { continue }
+                picked = (found.quote, sources[found.index].mood)
+                break
+            }
+            if picked == nil {
+                let candidates = sources.flatMap { source in quotableSentences(of: source.text).map { ($0, source.mood) } }
+                picked = candidates.first { distinct($0.0) && fits(section, mood: $0.1) } ?? candidates.first { distinct($0.0) }
+            }
+            guard let picked else { return nil }
+            let opener = section == .energy ? energyOpener(mood: picked.mood) : "You wrote,"
+            filled[section] = ("\(opener) \"\(picked.quote)\" \(fixedReads[section] ?? "")", picked.quote)
+            fixed.append(section)
+        }
+        if filled[.theme] == nil { filled[.theme] = (fixedTheme, nil); fixed.append(.theme) }
+        if filled[.boost] == nil { filled[.boost] = (fixedBoost, nil); fixed.append(.boost) }
+        if filled[.nextWeek] == nil { filled[.nextWeek] = (fixedNextWeek, nil); fixed.append(.nextWeek) }
+        guard let verified = merge(from: filled) else { return nil }
+        return Assembled(verified: verified, fixed: fixed)
+    }
+
+    private static func merge(from filled: [Section: (text: String, quote: String?)]) -> Verified? {
+        guard let theme = filled[.theme], let energy = filled[.energy], let building = filled[.building],
+              let watch = filled[.watch], let boost = filled[.boost], let nextWeek = filled[.nextWeek] else { return nil }
+        return Verified(theme: theme.text, energy: energy.text, building: building.text, watch: watch.text, boost: boost.text, nextWeek: nextWeek.text)
+    }
+
+    /// Whole sentences of 4 to 25 words, ending in . ! ? or …, without quote marks: what the app may
+    /// quote on its own.
+    static func quotableSentences(of text: String) -> [String] {
+        var out: [String] = []
+        var current = ""
+        let characters = Array(text)
+        for (i, ch) in characters.enumerated() {
+            if ch.isNewline {
+                current = ""
+                continue
+            }
+            current.append(ch)
+            let ends = ".!?…".contains(ch) && (i + 1 == characters.count || characters[i + 1].isWhitespace)
+            guard ends else { continue }
+            let sentence = current.trimmingCharacters(in: .whitespaces)
+            current = ""
+            let count = sentence.split(separator: " ").count
+            if (4...25).contains(count), !sentence.contains(where: { "\"“”".contains($0) }) { out.append(sentence) }
+        }
+        return out
     }
 
     /// "You seemed most drained when you wrote," with the mood the person chose for that entry.

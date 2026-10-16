@@ -557,3 +557,41 @@ are recognisable, so blind only in labels):
 - W2's inventions are mostly in YOUR ENERGY (12/20) and come from the "connect it to another day" instruction:
   false links ("especially after skipping dinner", "after the quiet time with Chris"). W2's low VALUE: theme reads
   as a list of nouns (0/47), and most reads restate the quote; MOOD BOOST is its best section (25/47).
+
+## Round 16: W3, the weekly digest with fixed app lines where the model fails (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 15: go ahead with W3. **Changes from W2, nothing else:**
+1. Prompt `system_digest_d3.txt` + `WeeklyDigestD3` guides: no "connect it to another day" (round 15: most of W2's
+   inventions were false links between days). Theme is one short phrase about what the week was about, not a list of
+   names. Each read says what the moment seems to show they need, hope for or worry about, and must not retell it.
+2. `FMDigestGuard.assemble`: same per-section checks and merge across up to 3 attempts as W2. A section still empty
+   after 3 attempts is filled by the app, never by the model:
+   - quote section whose quote passed but whose line didn't: the quote + a fixed line (`fixedReads`);
+   - quote section with no passing quote: the app picks a sentence of 4+ words from an entry of the right kind
+     (energy: any; building: not a hard mood when the week has another; watch: a hard mood when it has one), not
+     overlapping the other quotes, + the fixed line;
+   - theme / boost / next week: a fixed line.
+   Nothing to quote at all (no sentence of 4+ words) -> fallback.
+Same 10 weeks, N = 10, temperature 0.45.
+**Gates** (G1-G4 as round 15, plus G5):
+- G1 fallback <= 10%. G2 shown PASS >= 95% and invented-section rate below W2's 7.1%.
+- G3 VALUE per section >= W0's on clean sections only (round 15: W0 0.39 useful-and-clean per section; W0 0.51 raw
+  is inflated by invented sections scoring VALUE).
+- G4 quotes verbatim 100%. G5 fixed (app-written) sections <= 25% of all sections.
+Pass -> wire into the app for English FM digests (other languages unchanged), with tests. Fail -> owner.
+Scoring: blind, 3 scorers, W3 shown digests only (W0's round-15 scores are reused as the baseline).
+
+### Round 16 result (2026-10-16, W3, 10 weeks x 10, blind-scored by 3 scorers): FAILED G2 and G3; nothing ships
+| | shown | digests PASS | sections invented | swap | useful-and-clean / section | app-fixed sections |
+|---|---|---|---|---|---|---|
+| W0 shipped (round 15) | 100% | 0/50 | 48.7% | 9 | 0.39 | - |
+| W2 (round 15) | 47% | 30/47 | 7.1% | 1 | 0.18 | - |
+| **W3** | **100%** | **46/100** | **9.5%** | 7 | **0.25** | 49/600 (8%) |
+
+- G1 pass (0% fallback), G4 pass, G5 pass (8%). G2 fail (46% < 95%; 9.5% is not below W2's 7.1%). G3 fail (0.25 < 0.39).
+- The scorer prompt this round also counted unstated cause-and-effect between days as invented; round 15's did not.
+  So W2 vs W3 is not exactly like for like.
+- NEXT WEEK is the worst section (18 invented): the field asks for something upcoming, so the model makes one up
+  ("Next week, the talk about the senior role": the entry says next month; "the final exam review will begin").
+  MOOD BOOST swaps people ("Talk to Tara about working from Mom's place": the request was to Deepa, 4 runs).
+  Reads add feelings the week-wide guard allows because another entry used the word ("heavy", "strain").
+- The 49 app-fixed sections scored VALUE 0/49, as expected.
