@@ -41,7 +41,8 @@ The notice has to be in users' hands before the cutover build, so A needs its ow
   - restore on a fresh install;
   - upgrade Core → Deep;
   - expiry → Free;
-  - launch while offline with a cached subscriber.
+  - launch while offline with a cached subscriber;
+  - a second device on the same App Store account (Settings > Media & Purchases, not iCloud): buy on device A, then a fresh install on B gets the tier on first launch without tapping Restore (silent `syncPurchases`); with B already open, buy Deep on A and B moves to Deep on foreground (`customerInfoStream` listener); the Mac build (same bundle id, universal purchase) gets the same tier. `[RC] customerID` differs per device (anonymous IDs), which is expected.
 - [ ] Free walk-through:
   - day 0 shows no paywall and no Talk It Out;
   - the paywall shows after the first nudge;

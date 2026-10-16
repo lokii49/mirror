@@ -62,6 +62,14 @@ final class SubscriptionService {
             if !Self.allFeaturesFree { await syncPurchasesSilently() }
             await refresh()
         }
+        // Follow every customer info change while the app runs: RevenueCat refreshes it on
+        // foreground, so a purchase made on another device with the same App Store account,
+        // an expiry or a refund reaches the tier without a relaunch or a Settings visit.
+        Task { [weak self] in
+            for await customerInfo in Purchases.shared.customerInfoStream {
+                self?.updateTier(from: customerInfo)
+            }
+        }
     }
 
     func loadProducts() async {
