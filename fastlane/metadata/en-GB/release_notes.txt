@@ -1,9 +1,10 @@
-More reliable digests, widgets and translations
+Made for iPhone Duo, and a Write screen like Notes
 
-• Weekly Digest and Monthly Report now arrive more reliably, and a failed retry never replaces one you already have.
-• Widgets no longer show a lock and a price. The streak and map widgets update as soon as you save, and the digest and monthly widgets show last week's and last month's until the new one arrives.
-• Delete Everything now also clears your text from widgets and reminders.
-• Editing an entry that has only a voice note no longer risks damaging it.
-• Reflections and entries follow your text size, and VoiceOver reads calendar days and buttons clearly.
-• Mood Timeline draws one point per day, so busy days no longer leave stray shapes in the chart.
-• More of the app is translated, including widgets, Siri phrases and notifications.
+• iPhone Duo: open it flat and the list sits beside the entry you're reading, while Insights spreads into two columns. Half-folded, lists and writing stay off the crease. Folding or unfolding keeps your writing and undo history.
+• Write has a new keyboard bar and Aa panel, laid out like Apple Notes. Checklists work like Notes too: tap a circle to tick it, swipe to indent, drag to reorder, and done items can move to the bottom.
+• Small animations show what just happened: something to save, a draft kept, your daily word goal reached.
+• With Apple Intelligence, Weekly Digest, Monthly Report and Ask Mirror now quote your own sentences.
+• Insights has dated headers and cleaner cards. On iOS 18 and later, press and hold a day in a mood chart to see what you wrote.
+• Brain View groups your words into topics.
+• The Mood Map widget can show 7 or 14 days.
+• On iPad and an open iPhone Duo, Settings opens from the person button in Insights.

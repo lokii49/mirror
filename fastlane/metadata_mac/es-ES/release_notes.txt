@@ -1,8 +1,5 @@
-Resúmenes y borradores más fiables
+Tus propias frases en resúmenes, informes y Preguntar a Mirror
 
-• Resumen semanal e Informe mensual: un reintento fallido nunca sustituye al que ya tienes.
-• Una ventana de Nueva entrada ahora conserva su propio borrador, así que ya no sobrescribe el del editor principal.
-• Editar una entrada que solo tiene una nota de voz ya no pone en riesgo esa entrada.
-• VoiceOver lee con claridad los días del calendario y los botones.
-• La Cronología del estado de ánimo dibuja un punto por día, así que los días con varios registros ya no dejan formas extrañas en el gráfico.
-• Más partes de la app están traducidas.
+• Con Apple Intelligence, el Resumen semanal, el Informe mensual y Preguntar a Mirror citan ahora tus propias frases.
+• El contador de palabras dice ahora «1 palabra» en lugar de «1 palabras».
+• Pequeñas correcciones y mejoras.

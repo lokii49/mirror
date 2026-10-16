@@ -1,9 +1,10 @@
-Zuverlässigere Zusammenfassungen, Widgets und Übersetzungen
+Fürs iPhone Duo gemacht – und Schreiben wie in Notizen
 
-• Wöchentliche Zusammenfassung und Monatsbericht kommen jetzt zuverlässiger, und ein fehlgeschlagener neuer Versuch ersetzt nie einen, den du schon hast.
-• Widgets zeigen kein Schloss und keinen Preis mehr. Die Widgets für Serie und Karte aktualisieren sich, sobald du speicherst, und die Widgets für Zusammenfassung und Monatsbericht zeigen die letzte Woche und den letzten Monat, bis die neuen da sind.
-• „Alles löschen“ entfernt deinen Text jetzt auch aus Widgets und Erinnerungen.
-• Einen Eintrag, der nur eine Sprachnotiz enthält, kannst du jetzt bearbeiten, ohne ihn zu beschädigen.
-• Reflexionen und Einträge folgen deiner Textgröße, und VoiceOver liest Kalendertage und Tasten klar vor.
-• Der Stimmungsverlauf zeigt einen Punkt pro Tag, sodass volle Tage keine seltsamen Formen mehr im Diagramm hinterlassen.
-• Mehr von der App ist übersetzt, darunter Widgets, Siri-Befehle und Mitteilungen.
+• iPhone Duo: Aufgeklappt steht die Liste neben dem Eintrag, den du liest, und Einblicke verteilt sich auf zwei Spalten. Halb gefaltet bleiben Listen und Text neben dem Falz. Beim Auf- und Zuklappen bleiben dein Text und dein Widerrufen-Verlauf erhalten.
+• Schreiben hat eine neue Tastaturleiste und ein neues Aa-Feld, aufgebaut wie in Apple Notizen. Checklisten funktionieren wie dort: Tippe auf einen Kreis, um ihn abzuhaken, wische zum Einrücken, ziehe zum Umsortieren, und Erledigtes kann nach unten wandern.
+• Kleine Animationen zeigen, was gerade passiert ist: etwas zum Sichern, ein gesicherter Entwurf, dein tägliches Wortziel erreicht.
+• Mit Apple Intelligence zitieren Wöchentliche Zusammenfassung, Monatsbericht und „Mirror fragen“ jetzt deine eigenen Sätze.
+• Einblicke hat Überschriften mit Datum und aufgeräumtere Karten. Ab iOS 18 hältst du einen Tag im Stimmungsdiagramm gedrückt, um zu sehen, was du geschrieben hast.
+• Die Denkkarte fasst deine Wörter zu Themen zusammen.
+• Das Widget „Stimmungskarte“ zeigt wahlweise 7 oder 14 Tage.
+• Auf dem iPad und dem aufgeklappten iPhone Duo öffnest du die Einstellungen über die Personen-Taste in Einblicke.

@@ -1,8 +1,5 @@
-Résumés et brouillons plus fiables
+Vos propres phrases dans les résumés, les rapports et Demander à Mirror
 
-• Résumé hebdomadaire et Rapport mensuel : une nouvelle tentative qui échoue ne remplace jamais celui que vous avez déjà.
-• Une fenêtre Nouvelle entrée garde désormais son propre brouillon et n'écrase plus celui de l'éditeur principal.
-• Modifier une entrée qui ne contient qu'une note vocale ne risque plus de l'abîmer.
-• VoiceOver lit clairement les jours du calendrier et les boutons.
-• La Chronologie de l'humeur trace un point par jour : les journées chargées ne laissent plus de formes étranges dans le graphique.
-• Une plus grande partie de l'app est traduite.
+• Avec Apple Intelligence, le Résumé hebdomadaire, le Rapport mensuel et Demander à Mirror citent désormais vos propres phrases.
+• Le nombre de mots indique désormais « 1 mot » au lieu de « 1 mots ».
+• Petites corrections et améliorations.

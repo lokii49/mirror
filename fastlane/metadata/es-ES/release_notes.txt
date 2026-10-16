@@ -1,9 +1,10 @@
-Resúmenes, widgets y traducciones más fiables
+Pensado para el iPhone Duo, y un Escribir como Notas
 
-• El Resumen semanal y el Informe mensual llegan ahora de forma más fiable, y un reintento fallido nunca sustituye al que ya tienes.
-• Los widgets ya no muestran un candado ni un precio. Los widgets de racha y de mapa se actualizan en cuanto guardas, y los del resumen y el informe mensual muestran los de la semana y el mes anteriores hasta que llega el nuevo.
-• Eliminar todo ahora también borra tu texto de los widgets y los recordatorios.
-• Editar una entrada que solo tiene una nota de voz ya no pone en riesgo esa entrada.
-• Las reflexiones y las entradas siguen tu tamaño de texto, y VoiceOver lee con claridad los días del calendario y los botones.
-• La Cronología del estado de ánimo dibuja un punto por día, así que los días con varios registros ya no dejan formas extrañas en el gráfico.
-• Más partes de la app están traducidas, como los widgets, las frases de Siri y las notificaciones.
+• iPhone Duo: al abrirlo del todo, la lista queda junto a la entrada que lees y Perspectivas se reparte en dos columnas. Medio plegado, las listas y lo que escribes quedan a los lados del pliegue. Al plegarlo o desplegarlo conservas lo que escribes y el historial para deshacer.
+• Escribir tiene una nueva barra de teclado y un panel Aa como los de Notas de Apple. Las listas de tareas también funcionan como en Notas: toca un círculo para marcarlo, desliza para sangrar, arrastra para reordenar y lo completado puede bajar al final.
+• Pequeñas animaciones muestran lo que acaba de pasar: algo que guardar, un borrador guardado, tu objetivo diario de palabras cumplido.
+• Con Apple Intelligence, el Resumen semanal, el Informe mensual y Preguntar a Mirror citan ahora tus propias frases.
+• Perspectivas tiene encabezados con fecha y tarjetas más limpias. En iOS 18 o posterior, mantén pulsado un día en un gráfico de ánimo para ver lo que escribiste.
+• El Mapa mental agrupa tus palabras en temas.
+• El widget Mapa de ánimo puede mostrar 7 o 14 días.
+• En el iPad y en un iPhone Duo abierto, Ajustes se abre desde el botón de persona en Perspectivas.

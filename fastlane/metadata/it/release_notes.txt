@@ -1,9 +1,10 @@
-Riepiloghi, widget e traduzioni più affidabili
+Pensato per iPhone Duo, e Scrivi come in Note
 
-• Il Riepilogo settimanale e il Report mensile ora arrivano in modo più affidabile, e un nuovo tentativo fallito non sostituisce mai quello che hai già.
-• I widget non mostrano più un lucchetto e un prezzo. I widget della serie e della mappa si aggiornano appena salvi, e quelli del riepilogo e del report mensile mostrano la settimana e il mese precedenti finché non arriva quello nuovo.
-• Elimina tutto ora cancella il tuo testo anche dai widget e dai promemoria.
-• Modificare una voce che contiene solo una nota vocale non rischia più di danneggiarla.
-• Le riflessioni e le voci seguono la dimensione del testo, e VoiceOver legge con chiarezza i giorni del calendario e i pulsanti.
-• La Cronologia dell'umore disegna un punto al giorno, così le giornate piene non lasciano più forme strane nel grafico.
-• Più parti dell'app sono tradotte, tra cui i widget, le frasi di Siri e le notifiche.
+• iPhone Duo: aperto del tutto, l'elenco sta accanto alla voce che leggi e Approfondimenti si divide in due colonne. Piegato a metà, elenchi e testo restano ai lati della piega. Piegandolo o aprendolo conservi il testo e la cronologia per annullare.
+• Scrivi ha una nuova barra della tastiera e un nuovo pannello Aa, disposti come in Note di Apple. Anche gli elenchi di controllo funzionano come in Note: tocca un cerchio per spuntarlo, scorri per rientrare, trascina per riordinare, e le voci completate possono scendere in fondo.
+• Piccole animazioni mostrano cosa è appena successo: qualcosa da salvare, una bozza salvata, il tuo obiettivo di parole del giorno raggiunto.
+• Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
+• Approfondimenti ha intestazioni con la data e schede più pulite. Su iOS 18 e versioni successive, tieni premuto un giorno in un grafico dell'umore per vedere cosa hai scritto.
+• La Mappa mentale raggruppa le tue parole in argomenti.
+• Il widget Mappa dell'umore può mostrare 7 o 14 giorni.
+• Su iPad e su un iPhone Duo aperto, Impostazioni si apre dal pulsante persona in Approfondimenti.

@@ -1,8 +1,5 @@
-More reliable digests and drafts
+Your own sentences in digests, reports and Ask Mirror
 
-• Weekly Digest and Monthly Report: a failed retry never replaces one you already have.
-• A New Entry window now keeps its own draft, so it no longer overwrites the main editor's draft.
-• Editing an entry that has only a voice note no longer risks damaging it.
-• VoiceOver reads calendar days and buttons clearly.
-• Mood Timeline draws one point per day, so busy days no longer leave stray shapes in the chart.
-• More of the app is translated.
+• With Apple Intelligence, Weekly Digest, Monthly Report and Ask Mirror now quote your own sentences.
+• The word count now says "1 word" rather than "1 words".
+• Smaller fixes and improvements.

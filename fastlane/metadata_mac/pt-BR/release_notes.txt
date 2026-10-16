@@ -1,8 +1,5 @@
-Resumos e rascunhos mais confiáveis
+Suas próprias frases em resumos, relatórios e Perguntar ao Mirror
 
-• Resumo semanal e Relatório mensal: uma nova tentativa que falha nunca substitui o que você já tem.
-• Uma janela de Nova entrada agora mantém o próprio rascunho e não sobrescreve mais o do editor principal.
-• Editar uma entrada que tem só uma nota de voz não corre mais o risco de danificá-la.
-• O VoiceOver lê com clareza os dias do calendário e os botões.
-• A Linha do tempo de humor desenha um ponto por dia, então dias com vários registros não deixam mais formas estranhas no gráfico.
-• Mais partes do app estão traduzidas.
+• Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
+• A contagem de palavras agora diz "1 palavra" em vez de "1 palavras".
+• Pequenas correções e melhorias.

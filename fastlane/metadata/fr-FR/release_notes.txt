@@ -1,9 +1,10 @@
-Résumés, widgets et traductions plus fiables
+Conçu pour l'iPhone Duo, et Écrire comme dans Notes
 
-• Le Résumé hebdomadaire et le Rapport mensuel arrivent désormais de façon plus fiable, et une nouvelle tentative qui échoue ne remplace jamais celui que vous avez déjà.
-• Les widgets n'affichent plus de cadenas ni de prix. Les widgets de série et de carte se mettent à jour dès que vous enregistrez, et ceux du résumé et du rapport mensuel affichent la semaine et le mois précédents jusqu'à l'arrivée du nouveau.
-• Tout supprimer efface désormais aussi votre texte des widgets et des rappels.
-• Modifier une entrée qui ne contient qu'une note vocale ne risque plus de l'abîmer.
-• Les réflexions et les entrées suivent votre taille de texte, et VoiceOver lit clairement les jours du calendrier et les boutons.
-• La Chronologie de l'humeur trace un point par jour : les journées chargées ne laissent plus de formes étranges dans le graphique.
-• Une plus grande partie de l'app est traduite, notamment les widgets, les phrases Siri et les notifications.
+• iPhone Duo : ouvert à plat, la liste se place à côté de l'entrée que vous lisez et Aperçus se déploie sur deux colonnes. À moitié plié, les listes et votre texte restent de part et d'autre du pli. Plier ou déplier conserve votre texte et l'historique d'annulation.
+• Écrire a une nouvelle barre de clavier et un nouveau panneau Aa, organisés comme dans Notes d'Apple. Les listes de tâches fonctionnent aussi comme dans Notes : touchez un cercle pour le cocher, balayez pour indenter, faites glisser pour réordonner, et les éléments faits peuvent descendre en bas.
+• De petites animations montrent ce qui vient de se passer : quelque chose à enregistrer, un brouillon conservé, votre objectif de mots du jour atteint.
+• Avec Apple Intelligence, le Résumé hebdomadaire, le Rapport mensuel et Demander à Mirror citent désormais vos propres phrases.
+• Aperçus a des en-têtes datés et des cartes plus nettes. Sur iOS 18 et versions ultérieures, maintenez le doigt sur un jour d'un graphique d'humeur pour voir ce que vous avez écrit.
+• La Carte mentale regroupe vos mots par thèmes.
+• Le widget Carte d'humeur peut afficher 7 ou 14 jours.
+• Sur iPad et sur un iPhone Duo ouvert, les Réglages s'ouvrent depuis le bouton personne dans Aperçus.

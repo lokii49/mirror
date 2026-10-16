@@ -1,9 +1,10 @@
-Resumos, widgets e traduções mais confiáveis
+Feito para o iPhone Duo, e um Escrever como o Notas
 
-• O Resumo semanal e o Relatório mensal agora chegam de forma mais confiável, e uma nova tentativa que falha nunca substitui o que você já tem.
-• Os widgets não mostram mais um cadeado com preço. Os widgets de sequência e de mapa são atualizados assim que você salva, e os do resumo e do relatório mensal mostram a semana e o mês anteriores até o novo chegar.
-• Excluir tudo agora também apaga seu texto dos widgets e dos lembretes.
-• Editar uma entrada que tem só uma nota de voz não corre mais o risco de danificá-la.
-• As reflexões e as entradas seguem o seu tamanho de texto, e o VoiceOver lê com clareza os dias do calendário e os botões.
-• A Linha do tempo de humor desenha um ponto por dia, então dias com vários registros não deixam mais formas estranhas no gráfico.
-• Mais partes do app estão traduzidas, incluindo widgets, frases da Siri e notificações.
+• iPhone Duo: aberto por completo, a lista fica ao lado da entrada que você está lendo e Percepções se divide em duas colunas. Meio dobrado, listas e texto ficam dos lados da dobra. Ao dobrar ou abrir, você mantém o que está escrevendo e o histórico de desfazer.
+• Escrever tem uma nova barra do teclado e um novo painel Aa, organizados como no Notas da Apple. As listas de tarefas também funcionam como no Notas: toque num círculo para marcar, deslize para recuar, arraste para reordenar, e os itens concluídos podem ir para o fim.
+• Pequenas animações mostram o que acabou de acontecer: algo para salvar, um rascunho salvo, sua meta diária de palavras atingida.
+• Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
+• Percepções tem cabeçalhos com data e cartões mais limpos. No iOS 18 ou posterior, toque e segure um dia num gráfico de humor para ver o que você escreveu.
+• O Mapa mental agrupa suas palavras em temas.
+• O widget Mapa de humor pode mostrar 7 ou 14 dias.
+• No iPad e num iPhone Duo aberto, os Ajustes abrem pelo botão de pessoa em Percepções.

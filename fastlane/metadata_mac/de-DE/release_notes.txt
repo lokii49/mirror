@@ -1,8 +1,5 @@
-Zuverlässigere Zusammenfassungen und Entwürfe
+Deine eigenen Sätze in Zusammenfassungen, Berichten und „Mirror fragen“
 
-• Wöchentliche Zusammenfassung und Monatsbericht: Ein fehlgeschlagener neuer Versuch ersetzt nie einen, den du schon hast.
-• Ein Fenster „Neuer Eintrag“ behält jetzt seinen eigenen Entwurf und überschreibt nicht mehr den Entwurf im Haupteditor.
-• Einen Eintrag, der nur eine Sprachnotiz enthält, kannst du jetzt bearbeiten, ohne ihn zu beschädigen.
-• VoiceOver liest Kalendertage und Tasten klar vor.
-• Der Stimmungsverlauf zeigt einen Punkt pro Tag, sodass volle Tage keine seltsamen Formen mehr im Diagramm hinterlassen.
-• Mehr von der App ist übersetzt.
+• Mit Apple Intelligence zitieren Wöchentliche Zusammenfassung, Monatsbericht und „Mirror fragen“ jetzt deine eigenen Sätze.
+• Die Wortzahl zeigt jetzt „1 Wort“ statt „1 Wörter“.
+• Kleinere Korrekturen und Verbesserungen.

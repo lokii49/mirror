@@ -1,8 +1,5 @@
-Riepiloghi e bozze più affidabili
+Le tue frasi in riepiloghi, report e Chiedi a Mirror
 
-• Riepilogo settimanale e Report mensile: un nuovo tentativo fallito non sostituisce mai quello che hai già.
-• Una finestra Nuova voce ora mantiene la propria bozza, così non sovrascrive più quella dell'editor principale.
-• Modificare una voce che contiene solo una nota vocale non rischia più di danneggiarla.
-• VoiceOver legge con chiarezza i giorni del calendario e i pulsanti.
-• La Cronologia dell'umore disegna un punto al giorno, così le giornate piene non lasciano più forme strane nel grafico.
-• Più parti dell'app sono tradotte.
+• Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
+• Il conteggio parole ora dice "1 parola" invece di "1 parole".
+• Piccole correzioni e miglioramenti.
