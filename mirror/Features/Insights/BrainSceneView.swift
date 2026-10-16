@@ -29,9 +29,11 @@ struct Brain3DView: View {
 
     var body: some View {
         ZStack {
-            BrainSceneView(graph: graph, cameraController: cameraController, onNodeTap: onNodeTap)
-                .id(graph.nodes.map(\.id).joined(separator: "|"))
-                .ignoresSafeArea()
+            GeometryReader { geometry in
+                BrainSceneView(graph: graph, cameraController: cameraController, viewSize: geometry.size, onNodeTap: onNodeTap)
+                    .id(graph.nodes.map(\.id).joined(separator: "|"))
+            }
+            .ignoresSafeArea()
             zoomControls
         }
     }
@@ -68,6 +70,7 @@ private typealias BrainRepresentable = NSViewRepresentable
 private struct BrainSceneView: BrainRepresentable {
     let graph: BrainGraph
     let cameraController: BrainCameraController
+    let viewSize: CGSize
     let onNodeTap: (BrainNode) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -84,6 +87,7 @@ private struct BrainSceneView: BrainRepresentable {
         view.delegate = coordinator
         coordinator.view = view
         coordinator.subscribe(to: cameraController)
+        coordinator.fit(to: viewSize)
     }
 
     #if os(macOS)
@@ -112,7 +116,9 @@ private struct BrainSceneView: BrainRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: SCNView, context: Context) {}
+    func updateNSView(_ nsView: SCNView, context: Context) {
+        context.coordinator.fit(to: viewSize)
+    }
     #else
     func makeUIView(context: Context) -> SCNView {
         let view = SCNView()
@@ -144,7 +150,9 @@ private struct BrainSceneView: BrainRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: SCNView, context: Context) {}
+    func updateUIView(_ uiView: SCNView, context: Context) {
+        context.coordinator.fit(to: viewSize)
+    }
     #endif
 
     // MARK: - Coordinator
@@ -177,10 +185,12 @@ private struct BrainSceneView: BrainRepresentable {
         /// screen-center; orbiting still revolves around this point.
         private var targetOffset = SCNVector3Zero
         private let minDistance = 2.8
-        private let maxDistance = 14.0
+        private var maxDistance = 14.0
         private let defaultYaw = -0.5
         private let defaultPitch = 0.28
-        private let defaultDistance = 6.4
+        /// Set by `fit(to:)` so the whole constellation is in frame on open.
+        private var defaultDistance = 6.4
+        private var fittedSize: CGSize = .zero
         private var autoRotateEnabled = true
 
         static let background = UIColor(red: 0.09, green: 0.09, blue: 0.10, alpha: 1)
@@ -277,7 +287,10 @@ private struct BrainSceneView: BrainRepresentable {
                 scene.rootNode.addChildNode(sphereNode)
                 sphereNode.addChildNode(hitTargetNode(id: node.id, visualRadius: sceneRadius))
                 sphereNodeByID[node.id] = sphereNode
-                addLabel(text: node.label, to: sphereNode, sceneRadius: sceneRadius, alwaysVisible: index < 3, bold: false)
+                // A graph of topics is small enough to label every node; a large one labels the
+                // top three and reveals the rest as the camera gets close.
+                addLabel(text: node.label, to: sphereNode, sceneRadius: sceneRadius,
+                         alwaysVisible: graph.nodes.count <= Self.allLabelsNodeLimit || index < 3, bold: false)
             }
         }
 
@@ -378,7 +391,45 @@ private struct BrainSceneView: BrainRepresentable {
             return UIColor(red: ar + (br - ar) * t, green: ag + (bg - ag) * t, blue: ab + (bb - ab) * t, alpha: 1)
         }
 
+        static let allLabelsNodeLimit = 24
+
         // MARK: Camera rig
+
+        /// Frames the constellation for the view's shape. A portrait phone gets a 60° field of view
+        /// across its width (the old 50° vertical one left about 24° across, so outer nodes sat
+        /// off screen); a wide view keeps 50° vertical. Then the camera backs off just enough for
+        /// a sphere around every node to fit.
+        func fit(to size: CGSize) {
+            guard size.width > 0, size.height > 0, size != fittedSize else { return }
+            fittedSize = size
+            guard let camera = cameraNode.camera else { return }
+            let portrait = size.height > size.width
+            camera.projectionDirection = portrait ? .horizontal : .vertical
+            camera.fieldOfView = portrait ? 60 : 50
+            // The camera orbits around the vertical axis, so a node's reach sideways is its
+            // distance from that axis, whichever way the view has turned.
+            let tanAcross: Double
+            let tanUp: Double
+            let aspect = Double(size.width / size.height)
+            let tanFOV = tan(Double(camera.fieldOfView) / 2 * .pi / 180)
+            if portrait { tanAcross = tanFOV; tanUp = tanFOV / aspect } else { tanUp = tanFOV; tanAcross = tanFOV * aspect }
+            let margin = 0.25
+            let fitted = graph.nodes.reduce(0.0) { needed, node in
+                let p = node.position3
+                let across = (p.x * p.x + p.z * p.z).squareRoot() + margin
+                let up = abs(p.y) + margin
+                // A node nearer the camera than the target needs more room. Allowing for the
+                // full depth left the graph under half the screen wide, so allow a third of it.
+                return max(needed, across / tanAcross + 0.35 * across, up / tanUp + 0.35 * across)
+            }
+            let wasAtDefault = abs(distance - defaultDistance) < 0.001
+            defaultDistance = max(minDistance, min(14, fitted))
+            maxDistance = max(14, defaultDistance * 2)
+            if wasAtDefault {
+                distance = defaultDistance
+                updateCameraPosition()
+            }
+        }
 
         private func updateCameraPosition() {
             let x = SCNFloat(distance * cos(pitch) * sin(yaw)) + targetOffset.x
@@ -547,7 +598,7 @@ private struct BrainSceneView: BrainRepresentable {
                 let p = info.container.worldPosition
                 let dx = Double(p.x - camPos.x), dy = Double(p.y - camPos.y), dz = Double(p.z - camPos.z)
                 let d = (dx * dx + dy * dy + dz * dz).squareRoot()
-                let scale = SCNFloat(max(0.012, min(0.05, 0.028 * d)))
+                let scale = SCNFloat(max(0.012, min(0.075, 0.028 * d)))
                 info.container.scale = SCNVector3(scale, scale, scale)
                 if !info.alwaysVisible {
                     let revealNear = info.sceneRadius * 11

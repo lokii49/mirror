@@ -408,7 +408,9 @@ enum BrainGraphBuilder {
         // units matching BrainSceneView's sphere sizes) aren't undone by a
         // later rescale shrinking the gaps they just created.
         let rawMaxDist = positions.map(length).max() ?? 1
-        let targetRadius = 4.5
+        // Grows with the node count: 4.5 suited 60 single-word nodes but flung a graph of ten
+        // topics far apart, with most of them off screen.
+        let targetRadius = min(4.5, max(1.8, 0.8 * cbrt(Double(n)) + 0.9))
         let seedScale = rawMaxDist > 0.01 ? targetRadius / rawMaxDist : 1
         for i in 0..<n { positions[i] *= seedScale }
 
