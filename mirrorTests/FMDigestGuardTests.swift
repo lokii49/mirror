@@ -129,6 +129,14 @@ struct FMDigestGuardTests {
         #expect(FMDigestGuard.namesStayWithTheirEntry("Talk to Malik about the reaction mechanisms chapter.", texts: texts))
     }
 
+    /// Round 26: "Dr." doesn't end a sentence, in the model's lines or in the app's own quotes.
+    @Test func aTitleDoesNotCutALineOrAQuote() {
+        let src = [FMDailyGuard.Source(text: "Missed the grant deadline by one day. Dr. Okafor was kind about it but I felt so stupid.", mood: "Sad")]
+        #expect(FMDailyGuard.cleanSentences(of: "Talk to Dr. Okafor about the grant deadline.", sources: src, maxSentences: 1)?.text
+                == "Talk to Dr. Okafor about the grant deadline.")
+        #expect(FMDigestGuard.quotableSentences(of: src[0].text).contains("Dr. Okafor was kind about it but I felt so stupid."))
+    }
+
     @Test func nothingQuotableMeansNoDigest() {
         let short = [FMDailyGuard.Source(text: "tired", mood: "Drained"), FMDailyGuard.Source(text: "ok day", mood: "Content")]
         #expect(FMDigestGuard.assemble([], sources: short) == nil)

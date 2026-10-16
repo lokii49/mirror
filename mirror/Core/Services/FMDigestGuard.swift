@@ -179,6 +179,7 @@ nonisolated enum FMDigestGuard {
             }
             current.append(ch)
             let ends = ".!?…".contains(ch) && (i + 1 == characters.count || characters[i + 1].isWhitespace)
+                && !FMDailyGuard.endsInTitle(current)
             guard ends else { continue }
             let sentence = current.trimmingCharacters(in: .whitespaces)
             current = ""

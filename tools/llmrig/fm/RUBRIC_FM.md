@@ -858,3 +858,12 @@ and the possibility of working from Mom's place", where the audit is in Tara's e
 Goes to the owner.
 Owner shipped replay 2's rule (2026-10-16). Note: the iOS simulator's name tagger finds no names, so the rule is inert
 there (tests skip); it works on the Mac (replay) and on iPhone (round 13 tagged names on a 14 Pro).
+
+## Round 26: titles don't end a sentence (plan fixed BEFORE replaying, 2026-10-16)
+Round 25's first replay showed weekly lines cut to "Talk to Dr." (the guard's splitter ends a sentence at every ". "),
+and the app's own quote picker can drop the "Dr." the same way. **Change**: `FMDailyGuard.sentences` and
+`FMDigestGuard.quotableSentences` don't end a sentence after Dr., Mr., Mrs., Ms., Mx., Prof., St., Jr., Sr., vs.,
+e.g., i.e. (`FMDailyGuard.titleAbbreviations`). **Replay** on round 22's daily attempts and round 24's W5 digests:
+G1 every changed verdict listed; no line or quote ends in a title; no other change.
+**Round 26 result (replay):** daily 0/587 attempts change; weekly: 3 shown "Talk to Dr." lines become "Talk to Dr. Okafor
+about the grant deadline." (and similar), no other section changes, app-fixed sections unchanged (73 / 29). Ships.

@@ -160,6 +160,7 @@ nonisolated enum FMDailyGuard {
         for (i, ch) in characters.enumerated() {
             current.append(ch)
             let endsSentence = ".!?…".contains(ch) && (i + 1 == characters.count || characters[i + 1].isWhitespace)
+                && !endsInTitle(current)
             if endsSentence {
                 out.append(current.trimmingCharacters(in: .whitespaces))
                 current = ""
@@ -168,6 +169,16 @@ nonisolated enum FMDailyGuard {
         let rest = current.trimmingCharacters(in: .whitespaces)
         if !rest.isEmpty { out.append(rest) }
         return out
+    }
+
+    /// "Dr.", "Mrs.", "e.g." and the like: a period that doesn't end the sentence ("Talk to Dr. Okafor" was cut to
+    /// "Talk to Dr."; rig round 26).
+    static let titleAbbreviations: Set<String> = ["dr.", "mr.", "mrs.", "ms.", "mx.", "prof.", "st.", "jr.", "sr.", "vs.", "e.g.", "i.e."]
+
+    /// Whether `text` ends with one of `titleAbbreviations` (its last word, ignoring case).
+    static func endsInTitle(_ text: String) -> Bool {
+        let last = text.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
+        return titleAbbreviations.contains(last.trimmingCharacters(in: CharacterSet(charactersIn: "(\"'“‘")))
     }
 
     /// Names the entries write (people and places), lowercased -> as written. The model sometimes
