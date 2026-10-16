@@ -77,6 +77,9 @@ extension WriteView {
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .frame(height: barHeight)
+        // The row is wider than a phone, so it fades at the capsule's ends instead of cutting a
+        // button in half; that reads as "scrolls", not as cropped. Masks the row, not the glass.
+        .horizontalEdgeFade(14)
         .barSurface(isSentinel: displayMode == .sentinel)
         .matchedGeometryEffect(id: "barCapsule", in: barNamespace)
         .padding(.horizontal, 10)

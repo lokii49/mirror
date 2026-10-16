@@ -546,26 +546,23 @@ struct FormattingPanelView: View {
 private let panelCardFill = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .secondarySystemBackground : .systemBackground })
 
 private extension View {
-    /// The card that replaces the keyboard: an opaque sheet with a hairline edge, shaped like the
-    /// keyboard it stands in for (corners concentric to the screen on iOS 26). Sentinel keeps its
-    /// ink card with an ember hairline.
+    /// The card that replaces the keyboard: an opaque sheet with a hairline top edge. Sentinel
+    /// keeps its ink card with an ember hairline.
     @ViewBuilder
     func panelCard(isSentinel: Bool) -> some View {
         if isSentinel {
             self
                 .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
-        } else if #available(iOS 26, *) {
-            let shape = ConcentricRectangle(corners: .concentric(minimum: .fixed(28)), isUniform: true)
-            self
-                .background(panelCardFill, in: shape)
-                .clipShape(shape)
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
         } else {
+            // Square-topped and full width. iOS draws a rectangular, translucent keyboard backdrop
+            // behind any custom inputView, so rounded top corners left grey wedges of it showing
+            // (owner screenshot, 2026-10-16). The bottom corners sit on the display's own.
             self
-                .background(panelCardFill, in: RoundedRectangle(cornerRadius: 38, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 38, style: .continuous).stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
+                .background(panelCardFill)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5)
+                }
         }
     }
 

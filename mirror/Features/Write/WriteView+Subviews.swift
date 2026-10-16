@@ -88,22 +88,44 @@ extension WriteView {
         HStack(spacing: 8) {
             if viewModel.wordCount > 0 {
                 let goalMet = viewModel.wordCount >= dailyWordGoal
-                HStack(spacing: 3) {
-                    Text("\(viewModel.wordCount)w")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
-                    if goalMet {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    } else if viewModel.wordCount >= 50 {
-                        Text("/ \(dailyWordGoal)w")
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.quaternary)
+                if displayMode == .sentinel {
+                    HStack(spacing: 3) {
+                        Text("\(viewModel.wordCount)w")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
+                        if goalMet {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.green)
+                        } else if viewModel.wordCount >= 50 {
+                            Text("/ \(dailyWordGoal)w")
+                                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                .foregroundStyle(.quaternary)
+                        }
                     }
+                    .lineLimit(1)
+                    .transition(.opacity)
+                } else {
+                    // Classic reads in the system face like the rest of the header: "30 words",
+                    // with a small ring toward the daily goal once it's in sight.
+                    HStack(spacing: 5) {
+                        if goalMet {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.green)
+                        } else if viewModel.wordCount >= 50 {
+                            WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
+                        }
+                        Text("\(viewModel.wordCount) words")
+                            .font(.system(size: 12, weight: .medium).monospacedDigit())
+                            .foregroundStyle(goalMet ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(.tertiary))
+                            .contentTransition(.numericText())
+                    }
+                    .lineLimit(1)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue(goalMet || viewModel.wordCount < 50 ? Text("") : Text("\(viewModel.wordCount) of \(dailyWordGoal)"))
+                    .transition(.opacity)
                 }
-                .lineLimit(1)
-                .transition(.opacity)
             }
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave, compact: true)
         }
@@ -416,7 +438,7 @@ extension WriteView {
                 Image(systemName: focusMode
                       ? "arrow.down.right.and.arrow.up.left"
                       : "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 14))
+                    .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
             .buttonStyle(.plain)
@@ -739,5 +761,23 @@ struct WritingStarterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+    }
+}
+
+/// The Write header's progress toward the daily word goal: a thin ring the size of a glyph.
+private struct WordGoalRing: View {
+    let progress: Double
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 2)
+            Circle()
+                .trim(from: 0, to: min(max(progress, 0), 1))
+                .stroke(MirrorTheme.primary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: 11, height: 11)
+        .animation(.easeOut(duration: 0.25), value: progress)
+        .accessibilityHidden(true)
     }
 }
