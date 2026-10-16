@@ -116,7 +116,7 @@ extension WriteView {
                         } else if viewModel.wordCount >= 50 {
                             WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
                         }
-                        Text("\(viewModel.wordCount) words")
+                        Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
                             .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(goalMet ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(.tertiary))
                             .contentTransition(.numericText())

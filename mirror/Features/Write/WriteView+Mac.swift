@@ -333,7 +333,7 @@ extension WriteView {
 
     var macStatusBar: some View {
         HStack(spacing: 14) {
-            Text("\(viewModel.wordCount) words")
+            Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
                 .font(.system(size: 12))
                 .foregroundStyle(MacTokens.secondaryInk)
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
