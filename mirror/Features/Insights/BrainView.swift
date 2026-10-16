@@ -420,7 +420,8 @@ private struct BrainNodeDetailSheet: View {
         switch node.type {
         case .person: return "person.fill"
         case .place: return "mappin.circle.fill"
-        case .keyword, .theme: return "number"
+        case .theme: return "square.grid.2x2.fill"
+        case .keyword: return "number"
         }
     }
 
@@ -454,6 +455,14 @@ private struct BrainNodeDetailSheet: View {
                     }
                 }
                 .foregroundStyle(MirrorTheme.textSecondary)
+                // A topic lists the words it gathered, most mentioned first.
+                if !node.members.isEmpty {
+                    Text(node.members.prefix(6).joined(separator: " · "))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .lineLimit(2)
+                        .accessibilityLabel(Text("Includes \(node.members.prefix(6).joined(separator: ", "))"))
+                }
             }
             Spacer()
             if let score = node.avgMoodScore {
