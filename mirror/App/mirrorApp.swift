@@ -1356,7 +1356,8 @@ struct mirrorApp: App {
     /// granted, when nothing would otherwise have been scheduled.
     private func reArmUserReminders() async {
         let d = UserDefaults.standard
-        // `moodCheckInEnabled` defaults to true — treat a missing value as on.
+        // `moodCheckInEnabled` defaults to true, so a missing value is on: users from before
+        // 2026-10-16 keep it. Onboarding writes false for new users before asking permission.
         let enabled = (d.object(forKey: "moodCheckInEnabled") as? Bool) ?? true
         guard enabled else { return }
         await NotificationService.scheduleMoodCheckIn(

@@ -897,6 +897,14 @@ struct OnboardingFlow: View {
     /// reminders on later.
     private func enableDailyReminder() async {
         saveNudgeTime()
+        // New users start with the mood check-in reminder off (owner, 2026-10-16): with permission
+        // now asked here, its default-on 9:00 notification would otherwise start on day one next
+        // to the writing reminder. Written before the prompt, because answering it makes the app
+        // active and mirrorApp's reArmUserReminders schedules the check-in right then. Only when
+        // unset, so anyone who chose a value keeps it. Settings can turn it on.
+        if UserDefaults.standard.object(forKey: "moodCheckInEnabled") == nil {
+            UserDefaults.standard.set(false, forKey: "moodCheckInEnabled")
+        }
         let center = UNUserNotificationCenter.current()
         if await center.notificationSettings().authorizationStatus == .notDetermined {
             _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
