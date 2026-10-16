@@ -1748,7 +1748,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Дорога"
+            "value" : "Дорога на работу"
           }
         },
         "zh-Hans" : {
@@ -4787,7 +4787,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Душа"
+            "value" : "Психика"
           }
         },
         "zh-Hans" : {
@@ -7946,7 +7946,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Studio"
+            "value" : "Studi"
           }
         },
         "ja" : {

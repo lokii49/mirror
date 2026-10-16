@@ -481,7 +481,11 @@ private struct BrainNodeDetailSheet: View {
 
     private var askButton: some View {
         Button {
-            onAsk(String(localized: "What have I written about \(node.label)?"))
+            // A topic's label ("Outdoors") isn't a word in the entries; ask about the words it gathered.
+            let subject = node.type == .theme && !node.members.isEmpty
+                ? node.members.prefix(3).joined(separator: ", ")
+                : node.label
+            onAsk(String(localized: "What have I written about \(subject)?"))
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: displayMode == .sentinel ? "waveform.badge.magnifyingglass" : "bubble.left.and.text.bubble.right.fill")
