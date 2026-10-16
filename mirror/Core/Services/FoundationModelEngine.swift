@@ -122,6 +122,51 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// The structured English weekly digest (tools/llmrig/fm/RUBRIC_FM.md, rounds 16 and 18). `FMDigestGuard`
+    /// checks every field before anything is shown. Guide text is part of the measured prompt: it is
+    /// fmrig.swift's WeeklyDigestD3, word for word; change both together and re-measure.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct WeeklyDigestDraft {
+        @Guide(description: "One short phrase, 3 to 8 words, that finishes 'A week of' and says what the week was about for them. Not a list of names")
+        var theme: String
+        @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+        var energyQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that moment seems to show they need, hope for or worry about. Do not retell it. Only feelings they wrote or plainly showed")
+        var energyRead: String
+        @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+        var buildingQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that might mean for them from here on. Do not retell it. Say nothing about anything they did not write")
+        var buildingRead: String
+        @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be costing them or wearing on them")
+        var watchQuote: String
+        @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on and why it matters to them. Say nothing about anything they did not write")
+        var watchRead: String
+        @Guide(description: "One small thing they could do in the next few days, using a person, task or thing they named this week")
+        var boost: String
+        @Guide(description: "One kind, practical sentence for next week about something they wrote is coming up or still unfinished")
+        var nextWeek: String
+    }
+    #endif
+
+    /// One structured weekly digest draft. Temperature as measured (the daily reflection's), no token cap.
+    nonisolated static func generateWeeklyDigest(systemPrompt: String, userMessage: String) async throws -> FMDigestGuard.Draft {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let r = try await session.respond(to: userMessage, generating: WeeklyDigestDraft.self, options: options).content
+        return FMDigestGuard.Draft(
+            theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+            buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+            watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek
+        )
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
     /// Marks a test error as a guardrail refusal (a real `GenerationError` can't be built in tests).
     protocol GuardrailRefusalForTesting: Error {}
 

@@ -631,3 +631,37 @@ only is not a pass.
   something costing them on a peaceful week) gets that content invented when the week has none.
 - Held-out weeks: stopped after ho_move (W4 already failed on the original weeks); not scored.
 Per the plan, the owner picks: W3 as an interim, or keep W0.
+
+## Round 18: W3 as an interim, held-out check (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 17: ship W3 as an interim for English FM digests (it failed G2/G3 in round 16 but invents in
+~1 section in 10 against W0's ~1 in 2). W3 was only measured on the weeks that shaped it, so before it ships:
+W3 (round 16's exact prompt, guides and guard; the `fmrig3` binary) and W0 on the 5 held-out weeks, N = 10, blind
+scored together with round 16's scorer prompt (labels removed, shuffled).
+**Interim bar** (not round 15's gates; the owner accepted W3 below them): on the held-out weeks, W3 fallback <= 10%,
+W3's invented-section rate at most half of W0's on the same weeks, app-fixed sections <= 25%. Miss -> back to the
+owner before anything ships. The app ships round 16's FMDigestGuard (no round-17 rules).
+
+### Round 18 result (2026-10-16, 5 held-out weeks x 10, blind-scored by 3 scorers): two of three bars met; one missed by a refusal
+| held-out weeks | shown | digests PASS | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|---|
+| W0 shipped | 50/50 | 0/50 | 205/300 (68.3%) | 25 | 0.18 |
+| W3 | 40/50 | 20/40 | 19/240 (7.9%) | 10 | 0.20 |
+
+- Invented at most half of W0's: met (7.9% vs 68.3%). On these weeks W3 is also as useful as W0 on clean sections.
+- **ho_move: FM refused W3 10/10 ("May contain sensitive content"); W0's free prose was not refused.** In the app every
+  attempt refused means `FMDigestGuard.assemble([])`: a digest of the week's own sentences and fixed lines only.
+- App-fixed sections: 39/240 (16%) on the four answered weeks; counting ho_move as 60 fixed, 99/300 (33%) > 25%: missed.
+Per the plan this goes back to the owner before anything ships.
+
+### Shipped (2026-10-16, owner decision after round 18): W3 as an interim, English and the other FM languages
+- English FM digests: `WEEKLY_DIGEST_FM_SYSTEM` (= `system_digest_d3.txt`) + `WeeklyDigestDraft` (= WeeklyDigestD3's
+  guides) + round 16's `FMDigestGuard`, 3 attempts, app-filled sections (`InsightService.structuredFMDigest`).
+  Owner accepted the ho_move refusal case (an all-app digest of the week's sentences) over W0's 68% invented.
+- One app-side change after the rounds: on a week whose only good day went to YOUR ENERGY, an app-picked hard
+  sentence under WHAT'S BUILDING gets "That stood out this week." instead of "worth holding on to" (seen end to
+  end on the Mac's FM: "Woke up with a fever and chills." That sounds like something worth holding on to.).
+- de/es/fr/it/pt/ja/ko/zh on FM (owner: "fix this for all languages"): the same draft, but only its three quotes
+  are used, each matched with `FMDailyGuard.matchOption` to the Gemma localized digest's options; all other text is
+  `groundedLocales`' fixed translated lines, as on Gemma (`structuredFMLocalizedDigest`). No model-written text is
+  shown, so nothing can be invented; NOT rig-measured for how often the model's picks match (app picks fill gaps).
+- Still open: languages outside the 10 keep the free-prose digest on FM; reads can say "they" instead of "you".

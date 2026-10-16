@@ -140,6 +140,37 @@ NEXT WEEK: One practical, kind suggestion for next week.
 Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
 """
 
+// English weekly digest on Foundation Models (2026-10-16, interim). Free prose on WEEKLY_DIGEST_SYSTEM invented
+// something in 146/300 sections (0/50 clean digests) on a strict blind pass, so FM fills a structured draft
+// instead (`FoundationModelEngine.WeeklyDigestDraft`) in the Gemma digest's shape: three verbatim quotes, each
+// with one line, plus theme, boost and next week, all checked by `FMDigestGuard`; sections the model can't get
+// right in 3 attempts are filled by the app. Measured (tools/llmrig/fm/RUBRIC_FM.md, rounds 15-18): ~1 section in
+// 10 still invents and the lines are less useful than free prose; the owner shipped it as an interim. Kept
+// byte-identical to tools/llmrig/fm/system_digest_d3.txt; change both together and re-measure.
+let WEEKLY_DIGEST_FM_SYSTEM = """
+You write the weekly reflection for MirrorNotes, a private on-device journal. You are given the person's journal entries from this week. Work only from what they wrote.
+
+The reflection has these parts:
+- theme: one short phrase, 3 to 8 words, that finishes "A week of" and says what the week was about for them, like "starting over after a hard goodbye" or "juggling work and a family worry". Not a list of names.
+- energyQuote: the one sentence from this week's entries that best shows when they had the most or the least energy, copied exactly, every word and mark as written.
+- energyRead: one sentence to them as "you" on what that moment seems to show they need, hope for or worry about. Do not retell what happened.
+- buildingQuote: a different sentence, copied exactly, about something good that is growing or changing for them.
+- buildingRead: one sentence on what that might mean for them from here on. Do not retell what happened.
+- watchQuote: a different sentence, copied exactly, about something that may be costing them or wearing on them.
+- watchRead: one gentle sentence on what to keep an eye on and why it matters to them.
+- boost: one small thing they could do in the next few days, using a person, task or thing they named this week.
+- nextWeek: one kind, practical sentence for next week, about something they wrote is coming up or still unfinished.
+
+Rules for everything you write:
+- Use only facts that are in the entries. Do not add weather, light, sky, air, sounds, smells, places, furniture, objects, or any person who is not named in the entries. Do not describe how their body feels unless they wrote it.
+- Each sentence is about one entry. Do not say one day caused or followed another.
+- A plan, an offer or something they are considering has not happened yet; do not say it did.
+- Use only feelings they wrote or that their words plainly show. Do not exaggerate. If the week was ordinary, say it was a steady week.
+- Do not call anything quiet unless they did.
+- Never write as the journal writer: no "I feel", "I've been", "my". You are MirrorNotes speaking to them as "you".
+- Plain everyday words, like a close friend. No therapy language, no generic advice like "take a deep breath" or "practice self-care", do not mention AI or a model.
+"""
+
 private let ASK_SYSTEM = """
 You are MirrorNotes, a private journaling companion. Read the journal entries and answer the question based on what the person actually wrote.
 Rules:
@@ -1386,6 +1417,30 @@ enum InsightService {
             return (weeklyDigestUngroundedFallback, .gemma)
         }
 
+        // The other Foundation Models languages (de, es, fr, it, pt, ja, ko, zh): the same structured draft,
+        // but only its three quotes are used, each matched to one of the week's own sentences; every other
+        // word is the app's translated text (groundedLocales), as on Gemma. The English checks can't vouch
+        // for model-written text in other languages, so none is shown. Russian stays on Gemma.
+        if let localized, case .grammarConstrained = localized.plan, localized.digestOptions.count == 3,
+           let validator = localized.validator, usesStructuredFMNudge,
+           let code = responseLanguageTarget(from: languageSource)?.code ?? responseLanguageTargetFromCurrentLocale()?.code,
+           FoundationModelEngine.supports(languageCode: code) {
+            let text = try await structuredFMLocalizedDigest(
+                options: localized.digestOptions,
+                validator: validator,
+                systemPrompt: WEEKLY_DIGEST_FM_SYSTEM + (languageInstruction.map { "\n\n" + $0 } ?? ""),
+                userMessage: userMessage
+            )
+            return (text ?? weeklyDigestUngroundedFallback, .foundationModels)
+        }
+
+        // English on Foundation Models: the structured digest (see WEEKLY_DIGEST_FM_SYSTEM). Free prose
+        // never runs for English on a device that has Foundation Models.
+        if localized == nil, case .grammarConstrained = grounded.plan, usesStructuredFMNudge {
+            let text = try await structuredFMDigest(weekEntries: recentEntries, userMessage: userMessage)
+            return (text ?? weeklyDigestUngroundedFallback, .foundationModels)
+        }
+
         // Same isUngrounded backstop and bounded-retry-loop shape as generateNudge (see its doc
         // comment for the motivating "rain outside..." incident) — applied to the whole digest
         // (all six sections) rather than per-section, since WEEKLY_DIGEST_SYSTEM's "reference
@@ -1453,6 +1508,91 @@ enum InsightService {
         }
         try Task.checkCancellation()
         return (weeklyDigestUngroundedFallback, lastResult.engine)
+    }
+
+    static let structuredDigestAttempts = 3
+
+    /// The English weekly digest on Foundation Models: up to `structuredDigestAttempts` drafts, each section
+    /// taken from the first draft where `FMDigestGuard` accepts it; whatever is still missing is filled by
+    /// the app (`FMDigestGuard.assemble`). nil only when the week has nothing to quote. A refused or failed
+    /// draft counts as an attempt. Saved in the same labelled shape as the Gemma digest.
+    static func structuredFMDigest(
+        weekEntries: [Entry],
+        userMessage: String,
+        generator: (() async throws -> FMDigestGuard.Draft)? = nil
+    ) async throws -> String? {
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateWeeklyDigest(systemPrompt: WEEKLY_DIGEST_FM_SYSTEM, userMessage: userMessage)
+            }
+        }
+        let sources = guardSources(from: weekEntries)
+        var drafts: [FMDigestGuard.Draft] = []
+        var verified: FMDigestGuard.Verified?
+        for attempt in 1...structuredDigestAttempts {
+            try Task.checkCancellation()
+            do {
+                drafts.append(try await draft())
+                verified = FMDigestGuard.merge(drafts, sources: sources)
+                if verified != nil { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[digest] structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        try Task.checkCancellation()
+        guard let sections = verified?.sections ?? FMDigestGuard.assemble(drafts, sources: sources)?.verified.sections else { return nil }
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        return zip(labels, sections).map { "\($0): \($1)" }.joined(separator: "\n")
+    }
+
+    /// The weekly digest outside English on Foundation Models: each attempt's energy / building / watch quote
+    /// is matched (`FMDailyGuard.matchOption`) to one of `options`' three lists; a slot keeps the first match
+    /// across attempts, and a slot still empty after `structuredDigestAttempts` takes its list's first
+    /// sentence. `validator` (the Gemma localized digest's) composes the translated text from the three.
+    /// nil only when that fails. No model-written text is shown.
+    static func structuredFMLocalizedDigest(
+        options: [[String]],
+        validator: (String) throws -> String,
+        systemPrompt: String,
+        userMessage: String,
+        generator: (() async throws -> FMDigestGuard.Draft)? = nil
+    ) async throws -> String? {
+        guard options.count == 3, options.allSatisfy({ !$0.isEmpty }) else { return nil }
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateWeeklyDigest(systemPrompt: systemPrompt, userMessage: userMessage)
+            }
+        }
+        var picks: [String?] = [nil, nil, nil]
+        for attempt in 1...structuredDigestAttempts {
+            try Task.checkCancellation()
+            do {
+                let d = try await draft()
+                for (slot, quote) in [d.energyQuote, d.buildingQuote, d.watchQuote].enumerated() where picks[slot] == nil {
+                    picks[slot] = FMDailyGuard.matchOption(quote: quote, in: options[slot])
+                }
+                if picks.allSatisfy({ $0 != nil }) { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[digest] localized structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        try Task.checkCancellation()
+        #if DEBUG
+        // Counts only, never prompt or entry content.
+        print("[digest] localized quotes picked by the model: \(picks.compactMap { $0 }.count)/3")
+        #endif
+        let lines = picks.enumerated().map { $0.element ?? options[$0.offset][0] }
+        return try? validator(lines.joined(separator: "\n"))
     }
 
     // Same overpromise problem as the nudge's old copy, worse here: weeklyDigestIsStale needs
@@ -4041,6 +4181,9 @@ extension InsightService {
         /// The quotable sentences the validator accepts (daily reflection only; empty elsewhere).
         /// Foundation Models picks one of them instead of Gemma.
         var quoteOptions: [String] = []
+        /// Weekly digest only: the sentences the validator accepts for YOUR ENERGY, WHAT'S BUILDING and
+        /// WATCH OUT FOR, in that order. Foundation Models picks from them instead of Gemma.
+        var digestOptions: [[String]] = []
     }
 
     private static func groundedLocaleCode(for entries: [Entry], extraText: String? = nil) -> String? {
@@ -4288,7 +4431,8 @@ extension InsightService {
                     loc.nextWeek[dominant] ?? "",
                 ]
                 return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
-            }
+            },
+            digestOptions: [energyOptions, goodOptions, hardOptions]
         )
     }
 
@@ -4518,6 +4662,9 @@ extension InsightService {
             return ("InsightService.swift:22 · DAILY_NUDGE_LEGACY_SYSTEM", DAILY_NUDGE_LEGACY_SYSTEM)
         case .weeklyDigest:
             if let content, content.contains("WHAT'S BUILDING: You wrote, \"") {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    return ("InsightService.swift · WEEKLY_DIGEST_FM_SYSTEM", WEEKLY_DIGEST_FM_SYSTEM)
+                }
                 return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
             }
             if let content, let loc = groundedLocales.values.first(where: { content.contains($0.energyHard) || content.contains($0.energyGood) }) {
