@@ -1870,10 +1870,40 @@ enum InsightService {
             gemmaValidator: askValidator
         )
         guard result.engine == .foundationModels, result.text != askNoAnswerPhrase(for: target), usesStructuredFMNudge else { return result }
+        // Foundation Models sometimes answers all in lowercase ("you wrote that you couldn't sleep…").
+        let answer = capitalizedSentenceStarts(result.text)
         let quotes = await askEvidenceQuotes(
-            answer: result.text, askMessage: askMessage, pool: relevant + Array(background), languageCode: target?.code ?? "en"
+            answer: answer, askMessage: askMessage, pool: relevant + Array(background), languageCode: target?.code ?? "en"
         )
-        return (quotes.map { result.text + "\n\n" + $0 } ?? result.text, result.engine)
+        return (quotes.map { answer + "\n\n" + $0 } ?? answer, result.engine)
+    }
+
+    /// The first letter of every sentence upper-cased (after the start, ". ", "! ", "? " or a line break), except
+    /// after an abbreviation such as "e.g." or "Dr.". Letters only change case; nothing else is touched, and scripts
+    /// without case are unchanged.
+    static func capitalizedSentenceStarts(_ text: String) -> String {
+        let abbreviations: Set<String> = ["e.g.", "i.e.", "dr.", "mr.", "mrs.", "ms.", "st.", "vs.", "etc."]
+        var out = ""
+        var capitalizeNext = true
+        var lastWord = ""
+        for ch in text {
+            if capitalizeNext, ch.isLetter {
+                out += String(ch).uppercased()
+                capitalizeNext = false
+                lastWord = String(ch)
+                continue
+            }
+            out.append(ch)
+            if ch.isWhitespace {
+                if let last = lastWord.last, ".!?".contains(last), !abbreviations.contains(lastWord.lowercased()) { capitalizeNext = true }
+                if ch.isNewline { capitalizeNext = true }
+                lastWord = ""
+            } else {
+                lastWord.append(ch)
+                if ch.isLetter || ch.isNumber { capitalizeNext = false }
+            }
+        }
+        return out
     }
 
     /// The person's own sentences backing a Foundation Models Ask answer, formatted like Gemma's grounded Ask

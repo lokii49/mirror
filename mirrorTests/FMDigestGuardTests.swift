@@ -114,6 +114,21 @@ struct FMDigestGuardTests {
         #expect(FMDailyGuard.cleanSentences(of: "You feel overwhelmed by the budget.", sources: sources, maxSentences: 1) == nil)
     }
 
+    /// Round 25: another person's matter given to this one is dropped; a name with an unnamed matter stays.
+    @Test func aBoostThatGivesOnePersonsRequestToAnotherIsDropped() {
+        let texts = [
+            "Mom's knee surgery is booked for the 14th. Tara says she can take the first week but I'll need to cover the second.",
+            "Asked my manager, Deepa, if I can work from Mom's place for a week. She said she'll think about it.",
+            "Organic chem final is on Friday and I still don't understand the reaction mechanisms chapter.",
+            "Study group with Malik in the library until 11.",
+        ]
+        // The simulator's name tagger finds no names, so the rule can only be checked where it does (Mac, iPhone).
+        guard !FMDailyGuard.personNames(in: texts[1]).isEmpty else { return }
+        #expect(!FMDigestGuard.namesStayWithTheirEntry("Talk to Tara about working from Mom's place for a week.", texts: texts))
+        #expect(FMDigestGuard.namesStayWithTheirEntry("Talk to Deepa about working from Mom's place for a week.", texts: texts))
+        #expect(FMDigestGuard.namesStayWithTheirEntry("Talk to Malik about the reaction mechanisms chapter.", texts: texts))
+    }
+
     @Test func nothingQuotableMeansNoDigest() {
         let short = [FMDailyGuard.Source(text: "tired", mood: "Drained"), FMDailyGuard.Source(text: "ok day", mood: "Content")]
         #expect(FMDigestGuard.assemble([], sources: short) == nil)

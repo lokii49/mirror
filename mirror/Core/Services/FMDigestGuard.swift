@@ -55,7 +55,7 @@ nonisolated enum FMDigestGuard {
         let goodExists = sources.contains { !isHard($0.mood) }
         func line(_ text: String) -> String? {
             guard let clean = FMDailyGuard.cleanSentences(of: text, sources: sources, maxSentences: 1)?.text,
-                  !speaksAboutThem(clean) else { return nil }
+                  !speaksAboutThem(clean), namesStayWithTheirEntry(clean, texts: texts) else { return nil }
             return clean
         }
         func distinct(_ quote: String) -> Bool {
@@ -186,6 +186,47 @@ nonisolated enum FMDigestGuard {
             if (4...25).contains(count), !sentence.contains(where: { "\"“”".contains($0) }) { out.append(sentence) }
         }
         return out
+    }
+
+    private static let stopWords: Set<String> = [
+        "that", "this", "with", "about", "from", "what", "when", "have", "they", "them", "your", "their", "some",
+        "more", "been", "just", "into", "will", "would", "could", "might", "maybe", "keep", "talk", "still", "feel",
+        "feels", "week", "something", "things", "thing", "help", "small", "next", "time", "there", "here", "which",
+        "seems", "like", "even", "also", "much", "very", "make", "take", "give", "over", "where", "while", "after",
+    ]
+
+    /// A line that gives one person's matter to another: for a name it mentions, an entry naming a *different*
+    /// person holds most of the line's other content words (>= 60%) while the entries naming this person hold
+    /// little of it (< 40%). Catches "Talk to Tara about working from Mom's place" when the request was to Deepa,
+    /// and keeps "Talk to Malik about the final exam" (the exam's entry names nobody). Rig round 25.
+    static func namesStayWithTheirEntry(_ line: String, texts: [String]) -> Bool {
+        let namesByEntry = texts.map { Set(nameWords(in: $0)) }
+        let names = namesByEntry.reduce(into: Set<String>()) { $0.formUnion($1) }
+        let tokens = FMDailyGuard.words(line).map { $0.replacingOccurrences(of: "'s", with: "") }
+        let mentioned = Set(tokens.filter(names.contains))
+        guard !mentioned.isEmpty else { return true }
+        let content = tokens.filter { $0.count >= 4 && !stopWords.contains($0) && !names.contains($0) && $0 != "you're" }
+        guard !content.isEmpty else { return true }
+        func near(_ a: String, _ b: String) -> Bool {
+            let n = min(a.count, b.count, 5)
+            return n >= 3 ? a.prefix(n) == b.prefix(n) : a == b
+        }
+        let overlap = texts.map { entry -> Int in
+            let words = FMDailyGuard.words(entry)
+            return content.filter { word in words.contains { near(word, $0) } }.count
+        }
+        for name in mentioned {
+            let own = texts.indices.filter { namesByEntry[$0].contains(name) }.map { overlap[$0] }.max() ?? 0
+            let other = texts.indices.filter { !namesByEntry[$0].contains(name) && !namesByEntry[$0].isEmpty }.map { overlap[$0] }.max() ?? 0
+            if other * 10 >= content.count * 6, own * 10 < content.count * 4 { return false }
+        }
+        return true
+    }
+
+    /// Names in an entry, lowercased, as `FMDailyGuard` finds them (tagger; at a sentence start only a
+    /// PersonalName counts).
+    private static func nameWords(in text: String) -> [String] {
+        FMDailyGuard.personNames(in: text).keys.map { $0.replacingOccurrences(of: "'s", with: "") }
     }
 
     /// "That moment seems to show they need space": the line talks about the person instead of to them (round 23).

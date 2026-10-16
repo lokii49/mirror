@@ -834,3 +834,27 @@ than W3's before round 23 (8% original, 16% held-out); G2 blind invented-section
 - G2: original weeks 6.3% vs 9.5% (better); held-out 8.8% vs 7.9% (worse by 0.9 points). ho_move refused 10/10 again.
 - Against what ships today (W3 + round-23 guard, 15% app-fixed), W5 cuts app-written sections by about 40%.
 Goes to the owner.
+
+## Round 25: names stay with their entry, on W5 (plan fixed BEFORE replaying, 2026-10-16)
+Owner, after the Mac app check showed "Talk to Tara about … working from Mom's place" (the request was to Deepa):
+fix the mixed-up people. **Change**: round 17's rule 2 alone, added to round 23's `FMDigestGuard` line check: for every
+name a weekly line mentions (`FMDailyGuard.personNames`), at least 60% of the line's other content words must appear
+in one entry that names that person. Round 17's other rules (timing words, quoted-entry-only feelings) stay out.
+**Method**: replay, no new model runs: round 24's 140 W5 digests (all attempts) judged by the shipped guard and by the
+guard with the rule. **Gates**: G1 every newly dropped line listed and read by hand: the rule removes the Tara/Deepa
+kind of swap and drops no more than 5 correct lines; G2 app-fixed sections rise by at most 3 points (9% -> <= 12%
+original, 12% -> <= 15% held-out); G3 no newly shown line contains a swap. Pass -> ship. Fail -> owner.
+**Round 25 replay 1 (the rule as planned): G2 fails** (app-fixed 9% -> 24% original, 12% -> 20% held-out). It does turn
+"Talk to Tara about working from Mom's place" into "Talk to Deepa about …", but drops many right lines ("Talk to Sam
+about the night feeds": only half its words are in Sam's entry). **Replay 2, narrower rule (fixed before running)**:
+drop a line only when, for a name it mentions, one entry naming a *different* person holds >= 60% of the line's content
+words while the entries naming that person hold < 40% (the swap: another person's matter given to this one). A line
+about a name and an unnamed matter ("Talk to Malik about the final exam") stays. Same gates.
+**Replay 2 result:** G2 passes (9% -> 12% original, 12% -> 12% held-out). G1: of 10 "Talk to Tara about … Mom's place"
+lines, 8 are now dropped or became "Talk to Deepa about …"; "Talk to Farah about the climbing session with Sam" (2) and
+"Talk to Priyanka about the Spanish course" (10, an invented pairing: Priyanka is only in the dinner entry) dropped too;
+no correct line lost. G3 misses on 2 newly shown lines that still pair Tara with the wrong matter ("…about the audit
+and the possibility of working from Mom's place", where the audit is in Tara's entry; "…about the list you keep").
+Goes to the owner.
+Owner shipped replay 2's rule (2026-10-16). Note: the iOS simulator's name tagger finds no names, so the rule is inert
+there (tests skip); it works on the Mac (replay) and on iPhone (round 13 tagged names on a 14 Pro).

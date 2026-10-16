@@ -91,3 +91,18 @@ extension SharedLLMState {
         }
     }
 }
+
+@Suite("Ask answer capitalization")
+struct AskCapitalizationTests {
+    @Test func everySentenceStartsWithACapital() {
+        let text = "you wrote that you couldn't sleep again. the mood you described is drained! it feels heavy?\nmaybe rest."
+        #expect(InsightService.capitalizedSentenceStarts(text) == "You wrote that you couldn't sleep again. The mood you described is drained! It feels heavy?\nMaybe rest.")
+    }
+
+    @Test func abbreviationsQuotesAndOtherScriptsAreLeftAlone() {
+        #expect(InsightService.capitalizedSentenceStarts("You saw Dr. okafor, e.g. about the grant.") == "You saw Dr. okafor, e.g. about the grant.")
+        #expect(InsightService.capitalizedSentenceStarts("You wrote, \"Called Mom tonight.\" She was calm.") == "You wrote, \"Called Mom tonight.\" She was calm.")
+        #expect(InsightService.capitalizedSentenceStarts("今日は疲れた。明日は休む。") == "今日は疲れた。明日は休む。")
+        #expect(InsightService.capitalizedSentenceStarts("Already Fine. Nothing to do.") == "Already Fine. Nothing to do.")
+    }
+}
