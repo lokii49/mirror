@@ -78,6 +78,7 @@ extension WriteView {
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .frame(height: barHeight)
         .barSurface(isSentinel: displayMode == .sentinel)
+        .matchedGeometryEffect(id: "barCapsule", in: barNamespace)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: panelState.activeParagraphStyle)
@@ -92,6 +93,7 @@ extension WriteView {
                     editorFocused = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { applyTextCommand(.checklist) }
                 }
+                .matchedGeometryEffect(id: "checklist", in: barNamespace)
                 attachMenu
                 barButton("waveform", label: "Record Audio", id: "closed.record", isOn: false) {
                     showRecorderSheet = true
@@ -101,10 +103,16 @@ extension WriteView {
             .padding(.horizontal, 6)
             .frame(height: barHeight)
             .barSurface(isSentinel: displayMode == .sentinel)
+            .matchedGeometryEffect(id: "barCapsule", in: barNamespace)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+    }
+
+    /// The keyboard-up bar shows instead of the short keyboard-down one.
+    var showsOpenBar: Bool {
+        (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode
     }
 
     private var barHeight: CGFloat { min(toolbarIconSize(48), 64) }
@@ -158,6 +166,7 @@ extension WriteView {
         .accessibilityHint("Touch and hold for checklist actions")
         .accessibilityIdentifier("keyboardBar.checklist")
         .accessibilityAddTraits(isInChecklist ? .isSelected : [])
+        .matchedGeometryEffect(id: "checklist", in: barNamespace)
     }
 
     /// Font family for this entry's body text (Write, entry list preview, entry detail).
@@ -230,6 +239,7 @@ extension WriteView {
         .accessibilityLabel("Attach")
         .accessibilityIdentifier("keyboardBar.attach")
         .accessibilityValue(attachAccessibilityValue)
+        .matchedGeometryEffect(id: "attach", in: barNamespace)
     }
 
     private var attachAccessibilityValue: Text {
