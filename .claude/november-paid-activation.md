@@ -27,7 +27,7 @@ The notice has to be in users' hands before the cutover build, so A needs its ow
 - **What it says** (draft, needs owner copy and translations into all 10 languages):
   - from <date>, the AI features (daily reflection, Ask, weekly digest, monthly report, mood timeline, widgets) need Core or Deep;
   - writing, reading, search and iCloud backup stay free forever;
-  - every plan starts with a 7-day free trial.
+  - new subscribers get a 7-day free trial on their first plan. Don't say "every plan": all four products share one subscription group, and Apple gives one introductory offer per Apple ID per group, so anyone who already had a trial (Core or Deep, monthly or yearly) gets none on a later plan.
 - **No push notification.** It would be the first marketing notification, which is out of character for the app.
 - **App Store "What's New"** text for build A repeats the date.
 
@@ -52,7 +52,7 @@ The notice has to be in users' hands before the cutover build, so A needs its ow
 - [ ] Core: Ask stops at 15 in a month.
 - [ ] Widgets: `widget.tier` follows the real tier (A1 path).
 - [ ] Background passes skip digest, report and mood alert for Free, and run for a cached subscriber on a cold launch.
-- [ ] Release notes and App Store description name the plans and the trial.
+- [ ] Release notes and App Store description name the plans and the trial, worded as "a 7-day free trial for new subscribers" (one trial per Apple ID across all four plans), never "every plan includes a trial". As of 2026-10-16 no shipped description or release note mentions a trial. The paywall already shows the trial only to eligible users (`SubscriptionService.trialEligibleProductIDs`) and says "Subscribe" otherwise.
 - [ ] Privacy policy: still no change (on-device AI), but confirm RevenueCat's disclosure is current.
 
 ## Open questions for the owner

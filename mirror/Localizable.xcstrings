@@ -263,6 +263,122 @@
         }
       }
     },
+    "15 grounded questions per month from your own writing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 fundierte Fragen pro Monat, basierend auf deinen eigenen Texten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 preguntas fundamentadas al mes basadas en lo que escribes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 questions pertinentes par mois basées sur vos propres écrits."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 domande fondate al mese basate sui tuoi scritti."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "あなたの文章に基づいた、月15問までの的確な質問応答。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "당신의 글을 바탕으로 한 월 15개의 근거 있는 질의응답."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 perguntas fundamentadas por mês com base no que você escreveu."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 обоснованных вопросов в месяц на основе ваших собственных записей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月 15 次基于你自己文字的深度问答。"
+          }
+        }
+      }
+    },
+    "30/90/all-time chart + analytics." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagramm für 30/90 Tage/gesamten Zeitraum + Analysen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gráfico de 30/90 días/todo el tiempo + análisis."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graphique 30/90 jours/historique complet + analyses."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafico di 30/90 giorni/sempre + analisi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30日/90日/全期間のグラフと分析。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30일/90일/전체 기간 차트 및 분석."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gráfico de 30/90 dias/todo o período + análises."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "График за 30/90 дней/всё время + аналитика."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30/90 天/全部时间的图表与分析。"
+          }
+        }
+      }
+    },
     "\n\nBecause…" : {
       "comment" : "Mood log entry template seed text, after the cursor",
       "localizations" : {
@@ -325,6 +441,64 @@
     "\n2. \n3. " : {
       "comment" : "3 Wins entry template seed text, after the cursor",
       "shouldTranslate" : false
+    },
+    "%@ / year" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / Jahr"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / año"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / an"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / anno"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / 年"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / 년"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / ano"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / год"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / 年"
+          }
+        }
+      }
     },
     "%lld earlier entries summarized · %lld quoted" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: earlier entries summarized (first argument), of which some are quoted (second).",
@@ -712,6 +886,180 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更清晰的格式面板"
+          }
+        }
+      }
+    },
+    "A full reflection on your month." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine vollständige Reflexion über deinen Monat."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una reflexión completa sobre tu mes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une réflexion complète sur votre mois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una riflessione completa sul tuo mese."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "あなたの1か月を振り返る詳細なリフレクション。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한 달을 온전히 되돌아보는 리포트."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma reflexão completa sobre o seu mês."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Полное осмысление вашего месяца."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对你这个月的全面反思。"
+          }
+        }
+      }
+    },
+    "A heads-up after three low-mood days." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Hinweis nach drei Tagen mit gedrückter Stimmung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un aviso tras tres días de ánimo bajo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une alerte après trois jours d'humeur basse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un avviso dopo tre giorni di umore basso."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気分の落ち込みが3日続いたらお知らせします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기분이 가라앉은 날이 3일 이어지면 알려드립니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um aviso depois de três dias de humor baixo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уведомление после трёх дней с плохим настроением."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情绪低落持续三天时提醒你。"
+          }
+        }
+      }
+    },
+    "A pattern summary every Sunday." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeden Sonntag eine Übersicht deiner Muster."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un resumen de patrones cada domingo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un résumé de vos tendances chaque dimanche."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un riassunto degli schemi ogni domenica."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "毎週日曜日に届くパターンの要約。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "매주 일요일에 받는 패턴 요약."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um resumo de padrões todo domingo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сводка закономерностей каждое воскресенье."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每周日呈现的规律总结。"
           }
         }
       }
@@ -1289,6 +1637,64 @@
         }
       }
     },
+    "Cancel anytime in App Store settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jederzeit in den App-Store-Einstellungen kündbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancela cuando quieras en los ajustes de App Store."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulez à tout moment dans les réglages de l'App Store."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulla in qualsiasi momento dalle impostazioni dell'App Store."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Storeの設定でいつでもキャンセルできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store 설정에서 언제든지 취소할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancele quando quiser nas configurações da App Store."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отмените в любой момент в настройках App Store."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可随时在 App Store 设置中取消。"
+          }
+        }
+      }
+    },
     "Check" : {
       "localizations" : {
         "de" : {
@@ -1825,6 +2231,64 @@
         }
       }
     },
+    "Couldn't load plans. Check your connection." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pläne konnten nicht geladen werden. Prüfe deine Verbindung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar los planes. Revisa tu conexión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger les forfaits. Vérifiez votre connexion."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile caricare i piani. Controlla la connessione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プランを読み込めませんでした。接続を確認してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "플랜을 불러올 수 없습니다. 연결을 확인하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível carregar os planos. Verifique sua conexão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось загрузить планы. Проверьте подключение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载方案。请检查网络连接。"
+          }
+        }
+      }
+    },
     "Couldn't suggest a mood" : {
       "localizations" : {
         "de" : {
@@ -1885,6 +2349,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法推荐心情"
+          }
+        }
+      }
+    },
+    "Current plan" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktueller Plan"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan actual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forfait actuel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piano attuale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のプラン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 플랜"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plano atual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий план"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前方案"
           }
         }
       }
@@ -3571,6 +4093,64 @@
         }
       }
     },
+    "FULL SPECTRUM: MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VOLLES SPEKTRUM: STIMMUNG, MUSTER\nUND MONATLICHES DEEP-DEBRIEFING."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESPECTRO COMPLETO: ESTADO DE ÁNIMO, PATRONES\nE INFORME MENSUAL DEEP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SPECTRE COMPLET: HUMEUR, TENDANCES\nET RAPPORT MENSUEL DEEP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SPETTRO COMPLETO: UMORE, SCHEMI\nE RAPPORTO MENSILE DEEP."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フルスペクトラム：気分、パターン、\n月次Deepレポート。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "풀 스펙트럼: 기분, 패턴,\n월간 Deep 리포트."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESPECTRO COMPLETO: HUMOR, PADRÕES\nE RELATÓRIO MENSAL DEEP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПОЛНЫЙ СПЕКТР: НАСТРОЕНИЕ, ПАТТЕРНЫ\nИ ЕЖЕМЕСЯЧНЫЙ ОТЧЁТ DEEP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全面洞察：心情、模式、\n以及每月 Deep 汇报。"
+          }
+        }
+      }
+    },
     "GEMMA 3 1B · ON-DEVICE" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value. Keep the model name in English.",
       "extractionState" : "manual",
@@ -5116,6 +5696,64 @@
         }
       }
     },
+    "Mood tagged automatically on every save." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Stimmung wird bei jedem Speichern automatisch erkannt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se etiqueta tu estado de ánimo automáticamente en cada guardado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'humeur est étiquetée automatiquement à chaque enregistrement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'umore viene taggato automaticamente a ogni salvataggio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存するたびに気分が自動でタグ付けされます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장할 때마다 기분이 자동으로 태그됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O humor é marcado automaticamente a cada salvamento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настроение автоматически отмечается при каждом сохранении."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次保存时自动标记情绪。"
+          }
+        }
+      }
+    },
     "Morning pages" : {
       "localizations" : {
         "de" : {
@@ -5234,6 +5872,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新录音"
+          }
+        }
+      }
+    },
+    "No active subscription found for this Apple ID." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für diese Apple-ID wurde kein aktives Abo gefunden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontró ninguna suscripción activa para este Apple ID."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun abonnement actif trouvé pour cet identifiant Apple."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun abbonamento attivo trovato per questo ID Apple."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このApple IDに有効なサブスクリプションが見つかりません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Apple ID에 활성 구독이 없습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhuma assinatura ativa encontrada para este ID Apple."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для этого Apple ID не найдено активной подписки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到此 Apple ID 的有效订阅。"
           }
         }
       }
@@ -5986,6 +6682,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暂停录音"
+          }
+        }
+      }
+    },
+    "Personal observations from your recent entries." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persönliche Beobachtungen aus deinen letzten Einträgen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observaciones personales a partir de tus entradas recientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observations personnelles tirées de vos entrées récentes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osservazioni personali dalle tue voci recenti."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近のエントリーから得られる個人的な気づき。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최근 항목을 바탕으로 한 개인적인 통찰."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observações pessoais com base nas suas entradas recentes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Персональные наблюдения на основе ваших недавних записей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于你近期条目的个性化观察。"
           }
         }
       }
@@ -7981,6 +8735,64 @@
         }
       }
     },
+    "Subscribe" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abonnieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suscribirse"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'abonner"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbonati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登録する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "구독하기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assinar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оформить подписку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅"
+          }
+        }
+      }
+    },
     "system prompt" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Fallback name of the linked system prompt.",
       "extractionState" : "manual",
@@ -8165,6 +8977,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光标会停在你上次停下的位置，草稿会保留日期、字体和标签。输入 #工作，或用逗号分隔多个标签。"
+          }
+        }
+      }
+    },
+    "The full picture: mood, patterns,\nand monthly deep reflection." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gesamtbild: Stimmung, Muster\nund eine monatliche Tiefenreflexion."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El panorama completo: ánimo, patrones\ny una reflexión mensual profunda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vue d'ensemble: humeur, tendances\net une réflexion mensuelle approfondie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il quadro completo: umore, schemi\ne una riflessione mensile approfondita."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気分、パターン、そして\n月次の詳細な内省まで、全体像を。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기분, 패턴,\n그리고 월간 심층 성찰까지 모두 담은 전체 그림."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O panorama completo: humor, padrões\ne uma reflexão mensal profunda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Полная картина: настроение, закономерности\nи глубокая ежемесячная рефлексия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全景视图：情绪、规律\n以及每月深度反思。"
           }
         }
       }
@@ -8731,6 +9601,64 @@
         }
       }
     },
+    "Unlimited questions, no monthly cap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unbegrenzte Fragen, kein monatliches Limit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preguntas ilimitadas, sin límite mensual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questions illimitées, sans plafond mensuel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domande illimitate, nessun limite mensile."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無制限、月間上限なし。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "무제한 질문, 월 한도 없음."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perguntas ilimitadas, sem limite mensal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неограниченное количество вопросов без месячного лимита."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无限次数，没有每月上限。"
+          }
+        }
+      }
+    },
     "Untitled" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Snippet for an entry with no text, voice note or photo.",
       "extractionState" : "manual",
@@ -8793,6 +9721,64 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "无标题"
+          }
+        }
+      }
+    },
+    "Waiting for approval. Your plan starts as soon as the purchase is approved." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf Genehmigung. Dein Plan startet, sobald der Kauf genehmigt ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando aprobación. Tu plan empieza en cuanto se apruebe la compra."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente d'approbation. Votre forfait démarre dès que l'achat est approuvé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa di approvazione. Il tuo piano parte non appena l'acquisto viene approvato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "承認待ちです。購入が承認されるとすぐにプランが開始されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "승인 대기 중입니다. 구매가 승인되는 즉시 플랜이 시작됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aguardando aprovação. Seu plano começa assim que a compra for aprovada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ожидает одобрения. План начнёт действовать сразу после одобрения покупки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待批准。购买获批后，你的方案会立即生效。"
           }
         }
       }
@@ -22472,134 +23458,6 @@
         }
       }
     },
-    "Ask — 15 grounded questions per month from your own writing." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fragen — 15 fundierte Fragen pro Monat, basierend auf deinen eigenen Texten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask — 15 grounded questions per month from your own writing."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preguntar — 15 preguntas fundamentadas al mes basadas en lo que escribes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Demander — 15 questions pertinentes par mois basées sur vos propres écrits."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chiedi — 15 domande fondate al mese basate sui tuoi scritti."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "質問 ― あなたの文章に基づいた、月15問までの的確な質問応答。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "질문 — 당신의 글을 바탕으로 한 월 15개의 근거 있는 질의응답."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Perguntar — 15 perguntas fundamentadas por mês com base no que você escreveu."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Спросить — 15 обоснованных вопросов в месяц на основе ваших собственных записей."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提问 —— 每月 15 次基于你自己文字的深度问答。"
-          }
-        }
-      }
-    },
-    "Ask — unlimited questions, no monthly cap." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fragen — unbegrenzte Fragen, kein monatliches Limit."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask — unlimited questions, no monthly cap."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preguntar — preguntas ilimitadas, sin límite mensual."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Demander — questions illimitées, sans plafond mensuel."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chiedi — domande illimitate, nessun limite mensile."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "質問 ― 無制限、月間上限なし。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "질문 — 무제한 질문, 월 한도 없음."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Perguntar — perguntas ilimitadas, sem limite mensal."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Спросить — неограниченное количество вопросов без месячного лимита."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提问 —— 无限次数，没有每月上限。"
-          }
-        }
-      }
-    },
     "Ask (15×/month)" : {
       "localizations" : {
         "de" : {
@@ -24112,70 +24970,6 @@
         }
       }
     },
-    "Auto Mood Detection — mood tagged automatically on every save." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatische Stimmungserkennung — die Stimmung wird bei jedem Speichern automatisch erkannt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto Mood Detection — mood tagged automatically on every save."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detección automática del ánimo — se etiqueta tu estado de ánimo automáticamente en cada guardado."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Détection automatique de l'humeur — l'humeur est étiquetée automatiquement à chaque enregistrement."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rilevamento automatico dell'umore — l'umore viene taggato automaticamente a ogni salvataggio."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自動ムード検出 ― 保存するたびに気分が自動でタグ付けされます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "자동 기분 감지 — 저장할 때마다 기분이 자동으로 태그됩니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detecção automática de humor — o humor é marcado automaticamente a cada salvamento."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Автоопределение настроения — настроение автоматически отмечается при каждом сохранении."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自动情绪检测 —— 每次保存时自动标记情绪。"
-          }
-        }
-      }
-    },
     "AUTO-DETECT" : {
       "comment" : "A button to auto-detect the user's mood.",
       "isCommentAutoGenerated" : true,
@@ -24982,72 +25776,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Выгоднее всего"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最划算"
-          }
-        }
-      }
-    },
-    "BEST VALUE" : {
-      "comment" : "A label displayed underneath a yearly plan.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "BESTER WERT"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "BEST VALUE"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MEJOR VALOR"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MEILLEURE OFFRE"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MIGLIOR VALORE"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お得"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최고 혜택"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MELHOR VALOR"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ВЫГОДНОЕ ПРЕДЛОЖЕНИЕ"
           }
         },
         "zh-Hans" : {
@@ -26511,72 +27239,6 @@
         }
       }
     },
-    "CANCEL ANYTIME · NO CHARGE DURING TRIAL" : {
-      "comment" : "A description of the free trial policy.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JEDERZEIT KÜNDBAR · KEINE KOSTEN WÄHREND DER TESTPHASE"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CANCEL ANYTIME · NO CHARGE DURING TRIAL"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CANCELA CUANDO QUIERAS · SIN COBRO DURANTE LA PRUEBA"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANNULEZ QUAND VOUS VOULEZ · GRATUIT PENDANT L'ESSAI"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANNULLA QUANDO VUOI · NESSUN ADDEBITO DURANTE LA PROVA"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "いつでもキャンセル可能・トライアル中は無料"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "언제든 취소 가능 · 체험 기간 중 요금 청구 없음"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CANCELE QUANDO QUISER · SEM COBRANÇA DURANTE O TESTE"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ОТМЕНА В ЛЮБОЙ МОМЕНТ · БЕСПЛАТНО В ПРОБНЫЙ ПЕРИОД"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "随时取消·试用期间不收费"
-          }
-        }
-      }
-    },
     "Cancel anytime in App Store settings. No charge during trial." : {
       "localizations" : {
         "de" : {
@@ -26630,7 +27292,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отмените в любой момент в настройках App Store. Во время пробного периодаплата не взимается."
+            "value" : "Отмените в любой момент в настройках App Store. Во время пробного периода плата не взимается."
           }
         },
         "zh-Hans" : {
@@ -31686,70 +32348,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每日反思"
-          }
-        }
-      }
-    },
-    "Daily Reflection — personal observations from your recent entries." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tägliche Reflexion — persönliche Beobachtungen aus deinen letzten Einträgen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily Reflection — personal observations from your recent entries."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reflexión diaria — observaciones personales a partir de tus entradas recientes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réflexion quotidienne — observations personnelles tirées de vos entrées récentes."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riflessione quotidiana — osservazioni personali dalle tue voci recenti."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "デイリーリフレクション ― 最近のエントリーから得られる個人的な気づき。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "데일리 리플렉션 — 최근 항목을 바탕으로 한 개인적인 통찰."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reflexão diária — observações pessoais com base nas suas entradas recentes."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ежедневная рефлексия — персональные наблюдения на основе ваших недавних записей."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每日反思 —— 基于你近期条目的个性化观察。"
           }
         }
       }
@@ -40788,72 +41386,6 @@
         }
       }
     },
-    "FULL SPECTRUM — MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF." : {
-      "comment" : "A description of the full version of MirrorNotes.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VOLLES SPEKTRUM — STIMMUNG, MUSTER\nUND MONATLICHES DEEP-DEBRIEFING."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FULL SPECTRUM — MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ESPECTRO COMPLETO — ESTADO DE ÁNIMO, PATRONES\nE INFORME MENSUAL DEEP."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SPECTRE COMPLET — HUMEUR, TENDANCES\nET RAPPORT MENSUEL DEEP."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SPETTRO COMPLETO — UMORE, SCHEMI\nE RAPPORTO MENSILE DEEP."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フルスペクトラム — 気分、パターン、\n月次Deepレポート。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "풀 스펙트럼 — 기분, 패턴,\n월간 Deep 리포트."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ESPECTRO COMPLETO — HUMOR, PADRÕES\nE RELATÓRIO MENSAL DEEP."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ПОЛНЫЙ СПЕКТР — НАСТРОЕНИЕ, ПАТТЕРНЫ\nИ ЕЖЕМЕСЯЧНЫЙ ОТЧЁТ DEEP."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全面洞察——心情、模式、\n以及每月 Deep 汇报。"
-          }
-        }
-      }
-    },
     "Full weekly digest" : {
       "localizations" : {
         "de" : {
@@ -45849,72 +46381,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Загрузка планов…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载套餐…"
-          }
-        }
-      }
-    },
-    "LOADING PLANS…" : {
-      "comment" : "A placeholder text displayed while loading in-app purchase plans.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PLÄNE WERDEN GELADEN…"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LOADING PLANS…"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CARGANDO PLANES…"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CHARGEMENT DES FORFAITS…"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CARICAMENTO PIANI…"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "プランを読み込み中…"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "요금제 불러오는 중…"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CARREGANDO PLANOS…"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ЗАГРУЗКА ТАРИФОВ…"
           }
         },
         "zh-Hans" : {
@@ -51617,72 +52083,6 @@
         }
       }
     },
-    "MONTHLY" : {
-      "comment" : "A label displayed in the monthly plan.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MONATLICH"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MONTHLY"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MENSUAL"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MENSUEL"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MENSILE"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "月額"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "월간"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MENSAL"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ЕЖЕМЕСЯЧНО"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按月"
-          }
-        }
-      }
-    },
     "Monthly deep report" : {
       "localizations" : {
         "de" : {
@@ -51807,70 +52207,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每月深度报告"
-          }
-        }
-      }
-    },
-    "Monthly Deep Report — a full reflection on your month." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monatlicher Tiefenbericht — eine vollständige Reflexion über deinen Monat."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monthly Deep Report — a full reflection on your month."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Informe mensual detallado — una reflexión completa sobre tu mes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rapport mensuel approfondi — une réflexion complète sur votre mois."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Report mensile approfondito: una riflessione completa sul tuo mese."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "月次詳細レポート ― あなたの1か月を振り返る詳細なリフレクション。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "월간 심층 리포트 — 한 달을 온전히 되돌아보는 리포트."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relatório mensal detalhado — uma reflexão completa sobre o seu mês."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Подробный ежемесячный отчёт — полное осмысление вашего месяца."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每月深度报告 —— 对你这个月的全面反思。"
           }
         }
       }
@@ -52315,70 +52651,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "情绪提醒"
-          }
-        }
-      }
-    },
-    "Mood Alerts — notified when your mood drops for 3 entries." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stimmungswarnungen — Benachrichtigung, wenn deine Stimmung bei 3 Einträgen in Folge sinkt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mood Alerts — notified when your mood drops for 3 entries."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alertas de estado de ánimo — te avisamos si tu ánimo baja durante 3 entradas seguidas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alertes d'humeur — vous êtes averti si votre humeur baisse sur 3 entrées consécutives."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avvisi sull'umore: ricevi una notifica se il tuo umore cala per 3 voci consecutive."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ムードアラート ― 3件連続で気分が落ち込んだ場合に通知します。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "기분 알림 — 3개의 항목에서 기분이 저조하면 알려드립니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alertas de humor — você é avisado quando seu humor cai por 3 entradas seguidas."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Оповещения о настроении — уведомление, если настроение снижается в течение 3 записей подряд."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "情绪提醒 —— 当你连续 3 篇条目情绪低落时会收到通知。"
           }
         }
       }
@@ -52878,70 +53150,6 @@
         }
       }
     },
-    "Mood Timeline — 30/90/all-time chart + analytics." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stimmungsverlauf — Diagramm für 30/90 Tage/gesamten Zeitraum + Analysen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mood Timeline — 30/90/all-time chart + analytics."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cronología del estado de ánimo — gráfico de 30/90 días/todo el tiempo + análisis."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chronologie de l'humeur — graphique 30/90 jours/historique complet + analyses."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cronologia dell'umore: grafico di 30/90 giorni/sempre + analisi."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ムードタイムライン ― 30日/90日/全期間のグラフと分析。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "기분 타임라인 — 30일/90일/전체 기간 차트 및 분석."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Linha do tempo de humor — gráfico de 30/90 dias/todo o período + análises."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Хронология настроения — график за 30/90 дней/всё время + аналитика."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "情绪时间线 —— 30/90 天/全部时间的图表与分析。"
-          }
-        }
-      }
-    },
     "Mood timeline + alerts" : {
       "localizations" : {
         "de" : {
@@ -53257,72 +53465,6 @@
         }
       }
     },
-    "MORE AI" : {
-      "comment" : "A label for the \"More AI\" tier of the paywall.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MEHR KI"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MORE AI"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MÁS IA"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PLUS D'IA"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PIÙ IA"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "もっとAI"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더 많은 AI"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MAIS IA"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "БОЛЬШЕ ИИ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更多 AI"
-          }
-        }
-      }
-    },
     "Morning" : {
       "localizations" : {
         "de" : {
@@ -53441,72 +53583,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Самый популярный"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最受欢迎"
-          }
-        }
-      }
-    },
-    "MOST POPULAR" : {
-      "comment" : "A label describing the most popular tier.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AM BELIEBTESTEN"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MOST POPULAR"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MÁS POPULAR"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LE PLUS POPULAIRE"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "IL PIÙ POPOLARE"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一番人気"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가장 인기"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MAIS POPULAR"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "САМЫЙ ПОПУЛЯРНЫЙ"
           }
         },
         "zh-Hans" : {
@@ -70789,72 +70865,6 @@
         }
       }
     },
-    "START FREE TRIAL" : {
-      "comment" : "A button label for starting a free trial.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "KOSTENLOSE TESTVERSION STARTEN"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "START FREE TRIAL"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "INICIAR PRUEBA GRATUITA"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "COMMENCER L'ESSAI GRATUIT"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AVVIA PROVA GRATUITA"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無料トライアルを開始"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "무료 체험 시작"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "INICIAR TESTE GRATUITO"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "НАЧАТЬ БЕСПЛАТНЫЙ ПРОБНЫЙ ПЕРИОД"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始免费试用"
-          }
-        }
-      }
-    },
     "Start journaling" : {
       "localizations" : {
         "de" : {
@@ -73639,70 +73649,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "发送给设备端模型的原始指令。它不会因条目而变——每次生成此类洞察时都是同一段文字。"
-          }
-        }
-      }
-    },
-    "The full picture — mood, patterns,\nand monthly deep reflection." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Gesamtbild — Stimmung, Muster\nund eine monatliche Tiefenreflexion."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The full picture — mood, patterns,\nand monthly deep reflection."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El panorama completo — ánimo, patrones\ny una reflexión mensual profunda."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La vue d'ensemble — humeur, tendances\net une réflexion mensuelle approfondie."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il quadro completo: umore, schemi\ne una riflessione mensile approfondita."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "気分、パターン、そして\n月次の詳細な内省まで、全体像を。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "기분, 패턴,\n그리고 월간 심층 성찰까지 모두 담은 전체 그림."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O panorama completo — humor, padrões\ne uma reflexão mensal profunda."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Полная картина — настроение, закономерности\nи глубокая ежемесячная рефлексия."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全景视图 —— 情绪、规律\n以及每月深度反思。"
           }
         }
       }
@@ -81476,70 +81422,6 @@
         }
       }
     },
-    "Weekly Digest — a pattern summary every Sunday." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wöchentliche Zusammenfassung — jeden Sonntag eine Übersicht deiner Muster."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weekly Digest — a pattern summary every Sunday."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resumen semanal — un resumen de patrones cada domingo."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Résumé hebdomadaire — un résumé de vos tendances chaque dimanche."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riepilogo settimanale: un riassunto degli schemi ogni domenica."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "週間ダイジェスト ― 毎週日曜日に届くパターンの要約。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "주간 다이제스트 — 매주 일요일에 받는 패턴 요약."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resumo semanal — um resumo de padrões todo domingo."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Еженедельная сводка — сводка закономерностей каждое воскресенье."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每周摘要 —— 每周日呈现的规律总结。"
-          }
-        }
-      }
-    },
     "Weekly digest covers this week — write 3 entries to unlock it." : {
       "comment" : "Shown when the weekly digest is locked because fewer than 3 entries exist for the current week.",
       "extractionState" : "manual",
@@ -88274,72 +88156,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ежегодно"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按年"
-          }
-        }
-      }
-    },
-    "YEARLY" : {
-      "comment" : "A label displayed in the upper left corner of a yearly plan.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JÄHRLICH"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "YEARLY"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANUAL"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANNUEL"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANNUALE"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "年額"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "연간"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ANUAL"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ЕЖЕГОДНО"
           }
         },
         "zh-Hans" : {

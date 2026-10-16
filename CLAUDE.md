@@ -64,6 +64,8 @@ App Store Connect products:
 - `mirror_deep_monthly` — $4.99/mo, 7-day free trial
 - `mirror_deep_yearly` — $49.99/yr (~17% savings), 7-day free trial
 
+All four are in one subscription group ("MirrorNotes"), so an upgrade replaces the old plan, and Apple gives **one free trial per Apple ID across all four**: after any trial, no other plan has one. The paywall promises the trial only when RevenueCat says the product is still eligible (`SubscriptionService.trialEligibleProductIDs`); copy anywhere (notice, release notes, App Store description) says "for new subscribers", never "every plan".
+
 RevenueCat setup:
 - Entitlement `core` — maps to mirror_core_monthly + mirror_core_yearly
 - Entitlement `deep` — maps to mirror_deep_monthly + mirror_deep_yearly

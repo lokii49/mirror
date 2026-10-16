@@ -20,6 +20,16 @@ final class SubscriptionService {
     private(set) var deepPackages: [Package] = []
     private(set) var isPurchasing = false
     private(set) var purchaseError: String?
+    /// Set when offerings couldn't be fetched, so the paywall offers a retry instead of a spinner.
+    private(set) var productsLoadFailed = false
+    /// Product IDs whose introductory offer (the 7-day trial) this Apple ID can still use. Apple
+    /// gives one trial per subscription group, and all four products share one group, so after a
+    /// Core trial Deep has none: the paywall must not promise it.
+    private(set) var trialEligibleProductIDs: Set<String> = []
+    /// Subscriptions active on this Apple ID right now, from the latest customer info.
+    private(set) var activeProductIDs: Set<String> = []
+    /// One-line result of a Restore tap that found nothing to restore (not an error).
+    private(set) var restoreMessage: String?
 
     #if DEBUG
     /// Snapshot mode only: lets the Mac UI be checked in each plan without a purchase.
@@ -61,6 +71,9 @@ final class SubscriptionService {
             // (`updateTier`), so launch skips it.
             if !Self.allFeaturesFree { await syncPurchasesSilently() }
             await refresh()
+            // Warm the paywall: RevenueCat caches offerings, so the first open shows plans, not
+            // "Loading plans…". Skipped while everything is free (the paywall never shows).
+            if !Self.allFeaturesFree { await loadProducts() }
         }
         // Follow every customer info change while the app runs: RevenueCat refreshes it on
         // foreground, so a purchase made on another device with the same App Store account,
@@ -72,7 +85,20 @@ final class SubscriptionService {
         }
     }
 
+    var hasProducts: Bool { !corePackages.isEmpty || !deepPackages.isEmpty }
+
+    func isTrialEligible(_ package: Package) -> Bool {
+        trialEligibleProductIDs.contains(package.storeProduct.productIdentifier)
+    }
+
+    /// Clears the previous attempt's messages when the paywall opens again (this is a singleton).
+    func clearMessages() {
+        purchaseError = nil
+        restoreMessage = nil
+    }
+
     func loadProducts() async {
+        productsLoadFailed = false
         do {
             let offerings = try await Purchases.shared.offerings()
             corePackages = (offerings.offering(identifier: "core")?.availablePackages
@@ -85,28 +111,54 @@ final class SubscriptionService {
                     $0.storeProduct.productIdentifier.contains("deep")
                 } ?? [])
                 .sorted { $0.storeProduct.price < $1.storeProduct.price }
+            await loadTrialEligibility()
         } catch {
-            purchaseError = error.localizedDescription
+            // A cached list from an earlier load is still good; only an empty paywall needs a retry.
+            productsLoadFailed = !hasProducts
         }
+    }
+
+    private func loadTrialEligibility() async {
+        let packages = corePackages + deepPackages
+        guard !packages.isEmpty else { return }
+        let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(packages: packages)
+        // `.unknown` is what a first-time user with no receipt yet gets, so it counts as eligible;
+        // only a definite "ineligible" or "no offer" hides the trial.
+        trialEligibleProductIDs = Set(packages.compactMap { package in
+            guard package.storeProduct.introductoryDiscount != nil else { return nil }
+            switch eligibility[package]?.status {
+            case .ineligible, .noIntroOfferExists: return nil
+            default: return package.storeProduct.productIdentifier
+            }
+        })
     }
 
     func purchase(_ package: Package) async {
         isPurchasing = true
-        purchaseError = nil
+        clearMessages()
         defer { isPurchasing = false }
 
         do {
             let result = try await Purchases.shared.purchase(package: package)
+            guard !result.userCancelled else { return }
             updateTier(from: result.customerInfo)
+        } catch ErrorCode.purchaseCancelledError {
+            // Closing the App Store sheet is a choice, not a failure: no red text.
+        } catch ErrorCode.paymentPendingError {
+            purchaseError = String(localized: "Waiting for approval. Your plan starts as soon as the purchase is approved.")
         } catch {
             purchaseError = error.localizedDescription
         }
     }
 
     func restorePurchases() async {
+        clearMessages()
         do {
             let customerInfo = try await Purchases.shared.restorePurchases()
             updateTier(from: customerInfo)
+            if customerInfo.entitlements.active.isEmpty {
+                restoreMessage = String(localized: "No active subscription found for this Apple ID.")
+            }
         } catch {
             purchaseError = error.localizedDescription
         }
@@ -138,6 +190,7 @@ final class SubscriptionService {
     }
 
     private func updateTier(from customerInfo: CustomerInfo) {
+        activeProductIDs = customerInfo.activeSubscriptions
         guard !Self.allFeaturesFree else {
             tier = .deep
             Self.publishTierToWidgets(tier)
