@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import RevenueCat
 
 extension SettingsView {
     // MARK: - Profile Card
@@ -14,6 +15,10 @@ extension SettingsView {
                     Text("MirrorNotes")
                         .font(.system(size: 17, weight: .semibold))
                         .lineLimit(1)
+                        .onTapGesture(count: 3) {
+                            copiedRevenueCatID = false
+                            withAnimation(.easeInOut(duration: 0.2)) { showsRevenueCatID.toggle() }
+                        }
 
                     if SubscriptionService.allFeaturesFree {
                         planChip("Early Access", systemImage: "sparkles", color: displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
@@ -40,6 +45,10 @@ extension SettingsView {
                         .font(.system(size: 22))
                         .foregroundStyle(tierColor)
                 }
+            }
+
+            if showsRevenueCatID {
+                revenueCatIDRow
             }
 
             if !SubscriptionService.allFeaturesFree && !subscriptionService.isSubscribed {
@@ -100,6 +109,40 @@ extension SettingsView {
                     lineWidth: 1
                 )
         )
+    }
+
+    // Support row, English only on purpose: it is for the owner, not part of the app's copy.
+    // The ID is RevenueCat's current app user ID (anonymous today, so it is per install: a
+    // reinstall or another device gets a new one).
+    var revenueCatIDRow: some View {
+        let appUserID = Purchases.shared.appUserID
+        return VStack(alignment: .leading, spacing: 6) {
+            Divider()
+                .overlay(MirrorTheme.inkBorder)
+                .padding(.top, 14)
+                .padding(.bottom, 4)
+            Text(verbatim: Purchases.shared.isAnonymous ? "RevenueCat ID (anonymous)" : "RevenueCat ID")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                .foregroundStyle(MirrorTheme.textSecondary)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(verbatim: appUserID)
+                    .font(MirrorTheme.mono(12))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button {
+                    UIPasteboard.general.string = appUserID
+                    copiedRevenueCatID = true
+                } label: {
+                    Image(systemName: copiedRevenueCatID ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Copy"))
+            }
+        }
+        .transition(.opacity)
     }
 
     // There's no account system and no profile photo — a person-silhouette

@@ -52,6 +52,10 @@ struct SettingsView: View {
     @State var subscriptionService = SubscriptionService.shared
     @State var error: Error?
     @State var showSubscription = false
+    /// Support only: three taps on "MirrorNotes" in the profile card show this device's RevenueCat
+    /// ID, so the owner can find the customer and grant an entitlement. Hidden again next visit.
+    @State var showsRevenueCatID = false
+    @State var copiedRevenueCatID = false
 
     @State var cachedTotalWords: Int = 0
     @State var cachedStreak: Int = 0
