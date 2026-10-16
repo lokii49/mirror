@@ -8,13 +8,17 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func launchApp() -> XCUIApplication {
+    /// `initialTab: "entries"` opens on Entries instead of Write, whose keyboard covers the tab bar.
+    private func launchApp(initialTab: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         // --clearWriteTestState wipes the draft + all Entry/Insight rows on launch.
         // The draft otherwise survives relaunch (persisted UserDefaults), so
         // without this every test's typed text piles onto the last, breaking
         // cursor-position and panel-layout assumptions in later tests.
-        app.launchArguments = ["--uitesting", "--clearWriteTestState"]
+        // Classic every launch: the Sentinel screenshot test switches the theme in Settings, and
+        // the profile keeps it, so every later test looked for "Write" among Sentinel's tabs.
+        app.launchArguments = ["--uitesting", "--clearWriteTestState", "--forceDisplayMode=classic"]
+            + (initialTab.map { ["--initialTab=\($0)"] } ?? [])
         app.launch()
         Thread.sleep(forTimeInterval: 2)
         return app
@@ -124,11 +128,11 @@ final class mirrorUITests: XCTestCase {
     /// reading Info.plist/project.pbxproj, not by anything this test can assert on its own.
     @MainActor
     func testSettings_protocolInputSection_siriCaptureRow_screenshot() throws {
-        let app = launchApp()
+        let app = launchApp(initialTab: "entries")
         app.tabBars.buttons["Insights"].tap()
         Thread.sleep(forTimeInterval: 1)
 
-        app.navigationBars.buttons["person.circle"].tap()
+        app.navigationBars.buttons["Settings"].tap()  // person.circle, labelled "Settings"
         Thread.sleep(forTimeInterval: 1)
 
         app.staticTexts["Journal"].tap()
@@ -146,11 +150,11 @@ final class mirrorUITests: XCTestCase {
     /// Classic-only screenshot never would have caught it either way — both need checking.
     @MainActor
     func testSettings_protocolInputSection_siriCaptureRow_sentinel_screenshot() throws {
-        let app = launchApp()
+        let app = launchApp(initialTab: "entries")
         app.tabBars.buttons["Insights"].tap()
         Thread.sleep(forTimeInterval: 1)
 
-        app.navigationBars.buttons["person.circle"].tap()
+        app.navigationBars.buttons["Settings"].tap()  // person.circle, labelled "Settings"
         Thread.sleep(forTimeInterval: 1)
 
         let sentinelCard = app.buttons["Sentinel"].exists ? app.buttons["Sentinel"] : app.staticTexts["Sentinel"]
@@ -319,13 +323,15 @@ final class mirrorUITests: XCTestCase {
             editorText.isEmpty || editorText == tv.placeholderValue,
             "Editor must be empty immediately after Delete entry. Got: \"\(editorText)\""
         )
-        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 3), "Undo button must appear")
+        // The keyboard bar has an Undo button too (keyboardBar.undo): take the banner's.
+        let bannerUndo = app.buttons.matching(NSPredicate(format: "label == 'Undo' AND identifier != 'keyboardBar.undo'")).firstMatch
+        XCTAssertTrue(bannerUndo.waitForExistence(timeout: 3), "Undo button must appear")
         XCTAssertTrue(app.staticTexts["Entry will be deleted"].exists, "Delete-pending banner must appear")
 
         snapshot(app, name: "toolbar_delete_undo_countdown")
 
         // Undo to restore the entry, avoiding side effects in subsequent tests.
-        app.buttons["Undo"].tap()
+        bannerUndo.tap()
         Thread.sleep(forTimeInterval: 0.5)
         let restoredText = tv.value as? String ?? ""
         XCTAssertTrue(restoredText.contains("Entry to delete"), "Undo must restore the entry text")
