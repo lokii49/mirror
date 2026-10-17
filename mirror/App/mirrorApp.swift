@@ -92,6 +92,10 @@ struct mirrorApp: App {
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
+            // App Store screenshots: `--seedStoreDemo=<code>` with `--perfSeed=0` (StoreDemoSeed.swift).
+            if let code = StoreDemoSeed.requestedLanguage {
+                StoreDemoSeed.seed(into: sharedModelContainer.mainContext, code: code)
+            }
             if FMInsightProbe.isRequested {
                 Task { @MainActor in await FMInsightProbe.run() }
             }
