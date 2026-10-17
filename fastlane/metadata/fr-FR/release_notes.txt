@@ -1,7 +1,7 @@
-Conçu pour l'iPhone Duo, et Écrire comme dans Notes
+Conçu pour l'iPhone Duo, et un nouvel écran Écrire
 
 • iPhone Duo : ouvert à plat, la liste se place à côté de l'entrée que vous lisez et Aperçus se déploie sur deux colonnes. À moitié plié, les listes et votre texte restent de part et d'autre du pli. Plier ou déplier conserve votre texte et l'historique d'annulation.
-• Écrire a une nouvelle barre de clavier et un nouveau panneau Aa, organisés comme dans Notes d'Apple. Les listes de tâches fonctionnent aussi comme dans Notes : touchez un cercle pour le cocher, balayez pour indenter, faites glisser pour réordonner, et les éléments faits peuvent descendre en bas.
+• Écrire a une nouvelle barre de clavier et un nouveau panneau Aa. Les listes de tâches sont aussi plus simples : touchez un cercle pour le cocher, balayez pour indenter, faites glisser pour réordonner, et les éléments faits peuvent descendre en bas.
 • De petites animations montrent ce qui vient de se passer : quelque chose à enregistrer, un brouillon conservé, votre objectif de mots du jour atteint.
 • Avec Apple Intelligence, le Résumé hebdomadaire, le Rapport mensuel et Demander à Mirror citent désormais vos propres phrases.
 • Aperçus a des en-têtes datés et des cartes plus nettes. Sur iOS 18 et versions ultérieures, maintenez le doigt sur un jour d'un graphique d'humeur pour voir ce que vous avez écrit.

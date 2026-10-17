@@ -1,7 +1,7 @@
-Pensato per iPhone Duo, e Scrivi come in Note
+Pensato per iPhone Duo, e un nuovo Scrivi
 
 • iPhone Duo: aperto del tutto, l'elenco sta accanto alla voce che leggi e Approfondimenti si divide in due colonne. Piegato a metà, elenchi e testo restano ai lati della piega. Piegandolo o aprendolo conservi il testo e la cronologia per annullare.
-• Scrivi ha una nuova barra della tastiera e un nuovo pannello Aa, disposti come in Note di Apple. Anche gli elenchi di controllo funzionano come in Note: tocca un cerchio per spuntarlo, scorri per rientrare, trascina per riordinare, e le voci completate possono scendere in fondo.
+• Scrivi ha una nuova barra della tastiera e un nuovo pannello Aa. Anche gli elenchi di controllo sono più semplici: tocca un cerchio per spuntarlo, scorri per rientrare, trascina per riordinare, e le voci completate possono scendere in fondo.
 • Piccole animazioni mostrano cosa è appena successo: qualcosa da salvare, una bozza salvata, il tuo obiettivo di parole del giorno raggiunto.
 • Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
 • Approfondimenti ha intestazioni con la data e schede più pulite. Su iOS 18 e versioni successive, tieni premuto un giorno in un grafico dell'umore per vedere cosa hai scritto.

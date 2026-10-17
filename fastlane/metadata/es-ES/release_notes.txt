@@ -1,7 +1,7 @@
-Pensado para el iPhone Duo, y un Escribir como Notas
+Pensado para el iPhone Duo, y un nuevo Escribir
 
 • iPhone Duo: al abrirlo del todo, la lista queda junto a la entrada que lees y Perspectivas se reparte en dos columnas. Medio plegado, las listas y lo que escribes quedan a los lados del pliegue. Al plegarlo o desplegarlo conservas lo que escribes y el historial para deshacer.
-• Escribir tiene una nueva barra de teclado y un panel Aa como los de Notas de Apple. Las listas de tareas también funcionan como en Notas: toca un círculo para marcarlo, desliza para sangrar, arrastra para reordenar y lo completado puede bajar al final.
+• Escribir tiene una nueva barra de teclado y un nuevo panel Aa. Las listas de tareas también son más fáciles: toca un círculo para marcarlo, desliza para sangrar, arrastra para reordenar y lo completado puede bajar al final.
 • Pequeñas animaciones muestran lo que acaba de pasar: algo que guardar, un borrador guardado, tu objetivo diario de palabras cumplido.
 • Con Apple Intelligence, el Resumen semanal, el Informe mensual y Preguntar a Mirror citan ahora tus propias frases.
 • Perspectivas tiene encabezados con fecha y tarjetas más limpias. En iOS 18 o posterior, mantén pulsado un día en un gráfico de ánimo para ver lo que escribiste.

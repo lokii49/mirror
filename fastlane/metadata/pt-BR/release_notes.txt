@@ -1,7 +1,7 @@
-Feito para o iPhone Duo, e um Escrever como o Notas
+Feito para o iPhone Duo, e um novo Escrever
 
 • iPhone Duo: aberto por completo, a lista fica ao lado da entrada que você está lendo e Percepções se divide em duas colunas. Meio dobrado, listas e texto ficam dos lados da dobra. Ao dobrar ou abrir, você mantém o que está escrevendo e o histórico de desfazer.
-• Escrever tem uma nova barra do teclado e um novo painel Aa, organizados como no Notas da Apple. As listas de tarefas também funcionam como no Notas: toque num círculo para marcar, deslize para recuar, arraste para reordenar, e os itens concluídos podem ir para o fim.
+• Escrever tem uma nova barra do teclado e um novo painel Aa. As listas de tarefas também ficaram mais fáceis: toque num círculo para marcar, deslize para recuar, arraste para reordenar, e os itens concluídos podem ir para o fim.
 • Pequenas animações mostram o que acabou de acontecer: algo para salvar, um rascunho salvo, sua meta diária de palavras atingida.
 • Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
 • Percepções tem cabeçalhos com data e cartões mais limpos. No iOS 18 ou posterior, toque e segure um dia num gráfico de humor para ver o que você escreveu.
