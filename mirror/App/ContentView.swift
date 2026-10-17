@@ -107,8 +107,23 @@ struct ContentView: View {
         #endif
     }
 
+    /// UI tests (Debug only): skips onboarding, the mood check-in, What's New and the rate prompt.
+    /// A Release build ignores the flag, so a launch argument can't switch those off.
     private var isUITesting: Bool {
-        ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #else
+        return false
+        #endif
+    }
+
+    /// DEBUG `--showRatePrompt`; always false in a Release build.
+    private static var isRatePromptLaunch: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--showRatePrompt")
+        #else
+        return false
+        #endif
     }
 
     /// Write, except DEBUG `--initialTab=entries`/`=insights` (headless simulator screenshots,
@@ -286,7 +301,7 @@ struct ContentView: View {
         #endif
         .sheet(isPresented: $showRatePrompt) {
             // Neither UI tests nor the DEBUG --showRatePrompt launch may spend the real prompt.
-            RateUsPromptSheet(consumesMilestone: !isUITesting && !ProcessInfo.processInfo.arguments.contains("--showRatePrompt"))
+            RateUsPromptSheet(consumesMilestone: !isUITesting && !Self.isRatePromptLaunch)
                 .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showMoodCheckIn) {

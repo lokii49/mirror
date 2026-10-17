@@ -37,15 +37,29 @@ final class AppLock {
     /// One automatic prompt per return; cancelling it leaves the Unlock button, not a loop.
     private var autoPromptArmed = true
 
-    /// UI tests, the Mac snapshot harness and perf runs never lock.
+    /// UI tests, the Mac snapshot harness and perf runs never lock. DEBUG only: in a release
+    /// build anyone could launch the Mac app with these arguments and skip the lock.
     static var isHarnessRun: Bool {
+        #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         return args.contains("--uitesting") || args.contains("--macSnapshot")
             || args.contains { $0.hasPrefix("--perfSeed=") }
+        #else
+        return false
+        #endif
+    }
+
+    /// The saved setting only. `UserDefaults.standard` also answers from launch arguments
+    /// (`-appLockEnabled NO`), which would turn the lock off from the command line on Mac.
+    private static var savedEnabled: Bool {
+        guard let domain = Bundle.main.bundleIdentifier,
+              let value = UserDefaults.standard.persistentDomain(forName: domain)?[enabledKey] as? Bool
+        else { return false }
+        return value
     }
 
     private init() {
-        let enabled = !Self.isHarnessRun && UserDefaults.standard.bool(forKey: Self.enabledKey)
+        let enabled = !Self.isHarnessRun && Self.savedEnabled
         isEnabled = enabled
         isLocked = enabled
     }
