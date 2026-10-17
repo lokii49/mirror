@@ -39,6 +39,16 @@ Upload metadata only (release notes etc.), no binary/screenshots/submission chan
 
 Upload screenshots only, no binary/metadata/submission changes
 
+### ios upload_duo_screenshots
+
+```sh
+[bundle exec] fastlane ios upload_duo_screenshots
+```
+
+Upload iPhone Duo screenshots (APP_IPHONE_DUO; deliver doesn't know this display type yet). Version must not be in review.
+
+Usage: fastlane upload_duo_screenshots dir:<folder> [version:3.1.3] [replace:true] — <folder>/<locale>/*.png per App Store localization (fastlane locale names), up to 10 each in name order; replace deletes that localization's current Duo screenshots first
+
 ### ios resubmit
 
 ```sh
