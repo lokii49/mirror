@@ -37,7 +37,7 @@ iOS (SwiftUI + SwiftData)
 
 ## Subscription Tiers
 
-| Feature | Free | Core ($2.99/mo or $29.99/yr) | Deep ($4.99/mo or $49.99/yr) |
+| Feature | Free | Core ($7.99/mo or $49.99/yr, US) | Deep ($11.99/mo or $69.99/yr, US) |
 |---------|------|------------------------------|------------------------------|
 | Write entries (unlimited, forever) | ✓ | ✓ | ✓ |
 | Read all past entries | ✓ | ✓ | ✓ |
@@ -59,10 +59,12 @@ iOS (SwiftUI + SwiftData)
 **Everything is free for now**: `SubscriptionService.allFeaturesFree = true` (since 3.1.1) makes every user Deep, so the paywall and the Ask cap never apply. It stays on in 3.1.2. Paid gating returns in a November build: an in-app notice about 2 weeks ahead, then gating with the 7-day trial (owner, 2026-10-11; plan in `mirror/.claude/november-paid-activation.md`). When it's flipped off, launch restores with RevenueCat's silent `syncPurchases`, never `restorePurchases`, and Free users don't see Talk It Out.
 
 App Store Connect products:
-- `mirror_core_monthly` — $2.99/mo, 7-day free trial
-- `mirror_core_yearly` — $29.99/yr (~16% savings), 7-day free trial
-- `mirror_deep_monthly` — $4.99/mo, 7-day free trial
-- `mirror_deep_yearly` — $49.99/yr (~17% savings), 7-day free trial
+- `mirror_core_monthly` — $7.99/mo, 7-day free trial
+- `mirror_core_yearly` — $49.99/yr (~48% savings), 7-day free trial
+- `mirror_deep_monthly` — $11.99/mo, 7-day free trial
+- `mirror_deep_yearly` — $69.99/yr (~51% savings), 7-day free trial
+
+Those are the US prices, scheduled in App Store Connect to start 2026-10-18 (owner, 2026-10-17; before that: $2.99 / $29.99 / $4.99 / $49.99, which had only a 16% annual discount against the category's 30–55%). **Every other storefront has a custom price, not Apple's equalization**: territories sit in five purchasing-power bands (World Bank price level, capped by income), each band a USD target that Apple's own equalization turns into the local point. B1 (US, UK, DE, CA, AU, …) = the US prices; B5 (India, Nigeria, Egypt, Pakistan, Vietnam, …) = Core $1.99 / $12.99, Deep $2.99 / $17.99, so India is ₹199 / ₹1,299 Core and ₹299 / ₹1,999 Deep. The anchor was chosen so India lands on ₹199 / ₹299 monthly. Apple does **not** auto-adjust custom prices for FX or tax changes, so the table is re-run about yearly. Plan, per-territory table with payouts, and the scripts that regenerate and write it live outside the repo in `mirror-workspace/marketing/pricing/`. Group levels: both Deep = 1, both Core = 2 (fixed 2026-10-17; they had been price-ordered 1–4). **The yearly products' "monthly payment plan" (Apple's pay-the-annual-price-in-12-instalments option, `planType: MONTHLY`) is turned off** (owner, 2026-10-17): it had been on in 173 territories with the instalment set equal to the plain monthly price, and Apple requires instalment × 12 to stay within about 1.0–1.2× the upfront yearly price, which blocked the yearly price change in 231 territories. The plain monthly products cover monthly payers. Re-enabling it is a deliberate product decision (set the instalment near upfront ÷ 12 per band); the territory lists it had are backed up with the pricing scripts.
 
 All four are in one subscription group ("MirrorNotes"), so an upgrade replaces the old plan, and Apple gives **one free trial per Apple ID across all four**: after any trial, no other plan has one. The paywall promises the trial only when RevenueCat says the product is still eligible (`SubscriptionService.trialEligibleProductIDs`); copy anywhere (notice, release notes, App Store description) says "for new subscribers", never "every plan".
 
@@ -72,7 +74,7 @@ RevenueCat setup:
 - Offering `core` — contains mirror_core_monthly + mirror_core_yearly
 - Offering `deep` — contains mirror_deep_monthly + mirror_deep_yearly
 
-**Prices shown in the UI are never typed in (from the build after 3.1.3 (21); 2026-10-17).** The paywall, Settings, the What's New tier chips (`CardTier.pricingLabel`) and the widgets' locked states show StoreKit's `localizedPriceString` for the user's storefront. Widgets can't run RevenueCat, so `SubscriptionService.loadProducts` publishes the monthly strings to the app group (`widget.price.coreMonthly` / `deepMonthly`, read by `WidgetShared.lockedTierLabel`); until a price arrives they show just "Core"/"Deep". Apple sets a different price in each of the 175 storefronts (India ₹299, Germany 2,99 €, UAE AED 12.99 for Core monthly), so a literal `$2.99` is wrong everywhere but the US. The table above is USD only.
+**Prices shown in the UI are never typed in (from the build after 3.1.3 (21); 2026-10-17).** The paywall, Settings, the What's New tier chips (`CardTier.pricingLabel`) and the widgets' locked states show StoreKit's `localizedPriceString` for the user's storefront. Widgets can't run RevenueCat, so `SubscriptionService.loadProducts` publishes the monthly strings to the app group (`widget.price.coreMonthly` / `deepMonthly`, read by `WidgetShared.lockedTierLabel`); until a price arrives they show just "Core"/"Deep". Every one of the 175 storefronts has its own price (India ₹199, Germany 8,99 €, UAE AED 22.99 for Core monthly), so a literal `$7.99` is wrong everywhere but the US. The table above is USD only.
 
 ---
 
