@@ -552,7 +552,8 @@ func emit(_ obj: [String: Any]) {
                         let filled = FMDigestGuard.sections(from: drafts, sources: sources)
                         missing.append(FMDigestGuard.Section.allCases.filter { filled[$0] == nil }.map(\.rawValue))
                         shown = FMDigestGuard.merge(drafts, sources: sources)
-                        if shown != nil { break }
+                        // Round 27: FMRIG_ALL_ATTEMPTS=1 keeps all 3 drafts so a replay can judge them with another guard.
+                        if shown != nil, ProcessInfo.processInfo.environment["FMRIG_ALL_ATTEMPTS"] != "1" { break }
                     }
                     if shown == nil, variant == "digest_d3" || variant == "digest_d4" || variant == "digest_d5", let a = FMDigestGuard.assemble(drafts, sources: sources) {
                         shown = a.verified

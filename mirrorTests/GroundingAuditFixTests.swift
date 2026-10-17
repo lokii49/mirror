@@ -243,6 +243,17 @@ struct QuoteSentenceAndCapitalizationTests {
         #expect(FMDailyGuard.locateSentence(quote: "about the cough and she was kind", in: texts)?.quote == "saw Dr. Okafor about the cough and she was kind")
     }
 
+    /// Rig round 27: a pick of several sentences too long to show whole keeps the sentences that fit
+    /// instead of showing nothing; a list line's marker isn't part of the quote.
+    @Test func locateSentenceKeepsWholeSentencesOfALongPickAndDropsListMarkers() {
+        let long = "Told Sam we should stop seeing each other after all this time. He was quiet for a long time and then said he understood what I meant. I cried the whole drive home and then sat in the car for an hour."
+        let shown = FMDailyGuard.locateSentence(quote: long, in: [long])?.quote
+        #expect(shown != nil)
+        #expect(shown.map { long.hasPrefix($0) && $0.hasSuffix(".") } == true)
+        let list = "Shopping today.\n- still need to find a gift for the party"
+        #expect(FMDailyGuard.locateSentence(quote: "need to find a gift for the party", in: [list])?.quote == "still need to find a gift for the party")
+    }
+
     @Test func wordsInsideQuotationMarksAreNeverChanged() {
         #expect(InsightService.capitalizedSentenceStarts("you wrote, \"i want to quit. maybe not.\" that sounds hard.")
                 == "You wrote, \"i want to quit. maybe not.\" that sounds hard.")

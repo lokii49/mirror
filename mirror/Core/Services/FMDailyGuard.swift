@@ -130,6 +130,8 @@ nonisolated enum FMDailyGuard {
         }
         var start = matchStart
         while start > 0, !endsSentence(at: start - 1) { start -= 1 }
+        // A list line's marker ("- ", "* ", "• ") isn't part of the sentence (rig round 27).
+        if start < matchStart, start + 1 < chars.count, "-*•".contains(chars[start]), chars[start + 1] == " " { start += 2 }
         var end = matchEnd
         while end < chars.count, !endsSentence(at: end) { end += 1 }
         // A sentence too long to show whole is cut from its start; when that cut ends before the match, the
@@ -137,7 +139,14 @@ nonisolated enum FMDailyGuard {
         // shown must contain what was picked). `cut` returns a verbatim start, so its length says how far it reaches.
         func shownFrom(_ from: Int) -> String? {
             let shown = cut(String(chars[from..<end]))
-            return shown.count >= matchEnd - from ? shown : nil
+            if shown.count >= matchEnd - from { return shown }
+            // A pick of several sentences, too long to show whole: the whole sentences that fit, from the pick's
+            // own sentence on (rig round 27, replay 2).
+            if from == start, shown.count > matchStart - from,
+               let last = shown.last(where: { !"\"')”’".contains($0) }), ".!?…".contains(last), !endsInTitle(shown) {
+                return shown
+            }
+            return nil
         }
         var clause = matchStart
         while clause > start, !(chars[clause - 1] == " " && clause >= 2 && ",;:—–".contains(chars[clause - 2])) { clause -= 1 }

@@ -867,3 +867,47 @@ e.g., i.e. (`FMDailyGuard.titleAbbreviations`). **Replay** on round 22's daily a
 G1 every changed verdict listed; no line or quote ends in a title; no other change.
 **Round 26 result (replay):** daily 0/587 attempts change; weekly: 3 shown "Talk to Dr." lines become "Talk to Dr. Okafor
 about the grant deadline." (and similar), no other section changes, app-fixed sections unchanged (73 / 29). Ships.
+
+## Round 27: whole-sentence quotes for the digest and Ask evidence (plan fixed BEFORE running, 2026-10-17)
+Pre-release audit (3.1.3, commit 28f30e7): `FMDailyGuard.locate` accepts any 4+ word substring, so "I don't think I
+want to quit my job" can be shown as "I want to quit my job". **Change**: `FMDailyGuard.locateSentence` widens a match to
+the whole sentence it sits in (the clause it starts in when the sentence is too long; nil if even that can't hold the
+match). Used by `FMDigestGuard` (quotes) and Ask's evidence quotes. The daily reflection's `locate`/`verify` are
+unchanged. Expected side effect: two fragments of one sentence now collide in `distinct()`, so more digest sections may
+be app-filled.
+**Method**: no saved round 21/24 outputs exist on this Mac, so new model runs, then a replay of old vs new guard on the
+same outputs. (1) Fresh dumps (`test_dumpDigestPromptsForRig`, `test_dumpAskPromptsForRig`). (2) `fmrig digest_d5`
+(shipped W5) on round 24's 15 weeks (10 original + 5 held-out), N = 10, temperature 0.45, always 3 attempts per run
+(`FMRIG_ALL_ATTEMPTS=1`, rig-only) so both guards see the same drafts. `fmrig ask_quotes` (shipped round 21 path) on
+round 20's 20 Ask questions, N = 5, its user message = the Ask prompt + "\n\nAnswer given: <answer>" with the answer
+from one fresh `fmrig ask_a1` run per question (round 21's method). (3) Replay: digest with `replay23` built against the 2e34a09 guards and against
+28f30e7's; Ask quotes with `locate` vs `locateSentence`. Outputs kept outside git for later replays.
+**Gates**: G1 digest app-fixed sections rise by at most 3 points (round 25's tolerance), original and held-out weeks
+separately. G2 every shown quote that changes is listed; each new quote is a whole sentence (or clause) of one entry,
+verbatim (script), and none changes the meaning of what was written (read by hand); 0 newly shown fragments that flip
+meaning. G3 Ask: runs with no located quote (app quote fallback) rise by at most 3 points; every changed quote listed,
+whole sentence, verbatim. Pass -> keep. Fail on a caller -> that caller goes back to `locate`; owner.
+**Round 27, Ask replay 1 (2026-10-17): G3 fails.** 100 ask_quotes runs: no located quote 35% -> 40% (+5 points, bar
++3). All 5 lost runs are one question (mo_runon_breakup_q0), where the model quoted three whole sentences: too long to
+show whole, and `locateSentence` drops a quote whose shown cut doesn't reach the end of the pick. The other 10 changed
+runs widen a fragment to its sentence as intended ("I woke up panicking because it was so quiet." -> "Ava slept four
+hours in a row last night and I woke up panicking because it was so quiet."). **Replay 2, revised rule (fixed before
+replaying)**: when the pick runs past the longest quote shown, the sentences that fit are shown whenever the cut ends at a
+sentence end and starts at the pick's own sentence (whole sentences, verbatim, containing the start of the pick). Same
+gates, both callers.
+**Ask replay 2 result: G3 passes.** No located quote 35% -> 35%; 10 runs change, all a fragment widened to its whole
+sentence, verbatim, meaning kept (the two above; "the whole afternoon lost to the migration bug." -> "ok so today:
+dentist at 9, standup, then the whole afternoon lost to the migration bug.").
+### Round 27 result (2026-10-17, W5, 15 weeks x 10, every attempt kept; replayed old vs new guard): passes; ships
+- ho_move refused 10/10 again ("May contain sensitive content"), as in round 24; 140 digests replayed.
+- **G1** app-fixed sections: original weeks 10.8% -> 11.0% (65 -> 66 of 600), held-out 12.1% -> 12.1% (29 of 240).
+- **G2** 13 digests change. 10 (ho_newparent) widen "I woke up panicking because it was so quiet." to "Ava slept four
+  hours in a row last night and I woke up panicking because it was so quiet." (more context, same meaning). wk_runon #2:
+  a fragment that ran across two run-on sentences becomes the whole first sentence; the watch section then shares it
+  and is app-filled (the +1 above). Two wk_runon quotes became "- still need to find a gift": a list line's marker is
+  now dropped (`locateSentence`), after which 11 digests change and both read "still need to find a gift" as before.
+  No newly shown quote changes the meaning of what was written. Gates unchanged by the marker fix; Ask unchanged (35 -> 35).
+- Outputs kept outside git, synthetic only, in `~/mirror-rig-outputs/round27/` (digest.jsonl with every attempt,
+  ask_a1.jsonl, ask_quotes.jsonl, the dumps and gates.py), so later guard changes can be replayed on them.
+Not measured: `groundedNudgeQuoteCandidates` no longer splitting after a title (the app's own quote picker; round 26's
+rule, applied there in 28f30e7).
