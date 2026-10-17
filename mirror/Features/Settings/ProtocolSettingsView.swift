@@ -292,6 +292,8 @@ struct ProtocolSettingsView: View {
                 }
                 }
 
+                // The Mac editor never sorts checklists, so the setting would do nothing there.
+                #if os(iOS)
                 SettingsGroup(title: "Checklists") {
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
@@ -310,6 +312,7 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
                 }
+                #endif
 
                 SettingsGroup(title: "Input") {
                     // SettingsRowLabel centers its 32pt icon against the title (correct, and

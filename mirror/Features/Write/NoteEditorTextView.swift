@@ -40,7 +40,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         // checklist circles are drawn by ChecklistLayoutManager.
         let storage = NSTextStorage()
         let layoutManager = ChecklistLayoutManager()
-        layoutManager.accentColor = UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
         let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
@@ -114,8 +114,7 @@ struct NoteEditorTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         if let layoutManager = textView.layoutManager as? ChecklistLayoutManager {
             let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-            if layoutManager.accentColor != accent {
-                layoutManager.accentColor = accent
+            if layoutManager.setAccentColor(accent, traits: textView.traitCollection) {
                 textView.setNeedsDisplay()
                 layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
             }
@@ -627,8 +626,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                       caret.origin.y >= 0, caret.origin.y <= maxPlausibleY + 1 else {
                     // Rare (only the OS fault above triggers it) and geometry-only — left in
                     // as a signal that the mitigation actually fired, not left over from
-                    // debugging.
+                    // debugging. Debug builds only.
+                    #if DEBUG
                     print("[scrollDiag] rejected bad caret rect y=\(caret.origin.y) maxPlausibleY=\(maxPlausibleY)")
+                    #endif
                     if let lastGood = self?.lastGoodContentOffset {
                         scrollView.setContentOffset(lastGood, animated: false)
                     }
@@ -1044,6 +1045,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             pendingParagraphCaret = caret
             applyPendingParagraphCaret(in: textView)
             pendingParagraphCaret = nil
+            // Its own undo step, as a toolbar command makes in apply(_:to:).
+            commitUndoPoint(in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
@@ -1127,6 +1130,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let moved = rows.remove(at: drag.row)
                 rows.insert(moved, at: drag.target)
                 commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
+                commitUndoPoint(in: textView)
                 let after = rowFrames(in: textView)
                 guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
                 lm.hiddenCharacterRanges = [after[drag.target].chars]
@@ -1174,6 +1178,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                                   image: UIImage(systemName: allChecked ? "circle" : "checkmark.circle")) { [weak self, weak textView] _ in
                 guard let self, let textView else { return }
                 self.bulkSetChecklist(allChecked ? .checklistUnchecked : .checklistChecked, in: textView, within: covered)
+                self.commitUndoPoint(in: textView)
             }
             return UIMenu(children: [action] + suggestedActions)
         }
@@ -3333,17 +3338,35 @@ struct NoteEditorTextView: UIViewRepresentable {
         typealias EditorRow = (text: String, style: NoteParagraphTextStyle, level: Int, fontChoice: String, source: Int)
 
         func editorRows(in textView: UITextView) -> [EditorRow]? {
-            guard let attributed = textView.attributedText else { return nil }
+            guard let attributed = textView.attributedText, let rows = logicalRows(in: attributed) else { return nil }
+            return zip(rows.lines, rows.infos).enumerated().map { ($1.0, $1.1.style, $1.1.level, $1.1.fontChoice, $0) }
+        }
+
+        typealias RowInfo = (style: NoteParagraphTextStyle, level: Int, fontChoice: String)
+
+        /// `parent.text`'s lines and each one's paragraph style, level and font choice, or nil when
+        /// the shown paragraphs don't line up with them. Paragraph enumeration skips the empty line
+        /// after a final line break, which `components(separatedBy:)` keeps; that line gets its
+        /// stored style and stays last (it has no marker, so it is never a checklist item). Without
+        /// it, sorting and dragging did nothing whenever the entry ended with a line break.
+        private func logicalRows(in attributed: NSAttributedString) -> (lines: [String], infos: [RowInfo])? {
             let nsText = attributed.string as NSString
-            var infos: [(NoteParagraphTextStyle, Int, String)] = []
+            var infos: [RowInfo] = []
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
                 infos.append((self.textStyle(at: enclosing.location, in: attributed),
                               self.indentLevelValue(at: enclosing.location, in: attributed),
                               self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue))
             }
             let logical = parent.text.components(separatedBy: "\n")
+            if logical.count == infos.count + 1, nsText.length == 0 || nsText.hasSuffix("\n") {
+                let index = infos.count
+                let styles = decodedTextStyles(), levels = decodedIndentLevels(), fonts = decodedFontChoices()
+                infos.append((styles.indices.contains(index) ? styles[index] : .body,
+                              levels.indices.contains(index) ? levels[index] : 0,
+                              fonts.indices.contains(index) ? fonts[index] : entryDefaultFontChoice.rawValue))
+            }
             guard logical.count == infos.count else { return nil }
-            return zip(logical, infos).enumerated().map { ($1.0, $1.1.0, $1.1.1, $1.1.2, $0) }
+            return (logical, infos)
         }
 
         /// Each paragraph's character range (without its line break) and its rect in text view
@@ -3372,7 +3395,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             var caretRow = 0
             var caretOffset = 0
             var rowIndex = 0
+            // On the empty line after a final line break: that line, which is last and never moves.
+            let caretOnTrailingLine = caret >= nsText.length && nsText.hasSuffix("\n")
+            if caretOnTrailingLine { caretRow = rows.count - 1 }
             nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, range, enclosing, stop in
+                if caretOnTrailingLine { stop.pointee = true; return }
                 if caret >= enclosing.location && (caret < NSMaxRange(enclosing) || NSMaxRange(enclosing) == nsText.length) {
                     caretRow = rowIndex
                     caretOffset = min(caret - range.location, range.length)
@@ -3427,12 +3454,17 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func placeCaret(inRow row: Int, offset: Int, in textView: UITextView) {
             let shown = (textView.text ?? "") as NSString
             var index = 0
+            var placed = false
             shown.enumerateSubstrings(in: NSRange(location: 0, length: shown.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, stop in
                 if index == row {
                     self.placeCaret(at: range.location + min(offset, range.length), in: textView)
+                    placed = true
                     stop.pointee = true
                 }
                 index += 1
+            }
+            if !placed, row == index, shown.hasSuffix("\n") {
+                placeCaret(at: shown.length, in: textView)   // the empty line after a final line break
             }
         }
 
@@ -3522,18 +3554,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func deleteCheckedChecklistItems(in textView: UITextView) {
-            guard let attributed = textView.attributedText else { return }
-            let nsText = attributed.string as NSString
-            var paraInfos: [(style: NoteParagraphTextStyle, level: Int, fontChoice: String)] = []
-            nsText.enumerateSubstrings(in: NSRange(location: 0, length: nsText.length), options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
-                paraInfos.append((
-                    self.textStyle(at: enclosing.location, in: attributed),
-                    self.indentLevelValue(at: enclosing.location, in: attributed),
-                    self.fontChoiceValue(at: enclosing.location, in: attributed).rawValue
-                ))
-            }
-            let logicalParas = parent.text.components(separatedBy: "\n")
-            guard logicalParas.count == paraInfos.count else { return }
+            guard let attributed = textView.attributedText, let rows = logicalRows(in: attributed) else { return }
+            let logicalParas = rows.lines
+            let paraInfos = rows.infos
 
             let keptRows = paraInfos.indices.filter { paraInfos[$0].style != .checklistChecked }
             let kept = keptRows.map { (logicalParas[$0], paraInfos[$0]) }
@@ -4112,7 +4135,23 @@ private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
 /// edit, parse and older version reads them unchanged; only their glyph isn't drawn. Measured from
 /// Notes on an iPhone (2026-10-15): about 22pt across at body size, text starting past it.
 final class ChecklistLayoutManager: NSLayoutManager {
-    var accentColor: UIColor = .tintColor
+    private(set) var accentColor: UIColor = .tintColor
+    /// The accent as last set: resolved components and the light/dark style they were resolved in.
+    private var accentKey: [CGFloat]?
+
+    /// Sets the circles' accent; true when it changed and they need redrawing. Compares resolved
+    /// components: each `UIColor(Color.accentColor)` is a new adaptive color that `isEqual` never
+    /// matches, so comparing the colors themselves redrew the whole text on every update.
+    @discardableResult
+    func setAccentColor(_ color: UIColor, traits: UITraitCollection) -> Bool {
+        var c: (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        let resolved = color.resolvedColor(with: traits).getRed(&c.0, green: &c.1, blue: &c.2, alpha: &c.3)
+        let key = resolved ? [c.0, c.1, c.2, c.3, CGFloat(traits.userInterfaceStyle.rawValue)] : nil
+        if let key, key == accentKey { return false }
+        accentKey = key
+        accentColor = color
+        return true
+    }
     /// Where a checklist item's text starts, from the paragraph's leading edge.
     static let textIndent: CGFloat = 36
     let markerSpacing = ChecklistMarkerSpacing()
@@ -4157,6 +4196,14 @@ final class ChecklistLayoutManager: NSLayoutManager {
     /// is popping in.
     var hiddenCharacterRanges: [NSRange] = []
 
+    /// Text added or deleted while a row or circle animates (the animations allow interaction)
+    /// shifts what the hidden ranges point at, so they are dropped and everything draws.
+    override func processEditing(for textStorage: NSTextStorage, edited editMask: NSTextStorage.EditActions,
+                                 range newCharRange: NSRange, changeInLength delta: Int, invalidatedRange invalidatedCharRange: NSRange) {
+        super.processEditing(for: textStorage, edited: editMask, range: newCharRange, changeInLength: delta, invalidatedRange: invalidatedCharRange)
+        if delta != 0, !hiddenCharacterRanges.isEmpty { hiddenCharacterRanges = [] }
+    }
+
     private func isHidden(character index: Int) -> Bool {
         hiddenCharacterRanges.contains { NSLocationInRange(index, $0) }
     }
@@ -4164,7 +4211,11 @@ final class ChecklistLayoutManager: NSLayoutManager {
     /// Draws `range` except the marker glyphs and any hidden characters.
     private func drawSkipping(_ range: NSRange, markers: [Int], at origin: CGPoint) {
         var skip = Set(markers.filter { NSLocationInRange($0, range) })
+        let length = textStorage?.length ?? 0
         for hidden in hiddenCharacterRanges {
+            // A range set before an edit can run past the text's end now.
+            let hidden = NSIntersectionRange(hidden, NSRange(location: 0, length: length))
+            guard hidden.length > 0 else { continue }
             let glyphs = glyphRange(forCharacterRange: hidden, actualCharacterRange: nil)
             for g in glyphs.location..<NSMaxRange(glyphs) where NSLocationInRange(g, range) { skip.insert(g) }
         }
@@ -4245,7 +4296,7 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
                                                      length: min(editedRange.length, text.length - min(editedRange.location, text.length - 1))))
         // Only a marker's spacer is kerned. Text typed after it inherits the kern from the typing
         // attributes ("t e s t"), and a marker removed by a style change leaves it on its row.
-        textStorage.removeAttribute(.kern, range: scope)
+        var wanted: [(location: Int, kern: CGFloat)] = []
         text.enumerateSubstrings(in: scope, options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
             let at = range.location
             guard range.length >= 3,
@@ -4255,8 +4306,21 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
             guard first == 0x25CB || first == 0x2713, text.character(at: at + 1) == 0x20, text.character(at: at + 2) == 0x20 else { return }
             let font = (textStorage.attribute(.font, at: at, effectiveRange: nil) as? UIFont) ?? .preferredFont(forTextStyle: .body)
             let width = text.substring(with: NSRange(location: at, length: 3)).size(withAttributes: [.font: font]).width
-            let kern = max(0, ChecklistLayoutManager.textIndent - width)
-            textStorage.addAttribute(.kern, value: kern, range: NSRange(location: at + 2, length: 1))
+            wanted.append((at + 2, max(0, ChecklistLayoutManager.textIndent - width)))
+        }
+        // Most edits (every keystroke outside a checklist, and input-method composing) leave the
+        // kerning as it is; rewriting it anyway re-marks the scope as edited.
+        var present: [(location: Int, length: Int, kern: CGFloat)] = []
+        textStorage.enumerateAttribute(.kern, in: scope) { value, range, _ in
+            if let kern = (value as? NSNumber).map({ CGFloat($0.doubleValue) }) { present.append((range.location, range.length, kern)) }
+        }
+        let unchanged = present.count == wanted.count && zip(present, wanted).allSatisfy {
+            $0.location == $1.location && $0.length == 1 && abs($0.kern - $1.kern) < 0.01
+        }
+        guard !unchanged else { return }
+        textStorage.removeAttribute(.kern, range: scope)
+        for spacer in wanted {
+            textStorage.addAttribute(.kern, value: spacer.kern, range: NSRange(location: spacer.location, length: 1))
         }
     }
 }

@@ -24,13 +24,32 @@ final class SegmentedVoiceRecorder: NSObject {
 
     let levelInterval: TimeInterval = 0.05
     /// Same cap as the inline recorder: a forgotten recording otherwise grows without limit.
-    let maxDuration: TimeInterval = 600
+    let maxDuration: TimeInterval = SegmentedVoiceRecorder.configuredMaxDuration
+
+    /// 600 seconds. Debug builds take `--voiceMaxSeconds=N` as a launch argument, so the cap's
+    /// auto-stop can be tried on a device without recording for ten minutes.
+    private static var configuredMaxDuration: TimeInterval {
+        #if DEBUG
+        let prefix = "--voiceMaxSeconds="
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }),
+           let seconds = TimeInterval(argument.dropFirst(prefix.count)), seconds > 0 {
+            return seconds
+        }
+        #endif
+        return 600
+    }
 
     private var recorder: AVAudioRecorder?
     private var segmentURL: URL?
     /// Everything recorded before the current segment, merged into one file.
     private var mergedURL: URL?
     private var mergedDuration: TimeInterval = 0
+    /// The current segment's length as last read while it was recording. `currentTime` reads 0
+    /// once the recorder stops, which it does by itself at the cap (`record(forDuration:)`) or on
+    /// an interruption; the segment is still on disk then and is kept.
+    private var segmentElapsed: TimeInterval = 0
+    /// Set by `discard()`, so a merge still running then throws its file away.
+    private var isDiscarded = false
     private var player: AVAudioPlayer?
     private var timer: Timer?
 
@@ -43,7 +62,10 @@ final class SegmentedVoiceRecorder: NSObject {
     func record() {
         guard state != .recording else { return }
         stopPlayback()
-        guard elapsed < maxDuration else { return }
+        // Less than a second left: the cap's auto-stop lands a hair short of it, so this would
+        // otherwise start a segment that stops again at once.
+        guard maxDuration - mergedDuration >= 1 else { return }
+        if state == .idle { isDiscarded = false }
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("m4a")
@@ -60,9 +82,15 @@ final class SegmentedVoiceRecorder: NSObject {
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             recorder.isMeteringEnabled = true
             recorder.prepareToRecord()
-            recorder.record(forDuration: maxDuration - mergedDuration)
+            guard recorder.record(forDuration: maxDuration - mergedDuration) else {
+                self.error = String(localized: "Recording failed.")
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            error = nil
             self.recorder = recorder
             segmentURL = url
+            segmentElapsed = 0
             state = .recording
             startTimer()
             NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption(_:)),
@@ -76,10 +104,11 @@ final class SegmentedVoiceRecorder: NSObject {
     /// Stops the current segment and merges it in, so it can be played back.
     func pause() async {
         guard state == .recording, let recorder, let segmentURL else { return }
-        let segmentDuration = recorder.currentTime
+        let segmentDuration = recorder.isRecording ? max(recorder.currentTime, segmentElapsed) : segmentElapsed
         recorder.stop()
         self.recorder = nil
         self.segmentURL = nil
+        segmentElapsed = 0
         stopTimer()
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
         state = .paused
@@ -93,12 +122,19 @@ final class SegmentedVoiceRecorder: NSObject {
         if let previous = mergedURL {
             do {
                 let merged = try await Self.concatenate([previous, segmentURL])
+                // Deleted while merging: discard() removed the earlier audio; drop this segment and the merge.
+                guard !isDiscarded else {
+                    try? FileManager.default.removeItem(at: merged)
+                    try? FileManager.default.removeItem(at: segmentURL)
+                    return
+                }
                 try? FileManager.default.removeItem(at: previous)
                 try? FileManager.default.removeItem(at: segmentURL)
                 mergedURL = merged
             } catch {
-                self.error = error.localizedDescription
                 try? FileManager.default.removeItem(at: segmentURL)
+                guard !isDiscarded else { return }
+                self.error = error.localizedDescription
                 elapsed = mergedDuration
                 return
             }
@@ -120,6 +156,7 @@ final class SegmentedVoiceRecorder: NSObject {
     }
 
     func discard() {
+        isDiscarded = true
         recorder?.stop()
         recorder = nil
         if let segmentURL { try? FileManager.default.removeItem(at: segmentURL) }
@@ -183,12 +220,19 @@ final class SegmentedVoiceRecorder: NSObject {
 
     private func tick() {
         if state == .recording, let recorder {
+            // Stopped by itself (the cap, or an interruption): keep what it recorded, as a pause does.
+            guard recorder.isRecording else {
+                elapsed = mergedDuration + segmentElapsed
+                Task { await pause() }
+                return
+            }
+            segmentElapsed = recorder.currentTime
             recorder.updateMeters()
             // -50 dB and below reads as silence; 0 dB is full scale.
             let power = CGFloat(recorder.averagePower(forChannel: 0))
             levels.append(max(0.04, min(1, (power + 50) / 50)))
             if levels.count > 600 { levels.removeFirst(levels.count - 600) }
-            elapsed = mergedDuration + recorder.currentTime
+            elapsed = mergedDuration + segmentElapsed
             if elapsed >= maxDuration { Task { await pause() } }
         } else if let player {
             playbackTime = player.currentTime
@@ -306,6 +350,8 @@ struct VoiceRecorderSheet: View {
                     .frame(width: 48, height: 48)
                     .recorderCircle(isSentinel: isSentinel, fill: nil)
             }
+            // A merge in progress still writes a file; deleting under it orphaned that file.
+            .disabled(recorder.isMerging || isSaving)
             .accessibilityLabel("More")
             .accessibilityIdentifier("recorderMore")
             Spacer()

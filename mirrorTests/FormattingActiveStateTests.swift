@@ -116,6 +116,63 @@ struct ChecklistSortCaretTests {
     }
 }
 
+/// An entry ending in a line break has one more line than paragraph enumeration reports (the empty
+/// one after the break). Sorting, dragging and deleting checked items used to do nothing then.
+@MainActor
+struct ChecklistTrailingLineBreakTests {
+    private func styles(_ box: FormattingActiveStateTests.Box) throws -> [NoteParagraphTextStyle] {
+        try JSONDecoder().decode(NoteTextStyleDocument.self, from: try #require(box.textStyleData)).paragraphStyles
+    }
+
+    @Test func sortWorksWhenTheTextEndsWithALineBreak() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nEggs\nBread\n"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.checklistChecked, .checklistUnchecked, .checklistUnchecked, .body]))
+        let (coordinator, textView) = FormattingActiveStateTests.makeEditor(box)
+        coordinator.sortCheckedToBottom(in: textView)
+        #expect(box.text == "Eggs\nBread\nMilk\n", "the final line break must survive the sort")
+        #expect(try styles(box) == [.checklistUnchecked, .checklistUnchecked, .checklistChecked, .body])
+    }
+
+    @Test func theEmptyLastLineKeepsItsStoredStyle() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nEggs\n"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.checklistChecked, .checklistUnchecked, .heading]))
+        let (coordinator, textView) = FormattingActiveStateTests.makeEditor(box)
+        coordinator.sortCheckedToBottom(in: textView)
+        #expect(box.text == "Eggs\nMilk\n")
+        #expect(try styles(box) == [.checklistUnchecked, .checklistChecked, .heading])
+    }
+
+    @Test func dragCommitWorksWhenTheTextEndsWithALineBreak() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nEggs\nBread\n"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.checklistUnchecked, .checklistUnchecked, .checklistUnchecked, .body]))
+        let (coordinator, textView) = FormattingActiveStateTests.makeEditor(box)
+        // What the drag's .ended does: move one row, then write the new order.
+        var rows = try #require(coordinator.editorRows(in: textView))
+        #expect(rows.count == 4)
+        let moved = rows.remove(at: 0)
+        rows.insert(moved, at: 2)
+        coordinator.commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
+        #expect(box.text == "Eggs\nBread\nMilk\n")
+        #expect(try styles(box) == [.checklistUnchecked, .checklistUnchecked, .checklistUnchecked, .body])
+    }
+
+    @Test func deleteCheckedWorksWhenTheTextEndsWithALineBreak() throws {
+        let box = FormattingActiveStateTests.Box()
+        box.text = "Milk\nEggs\n"
+        box.textStyleData = try JSONEncoder().encode(NoteTextStyleDocument(
+            paragraphStyles: [.checklistChecked, .checklistUnchecked, .body]))
+        let (coordinator, textView) = FormattingActiveStateTests.makeEditor(box)
+        coordinator.deleteCheckedChecklistItems(in: textView)
+        #expect(box.text == "Eggs\n")
+    }
+}
+
 /// The checklist marker's spacer is kerned so text clears the drawn circle; nothing else may be.
 /// Typed text inherited the kern once ("t e s t").
 @MainActor

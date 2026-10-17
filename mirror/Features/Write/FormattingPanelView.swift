@@ -332,7 +332,7 @@ struct FormattingPanelView: View {
             .contentShape(Rectangle())
     }
 
-    private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false, accessibilityLabel: String) -> some View {
+    private func inlineButton(_ label: String, style: InlineTextStyle, font: Font, underline: Bool = false, strikethrough: Bool = false, accessibilityLabel: LocalizedStringKey) -> some View {
         let isActive = state.activeInlineStyles.contains(style)
         return Button {
             let cmd = inlineCommand(for: style)
@@ -440,7 +440,7 @@ struct FormattingPanelView: View {
 
     private var swatchSize: CGFloat { min(30 * typeScale, 40) }
 
-    private func noneSwatch<Label: View>(isActive: Bool, accessibilityLabel: String, action: @escaping () -> Void,
+    private func noneSwatch<Label: View>(isActive: Bool, accessibilityLabel: LocalizedStringKey, action: @escaping () -> Void,
                                          @ViewBuilder label: () -> Label) -> some View {
         Button {
             DispatchQueue.main.async { action() }
