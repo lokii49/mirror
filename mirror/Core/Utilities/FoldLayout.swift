@@ -61,6 +61,10 @@ extension View {
     func onFoldChange(_ action: @escaping (FoldSpan?) -> Void) -> some View { self }
     func avoidingFold() -> some View { self }
 }
+
+extension ToolbarContent {
+    func preferringVerticalBar() -> some ToolbarContent { self }
+}
 #else
 extension View {
     /// Reports the active vertical fold crossing this view, or nil when there is none

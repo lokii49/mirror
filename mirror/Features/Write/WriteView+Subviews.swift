@@ -355,6 +355,8 @@ extension WriteView {
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
     }
 
+    /// On iPhone Duo all three (trash, check, focus) go to the vertical bar on the right, under the
+    /// status bar, instead of a horizontal top bar (owner, 2026-10-17). Elsewhere nothing moves.
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -371,6 +373,7 @@ extension WriteView {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete entry")
             }
+            .preferringVerticalBar()
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -390,6 +393,7 @@ extension WriteView {
                 #endif
                 .accessibilityLabel("Save entry")
             }
+            .preferringVerticalBar()
         } else {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -408,6 +412,7 @@ extension WriteView {
                 .disabled(!hasDraftContent && !pendingDelete)
                 .accessibilityLabel("Discard draft")
             }
+            .preferringVerticalBar()
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -437,6 +442,7 @@ extension WriteView {
                 #endif
                 .accessibilityLabel("Save entry")
             }
+            .preferringVerticalBar()
         }
     }
 
@@ -457,6 +463,7 @@ extension WriteView {
             .buttonStyle(.plain)
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
         }
+        .preferringVerticalBar()
     }
 
     #if os(macOS)
