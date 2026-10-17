@@ -13,6 +13,9 @@ struct EntriesTabView: View {
     /// shares one bar with the reader beside it.
     var ownsNavigationStack = true
     #if os(iOS)
+    /// Forwarded to the pushed reader: its editor opened or closed (EntriesSplitView holds the
+    /// layout across a fold meanwhile).
+    var onReaderEditorPresented: ((Bool) -> Void)? = nil
     /// Whether the system can place a vertical bar here (VerticalBarProbe): the Duo moves this
     /// list's toolbar into it; iPad has none.
     @State private var hasVerticalBar = false
@@ -461,10 +464,10 @@ struct EntriesTabView: View {
             // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
             .navigationDestination(isPresented: $showEntryDetail) {
                 if let selectedEntry {
-                    EntryDetailView(entry: selectedEntry) {
+                    EntryDetailView(entry: selectedEntry, onDone: {
                         showEntryDetail = false
                         self.selectedEntry = nil
-                    }
+                    }, onEditorPresented: onReaderEditorPresented)
                 }
             }
             #endif
@@ -885,7 +888,9 @@ struct EntriesTabView: View {
     /// Opening or closing an iPhone Duo (or resizing an iPad window) moves the open entry between
     /// the pushed reader and the reader column, so the user keeps reading what they had open.
     /// Unfolding with nothing pushed leaves the column empty (EntriesSplitView clears its
-    /// selection on the way to compact), so it never shows an entry deleted meanwhile.
+    /// selection on the way to compact), so it never shows an entry deleted meanwhile. An entry
+    /// deleted while it was open isn't handed over. While an editor is open over the reader,
+    /// EntriesSplitView holds its layout, so this runs once the editor closes.
     private func handOverReader(toSideBySide: Bool) {
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -894,13 +899,19 @@ struct EntriesTabView: View {
                 let pushed = showEntryDetail ? selectedEntry : nil
                 showEntryDetail = false
                 selectedEntry = nil
-                macSelection?.wrappedValue = pushed
+                macSelection?.wrappedValue = pushed.flatMap { Self.isLive($0) ? $0 : nil }
             } else if let entry = lastSideBySideEntry {
                 lastSideBySideEntry = nil
+                guard Self.isLive(entry) else { return }
                 selectedEntry = entry
                 showEntryDetail = true
             }
         }
+    }
+
+    /// Not deleted in this context (deleted elsewhere, the reader's guard closes it).
+    private static func isLive(_ entry: Entry) -> Bool {
+        !entry.isDeleted && entry.modelContext != nil
     }
     #endif
 
@@ -924,8 +935,12 @@ struct EntriesTabView: View {
             .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
+                    // Clear the selection first so the reader column (iPad, open Duo) never
+                    // renders a deleted entry, as the Mac row's Delete does.
+                    if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
                     WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                     modelContext.delete(entry)
+                    try? modelContext.save()
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }

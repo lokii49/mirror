@@ -101,8 +101,11 @@ actor ThemeExtractionService {
         tagger.setLanguage(language, range: fullRange)
 
         var byKey: [String: ExtractedTerm] = [:]
+        let listLanguage = BrainTopics.listLanguage(language.rawValue)
 
-        // Pass 1 — named entities (person/place/organization).
+        // Pass 1 — named entities (person/place/organization). An organization on a topic list
+        // keeps its topic: the tagger reads brands ("Netflix", "Instagram") as organizations, and
+        // pass 2 skips keys already found, so they would otherwise miss Screens.
         tagger.enumerateTags(
             in: fullRange, unit: .word, scheme: .nameType,
             options: [.omitPunctuation, .omitWhitespace, .joinNames]
@@ -114,7 +117,12 @@ actor ThemeExtractionService {
             case .organizationName?: type = .keyword
             default: type = nil
             }
-            if let type, let term = makeTerm(String(input[range]), type: type) {
+            if let type, var term = makeTerm(String(input[range]), type: type) {
+                // One word only: a joined name ("Apple Music") isn't a list word, and a stem
+                // could match its first word.
+                if tag == .organizationName, let listLanguage, !term.key.contains(where: \.isWhitespace) {
+                    term.topicID = BrainTopics.topicID(for: term.key, language: listLanguage)
+                }
                 // First-seen label wins; name types always claim the key.
                 if byKey[term.key] == nil { byKey[term.key] = term }
             }
@@ -124,7 +132,7 @@ actor ThemeExtractionService {
         // Pass 2 — words on the language's Brain View topic lists. Runs on plain word tokens, not
         // the noun tagger, which has no model for most of the app's languages; short words count
         // here ("tea", "gym", "会議").
-        if let listLanguage = BrainTopics.listLanguage(language.rawValue) {
+        if let listLanguage {
             let tokenizer = NLTokenizer(unit: .word)
             tokenizer.string = input
             tokenizer.setLanguage(language)

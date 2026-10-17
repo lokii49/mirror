@@ -12,7 +12,17 @@ struct EntriesSplitView: View {
     var deepLinkEntryID: Binding<UUID?>
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.appDisplayMode) private var displayMode
     @State private var selection: Entry?
+    /// The layout while an entry editor is open over a reader (pushed or in the column), nil
+    /// otherwise. A fold or unfold mid-edit keeps this layout until the editor closes: the
+    /// hand-over would pop a pushed reader and its editor (compact to side by side), and the
+    /// reader column declares its editor's destination, so removing it pops the editor (side by
+    /// side to compact). WriteView's flush on disappear keeps only the text: photo and voice
+    /// edits, an inline recording and undo were lost. The editor covers the whole stack, so the
+    /// held layout only shows behind it; closing the editor applies the current width class,
+    /// and the usual hand-over moves the reader.
+    @State private var heldSideBySide: Bool?
     /// Forwarded to the list's own reset. A width-class change doesn't reset: the list hands the
     /// open entry between the pushed reader and the reader column (`handOverReader`).
     @State private var listResetID = UUID()
@@ -26,7 +36,7 @@ struct EntriesSplitView: View {
     @State private var screenMidX: CGFloat = 0
     @State private var splitMinX: CGFloat = 0
 
-    private var sideBySide: Bool { sizeClass == .regular }
+    private var sideBySide: Bool { heldSideBySide ?? (sizeClass == .regular) }
     private var foldSplit: FoldColumnSplit? {
         sideBySide ? FoldColumnSplit(fold: fold, width: width, minimumColumn: 300) : nil
     }
@@ -42,7 +52,8 @@ struct EntriesSplitView: View {
                     navResetID: listResetID,
                     deepLinkEntryID: deepLinkEntryID,
                     macSelection: sideBySide ? $selection : nil,
-                    ownsNavigationStack: false
+                    ownsNavigationStack: false,
+                    onReaderEditorPresented: holdLayout
                 )
                 .frame(width: sideBySide ? listWidth : nil)
                 .frame(maxWidth: sideBySide ? listWidth : .infinity)
@@ -70,10 +81,21 @@ struct EntriesSplitView: View {
         // The window's own middle: SwiftUI lays the tab content out beside the vertical bar, so
         // even a safe-area-ignoring background stops short of the screen's edge.
         .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar, windowMidX: $screenMidX))
-        .onChange(of: navResetID) { _, _ in listResetID = UUID() }
+        .onChange(of: navResetID) { _, _ in
+            heldSideBySide = nil
+            listResetID = UUID()
+        }
+        // A new entry in the column (a deep link) or none (deleted, closed) removes the reader and
+        // any editor on it.
+        .onChange(of: selection?.id) { _, _ in heldSideBySide = nil }
         // Compact, the list pushes the entry itself. Clearing here means an unfold can't draw
         // the reader for an entry deleted meanwhile before the list hands its pushed one over.
         .onChange(of: sideBySide) { _, side in if !side { selection = nil } }
+    }
+
+    /// Called by a reader when its editor opens or closes (see `heldSideBySide`).
+    private func holdLayout(_ editorOpen: Bool) {
+        heldSideBySide = editorOpen ? sideBySide : nil
     }
 
     /// Half-folded: up to the fold. Flat on iPhone Duo: up to the screen's middle, so half-folding
@@ -88,11 +110,25 @@ struct EntriesSplitView: View {
     @ViewBuilder
     private var reader: some View {
         if let selection {
-            EntryDetailView(entry: selection) { self.selection = nil }
+            EntryDetailView(entry: selection, onDone: { self.selection = nil }, onEditorPresented: holdLayout)
             .id(selection.id)
             // Deleted from the list (swipe) or on another device: close the reader instead of
             // showing a deleted record.
             .background(EntrySelectionGuard(entryID: selection.id) { self.selection = nil })
+        } else if displayMode == .sentinel {
+            // The Log's empty-state look (EntriesTabView.emptyState): viewfinder, mono capitals.
+            VStack(spacing: 16) {
+                Image(systemName: "viewfinder")
+                    .font(.system(size: 48, weight: .light))
+                    .foregroundStyle(.quaternary)
+                Text("Select an entry")
+                    .textCase(.uppercase)
+                    .font(MirrorTheme.mono(14, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(MirrorTheme.bgBase)
         } else {
             ContentUnavailableView("Select an entry", systemImage: "book.closed")
                 .background(MirrorTheme.bgBase)
@@ -101,7 +137,9 @@ struct EntriesSplitView: View {
 }
 
 /// Calls `onGone` once the entry with this id no longer exists (the iOS counterpart of the Mac's
-/// `MacSelectionGuard`).
+/// `MacSelectionGuard`). An entry already gone is never handed over (`EntriesTabView.isLive`). Only the
+/// reader column has one: behind the pushed reader (inside its navigationDestination) the guard's
+/// query hung the push on the iPhone 14 Pro (UI tests, 2026-10-17).
 private struct EntrySelectionGuard: View {
     let onGone: () -> Void
     @Query private var matches: [Entry]

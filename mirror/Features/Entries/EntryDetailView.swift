@@ -10,6 +10,9 @@ struct EntryDetailView: View {
 
     let entry: Entry
     var onDone: (() -> Void)? = nil
+    /// Told when the editor opens and closes, so Entries can hold its layout across a fold while
+    /// an edit is open (EntriesSplitView.heldSideBySide).
+    var onEditorPresented: ((Bool) -> Void)? = nil
 
     @State private var showEditor = false
     /// `Entry.contentDecryptionFailed`, checked once on appear (it opens every photo and
@@ -298,12 +301,19 @@ struct EntryDetailView: View {
         .navigationDestination(isPresented: $showEditor) {
             WriteView(entry: entry, autoFocus: true, showsBackButton: true)
         }
+        .onChange(of: showEditor) { _, open in onEditorPresented?(open) }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                modelContext.delete(entry)
-                try? modelContext.save()
+                // Leave the reader first, then delete (as on Mac): the reader column or the pushed
+                // reader must not render a deleted entry.
                 onDone?()
+                let doomed = entry
+                let context = modelContext
+                WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
+                DispatchQueue.main.async {
+                    context.delete(doomed)
+                    try? context.save()
+                }
             }
             Button("Cancel", role: .cancel) {}
         }

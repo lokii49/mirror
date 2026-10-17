@@ -44,8 +44,12 @@ struct MoodDotScrubOverlay: View {
     let proxy: ChartProxy
     let dots: [MoodDot]
     @Binding var selected: MoodDot?
-    /// Text for the selected dot, set by the chart when the selection changes.
-    let previewText: String
+    /// Text for a dot (`moodDotPreviewText`). It decrypts, so it runs when the finger reaches a
+    /// new dot, never from `body`.
+    let previewText: (MoodDot) -> String
+    /// The selected dot's text, set in the same action as `selected`, so the callout never
+    /// draws empty or with the previous dot's text for a frame.
+    @State private var calloutText = ""
 
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
@@ -79,7 +83,7 @@ struct MoodDotScrubOverlay: View {
     }
 
     private var callout: some View {
-        Text(previewText)
+        Text(calloutText)
             .font(isSentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
             .foregroundStyle(MirrorTheme.textPrimary)
             .lineLimit(3)
@@ -110,7 +114,9 @@ struct MoodDotScrubOverlay: View {
         let nearest = dots.min { a, b in
             distance(position(of: a, plot: plot), location) < distance(position(of: b, plot: plot), location)
         }
-        if nearest?.id != selected?.id { selected = nearest }
+        guard nearest?.id != selected?.id else { return }
+        if let nearest { calloutText = previewText(nearest) }
+        selected = nearest
     }
 
     private func distance(_ p: CGPoint?, _ q: CGPoint) -> CGFloat {

@@ -123,6 +123,20 @@ struct ThemeExtractionServiceTests {
         #expect(french.contains { $0.topicID == "topic.family" })
     }
 
+    @Test func brandWordsJoinTheirTopicEvenAsOrganizations() async {
+        // The name tagger may read these as organizations (pass 1); either pass must give Screens.
+        await NLAssetPreparation.ready.value
+        let terms = ThemeExtractionService.extract(
+            from: "Stayed up far too late watching Netflix, then lost another hour scrolling Instagram and YouTube."
+        )
+        for key in ["netflix", "instagram", "youtube"] {
+            if let term = terms.first(where: { $0.key == key }) {
+                #expect(term.topicID == "topic.screens", "\(key) should be in Screens")
+            }
+        }
+        #expect(terms.contains { $0.topicID == "topic.screens" })
+    }
+
     @Test func topicListsCoverEveryAppLanguage() {
         #expect(BrainTopics.topicID(for: "besprechungen", language: "de") == "topic.work")
         #expect(BrainTopics.topicID(for: "reuniones", language: "es") == "topic.work")

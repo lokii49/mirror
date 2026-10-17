@@ -886,7 +886,6 @@ private struct MoodChartCard: View {
     var entry: ((UUID) -> Entry?)? = nil
     @Environment(\.appDisplayMode) private var displayMode
     @State private var selected: MoodDot?
-    @State private var previewText = ""
 
     private var dailyLine: [MoodDayMean] {
         MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
@@ -971,13 +970,11 @@ private struct MoodChartCard: View {
             }
             .chartYScale(domain: 0...6)
             .chartOverlay { proxy in
-                if entry != nil {
-                    MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected, previewText: previewText)
+                if let entry {
+                    MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
+                        moodDotPreviewText(for: dot, entry: entry)
+                    }
                 }
-            }
-            .onChange(of: selected?.id) {
-                guard let selected, let entry else { return }
-                previewText = moodDotPreviewText(for: selected, entry: entry)
             }
             #if os(macOS)
             // Days with several entries give the smoothed area fill duplicate x values, which

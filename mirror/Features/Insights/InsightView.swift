@@ -1745,7 +1745,6 @@ private struct MoodWeekChartView: View {
     let entry: (UUID) -> Entry?
     @Environment(\.appDisplayMode) private var displayMode
     @State private var selected: MoodDot?
-    @State private var previewText = ""
     private var isSentinel: Bool { displayMode == .sentinel }
 
     private var points: [MoodDot] {
@@ -1850,11 +1849,9 @@ private struct MoodWeekChartView: View {
             }
             .chartYScale(domain: 0...6)
             .chartOverlay { proxy in
-                MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected, previewText: previewText)
-            }
-            .onChange(of: selected?.id) {
-                guard let selected else { return }
-                previewText = moodDotPreviewText(for: selected, entry: entry)
+                MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
+                    moodDotPreviewText(for: dot, entry: entry)
+                }
             }
             .chartYAxis {
                 AxisMarks(values: [1, 3, 5]) { value in
