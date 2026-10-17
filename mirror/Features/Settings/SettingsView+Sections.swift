@@ -73,13 +73,22 @@ extension SettingsView {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("Start 7-day free trial")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 14, weight: .semibold))
-                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                        // The trial only when this Apple ID can still get it, and the store's own price.
+                        Group {
+                            if let trial = coreTrialLength {
+                                Text("Free for \(trial)")
+                            } else {
+                                Text("MirrorNotes Core")
+                            }
+                        }
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 14, weight: .semibold))
+                        .textCase(displayMode == .sentinel ? .uppercase : nil)
                         Spacer(minLength: 4)
-                        Text("Core · $2.99/mo")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5) : .system(size: 12, weight: .medium))
-                            .opacity(0.65)
+                        if let price = coreMonthlyPrice {
+                            Text("\(price) / month")
+                                .font(displayMode == .sentinel ? MirrorTheme.mono(11.5) : .system(size: 12, weight: .medium))
+                                .opacity(0.65)
+                        }
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .bold))
                     }
@@ -113,15 +122,16 @@ extension SettingsView {
 
     // Support row, English only on purpose: it is for the owner, not part of the app's copy.
     // The ID is RevenueCat's current app user ID: per iCloud account (`RevenueCatIdentity`), or
-    // anonymous and per install when iCloud is off or the login hasn't happened yet.
+    // anonymous and per install when iCloud is off or the login hasn't happened yet. Read from
+    // `SubscriptionService`, which updates it when the launch login finishes.
     var revenueCatIDRow: some View {
-        let appUserID = Purchases.shared.appUserID
+        let appUserID = subscriptionService.appUserID
         return VStack(alignment: .leading, spacing: 6) {
             Divider()
                 .overlay(MirrorTheme.inkBorder)
                 .padding(.top, 14)
                 .padding(.bottom, 4)
-            Text(verbatim: Purchases.shared.isAnonymous ? "RevenueCat ID (anonymous)" : "RevenueCat ID")
+            Text(verbatim: subscriptionService.isAnonymousUser ? "RevenueCat ID (anonymous)" : "RevenueCat ID")
                 .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
                 .foregroundStyle(MirrorTheme.textSecondary)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -319,6 +329,19 @@ extension SettingsView {
     }
 
     // MARK: - Helpers
+
+    /// Core's monthly plan from the store, once products have loaded.
+    private var coreMonthly: Package? {
+        subscriptionService.corePackages.first { !PaywallView.isYearly($0) }
+    }
+
+    /// The free trial's length when this Apple ID can still use it; nil hides the trial wording.
+    var coreTrialLength: String? {
+        guard let coreMonthly, subscriptionService.isTrialEligible(coreMonthly) else { return nil }
+        return PaywallView.freeTrialLength(coreMonthly)
+    }
+
+    var coreMonthlyPrice: String? { coreMonthly?.storeProduct.localizedPriceString }
 
     func upgradeChip(_ label: LocalizedStringKey, icon: String) -> some View {
         HStack(spacing: 4) {

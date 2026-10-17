@@ -30,6 +30,11 @@ final class SubscriptionService {
     private(set) var activeProductIDs: Set<String> = []
     /// One-line result of a Restore tap that found nothing to restore (not an error).
     private(set) var restoreMessage: String?
+    /// RevenueCat's current app user ID, for the support row in Settings. Re-read after the launch
+    /// iCloud login and on every customer info update, so a Settings screen opened before the
+    /// login finished doesn't keep showing the anonymous ID.
+    private(set) var appUserID: String = Purchases.shared.appUserID
+    private(set) var isAnonymousUser: Bool = Purchases.shared.isAnonymous
 
     #if DEBUG
     /// Snapshot mode only: lets the Mac UI be checked in each plan without a purchase.
@@ -67,6 +72,7 @@ final class SubscriptionService {
             // First, so the sync and refresh below already run as the iCloud account's customer
             // (where any granted entitlement lives) rather than this install's anonymous one.
             await RevenueCatIdentity.logInWithICloudAccount()
+            refreshAppUserID()
             // RevenueCat: restorePurchases "may force your users to enter the App Store password
             // so should only be performed on request of the user" (5.89.0 docs), so launch uses
             // the silent syncPurchases instead (owner, 2026-10-11); the Restore buttons keep
@@ -126,9 +132,10 @@ final class SubscriptionService {
         guard !packages.isEmpty else { return }
         let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(packages: packages)
         // `.unknown` is what a first-time user with no receipt yet gets, so it counts as eligible;
-        // only a definite "ineligible" or "no offer" hides the trial.
+        // only a definite "ineligible" or "no offer" hides the trial. A paid introductory price is
+        // not a free trial, so it never counts.
         trialEligibleProductIDs = Set(packages.compactMap { package in
-            guard package.storeProduct.introductoryDiscount != nil else { return nil }
+            guard package.storeProduct.introductoryDiscount?.paymentMode == .freeTrial else { return nil }
             switch eligibility[package]?.status {
             case .ineligible, .noIntroOfferExists: return nil
             default: return package.storeProduct.productIdentifier
@@ -192,7 +199,13 @@ final class SubscriptionService {
         }
     }
 
+    private func refreshAppUserID() {
+        appUserID = Purchases.shared.appUserID
+        isAnonymousUser = Purchases.shared.isAnonymous
+    }
+
     private func updateTier(from customerInfo: CustomerInfo) {
+        refreshAppUserID()
         activeProductIDs = customerInfo.activeSubscriptions
         guard !Self.allFeaturesFree else {
             tier = .deep

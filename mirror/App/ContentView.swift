@@ -152,7 +152,7 @@ struct ContentView: View {
     @State private var onboardingInProgress = false
 
     private var onboardingComplete: Bool {
-        !onboardingInProgress && (profiles.first?.onboardingComplete ?? false)
+        !onboardingInProgress && (UserProfile.canonical(in: profiles)?.onboardingComplete ?? false)
     }
 
     /// True only when the rate-us gate is wanted AND the screen is free to show
@@ -185,7 +185,7 @@ struct ContentView: View {
         // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
         return .classic
         #else
-        return profiles.first?.displayMode ?? .classic
+        return UserProfile.canonical(in: profiles)?.displayMode ?? .classic
         #endif
     }
 
@@ -336,6 +336,10 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { maybeAutoPromptMoodCheckIn() }
+        }
+        // A profile that synced in beside one this device's onboarding made (UserProfile.mergeDuplicates).
+        .onChange(of: profiles.count, initial: true) { _, _ in
+            UserProfile.mergeDuplicates(in: modelContext)
         }
         .onChange(of: sizeClass) { _, newClass in
             // iOS 18+ keeps one TabView across size classes, with the same tabs in each.

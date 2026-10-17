@@ -304,14 +304,16 @@ struct SubscriptionView: View {
                                             Text(packageLabel(package)).font(.system(size: 15, weight: .semibold))
                                         }
                                     }
-                                    Group {
-                                        if displayMode == .sentinel {
-                                            Text(packageSubtitle(package)).font(MirrorTheme.mono(10.5, weight: .medium))
-                                        } else {
-                                            Text(packageSubtitle(package)).font(.system(size: 12))
+                                    if let subtitle = packageSubtitle(package, in: packages) {
+                                        Group {
+                                            if displayMode == .sentinel {
+                                                Text(subtitle).font(MirrorTheme.mono(10.5, weight: .medium))
+                                            } else {
+                                                Text(subtitle).font(.system(size: 12))
+                                            }
                                         }
+                                        .foregroundStyle(.secondary)
                                     }
-                                    .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Text(package.storeProduct.localizedPriceString)
@@ -351,12 +353,21 @@ struct SubscriptionView: View {
         }
     }
 
-    private func packageSubtitle(_ package: Package) -> LocalizedStringKey {
-        let isDeepProduct = package.storeProduct.productIdentifier.contains("deep")
+    /// Savings come from the store's own prices (as on the paywall); a trial is mentioned only
+    /// when this Apple ID can still use it, with the length the store gives.
+    private func packageSubtitle(_ package: Package, in packages: [Package]) -> LocalizedStringKey? {
         switch package.packageType {
-        case .monthly:  return "Billed monthly · cancel anytime"
-        case .annual:   return isDeepProduct ? "Billed yearly · save ~17%" : "Billed yearly · save ~16%"
-        default:        return "7-day free trial"
+        case .monthly:
+            return "Billed monthly · cancel anytime"
+        case .annual:
+            if let percent = PaywallView.yearlySavingsPercent(in: packages) {
+                return "Billed yearly · save ~\(percent)%"
+            }
+            return "Billed yearly"
+        default:
+            guard subscriptionService.isTrialEligible(package),
+                  let length = PaywallView.freeTrialLength(package) else { return nil }
+            return "Free for \(length)"
         }
     }
 

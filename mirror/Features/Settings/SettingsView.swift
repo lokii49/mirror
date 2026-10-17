@@ -41,9 +41,11 @@ struct SettingsView: View {
 
     var displayModeBinding: Binding<DisplayMode> {
         Binding(
-            get: { profiles.first?.displayMode ?? .classic },
+            get: { UserProfile.canonical(in: profiles)?.displayMode ?? .classic },
             set: { newValue in
-                profiles.first?.displayMode = newValue
+                // Every row, should a duplicate profile have synced in (see `UserProfile.canonical`),
+                // so whichever one a device reads shows the theme just chosen.
+                profiles.forEach { $0.displayMode = newValue }
                 try? modelContext.save()
             }
         )

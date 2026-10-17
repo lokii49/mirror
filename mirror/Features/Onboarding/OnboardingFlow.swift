@@ -114,6 +114,8 @@ struct OnboardingFlow: View {
     @State private var selectedDisplayMode: DisplayMode = .classic
     @State private var welcomeAppeared = false
     @State private var askingNotificationPermission = false
+    /// The reminder step wrote `moodCheckInEnabled = false` for what looked like a new user.
+    @State private var defaultedMoodCheckInOff = false
     @State private var writeBreathe = false
     @Namespace private var reasonAccentNS
     @Namespace private var presetAccentNS
@@ -158,6 +160,15 @@ struct OnboardingFlow: View {
             if let value = note.userInfo?["step"] as? Int { step = value }
         }
         #endif
+        .onAppear { preselectSyncedDisplayMode() }
+        .onChange(of: profiles.count) { preselectSyncedDisplayMode() }
+    }
+
+    /// A profile synced from the user's other device keeps its theme (owner, 2026-10-17): the mode
+    /// step shows it selected, and `completeOnboarding` never writes over it.
+    private func preselectSyncedDisplayMode() {
+        guard let synced = UserProfile.canonical(in: profiles) else { return }
+        selectedDisplayMode = synced.displayMode
     }
 
     // MARK: - Progress
@@ -907,9 +918,12 @@ struct OnboardingFlow: View {
         // now asked here, its default-on 9:00 notification would otherwise start on day one next
         // to the writing reminder. Written before the prompt, because answering it makes the app
         // active and mirrorApp's reArmUserReminders schedules the check-in right then. Only when
-        // unset, so anyone who chose a value keeps it. Settings can turn it on.
-        if UserDefaults.standard.object(forKey: "moodCheckInEnabled") == nil {
+        // unset, so anyone who chose a value keeps it. Settings can turn it on. Not for someone
+        // already using MirrorNotes on another device (a synced profile or entries are here): on a
+        // reinstall or new device they keep the default-on reminder they had.
+        if UserDefaults.standard.object(forKey: "moodCheckInEnabled") == nil, !isReturningUser {
             UserDefaults.standard.set(false, forKey: "moodCheckInEnabled")
+            defaultedMoodCheckInOff = true
         }
         let center = UNUserNotificationCenter.current()
         if await center.notificationSettings().authorizationStatus == .notDetermined {
@@ -922,8 +936,23 @@ struct OnboardingFlow: View {
         )
     }
 
+    /// Someone who already uses MirrorNotes on another device: their onboarded profile or their
+    /// entries have synced in.
+    private var isReturningUser: Bool {
+        profiles.contains { $0.onboardingComplete }
+            || ((try? modelContext.fetchCount(FetchDescriptor<Entry>())) ?? 0) > 0
+    }
+
     private func completeOnboarding() {
         saveNudgeTime()
+
+        // Read before the first entry below is inserted, which would count as "entries synced in".
+        let returning = isReturningUser
+        // The reminder step turned the check-in off for a new user, but their synced profile or
+        // entries arrived since: give the reinstall/new-device default back.
+        if returning && defaultedMoodCheckInOff {
+            UserDefaults.standard.removeObject(forKey: "moodCheckInEnabled")
+        }
 
         let text = firstEntryText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty {
@@ -931,17 +960,22 @@ struct OnboardingFlow: View {
             modelContext.insert(entry)
         }
 
-        let profile: UserProfile
-        if let existing = profiles.first {
-            profile = existing
+        // A profile synced from another device keeps its theme there and here (owner, 2026-10-17):
+        // the mode is written only on a profile created now.
+        var createdProfile: UserProfile?
+        if let existing = UserProfile.canonical(in: profiles) {
+            existing.onboardingComplete = true
         } else {
-            profile = UserProfile()
+            let profile = UserProfile()
+            profile.onboardingComplete = true
+            profile.displayMode = selectedDisplayMode
             modelContext.insert(profile)
+            createdProfile = profile
         }
-        profile.onboardingComplete = true
-        profile.displayMode = selectedDisplayMode
 
         try? modelContext.save()  // non-fatal: SwiftData will persist on next autosave cycle
+        if let createdProfile { UserProfile.recordCreatedByOnboarding(createdProfile) }
+        UserProfile.mergeDuplicates(in: modelContext)
 
         // Prevent What's New sheet from firing for new installs — they have no "old version" to upgrade from
         FeatureCardService.shared.markWhatsNewSeen()
@@ -1115,5 +1149,86 @@ private struct WelcomeReflectionDemo: View {
         }
         guard (try? await Task.sleep(for: .seconds(0.45))) != nil else { return }
         withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) { showsReflection = true }
+    }
+}
+
+// MARK: - One profile per iCloud account
+
+/// Onboarding on a new device can finish before CloudKit has imported the user's existing profile,
+/// leaving two synced `UserProfile` rows; an unsorted `profiles.first` then flips between them (and
+/// with it the theme). `canonical(in:)` picks the same row every time; `mergeDuplicates(in:)`
+/// cleans up where that is safe on every device at once.
+///
+/// UserProfile has no creation date or synced ID (adding one is a CloudKit schema change), and
+/// `persistentModelID` is different on each device. So a row is deleted only when content alone
+/// picks the keeper (onboarded, badges, streak, last written: values a merge only grows), which
+/// every device works out the same way. Rows whose content ties are never deleted: two devices
+/// could each delete a different one and lose both. Instead the device whose onboarding created one
+/// of them in the last few days gives its row the other's theme, so the synced theme wins (owner,
+/// 2026-10-17) and both rows read the same.
+extension UserProfile {
+    private static let onboardingCreatedKey = "onboardingCreatedProfile"
+    private static let onboardingCreatedWindow: TimeInterval = 3 * 24 * 60 * 60
+
+    private var contentRank: (Int, Int, Int, Date) {
+        (onboardingComplete ? 1 : 0, badges.count, streakCount, lastWritten ?? .distantPast)
+    }
+
+    /// The profile the app reads (theme, onboarding state) when more than one has synced in.
+    static func canonical(in profiles: [UserProfile]) -> UserProfile? {
+        guard profiles.count > 1 else { return profiles.first }
+        let createdHere = recentlyCreatedHereID()
+        return profiles.min { a, b in
+            if a.contentRank != b.contentRank { return a.contentRank > b.contentRank }
+            // A tie: the profile that synced in comes before the one this device just created.
+            let aHere = a.persistentModelID == createdHere
+            let bHere = b.persistentModelID == createdHere
+            if aHere != bHere { return bHere }
+            return a.persistentModelID < b.persistentModelID
+        }
+    }
+
+    /// Onboarding created this profile because none had synced in yet.
+    static func recordCreatedByOnboarding(_ profile: UserProfile) {
+        guard let data = try? JSONEncoder().encode(profile.persistentModelID) else { return }
+        UserDefaults.standard.set(["id": data, "at": Date()], forKey: onboardingCreatedKey)
+    }
+
+    private static func recentlyCreatedHereID() -> PersistentIdentifier? {
+        guard let record = UserDefaults.standard.dictionary(forKey: onboardingCreatedKey),
+              let at = record["at"] as? Date, Date().timeIntervalSince(at) < onboardingCreatedWindow,
+              let data = record["id"] as? Data
+        else { return nil }
+        return try? JSONDecoder().decode(PersistentIdentifier.self, from: data)
+    }
+
+    /// Run when profiles change or the app becomes active. Deletes nothing but redundant profile rows.
+    static func mergeDuplicates(in context: ModelContext) {
+        guard let profiles = try? context.fetch(FetchDescriptor<UserProfile>()), profiles.count > 1,
+              let keeper = canonical(in: profiles) else { return }
+        let others = profiles.filter { $0 !== keeper }
+
+        if others.allSatisfy({ $0.contentRank < keeper.contentRank }) {
+            for other in others {
+                keeper.badges += other.badges.filter { !keeper.badges.contains($0) }
+                keeper.streakCount = max(keeper.streakCount, other.streakCount)
+                if let written = other.lastWritten, written > keeper.lastWritten ?? .distantPast {
+                    keeper.lastWritten = written
+                }
+                context.delete(other)
+            }
+            try? context.save()
+            return
+        }
+
+        guard let createdHere = recentlyCreatedHereID(), keeper.persistentModelID != createdHere,
+              let mine = others.first(where: { $0.persistentModelID == createdHere }),
+              mine.contentRank == keeper.contentRank
+        else { return }
+        if mine.displayMode != keeper.displayMode {
+            mine.displayMode = keeper.displayMode
+            try? context.save()
+        }
+        UserDefaults.standard.removeObject(forKey: onboardingCreatedKey)
     }
 }

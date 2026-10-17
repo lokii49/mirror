@@ -56,6 +56,9 @@ The notice has to be in users' hands before the cutover build, so A needs its ow
 - [ ] Background passes skip digest, report and mood alert for Free, and run for a cached subscriber on a cold launch.
 - [ ] Release notes and App Store description name the plans and the trial, worded as "a 7-day free trial for new subscribers" (one trial per Apple ID across all four plans), never "every plan includes a trial". As of 2026-10-16 no shipped description or release note mentions a trial. The paywall already shows the trial only to eligible users (`SubscriptionService.trialEligibleProductIDs`) and says "Subscribe" otherwise.
 - [ ] Privacy policy: still no change (on-device AI), but confirm RevenueCat's disclosure is current.
+- [ ] RevenueCat dashboard: check the restore behaviour setting. Since 3.1.3 the app user ID comes from the iCloud account (`RevenueCatIdentity`). Two people with separate iCloud accounts sharing one App Store account will have one receipt and two customers. Under "transfer", each launch's `syncPurchases` moves the subscription to whoever opened the app last (audit 2026-10-17).
+- [ ] iCloud sign-out: `RevenueCatIdentity` calls `Purchases.logOut()` when the account status is `.noAccount`, so the device becomes anonymous. The next `syncPurchases` re-attaches the receipt to the new anonymous ID (the same transfer path). Check that a paying user who signs out of iCloud keeps their plan.
+- [ ] Settings upgrade row: now shows "Free for <length>" only when eligible, with the store's Core monthly price. Check it with real products once gating is on.
 
 ## Open questions for the owner
 1. Cutover date (and so the notice date).

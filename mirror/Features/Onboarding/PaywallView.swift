@@ -59,6 +59,52 @@ struct PaywallView: View {
         return currentPackages.contains { subscriptionService.isTrialEligible($0) }
     }
 
+    /// The badge's trial length, from the store's own offer; nil (no badge) when it isn't known.
+    private var trialLength: String? {
+        guard showsTrial else { return nil }
+        if let selectedPackage { return Self.freeTrialLength(selectedPackage) }
+        return currentPackages.lazy
+            .filter { subscriptionService.isTrialEligible($0) }
+            .compactMap { Self.freeTrialLength($0) }
+            .first
+    }
+
+    /// "7 days", "1 week": the introductory offer's period in the app's language, only when that
+    /// offer is a free trial (a paid intro price is not a trial).
+    static func freeTrialLength(_ package: Package) -> String? {
+        guard let offer = package.storeProduct.introductoryDiscount, offer.paymentMode == .freeTrial else { return nil }
+        let period = offer.subscriptionPeriod
+        guard period.value > 0 else { return nil }
+        var components = DateComponents()
+        let unit: NSCalendar.Unit
+        switch period.unit {
+        case .day: components.day = period.value; unit = .day
+        case .week: components.weekOfMonth = period.value; unit = .weekOfMonth
+        case .month: components.month = period.value; unit = .month
+        case .year: components.year = period.value; unit = .year
+        @unknown default: return nil
+        }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.allowedUnits = [unit]
+        formatter.maximumUnitCount = 1
+        // The app's language, not the device region's, so the length matches the sentence around it.
+        var calendar = Calendar.current
+        calendar.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        formatter.calendar = calendar
+        return formatter.string(from: components)
+    }
+
+    /// Yearly vs twelve months, from the store's own prices in the user's currency.
+    static func yearlySavingsPercent(in packages: [Package]) -> Int? {
+        guard let monthly = packages.first(where: { !isYearly($0) })?.storeProduct.price,
+              let yearly = packages.first(where: { isYearly($0) })?.storeProduct.price,
+              monthly > 0 else { return nil }
+        let fullYear = monthly * 12
+        let percent = NSDecimalNumber(decimal: (fullYear - yearly) / fullYear * 100).doubleValue
+        return percent >= 1 ? Int(percent.rounded()) : nil
+    }
+
     private var selectedIsCurrentPlan: Bool {
         subscriptionService.activeProductIDs.contains(selectedProductID)
     }
@@ -175,8 +221,8 @@ struct PaywallView: View {
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.18), in: Circle())
                         .contentTransition(.symbolEffect(.replace))
-                    if showsTrial {
-                        trialBadge
+                    if let trialLength {
+                        trialBadge(trialLength)
                     }
                     Spacer(minLength: 0)
                 }
@@ -220,12 +266,13 @@ struct PaywallView: View {
         .animation(.easeInOut(duration: 0.25), value: selectedTier)
     }
 
-    private var trialBadge: some View {
+    private func trialBadge(_ length: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "gift")
                 .font(.system(size: 12, weight: .semibold))
-            Text(isSentinel ? "7-DAY TRIAL" : "7-day free trial")
+            Text("Free for \(length)")
                 .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                .textCase(isSentinel ? .uppercase : nil)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
@@ -445,15 +492,7 @@ struct PaywallView: View {
         }
     }
 
-    /// Yearly vs twelve months, from the store's own prices in the user's currency.
-    private var yearlySavingsPercent: Int? {
-        guard let monthly = currentPackages.first(where: { !Self.isYearly($0) })?.storeProduct.price,
-              let yearly = currentPackages.first(where: { Self.isYearly($0) })?.storeProduct.price,
-              monthly > 0 else { return nil }
-        let fullYear = monthly * 12
-        let percent = NSDecimalNumber(decimal: (fullYear - yearly) / fullYear * 100).doubleValue
-        return percent >= 1 ? Int(percent.rounded()) : nil
-    }
+    private var yearlySavingsPercent: Int? { Self.yearlySavingsPercent(in: currentPackages) }
 
     // MARK: CTA
 
