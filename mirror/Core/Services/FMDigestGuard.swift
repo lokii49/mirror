@@ -77,7 +77,7 @@ nonisolated enum FMDigestGuard {
                 (.watch, draft.watchQuote, draft.watchRead),
             ]
             for (section, quoteText, read) in quoted where filled[section] == nil {
-                guard let found = FMDailyGuard.locate(quote: quoteText, in: texts), distinct(found.quote),
+                guard let found = FMDailyGuard.locateSentence(quote: quoteText, in: texts), distinct(found.quote),
                       let readLine = line(read) else { continue }
                 let mood = sources[found.index].mood
                 // Something growing comes from a day that wasn't hard, when the week has one (the Gemma
@@ -136,7 +136,7 @@ nonisolated enum FMDigestGuard {
             var picked: (quote: String, mood: String?)?
             for draft in drafts {
                 let text = section == .energy ? draft.energyQuote : section == .building ? draft.buildingQuote : draft.watchQuote
-                guard let found = FMDailyGuard.locate(quote: text, in: texts), distinct(found.quote),
+                guard let found = FMDailyGuard.locateSentence(quote: text, in: texts), distinct(found.quote),
                       section != .building || fits(.building, mood: sources[found.index].mood) else { continue }
                 picked = (found.quote, sources[found.index].mood)
                 break

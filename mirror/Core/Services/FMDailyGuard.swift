@@ -90,6 +90,62 @@ nonisolated enum FMDailyGuard {
         return nil
     }
 
+    /// `locate`, widened to the whole sentence the match sits in, then cut to the display limits from that
+    /// sentence's start. A match can be part of a sentence ("I want to quit my job" inside "I don't think I
+    /// want to quit my job."), and shown alone it says the opposite of what was written. For the weekly
+    /// digest and Ask's evidence; the daily reflection keeps `locate` as rig-measured.
+    /// Sentences end at . ! ? or … followed by a space (not after a title such as "Dr."), or at a line break.
+    static func locateSentence(quote: String, in texts: [String]) -> (quote: String, index: Int)? {
+        guard let found = locate(quote: quote, in: texts) else { return nil }
+        let needle = straighten(collapse(quote)).trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
+        // Like `collapse`, but remembering which spaces stand for a line break.
+        var chars: [Character] = []
+        var lineBreaks = Set<Int>()
+        var pendingSpace = false, pendingBreak = false
+        for ch in texts[found.index] {
+            if ch.isWhitespace {
+                pendingSpace = !chars.isEmpty
+                if ch.isNewline { pendingBreak = true }
+                continue
+            }
+            if pendingSpace {
+                if pendingBreak { lineBreaks.insert(chars.count) }
+                chars.append(" ")
+            }
+            pendingSpace = false
+            pendingBreak = false
+            chars.append(ch)
+        }
+        let haystack = straighten(String(chars))
+        guard let range = haystack.range(of: needle, options: .caseInsensitive) else { return found }
+        let matchStart = haystack.distance(from: haystack.startIndex, to: range.lowerBound)
+        let matchEnd = matchStart + haystack.distance(from: range.lowerBound, to: range.upperBound)
+        func endsSentence(at space: Int) -> Bool {
+            guard chars[space] == " " else { return false }
+            if lineBreaks.contains(space) { return true }
+            var k = space - 1
+            while k > 0, "\"')”’".contains(chars[k]) { k -= 1 }
+            guard k >= 0, ".!?…".contains(chars[k]) else { return false }
+            return !endsInTitle(String(chars[..<space]))
+        }
+        var start = matchStart
+        while start > 0, !endsSentence(at: start - 1) { start -= 1 }
+        var end = matchEnd
+        while end < chars.count, !endsSentence(at: end) { end += 1 }
+        // A sentence too long to show whole is cut from its start; when that cut ends before the match, the
+        // clause the match starts in is shown instead, and when even that can't hold it, nothing (the quote
+        // shown must contain what was picked). `cut` returns a verbatim start, so its length says how far it reaches.
+        func shownFrom(_ from: Int) -> String? {
+            let shown = cut(String(chars[from..<end]))
+            return shown.count >= matchEnd - from ? shown : nil
+        }
+        var clause = matchStart
+        while clause > start, !(chars[clause - 1] == " " && clause >= 2 && ",;:—–".contains(chars[clause - 2])) { clause -= 1 }
+        guard let shown = shownFrom(start) ?? (clause > start ? shownFrom(clause) : nil),
+              shown.split(separator: " ").count >= minQuoteWords else { return nil }
+        return (shown, found.index)
+    }
+
     /// The option a model-written quote stands for, for languages the English checks above do not cover.
     /// Same sentence ignoring case, whitespace, curly quotes and edge marks; or the one option it is
     /// at least half of (the model cut a long sentence); or the one it contains with at least

@@ -174,15 +174,17 @@ struct FMDigestGuardTests {
             #expect(lines[2].hasPrefix("WHAT'S BUILDING: You wrote, \"Second day at the new job.\""))
         }
 
-        @Test func everyAttemptFailingStillShowsTheWeeksOwnWords() async throws {
+        /// Every attempt threw and no draft came back: nil, so the caller shows the honest card, which never
+        /// replaces a real digest and is retried (3.1.3 audit M4). Drafts that come back but fail the checks
+        /// are still filled by the app (GroundingAuditFixTests).
+        @Test func everyAttemptThrowingLeavesItToTheHonestCard() async throws {
             var calls = 0
-            let text = try #require(try await InsightService.structuredFMDigest(weekEntries: week, userMessage: "") {
+            let text = try await InsightService.structuredFMDigest(weekEntries: week, userMessage: "") {
                 calls += 1
                 throw LocalLLMError.emptyResponse
-            })
+            }
             #expect(calls == InsightService.structuredDigestAttempts)
-            #expect(text.contains(FMDigestGuard.fixedBoost))
-            #expect(text.contains("You wrote, \""))
+            #expect(text == nil)
         }
 
         @Test func cancellationIsRethrown() async {
@@ -213,12 +215,12 @@ struct FMDigestGuardTests {
             #expect(!text.contains("ERFUNDEN") && !text.contains("MEER") && !text.contains("REGEN"))
         }
 
-        @Test func otherLanguagesStillGetADigestWhenEveryAttemptFails() async throws {
+        @Test func otherLanguagesLeaveItToTheHonestCardWhenEveryAttemptThrows() async throws {
             let options = [["Ich habe die ganze Nacht nicht geschlafen."], ["Lena hat mir Suppe gebracht."], ["Der Bericht ist immer noch nicht fertig."]]
             let text = try await InsightService.structuredFMLocalizedDigest(options: options, validator: { $0 }, systemPrompt: "", userMessage: "") {
                 throw LocalLLMError.emptyResponse
             }
-            #expect(text?.components(separatedBy: "\n") == options.map { $0[0] })
+            #expect(text == nil)
         }
 
         @Test func howThisWasGeneratedShowsTheFMPrompt() {

@@ -371,6 +371,8 @@ enum InsightService {
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
+    /// CLAUDE.md Security rule 3: at most this much entry text goes to the local model in one request.
+    static let maxLocalLLMEntryChars = 10_000
     /// Longest Ask question the prompt will carry; the view enforces the same cap while typing.
     static let maxAskQuestionLength = 500
 
@@ -1463,9 +1465,11 @@ enum InsightService {
         let digestValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedDigest(text, quoteOptions: grounded.quoteOptions)
         })
-        if case .unsuitable = digestPlan, !LocalLLMService.prefersFoundationModels {
-            // Gemma-only device and nothing quotable this week (only one- or two-word entries).
-            return (weeklyDigestUngroundedFallback, .gemma)
+        if case .unsuitable = digestPlan {
+            // Nothing quotable this week (only one- or two-word entries): the honest card on either
+            // engine, as `generateNudge` does. On a Foundation Models device this used to fall through
+            // to the retired free-prose WEEKLY_DIGEST_SYSTEM loop below.
+            return (weeklyDigestUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
         }
 
         // The other Foundation Models languages (de, es, fr, it, pt, ja, ko, zh): the same structured draft,
@@ -1505,6 +1509,9 @@ enum InsightService {
         // list, and PastDigestCard (X-ray-wired the same way) could be sitting on an unnoticed
         // duplicate right now. Left open, not ruled out.
         let sourceEntries = recentEntries + backgroundEntries
+        // A language Foundation Models cannot work in (Russian) goes straight to Gemma's grammar path,
+        // as the daily reflection does: a first Foundation Models call there would be free prose.
+        let fmHandlesDigestLanguage = groundedLocaleCode(for: languageSource).map { FoundationModelEngine.supports(languageCode: $0) } ?? true
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -1518,7 +1525,8 @@ enum InsightService {
                     task: .weeklyDigest,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: digestPlan,
-                    gemmaValidator: digestValidator
+                    gemmaValidator: digestValidator,
+                    allowFoundationModels: fmHandlesDigestLanguage
                 )
             } catch {
                 // Every path that reaches lastResult here already failed the grounding check
@@ -1565,8 +1573,11 @@ enum InsightService {
 
     /// The English weekly digest on Foundation Models: up to `structuredDigestAttempts` drafts, each section
     /// taken from the first draft where `FMDigestGuard` accepts it; whatever is still missing is filled by
-    /// the app (`FMDigestGuard.assemble`). nil only when the week has nothing to quote. A refused or failed
-    /// draft counts as an attempt. Saved in the same labelled shape as the Gemma digest.
+    /// the app (`FMDigestGuard.assemble`). nil when the week has nothing to quote, or when every attempt
+    /// threw (refusal, rate limit, exhausted context, assets unavailable) and no draft came back: the
+    /// caller then shows the honest card, which never replaces a real row and is retried, instead of a
+    /// digest the app wrote entirely on its own saved as a real one. A refused or failed draft counts as
+    /// an attempt. Saved in the same labelled shape as the Gemma digest.
     static func structuredFMDigest(
         weekEntries: [Entry],
         userMessage: String,
@@ -1596,6 +1607,7 @@ enum InsightService {
             }
         }
         try Task.checkCancellation()
+        guard !drafts.isEmpty else { return nil }
         guard let sections = verified?.sections ?? FMDigestGuard.assemble(drafts, sources: sources)?.verified.sections else { return nil }
         let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
         return zip(labels, sections).map { "\($0): \($1)" }.joined(separator: "\n")
@@ -1604,8 +1616,9 @@ enum InsightService {
     /// The weekly digest outside English on Foundation Models: each attempt's energy / building / watch quote
     /// is matched (`FMDailyGuard.matchOption`) to one of `options`' three lists; a slot keeps the first match
     /// across attempts, and a slot still empty after `structuredDigestAttempts` takes its list's first
-    /// sentence. `validator` (the Gemma localized digest's) composes the translated text from the three.
-    /// nil only when that fails. No model-written text is shown.
+    /// sentence not already in another slot. `validator` (the Gemma localized digest's) composes the
+    /// translated text from the three. nil when that fails, or when every attempt threw and no draft came
+    /// back (see `structuredFMDigest`). No model-written text is shown.
     static func structuredFMLocalizedDigest(
         options: [[String]],
         validator: (String) throws -> String,
@@ -1620,10 +1633,12 @@ enum InsightService {
             }
         }
         var picks: [String?] = [nil, nil, nil]
+        var drafts = 0
         for attempt in 1...structuredDigestAttempts {
             try Task.checkCancellation()
             do {
                 let d = try await draft()
+                drafts += 1
                 for (slot, quote) in [d.energyQuote, d.buildingQuote, d.watchQuote].enumerated() where picks[slot] == nil {
                     picks[slot] = FMDailyGuard.matchOption(quote: quote, in: options[slot])
                 }
@@ -1642,8 +1657,8 @@ enum InsightService {
         // Counts only, never prompt or entry content.
         print("[digest] localized quotes picked by the model: \(picks.compactMap { $0 }.count)/3")
         #endif
-        let lines = picks.enumerated().map { $0.element ?? options[$0.offset][0] }
-        return try? validator(lines.joined(separator: "\n"))
+        guard drafts > 0 else { return nil }
+        return try? validator(filledDistinctPicks(picks, options: options).joined(separator: "\n"))
     }
 
     // Same overpromise problem as the nudge's old copy, worse here: weeklyDigestIsStale needs
@@ -1681,9 +1696,10 @@ enum InsightService {
         let monthlyValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
         })
-        if case .unsuitable = monthlyPlan, !LocalLLMService.prefersFoundationModels {
-            // Gemma-only device and nothing quotable this month (only one- or two-word entries).
-            return (monthlyReportUngroundedFallback, .gemma)
+        if case .unsuitable = monthlyPlan {
+            // Nothing quotable this month (only one- or two-word entries): the honest card on either
+            // engine, as for the weekly digest; never the free-prose MONTHLY_REPORT_SYSTEM loop below.
+            return (monthlyReportUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
         }
 
         // Outside English on Foundation Models (de, es, fr, it, pt, ja, ko, zh): only the draft's quotes are used,
@@ -1714,6 +1730,8 @@ enum InsightService {
             )
             return (text ?? monthlyReportUngroundedFallback, .foundationModels)
         }
+        // Russian goes straight to Gemma's grammar path, as in generateWeeklyDigest.
+        let fmHandlesMonthlyLanguage = groundedLocaleCode(for: monthEntries).map { FoundationModelEngine.supports(languageCode: $0) } ?? true
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -1727,7 +1745,8 @@ enum InsightService {
                     task: .monthlyReport,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: monthlyPlan,
-                    gemmaValidator: monthlyValidator
+                    gemmaValidator: monthlyValidator,
+                    allowFoundationModels: fmHandlesMonthlyLanguage
                 )
             } catch {
                 if Task.isCancelled { throw CancellationError() }  // see generateWeeklyDigest
@@ -1764,7 +1783,9 @@ enum InsightService {
 
     /// The monthly report on Foundation Models, every language: the draft's moment / becoming / release quotes
     /// matched to `options` (the Gemma localized report's lists; release may be empty), first match per slot
-    /// across attempts, gaps filled with the list's first sentence, composed by `validator`. No model text shown.
+    /// across attempts, gaps filled with the list's first sentence not already in another slot, composed by
+    /// `validator`. nil when every attempt threw and no draft came back (see `structuredFMDigest`). No model
+    /// text shown.
     static func structuredFMLocalizedMonthly(
         options: [[String]],
         validator: (String) throws -> String,
@@ -1780,10 +1801,12 @@ enum InsightService {
         }
         let slots = options[2].isEmpty ? 2 : 3
         var picks: [String?] = Array(repeating: nil, count: slots)
+        var drafts = 0
         for attempt in 1...structuredDigestAttempts {
             try Task.checkCancellation()
             do {
                 let d = try await draft()
+                drafts += 1
                 for (slot, quote) in [d.momentQuote, d.becomingQuote, d.releaseQuote].prefix(slots).enumerated() where picks[slot] == nil {
                     picks[slot] = FMDailyGuard.matchOption(quote: quote, in: options[slot])
                 }
@@ -1801,8 +1824,27 @@ enum InsightService {
         // Counts only, never prompt or entry content.
         print("[monthly] localized quotes picked by the model: \(picks.compactMap { $0 }.count)/\(slots)")
         #endif
-        let lines = picks.enumerated().map { $0.element ?? options[$0.offset][0] }
-        return try? validator(lines.joined(separator: "\n"))
+        guard drafts > 0 else { return nil }
+        return try? validator(filledDistinctPicks(picks, options: options).joined(separator: "\n"))
+    }
+
+    /// The slots the model left empty, each filled with the first sentence of its list that no other slot
+    /// already uses (the model's picks first, then earlier fills); the list's first sentence when every one
+    /// is taken. Lists overlap (a week with no hard day offers the same sentences for two slots), and the
+    /// plain first-of-list fill quoted one sentence in two sections.
+    static func filledDistinctPicks(_ picks: [String?], options: [[String]]) -> [String] {
+        var used = picks.compactMap { $0 }
+        return picks.enumerated().map { slot, pick in
+            if let pick { return pick }
+            let fill = firstDistinct(in: options[slot], avoiding: used) ?? options[slot][0]
+            used.append(fill)
+            return fill
+        }
+    }
+
+    /// The first of `options` that is not one of `used`.
+    static func firstDistinct(in options: [String], avoiding used: [String]) -> String? {
+        options.first { !used.contains($0) }
     }
 
     // Same reasoning as weeklyDigestUngroundedFallback — "check back tomorrow" could mean
@@ -1839,6 +1881,12 @@ enum InsightService {
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
+        // A language the app has no grounded answer for (anything outside English and `groundedLocales`):
+        // nothing checks a model's answer there, so no model runs, on either engine (owner decision for
+        // 3.1.3): the notice the daily reflection, digest and report show. AskView shows it without saving.
+        if let code = target?.code, code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let grounded = groundedAskPlan(question: question, pool: relevant + Array(background), languageCode: target?.code)
         // `noAnswer` only means there's nothing quotable at all (no entries with a usable
         // sentence). There's deliberately no "this topic isn't in your entries" shortcut on Gemma:
@@ -1867,11 +1915,13 @@ enum InsightService {
             responseLanguageInstruction: languageInstruction,
             askNoAnswerPhrase: askNoAnswerPhrase(for: target),
             gemmaPlan: askPlan,
-            gemmaValidator: askValidator
+            gemmaValidator: askValidator,
+            // Russian goes straight to Gemma's grammar path, as the reflection, digest and report do.
+            allowFoundationModels: target.map { FoundationModelEngine.supports(languageCode: $0.code) } ?? true
         )
         guard result.engine == .foundationModels, result.text != askNoAnswerPhrase(for: target), usesStructuredFMNudge else { return result }
         // Foundation Models sometimes answers all in lowercase ("you wrote that you couldn't sleep…").
-        let answer = capitalizedSentenceStarts(result.text)
+        let answer = capitalizedSentenceStarts(result.text, locale: Locale(identifier: target?.code ?? "en"))
         let quotes = await askEvidenceQuotes(
             answer: answer, askMessage: askMessage, pool: relevant + Array(background), languageCode: target?.code ?? "en"
         )
@@ -1879,23 +1929,41 @@ enum InsightService {
     }
 
     /// The first letter of every sentence upper-cased (after the start, ". ", "! ", "? " or a line break), except
-    /// after an abbreviation such as "e.g." or "Dr.". Letters only change case; nothing else is touched, and scripts
-    /// without case are unchanged.
-    static func capitalizedSentenceStarts(_ text: String) -> String {
-        let abbreviations: Set<String> = ["e.g.", "i.e.", "dr.", "mr.", "mrs.", "ms.", "st.", "vs.", "etc."]
+    /// after an abbreviation such as "e.g.", "Dr." or "a.m.". Letters only change case; nothing else is touched,
+    /// and scripts without case are unchanged. Words inside quotation marks ("…", “…”, „…“, «…», 「…」, 『…』) are
+    /// the person's own and are never changed, and a quote's closing mark doesn't start a new sentence. Every Ask
+    /// language gets it (dd58c18: Foundation Models answered all in lowercase); `locale` is the answer's language,
+    /// so a Turkish-style "i" upper-cases by that language's rules.
+    static func capitalizedSentenceStarts(_ text: String, locale: Locale = Locale(identifier: "en")) -> String {
         var out = ""
         var capitalizeNext = true
         var lastWord = ""
+        // The mark that ends the quotation the text is inside, if any.
+        var closers: Set<Character>?
         for ch in text {
+            if let open = closers {
+                out.append(ch)
+                if open.contains(ch) {
+                    closers = nil
+                    lastWord = String(ch)
+                }
+                continue
+            }
+            if let close = quoteClosers[ch] {
+                out.append(ch)
+                closers = close
+                capitalizeNext = false
+                continue
+            }
             if capitalizeNext, ch.isLetter {
-                out += String(ch).uppercased()
+                out += String(ch).uppercased(with: locale)
                 capitalizeNext = false
                 lastWord = String(ch)
                 continue
             }
             out.append(ch)
             if ch.isWhitespace {
-                if let last = lastWord.last, ".!?".contains(last), !abbreviations.contains(lastWord.lowercased()) { capitalizeNext = true }
+                if let last = lastWord.last, ".!?".contains(last), !sentenceAbbreviations.contains(lastWord.lowercased()) { capitalizeNext = true }
                 if ch.isNewline { capitalizeNext = true }
                 lastWord = ""
             } else {
@@ -1906,11 +1974,21 @@ enum InsightService {
         return out
     }
 
+    /// Opening quotation marks and the marks that close them.
+    private static let quoteClosers: [Character: Set<Character>] = [
+        "\"": ["\""], "\u{201C}": ["\u{201D}"], "\u{201E}": ["\u{201C}", "\u{201D}"],
+        "«": ["»"], "「": ["」"], "『": ["』"],
+    ]
+
+    /// Abbreviations whose period doesn't end a sentence: the guards' titles plus times and lists.
+    static let sentenceAbbreviations = FMDailyGuard.titleAbbreviations.union(["a.m.", "p.m.", "etc.", "no."])
+
     /// The person's own sentences backing a Foundation Models Ask answer, formatted like Gemma's grounded Ask
     /// ("The closest things you've written: On 12 Oct, you wrote, "…"", or the language's `askPrefix` lines),
     /// or nil when none of the model's picks is in `pool` (or the call fails): the answer then shows alone.
-    /// English matches with `FMDailyGuard.locate` as round 21 measured; the other grounded languages with
-    /// `matchOption` against whole sentences, as their daily reflection does. Other languages get none.
+    /// English matches with `FMDailyGuard.locate` as round 21 measured, then shows the whole sentence the match
+    /// is in (`locateSentence`: a fragment can drop a "don't"); the other grounded languages with `matchOption`
+    /// against whole sentences, as their daily reflection does. Other languages get none.
     static func askEvidenceQuotes(
         answer: String,
         askMessage: String,
@@ -1939,7 +2017,7 @@ enum InsightService {
         for pickText in picks {
             let found: (quote: String, index: Int)?
             if loc == nil {
-                found = FMDailyGuard.locate(quote: pickText, in: texts)
+                found = FMDailyGuard.locateSentence(quote: pickText, in: texts)
             } else {
                 let options = pool.enumerated().flatMap { i, entry in groundedQuoteCandidates(of: entry).map { ($0, i) } }
                 found = FMDailyGuard.matchOption(quote: pickText, in: options.map(\.0)).flatMap { option in
@@ -3480,13 +3558,16 @@ extension InsightService {
     /// Splits after any `boundaries` character that's followed by a space, and right after any
     /// `immediate` character (CJK punctuation, which takes no space), keeping every character —
     /// concatenating the pieces reproduces `text` exactly, so any run of pieces is verbatim.
+    /// A title such as "Dr." or "e.g." is not a boundary (`FMDailyGuard.endsInTitle`, as the Foundation
+    /// Models guards split): "Saw Dr. Okafor today." stays one sentence.
     private static func splitAfter(_ text: String, boundaries: String, immediate: String = "") -> [String] {
         var pieces: [String] = []
         var current = ""
         let chars = Array(text)
         for (i, c) in chars.enumerated() {
             current.append(c)
-            if immediate.contains(c) || (c == " " && i > 0 && boundaries.contains(chars[i - 1])) {
+            if immediate.contains(c)
+                || (c == " " && i > 0 && boundaries.contains(chars[i - 1]) && !FMDailyGuard.endsInTitle(current)) {
                 pieces.append(current)
                 current = ""
             }
@@ -4498,6 +4579,12 @@ extension InsightService {
         return code
     }
 
+    /// The entries' own text, one block each, joined for the grounded pick prompts outside English, at most
+    /// `maxLocalLLMEntryChars` (Security rule 3). `entries` is newest first, so the oldest are cut first.
+    static func cappedQuotableText(_ entries: [Entry]) -> String {
+        clipped(entries.map(quotableText(of:)).joined(separator: "\n---\n"), maxChars: maxLocalLLMEntryChars)
+    }
+
     private static func quotableText(of entry: Entry) -> String {
         var texts = [entry.text]
         for note in entry.voiceNotes {
@@ -4669,7 +4756,7 @@ extension InsightService {
         let pick = bucket == .neutral
             ? loc.pickNeutral
             : loc.pickNudge.replacingOccurrences(of: "{mood}", with: loc.moodWord[bucket] ?? "")
-        let message = "\(pick)\n\n\(loc.entryLabel)\n" + source.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(pick)\n\n\(loc.entryLabel)\n" + cappedQuotableText(source)
         let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
         return LocalizedGrounded(
             plan: .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
@@ -4712,7 +4799,7 @@ extension InsightService {
 
         let dominant = dominantMoodBucket(bucketCounts)
 
-        let entriesText = weekEntries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = cappedQuotableText(weekEntries.sorted { $0.createdAt > $1.createdAt })
         let message = "\(loc.pickDigest)\n\n\(loc.weekLabel)\n\(entriesText)"
         let grammar = [
             #"root ::= energyq "\n" goodq "\n" hardq"#,
@@ -4727,11 +4814,15 @@ extension InsightService {
                 let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                 guard lines.count == 3, energyOptions.contains(lines[0]), goodOptions.contains(lines[1]), hardOptions.contains(lines[2])
                 else { throw InsightError.incompleteResponse }
-                let watch = lines[2] == lines[0] ? (hardOptions.first { $0 != lines[0] } ?? lines[2]) : lines[2]
+                // One sentence is quoted once: the lists overlap (no hard day this week makes energy and
+                // building the same list), so a repeat takes the next sentence of its list, when there is one.
+                let building = lines[1] == lines[0] ? (firstDistinct(in: goodOptions, avoiding: [lines[0]]) ?? lines[1]) : lines[1]
+                let watch = [lines[0], building].contains(lines[2])
+                    ? (firstDistinct(in: hardOptions, avoiding: [lines[0], building]) ?? lines[2]) : lines[2]
                 let bodies = [
                     loc.theme[dominant] ?? "",
                     (energyIsHard ? loc.energyHard : loc.energyGood) + loc.open + lines[0] + loc.close,
-                    loc.open + lines[1] + loc.close + loc.joiner + loc.buildingSuffix,
+                    loc.open + building + loc.close + loc.joiner + loc.buildingSuffix,
                     loc.open + watch + loc.close + loc.joiner + loc.watchSuffix,
                     loc.boost[dominant] ?? "",
                     loc.nextWeek[dominant] ?? "",
@@ -4766,7 +4857,7 @@ extension InsightService {
             return LocalizedGrounded(plan: .unsuitable, validator: nil)
         }
         let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
-        let entriesText = entries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = cappedQuotableText(entries)
         let message = "\(loc.pickMonthly)\n\n\(loc.monthLabel)\n\(entriesText)"
         var rules = [
             parts.options[2].isEmpty ? #"root ::= momentq "\n" goodq"# : #"root ::= momentq "\n" goodq "\n" releaseq"#,
@@ -4830,13 +4921,16 @@ extension InsightService {
                   !hasRelease || releaseOptions.contains(lines[2])
             else { throw InsightError.incompleteResponse }
             let hopeful = lines[1] == lines[0] ? (goodOptions.first { $0 != lines[0] } ?? lines[1]) : lines[1]
+            // The heavy sentence too: never the moment's or the hopeful one when its list has another.
+            let release = hasRelease && [lines[0], hopeful].contains(lines[2])
+                ? (firstDistinct(in: releaseOptions, avoiding: [lines[0], hopeful]) ?? lines[2]) : (hasRelease ? lines[2] : "")
             let date = dates[lines[0]].map(dayFormatter.string(from:)) ?? ""
             let bodies = [
                 loc.monthImage[dominant] ?? "",
                 loc.monthTension[dominant] ?? "",
                 loc.momentLead.replacingOccurrences(of: "{date}", with: date) + loc.open + lines[0] + loc.close + loc.joiner + loc.momentSuffix,
                 loc.quoteLead + loc.open + hopeful + loc.close + loc.joiner + loc.becomingSuffix,
-                hasRelease ? loc.quoteLead + loc.open + lines[2] + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
+                hasRelease ? loc.quoteLead + loc.open + release + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
                 loc.monthQuestion[dominant] ?? "",
             ]
             return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
@@ -4995,6 +5089,17 @@ extension InsightService {
         case nil: candidates = pool
         }
         if candidates.isEmpty { candidates = pool }
+        // Security rule 3: at most `maxLocalLLMEntryChars` of entry text. Whole entries in pool order
+        // (most relevant first), so every option the grammar allows is in the text Gemma reads.
+        var kept: [Entry] = []
+        var keptChars = 0
+        for entry in candidates {
+            let chars = quotableText(of: entry).count + 5
+            if !kept.isEmpty && keptChars + chars > maxLocalLLMEntryChars { break }
+            kept.append(entry)
+            keptChars += chars
+        }
+        candidates = kept
         let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
         var options: [String] = []
         var dates: [String: String] = [:]
@@ -5006,7 +5111,7 @@ extension InsightService {
         }
         options = Array(options.prefix(groundedAskMaxOptions))
         guard !options.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
-        let entriesText = candidates.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = cappedQuotableText(candidates)
         let message = "\(loc.pickAsk)\n\n\(loc.questionLabel) \(question)\n\n\(loc.entriesLabel)\n\(entriesText)"
         let grammar = #"root ::= q ("\n" q)?"# + "\n" + literalOnlyGrammar("q", options)
         return LocalizedGrounded(
@@ -5060,8 +5165,13 @@ extension InsightService {
                 }
                 return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
             }
-            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.energyHard) || content.contains($0.energyGood) }) {
-                return ("InsightService.swift · groundedLocales.pickDigest", loc.pickDigest)
+            if let content, let match = groundedLocales.first(where: { content.contains($0.value.energyHard) || content.contains($0.value.energyGood) }) {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    // Foundation Models outside English: the structured prompt plus the "respond in <language>" line.
+                    let instruction = responseLanguageTarget(forCode: match.key).flatMap { responseLanguageInstruction(for: $0, task: .weeklyDigest) }
+                    return ("InsightService.swift · WEEKLY_DIGEST_FM_SYSTEM", WEEKLY_DIGEST_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? ""))
+                }
+                return ("InsightService.swift · groundedLocales.pickDigest", match.value.pickDigest)
             }
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
         case .monthlyReport:
@@ -5072,8 +5182,12 @@ extension InsightService {
             if let content, content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
                 return ("InsightService.swift · MONTHLY_REPORT_GEMMA_INSTRUCTIONS", MONTHLY_REPORT_GEMMA_INSTRUCTIONS)
             }
-            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.becomingSuffix) || content.contains($0.releaseFallback) }) {
-                return ("InsightService.swift · groundedLocales.pickMonthly", loc.pickMonthly)
+            if let content, let match = groundedLocales.first(where: { content.contains($0.value.becomingSuffix) || content.contains($0.value.releaseFallback) }) {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    let instruction = responseLanguageTarget(forCode: match.key).flatMap { responseLanguageInstruction(for: $0, task: .monthlyReport) }
+                    return ("InsightService.swift · MONTHLY_REPORT_FM_SYSTEM", MONTHLY_REPORT_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? ""))
+                }
+                return ("InsightService.swift · groundedLocales.pickMonthly", match.value.pickMonthly)
             }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:

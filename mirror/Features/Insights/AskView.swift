@@ -27,6 +27,10 @@ struct AskView: View {
     @State private var pendingQuestion = ""
     @State private var isLoading = false
     @State private var error: String?
+    /// The language notice (`InsightService.isUnsupportedLanguageNotice`) for the last question, shown above
+    /// the input instead of being saved: it isn't an answer, so it takes no question from the monthly cap
+    /// and doesn't sync into the chat history.
+    @State private var languageNotice: String?
     @State private var keyboardHeight: CGFloat = 0
     /// One-time offer of the semantic-search model: shown to anyone who can ask (Core/Deep) and
     /// hasn't answered yet, never re-shown after Download or Not now.
@@ -536,6 +540,15 @@ struct AskView: View {
                         .padding(.top, 8)
                 }
 
+                if let languageNotice {
+                    Text(languageNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                }
+
                 if showSmartSearchOffer {
                     SmartSearchOfferCard(alreadyAccepted: SemanticSearchService.consent == .accepted) { accepted in
                         // Not now hides the card; Download keeps it, now showing the download.
@@ -641,6 +654,7 @@ struct AskView: View {
 
         isLoading = true
         error = nil
+        languageNotice = nil
         let submitted = q
         pendingQuestion = submitted
         question = ""
@@ -653,6 +667,12 @@ struct AskView: View {
             // The answer and question are saved encrypted.
             guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { throw InsightError.serviceUnavailable("content key unavailable") }
             let (answer, engine) = try await InsightService.ask(question: submitted, entries: entries)
+            if InsightService.isUnsupportedLanguageNotice(answer) {
+                languageNotice = InsightService.unsupportedLanguageCardMessage(answer)
+                isLoading = false
+                pendingQuestion = ""
+                return
+            }
             let insight = Insight(
                 type: .askResponse,
                 content: answer,
