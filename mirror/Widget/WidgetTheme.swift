@@ -46,6 +46,26 @@ enum WidgetShared {
     static let monthlyImageKey  = "widget.monthlyReport.image.text"
     static let monthlyPeriodKey = "widget.monthlyReport.periodIdentifier"
 
+    // Monthly prices for the locked states, as StoreKit formats them for this storefront
+    // ("$2.99", "2,99 €", "₹299"). `SubscriptionService.loadProducts` writes them; the widget
+    // extension can't run RevenueCat. Absent until products have loaded once, and for as long
+    // as every feature is free (the paywall never loads them then, and nothing is locked).
+    static let corePriceKey = "widget.price.coreMonthly"
+    static let deepPriceKey = "widget.price.deepMonthly"
+
+    /// A locked state's second line: "Core · 2,99 €/mo" in the storefront's own currency, or
+    /// just "Core" while no price has been published. Never a typed-in dollar amount: Apple
+    /// charges each country its own price, so "$2.99" was wrong everywhere but the US.
+    static func lockedTierLabel(deep: Bool = false, sentinel: Bool) -> Text {
+        let price = UserDefaults(suiteName: appGroupID)?.string(forKey: deep ? deepPriceKey : corePriceKey)
+        switch (deep, sentinel) {
+        case (false, false): return price.map { Text("Core · \($0)/mo") } ?? Text("Core")
+        case (false, true):  return price.map { Text("CORE · \($0)/MO") } ?? Text("CORE")
+        case (true, false):  return price.map { Text("Deep · \($0)/mo") } ?? Text("Deep")
+        case (true, true):   return price.map { Text("DEEP · \($0)/MO") } ?? Text("DEEP")
+        }
+    }
+
     static func isSentinel() -> Bool {
         UserDefaults(suiteName: appGroupID)?.string(forKey: "widget.displayMode") == "sentinel"
     }
@@ -62,7 +82,7 @@ enum WidgetShared {
     }
 
     /// Deep only. A distinct predicate from `isSubscribed()` — the Monthly Report
-    /// widget is priced at Deep ($4.99/mo), not Core, so it must NOT unlock for a
+    /// widget is priced at Deep, not Core, so it must NOT unlock for a
     /// Core subscriber.
     static func isDeep() -> Bool {
         tier() == "deep"

@@ -160,7 +160,7 @@ private struct MonthlyReportLockedView: View {
             Text(sentinel ? "MONTHLY TRANSMISSION" : "Monthly Deep Report")
                 .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            Text(sentinel ? "DEEP · $4.99/MO" : "Deep · $4.99/mo")
+            WidgetShared.lockedTierLabel(deep: true, sentinel: sentinel)
                 .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
@@ -183,7 +183,7 @@ struct MonthlyReportWidgetView: View {
 
     var body: some View {
         // Deep only — NOT `WidgetShared.isSubscribed()`. This widget is priced at
-        // Deep ($4.99/mo); a Core subscriber sees the locked state.
+        // Deep; a Core subscriber sees the locked state.
         if WidgetShared.isDeep() {
             MonthlyReportUnlockedView(entry: entry)
         } else {

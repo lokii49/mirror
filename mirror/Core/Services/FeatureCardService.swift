@@ -51,12 +51,21 @@ enum CardTier: CaseIterable, Equatable, Hashable {
         }
     }
 
-    var pricingLabel: LocalizedStringKey? {
+    var subscriptionTier: SubscriptionTier {
         switch self {
-        case .free: return nil
-        case .core: return "$2.99/mo"
-        case .deep: return "$4.99/mo"
+        case .free: return .free
+        case .core: return .core
+        case .deep: return .deep
         }
+    }
+
+    /// "2,99 €/mo" in the user's own storefront currency, from the product the paywall sells.
+    /// Nil until products have loaded, and for as long as every feature is free (nothing costs
+    /// anything, so the chip is left out). Never a typed-in dollar amount: Apple prices each
+    /// country separately.
+    func pricingLabel(from service: SubscriptionService = .shared) -> LocalizedStringKey? {
+        guard let price = service.localizedMonthlyPrice(for: subscriptionTier) else { return nil }
+        return "\(price)/mo"
     }
 }
 

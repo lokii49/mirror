@@ -1,5 +1,6 @@
 import RevenueCat
 import SwiftUI
+import WidgetKit
 
 enum SubscriptionTier: String {
     case free
@@ -81,8 +82,10 @@ final class SubscriptionService {
             if !Self.allFeaturesFree { await syncPurchasesSilently() }
             await refresh()
             // Warm the paywall: RevenueCat caches offerings, so the first open shows plans, not
-            // "Loading plans…". Skipped while everything is free (the paywall never shows).
-            if !Self.allFeaturesFree { await loadProducts() }
+            // "Loading plans…". Also while everything is free: the What's New tier chips and the
+            // widgets' locked states take their price from these products (`localizedMonthlyPrice`),
+            // and the storefront's own figure is the only honest one to show.
+            await loadProducts()
         }
         // Follow every customer info change while the app runs: RevenueCat refreshes it on
         // foreground, so a purchase made on another device with the same App Store account,
@@ -95,6 +98,20 @@ final class SubscriptionService {
     }
 
     var hasProducts: Bool { !corePackages.isEmpty || !deepPackages.isEmpty }
+
+    /// The monthly plan's price as StoreKit formats it for this Apple ID's storefront ("$2.99",
+    /// "2,99 €", "₹299"); nil until products have loaded. Every price the app shows comes from
+    /// here or from a `Package` directly, never from a typed-in number: Apple sets a different
+    /// price in each of the 175 storefronts, so a literal "$2.99" is wrong outside the US.
+    func localizedMonthlyPrice(for tier: SubscriptionTier) -> String? {
+        let packages: [Package]
+        switch tier {
+        case .free: return nil
+        case .core: packages = corePackages
+        case .deep: packages = deepPackages
+        }
+        return packages.first { !PaywallView.isYearly($0) }?.storeProduct.localizedPriceString
+    }
 
     func isTrialEligible(_ package: Package) -> Bool {
         trialEligibleProductIDs.contains(package.storeProduct.productIdentifier)
@@ -120,6 +137,8 @@ final class SubscriptionService {
                     $0.storeProduct.productIdentifier.contains("deep")
                 } ?? [])
                 .sorted { $0.storeProduct.price < $1.storeProduct.price }
+            Self.publishPricesToWidgets(core: localizedMonthlyPrice(for: .core),
+                                        deep: localizedMonthlyPrice(for: .deep))
             await loadTrialEligibility()
         } catch {
             // A cached list from an earlier load is still good; only an empty paywall needs a retry.
@@ -224,5 +243,21 @@ final class SubscriptionService {
 
     private static func publishTierToWidgets(_ tier: SubscriptionTier) {
         UserDefaults(suiteName: WidgetShared.appGroupID)?.set(tier.rawValue, forKey: "widget.tier")
+    }
+
+    /// The widgets' locked states show the monthly price next to the tier name. The extension
+    /// can't ask RevenueCat itself, so the app hands StoreKit's formatted strings over the app
+    /// group whenever products load. A nil (a plan that didn't load) never erases a price already
+    /// published. Timelines reload only when a value changed (the first load, a price change):
+    /// WidgetKit budgets reloads and `loadProducts` runs on every paywall open.
+    private static func publishPricesToWidgets(core: String?, deep: String?) {
+        guard let defaults = UserDefaults(suiteName: WidgetShared.appGroupID) else { return }
+        var changed = false
+        for (key, value) in [(WidgetShared.corePriceKey, core), (WidgetShared.deepPriceKey, deep)] {
+            guard let value, defaults.string(forKey: key) != value else { continue }
+            defaults.set(value, forKey: key)
+            changed = true
+        }
+        if changed { WidgetCenter.shared.reloadAllTimelines() }
     }
 }

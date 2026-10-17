@@ -72,6 +72,8 @@ RevenueCat setup:
 - Offering `core` — contains mirror_core_monthly + mirror_core_yearly
 - Offering `deep` — contains mirror_deep_monthly + mirror_deep_yearly
 
+**Prices shown in the UI are never typed in (from the build after 3.1.3 (21); 2026-10-17).** The paywall, Settings, the What's New tier chips (`CardTier.pricingLabel`) and the widgets' locked states show StoreKit's `localizedPriceString` for the user's storefront. Widgets can't run RevenueCat, so `SubscriptionService.loadProducts` publishes the monthly strings to the app group (`widget.price.coreMonthly` / `deepMonthly`, read by `WidgetShared.lockedTierLabel`); until a price arrives they show just "Core"/"Deep". Apple sets a different price in each of the 175 storefronts (India ₹299, Germany 2,99 €, UAE AED 12.99 for Core monthly), so a literal `$2.99` is wrong everywhere but the US. The table above is USD only.
+
 ---
 
 ## AI Model
