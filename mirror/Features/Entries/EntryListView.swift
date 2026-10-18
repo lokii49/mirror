@@ -480,6 +480,11 @@ struct EntriesTabView: View {
             }
             .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
             .sheet(item: $libraryPage) { LibrarySheet(page: $0) }
+            // Drafts > Continue writing from inside Organize: close it so Write isn't left under it.
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in
+                showOrganizer = false
+                libraryPage = nil
+            }
             .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
                 EntryFiltersView(criteria: filters, moods: snapshot.usedMoods, tags: snapshot.usedTags) {

@@ -19,7 +19,8 @@ extension Notification.Name {
 enum WriteDraftStore {
 
     struct Payload: Codable, Equatable {
-        static let currentVersion = 1
+        /// 2 (3.1.4): `collectionID` is stored. A version-1 draft has no say about the collection.
+        static let currentVersion = 2
 
         var version: Int = Payload.currentVersion
         var text: String = ""
@@ -37,8 +38,11 @@ enum WriteDraftStore {
         /// The entry-wide font (`WritingFontChoice` raw value). nil in drafts written before
         /// 2026-10-09, which then keep whatever font the editor opened with.
         var fontChoice: String?
-        /// `JournalCollection.id` picked in Write. nil (Unfiled) in drafts from before 3.1.4.
+        /// `JournalCollection.id` picked in Write; nil is Unfiled. Absent before version 2.
         var collectionID: UUID?
+
+        /// Whether `collectionID` was written by this draft (version 2+) rather than defaulted.
+        var storesCollection: Bool { version >= 2 }
 
         var isEmpty: Bool {
             text.isEmpty && mood == nil && tags.isEmpty

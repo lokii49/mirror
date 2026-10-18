@@ -425,7 +425,7 @@ struct WriteView: View {
             #endif
 
             if showSaved {
-                Label(savedToastIsDraft ? "Saved to Drafts" : "Saved", systemImage: savedToastIsDraft ? "tray.and.arrow.down.fill" : "checkmark.circle.fill")
+                Label(savedToastIsDraft ? "Saved to Drafts" : "Saved", systemImage: savedToastIsDraft ? "doc.text.fill" : "checkmark.circle.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(MirrorTheme.green)
                     .padding(.horizontal, 18)

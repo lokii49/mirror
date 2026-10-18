@@ -35,7 +35,7 @@ struct WriteDraftsMenu: View {
                 }
             }
             Divider()
-            Button("All Drafts…", systemImage: "tray.full") { showAll = true }
+            Button("All Drafts…", systemImage: "doc.on.doc") { showAll = true }
         } label: {
             label
         }
@@ -52,23 +52,25 @@ struct WriteDraftsMenu: View {
     private var label: some View {
         switch style {
         case .toolbar:
-            HStack(spacing: 5) {
-                Text("Drafts")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
-                    .textCase(displayMode == .sentinel ? .uppercase : nil)
-                if !drafts.isEmpty {
-                    Text("\(drafts.count)")
-                        .font(.system(size: 11, weight: .bold).monospacedDigit())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5)
-                        .frame(minWidth: 17, minHeight: 17)
-                        .background(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor, in: Capsule())
+            // An icon, not the word: on iPhone Duo icons move to the vertical strip with the trash,
+            // while a text item would stay in the top bar (as with the reader's Edit button).
+            // Mail's Drafts symbol; the badge counts saved drafts.
+            Image(systemName: "doc.text")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .overlay(alignment: .topTrailing) {
+                    if !drafts.isEmpty {
+                        Text("\(drafts.count)")
+                            .font(.system(size: 10, weight: .bold).monospacedDigit())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .frame(minWidth: 15, minHeight: 15)
+                            .background(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor, in: Capsule())
+                            .offset(x: 8, y: -6)
+                    }
                 }
-            }
-            .foregroundStyle(.secondary)
-            .fixedSize()
         case .macToolbar:
-            Image(systemName: drafts.isEmpty ? "tray" : "tray.full")
+            Image(systemName: "doc.text")
                 .font(.system(size: 15))
                 .frame(width: 34, height: 30)
                 .contentShape(Rectangle())

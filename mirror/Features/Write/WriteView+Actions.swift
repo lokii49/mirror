@@ -634,7 +634,7 @@ extension WriteView {
             && draft.textStyleData == viewModel.textStyleData
             && draft.inlineStyleData == inlineStyleData
             && (draft.entryDate ?? entryDate) == entryDate
-            && draft.collectionID == entryCollectionID
+            && (!draft.storesCollection || draft.collectionID == entryCollectionID)
         if unchanged {
             WriteDraftStore.clear(slot: slot)
         } else {
@@ -653,7 +653,8 @@ extension WriteView {
         entryTags = draft.tags
         if let date = draft.entryDate { entryDate = date }
         if let font = draft.fontChoice { entryFontChoiceRaw = font }
-        entryCollectionID = draft.collectionID
+        // An edit draft from before 3.1.4 keeps the entry's collection instead of unfiling it.
+        if draft.storesCollection { entryCollectionID = draft.collectionID }
         draftSaveState = .saved
     }
 
@@ -744,7 +745,7 @@ extension WriteView {
             entryDateChosen = true
         }
         if let font = draft.fontChoice { entryFontChoiceRaw = font }
-        entryCollectionID = draft.collectionID
+        if draft.storesCollection { entryCollectionID = draft.collectionID }
     }
 
     func clearDraftStorage() {

@@ -16,7 +16,7 @@ enum LibraryPage: String, Identifiable, CaseIterable {
 
     var icon: String {
         switch self {
-        case .drafts: return "tray.full"
+        case .drafts: return "doc.text"
         case .duplicates: return "square.on.square"
         case .recentlyDeleted: return "trash"
         }
@@ -80,7 +80,7 @@ struct DraftsView: View {
         List {
             if drafts.isEmpty {
                 ContentUnavailableView {
-                    Label("No drafts", systemImage: "tray")
+                    Label("No drafts", systemImage: "doc.text")
                 } description: {
                     Text("In Write, Save to Drafts puts an entry aside so you can finish it later. Drafts stay on this device.")
                 }
@@ -164,10 +164,6 @@ struct DuplicatesView: View {
     @State private var loaded = false
     @State private var errorMessage: String?
 
-    /// Recomputes when entries are added, removed or edited.
-    private var signature: [String] {
-        entries.map { "\($0.id)|\($0.encryptedText.hashValue)" }
-    }
 
     var body: some View {
         List {
@@ -203,7 +199,9 @@ struct DuplicatesView: View {
             }
         }
         .navigationTitle("Duplicates")
-        .task(id: signature) {
+        .task(id: entries.count) {
+            // Keyed on the count, not the texts: a merge (the only change made here) changes it,
+            // and a per-render scan of every entry would cost what the list caches avoid.
             groups = EntryDuplicates.groups(EntryDuplicates.candidates(in: modelContext))
             loaded = true
         }

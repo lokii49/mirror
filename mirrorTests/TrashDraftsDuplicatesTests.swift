@@ -203,7 +203,10 @@ struct TrashDraftsDuplicatesTests {
         payload.collectionID = id
         let decoded = try JSONDecoder().decode(WriteDraftStore.Payload.self, from: JSONEncoder().encode(payload))
         #expect(decoded.collectionID == id)
+        #expect(decoded.storesCollection)
         let old = Data(#"{"version":1,"text":"Synthetic.","tags":[]}"#.utf8)
-        #expect(try JSONDecoder().decode(WriteDraftStore.Payload.self, from: old).collectionID == nil)
+        let oldDraft = try JSONDecoder().decode(WriteDraftStore.Payload.self, from: old)
+        #expect(oldDraft.collectionID == nil)
+        #expect(!oldDraft.storesCollection, "a 3.1.3 edit draft must not unfile its entry")
     }
 }
