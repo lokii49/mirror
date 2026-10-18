@@ -34,6 +34,40 @@ enum MirrorEncryption {
             : PerfSeed.isRequested ? PerfSeed.key : nil
     #endif
 
+    #if DEBUG
+    /// Tests only: sealing fails as if the key couldn't be read, while opening still works.
+    @TaskLocal static var sealFailsForTesting = false
+    #endif
+
+    /// Whether this device can seal new journal data right now. The `encrypt*` helpers below fail
+    /// open when it can't (plaintext strings; nil data, which a setter would save as a deleted
+    /// photo or recording), so every writer checks this first (backlog A3). User saves pass
+    /// `creatingIfNeeded: true`, as sealing does (the first entry mints the key); automatic
+    /// writers pass false, so a check can never mint a key before iCloud Keychain delivers the
+    /// real one, or wait out its retry loop.
+    static func canEncrypt(creatingIfNeeded: Bool) -> Bool {
+        #if DEBUG
+        if sealFailsForTesting { return false }
+        #endif
+        if (try? key(creatingIfNeeded: creatingIfNeeded)) != nil { return true }
+        // Not minting still allows the one case sealing itself resolves without a new key: both
+        // slots readably empty while the archive holds a key (iCloud Keychain delivered the archive
+        // before the slot, so entries already open through it). Sealing adopts that key.
+        return !creatingIfNeeded && archivedKeyWouldBeAdopted()
+    }
+
+    private static func archivedKeyWouldBeAdopted() -> Bool {
+        #if DEBUG && os(macOS)
+        if debugEphemeralKey != nil { return false }
+        #endif
+        return keyQueue.sync {
+            let local = KeychainManager.read(account: keyAccount)
+            let synced = KeychainManager.read(account: keyAccount, synchronizable: true)
+            guard !local.isFailure, !synced.isFailure else { return false }
+            return refreshArchiveLocked().last != nil
+        }
+    }
+
     static func encryptString(_ value: String) -> String {
         guard !value.isEmpty, !isEncryptedString(value) else { return value }
         guard let encrypted = try? encryptData(Data(value.utf8)) else { return value }
@@ -67,6 +101,33 @@ enum MirrorEncryption {
 
     static func encryptedStringNeedsUnavailableKey(_ value: String) -> Bool {
         isEncryptedString(value) && decryptOptionalStringValue(value) == nil
+    }
+
+    /// True when `value` is sealed data this device can't open. `decryptOptionalData` hands such
+    /// bytes back unchanged, so a caller that writes them back would re-encrypt ciphertext.
+    /// Bytes that start like a format the app stores unencrypted elsewhere (JPEG/PNG photos,
+    /// AAC voice notes, JSON style data) are taken as plaintext, not as a missing key.
+    static func encryptedDataNeedsUnavailableKey(_ value: Data?) -> Bool {
+        guard let value, !value.isEmpty else { return false }
+        if (try? decryptData(value)) != nil { return false }
+        return !looksLikePlaintextPayload(value)
+    }
+
+    static func looksLikePlaintextPayload(_ data: Data) -> Bool {
+        let bytes = [UInt8](data.prefix(12))
+        func starts(_ magic: [UInt8], at offset: Int = 0) -> Bool {
+            bytes.count >= offset + magic.count && Array(bytes[offset..<offset + magic.count]) == magic
+        }
+        return starts([0xFF, 0xD8, 0xFF])                       // JPEG
+            || starts([0x89, 0x50, 0x4E, 0x47])                  // PNG
+            || starts(Array("ftyp".utf8), at: 4)                 // M4A / HEIC / MP4
+            || starts(Array("caff".utf8))                        // CAF
+            || starts(Array("RIFF".utf8))                        // WAV
+            || starts(Array("bplist".utf8))                      // binary plist
+            // JSON style data. Parsed, not sniffed: a sealed box starts with a random nonce, so
+            // one byte in 128 begins with "{" or "[".
+            || ((starts(Array("{".utf8)) || starts(Array("[".utf8)))
+                && (try? JSONSerialization.jsonObject(with: data)) != nil)
     }
 
     static func encryptOptionalData(_ value: Data?) -> Data? {
@@ -115,6 +176,9 @@ enum MirrorEncryption {
     }
 
     private static func encryptData(_ data: Data) throws -> Data {
+        #if DEBUG
+        if sealFailsForTesting { throw CryptoKitError.incorrectKeySize }
+        #endif
         let sealed = try AES.GCM.seal(data, using: key(creatingIfNeeded: true))
         return sealed.combined ?? data
     }

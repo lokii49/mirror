@@ -17,11 +17,14 @@ enum PreGrammarInsightRegrade {
     /// came back). After this many the pass gives up instead of retrying every foreground.
     private static let maxAttempts = 3
 
-    /// The latest row of each type that the pre-grammar path may have written.
+    /// The latest row of each type that the pre-grammar path may have written: Gemma only. A row
+    /// with no engine predates attribution (2026-09-04), when Foundation Models (since 2026-08-16)
+    /// may have written it, and its output is never touched (backlog A15b). Such a row is also
+    /// over a month old, so leaving it costs little.
     static func candidates(among insights: [Insight]) -> [Insight] {
         [InsightType.weeklyDigest, .monthlyReport].compactMap { type in
             guard let latest = insights.filter({ $0.type == type }).max(by: { $0.generatedAt < $1.generatedAt }),
-                  latest.generatedByEngine != LLMEngine.foundationModels.rawValue,
+                  latest.generatedByEngine == LLMEngine.gemma.rawValue,
                   !InsightService.isGrammarGrounded(latest.content)
             else { return nil }
             return latest
@@ -32,6 +35,7 @@ enum PreGrammarInsightRegrade {
     static func runIfNeeded(context: ModelContext) async {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: flag) else { return }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }  // writes encrypted rows; retry next activation
         // Same wait-for-CloudKit deferral as UngroundedInsightCleanup: a store that hasn't
         // finished syncing could look like it has nothing (or the wrong latest row).
         guard defaults.integer(forKey: UngroundedInsightCleanup.backgroundingCountKey) >= 1 else { return }
@@ -56,6 +60,9 @@ enum PreGrammarInsightRegrade {
 
         var allDone = true
         for old in todo {
+            // Same tiers as the normal runners: digests are Core and up, reports Deep only.
+            let entitled = old.type == .weeklyDigest ? SubscriptionService.shared.isSubscribed : SubscriptionService.shared.isDeep
+            guard entitled else { continue }
             let period = old.periodIdentifier
             // The normal runners' keys, so this can't generate the same period at the same time.
             let key = old.type == .weeklyDigest ? "digest_\(period)" : "monthlyReport_\(period)"

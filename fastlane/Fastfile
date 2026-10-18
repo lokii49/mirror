@@ -51,6 +51,34 @@ platform :ios do
     )
   end
 
+  desc "Upload iPhone Duo screenshots (APP_IPHONE_DUO; deliver doesn't know this display type yet). Version must not be in review."
+  desc "Usage: fastlane upload_duo_screenshots dir:<folder> [version:3.1.3] [replace:true] — <folder>/<locale>/*.png per App Store localization (fastlane locale names), up to 10 each in name order; replace deletes that localization's current Duo screenshots first"
+  lane :upload_duo_screenshots do |options|
+    auth
+    root = File.expand_path(options[:dir] || UI.user_error!("dir: is required"))
+    app = Spaceship::ConnectAPI::App.find("com.lokesh.mirror")
+    versions = app.get_app_store_versions(filter: { platform: "IOS" })
+    version = options[:version] ? versions.find { |v| v.version_string == options[:version] } : versions.first
+    UI.user_error!("Version not found") unless version
+    version.get_app_store_version_localizations.each do |loc|
+      files = Dir[File.join(root, loc.locale, "*.png")].sort.first(10)
+      if files.empty?
+        UI.important("#{loc.locale}: no Duo screenshots in #{root}/#{loc.locale}, skipped")
+        next
+      end
+      set = loc.get_app_screenshot_sets.find { |s| s.screenshot_display_type == "APP_IPHONE_DUO" }
+      set ||= loc.create_app_screenshot_set(attributes: { screenshotDisplayType: "APP_IPHONE_DUO" })
+      if options[:replace]
+        set.app_screenshots.to_a.each(&:delete!)
+        UI.important("#{loc.locale}: removed existing Duo screenshots")
+      end
+      files.each do |f|
+        set.upload_screenshot(path: f, wait_for_processing: true)
+        UI.success("#{loc.locale}: uploaded #{File.basename(f)}")
+      end
+    end
+  end
+
   desc "Resubmit the current build for review without re-uploading binary/metadata/screenshots"
   lane :resubmit do
     auth

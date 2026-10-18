@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import mirror
 
 // writing-roadmap.md Tier 2's "discriminating test, not yet run": every prior test of
@@ -18,7 +19,8 @@ import Testing
 // is still open; it needs either a real non-Apple-Intelligence device or a simulator/OS
 // combination where Foundation Models genuinely reports unavailable.
 extension SharedLLMState {
-    @Suite("generateGuidedQuestion — real on-device inference, simulator-only")
+    @Suite("generateGuidedQuestion — real on-device inference, simulator-only",
+           .disabled(if: ProcessInfo.processInfo.environment["MIRROR_CI_SIMULATOR"] == "1", "Xcode Cloud simulators report Foundation Models available but no engine answers (mirror CI scheme)"))
     struct GuidedQuestionGemmaTests {
 
         // Simulates the exact risk the roadmap named: by turn 2-3 the transcript fed back to the

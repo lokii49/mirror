@@ -1,5 +1,5 @@
-Smarter search fixes
+Your own sentences in digests, reports and Ask Mirror
 
-• Smarter search in Ask: the search model no longer downloads again after you quit and reopen MirrorNotes. It now downloads in the background, and you can pause and resume it.
-• Model downloads show a clearer progress bar with one Pause/Resume button, and a clearer Download button.
-• What's New shows only the latest changes, and a Mac that skipped 1.1.0 still sees them.
+• With Apple Intelligence, Weekly Digest, Monthly Report and Ask Mirror now quote your own sentences.
+• The word count now says "1 word" rather than "1 words".
+• Smaller fixes and improvements.

@@ -234,7 +234,7 @@ struct WhatsNewSheet: View {
                     }
                     .foregroundStyle(tier.color)
                     Spacer()
-                    if let price = tier.pricingLabel {
+                    if let price = tier.pricingLabel() {
                         Group {
                             if displayMode == .sentinel {
                                 Text(price).font(MirrorTheme.mono(11, weight: .semibold))

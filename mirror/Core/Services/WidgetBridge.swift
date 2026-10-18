@@ -34,22 +34,34 @@ enum WidgetBridge {
     }
 
     /// Push the current week's digest "THIS WEEK'S THEME" line to `MirrorWeeklyDigestWidget`.
-    /// No-op (leaves the last value in place) if there's no digest for this week yet.
+    /// The newest *real* digest for the week: a fallback has no theme to show. No-op if the week
+    /// has none yet, except that a theme already stored for this week is cleared when the week
+    /// now has only fallbacks (`UngroundedInsightCleanup` turned it into one), so invented text
+    /// doesn't stay on the home screen. A failed fetch changes nothing.
     @MainActor
     static func syncWeeklyDigest(from context: ModelContext) {
         let week = DateHelpers.digestWeekIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == week }
         )
-        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
-        let digest = rows.filter { $0.type == .weeklyDigest }.max { $0.generatedAt < $1.generatedAt }
+        guard let rows = try? context.fetch(descriptor) else { return }
+        let digests = rows.filter { $0.type == .weeklyDigest }
+        let digest = digests
+            .filter { !InsightService.isUngroundedFallback($0.content) }
+            .max { $0.generatedAt < $1.generatedAt }
+        if digest == nil, !digests.isEmpty, defaults?.string(forKey: WidgetShared.digestWeekKey) == week {
+            defaults?.removeObject(forKey: WidgetShared.digestThemeKey)
+            defaults?.removeObject(forKey: WidgetShared.digestWeekKey)
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorWeeklyDigestWidget")
+            return
+        }
         guard let digest,
               let theme = InsightService.firstSectionBody(
                   of: digest.content, labels: InsightService.weeklyDigestSectionLabels
               )
         else { return }
 
-        let clipped = clip(theme, max: 200)
+        let clipped = clip(InsightService.sectionBodyForDisplay(theme), max: 200)
         let changed = defaults?.string(forKey: WidgetShared.digestThemeKey) != clipped
             || defaults?.string(forKey: WidgetShared.digestWeekKey) != week
         defaults?.set(clipped, forKey: WidgetShared.digestThemeKey)
@@ -58,27 +70,77 @@ enum WidgetBridge {
     }
 
     /// Push the current month's "YOUR MONTH IN ONE IMAGE" metaphor to `MirrorMonthlyReportWidget`.
-    /// No-op if there's no monthly report for this month yet.
+    /// The newest real report for the month; clears this month's stored image when the month now
+    /// has only fallbacks (see `syncWeeklyDigest`).
     @MainActor
     static func syncMonthlyReport(from context: ModelContext) {
         let month = DateHelpers.monthIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == month }
         )
-        let rows: [Insight] = (try? context.fetch(descriptor)) ?? []
-        let report = rows.filter { $0.type == .monthlyReport }.max { $0.generatedAt < $1.generatedAt }
+        guard let rows = try? context.fetch(descriptor) else { return }
+        let reports = rows.filter { $0.type == .monthlyReport }
+        let report = reports
+            .filter { !InsightService.isUngroundedFallback($0.content) }
+            .max { $0.generatedAt < $1.generatedAt }
+        if report == nil, !reports.isEmpty, defaults?.string(forKey: WidgetShared.monthlyPeriodKey) == month {
+            defaults?.removeObject(forKey: WidgetShared.monthlyImageKey)
+            defaults?.removeObject(forKey: WidgetShared.monthlyPeriodKey)
+            WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget")
+            return
+        }
         guard let report,
               let image = InsightService.firstSectionBody(
                   of: report.content, labels: InsightService.monthlyReportSectionLabels
               )
         else { return }
 
-        let clipped = clip(image, max: 280)
+        let clipped = clip(InsightService.sectionBodyForDisplay(image), max: 280)
         let changed = defaults?.string(forKey: WidgetShared.monthlyImageKey) != clipped
             || defaults?.string(forKey: WidgetShared.monthlyPeriodKey) != month
         defaults?.set(clipped, forKey: WidgetShared.monthlyImageKey)
         defaults?.set(month, forKey: WidgetShared.monthlyPeriodKey)
         if changed { WidgetCenter.shared.reloadTimelines(ofKind: "MirrorMonthlyReportWidget") }
+    }
+
+    /// Every app-group key holding journal-derived content. Not `widget.tier` or
+    /// `widget.displayMode`, which are settings.
+    static let journalDerivedKeys = insightTextKeys + [
+        "widget.entries.heatmap", "widget.mood.heatmap", "widget.streak", "widget.wrote.today",
+    ]
+
+    /// The reflection, digest and monthly text. The heatmap and streak keys are rewritten from the
+    /// store on every app-active (`updateWidgetHeatmaps`), so they never need clearing there.
+    static let insightTextKeys = [
+        "widget.nudge.text", "widget.nudge.date", "widget.nudge.aboutDate", "widget.nudge.mood",
+        WidgetShared.digestThemeKey, WidgetShared.digestWeekKey,
+        WidgetShared.monthlyImageKey, WidgetShared.monthlyPeriodKey,
+    ]
+
+    /// After Delete Everything: the widgets and lock screen otherwise kept showing the last
+    /// reflection line, digest theme, monthly image and heatmaps (backlog A10).
+    @MainActor
+    static func clearJournalDerived() {
+        journalDerivedKeys.forEach { defaults?.removeObject(forKey: $0) }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// The same when the erase arrived from another device: nothing here clears the widget keys,
+    /// since the sync functions above leave the last value when there's nothing new. Only on a
+    /// successful count of zero entries and zero insights; a failed fetch never clears.
+    @MainActor
+    static func clearIfJournalEmpty(context: ModelContext) {
+        do {
+            guard try context.fetchCount(FetchDescriptor<Entry>()) == 0,
+                  try context.fetchCount(FetchDescriptor<Insight>()) == 0 else { return }
+        } catch {
+            return
+        }
+        // Text only: a journal of mood check-ins alone has no entries or insights, and its mood map
+        // (written from the store just before this runs) must stay.
+        guard insightTextKeys.contains(where: { defaults?.object(forKey: $0) != nil }) else { return }
+        insightTextKeys.forEach { defaults?.removeObject(forKey: $0) }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Trim to the last sentence end within `max` characters, else the last word

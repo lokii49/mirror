@@ -22,6 +22,22 @@ extension WriteView {
         sendTextCommand(command)
     }
 
+    /// A checkbox tap checked an item: the first time, ask about automatic sorting (Notes asks
+    /// the same); after that, move checked items down if the person chose to, once the check
+    /// has shown.
+    func checklistItemChecked() {
+        // Read the stored value, not `checklistSortingRaw`: this runs from a closure captured once
+        // in onAppear, whose copy of the property wrapper can be stale.
+        switch UserDefaults.standard.string(forKey: ChecklistSorting.storageKey) ?? "" {
+        case ChecklistSorting.on:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { sendTextCommand(.sortCheckedToBottom) }
+        case ChecklistSorting.off:
+            break
+        default:
+            showChecklistSortPrompt = true
+        }
+    }
+
     /// Hands a command to the editor without any confirmation step.
     func sendTextCommand(_ command: NoteTextCommand) {
         // Doesn't focus the editor: a formatting tap shouldn't pop the keyboard (this line used
@@ -72,7 +88,7 @@ extension WriteView {
             if isTranscribingVoiceNotes {
                 continueTranscriptionAfterSaveAnyway(for: entry, in: modelContext)
             }
-            guard !entry.textDecryptionFailed else {
+            guard !entry.textDecryptionFailed, !entryContentUnreadable else {
                 dismiss()
                 return
             }
@@ -83,6 +99,13 @@ extension WriteView {
             guard currentContentHash() != loadedContentHash else {
                 dismiss()
                 DispatchQueue.main.async { onSaveComplete?() }
+                return
+            }
+            // Sealing needs the key; with it unreadable the setters would store plaintext.
+            // Keep the editor open with the edits, like a failed save.
+            guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {
+                flushDraftSave()
+                entrySaveFailed = true
                 return
             }
             // Keep the edits recoverable until the save below has actually landed.
@@ -128,6 +151,11 @@ extension WriteView {
             }
         } else {
             if hasDraftContent {
+                guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see the edit path above
+                    flushDraftSave()
+                    entrySaveFailed = true
+                    return
+                }
                 let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let entry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
                 entry.createdAt = entryDate
@@ -189,6 +217,11 @@ extension WriteView {
     func saveDraft() {
         commitPendingTag()
         guard entry == nil, hasDraftContent else { return }
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see saveAndDismiss
+            flushDraftSave()
+            entrySaveFailed = true
+            return
+        }
         let plain = viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedEntry = Entry(text: plain, mood: viewModel.selectedMood, source: !draftVoiceNotes.isEmpty && plain.isEmpty ? .voice : .typed)
         savedEntry.createdAt = entryDate
@@ -240,6 +273,10 @@ extension WriteView {
         photoDataArray = []
         inlineStyleData = nil
         activeInlineStyles = InlineStyleSet()
+        panelState.activeInlineStyles = InlineStyleSet()
+        panelState.activeHighlightIndex = nil
+        panelState.activeTextColorIndex = nil
+        panelState.activeLinkURL = nil
         showFormattingPanel = false
         voiceNoteData = nil
         voiceNoteDuration = 0
@@ -368,6 +405,27 @@ extension WriteView {
         #endif
     }
 
+    /// A Mac "New Entry in New Window" editor keeps its draft apart from the main Write
+    /// editor's, so two open editors can't overwrite each other's (backlog E).
+    static func newEntryDraftSlot(standaloneWindow: Bool) -> WriteDraftStore.Slot {
+        standaloneWindow ? .newEntryWindow : .newEntry
+    }
+
+    static func newEntryAttachmentLocation(standaloneWindow: Bool) -> DraftAttachmentStore.Location? {
+        standaloneWindow ? .window : .live
+    }
+
+    var isStandaloneWindow: Bool {
+        #if os(macOS)
+        macStandaloneWindow
+        #else
+        false
+        #endif
+    }
+
+    var newEntryDraftSlot: WriteDraftStore.Slot { Self.newEntryDraftSlot(standaloneWindow: isStandaloneWindow) }
+    var newEntryAttachmentLocation: DraftAttachmentStore.Location? { Self.newEntryAttachmentLocation(standaloneWindow: isStandaloneWindow) }
+
     /// Debounced draft write. `onChange(of: viewModel.text)` fires on every
     /// keystroke and `saveDraftToStorage` encrypts the whole document + tag
     /// array each call, so writing synchronously per character is real input
@@ -395,7 +453,20 @@ extension WriteView {
         Binding(get: { entryDate }, set: { entryDate = $0; entryDateChosen = true })
     }
 
+    /// Bounces the save checkmark once when a new entry becomes saveable. Called from the draft
+    /// save path, which every text and formatting change goes through, instead of from an
+    /// `onChange` of its own: `WriteView.body` has no stack to spare in Debug (see BarGlyph).
+    func noteSaveability() {
+        let saveable = hasDraftContent
+        guard saveable != wasSaveable else { return }
+        wasSaveable = saveable
+        guard saveable, entry == nil, !reduceMotion else { return }
+        // A beat after the button enables: a bounce started in the same update never showed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { saveGlyphBounces &+= 1 }
+    }
+
     func scheduleDraftSave() {
+        noteSaveability()
         guard Self.usesPersistentDraftStorage(), !pendingDelete, !editCommitted else { return }
         // No content comparison here: it hashes attachments, too slow per keystroke.
         // saveEditDraft compares once the debounce settles.
@@ -504,7 +575,7 @@ extension WriteView {
             tags: entryTags,
             entryDate: entryDateChosen ? entryDate : nil,
             fontChoice: entryFontChoiceRaw
-        ))
+        ), slot: newEntryDraftSlot)
         draftSaveState = saved && attachmentsSaved ? .saved : .failed
     }
 
@@ -521,7 +592,7 @@ extension WriteView {
     /// them the next time the entry is opened. Text, formatting, mood, tags and
     /// date only: photo and voice-note edits are not kept.
     func saveEditDraft(for entry: Entry) {
-        guard !pendingDelete, !editCommitted, !entry.textDecryptionFailed,
+        guard !pendingDelete, !editCommitted, !entry.textDecryptionFailed, !entryContentUnreadable,
               let base = editBaseFingerprint else { return }
         let slot = WriteDraftStore.Slot.entry(entry.id)
         guard currentContentHash() != loadedContentHash else {
@@ -544,7 +615,7 @@ extension WriteView {
     }
 
     func checkForEditDraft() {
-        guard let entry, Self.usesPersistentDraftStorage(), !entry.textDecryptionFailed else { return }
+        guard let entry, Self.usesPersistentDraftStorage(), !entry.textDecryptionFailed, !entryContentUnreadable else { return }
         editBaseFingerprint = entryFingerprint(entry)
         let slot = WriteDraftStore.Slot.entry(entry.id)
         guard case .payload(let draft) = WriteDraftStore.load(slot: slot) else { return }
@@ -614,7 +685,7 @@ extension WriteView {
         // clear makes this result stale, so it's dropped.
         attachmentSaveGeneration &+= 1
         let generation = attachmentSaveGeneration
-        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes) { saved in
+        DraftAttachmentStore.saveInBackground(photos: photoDataArray, voiceNotes: notes, at: newEntryAttachmentLocation) { saved in
             guard generation == attachmentSaveGeneration else { return }
             attachmentsSaved = saved
             if !saved { draftSaveState = .failed }
@@ -622,7 +693,8 @@ extension WriteView {
     }
 
     func restoreDraftAttachments() {
-        guard entry == nil, Self.usesPersistentDraftStorage(), let restored = DraftAttachmentStore.load() else { return }
+        guard entry == nil, Self.usesPersistentDraftStorage(),
+              case .attachments(let restored) = DraftAttachmentStore.load(at: newEntryAttachmentLocation) else { return }
         if photoDataArray.isEmpty, !restored.photos.isEmpty {
             photoDataArray = restored.photos
         }
@@ -650,7 +722,7 @@ extension WriteView {
         // A draft that can't be read yet (key not available, e.g. before first
         // unlock) stays in storage for a later launch; never show the fallback
         // sentinel as text or re-encrypt it over the original.
-        guard case .payload(let draft) = WriteDraftStore.load() else { return }
+        guard case .payload(let draft) = WriteDraftStore.load(slot: newEntryDraftSlot) else { return }
         viewModel.text = draft.text
         viewModel.textStyleData = draft.textStyleData
         inlineStyleData = draft.inlineStyleData
@@ -666,7 +738,7 @@ extension WriteView {
     func clearDraftStorage() {
         cancelDraftSave()
         attachmentSaveGeneration &+= 1   // a photo save still in flight must not report afterwards
-        Self.clearAllDraftStorage()      // waits for that save, then clears
+        Self.clearDraftStorage(slot: newEntryDraftSlot, attachments: newEntryAttachmentLocation)   // waits for that save, then clears
         draftSaveState = .idle
         attachmentsSaved = true
     }
@@ -680,9 +752,14 @@ extension WriteView {
     /// `WriteView` instance (app-launch test-state reset) — same keys, no
     /// in-flight debounced-save task to cancel.
     static func clearAllDraftStorage() {
+        clearDraftStorage(slot: .newEntry, attachments: .live)
+        clearDraftStorage(slot: .newEntryWindow, attachments: .window)
+    }
+
+    static func clearDraftStorage(slot: WriteDraftStore.Slot, attachments: DraftAttachmentStore.Location?) {
         guard usesPersistentDraftStorage() else { return }
-        DraftAttachmentStore.clear()
-        WriteDraftStore.clear()
+        DraftAttachmentStore.clear(at: attachments)
+        WriteDraftStore.clear(slot: slot)
     }
 
     /// Delete Everything while this editor is open: drop what it holds, or the
@@ -698,7 +775,9 @@ extension WriteView {
     static func eraseAllDraftStorage() {
         guard usesPersistentDraftStorage() else { return }
         DraftAttachmentStore.clearIncludingPreserved()
+        DraftAttachmentStore.clearIncludingPreserved(at: .window)
         WriteDraftStore.clearIncludingPreserved()
+        WriteDraftStore.clearIncludingPreserved(slot: .newEntryWindow)
         WriteDraftStore.clearAllEntryDrafts()
         NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
     }
@@ -762,6 +841,15 @@ struct DraftSaveStatusLabel: View {
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
+        Group {
+            status
+        }
+        // Crossfades "Saving…" and "Draft saved", so the check below can draw itself on.
+        .animation(.easeOut(duration: 0.2), value: state)
+    }
+
+    @ViewBuilder
+    private var status: some View {
         switch state {
         case .idle:
             EmptyView()
@@ -779,6 +867,7 @@ struct DraftSaveStatusLabel: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Draft kept on this device"))
                 .accessibilityIdentifier("draft.saveStatus")
+                .glyphDrawOnInsertion()
             } else {
                 label("Draft kept on this device")
             }

@@ -33,11 +33,8 @@ struct WriteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.appDisplayMode) var displayMode
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
-    /// iPad presents the formatting panel as a popover off the Aa button;
-    /// iPhone as an overlay above the keyboard. Keyed off the idiom, not
-    /// `horizontalSizeClass` — inside a NavigationSplitView detail pane the
-    /// class reports `.compact` on iPad, which sent it down the iPhone path.
     /// There is no keyboard to appear on Mac, and the row must stay put while a button is clicked.
     var toolRowAlwaysVisible: Bool {
         #if os(macOS)
@@ -62,7 +59,12 @@ struct WriteView: View {
 
     var usesPopoverPanel: Bool {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad
+        // Where there's room (iPad, an opened iPhone Duo) the panel is a popover off the Aa
+        // button; a compact width swaps it in for the keyboard. Keyed off the width class, not
+        // the idiom: an opened Duo is a phone idiom with regular width. Test `.regular`, so an
+        // unknown class takes the compact path. (The old note about iPad reporting `.compact`
+        // applied to the NavigationSplitView detail, which iOS 18+ no longer uses.)
+        horizontalSizeClass == .regular
         #else
         true
         #endif
@@ -76,10 +78,27 @@ struct WriteView: View {
 
     @State var viewModel = WriteViewModel()
     @State var isKeyboardVisible = false
+    /// A hardware keyboard is typing: iOS put up only its short shortcuts bar.
+    @State var keyboardIsShortcutsBarOnly = false
+
+    /// How much of the keyboard a keyboard notification leaves on screen, in points. The Mac
+    /// gets no keyboard notifications (PlatformCompat's names are never posted there).
+    static func visibleKeyboardHeight(_ note: Notification) -> CGFloat {
+        #if os(iOS)
+        guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return 0 }
+        let screenHeight = (note.object as? UIScreen)?.bounds.height ?? frame.maxY
+        return max(0, min(frame.height, screenHeight - frame.minY))
+        #else
+        return 0
+        #endif
+    }
     @State var showSaved = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
     @State var showDeleteCheckedConfirm = false
+    /// Asked once, on the first checkbox tap, as Notes asks: move checked items to the bottom?
+    @State var showChecklistSortPrompt = false
+    @AppStorage(ChecklistSorting.storageKey) var checklistSortingRaw = ""
     @State var pendingDelete = false
     @State var deleteUndoTask: Task<Void, Never>? = nil
     @State var deleteCountdown: Int = 10
@@ -111,6 +130,7 @@ struct WriteView: View {
     @State var isRecordingInline = false
     @State var recordingPermissionDenied = false
     @State var showPhotoPicker = false
+    @State var showRecorderSheet = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
     @State var showDocumentScanner = false
@@ -130,14 +150,23 @@ struct WriteView: View {
     /// app ever points to it. Rather than inventing a new coach-mark system
     /// for one button, or building in-app streaming recognition (the L-effort
     /// option), this makes the existing distinction discoverable in place.
-    @State var showVoiceButtonHint = false
     @State var canUndo = false
     @State var canRedo = false
     /// Toolbar icons follow the person's text size (capped so they stay inside 44 pt buttons).
     @ScaledMetric(relativeTo: .title3) var toolbarIconMetric: CGFloat = 20
     @State var panelState = FormattingPanelState()
+    /// Taps per keyboard-bar button id; each new tap bounces that button's glyph once.
+    @State var barGlyphTaps: [String: Int] = [:]
+    /// Bumped when the first words make a new entry saveable; bounces the save checkmark.
+    @State var saveGlyphBounces = 0
+    /// `hasDraftContent` as `noteSaveability()` last saw it.
+    @State var wasSaveable = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @State var fullscreenPhotoIndex: Int? = nil
     @State var voiceNoteData: Data? = nil
+    /// `Entry.contentDecryptionFailed`, checked once when the entry loads (it opens every
+    /// photo and recording). Gates saving and edit drafts like `textDecryptionFailed` does.
+    @State var entryContentUnreadable = false
     @State var voiceNoteDuration: TimeInterval = 0
     @State var voiceNoteTranscript: String? = nil
     @State var voiceNoteLanguageCode: String? = nil
@@ -322,6 +351,7 @@ struct WriteView: View {
                         // that point the user is already writing and doesn't need a starter.
                         if entry == nil && !hasDraftContent {
                             WritingStarterChip(
+                                showsTalkItOut: SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier),
                                 onTalkItOut: { presentTalkItOut() },
                                 onUseTemplate: { template in
                                     viewModel.text = template.seedText
@@ -352,6 +382,7 @@ struct WriteView: View {
                             fontChoiceRaw: $entryFontChoiceRaw,
                             panelState: panelState,
                             displayMode: displayMode,
+                            panelAsPopover: usesPopoverPanel,
                             onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
                         )
                         .padding(.horizontal, 20)
@@ -368,12 +399,26 @@ struct WriteView: View {
                     #endif
                 }
                 .scrollDismissesKeyboard(.interactively)
+                #if os(iOS)
+                // Always bounces, as Notes' editor does: a short entry otherwise can't be dragged,
+                // so swiping down never dismissed the keyboard, and the bar has no hide button.
+                .scrollBounceBehavior(.always, axes: .vertical)
+                #else
                 .scrollBounceBehavior(.basedOnSize)
+                #endif
                 #if os(macOS)
                 .modifier(MacNoScrollEdgeEffect())
                 #endif
 
             }
+            #if os(iOS)
+            // A readable column where there's room (iPad, an opened iPhone Duo), like the Mac's
+            // MacEditorColumn. Only the width limit changes with the size class, never the views,
+            // so a fold keeps the editor (and its undo history). Half-folded on the iPhone Duo the
+            // column moves to one side of the fold instead of sitting across it.
+            .frame(maxWidth: horizontalSizeClass == .regular ? 680 : .infinity)
+            .avoidingFold()
+            #endif
 
             if showSaved {
                 Label("Saved", systemImage: "checkmark.circle.fill")
@@ -474,6 +519,8 @@ struct WriteView: View {
                     onDismiss: { dismissFollowUp() }
                 )
                 .padding(.horizontal, 16)
+                // Half-folded iPhone Duo: on the same side of the fold as the writing column.
+                .avoidingFold()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -492,10 +539,14 @@ struct WriteView: View {
                 Color.black.opacity(0.001)
                     .ignoresSafeArea()
                     .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
+                    .accessibilityHidden(true)
                     .overlay(alignment: .topTrailing) {
                         signalPanel
                             .padding(.top, 96)
                             .padding(.trailing, 18)
+                            // VoiceOver: a modal panel with the two-finger scrub to close (A19).
+                            .accessibilityAddTraits(.isModal)
+                            .accessibilityAction(.escape) { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
                     }
             }
         }
@@ -540,20 +591,31 @@ struct WriteView: View {
         #else
         .toolbar { toolbarItems; focusModeToolbarItem }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if (isKeyboardVisible || editorFocused || toolRowAlwaysVisible) && !focusMode {
-                toolRow
+            // Only with the keyboard up: with it down there is no bar (owner, 2026-10-16; the
+            // short checklist/attach/record bar is gone). Hidden while the Aa panel stands in for
+            // the keyboard, as Notes hides its bar. Animated on this one value only, so the Aa
+            // panel hiding the bar still snaps.
+            ZStack(alignment: .bottomLeading) {
+                if showsOpenBar && !(showFormattingPanel && !usesPopoverPanel) { toolRow }
             }
+            .animation(.spring(duration: 0.3, bounce: 0), value: showsOpenBar)
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            isKeyboardVisible = true
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            // An on-screen keyboard (or the Aa panel in its place) is a full keyboard's height;
+            // with a hardware keyboard iOS sends this for the short shortcuts bar it leaves.
+            let height = Self.visibleKeyboardHeight(note)
+            isKeyboardVisible = height > 120
+            keyboardIsShortcutsBarOnly = height > 0 && height <= 120
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             isKeyboardVisible = false
+            keyboardIsShortcutsBarOnly = false
         }
         .onAppear {
             viewModel.configure(entry: entry)
             if let entry {
+                entryContentUnreadable = entry.contentDecryptionFailed
                 photoDataArray = entry.photoDataArray
                 inlineStyleData = entry.inlineStyleData
                 voiceNoteData = entry.voiceNoteData
@@ -627,6 +689,7 @@ struct WriteView: View {
             loadedContentHash = currentContentHash()
             checkForEditDraft()
             panelState.onCommand = { cmd in applyTextCommand(cmd) }
+            panelState.onChecklistItemChecked = { checklistItemChecked() }
             panelState.onRequestLinkEditor = {
                 linkEditorURLText = panelState.activeLinkURL ?? ""
                 linkEditorHasExisting = panelState.activeLinkURL != nil
@@ -655,6 +718,14 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        #if os(iOS)
+        .sheet(isPresented: $showRecorderSheet) {
+            VoiceRecorderSheet { data, duration in
+                appendVoiceNote(data: data, duration: duration)
+            }
+            .environment(\.appDisplayMode, displayMode)
+        }
+        #endif
         .sheet(isPresented: $showDocumentScanner) {
             DocumentScannerController { result in
                 handleScannedPages(result)
@@ -730,6 +801,15 @@ struct WriteView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(textScanError ?? "")
+        }
+        .alert("Enable Automatic Sorting?", isPresented: $showChecklistSortPrompt) {
+            Button("Enable Sorting") {
+                checklistSortingRaw = ChecklistSorting.on
+                sendTextCommand(.sortCheckedToBottom)
+            }
+            Button("Not Now", role: .cancel) { checklistSortingRaw = ChecklistSorting.off }
+        } message: {
+            Text("Would you like checked items to move to the bottom of your lists automatically? You can change this later in Settings.")
         }
         .alert("Delete checked items?", isPresented: $showDeleteCheckedConfirm) {
             Button("Delete", role: .destructive) { sendTextCommand(.deleteCheckedItems) }

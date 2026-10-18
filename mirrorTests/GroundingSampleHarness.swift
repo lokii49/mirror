@@ -1150,6 +1150,33 @@ final class GroundingSampleHarness: XCTestCase {
     /// Round 12 held-out cases (tools/llmrig/fm/RUBRIC_FM.md, reflection styles Tier 2), written
     /// before the run, all synthetic. Shapes a short plain line or a question could get wrong: a plan
     /// asked about as if done, another person's grief given to the writer, two moods the same day.
+    /// Round 13 (RUBRIC_FM.md): held out for the FMDailyGuard name-casing change (39fcab8). Everyday
+    /// words that open a sentence (the insight may reuse them mid-sentence), and names that appear only
+    /// at a sentence start (the trade-off: a lowercase name the model writes stays lowercase). Synthetic.
+    /// Round 22 (RUBRIC_FM.md): new held-out days, each with several sentences and one clear pair that belong
+    /// together (a worry and what eased it, a plan and the feeling about it), written before any round-22 run.
+    static let heldOutRound22: [(label: String, entries: [Entry])] = [
+        ("hold22_interview", [Entry(text: "Had the second interview at the design studio this morning. I was shaking before it started. Bought groceries on the way home. Halfway through, the lead designer laughed at my joke and I finally relaxed.", mood: "Hopeful")]),
+        ("hold22_sister", [Entry(text: "Talked to Meera for the first time since the fight. Cleaned the bathroom and did two loads of laundry. She said she missed me too. Ordered pizza for dinner.", mood: "Grateful")]),
+        ("hold22_rent", [Entry(text: "Rent went up again and I don't know how we'll manage. Watched a documentary about whales. Arun said he can pick up extra shifts at the cafe. Still feel a knot in my stomach.", mood: "Anxious")]),
+        ("hold22_garden", [Entry(text: "The tomatoes finally turned red. Fixed the leaking tap in the kitchen. Dad planted those seeds with me in April before he got sick. Answered a pile of work emails.", mood: "Sad")]),
+        ("hold22_run", [Entry(text: "Signed up for the half marathon in March. My knee is still sore from last week. Called the bank about the card. I'm scared I'll get injured again.", mood: "Anxious")]),
+        ("hold22_ordinary", [Entry(text: "Normal Tuesday. Team meeting ran long. Made pasta. Watched two episodes of a show and went to bed early.", mood: "Content")]),
+    ]
+
+    static let heldOutRound13: [(label: String, entries: [Entry])] = [
+        ("hold5_work", [Entry(text: "Work was relentless today. Three deadlines moved up and my manager wanted the slides by noon.", mood: "Drained")]),
+        ("hold5_gym", [Entry(text: "Gym before work felt good for once. Lifted a bit more than last week and didn't rush the stretches.", mood: "Energized")]),
+        ("hold5_dinner", [Entry(text: "Dinner with my sister ran late. We talked about mum's surgery next month and both went quiet.", mood: "Anxious")]),
+        ("hold5_interview", [Entry(text: "Interview went better than I expected. They asked about the migration project and I didn't freeze.", mood: "Hopeful")]),
+        ("hold5_grief", [Entry(text: "Grief comes in waves this week. Lena sent flowers and a note about dad that I read three times.", mood: "Sad")]),
+        ("hold5_priya", [Entry(text: "Priya called after lunch to say the biopsy was clear. I cried in the car before driving home.", mood: "Grateful")]),
+        ("hold5_tomas", [Entry(text: "Tomás fixed the bike chain for me this morning. Rode to the market and back without it slipping once.", mood: "Grateful")]),
+        ("hold5_arjun", [Entry(text: "Spent the evening helping Arjun move his desk. We ate pizza on the floor of his empty room.", mood: "Content")]),
+        ("hold5_lisbon", [Entry(text: "Lisbon was hotter than the forecast said. Walked the whole riverfront anyway and my feet hurt.", mood: "Drained")]),
+        ("hold5_rent", [Entry(text: "Rent went up again and the email came on my birthday. Spent the evening redoing the budget.", mood: "Frustrated")]),
+    ]
+
     static let heldOutRound12: [(label: String, entries: [Entry])] = {
         let morning = Entry(text: "Slept badly, kept thinking about the rent going up next month.", mood: "Anxious")
         let evening = Entry(text: "The landlord agreed to wait until March for the increase. Breathing easier tonight.", mood: "Hopeful")
@@ -1176,7 +1203,7 @@ final class GroundingSampleHarness: XCTestCase {
             throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 + Self.heldOutRound12 {
+        for c in Self.rigCases + Self.groundedEdgeCases + Self.reflectionLineCases + Self.heldOutRound10 + Self.heldOutRound12 + Self.heldOutRound13 + Self.heldOutRound22 {
             let (recent, background) = InsightService.dailyNudgeContext(from: c.entries, asOf: Date())
             let system = InsightService.structuredNudgeSystemPrompt(for: recent + background)
             let user = InsightService.buildUserMessage(
@@ -1521,6 +1548,225 @@ final class GroundingSampleHarness: XCTestCase {
         }
     }
 
+
+    /// Synthetic weeks for the Foundation Models weekly digest (tools/llmrig/fm/RUBRIC_FM.md, round 15).
+    /// Same traps as the rig cases: several named people with distinct roles, a pet, plans that have
+    /// not happened, plus an all-good, an all-hard, an ordinary, a sparse and a messy run-on week.
+    static let digestRigWeeks: [(label: String, entries: [Entry])] = {
+        func week(_ texts: [(String, String)]) -> [Entry] {
+            texts.enumerated().map { i, item in
+                let e = Entry(text: item.0, mood: item.1)
+                e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)   // hours, so all stay in this week
+                return e
+            }
+        }
+        return [
+            ("wk_caregiver", week([
+                ("Mom's knee surgery is booked for the 14th. Tara says she can take the first week but I'll need to cover the second. Not sure how I'll do that with the audit going on.", "Anxious"),
+                ("Long day at work, the audit team wants every invoice from March. Came home and Miso was asleep on my laptop bag, which made me laugh for the first time all day.", "Drained"),
+                ("Called Mom tonight. She sounded calmer than me about the whole thing. We talked about her garden for almost an hour.", "Peaceful"),
+                ("Asked my manager, Deepa, if I can work from Mom's place for a week. She said she'll think about it.", "Hopeful"),
+                ("Skipped the gym again. Ate cereal for dinner. I keep making lists and not doing anything on them.", "Overwhelmed"),
+            ])),
+            ("wk_good", week([
+                ("Second pottery class tonight. My bowl actually came out round this time and the teacher, Ines, said my centering is getting better.", "Joyful"),
+                ("Leo visited from Montreal for the weekend. We walked across the whole city and talked about everything, like when we were twenty.", "Grateful"),
+                ("My manager wants to talk about the senior role next month. Trying not to get my hopes up but it's hard not to.", "Hopeful"),
+                ("Quiet Sunday. Glazed two mugs and read on the balcony. Felt like I had nowhere to be.", "Content"),
+                ("Ran 5k without stopping for the first time since spring.", "Energized"),
+            ])),
+            ("wk_hard", week([
+                ("Couldn't sleep again, up until 3 scrolling. Everything feels heavy and slow.", "Drained"),
+                ("Jun left his dishes in the sink for the fourth day and I finally said something. It turned into a fight about rent. I hate living like this.", "Frustrated"),
+                ("Missed the grant deadline by one day. Dr. Okafor was kind about it but I felt so stupid.", "Sad"),
+                ("Didn't really feel anything today. Went to work, came home, stared at the wall.", "Numb"),
+                ("My sister keeps asking if I'm okay and I don't know what to tell her.", "Anxious"),
+                ("Too many tabs open in my head. Need to find a new place, finish the report, call the dentist back.", "Overwhelmed"),
+            ])),
+            ("wk_neutral", week([
+                ("Groceries, laundry, finished the library book about lighthouses. Nothing much else.", "Content"),
+                ("Normal work day. Fixed two small bugs and had lunch at my desk.", "Peaceful"),
+                ("Watered the plants and cleaned out the fridge. Called Grandpa for his weekly chat about the cricket.", "Content"),
+                ("Rain all day so I stayed in and sorted old receipts. Pretty uneventful.", "Peaceful"),
+            ])),
+            ("wk_sparse", week([
+                ("Tired. Work was long.", "Drained"),
+                ("Had dinner with Priyanka at the new ramen place, it was really good.", "Joyful"),
+                ("Thinking about whether to sign up for the evening Spanish course.", "Hopeful"),
+            ])),
+            ("wk_runon", week([
+                ("ok so today: dentist at 9, standup, then the whole afternoon lost to the migration bug. raj thinks its a race condition i think its the cache. didnt eat till 4", "Frustrated"),
+                ("- paid the electricity bill\n- booked flights for dad's 60th 🎉\n- still need to find a gift\n- haven't replied to the group chat", "Energized"),
+                ("felt kind of low all day for no reason?? maybe its the weather maybe its me", "Sad"),
+                ("migration finally fixed!!! it WAS the cache. raj bought me a coffee to admit defeat lol", "Joyful"),
+                ("lazy saturday, played games with Noor until 2am, no regrets", "Content"),
+            ])),
+            ("wk_breakup", week([
+                ("Told Chris I think we should stop seeing each other. He was quiet for a long time and then said he understood. I cried the whole drive home.", "Sad"),
+                ("Ana came over with takeout and we watched bad movies. Pepper wouldn't leave my side all night.", "Grateful"),
+                ("Keep picking up my phone to text him and then putting it down.", "Anxious"),
+                ("Took Pepper to the beach early before anyone was there. First morning I didn't wake up thinking about it.", "Peaceful"),
+                ("Deleted the shared playlist. Felt petty and also lighter.", "Frustrated"),
+            ])),
+            ("wk_exam", week([
+                ("Organic chem final is on Friday and I still don't understand the reaction mechanisms chapter.", "Anxious"),
+                ("Study group with Malik and Sofia in the library until 11. Malik explained substitution reactions with a drawing and it finally clicked.", "Hopeful"),
+                ("Mom and Dad called to ask about grades. I said it's going fine, which isn't totally true.", "Frustrated"),
+                ("Did three practice exams today. Got 61, 70, 78. Going up at least.", "Energized"),
+                ("Woke up with my heart racing before I even remembered why.", "Overwhelmed"),
+            ])),
+        ]
+    }()
+
+    /// Held-out weeks for round 17 (RUBRIC_FM.md), written while W4 ran and before any W4 result was
+    /// seen. W4's guard rules were shaped by `digestRigWeeks`; these test them on new names, plans and moods.
+    static let digestHeldOutWeeks: [(label: String, entries: [Entry])] = {
+        func week(_ texts: [(String, String)]) -> [Entry] {
+            texts.enumerated().map { i, item in
+                let e = Entry(text: item.0, mood: item.1)
+                e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)
+                return e
+            }
+        }
+        return [
+            ("ho_move", week([
+                ("Signed the lease for the flat in Leeds. Wen is still nervous about leaving her job but she says she's ready.", "Hopeful"),
+                ("Packed eleven boxes of books and argued with Wen about whether we need the old couch. Probably selling it.", "Frustrated"),
+                ("Kiwi screamed every time I taped a box. Even the parrot hates moving.", "Drained"),
+                ("Said goodbye to the neighbours downstairs. Mr. Patel gave us a jar of his lime pickle.", "Grateful"),
+                ("Still haven't told my manager about the move. Thinking I'll do it after the long weekend.", "Anxious"),
+            ])),
+            ("ho_newparent", week([
+                ("Ava slept four hours in a row last night and I woke up panicking because it was so quiet.", "Anxious"),
+                ("Sam did both night feeds so I could sleep. I cried when I woke up, I was so grateful.", "Grateful"),
+                ("My mother-in-law wants to stay for two weeks next month. Not sure how to say that's too long.", "Overwhelmed"),
+                ("Ava smiled at the ceiling fan for ten minutes. Best part of the day.", "Joyful"),
+                ("Haven't had a real conversation with anyone but Sam in days.", "Sad"),
+            ])),
+            ("ho_volunteer", week([
+                ("Four-hour shift at the food bank. Bea put me in charge of the new volunteers and nobody got lost.", "Energized"),
+                ("Choir rehearsal felt like a chore again. I'm thinking about taking a break after the winter concert.", "Content"),
+                ("A man at the food bank remembered my name from last month. Small thing but it stayed with me.", "Grateful"),
+                ("Long video call with my brother Theo. He might visit in spring if work calms down.", "Hopeful"),
+                ("Did nothing on Sunday except bake bread. It came out flat but I didn't mind.", "Peaceful"),
+            ])),
+            ("ho_flu", week([
+                ("Woke up with a fever and chills. Lucas said he'd cover my Tuesday meetings.", "Drained"),
+                ("Still sick. Mira dropped off groceries at the door and waved through the window.", "Grateful"),
+                ("Watched three seasons of a baking show from the couch. Brain is mush.", "Numb"),
+                ("Booked a doctor's appointment for Thursday because the cough won't go away.", "Anxious"),
+                ("Felt well enough to answer emails. Way too many of them.", "Overwhelmed"),
+            ])),
+            ("ho_short", week([
+                ("omar called, yusuf didnt. figures", "Frustrated"),
+                ("good run this morning 🏃 legs felt strong for once", "Energized"),
+                ("Might ask Omar if he wants to split the cabin for New Year's.", "Hopeful"),
+                ("bad sleep. again. everything annoying today", "Frustrated"),
+            ])),
+        ]
+    }()
+
+    /// Synthetic months for the Foundation Models monthly report (RUBRIC_FM.md, round 19): the round-15/17
+    /// weeks joined, entries spread over the month (one every ~2.5 days, all inside it when run late in the
+    /// month; the prompt content is what matters, not the calendar gate). `mo_ho_*` use the held-out weeks.
+    static let digestRigMonths: [(label: String, entries: [Entry])] = {
+        func entries(_ label: String, in weeks: [(label: String, entries: [Entry])]) -> [Entry] {
+            weeks.first { $0.label == label }?.entries.map { Entry(text: $0.text, mood: $0.mood) } ?? []
+        }
+        func month(_ labels: [String]) -> [Entry] {
+            let all = labels.flatMap { entries($0, in: digestRigWeeks + digestHeldOutWeeks) }
+            for (i, e) in all.enumerated() { e.createdAt = Date().addingTimeInterval(-Double(i) * 0.9 * 86_400) }
+            return all
+        }
+        return [
+            ("mo_caregiver_hard", month(["wk_caregiver", "wk_hard"])),
+            ("mo_good_neutral", month(["wk_good", "wk_neutral", "wk_sparse"])),
+            ("mo_runon_breakup", month(["wk_runon", "wk_breakup"])),
+            ("mo_exam_good", month(["wk_exam", "wk_good"])),
+            ("mo_ho_move_parent", month(["ho_move", "ho_newparent"])),
+            ("mo_ho_volunteer_flu", month(["ho_volunteer", "ho_flu", "ho_short"])),
+        ]
+    }()
+
+    /// Ask rig cases (RUBRIC_FM.md, round 20): questions over four of `digestRigMonths`, the last of each
+    /// pool's five not answerable from its entries.
+    static let askRigQuestions: [(pool: String, questions: [String])] = [
+        ("mo_caregiver_hard", ["How has work been?", "How is my mom doing?", "Have I been sleeping well?", "What made me laugh?", "Did I go on any trips?"]),
+        ("mo_good_neutral", ["How is the pottery going?", "Who did I see this month?", "Was I stressed?", "How is my running going?", "How is my new car?"]),
+        ("mo_runon_breakup", ["How am I handling the breakup?", "What happened with the migration bug?", "Who has been there for me?", "Did I exercise?", "How is my garden?"]),
+        ("mo_ho_move_parent", ["How is the move going?", "How is Ava sleeping?", "What is worrying me?", "Who helped me?", "How was my vacation?"]),
+    ]
+
+    /// Dumps the first (system, user) prompt Ask sends for each of `askRigQuestions`.
+    func test_dumpAskPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for (pool, questions) in Self.askRigQuestions {
+            guard let entries = Self.digestRigMonths.first(where: { $0.label == pool })?.entries else { XCTFail(pool); continue }
+            for (i, question) in questions.enumerated() {
+                var first: (String, String)?
+                LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                    if first == nil { first = (system, user) }
+                    return ("x", .foundationModels)
+                }
+                _ = try? await InsightService.ask(question: question, entries: entries)
+                let label = "\(pool)_q\(i)"
+                guard let first else { XCTFail("no generation captured for \(label)"); continue }
+                try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+                try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
+    /// Dumps the first (system, user) prompt the monthly report sends for each of `digestRigMonths`.
+    func test_dumpMonthlyPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        for (label, entries) in Self.digestRigMonths {
+            var first: (String, String)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                if first == nil { first = (system, user) }
+                return ("x", .foundationModels)
+            }
+            _ = try? await InsightService.generateMonthlyReport(monthEntries: entries, allEntries: entries)
+            guard let first else { XCTFail("no generation captured for \(label)"); continue }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// Dumps the first (system, user) prompt the weekly digest sends for each of `digestRigWeeks`
+    /// plus the two older digest weeks, for the FM weekly digest round (RUBRIC_FM.md, round 15).
+    func test_dumpDigestPromptsForRig() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set HARNESS_DUMP_DIR to dump prompts")
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { LocalLLMService.generateInterceptForTesting = nil }
+        let weekA: [Entry] = Self.rigCases.enumerated().map { i, c in
+            let e = Entry(text: c.entries[0].text, mood: c.entries[0].mood)
+            e.createdAt = Date().addingTimeInterval(-Double(i) * 3_600)
+            return e
+        }
+        let weeks = [("wk_rigA", weekA), ("wk_rigB", Self.digestWeekB)] + Self.digestRigWeeks + Self.digestHeldOutWeeks
+        for (label, entries) in weeks {
+            var first: (String, String)?
+            LocalLLMService.generateInterceptForTesting = { system, user, _, _ in
+                if first == nil { first = (system, user) }
+                return ("x", .foundationModels)
+            }
+            _ = try? await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries)
+            guard let first else { XCTFail("no generation captured for \(label)"); continue }
+            try first.0.write(toFile: "\(dir)/\(label)_system.txt", atomically: true, encoding: .utf8)
+            try first.1.write(toFile: "\(dir)/\(label)_user.txt", atomically: true, encoding: .utf8)
+        }
+    }
 
     /// A second synthetic week, unlike the rig cases: new job, rent rise, a grief anniversary.
     static let digestWeekB: [Entry] = {

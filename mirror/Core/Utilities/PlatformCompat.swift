@@ -172,6 +172,21 @@ struct PlatformNavigationStack<Content: View>: View {
     }
 }
 
+/// A NavigationStack, or just the content when a parent already provides one (the Entries list
+/// beside the reader shares one stack, so both toolbars sit in a single bar).
+struct OptionalNavigationStack<Content: View>: View {
+    var enabled: Bool
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        #if os(macOS)
+        content()
+        #else
+        if enabled { NavigationStack { content() } } else { content() }
+        #endif
+    }
+}
+
 /// Resigns the text-input focus (hides the keyboard on iOS).
 @MainActor func dismissKeyboard() {
     #if os(iOS)
@@ -184,11 +199,7 @@ struct PlatformNavigationStack<Content: View>: View {
 /// Presents the system share sheet for `items`.
 @MainActor func presentShareSheet(items: [Any]) {
     #if os(iOS)
-    let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
-    UIApplication.shared.connectedScenes
-        .compactMap { $0 as? UIWindowScene }
-        .first?.windows.first?.rootViewController?
-        .present(av, animated: true)
+    presentShareSheet(items: items, from: nil, rect: nil)
     #else
     guard let window = NSApp.keyWindow, let view = window.contentView else { return }
     // Anchored where the pointer is (the row or button just used), not at the window's corner.
@@ -196,6 +207,46 @@ struct PlatformNavigationStack<Content: View>: View {
     NSSharingServicePicker(items: items)
         .show(relativeTo: NSRect(x: point.x, y: point.y, width: 1, height: 1), of: view, preferredEdge: .minY)
     #endif
+}
+
+#if os(iOS)
+/// Presents the share sheet from `anchor`'s own window, on top of anything already presented
+/// there, anchored at `rect` in `anchor` (a popover on iPad and an opened iPhone Duo needs a
+/// source). Without an anchor it uses the foreground scene's key window. It used to present from
+/// the first scene's root view controller: the wrong window with several open, nothing at all
+/// while a sheet was up, and no popover source where one is required.
+@MainActor func presentShareSheet(items: [Any], from anchor: UIView?, rect: CGRect?) {
+    let window = anchor?.window ?? UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .first { $0.activationState == .foregroundActive }?
+        .keyWindow
+    guard var presenter = window?.rootViewController else { return }
+    while let next = presenter.presentedViewController, !next.isBeingDismissed { presenter = next }
+    let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
+    if let popover = av.popoverPresentationController {
+        let source = anchor ?? presenter.view!
+        popover.sourceView = source
+        popover.sourceRect = rect ?? CGRect(x: source.bounds.midX, y: source.bounds.midY, width: 1, height: 1)
+    }
+    presenter.present(av, animated: true)
+}
+#endif
+
+extension View {
+    /// Fades a horizontal scroll row out at both ends, so a row cut off by a column's edge reads
+    /// as scrollable instead of cropped. The rows already pad their content by 16 pt, so at rest
+    /// the fade falls on that padding.
+    func horizontalEdgeFade(_ width: CGFloat = 16) -> some View {
+        mask {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+                Rectangle()
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+            }
+        }
+    }
 }
 
 extension Color {

@@ -88,22 +88,49 @@ extension WriteView {
         HStack(spacing: 8) {
             if viewModel.wordCount > 0 {
                 let goalMet = viewModel.wordCount >= dailyWordGoal
-                HStack(spacing: 3) {
-                    Text("\(viewModel.wordCount)w")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
-                    if goalMet {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    } else if viewModel.wordCount >= 50 {
-                        Text("/ \(dailyWordGoal)w")
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.quaternary)
+                if displayMode == .sentinel {
+                    HStack(spacing: 3) {
+                        Text("\(viewModel.wordCount)w")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
+                        if goalMet {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.green)
+                                .glyphPopIn()
+                        } else if viewModel.wordCount >= 50 {
+                            Text("/ \(dailyWordGoal)w")
+                                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                .foregroundStyle(.quaternary)
+                        }
                     }
+                    .lineLimit(1)
+                    .animation(.easeOut(duration: 0.25), value: goalMet)
+                    .transition(.opacity)
+                } else {
+                    // Classic reads in the system face like the rest of the header: "30 words",
+                    // with a small ring toward the daily goal once it's in sight.
+                    HStack(spacing: 5) {
+                        if goalMet {
+                            // Pops in the moment the goal is reached.
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.green)
+                                .glyphPopIn()
+                        } else if viewModel.wordCount >= 50 {
+                            WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
+                        }
+                        Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
+                            .font(.system(size: 12, weight: .medium).monospacedDigit())
+                            .foregroundStyle(goalMet ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(.tertiary))
+                            .contentTransition(.numericText())
+                    }
+                    .lineLimit(1)
+                    .animation(.easeOut(duration: 0.25), value: goalMet)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue(goalMet || viewModel.wordCount < 50 ? Text("") : Text("\(viewModel.wordCount) of \(dailyWordGoal)"))
+                    .transition(.opacity)
                 }
-                .lineLimit(1)
-                .transition(.opacity)
             }
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave, compact: true)
         }
@@ -322,40 +349,14 @@ extension WriteView {
         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
     }
 
-    var iconForVoiceButton: String {
-        if isRecordingInline { return "stop.circle.fill" }
-        return draftVoiceNotes.isEmpty ? "mic" : "waveform.circle.fill"
-    }
-
     var voiceButtonAccessibilityLabel: String {
         if isRecordingInline { return String(localized: "Stop recording") }
         if isTranscribingVoiceNotes { return String(localized: "Transcribing voice note") }
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
     }
 
-    /// Two mic affordances exist and do different things (audit 2.3): this
-    /// button attaches an audio memo, transcribed after the fact; the system
-    /// keyboard's own mic key does live, word-by-word dictation straight into
-    /// the text. Nothing else in the app ever says so — this is that
-    /// explanation, surfaced on long-press rather than always-visible copy
-    /// cluttering an otherwise icon-only toolbar row.
-    @ViewBuilder
-    private var voiceButtonHintContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Voice Note")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-            Text("Records audio and transcribes it afterward — good for a longer memo.")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
-                .foregroundStyle(.secondary)
-            Text("For live dictation as you type, use the mic key on your keyboard.")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 12))
-                .foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .frame(width: 240, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
+    /// On iPhone Duo all three (trash, check, focus) go to the vertical bar on the right, under the
+    /// status bar, instead of a horizontal top bar (owner, 2026-10-17). Elsewhere nothing moves.
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
@@ -366,10 +367,13 @@ extension WriteView {
                     Image(systemName: "trash")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
+                        // The lid lifts as the entry goes to the undo countdown.
+                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete entry")
             }
+            .preferringVerticalBar()
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -389,6 +393,7 @@ extension WriteView {
                 #endif
                 .accessibilityLabel("Save entry")
             }
+            .preferringVerticalBar()
         } else {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -401,11 +406,13 @@ extension WriteView {
                                 ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                                 : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         )
+                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasDraftContent && !pendingDelete)
                 .accessibilityLabel("Discard draft")
             }
+            .preferringVerticalBar()
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -419,7 +426,12 @@ extension WriteView {
                                 ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                                 : AnyShapeStyle(Color.secondary)
                         )
+                        // One bounce when the first words make the entry saveable. Driven from
+                        // WriteView state a beat after the button enables: a bounce started in
+                        // the same update as the enable never shows (sim recording, 2026-10-16).
+                        .symbolEffect(.bounce, value: saveGlyphBounces)
                 }
+                .accessibilityLabel("Save entry")
                 .buttonStyle(.plain)
                 // Save anyway while a voice note is still transcribing (1.4) —
                 // continueTranscriptionAfterSaveAnyway hands the in-flight pass
@@ -430,6 +442,7 @@ extension WriteView {
                 #endif
                 .accessibilityLabel("Save entry")
             }
+            .preferringVerticalBar()
         }
     }
 
@@ -443,12 +456,14 @@ extension WriteView {
                 Image(systemName: focusMode
                       ? "arrow.down.right.and.arrow.up.left"
                       : "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 14))
+                    .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
+                    .glyphReplaceTransition()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
         }
+        .preferringVerticalBar()
     }
 
     #if os(macOS)
@@ -535,6 +550,9 @@ extension WriteView {
     #endif
 
     var toolRow: some View {
+        #if os(iOS)
+        keyboardBar
+        #else
         VStack(spacing: 0) {
             if dailyWordGoal > 0 && viewModel.wordCount > 0 {
                 let progress = min(Double(viewModel.wordCount) / Double(dailyWordGoal), 1.0)
@@ -553,20 +571,6 @@ extension WriteView {
             }
             Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.inkBorder)
             HStack(spacing: 0) {
-                #if os(iOS)
-                // Keyboard dismiss
-                Button {
-                    dismissKeyboard()
-                } label: {
-                    Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.system(size: toolbarIconSize(20)))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Hide keyboard")
-                #endif
-
                 // Undo
                 Button {
                     applyTextCommand(.undo)
@@ -593,28 +597,7 @@ extension WriteView {
                 .disabled(!canRedo)
                 .accessibilityLabel("Redo")
 
-                // iOS opens the Aa panel; Mac shows formatting controls right in the row.
-                #if os(macOS)
                 macFormattingControls
-                #endif
-                #if os(iOS)
-                // Formatting panel — popover off this button on iPad, overlay
-                // above the keyboard on iPhone (see WriteView.safeAreaInset).
-                FormatToggleButton(panelState: panelState, isShowingPanel: showFormattingPanel) {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showFormattingPanel.toggle()
-                }
-                .popover(isPresented: Binding(
-                    get: { showFormattingPanel && usesPopoverPanel },
-                    set: { if !$0 { showFormattingPanel = false } }
-                ), attachmentAnchor: .point(.top), arrowEdge: .bottom) {
-                    FormattingPanelView(state: panelState, presentation: .popover)
-                        .frame(minWidth: 320, idealWidth: 360, maxWidth: 380, minHeight: 320)
-                        .presentationCompactAdaptation(.popover)
-                        .environment(\.appDisplayMode, displayMode)
-                }
-                #endif
-
                 Spacer(minLength: 0)
 
                 // Checklist quick-ops — appear only when cursor is on a checklist paragraph
@@ -645,125 +628,12 @@ extension WriteView {
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
 
-                // Photos are written into the rich-text editor as inline tokens, which the Mac
-                // plain-text editor cannot do yet; attaching from Mac would desync them.
-                #if os(iOS)
-                // Photo button
-                Menu {
-                    if CameraPickerController.isAvailable {
-                        Button {
-                            editorFocused = false
-                            isKeyboardVisible = false
-                            dismissKeyboard()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showCameraPicker = true }
-                        } label: {
-                            Label("Camera", systemImage: "camera")
-                        }
-                    }
-                    Button {
-                        editorFocused = false
-                        isKeyboardVisible = false
-                        dismissKeyboard()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showPhotoPicker = true }
-                    } label: {
-                        Label("Photo Library", systemImage: "photo.on.rectangle")
-                    }
-                    if DocumentScannerController.isSupported {
-                        Button {
-                            editorFocused = false
-                            isKeyboardVisible = false
-                            dismissKeyboard()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showDocumentScanner = true }
-                        } label: {
-                            Label("Scan Text", systemImage: "text.viewfinder")
-                        }
-                    }
-                } label: {
-                    Image(systemName: !photoDataArray.isEmpty ? "photo.fill" : "photo")
-                        .font(.system(size: toolbarIconSize(20)))
-                        .foregroundStyle(!photoDataArray.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : .primary)
-                        .frame(width: 44, height: 44)
-                        .overlay(alignment: .topTrailing) {
-                            if photoDataArray.count > 1 {
-                                Text("\(photoDataArray.count)")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                    )
-                                    .offset(x: 4, y: -2)
-                            }
-                        }
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add photo")
-                .accessibilityValue(photoDataArray.isEmpty ? Text("") : Text("\(photoDataArray.count) attached"))
-                #endif
-
-                // Voice button — records inline; keyboard and caret stay put.
-                // Plain view + explicit tap/long-press gestures, not a Button:
-                // a Button's own tap gesture recognizer still fires alongside a
-                // .simultaneousGesture long-press (they don't mutually exclude),
-                // which would start a recording behind the long-press hint
-                // popover below (audit 2.3) — the worst outcome for a
-                // discoverability affordance. .onTapGesture/.onLongPressGesture
-                // on a plain view are mutually exclusive by construction.
-                Image(systemName: iconForVoiceButton)
-                    .font(.system(size: toolbarIconSize(20)))
-                    .foregroundStyle(
-                        isRecordingInline ? Color.red
-                            : (!draftVoiceNotes.isEmpty ? (displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : Color.primary)
-                    )
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-                    .overlay(alignment: .topTrailing) {
-                        if isTranscribingVoiceNotes {
-                            ProgressView()
-                                .scaleEffect(0.55)
-                                .frame(width: 16, height: 16)
-                                .background(Color(.systemBackground).opacity(0.85), in: Circle())
-                                .offset(x: 6, y: -6)
-                        } else if draftVoiceNotes.count > 1 {
-                            Text("\(draftVoiceNotes.count)")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 2)
-                                .background(
-                                    displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor,
-                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
-                                )
-                                .offset(x: 4, y: -2)
-                        }
-                    }
-                    .onTapGesture {
-                        toggleInlineRecording()
-                    }
-                    .onLongPressGesture(minimumDuration: 0.45) {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        showVoiceButtonHint = true
-                    }
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(voiceButtonAccessibilityLabel)
-                    // VoiceOver has no long-press gesture — this is the only way
-                    // a VoiceOver user reaches the same explanation (audit 2.3).
-                    .accessibilityAction(named: Text("What this does")) {
-                        showVoiceButtonHint = true
-                    }
-                    .popover(isPresented: $showVoiceButtonHint) {
-                        voiceButtonHintContent
-                            .presentationCompactAdaptation(.popover)
-                    }
             }
             .animation(.easeInOut(duration: 0.15), value: activeParagraphStyle)
-            .animation(.easeInOut(duration: 0.15), value: isRecordingInline)
             .padding(.horizontal, 8)
         }
         .background(MirrorTheme.inkMid)
+        #endif
     }
 }
 
@@ -860,6 +730,8 @@ struct FollowUpChip: View {
 /// Reuses this chip's already-verified-on-device placement/timing rather than adding a second
 /// chip alongside it.
 struct WritingStarterChip: View {
+    /// False on Free: the menu offers only the templates (no paywall before the first nudge).
+    var showsTalkItOut = true
     let onTalkItOut: () -> Void
     let onUseTemplate: (WritingTemplate) -> Void
 
@@ -869,10 +741,12 @@ struct WritingStarterChip: View {
 
     var body: some View {
         Menu {
-            Button(action: onTalkItOut) {
-                Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+            if showsTalkItOut {
+                Button(action: onTalkItOut) {
+                    Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+                }
+                Divider()
             }
-            Divider()
             ForEach(WritingTemplate.allCases) { template in
                 Button { onUseTemplate(template) } label: {
                     Label(template.title, systemImage: template.icon)
@@ -906,6 +780,24 @@ struct WritingStarterChip: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Need a starting point? Talk it out, or use a template")
+        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+    }
+}
+
+/// The Write header's progress toward the daily word goal: a thin ring the size of a glyph.
+private struct WordGoalRing: View {
+    let progress: Double
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 2)
+            Circle()
+                .trim(from: 0, to: min(max(progress, 0), 1))
+                .stroke(MirrorTheme.primary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: 11, height: 11)
+        .animation(.easeOut(duration: 0.25), value: progress)
+        .accessibilityHidden(true)
     }
 }

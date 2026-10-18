@@ -41,9 +41,11 @@ struct SettingsView: View {
 
     var displayModeBinding: Binding<DisplayMode> {
         Binding(
-            get: { profiles.first?.displayMode ?? .classic },
+            get: { UserProfile.canonical(in: profiles)?.displayMode ?? .classic },
             set: { newValue in
-                profiles.first?.displayMode = newValue
+                // Every row, should a duplicate profile have synced in (see `UserProfile.canonical`),
+                // so whichever one a device reads shows the theme just chosen.
+                profiles.forEach { $0.displayMode = newValue }
                 try? modelContext.save()
             }
         )
@@ -52,6 +54,10 @@ struct SettingsView: View {
     @State var subscriptionService = SubscriptionService.shared
     @State var error: Error?
     @State var showSubscription = false
+    /// Support only: three taps on "MirrorNotes" in the profile card show this device's RevenueCat
+    /// ID, so the owner can find the customer and grant an entitlement. Hidden again next visit.
+    @State var showsRevenueCatID = false
+    @State var copiedRevenueCatID = false
 
     @State var cachedTotalWords: Int = 0
     @State var cachedStreak: Int = 0

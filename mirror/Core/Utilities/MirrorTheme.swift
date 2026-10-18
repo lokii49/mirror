@@ -431,3 +431,27 @@ struct ViewfinderCorners: View {
         .allowsHitTesting(false)
     }
 }
+
+/// Serif body text for reading (reflections, Ask answers, digests, reports) that follows the
+/// person's text size; it was a fixed point size, so Dynamic Type left it unchanged (backlog A19).
+/// `size` is the size at the default setting; it scales relative to Body.
+private struct ReadingFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+
+    init(size: CGFloat, weight: Font.Weight) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: .body)
+        self.weight = weight
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: .serif))
+    }
+}
+
+extension View {
+    func readingFont(size: CGFloat, weight: Font.Weight = .regular) -> some View {
+        modifier(ReadingFont(size: size, weight: weight))
+    }
+}
+

@@ -8,13 +8,17 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func launchApp() -> XCUIApplication {
+    /// `initialTab: "entries"` opens on Entries instead of Write, whose keyboard covers the tab bar.
+    private func launchApp(initialTab: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         // --clearWriteTestState wipes the draft + all Entry/Insight rows on launch.
         // The draft otherwise survives relaunch (persisted UserDefaults), so
         // without this every test's typed text piles onto the last, breaking
         // cursor-position and panel-layout assumptions in later tests.
-        app.launchArguments = ["--uitesting", "--clearWriteTestState"]
+        // Classic every launch: the Sentinel screenshot test switches the theme in Settings, and
+        // the profile keeps it, so every later test looked for "Write" among Sentinel's tabs.
+        app.launchArguments = ["--uitesting", "--clearWriteTestState", "--forceDisplayMode=classic"]
+            + (initialTab.map { ["--initialTab=\($0)"] } ?? [])
         app.launch()
         Thread.sleep(forTimeInterval: 2)
         return app
@@ -77,9 +81,9 @@ final class mirrorUITests: XCTestCase {
         add(a)
     }
 
-    /// Open the formatting panel from the toolRow Aa button ("Formatting" when
-    /// closed, "Hide formatting" when open). Panel is confirmed open when the
-    /// paragraph-style row is present.
+    /// Open the formatting panel from the keyboard bar's Aa button ("Formatting").
+    /// On iPhone the whole bar hides while the panel is open. Panel is confirmed
+    /// open when the paragraph-style row is present.
     @discardableResult
     private func openFormattingPanel(in app: XCUIApplication) -> XCUIElement {
         let aa = app.buttons["Formatting"]
@@ -90,21 +94,29 @@ final class mirrorUITests: XCTestCase {
         return aa
     }
 
-    /// Close the panel via the Aa toggle (now labelled "Hide formatting").
+    /// Close the panel via its own close button. The bar (and its Aa) is hidden
+    /// while the panel is open on iPhone, so there is no Aa toggle to tap.
     private func closeFormattingPanel(in app: XCUIApplication) {
-        let hide = app.buttons["Hide formatting"]
-        if hide.exists { hide.tap() } else { app.buttons["Formatting"].tap() }
+        let close = app.buttons["closeFormatPanel"]
+        XCTAssertTrue(close.waitForExistence(timeout: 3), "Panel close button must exist")
+        close.tap()
         Thread.sleep(forTimeInterval: 0.8)
     }
 
-    /// Apply the checklist paragraph style. The toolRow no longer carries a
-    /// checklist button (removed 2026-05) — the only entry point is the panel's
-    /// list-row `checklist` icon.
-    private func applyChecklistViaPanel(in app: XCUIApplication) {
-        openFormattingPanel(in: app)
-        let checklist = app.buttons["checklist"]
-        XCTAssertTrue(checklist.waitForExistence(timeout: 3), "Panel checklist button must exist")
+    /// Apply the checklist paragraph style from the keyboard bar (panel closed).
+    /// The Aa panel no longer has a checklist button (Notes layout, 2026-10).
+    private func applyChecklist(in app: XCUIApplication) {
+        let checklist = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(checklist.waitForExistence(timeout: 3), "Bar checklist button must exist")
         checklist.tap()
+        Thread.sleep(forTimeInterval: 0.5)
+    }
+
+    /// Swap the open panel's rows to the color swatches via the color dot.
+    private func showColorSwatches(in app: XCUIApplication) {
+        let dot = app.buttons["colorPicker"]
+        XCTAssertTrue(dot.waitForExistence(timeout: 3), "Panel color dot must exist")
+        dot.tap()
         Thread.sleep(forTimeInterval: 0.5)
     }
 
@@ -116,11 +128,11 @@ final class mirrorUITests: XCTestCase {
     /// reading Info.plist/project.pbxproj, not by anything this test can assert on its own.
     @MainActor
     func testSettings_protocolInputSection_siriCaptureRow_screenshot() throws {
-        let app = launchApp()
+        let app = launchApp(initialTab: "entries")
         app.tabBars.buttons["Insights"].tap()
         Thread.sleep(forTimeInterval: 1)
 
-        app.navigationBars.buttons["person.circle"].tap()
+        app.navigationBars.buttons["Settings"].tap()  // person.circle, labelled "Settings"
         Thread.sleep(forTimeInterval: 1)
 
         app.staticTexts["Journal"].tap()
@@ -138,11 +150,11 @@ final class mirrorUITests: XCTestCase {
     /// Classic-only screenshot never would have caught it either way — both need checking.
     @MainActor
     func testSettings_protocolInputSection_siriCaptureRow_sentinel_screenshot() throws {
-        let app = launchApp()
+        let app = launchApp(initialTab: "entries")
         app.tabBars.buttons["Insights"].tap()
         Thread.sleep(forTimeInterval: 1)
 
-        app.navigationBars.buttons["person.circle"].tap()
+        app.navigationBars.buttons["Settings"].tap()  // person.circle, labelled "Settings"
         Thread.sleep(forTimeInterval: 1)
 
         let sentinelCard = app.buttons["Sentinel"].exists ? app.buttons["Sentinel"] : app.staticTexts["Sentinel"]
@@ -311,13 +323,15 @@ final class mirrorUITests: XCTestCase {
             editorText.isEmpty || editorText == tv.placeholderValue,
             "Editor must be empty immediately after Delete entry. Got: \"\(editorText)\""
         )
-        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 3), "Undo button must appear")
+        // The keyboard bar has an Undo button too (keyboardBar.undo): take the banner's.
+        let bannerUndo = app.buttons.matching(NSPredicate(format: "label == 'Undo' AND identifier != 'keyboardBar.undo'")).firstMatch
+        XCTAssertTrue(bannerUndo.waitForExistence(timeout: 3), "Undo button must appear")
         XCTAssertTrue(app.staticTexts["Entry will be deleted"].exists, "Delete-pending banner must appear")
 
         snapshot(app, name: "toolbar_delete_undo_countdown")
 
         // Undo to restore the entry, avoiding side effects in subsequent tests.
-        app.buttons["Undo"].tap()
+        bannerUndo.tap()
         Thread.sleep(forTimeInterval: 0.5)
         let restoredText = tv.value as? String ?? ""
         XCTAssertTrue(restoredText.contains("Entry to delete"), "Undo must restore the entry text")
@@ -338,16 +352,16 @@ final class mirrorUITests: XCTestCase {
             textFormatting.waitForExistence(timeout: 5),
             "Text formatting (Aa) button must appear in toolRow when keyboard is visible"
         )
-        // "Hide Keyboard" (identifier keyboard.chevron.compact.down) only renders
-        // while the keyboard is up — a second anchor for toolRow presence.
-        XCTAssertTrue(app.buttons["Hide Keyboard"].exists, "Keyboard-dismiss button must be in the toolRow")
+        // The attach menu only renders in the bar while the keyboard is up — a
+        // second anchor for toolRow presence.
+        XCTAssertTrue(app.buttons["keyboardBar.attach"].exists, "Attach menu must be in the toolRow")
 
         snapshot(app, name: "toolrow_visible_with_keyboard")
     }
 
-    /// Tapping keyboard dismiss button hides the toolRow.
+    /// Dismissing the keyboard hides the toolRow.
     @MainActor
-    func testToolRow_keyboardDismissButton_hidesToolRow() throws {
+    func testToolRow_hidesWhenKeyboardDismissed() throws {
         let app = launchApp()
         tapWriteTab(in: app)
         _ = focusEditor(in: app)
@@ -355,23 +369,23 @@ final class mirrorUITests: XCTestCase {
         let aaBtn = app.buttons["Formatting"]
         XCTAssertTrue(aaBtn.waitForExistence(timeout: 5))
 
-        // Dismiss keyboard via the toolRow chevron ("Hide Keyboard")
-        let chevron = app.buttons["Hide Keyboard"]
-        if chevron.exists {
-            chevron.tap()
-        } else {
-            app.tap() // fallback: tap outside the editor
-        }
+        // No dismiss button in the bar anymore: drag the editor down into the keyboard, which
+        // .scrollDismissesKeyboard(.interactively) needs (a short swipe mid-editor never reaches it).
+        let start = app.textViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.97))
+        start.press(forDuration: 0.05, thenDragTo: end)
         Thread.sleep(forTimeInterval: 0.8)
 
         XCTAssertFalse(aaBtn.exists, "Aa button (toolRow) must disappear when keyboard is dismissed")
+        // No keyboard-down bar either (owner, 2026-10-16): the attach menu was its last button.
+        XCTAssertFalse(app.buttons["keyboardBar.attach"].exists, "No bar may show while the keyboard is down")
 
         snapshot(app, name: "toolrow_hidden_after_dismiss")
     }
 
     // MARK: - ToolRow: Aa Button (formatting panel toggle)
 
-    /// Aa tap opens the formatting panel; second tap closes it.
+    /// Aa tap opens the formatting panel; the panel's close button closes it.
     @MainActor
     func testToolRow_aaButton_togglesFormattingPanel() throws {
         let app = launchApp()
@@ -397,18 +411,19 @@ final class mirrorUITests: XCTestCase {
 
         snapshot(app, name: "aa_panel_open")
 
-        // Close panel via the Aa toggle — labelled "Hide formatting" while open
-        app.buttons["Hide formatting"].tap()
+        // Close panel via its close button — the bar (Aa included) is hidden while open
+        app.buttons["closeFormatPanel"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        XCTAssertFalse(app.buttons["Title"].exists, "Panel must close when Aa is tapped again")
+        XCTAssertFalse(app.buttons["Title"].exists, "Panel must close when its close button is tapped")
+        XCTAssertTrue(app.buttons["Formatting"].exists, "Bar Aa button must return after the panel closes")
 
         snapshot(app, name: "aa_panel_closed")
     }
 
     /// Closing the panel restores the real keyboard. On iPhone the panel is the
-    /// text view's `inputView`, so dismissing it (Aa → "Hide formatting") must
-    /// bring the keyboard straight back — "Hide Keyboard" only renders while the
+    /// text view's `inputView`, so dismissing it (its `closeFormatPanel` button)
+    /// must bring the keyboard straight back — the bar only renders while the
     /// keyboard is up, so its return is the proof. This is the closest automated
     /// check of the 2.1 iPhone keyboard-swap contract.
     @MainActor
@@ -427,11 +442,11 @@ final class mirrorUITests: XCTestCase {
         // Panel is up as the inputView — the system keyboard is swapped out.
         XCTAssertFalse(app.keyboards.element(boundBy: 0).exists, "System keyboard must be gone while the panel is shown")
 
-        app.buttons["Hide formatting"].tap()
+        app.buttons["closeFormatPanel"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
         XCTAssertFalse(app.buttons["Title"].exists, "Panel must close")
-        XCTAssertTrue(app.buttons["Formatting"].exists, "Aa button must return to its closed state")
+        XCTAssertTrue(app.buttons["Formatting"].exists, "Bar Aa button must be back after the panel closes")
         XCTAssertTrue(
             app.keyboards.element(boundBy: 0).waitForExistence(timeout: 3),
             "System keyboard must return after the panel closes (2.1 iPhone inputView-swap contract)"
@@ -442,9 +457,9 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - FormattingPanel: Checklist apply + active state
 
-    /// Applying checklist from the panel keeps the panel open and surfaces the
-    /// contextual bulk-ops row (the panel's `checklist` button is the only apply
-    /// path since the toolRow button was removed 2026-05).
+    /// Applying checklist from the keyboard bar surfaces the contextual
+    /// Checklist actions menu in the bar (the panel has no checklist controls
+    /// since the Notes-style redesign, 2026-10).
     @MainActor
     func testFormattingPanel_checklistButton_appliesAndShowsBulkOps() throws {
         let app = launchApp()
@@ -454,18 +469,16 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        applyChecklistViaPanel(in: app)
+        applyChecklist(in: app)
 
-        // Panel stays open; the Checklist actions menu appears because activeParagraphStyle changed to
-        // checklist, and it holds the four actions.
-        let actions = app.buttons["checklistActions"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 3),
-                      "Checklist actions menu must appear once checklist is applied from the panel")
-        actions.tap()
+        // A long press on the bar's Checklist button opens the four actions.
+        let actions = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist button must stay in the bar")
+        actions.press(forDuration: 0.8)
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3), "Menu must list Check All")
         XCTAssertTrue(app.buttons["Delete Done"].exists, "Menu must list Delete Done")
         app.buttons["Check All"].tap()
-        XCTAssertTrue(app.buttons["checklist"].exists, "Panel checklist button must remain after activation")
+        XCTAssertTrue(app.buttons["keyboardBar.checklist"].exists, "Bar checklist button must remain after activation")
 
         snapshot(app, name: "panel_checklist_active_state")
     }
@@ -674,7 +687,8 @@ final class mirrorUITests: XCTestCase {
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
 
-        for icon in ["list.bullet", "list.dash", "list.number", "checklist", "decrease.indent", "increase.indent"] {
+        // Checklist moved to the keyboard bar (`keyboardBar.checklist`); quote joined this row.
+        for icon in ["list.bullet", "list.dash", "list.number", "decrease.indent", "increase.indent", "blockQuote"] {
             XCTAssertTrue(
                 app.buttons[icon].waitForExistence(timeout: 3),
                 "\(icon) list button must be present"
@@ -720,10 +734,9 @@ final class mirrorUITests: XCTestCase {
         tv.typeText("Regular body text")
         Thread.sleep(forTimeInterval: 0.3)
 
-        app.buttons["Formatting"].tap()
-        Thread.sleep(forTimeInterval: 0.8)
-
-        XCTAssertFalse(app.buttons["checklistActions"].exists, "Checklist actions must not appear on body text")
+        // Checklist actions live in the keyboard bar now (panel closed).
+        XCTAssertTrue(app.buttons["keyboardBar.checklist"].waitForExistence(timeout: 5), "Bar must be up")
+        XCTAssertEqual(app.buttons.matching(identifier: "keyboardBar.checklist").count, 1, "One checklist button, no second actions icon")
         XCTAssertFalse(app.buttons["Check All"].exists,   "Check All must not appear on body text")
         XCTAssertFalse(app.buttons["Uncheck All"].exists, "Uncheck All must not appear on body text")
         XCTAssertFalse(app.buttons["Delete Done"].exists, "Delete Done must not appear on body text")
@@ -732,16 +745,17 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "panel_no_bulk_ops_on_body")
     }
 
-    /// Checklist actions live in the panel's Checklist menu (2026-10-09): open it, return the action.
+    /// Checklist actions are a long press on the keyboard bar's Checklist button (panel closed):
+    /// open the menu, return the action.
     @MainActor
     private func checklistAction(_ name: String, in app: XCUIApplication) -> XCUIElement {
-        let actions = app.buttons["checklistActions"]
-        if actions.waitForExistence(timeout: 3) { actions.tap() }
+        let checklist = app.buttons["keyboardBar.checklist"]
+        if checklist.waitForExistence(timeout: 3) { checklist.press(forDuration: 0.8) }
         return app.buttons[name]
     }
 
-    /// Bulk ops row is still present after the panel is closed and reopened with
-    /// the cursor left on a checklist line.
+    /// The bar's bulk-ops menu is still present after the panel is opened and
+    /// closed with the cursor left on a checklist line.
     @MainActor
     func testFormattingPanel_bulkOps_appearOnChecklistLine() throws {
         let app = launchApp()
@@ -751,13 +765,13 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        applyChecklistViaPanel(in: app)   // panel open, checklist applied
-        closeFormattingPanel(in: app)     // keyboard back, cursor stays on the checklist line
-        openFormattingPanel(in: app)      // reopen — activeParagraphStyle must still be checklist
+        applyChecklist(in: app)           // checklist applied from the bar
+        openFormattingPanel(in: app)      // bar hides while the panel is open
+        closeFormattingPanel(in: app)     // bar back — activeParagraphStyle must still be checklist
 
-        let actions = app.buttons["checklistActions"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist actions menu must appear")
-        actions.tap()
+        let actions = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3), "Checklist button must be in the bar")
+        actions.press(forDuration: 0.8)
         XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),   "Check All must appear")
         XCTAssertTrue(app.buttons["Uncheck All"].waitForExistence(timeout: 3), "Uncheck All must appear")
         XCTAssertTrue(app.buttons["Delete Done"].waitForExistence(timeout: 3), "Delete Done must appear")
@@ -776,14 +790,11 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        applyChecklistViaPanel(in: app)
-        closeFormattingPanel(in: app)
+        applyChecklist(in: app)
 
         // Add more checklist items (Enter continues checklist style)
         tv.typeText("\nPick up kids\nPay bills")
         Thread.sleep(forTimeInterval: 0.5)
-
-        openFormattingPanel(in: app)
 
         let checkAll = checklistAction("Check All", in: app)
         XCTAssertTrue(checkAll.waitForExistence(timeout: 3))
@@ -814,14 +825,11 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        applyChecklistViaPanel(in: app)
-        closeFormattingPanel(in: app)
+        applyChecklist(in: app)
 
         // Add second checklist item
         tv.typeText("\nItem two")
         Thread.sleep(forTimeInterval: 0.3)
-
-        openFormattingPanel(in: app)
 
         let checkAll = checklistAction("Check All", in: app)
         XCTAssertTrue(checkAll.waitForExistence(timeout: 3))
@@ -849,6 +857,7 @@ final class mirrorUITests: XCTestCase {
 
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
+        showColorSwatches(in: app)
 
         // Clear highlight button uses "xmark" SF symbol
         // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
@@ -870,6 +879,7 @@ final class mirrorUITests: XCTestCase {
 
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
+        showColorSwatches(in: app)
 
         // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
         // "No highlight", so a label-based lookup no longer matches).
@@ -878,8 +888,11 @@ final class mirrorUITests: XCTestCase {
         clearBtn.tap()
         Thread.sleep(forTimeInterval: 0.4)
 
-        // Panel must still be open after clearing highlight
-        XCTAssertTrue(app.buttons["Title"].exists, "Panel must remain open after clearing highlight")
+        // Panel must still be open after clearing highlight (back from the swatches)
+        XCTAssertTrue(app.buttons["colorsBack"].exists, "Color swatches must stay up after clearing highlight")
+        app.buttons["colorsBack"].tap()
+        Thread.sleep(forTimeInterval: 0.4)
+        XCTAssertTrue(app.buttons["Title"].waitForExistence(timeout: 3), "Panel must remain open after clearing highlight")
 
         snapshot(app, name: "panel_after_clear_highlight")
     }
@@ -895,6 +908,7 @@ final class mirrorUITests: XCTestCase {
 
         app.buttons["Formatting"].tap()
         Thread.sleep(forTimeInterval: 0.8)
+        showColorSwatches(in: app)
 
         // Identifier stays "xmark" (audit 3.1 gave it a real VoiceOver label,
         // "No highlight", so a label-based lookup no longer matches).
@@ -916,7 +930,9 @@ final class mirrorUITests: XCTestCase {
         // Verify tapping clear doesn't crash
         clearBtn.tap()
         Thread.sleep(forTimeInterval: 0.3)
-        XCTAssertTrue(app.buttons["Title"].exists, "Panel still open after highlight interaction")
+        app.buttons["colorsBack"].tap()
+        Thread.sleep(forTimeInterval: 0.4)
+        XCTAssertTrue(app.buttons["Title"].waitForExistence(timeout: 3), "Panel still open after highlight interaction")
     }
 
     // MARK: - FormattingPanel: Combined Scenarios
@@ -980,12 +996,12 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - Regression Tests
 
-    /// Regression for Bugs 1 & 2: reopening the Aa panel with the cursor on a
-    /// checklist line must surface the bulk-ops row on the FIRST render — no
+    /// Regression for Bugs 1 & 2: with the cursor on a checklist line, the bulk
+    /// ops must be there on the FIRST render after the panel round-trip — no
     /// second close/reopen. Fix: updateFormattingPanel(visible:true) calls
     /// refreshActiveInlineStyles before showing the panel, so activeParagraphStyle
-    /// is current at open time. (Checklist is now applied from the panel itself;
-    /// the close→reopen is what exercises the fresh-open path.)
+    /// is current. (Checklist and its actions now live in the keyboard bar; the
+    /// open→close is what exercises the fresh-render path.)
     @MainActor
     func testRegression_openAaOnChecklistLine_bulkOpsAndChecklistHighlightAppearImmediately() throws {
         let app = launchApp()
@@ -995,22 +1011,26 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        applyChecklistViaPanel(in: app)
+        applyChecklist(in: app)
+
+        // Panel round-trip with checklist already active on the current line.
+        openFormattingPanel(in: app)
         closeFormattingPanel(in: app)
 
-        // Fresh open with checklist already active on the current line.
-        openFormattingPanel(in: app)
-
         // Bulk ops must be present on the first render — tight timeout, no re-open.
-        XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 1),
-                      "Check All must appear immediately on panel open (regression Fix 1)")
+        let actions = app.buttons["keyboardBar.checklist"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 1),
+                      "Checklist button must be back immediately after the panel closes (regression Fix 1)")
+        actions.press(forDuration: 0.8)
+        XCTAssertTrue(app.buttons["Check All"].waitForExistence(timeout: 3),
+                      "Check All must appear (regression Fix 1)")
         XCTAssertTrue(app.buttons["Uncheck All"].exists, "Uncheck All must appear (regression Fix 1)")
         XCTAssertTrue(app.buttons["Delete Done"].exists, "Delete Done must appear (regression Fix 1)")
         XCTAssertTrue(app.buttons["Sort Done"].exists,   "Sort Done must appear (regression Fix 1)")
 
-        // Panel checklist button present (active-highlight is visual-only — see screenshot).
-        XCTAssertTrue(app.buttons["checklist"].exists,
-                      "Checklist list-row button must exist when checklist style is active (regression Fix 2)")
+        // Bar checklist button present (active-highlight is visual-only — see screenshot).
+        XCTAssertTrue(app.buttons["keyboardBar.checklist"].exists,
+                      "Bar checklist button must exist when checklist style is active (regression Fix 2)")
 
         snapshot(app, name: "regression_fix1_bulk_ops_immediate")
     }
@@ -1027,9 +1047,10 @@ final class mirrorUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         dismissSystemDialogs(app)
 
-        // Apply checklist from the panel — "○  Buy milk" is now displayed. The
-        // panel stays open, so Heading can be tapped straight after.
-        applyChecklistViaPanel(in: app)
+        // Apply checklist from the bar — "○  Buy milk" is now displayed — then
+        // open the panel for Heading.
+        applyChecklist(in: app)
+        openFormattingPanel(in: app)
 
         // Tap Heading — Fix 2+3 strips the "○  " marker before applying heading attributes
         XCTAssertTrue(app.buttons["Heading"].waitForExistence(timeout: 3))
@@ -1053,96 +1074,116 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "regression_fix3_heading_no_marker")
     }
 
-    // MARK: - Voice: inline recording (2.2)
+    // MARK: - Checklist: automatic sorting
 
-    /// The toolRow mic button starts recording INLINE — no modal sheet. The
-    /// keyboard and the editor's toolRow stay put; an `InlineRecordingRow`
-    /// (or, if mic access is denied, an inline `MicPermissionNotice`) appears
-    /// where the finished note will land.
+    /// Taps the circle of the checklist row whose text is `item`.
     @MainActor
-    func testVoice_micButton_recordsInlineWithoutModal() throws {
+    private func tapCircle(of item: String, in app: XCUIApplication) {
+        let tv = app.textViews.firstMatch
+        let text = tv.value as? String ?? ""
+        let lines = text.components(separatedBy: "\n")
+        guard let row = lines.firstIndex(where: { $0.contains(item) }) else { return XCTFail("No row \(item)") }
+        // Rows sit about 34pt apart below the 8pt inset; the circle is at the row's left edge.
+        let point = tv.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 12, dy: 8 + 17 + CGFloat(row) * 34))
+        point.tap()
+        Thread.sleep(forTimeInterval: 0.8)
+    }
+
+    /// The first checkbox tap asks, as Notes does. Not Now leaves the list in place; turning it
+    /// on (Enable Sorting) moves a checked item below the unchecked ones.
+    @MainActor
+    func testChecklist_firstCheckAsksAboutSorting() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+        let tv = focusEditor(in: app)
+        applyChecklist(in: app)
+        tv.typeText("Milk\nEggs\nBread")
+        Thread.sleep(forTimeInterval: 0.5)
+
+        tapCircle(of: "Milk", in: app)
+        let prompt = app.alerts["Enable Automatic Sorting?"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 3), "The first check must ask about automatic sorting")
+        prompt.buttons["Enable Sorting"].tap()
+        Thread.sleep(forTimeInterval: 1.2)
+        // The text view's accessibility value can stop at the first line, so check the first row:
+        // Milk (checked) must have left it.
+        let lines = (tv.value as? String ?? "").components(separatedBy: "\n")
+        XCTAssertTrue(lines.first?.contains("Eggs") == true, "Enable Sorting must move the checked item below the others. Got: \(lines)")
+        snapshot(app, name: "checklist_sorted")
+
+        // Asked once: the next check sorts without asking.
+        tapCircle(of: "Eggs", in: app)
+        XCTAssertFalse(app.alerts["Enable Automatic Sorting?"].waitForExistence(timeout: 1.5), "Sorting is asked only once")
+    }
+
+    @MainActor
+    func testChecklist_notNowKeepsTheOrder() throws {
+        let app = launchApp()
+        tapWriteTab(in: app)
+        let tv = focusEditor(in: app)
+        applyChecklist(in: app)
+        tv.typeText("Milk\nEggs")
+        Thread.sleep(forTimeInterval: 0.5)
+        tapCircle(of: "Milk", in: app)
+        let prompt = app.alerts["Enable Automatic Sorting?"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 3))
+        prompt.buttons["Not Now"].tap()
+        Thread.sleep(forTimeInterval: 1)
+        let lines = (tv.value as? String ?? "").components(separatedBy: "\n")
+        XCTAssertTrue(lines.first?.contains("Milk") == true, "Not Now must leave the list in place. Got: \(lines)")
+    }
+
+    // MARK: - Voice: recorder sheet
+
+    /// The attach menu's Record Audio opens the recorder sheet (as Notes does). Recording starts
+    /// from the red button; Delete Recording closes the sheet and leaves the entry's text alone.
+    /// The microphone prompt may appear on a fresh install, so a denied state is accepted too.
+    @MainActor
+    func testVoice_recordAudio_opensRecorderSheet() throws {
         let app = launchApp()
         tapWriteTab(in: app)
         let tv = focusEditor(in: app)
         tv.typeText("Narrating while I record")
         Thread.sleep(forTimeInterval: 0.3)
 
-        let mic = app.buttons["Record voice note"]
-        XCTAssertTrue(mic.waitForExistence(timeout: 5), "Mic button must exist in the toolRow")
-        mic.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-        dismissSystemDialogs(app) // grant the mic-permission prompt if it appears
-        Thread.sleep(forTimeInterval: 0.8)
+        let attach = app.buttons["keyboardBar.attach"]
+        XCTAssertTrue(attach.waitForExistence(timeout: 5), "Attach menu must exist in the toolRow")
+        attach.tap()
+        let record = app.buttons["Record Audio"]
+        XCTAssertTrue(record.waitForExistence(timeout: 3), "Attach menu must list Record Audio")
+        record.tap()
 
-        let recordingRow = app.otherElements["Recording"]
-        let stopButton   = app.buttons["Stop and add recording"]
-        let permissionNotice = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Microphone access is off")
-        ).firstMatch
-
-        let recording = recordingRow.waitForExistence(timeout: 3) || stopButton.exists
-        let denied = permissionNotice.exists
-        XCTAssertTrue(recording || denied,
-                      "Tapping the mic must show the inline recording row or the inline permission notice")
-
-        // No modal: the editor's toolRow is still on screen either way.
-        XCTAssertTrue(app.buttons["Formatting"].exists || app.buttons["Hide formatting"].exists,
-                      "The toolRow (Aa button) must stay visible — recording is not modal")
-
-        snapshot(app, name: recording ? "voice_inline_recording" : "voice_permission_denied_inline")
-
-        if recording {
-            let cancel = app.buttons["Cancel recording"]
-            XCTAssertTrue(cancel.waitForExistence(timeout: 3), "Inline recording row must have a Cancel control")
-            cancel.tap()
-            Thread.sleep(forTimeInterval: 0.6)
-            XCTAssertFalse(app.buttons["Stop and add recording"].exists, "Cancel must dismiss the recording row")
-            let editorText = tv.value as? String ?? ""
-            XCTAssertTrue(editorText.contains("Narrating while I record"),
-                          "Editor text must survive an inline recording that was cancelled")
+        XCTAssertTrue(app.staticTexts["New Recording"].waitForExistence(timeout: 3), "Record Audio must open the recorder sheet")
+        let recordButton = app.buttons["recorderRecord"]
+        XCTAssertTrue(recordButton.exists, "The recorder must have the record button")
+        recordButton.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.buttons["Allow"].waitForExistence(timeout: 2) {
+            springboard.buttons["Allow"].tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            if recordButton.label == "Record" { recordButton.tap() }
         }
-    }
+        Thread.sleep(forTimeInterval: 1.5)
+        let recording = recordButton.label == "Pause recording"
+        let denied = app.staticTexts["Microphone access is off"].exists
+        XCTAssertTrue(recording || denied, "The red button must start recording, or say microphone access is off")
 
-    /// Long-press must show the voice-memo vs. live-dictation hint WITHOUT
-    /// also starting a recording (audit 2.3). The two gestures live on the
-    /// same view (a plain view + .onTapGesture/.onLongPressGesture, not a
-    /// Button — see the comment at the call site) specifically because a
-    /// SwiftUI Button's own tap still fires alongside a .simultaneousGesture
-    /// long-press; this test is what actually proves the fix, not just the
-    /// comment claiming it.
-    func testVoice_micButtonLongPress_showsHintWithoutRecording() throws {
-        let app = launchApp()
-        tapWriteTab(in: app)
-        _ = focusEditor(in: app)
+        // Pause first: while recording, the timer and waveform redraw 20 times a second, so the
+        // app never goes idle and XCUITest can't tap the menu.
+        if recording {
+            recordButton.tap()
+            XCTAssertTrue(app.buttons["recorderPlay"].waitForExistence(timeout: 3))
+            Thread.sleep(forTimeInterval: 1)
+            XCTAssertEqual(recordButton.label, "Record", "The red button must pause the recording")
+        }
 
-        let mic = app.buttons["Record voice note"]
-        XCTAssertTrue(mic.waitForExistence(timeout: 5), "Mic button must exist in the toolRow")
-        mic.press(forDuration: 0.6)
-        Thread.sleep(forTimeInterval: 0.5)
-
-        XCTAssertTrue(app.staticTexts["Voice Note"].waitForExistence(timeout: 3),
-                      "Long-press must show the voice-note-vs-dictation hint")
-        XCTAssertFalse(app.otherElements["Recording"].exists,
-                       "Long-press must not also start an inline recording")
-        XCTAssertFalse(app.buttons["Stop and add recording"].exists,
-                       "Long-press must not also start an inline recording")
-
-        // Dismiss the popover, then confirm a normal tap still records —
-        // the gesture split didn't break the primary action.
-        app.tap()
-        Thread.sleep(forTimeInterval: 0.3)
-        mic.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-        dismissSystemDialogs(app)
-        Thread.sleep(forTimeInterval: 0.8)
-        let recordingRow = app.otherElements["Recording"]
-        let stopButton = app.buttons["Stop and add recording"]
-        let permissionNotice = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Microphone access is off")
-        ).firstMatch
-        let recording = recordingRow.waitForExistence(timeout: 3) || stopButton.exists
-        XCTAssertTrue(recording || permissionNotice.exists,
-                      "A plain tap after the long-press hint must still start recording")
+        app.buttons["recorderMore"].tap()
+        let delete = app.buttons["Delete Recording"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3), "The more menu must offer Delete Recording")
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["New Recording"].waitForNonExistence(timeout: 3), "Delete Recording must close the sheet")
+        let editorText = tv.value as? String ?? ""
+        XCTAssertTrue(editorText.contains("Narrating while I record"), "Editor text must survive a deleted recording")
     }
 
     // MARK: - Performance

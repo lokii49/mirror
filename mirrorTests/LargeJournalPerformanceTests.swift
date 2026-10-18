@@ -8,6 +8,7 @@ import Testing
 /// (staging the package) and archive open (planning an import of that package). Synthetic text
 /// only. Timings are attached to the result; the assertions are generous ceilings, not targets.
 @MainActor
+@Suite(.disabled(if: ProcessInfo.processInfo.environment["MIRROR_CI_SIMULATOR"] == "1", "Timing ceilings are for local machines; Xcode Cloud's are slower (mirror CI scheme)"))
 struct LargeJournalPerformanceTests {
     private final class Containers { var all: [ModelContainer] = [] }
     private let containers = Containers()

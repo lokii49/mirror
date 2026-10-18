@@ -94,16 +94,20 @@ extension WriteView {
                             Text("tag")
                                 .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
                         }
-                        .foregroundStyle(.tertiary)
+                        // Same pill as the date and Mood buttons above it: it used to be a grey
+                        // fill with tertiary text, which read as disabled.
+                        .foregroundStyle(MirrorTheme.textSecondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
                             in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
                         )
                         .overlay {
                             if displayMode == .sentinel {
                                 RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
+                            } else {
+                                Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
                             }
                         }
                     }
@@ -120,6 +124,7 @@ extension WriteView {
                             Image(systemName: "xmark")
                                 .font(.system(size: 9, weight: .bold))
                         }
+                        .accessibilityLabel("Remove tag")
                         .buttonStyle(.plain)
                     }
                     .foregroundStyle(.secondary)

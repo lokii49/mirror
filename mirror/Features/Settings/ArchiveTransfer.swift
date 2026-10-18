@@ -19,7 +19,7 @@ enum ArchiveTransfer {
         var unreadable: Int
     }
 
-    enum TransferError: Error { case zipFailed }
+    enum TransferError: Error { case zipFailed, keyUnavailable }
 
     struct StagedArchive {
         var root: URL
@@ -170,6 +170,8 @@ enum ArchiveTransfer {
     /// copies with new IDs. Existing entries are never modified. One save: either
     /// everything is added or nothing is.
     static func applyImport(_ plan: ImportPlan, importChangedAsCopies: Bool, context: ModelContext) throws -> ImportBatch {
+        // Imported text, photos and recordings are sealed on insert; never store them unsealed.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { throw TransferError.keyUnavailable }
         var batch = ImportBatch(digests: [:])
         // Membership needs the collection: create the ones this journal lacks (same
         // id, so a re-import lines up). Unknown ids without a record become Unfiled.
@@ -208,7 +210,11 @@ enum ArchiveTransfer {
             batch.digests[id] = stored.digest
         }
         do {
-            try context.save()
+            // Imported ids may have been erased (an undone import, a Delete Everything): rows again now.
+        let insertedIDs = Set(batch.digests.keys)
+        JournalErasure.unerase(entryIDs: insertedIDs, in: context)
+        LocalJournalBackup.forgetUserDeleted(Array(insertedIDs))
+        try context.save()
         } catch {
             context.rollback()
             throw error
@@ -227,6 +233,10 @@ enum ArchiveTransfer {
             removedIDs.insert(entry.id)
             context.delete(entry)
             removed += 1
+        }
+        // Synced, so no device's backup offers the undone import back (backlog A13).
+        if !removedIDs.isEmpty {
+            context.insert(JournalErasure(erasedEntryIDs: Array(removedIDs)))
         }
         // Collections the import created go too, unless an entry that stays uses them.
         for id in batch.createdCollections {

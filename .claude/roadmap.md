@@ -1,86 +1,150 @@
 # MirrorNotes roadmap
 
-Date: 2026-10-07, refreshed 2026-10-08. Covers the whole product (iOS, Mac, growth). The active work list is `3.1.0-roadmap.md`; this file keeps the product-wide order. Detail on the 3.0.9 scope stays in `3.0.9-product-plan.md`.
+**The single roadmap.** Day-to-day work for the current branch lives in that branch's backlog (now `3.1.2-backlog.md`). Bigger plans sit beside it: `3.1.3-iphone-duo.md` and `november-paid-activation.md`. This file keeps what is open across releases, the gates and the settled decisions. Consolidated 2026-10-11 from `3.1.0-roadmap.md`, `3.0.9-product-plan.md`, `platform-roadmap.md`, `macos-design-plan.md` and `mac-parity-audit.md`, which were then deleted. Read them in git history (before the deleting commit) if a detail is missing here.
 
-**Legend.** **[checked]** means it was verified this pass (App Store Connect, the repo or git). **[unverified]** means it comes from earlier notes and needs confirming.
+**Legend.** **[owner]** needs the owner's hands (signed build, device, App Store Connect, a decision). **[rig]** needs an llmrig round first (N ≥ 10, rubric written before running). **[unverified]** comes from earlier notes.
 
-## Where it stands
+---
 
-- **iOS 3.0.9 (build 16): READY_FOR_SALE** since 2026-10-08, automatic release (release memory). It replaced 3.0.8 (14).
-- **Mac 1.0.1 (build 15): was IN_REVIEW on 2026-10-08** [unverified now]. Mac 1.0 is on sale. **Mac 1.0.2 (build 16)** is uploaded and VALID, not submitted: ASC refuses a 1.0.2 version while 1.0.1 is in review.
-- Branch `3.0.9` is merged to `main` (PR #48, then #49 and #50 for the 1.0.2 release notes, the roadmap cleanup and the Release launch scheme). Active dev branch: `3.1.0`, cut from `1bbbd12`.
-- Downloads and ratings: unknown. The July audit found ~0 traffic and ~0 downloads [unverified now]. Pull current numbers from App Analytics before planning growth spend.
-- The 24/7 marketing routine is disabled (2026-09-20). It never sent mail and never opened PRs.
+## Where it stands (2026-10-11)
 
-## Now (this week): verify what shipped
+| | Status |
+|---|---|
+| iOS 3.1.1 (18) / Mac 1.1.1 (18) | Submitted 2026-10-10, automatic release [unverified: check ASC]. Merged to `main` (PR #52). |
+| 3.1.2 | In progress on branch `3.1.2`. The audit's A list, translations (B), dormant paid-tier fixes (C), hygiene (F) and part of E are done; see `3.1.2-backlog.md`. |
+| Paid tiers | `allFeaturesFree = true`: everyone is Deep. Paid gating returns in a November build (`november-paid-activation.md`). |
+| Downloads | Unknown. The July audit found ~0 [unverified now]. Pull App Analytics before growth spend. |
 
-The owner submitted 3.0.8 / Mac 1.0.1 without device checks. It is live now, so these are checks on production, not new work.
+## Before 3.1.2 ships
+- **iPhone Duo support (owner, 2026-10-11):** the Duo ships Oct 23, and the live 3.1.1 (iOS 27.1 SDK) already renders natively on it. Moved from 3.1.2 to **3.1.3** (owner, 2026-10-11; branch `3.1.3`). Plan: `3.1.3-iphone-duo.md`. The remaining E items move to 3.2.0.
+- [owner] Native-speaker review of model-translated strings: everything marked `needs_review`. That covers release notes 3.0.7–3.1.1, the Write view, reflection styles, the search model, What's New, the privacy policy, plus all of 3.1.2's B work and the A16/A18 labels.
+- [owner] Siri phrases and the nudge notification in a non-English system language.
+- [owner] Device checks (`3.1.2-backlog.md` D3, D5, D6). These are listed under "Verify in production" below.
+- Version bump (iOS 3.1.2 / Mac 1.1.2) and 10-locale release notes. No CloudKit schema change in 3.1.2 so far.
 
-1. **CloudKit Production schema for `CD_JournalErasure`: CONFIRMED** (owner, 2026-10-07). Production contains the record type. The schema deployment check is complete; cross-device "Delete Everything" behavior has not been verified by this confirmation.
-2. **Device checks on an App Store install:** Use the network-connected **iPhone 14 Pro** for iPhone testing (owner preference, 2026-10-07); see `tools/testing/README.md` for device identification and isolated development checks.
-   - Restore offer and local backup (`LocalJournalBackup`, `JournalRestoreCopy`).
-   - The widget and lock screen must NOT show the second quote ("You also wrote…" is display-time only).
-   - Hospital-day fallback on an Apple Intelligence device (`refusedDayNudge`).
-   - Whether `JournalSafety`'s `eventChangedNotification` fires under SwiftData. If it never fires, the "Not backed up" banner never shows.
-   - Mac: the Format (Aa) popover and Notes-style toolbar on real hardware, once 1.0.1 is approved.
-3. **Watch Mac 1.0.1 review.** If it is rejected, use `deliver --reject_if_possible` and `--run_precheck_before_submit false` (see the release memory).
-4. **Native review of the 10-locale release notes and new strings.** They were model-translated. Low risk, cheap.
+## November: paid activation
+Plan and open questions: `november-paid-activation.md` (grace period, in-app notice about 2 weeks ahead, then gating with the 7-day trial). The release gate is under "Acceptance gates".
 
-## 3.0.9 / Mac 1.0.2 (iOS shipped 2026-10-08; Mac 1.0.2 waiting on 1.0.1 review)
+---
 
-The items below were built on `3.0.9-next` and shipped in iOS 3.0.9. What is still open from this scope moved to `3.1.0-roadmap.md`. The CloudKit schema for collections and saved views was seeded in Development and deployed to Production on 2026-10-07; the restore checks were skipped by the owner.
+## Open work
 
-**Expanded product plan (owner direction, 2026-10-07):** make 3.0.9 a substantial journaling release and prepare for IAP in November as the user base approaches 1,000. Detailed scope, implementation order and acceptance gates are in [`3.0.9-product-plan.md`](3.0.9-product-plan.md). Implementation started: shared archive search, query filters, highlighted excerpts, cache correctness and visual advanced filters are built. Advanced filters include multiple moods, Any/All tags, inclusive/open-ended date ranges, relative dates, media/pins, cancellable editing and Clear All. Targeted checks passed on the network-connected iPhone 14 Pro (29 search/cache/filter/draft tests, one performance test, four Classic/Sentinel search/filter UI flows across the final run and a corrected Sentinel assertion rerun); simulator checks and Mac build/runtime previews also passed. Encrypted synced saved views, writing reliability, collections and complete export/import remain; links and related moments are stretch work, model-written reflection styles require rig evidence. The expanded core scope is provisionally 4–6 engineering weeks; the previous 2–4 week estimate applies to the earlier narrower scope.
+### Collections and organization
+- Multi-select bulk move (the store has `JournalOrganizationStore.move(_:to:in:)`; the UI needs a design call: Select mode, toolbar action, both themes, iPhone and Mac) [owner: design].
+- Icon and colour pickers (the model has `icon`/`colorIndex`; no UI).
+- Ask collection filter.
+- Mac sidebar section for collections and saved views.
 
-### Engineering
-- **Gemma memory on Mac: DONE 2026-10-07** [checked]. `--perfSeed=50 --gemmaMemoryProbe` (DEBUG): 56 MiB before load, peak 278–317 MiB while generating, 142 MiB after. Flat across calls, no leak. `generate` already releases the model after every call, so there's nothing to unload on idle.
-- **Gemma output quality on Mac: DONE** [checked]. The llmrig rig already runs on this Mac (Metal), so its numbers are Mac numbers. The app's own path on Mac passed 5/5 synthetic grounded nudges (`validateGroundedNudge`), ~1 s each warm. One soft feeling-line miss ("weary" after a good interview), the known class.
-- **Mac gaps** (`platform-roadmap.md` Status), branch `3.0.9-next`:
-  - **Global quick-capture shortcut: BUILT** (`4c582c4`). ⌥⌘J opens quick capture in a non-activating floating panel (the MenuBarExtra popover can't be opened from code). Changeable in Settings > General > Input. Checked on this Mac: opens from Finder, typing works, ⌘↩ saves, Esc closes, Finder stays frontmost. ⌥⌘J is also Chrome's JavaScript Console shortcut; while MirrorNotes holds it, Chrome won't get it.
-  - **Check-in reminder on Mac: BUILT** (`5604d76`). The notification shows even while the app is frontmost, and clicking it reopens a closed main window, then shows Log Mood. Not yet seen with a real notification click on a signed build.
-  - **App Lock (iOS + Mac): BUILT**, see below.
-  - Sentinel on Mac: deferred (owner, 2026-10-07).
-  - Widget rendering on hardware: needs a signed build; owner check.
-- **App Lock** (Settings > Your Data / Archive / iCloud & Privacy > Privacy). Off by default. Face ID / Touch ID with passcode or password fallback. Locks on launch and after 5 minutes away, and hides content in the app switcher. iOS covers each scene with a window above alert level (sheets included). Mac covers every app window and disables the menus. Quick capture stays usable because it only writes. Widgets and notifications still show reflection lines (the Settings caption says so). Checked at runtime: Mac cover/uncover, focus parked and restored, menu commands blocked while locked (`8223688`), away rule; iOS lock → unlock → relock → privacy cover on the simulator, Sentinel dark cover, the automatic passcode prompt; Settings rows rendered (Mac light/dark, iOS Classic/Sentinel). iPhone 14 Pro, 2026-10-07 (separate "MN Dev" test app, synthetic journal; real app untouched): turning on with Face ID, no prompt on a quick return, cold launch locked with an automatic Face ID prompt and passcode fallback, Cancel leaves the Unlock button with no loop, relocked after >5 min away, draft kept behind the lock, Sentinel lock screen, turning off asks Face ID. Found and fixed: system-blue button (`2d57684`). App-switcher cover not captured in a screenshot. Needs a signed build (owner): Touch ID on a Mac, screen-lock detection and the Carbon hotkey under the App Sandbox, a real check-in notification click, the app-switcher snapshot, widgets on hardware.
-- **Mac backup cadence.** The snapshot on resign-active shipped (`7f59c08`). Confirm on hardware that it actually refreshes.
-- **Deferred, owner's call:** FM daily reflection with today-only context, no background brief. Revisit only if reflections start leaking earlier days or quality complaints come in. It needs an llmrig round first: the rig has never tested the background brief.
+### Mac
+- Today board: mood chart, streak and Log Mood from iOS [owner: OK to add visible UI].
+- Write: daily word goal [owner: OK].
+- Time-triggered check-in popup (the reminder notification is built; a popup without a click isn't).
+- Hover and keyboard on Mood timeline, Monthly report and Digest. Ask: Esc, focus order, Tab order. Brain View: trackpad pinch and pan.
+- Two "New Entry" windows open at once share one draft slot (per-window identity and restoration needed).
+- Mac App Store screenshots, translations of new Mac strings [owner].
+- Deferred [owner]: Sentinel on Mac.
 
-### App Store metadata: already done
-- Title "MirrorNotes: AI Journal, Diary" and the "adhd" keyword are live in all 10 locales [checked, ASC 2026-10-07]. The June note saying they were pending was stale.
+### Reflections and AI (every item here is [rig])
+- FM quoting the prompt's `Mood: X. Source: written entry.` line (19% fallback on round 12's held-out cases vs 3.6% in CLAUDE.md).
+- Hospital-day wording: two variants got through 10/10 where the shipped prompt was refused 10/10.
+- `SecondQuoteTests` fails on iOS 27.1 (NLTagger treats sentence-initial "Exam" as a name → `FMDailyGuard.restoreNames`).
+- Model-written reflection styles: Plain and Question FAILED round 12; nothing new without a passing round.
+- Deferred [owner]: FM daily reflection with today-only context (the rig never tested the background brief).
 
-### Owner decisions (2026-10-07)
-- App lock on iOS and Mac: toggle (off by default), Face ID / Touch ID with password fallback, locks on launch and after 5 minutes away, hidden in the app switcher.
-- Sentinel on Mac: deferred again.
-- Global quick-capture hotkey: ⌥⌘J, changeable in Settings.
-- Mac mood check-in: a notification at check-in time; clicking it opens Log Mood. Never pops up by itself.
-- Work happens on branch `3.0.9-next` (from `9297864`), so a Mac 1.0.1 rejection fix can still ship from `e42e5ea`.
+### Writing and editor
+- `NoteEditorRenderCostTests` stops at 10k characters; reader and Mac thumbnails for unreadable photos unchecked.
+- Bump `PhotoMarkerRepair.flag` to `.v2` in the first release after most devices are off 3.0.9 [owner].
+- Won't do now: incremental editor read-back (11.2 ms per keystroke at 50k is inside a frame; revisit only if real entries get much longer).
 
-## Growth: the real bottleneck
+### Search and Ask
+- Japanese keyword search: questions have no spaces; try `NLTokenizer`.
+- Measure it/pt/ru/ko/zh in the retrieval rig.
+- To replace the hosted embedding model, publish a new path and SHA, never the same URL.
 
-The product is ahead of distribution. Engineering has shipped 3.0.5 → 3.0.8 plus a Mac app in about two weeks, while traffic was ~0 at the last audit. Suggested order:
+### Export
+- [owner] Open the exported package in Obsidian and Notion and document fidelity limits. No compatibility claims before that.
 
-1. **Apple Search Ads, $10/day.** The only guaranteed traffic. Run it for 2 weeks, then read the cost per install and the trial-to-paid rate.
-2. **Show HN** on a Thursday, 9 AM–12 PM ET. Copy is in `POST-TODAY.md` / `LAUNCH-NOW.md`. The new hook is "on-device AI journal, now on Mac, never invents what you didn't write" (the grounding work is a real story).
-3. **Product Hunt relaunch.** The June submission never went live. Launch it with the Mac app as the news.
-4. **Promo-allowed subreddits:** r/SideProject, r/iosapps, r/BuildInPublic, r/indiehackers.
-5. **Mac-specific channels:** Mac App Store editorial nomination for the Mac app, MacStories / 9to5Mac tips, framed as "new Mac app" (a fresh angle vs the June pitches).
-6. **Housekeeping:**
-   - bump or close the open awesome-list PRs (note-taking#89, mental-health#78, local-ai#131) [unverified status]
-   - the mirrornotes.app name collision with another developer can't be fixed. Win on mirrornotes.org SEO pages and App Store search instead.
+### Stretch
+- Source citations for Ask, digest and report (audit existing source metadata first; quotes must match the source).
+- Entry links and backlinks; related moments.
+- Custom templates (may overlap reflection styles).
 
-Measure after each step (App Analytics impressions → page views → installs → trials). Don't stack channels before you know which one moved the number.
+### Tests
+- `macNightlyIsDue`, `MacQuickCaptureModel`, `MacGlobalHotKey`, the Mac reader and PDF export: untested (`mirrorTests` is iOS-only).
+- `DailyReflectionTimingTests` skip silently without a model; five screenshot-only tests assert nothing (`3.1.2-backlog.md` E).
+- `DocumentScannerTests` hangs when the phone locks.
 
-## Later (Phase 2–3, per CLAUDE.md)
+### Platform
+- visionOS: start with the "Designed for iPad" availability toggle (no code), then a native target sharing the Mac abstractions. Brain View is the spatial candidate. llama.cpp has the `xros-arm64` slice; add `.visionOS(.v1)` to `SwiftLlama/Package.swift` when needed.
 
-- **Export and collections:** promoted into the proposed 3.0.9 scope; see `3.0.9-product-plan.md`. Basic Markdown export already exists; the new work is a portable package with metadata/media and safe import.
-- **Custom AI personas:** specified as reflection styles in the product plan; model-written variants remain conditional on grounding evaluations and can ship after 3.0.9.
-- **visionOS:** start with the "Designed for iPad" availability toggle (no code). Then a native target that shares the Mac abstractions. Brain View is the spatial candidate (`platform-roadmap.md`).
+---
 
-**Never:** Android, web, social features.
+## Verify in production [owner]
+- Install over the previous version; sheet layout on iOS 17/18.
+- Restore offer and local backup (`LocalJournalBackup`, `JournalRestoreCopy`); whether `JournalSafety`'s `eventChangedNotification` fires under SwiftData (if not, "Not backed up" never shows).
+- Widget and lock screen never show the second quote.
+- Hospital-day `refusedDayNudge` on an Apple Intelligence device.
+- Two devices plus a 3.0.8 client keeping `collectionID`; cross-device Delete Everything.
+- Real ja/zh/ko keyboards; shake, three-finger undo and iPad ⌘Z; VoiceOver pass and accessibility text sizes; manual kill-and-relaunch draft check.
+- Mac signed build: Touch ID, ⌥⌘J under the sandbox, a real check-in notification click, widgets on hardware, backup on resign-active, the app-switcher cover, What's New, widget window reuse.
+- Notification Content Extension on a real device (the 3.1.2 build was checked on the 14 Pro in English).
+
+---
+
+## Growth (owner-led, parallel)
+Order, measuring after each step (impressions → page views → installs → trials) before stacking channels:
+1. Apple Search Ads, $10/day for two weeks.
+2. Show HN, Thursday 9 AM–12 PM ET ("on-device AI journal, now on Mac, never invents what you didn't write").
+3. Product Hunt relaunch with the Mac app as the news.
+4. Promo-allowed subreddits: r/SideProject, r/iosapps, r/BuildInPublic, r/indiehackers.
+5. Mac channels: Mac App Store editorial nomination, MacStories / 9to5Mac tips.
+6. Housekeeping:
+   - Four awesome-list PRs are still open as of 2026-10-11: tehtbl/awesome-note-taking#89, dreamingechoes/awesome-mental-health#78, pluja/awesome-privacy#879, janhq/awesome-local-ai#131. Bump or close them.
+   - The mirrornotes.app name collision can't be fixed: win on mirrornotes.org SEO and App Store search.
+
+App Store title "MirrorNotes: AI Journal, Diary" and the "adhd" keyword are live in all 10 locales (checked 2026-10-07). The 24/7 marketing routine is disabled (2026-09-20).
+
+---
+
+## Acceptance gates (carried from the 3.0.9 product plan)
+- **Search:** combined filters, quotes/exclusions, diacritics, CJK, empty queries, unavailable keys, edits/deletes/sync and transcript updates behave the same on both platforms. Highlights stay accurate after Unicode normalization. Warm search p95 ≤ 150 ms at 2,000 entries and ≤ 300 ms at 5,000 (measured 2026-10-09: 39 / 98 ms).
+- **Saved views:** survive restart and sync, keep Any/All semantics and sort, handle timezone and day changes. Concurrent edits need a documented conflict policy and a real two-device test.
+- **Writing:** force-quit and backgrounding during edits or media saves never lose acknowledged draft content. Failed writes never show Saved. IME text never duplicates or disappears. Long-entry typing p95 ≤ 50 ms input-to-frame.
+- **Collections:** moving, deleting and renaming work offline and sync. Missing collection references resolve visibly without hiding entries. Collections and saved views take part in Delete Everything, backup/restore and export/import. Test sync arrival order and concurrent deletion vs movement.
+- **Export/import:** round-trip text, formatting, dates, moods, tags, collection membership, photos, audio and transcripts (synthetic fixtures). Duplicate filenames and Unicode are safe. Interrupted or low-storage runs preserve the journal. UUID collisions, path traversal and size limits are tested.
+- **Links (if built):** rename/preview changes, target deletion, sync order, partial export, cyclic links and round-trip imports work. Backlinks are authored references only, never inferred.
+- **Paid release:**
+  - live product configuration checked;
+  - signed iOS/Mac purchase lifecycle passed;
+  - free access confirmed;
+  - migration and restore passed;
+  - transition policy final;
+  - store text and paywall truthful.
+  - `allFeaturesFree` flips only as part of that release. Never infer entitlement failure from a network error. No journal text in analytics.
+
+## Sync and CloudKit notes (carried from the platform roadmap)
+- Sync needs the same container (`iCloud.com.lokesh.mirror`) in every target's entitlements, the same Apple ID with iCloud on, and the **same CloudKit environment**. TestFlight and App Store builds use Production; Xcode-run builds use Development and won't see App Store data.
+- New `@Model` types or fields need the schema deploy to Production before any TestFlight/App Store build (seed with `--seedCloudKitSchema` on a simulator signed into iCloud, then delete the seed rows).
+- Sync is eventual and rides on silent push.
+- Insights stay in the one synced store (decision 2026-10-01): the Ask cap and the 24h cache count `Insight` rows. If duplicate reflections ever appear across devices, de-duplicate on `periodIdentifier` rather than splitting the store.
+- Mac has no `BGTaskScheduler`. Generation runs on app-active plus a 3–6 AM `NSBackgroundActivityScheduler` pass while the app is open; a closed Mac catches up at the next launch.
+
+---
+
+## Standing rules
+- CLAUDE.md security rules apply; fixtures and rig cases use synthetic text only.
+- Any prompt, `@Guide`, guard or grammar change needs an llmrig round first (N ≥ 10, rubric first).
+- New CloudKit record types need the schema-deploy gate.
+- Device tests run on the iPhone 14 Pro with a separate bundle id (`tools/testing/`), never the real app; ask before using the iPhone 13.
+- New features are standalone surfaces (own sheet, storage, entry point) unless asked otherwise.
 
 ## Settled: don't reopen without new evidence
-
 - Longer FM reflection (2–3 sentences, V1f): FAILED rig round 10.
-- Extra app-built lines (mood trend, theme, streak): the owner declined them. Only the second quote shipped.
+- Extra app-built lines (mood trend, theme, streak): declined; only the second quote shipped.
 - Loosening the Gemma grammar back to free prose: measured ~0/40 faithful.
-- Any prompt, `@Guide`, guard or grammar change: llmrig round first, N ≥ 10, rubric written before running.
+- "Practical" reflection style (a tip every day): rejected; good and neutral days get no tip.
+- Save keeps switching to Entries (Write view UX item 7, owner 2026-10-09).
+- Journal key stays `WhenUnlocked` (owner 2026-10-11): background generation while locked is a no-op.
+- Native macOS, not Catalyst (llama.cpp has no Catalyst slice).
+
+**Never:** Android, web, social features.

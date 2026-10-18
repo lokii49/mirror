@@ -38,6 +38,25 @@ private func moodColor(for mood: String) -> Color {
     }
 }
 
+// Mirrors MirrorTheme.localizedMoodName(for:): the mood is stored as its English name.
+private func localizedMoodName(for mood: String) -> String {
+    switch mood {
+    case "Joyful": return String(localized: "Joyful", comment: "Mood label")
+    case "Grateful": return String(localized: "Grateful", comment: "Mood label")
+    case "Peaceful": return String(localized: "Peaceful", comment: "Mood label")
+    case "Content": return String(localized: "Content", comment: "Mood label")
+    case "Energized": return String(localized: "Energized", comment: "Mood label")
+    case "Hopeful": return String(localized: "Hopeful", comment: "Mood label")
+    case "Anxious": return String(localized: "Anxious", comment: "Mood label")
+    case "Overwhelmed": return String(localized: "Overwhelmed", comment: "Mood label")
+    case "Frustrated": return String(localized: "Frustrated", comment: "Mood label")
+    case "Drained": return String(localized: "Drained", comment: "Mood label")
+    case "Sad": return String(localized: "Sad", comment: "Mood label")
+    case "Numb": return String(localized: "Numb", comment: "Mood label")
+    default: return mood
+    }
+}
+
 struct NudgeContentState {
     let isSentinel: Bool
     let bodyText: String
@@ -72,7 +91,7 @@ struct NudgeContentView: View {
                 if let mood = state.mood {
                     HStack(spacing: 7) {
                         Circle().fill(moodColor(for: mood)).frame(width: 9, height: 9)
-                        Text(state.isSentinel ? mood.uppercased() : mood)
+                        Text(state.isSentinel ? localizedMoodName(for: mood).uppercased() : localizedMoodName(for: mood))
                             .font(state.isSentinel
                                 ? .system(size: 11, weight: .medium, design: .monospaced)
                                 : .system(size: 12, weight: .regular, design: .serif).italic())

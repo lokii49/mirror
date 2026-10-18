@@ -5,6 +5,9 @@ import Charts
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @State private var insightsFold: FoldSpan?
+    @State private var insightsWidth: CGFloat = 0
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var insights: [Insight]
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw = ReflectionStyle.gentle.rawValue
@@ -79,6 +82,17 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
+    private var insightsColumnsLayout: AnyLayout {
+        hSizeClass == .regular
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: insightsFoldSplit?.gap ?? 16))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
+    }
+
+    /// Half-folded iPhone Duo: the left column ends at the fold and the right one starts after it.
+    private var insightsFoldSplit: FoldColumnSplit? {
+        hSizeClass == .regular ? FoldColumnSplit(fold: insightsFold, width: insightsWidth) : nil
+    }
+
     private var iosContent: some View {
         NavigationStack {
             ScrollView {
@@ -87,23 +101,39 @@ struct InsightView: View {
                         sentinelStatusLine
                     }
 
-                    nudgeSection
+                    // Two columns where there's room (iPad, an opened iPhone Duo): today on the
+                    // left, the week and Explore on the right. AnyLayout keeps every section's view
+                    // (and its expanded state) across a fold; compact stacks the columns in the
+                    // same order as before.
+                    insightsColumnsLayout {
+                        VStack(alignment: .leading, spacing: 20) {
+                            nudgeSection
 
-                    if !pastNudges.isEmpty {
-                        pastNudgesSection
+                            if !pastNudges.isEmpty {
+                                pastNudgesSection
+                            }
+
+                            if cachedWeekMoodEvents.count >= 2, chartVisible {
+                                MoodWeekChartView(events: cachedWeekMoodEvents) { id in entries.first { $0.id == id } }
+                            }
+                        }
+                        .frame(width: insightsFoldSplit?.leading)
+                        .frame(maxWidth: insightsFoldSplit == nil ? .infinity : nil, alignment: .topLeading)
+
+                        VStack(alignment: .leading, spacing: 20) {
+                            digestSection
+
+                            if !pastDigests.isEmpty {
+                                pastDigestsSection
+                            }
+
+                            explorationSection
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-
-                    if cachedWeekMoodEvents.count >= 2, chartVisible {
-                        MoodWeekChartView(events: cachedWeekMoodEvents)
-                    }
-
-                    digestSection
-
-                    if !pastDigests.isEmpty {
-                        pastDigestsSection
-                    }
-
-                    explorationSection
+                    .animation(.foldSplit, value: insightsFoldSplit)
+                    .onWidthChange($insightsWidth)
+                    .onFoldChange { insightsFold = $0 }
                 }
                 .padding(16)
                 .padding(.bottom, 16)
@@ -111,43 +141,9 @@ struct InsightView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle(displayMode == .sentinel ? "Briefing" : "Insights")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "person.circle")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .accessibilityLabel("Settings")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        // Same single presentation site as the daily reminder /
-                        // auto-prompt (ContentView owns the sheet) — a second
-                        // concurrent .sheet here would be silently dropped.
-                        MoodCheckInPresenter.shared.pending = true
-                    } label: {
-                        Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                    }
-                    .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if shouldShowRefresh {
-                        Button {
-                            Task {
-                                await refreshInsights()
-                            }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .accessibilityLabel("Retry insights")
-                    }
-                }
-            }
+            #if os(iOS)
+            .toolbar { iosToolbar }
+            #endif
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
@@ -483,11 +479,42 @@ struct InsightView: View {
         }
     }
 
-    private var shouldShowRefresh: Bool {
-        if case .error = viewModel.nudgeState { return true }
-        if case .error = viewModel.digestState { return true }
-        return false
+    #if os(iOS)
+    /// Each item exists from the first layout: on iPhone Duo the system moves toolbar items into
+    /// the vertical bar, and an item that renders nothing, or appears only once data loads, can
+    /// leave its group floating at the bottom centre (seen in TinyAct). The old Retry button was
+    /// such an item; it's gone because the nudge and digest error cards have their own Try Again,
+    /// which regenerates (the button only re-read saved state).
+    @ToolbarContentBuilder
+    private var iosToolbar: some ToolbarContent {
+        // The only way to Settings on iOS, in every width: there is no Settings tab (owner,
+        // 2026-10-16).
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "person.circle")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .accessibilityLabel("Settings")
+        }
+        .preferringVerticalBar()
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                // Same single presentation site as the daily reminder /
+                // auto-prompt (ContentView owns the sheet) — a second
+                // concurrent .sheet here would be silently dropped.
+                MoodCheckInPresenter.shared.pending = true
+            } label: {
+                Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            }
+            .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
+        }
+        .preferringVerticalBar()
     }
+    #endif
 
     private func refreshInsights() async {
         await viewModel.loadNudge(entries: entries, insights: insights, context: modelContext)
@@ -544,7 +571,7 @@ struct InsightView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "Today",
-                subtitle: nudgeExpanded ? "Full daily reflection" : "A short read first; expand when you want depth",
+                subtitle: Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day()),
                 icon: "sparkles",
                 color: MirrorTheme.primary
             ) {
@@ -614,7 +641,7 @@ struct InsightView: View {
         case .groundingFallback(let insight):
             if InsightService.isUnsupportedLanguageNotice(insight.content) {
                 // Retrying can't help: say which languages work, with no "Try Again".
-                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: insight.content)
+                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: InsightService.unsupportedLanguageCardMessage(insight.content))
             } else {
                 GroundingFallbackCard(title: "Couldn't confirm this reflection", message: insight.content) {
                     Task { await viewModel.retryNudge(entries: entries, insights: insights, context: modelContext) }
@@ -708,11 +735,7 @@ struct InsightView: View {
         .buttonStyle(.plain)
     }
 
-    private var dominantMoodThisWeek: String? {
-        guard !cachedWeekMoodEvents.isEmpty else { return nil }
-        let counts = Dictionary(grouping: cachedWeekMoodEvents, by: { $0.mood }).mapValues { $0.count }
-        return counts.max(by: { $0.value < $1.value })?.key
-    }
+    private var dominantMoodThisWeek: String? { MoodLog.dominantMood(cachedWeekMoodEvents) }
 
     private var daysRemainingInMonth: Int {
         let cal = Calendar.current
@@ -728,12 +751,18 @@ struct InsightView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "This Week",
-                subtitle: digestExpanded ? "Full weekly digest" : "Collapsed so deeper reports stay within reach",
+                subtitle: digestWeekLabel,
                 icon: "calendar.badge.clock",
                 color: .indigo
             )
             digestStatusContent
         }
+    }
+
+    /// "13 – 19 Oct": the digest's Monday–Sunday week (`DateHelpers.digestWeekDays`), not the locale week.
+    private var digestWeekLabel: Text {
+        guard let week = DateHelpers.digestWeekDays(for: Date()) else { return Text(verbatim: "") }
+        return Text(verbatim: (week.monday..<week.sunday).formatted(.interval.month(.abbreviated).day()))
     }
 
     @ViewBuilder
@@ -796,6 +825,9 @@ struct InsightView: View {
             nightlyPendingDigestCard
         case .modelNotInstalled:
             ModelNotInstalledCard()
+        case .groundingFallback(let insight) where InsightService.isUnsupportedLanguageNotice(insight.content):
+            // Retrying can't help: say which languages work, with no "Try Again".
+            GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: InsightService.unsupportedLanguageCardMessage(insight.content))
         case .groundingFallback(let insight):
             GroundingFallbackCard(message: insight.content) {
                 // Instant feedback — loadWeeklyDigest's own generation call is
@@ -863,6 +895,7 @@ private struct PastNudgeCard: View {
     /// The day it's about; labelled only when that isn't the day it was made.
     var aboutDay: Date? = nil
     @State private var isExpanded = false
+    @State private var overflows = false
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
@@ -882,12 +915,12 @@ private struct PastNudgeCard: View {
                     .padding(.top, -4)
             }
             Text(insight.content)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .lineSpacing(5)
                 .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
-                .lineLimit(isExpanded ? nil : 3)
+                .collapsibleLines(3, isExpanded: isExpanded, overflows: $overflows)
                 .textSelection(.enabled)
-            if insight.content.count > 120 {
+            if overflows {
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                         isExpanded.toggle()
@@ -909,13 +942,13 @@ private struct PastNudgeCard: View {
 
 private struct SectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let subtitle: Text
     /// Sentinel-mode overrides. Sentinel doesn't just re-case the Classic title
     /// (SectionHeader already uppercases it) — some sections are renamed outright
     /// in this mode, the way the tiles under them are (Ask→Comms, etc.). nil =
     /// use the Classic string.
     let sentinelTitle: LocalizedStringKey?
-    let sentinelSubtitle: LocalizedStringKey?
+    let sentinelSubtitle: Text?
     let icon: String
     let color: Color
     var trailing: Trailing
@@ -924,13 +957,27 @@ private struct SectionHeader<Trailing: View>: View {
     private var isSentinel: Bool { displayMode == .sentinel }
 
     private var displayTitle: LocalizedStringKey { isSentinel ? (sentinelTitle ?? title) : title }
-    private var displaySubtitle: LocalizedStringKey { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
+    private var displaySubtitle: Text { isSentinel ? (sentinelSubtitle ?? subtitle) : subtitle }
 
     init(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
         sentinelTitle: LocalizedStringKey? = nil,
         sentinelSubtitle: LocalizedStringKey? = nil,
+        icon: String,
+        color: Color,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.init(title: title, subtitle: Text(subtitle), sentinelTitle: sentinelTitle,
+                  sentinelSubtitle: sentinelSubtitle.map { Text($0) }, icon: icon, color: color, trailing: trailing)
+    }
+
+    /// A subtitle that is already text, such as a formatted date.
+    init(
+        title: LocalizedStringKey,
+        subtitle: Text,
+        sentinelTitle: LocalizedStringKey? = nil,
+        sentinelSubtitle: Text? = nil,
         icon: String,
         color: Color,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
@@ -966,7 +1013,7 @@ private struct SectionHeader<Trailing: View>: View {
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
-                Text(displaySubtitle)
+                displaySubtitle
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
@@ -996,13 +1043,14 @@ private struct BrainEntryCard: View {
 
     private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
     private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    // Ends at 0.86 of the width so the chevron has clear space (at 0.94 it sat on a dot).
     private static let dots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)] = [
-        (0.68, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
-        (0.84, 0.36, 4, .teal),
-        (0.76, 0.6, 6, .orange),
-        (0.94, 0.5, 3, .red),
-        (0.88, 0.78, 4, .yellow),
-        (0.6, 0.72, 3, .teal),
+        (0.62, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
+        (0.78, 0.36, 4, .teal),
+        (0.70, 0.6, 6, .orange),
+        (0.86, 0.5, 3, .red),
+        (0.82, 0.78, 4, .yellow),
+        (0.56, 0.72, 3, .teal),
     ]
 
     var body: some View {
@@ -1027,8 +1075,11 @@ private struct BrainEntryCard: View {
                 Text("A living map of your people & themes")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 60)
+            // Keeps the text left of the constellation (from 0.56 of the width); at 60 the
+            // subtitle ran across the dots.
+            Spacer(minLength: 112)
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white.opacity(0.4))
@@ -1039,7 +1090,7 @@ private struct BrainEntryCard: View {
             ZStack {
                 Self.bg
                 Canvas { context, size in
-                    let hub = CGPoint(x: size.width * 0.78, y: size.height * 0.5)
+                    let hub = CGPoint(x: size.width * 0.72, y: size.height * 0.5)
                     for dot in Self.dots {
                         let p = CGPoint(x: size.width * dot.x, y: size.height * dot.y)
                         var path = Path()
@@ -1207,26 +1258,31 @@ struct NightlyPendingCard: View {
     }
 }
 
-private struct LoadingInsightCard: View {
+// The status cards below follow MonthlyReportView's in Sentinel (backlog A18): ember accent, mono
+// uppercase titles, Sentinel card chrome via `themedCard`. Classic is unchanged.
+struct LoadingInsightCard: View {
     let label: LocalizedStringKey
     let sublabel: LocalizedStringKey
     let icon: String
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.primary.opacity(0.10))
+                        .fill(accent.opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(accent)
                         .symbolEffect(.variableColor.iterative, isActive: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .medium))
+                        .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(sublabel)
                         .font(.system(size: 13))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -1241,24 +1297,25 @@ private struct LoadingInsightCard: View {
             // unlike macOS, that style doesn't animate an indeterminate track at all, it just
             // renders a static empty bar. A custom sliding highlight, driven by explicit
             // `@State`, is guaranteed to actually move.
-            IndeterminateProgressBar()
+            IndeterminateProgressBar(color: accent)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
 private struct IndeterminateProgressBar: View {
+    var color: Color = MirrorTheme.primary
     @State private var slideRight = false
 
     var body: some View {
         GeometryReader { geo in
             let highlightWidth = geo.size.width * 0.32
             Capsule()
-                .fill(MirrorTheme.primary.opacity(0.15))
+                .fill(color.opacity(0.15))
                 .overlay(alignment: .leading) {
                     Capsule()
-                        .fill(MirrorTheme.primary)
+                        .fill(color)
                         .frame(width: highlightWidth)
                         .offset(x: slideRight ? geo.size.width - highlightWidth : 0)
                 }
@@ -1331,25 +1388,28 @@ struct NeedsMoreEntriesCard: View {
     }
 }
 
-private struct UpgradePromptCard: View {
+struct UpgradePromptCard: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let onUpgrade: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(MirrorTheme.primary.opacity(0.12))
+                        .fill(accent.opacity(0.12))
                         .frame(width: 40, height: 40)
                     Image(systemName: "sparkles")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.primary)
+                        .foregroundStyle(accent)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .semibold))
+                        .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(subtitle)
                         .font(.system(size: 14))
                         .foregroundStyle(MirrorTheme.textSecondary)
@@ -1357,17 +1417,25 @@ private struct UpgradePromptCard: View {
             }
             Button(action: onUpgrade) {
                 Text("View Plans")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
-                    .contentShape(Capsule())
+                    .contentShape(Rectangle())
             }
-            .background(MirrorTheme.accentGradient, in: Capsule())
+            .background {
+                if displayMode == .sentinel {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(LinearGradient(colors: [MirrorTheme.ember, .orange], startPoint: .leading, endPoint: .trailing))
+                } else {
+                    Capsule().fill(MirrorTheme.accentGradient)
+                }
+            }
             .buttonStyle(.plain)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 24)
+        .themedCard(cornerRadius: 24)
     }
 }
 
@@ -1377,7 +1445,7 @@ private struct UpgradePromptCard: View {
 // retry here or a newer entry (see InsightService.weeklyDigestUngroundedFallback's comment).
 // "Try Again" re-runs the same bounded grounding loop fresh — a real chance of a different
 // result since generation is stochastic, not just a way to write more first.
-private struct GroundingFallbackCard: View {
+struct GroundingFallbackCard: View {
     // LocalizedStringKey, not String — a plain String param silently drops this out of
     // SwiftUI's auto-localization (Label(_:systemImage:) only picks the LocalizedStringKey
     // overload for a compile-time literal), which is exactly what happened here: the catalog
@@ -1387,44 +1455,50 @@ private struct GroundingFallbackCard: View {
     let message: String
     /// nil: nothing a retry could change (a language with no reflections), so no button.
     var onRetry: (() -> Void)? = nil
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: "text.magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(MirrorTheme.violetLight)
+                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             if let onRetry {
                 Button("Try Again", action: onRetry)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(MirrorTheme.primary)
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             }
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
-private struct ErrorCard: View {
+struct ErrorCard: View {
     let message: String
     let onRetry: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Couldn't load", systemImage: "exclamationmark.triangle")
-                .font(.system(size: 15, weight: .semibold))
+                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             Button("Try Again", action: onRetry)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(MirrorTheme.primary)
+                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
         }
         .padding(20)
-        .inkSurface(cornerRadius: 22)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -1527,7 +1601,15 @@ private struct InsightTextView: View {
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var overflows = false
     private var isSentinel: Bool { displayMode == .sentinel }
+
+    /// The section header above already says the date, so today's card gives the time only.
+    private var stampFormat: Date.FormatStyle {
+        Calendar.current.isDateInToday(insight.generatedAt)
+            ? .dateTime.hour().minute()
+            : .dateTime.month(.abbreviated).day().hour().minute()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1538,7 +1620,7 @@ private struct InsightTextView: View {
                     .tracking(0.8)
                 Spacer()
                 if showSourceButton { InsightSourceButton(insight: insight) }
-                Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                Text(insight.generatedAt, format: stampFormat)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
@@ -1556,13 +1638,14 @@ private struct InsightTextView: View {
                 )
                 .frame(height: 1)
             Text(displayText ?? insight.content)
-                .font(.system(size: 18, weight: .regular, design: .serif))
+                .readingFont(size: 18)
                 .lineSpacing(8)
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .lineLimit(isExpanded ? nil : collapsedLineLimit)
+                .collapsibleLines(collapsedLineLimit, isExpanded: isExpanded, overflows: $overflows)
                 .selectableUnlessSentinel(isSentinel)
 
-            if let onToggleExpanded {
+            // Only when there's more to read: most reflections fit in the collapsed lines.
+            if let onToggleExpanded, overflows {
                 Button(action: onToggleExpanded) {
                     HStack(spacing: 6) {
                         Text(isSentinel
@@ -1606,104 +1689,170 @@ private struct InsightTextView: View {
             Text("\u{201C}")
                 .font(.system(size: 80, weight: .bold, design: .serif))
                 .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
-                .offset(x: -18, y: 8)
+                // Below the header row: higher up, it sat on top of the timestamp.
+                .offset(x: -18, y: 40)
                 .allowsHitTesting(false)
         }
     }
 }
 
+/// Shows `limit` lines until expanded, and reports whether the full text needs more than that,
+/// so a "Read more" control appears only when it would reveal something.
+private struct CollapsibleLines: ViewModifier {
+    let limit: Int
+    let isExpanded: Bool
+    @Binding var overflows: Bool
+    @State private var fullHeight: CGFloat = 0
+    @State private var limitedHeight: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .lineLimit(isExpanded ? nil : limit)
+            .background(alignment: .topLeading) {
+                ZStack(alignment: .topLeading) {
+                    content
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0; update() }
+                    content
+                        .lineLimit(limit)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { limitedHeight = $0; update() }
+                }
+                .hidden()
+                .accessibilityHidden(true)
+            }
+    }
+
+    private func update() {
+        let next = fullHeight > limitedHeight + 1
+        if next != overflows { overflows = next }
+    }
+}
+
+private extension View {
+    func collapsibleLines(_ limit: Int, isExpanded: Bool, overflows: Binding<Bool>) -> some View {
+        modifier(CollapsibleLines(limit: limit, isExpanded: isExpanded, overflows: overflows))
+    }
+}
 
 // MARK: - Mood Week Chart
 
 private struct MoodWeekChartView: View {
     /// Merged entry moods + daily check-ins for the last 7 days (`MoodLog`).
     let events: [MoodEvent]
+    /// The entry behind a held dot, looked up only when one is selected.
+    let entry: (UUID) -> Entry?
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var selected: MoodDot?
     private var isSentinel: Bool { displayMode == .sentinel }
 
-    private struct MoodPoint: Identifiable {
-        let id: UUID
-        let date: Date
-        let mood: String
-        let score: Double
-    }
-
-    private var points: [MoodPoint] {
+    private var points: [MoodDot] {
         events.compactMap { event in
             guard let score = event.score else { return nil }
-            return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+            return MoodDot(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
         }
     }
 
-    private var dominantMood: String? {
-        let counts = Dictionary(grouping: points, by: { $0.mood }).mapValues { $0.count }
-        return counts.max(by: { $0.value < $1.value })?.key
+    private var dominantMood: String? { MoodLog.dominantMood(events) }
+
+    private func moodChip(_ mood: String, label: Text) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(MirrorTheme.moodColor(for: mood))
+                .frame(width: 7, height: 7)
+            label
+                .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
+                .kerning(isSentinel ? 0.2 : 0)
+                .foregroundStyle(MirrorTheme.textSecondary)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            MirrorTheme.moodColor(for: mood).opacity(0.1),
+            in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+        )
+        .overlay {
+            if isSentinel {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
+            }
+        }
     }
 
-    private var avgScore: Double {
-        guard !points.isEmpty else { return 0 }
-        return points.map { $0.score }.reduce(0, +) / Double(points.count)
+    /// One line point per day, as on the Mood Timeline: two readings on a day drew a vertical
+    /// spike. The dots still show every reading.
+    private var dailyLine: [MoodDayMean] {
+        MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                    .kerning(isSentinel ? 0.3 : 0)
-                    .textCase(isSentinel ? .uppercase : nil)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                Spacer()
-                if let mood = dominantMood {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(MirrorTheme.moodColor(for: mood))
-                            .frame(width: 7, height: 7)
-                        Text(isSentinel
-                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
-                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))")
-                            .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
-                            .kerning(isSentinel ? 0.2 : 0)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(
-                        MirrorTheme.moodColor(for: mood).opacity(0.1),
-                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if isSentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .stroke(MirrorTheme.moodColor(for: mood).opacity(0.3), lineWidth: 1)
-                        }
+                if let selected {
+                    // While a dot is held, the header names it; same height, so the chart stays put.
+                    Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                        .textCase(isSentinel ? .uppercase : nil)
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                    Spacer()
+                    moodChip(selected.mood, label: Text(isSentinel
+                        ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
+                        : MirrorTheme.localizedMoodName(for: selected.mood)))
+                } else {
+                    Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                        .kerning(isSentinel ? 0.3 : 0)
+                        .textCase(isSentinel ? .uppercase : nil)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                    Spacer()
+                    if let mood = dominantMood {
+                        moodChip(mood, label: Text(isSentinel
+                            ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
+                            : "Mostly \(MirrorTheme.localizedMoodName(for: mood))"))
                     }
                 }
             }
 
-            Chart(points) { point in
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                .symbolSize(120)
-
-                LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet, MirrorTheme.violetLight],
-                        startPoint: .leading,
-                        endPoint: .trailing
+            Chart {
+                ForEach(dailyLine, id: \.day) { day in
+                    LineMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
                     )
-                )
-                .lineStyle(StrokeStyle(lineWidth: 2))
-                .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet, MirrorTheme.violetLight],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .interpolationMethod(.catmullRom)
+                }
+
+                if let selected {
+                    RuleMark(x: .value("Day", selected.date, unit: .day))
+                        .foregroundStyle((isSentinel ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+
+                ForEach(points) { point in
+                    PointMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Mood", point.score)
+                    )
+                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                    .symbolSize(point.id == selected?.id ? 240 : 120)
+                    .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                }
             }
             .chartYScale(domain: 0...6)
+            .chartOverlay { proxy in
+                MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
+                    moodDotPreviewText(for: dot, entry: entry)
+                }
+            }
             .chartYAxis {
                 AxisMarks(values: [1, 3, 5]) { value in
                     AxisValueLabel {
@@ -1910,7 +2059,7 @@ extension InsightView {
                                 .font(.system(size: 12))
                                 .foregroundStyle(MacTokens.secondaryInk)
                             Text(Self.macCurlyQuotes(row.text))
-                                .font(.system(size: 15, design: .serif))
+                                .readingFont(size: 15)
                                 .lineSpacing(3)
                                 .foregroundStyle(MacTokens.ink)
                                 .lineLimit(3)
@@ -2129,7 +2278,7 @@ private struct MacInsightInspector: View {
                     if today.isGrounded, let parts = today.parts {
                         block(title: "YOUR SENTENCE") {
                             Text("\u{201C}\(parts.quote)\u{201D}")
-                                .font(.system(size: 15, design: .serif))
+                                .readingFont(size: 15)
                                 .lineSpacing(3)
                                 .foregroundStyle(MacTokens.ink)
                                 .padding(.horizontal, 14).padding(.vertical, 12)

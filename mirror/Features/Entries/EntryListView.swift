@@ -9,6 +9,19 @@ struct EntriesTabView: View {
     /// macOS shows the reader beside the list instead of pushing it. When set, opening an
     /// entry writes it here and the list never navigates.
     var macSelection: Binding<Entry?>? = nil
+    /// False when a parent (EntriesSplitView) provides the NavigationStack, so this list's toolbar
+    /// shares one bar with the reader beside it.
+    var ownsNavigationStack = true
+    #if os(iOS)
+    /// Forwarded to the pushed reader: its editor opened or closed (EntriesSplitView holds the
+    /// layout across a fold meanwhile).
+    var onReaderEditorPresented: ((Bool) -> Void)? = nil
+    /// Whether the system can place a vertical bar here (VerticalBarProbe): the Duo moves this
+    /// list's toolbar into it; iPad has none.
+    @State private var hasVerticalBar = false
+    /// The entry in the reader column, kept so a fold to compact can push it (handOverReader).
+    @State private var lastSideBySideEntry: Entry?
+    #endif
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
@@ -315,54 +328,89 @@ struct EntriesTabView: View {
         OnThisDayService.matches(in: entries)
     }
 
+    /// Separate toolbar buttons, not one custom HStack: the system can then lay them out itself —
+    /// a glass group on iPhone, and in the vertical bar beside the tabs on iPhone Duo. One
+    /// custom view counts as a single wide control, which stays in the top bar.
+    @ViewBuilder
     private var trailingToolbar: some View {
-        HStack(spacing: 16) {
-            filtersButton
-            if !onThisDayMatches.isEmpty {
-                Button {
-                    showOnThisDay = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
-                }
-                .accessibilityLabel("On This Day")
-            }
-            SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
-                Image(systemName: "bookmark")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.primary)
-            }
-            .accessibilityLabel("Saved views")
-            Menu {
-                ForEach(availableSortOrders, id: \.self) { order in
-                    Button {
-                        withAnimation { sortOrder = order }
-                    } label: {
-                        Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
-                    }
-                }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
-            }
-            .accessibilityLabel("Sort by")
+        filtersButton
+        if !onThisDayMatches.isEmpty {
             Button {
-                withAnimation { showSearch.toggle() }
+                showOnThisDay = true
             } label: {
-                Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
             }
-            .accessibilityLabel("Search entries")
+            .accessibilityLabel("On This Day")
         }
+        SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
+                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+            Image(systemName: "bookmark")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.primary)
+        }
+        .accessibilityLabel("Saved views")
+        Menu {
+            ForEach(availableSortOrders, id: \.self) { order in
+                Button {
+                    withAnimation { sortOrder = order }
+                } label: {
+                    Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
+        }
+        .accessibilityLabel("Sort by")
+        Button {
+            withAnimation { showSearch.toggle() }
+        } label: {
+            Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
+        }
+        .accessibilityLabel("Search entries")
     }
+
+    /// Beside the reader on iPad, the system bar keeps one slot next to the centred tabs, so the
+    /// toolbar folded into a "More" button (owner: two taps for search is too many). The list
+    /// shows its title and actions in a header row instead. The Duo keeps them in its vertical bar.
+    private var actionsInListHeader: Bool {
+        #if os(iOS)
+        macSelection != nil && !hasVerticalBar
+        #else
+        false
+        #endif
+    }
+
+    #if os(iOS)
+    /// With no entries there's nothing to filter, save, sort or search, so the empty journal
+    /// shows no actions. The Duo's vertical bar keeps them: an item that appears only once data
+    /// loads can leave its group floating there (see InsightView's toolbar).
+    private var showsListActions: Bool { !entries.isEmpty || hasVerticalBar }
+
+    private var listHeaderRow: some View {
+        HStack(spacing: 16) {
+            Text(displayMode == .sentinel ? "Log" : "Entries")
+                .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 26, weight: .bold))
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if showsListActions { trailingToolbar }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .background(MirrorTheme.bgBase)
+    }
+    #endif
 
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
-        PlatformNavigationStack {
+        OptionalNavigationStack(enabled: ownsNavigationStack) {
             Group {
                 if entries.isEmpty {
                     emptyState
@@ -378,15 +426,19 @@ struct EntriesTabView: View {
             .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             #if os(iOS)
+            .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar))
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    trailingToolbar
+                if !actionsInListHeader && showsListActions {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        trailingToolbar
+                    }
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
-                    if showSearch { searchBar }
-                    if !collectionModels.isEmpty {
+                    if actionsInListHeader { listHeaderRow }
+                    if showSearch && showsListActions { searchBar }
+                    if !collectionModels.isEmpty && !entries.isEmpty {
                         CollectionsBar(lookup: collectionLookup, scope: $filters.collection) { showOrganizer = true }
                     }
                     if !snapshot.usedMoods.isEmpty { moodFilterBar(snapshot.usedMoods) }
@@ -412,10 +464,10 @@ struct EntriesTabView: View {
             // On Mac the reader sits beside the list (macSelection), so nothing is pushed.
             .navigationDestination(isPresented: $showEntryDetail) {
                 if let selectedEntry {
-                    EntryDetailView(entry: selectedEntry) {
+                    EntryDetailView(entry: selectedEntry, onDone: {
                         showEntryDetail = false
                         self.selectedEntry = nil
-                    }
+                    }, onEditorPresented: onReaderEditorPresented)
                 }
             }
             #endif
@@ -522,6 +574,16 @@ struct EntriesTabView: View {
                 selectedEntry = nil
                 macSelection?.wrappedValue = nil
             }
+            #if os(iOS)
+            .onChange(of: macSelection?.wrappedValue?.id) { _, _ in
+                // Only while side by side: when the binding goes away the last reader is kept
+                // for the hand-over below.
+                if let macSelection { lastSideBySideEntry = macSelection.wrappedValue }
+            }
+            .onChange(of: macSelection != nil) { _, sideBySide in
+                handOverReader(toSideBySide: sideBySide)
+            }
+            #endif
             .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
                 guard let id = newID,
                       let match = entries.first(where: { $0.id == id }) else { return }
@@ -734,6 +796,7 @@ struct EntriesTabView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
+        .horizontalEdgeFade()
         .background(MirrorTheme.bgBase)
     }
 
@@ -774,6 +837,7 @@ struct EntriesTabView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
+        .horizontalEdgeFade()
         .background(MirrorTheme.bgBase)
     }
 
@@ -799,6 +863,7 @@ struct EntriesTabView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, 14)
@@ -819,6 +884,37 @@ struct EntriesTabView: View {
         }
     }
 
+    #if os(iOS)
+    /// Opening or closing an iPhone Duo (or resizing an iPad window) moves the open entry between
+    /// the pushed reader and the reader column, so the user keeps reading what they had open.
+    /// Unfolding with nothing pushed leaves the column empty (EntriesSplitView clears its
+    /// selection on the way to compact), so it never shows an entry deleted meanwhile. An entry
+    /// deleted while it was open isn't handed over. While an editor is open over the reader,
+    /// EntriesSplitView holds its layout, so this runs once the editor closes.
+    private func handOverReader(toSideBySide: Bool) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if toSideBySide {
+                let pushed = showEntryDetail ? selectedEntry : nil
+                showEntryDetail = false
+                selectedEntry = nil
+                macSelection?.wrappedValue = pushed.flatMap { Self.isLive($0) ? $0 : nil }
+            } else if let entry = lastSideBySideEntry {
+                lastSideBySideEntry = nil
+                guard Self.isLive(entry) else { return }
+                selectedEntry = entry
+                showEntryDetail = true
+            }
+        }
+    }
+
+    /// Not deleted in this context (deleted elsewhere, the reader's guard closes it).
+    private static func isLive(_ entry: Entry) -> Bool {
+        !entry.isDeleted && entry.modelContext != nil
+    }
+    #endif
+
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
         EntryRow(entry: entry, rowPreview: preview)
@@ -826,6 +922,10 @@ struct EntriesTabView: View {
             .onTapGesture {
                 open(entry)
             }
+            // One element that opens the entry, not its separate texts (backlog A19).
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { open(entry) }
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
@@ -835,8 +935,12 @@ struct EntriesTabView: View {
             .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
+                    // Clear the selection first so the reader column (iPad, open Duo) never
+                    // renders a deleted entry, as the Mac row's Delete does.
+                    if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
                     WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
                     modelContext.delete(entry)
+                    try? modelContext.save()
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }

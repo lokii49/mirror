@@ -17,7 +17,7 @@
 			<key>UNNotificationExtensionUserInteractionEnabled</key>
 			<true/>
 			<key>UNNotificationExtensionDefaultContentHidden</key>
-			<false/>
+			<true/>
 		</dict>
 	</dict>
 </dict>

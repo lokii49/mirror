@@ -24,16 +24,94 @@ struct PaywallView: View {
             case .deep: return "Deep"
             }
         }
+
+        var subscriptionTier: SubscriptionTier { self == .core ? .core : .deep }
     }
+
+    private struct Feature: Identifiable {
+        let icon: String
+        let title: LocalizedStringKey
+        let detail: LocalizedStringKey?
+        let color: Color
+        var id: String { icon }
+    }
+
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     private var currentPackages: [Package] {
         selectedTier == .core ? subscriptionService.corePackages : subscriptionService.deepPackages
     }
 
+    private var selectedPackage: Package? {
+        currentPackages.first { $0.storeProduct.productIdentifier == selectedProductID }
+    }
+
     private var defaultProductID: String {
-        currentPackages.first(where: { $0.storeProduct.productIdentifier.contains("yearly") })?.storeProduct.productIdentifier
+        currentPackages.first(where: { Self.isYearly($0) })?.storeProduct.productIdentifier
             ?? currentPackages.first?.storeProduct.productIdentifier
             ?? ""
+    }
+
+    /// The trial is promised only where this Apple ID can still use it (one per subscription group).
+    private var showsTrial: Bool {
+        if let selectedPackage { return subscriptionService.isTrialEligible(selectedPackage) }
+        return currentPackages.contains { subscriptionService.isTrialEligible($0) }
+    }
+
+    /// The badge's trial length, from the store's own offer; nil (no badge) when it isn't known.
+    private var trialLength: String? {
+        guard showsTrial else { return nil }
+        if let selectedPackage { return Self.freeTrialLength(selectedPackage) }
+        return currentPackages.lazy
+            .filter { subscriptionService.isTrialEligible($0) }
+            .compactMap { Self.freeTrialLength($0) }
+            .first
+    }
+
+    /// "7 days", "1 week": the introductory offer's period in the app's language, only when that
+    /// offer is a free trial (a paid intro price is not a trial).
+    static func freeTrialLength(_ package: Package) -> String? {
+        guard let offer = package.storeProduct.introductoryDiscount, offer.paymentMode == .freeTrial else { return nil }
+        let period = offer.subscriptionPeriod
+        guard period.value > 0 else { return nil }
+        var components = DateComponents()
+        let unit: NSCalendar.Unit
+        switch period.unit {
+        case .day: components.day = period.value; unit = .day
+        case .week: components.weekOfMonth = period.value; unit = .weekOfMonth
+        case .month: components.month = period.value; unit = .month
+        case .year: components.year = period.value; unit = .year
+        @unknown default: return nil
+        }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.allowedUnits = [unit]
+        formatter.maximumUnitCount = 1
+        // The app's language, not the device region's, so the length matches the sentence around it.
+        var calendar = Calendar.current
+        calendar.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        formatter.calendar = calendar
+        return formatter.string(from: components)
+    }
+
+    /// Yearly vs twelve months, from the store's own prices in the user's currency.
+    static func yearlySavingsPercent(in packages: [Package]) -> Int? {
+        guard let monthly = packages.first(where: { !isYearly($0) })?.storeProduct.price,
+              let yearly = packages.first(where: { isYearly($0) })?.storeProduct.price,
+              monthly > 0 else { return nil }
+        let fullYear = monthly * 12
+        let percent = NSDecimalNumber(decimal: (fullYear - yearly) / fullYear * 100).doubleValue
+        return percent >= 1 ? Int(percent.rounded()) : nil
+    }
+
+    private var selectedIsCurrentPlan: Bool {
+        subscriptionService.activeProductIDs.contains(selectedProductID)
+    }
+
+    static func isYearly(_ package: Package) -> Bool {
+        let id = package.storeProduct.productIdentifier
+        return id.contains("yearly") || id.contains("annual")
     }
 
     var body: some View {
@@ -44,288 +122,347 @@ struct PaywallView: View {
                     tierPicker
                     featuresSection
                     planSection
-                    ctaSection
                 }
                 .padding(16)
-                .padding(.bottom, 24)
             }
             .background(MirrorTheme.bgBase)
+            .safeAreaInset(edge: .bottom, spacing: 0) { ctaBar }
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            // A Mac sheet puts toolbar items in a strip under the content, below the pinned bar,
+            // so the close button sits on the hero's corner instead, and the sheet opens big
+            // enough to show the features without scrolling first.
+            .overlay(alignment: .topTrailing) { closeButton.padding(28) }
+            .frame(minWidth: 500, idealWidth: 540, minHeight: 720, idealHeight: 840)
+            #else
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+                ToolbarItem(placement: .topBarTrailing) { closeButton }
             }
-            .task { await subscriptionService.loadProducts() }
-            .onChange(of: subscriptionService.isSubscribed) { _, subscribed in
-                if subscribed {
-                    // Generate immediately — don't wait for Sunday/1st of month
-                    let ctx = modelContext
-                    Task { @MainActor in
-                        await mirrorApp.runWeeklyDigestIfNeeded(context: ctx)
-                        await mirrorApp.runMonthlyReportIfNeeded(context: ctx)
-                    }
-                    dismiss()
-                }
+            #endif
+            .task {
+                // A previous open's message must not greet this one (the service is shared).
+                subscriptionService.clearMessages()
+                // Plans are usually preloaded at launch; selecting here covers the case where
+                // they were, since no package change will fire below.
+                selectDefaultIfNeeded()
+                await subscriptionService.loadProducts()
+                selectDefaultIfNeeded()
+            }
+            // Watch the tier, not "subscribed": a Core → Deep upgrade keeps `isSubscribed` true.
+            // Also covers a purchase that lands from another device while the paywall is open.
+            .onChange(of: subscriptionService.tier) { old, new in
+                if Self.rank(new) > Self.rank(old) { finishPurchase() }
             }
             .onChange(of: selectedTier) { _, _ in
                 selectedProductID = defaultProductID
             }
-            .onChange(of: subscriptionService.corePackages) { _, _ in
-                if selectedProductID.isEmpty { selectedProductID = defaultProductID }
-            }
-            .onChange(of: subscriptionService.deepPackages) { _, _ in
-                if selectedProductID.isEmpty { selectedProductID = defaultProductID }
-            }
+            .onChange(of: subscriptionService.corePackages) { _, _ in selectDefaultIfNeeded() }
+            .onChange(of: subscriptionService.deepPackages) { _, _ in selectDefaultIfNeeded() }
         }
     }
 
+    private var closeButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 22))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(MirrorTheme.textSecondary)
+        }
+        .accessibilityLabel("Close")
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
+    }
+
+    private static func rank(_ tier: SubscriptionTier) -> Int {
+        switch tier {
+        case .free: 0
+        case .core: 1
+        case .deep: 2
+        }
+    }
+
+    private func selectDefaultIfNeeded() {
+        if selectedPackage == nil { selectedProductID = defaultProductID }
+    }
+
+    private func finishPurchase() {
+        // Generate right away: don't make a new subscriber wait for Sunday or the month's end.
+        let ctx = modelContext
+        Task { @MainActor in
+            await mirrorApp.runWeeklyDigestIfNeeded(context: ctx)
+            await mirrorApp.runMonthlyReportIfNeeded(context: ctx)
+        }
+        dismiss()
+    }
+
+    // MARK: Hero
+
     private var heroSection: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: selectedTier == .core
-                            ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
-                            : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-
+        ZStack(alignment: .topTrailing) {
+            LinearGradient(
+                colors: selectedTier == .core
+                    ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
+                    : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             Circle()
-                .fill(Color.white.opacity(0.06))
-                .frame(width: 160, height: 160)
-                .offset(x: 200, y: -60)
-            Circle()
-                .fill(Color.white.opacity(0.04))
-                .frame(width: 100, height: 100)
-                .offset(x: 240, y: 20)
+                .fill(Color.white.opacity(0.07))
+                .frame(width: 180, height: 180)
+                .offset(x: 60, y: -70)
 
-            VStack(alignment: .leading, spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(width: 64, height: 64)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
                     Image(systemName: selectedTier == .core ? "sparkles" : "flame.fill")
-                        .font(.system(size: 28, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.18), in: Circle())
+                        .contentTransition(.symbolEffect(.replace))
+                    if let trialLength {
+                        trialBadge(trialLength)
+                    }
+                    Spacer(minLength: 0)
                 }
-                .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Group {
-                        if displayMode == .sentinel {
+                        if isSentinel {
                             Text(selectedTier == .core ? "SENTINEL CORE" : "SENTINEL DEEP")
-                                .font(MirrorTheme.mono(28, weight: .bold))
+                                .font(MirrorTheme.mono(26, weight: .bold))
                                 .tracking(0.5)
                         } else {
                             Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: 30, weight: .bold, design: .rounded))
                         }
                     }
                     .foregroundStyle(.white)
+                    .contentTransition(.opacity)
+
                     Group {
-                        if displayMode == .sentinel {
+                        if isSentinel {
                             Text(selectedTier == .core
                                  ? "PRIVATE SIGNAL INTELLIGENCE,\nBUILT AROUND YOUR OWN LOG."
-                                 : "FULL SPECTRUM — MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF.")
+                                 : "FULL SPECTRUM: MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF.")
                                 .font(MirrorTheme.mono(12, weight: .medium))
                         } else {
                             Text(selectedTier == .core
                                  ? "Private journal intelligence,\nbuilt around your writing."
-                                 : "The full picture — mood, patterns,\nand monthly deep reflection.")
+                                 : "The full picture: mood, patterns,\nand monthly deep reflection.")
                                 .font(.system(size: 15, weight: .medium))
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.75))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "gift")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(displayMode == .sentinel ? "7-DAY TRIAL" : "7-day free trial")
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(Color.white.opacity(0.18), in: Capsule())
             }
-            .padding(24)
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: MirrorTheme.primary.opacity(0.3), radius: 30, x: 0, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: isSentinel ? 10 : 26, style: .continuous))
+        .shadow(color: MirrorTheme.primary.opacity(0.18), radius: 14, x: 0, y: 8)
         .animation(.easeInOut(duration: 0.25), value: selectedTier)
     }
+
+    private func trialBadge(_ length: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gift")
+                .font(.system(size: 12, weight: .semibold))
+            Text("Free for \(length)")
+                .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                .textCase(isSentinel ? .uppercase : nil)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.18), in: Capsule())
+    }
+
+    // MARK: Tier picker
 
     private var tierPicker: some View {
         HStack(spacing: 0) {
             ForEach(PaywallTier.allCases, id: \.self) { tier in
+                let isSelected = selectedTier == tier
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         selectedTier = tier
                     }
                 } label: {
-                    VStack(spacing: 4) {
-                        Group {
-                            if displayMode == .sentinel {
-                                Text(tier.displayName)
-                                    .font(MirrorTheme.mono(14, weight: selectedTier == tier ? .bold : .medium))
-                                    .textCase(.uppercase)
-                            } else {
-                                Text(tier.displayName)
-                                    .font(.system(size: 15, weight: selectedTier == tier ? .bold : .medium))
-                            }
-                        }
-                        .foregroundStyle(selectedTier == tier ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : .secondary)
-                        if tier == .deep {
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("MORE AI").font(MirrorTheme.mono(9, weight: .semibold))
-                                } else {
-                                    Text("More AI").font(.system(size: 10, weight: .semibold))
-                                }
-                            }
-                            .foregroundStyle(selectedTier == .deep ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textTertiary)
-                            .opacity(0.85)
-                        } else {
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("MOST POPULAR").font(MirrorTheme.mono(9, weight: .bold))
-                                } else {
-                                    Text("Most popular").font(.system(size: 10, weight: .bold))
-                                }
-                            }
-                            .foregroundStyle(selectedTier == .core ? MirrorTheme.ember : MirrorTheme.textTertiary)
-                            .opacity(selectedTier == .core ? 1.0 : 0.6)
-                        }
+                    VStack(spacing: 3) {
+                        Text(tier.displayName)
+                            .font(isSentinel
+                                  ? MirrorTheme.mono(14, weight: isSelected ? .bold : .medium)
+                                  : .system(size: 16, weight: isSelected ? .bold : .medium))
+                            .textCase(isSentinel ? .uppercase : nil)
+                            .foregroundStyle(isSelected ? accent : MirrorTheme.textSecondary)
+                        tierCaption(tier, isSelected: isSelected)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        selectedTier == tier
-                            ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
-                            : Color.clear,
-                        in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous)
-                    )
-                    .overlay {
-                        if displayMode == .sentinel && selectedTier == tier {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
+                    .padding(.vertical, 11)
+                    .background {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: isSentinel ? 6 : 14, style: .continuous)
+                                .fill(isSentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
+                                .overlay {
+                                    if isSentinel {
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
+                                    }
+                                }
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .padding(4)
         .themedCard(cornerRadius: 18)
     }
 
-    private var coreFeatures: [(String, LocalizedStringKey, Color)] {
+    /// "Current plan" for the subscriber's own tier, otherwise the tier's tagline.
+    @ViewBuilder
+    private func tierCaption(_ tier: PaywallTier, isSelected: Bool) -> some View {
+        let caption: LocalizedStringKey = subscriptionService.tier == tier.subscriptionTier && !SubscriptionService.allFeaturesFree
+            ? "Current plan"
+            : (tier == .core ? "Most popular" : "More AI")
+        Text(caption)
+            .font(isSentinel ? MirrorTheme.mono(9, weight: .semibold) : .system(size: 11, weight: .semibold))
+            .textCase(isSentinel ? .uppercase : nil)
+            .foregroundStyle(isSelected ? accent.opacity(0.85) : MirrorTheme.textTertiary)
+    }
+
+    // MARK: Features
+
+    private var coreFeatures: [Feature] {
         [
-            ("sparkles", "Daily Reflection — personal observations from your recent entries.", MirrorTheme.primary),
-            ("bubble.left.and.bubble.right", "Ask — 15 grounded questions per month from your own writing.", .blue),
-            ("calendar.badge.clock", "Weekly Digest — a pattern summary every Sunday.", .indigo),
-            ("face.smiling", "Auto Mood Detection — mood tagged automatically on every save.", .pink),
-            ("square.grid.2x2", "Home screen widget", .orange),
+            Feature(icon: "sparkles", title: "Daily Reflection",
+                    detail: "Personal observations from your recent entries.", color: MirrorTheme.primary),
+            Feature(icon: "bubble.left.and.bubble.right", title: "Ask",
+                    detail: "15 grounded questions per month from your own writing.", color: .blue),
+            Feature(icon: "calendar.badge.clock", title: "Weekly Digest",
+                    detail: "A pattern summary every Sunday.", color: .indigo),
+            Feature(icon: "face.smiling", title: "Auto Mood Detection",
+                    detail: "Mood tagged automatically on every save.", color: .pink),
+            Feature(icon: "square.grid.2x2", title: "Home screen widget", detail: nil, color: .orange),
         ]
     }
 
-    private var deepFeatures: [(String, LocalizedStringKey, Color)] {
+    private var deepFeatures: [Feature] {
         [
-            ("checkmark.circle", "Everything in Core", .green),
-            ("bubble.left.and.bubble.right.fill", "Ask — unlimited questions, no monthly cap.", .blue),
-            ("doc.text.magnifyingglass", "Monthly Deep Report — a full reflection on your month.", MirrorTheme.violet),
-            ("waveform.path.ecg", "Mood Timeline — 30/90/all-time chart + analytics.", .pink),
-            ("bell.badge", "Mood Alerts — notified when your mood drops for 3 entries.", .orange),
+            Feature(icon: "checkmark.circle", title: "Everything in Core", detail: nil, color: .green),
+            Feature(icon: "bubble.left.and.bubble.right.fill", title: "Ask",
+                    detail: "Unlimited questions, no monthly cap.", color: .blue),
+            Feature(icon: "doc.text.magnifyingglass", title: "Monthly Deep Report",
+                    detail: "A full reflection on your month.", color: MirrorTheme.violet),
+            Feature(icon: "waveform.path.ecg", title: "Mood Timeline",
+                    detail: "30/90/all-time chart + analytics.", color: .pink),
+            Feature(icon: "bell.badge", title: "Mood Alerts",
+                    detail: "A heads-up after three low-mood days.", color: .orange),
         ]
     }
 
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Group {
-                if displayMode == .sentinel {
-                    Text("PAYLOAD").font(MirrorTheme.mono(11, weight: .semibold))
-                } else {
-                    Text("What's included").font(.system(size: 12, weight: .semibold))
+            sectionHeader(isSentinel ? "PAYLOAD" : "What's included")
+
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(selectedTier == .core ? coreFeatures : deepFeatures) { feature in
+                    featureRow(feature)
                 }
             }
-            .foregroundStyle(MirrorTheme.textSecondary)
-            .textCase(.uppercase)
-            .tracking(0.8)
-            .padding(.bottom, 14)
+            .id(selectedTier)
+            .transition(.opacity)
 
-            VStack(spacing: 12) {
-                let features = selectedTier == .core ? coreFeatures : deepFeatures
-                ForEach(features, id: \.0) { icon, detail, color in
-                    HStack(alignment: .top, spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(color.opacity(0.12))
-                                .frame(width: 40, height: 40)
-                            Image(systemName: icon)
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(color)
-                        }
-                        Text(detail)
-                            .font(.system(size: 14))
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
+            Divider().overlay(MirrorTheme.inkBorder).padding(.vertical, 16)
+
+            HStack(spacing: 10) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.green)
+                Text("AI runs on your device")
+                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .textCase(isSentinel ? .uppercase : nil)
+                    .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
         .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .themedCard(cornerRadius: 24)
         .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
-    private var planSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Group {
-                if displayMode == .sentinel {
-                    Text("SELECT PLAN").font(MirrorTheme.mono(11, weight: .semibold))
-                } else {
-                    Text("Choose a plan").font(.system(size: 12, weight: .semibold))
+    private func featureRow(_ feature: Feature) -> some View {
+        HStack(alignment: feature.detail == nil ? .center : .top, spacing: 14) {
+            Image(systemName: feature.icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isSentinel ? MirrorTheme.ember : feature.color)
+                .frame(width: 38, height: 38)
+                .background(
+                    (isSentinel ? MirrorTheme.ember : feature.color).opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 10, style: .continuous)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(feature.title)
+                    .font(isSentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .textCase(isSentinel ? .uppercase : nil)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                if let detail = feature.detail {
+                    Text(detail)
+                        .font(isSentinel ? MirrorTheme.mono(11) : .system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func sectionHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(isSentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
             .foregroundStyle(MirrorTheme.textSecondary)
             .textCase(.uppercase)
             .tracking(0.8)
             .padding(.bottom, 14)
+    }
+
+    // MARK: Plans
+
+    private var planSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(isSentinel ? "SELECT PLAN" : "Choose a plan")
 
             if currentPackages.isEmpty {
-                HStack(spacing: 10) {
-                    ProgressView().scaleEffect(0.9)
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("LOADING PLANS…").font(MirrorTheme.mono(12, weight: .medium))
-                        } else {
-                            Text("Loading plans…").font(.system(size: 14))
+                if subscriptionService.productsLoadFailed {
+                    plansUnavailable
+                } else {
+                    // Placeholder rows the size of real ones, so nothing jumps when plans arrive.
+                    VStack(spacing: 10) {
+                        ForEach(0..<2, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
+                                .fill(MirrorTheme.inkMid)
+                                .frame(height: 70)
                         }
                     }
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .overlay { ProgressView() }
+                    .accessibilityLabel("Loading plans…")
                 }
-                .padding(.vertical, 8)
             } else {
                 VStack(spacing: 10) {
                     ForEach(currentPackages, id: \.storeProduct.productIdentifier) { package in
+                        let id = package.storeProduct.productIdentifier
                         PlanCard(
                             package: package,
-                            isSelected: selectedProductID == package.storeProduct.productIdentifier,
-                            onTap: { selectedProductID = package.storeProduct.productIdentifier }
+                            savingsPercent: Self.isYearly(package) ? yearlySavingsPercent : nil,
+                            isSelected: selectedProductID == id,
+                            isCurrent: subscriptionService.activeProductIDs.contains(id),
+                            onTap: { selectedProductID = id }
                         )
                     }
                 }
@@ -335,181 +472,210 @@ struct PaywallView: View {
         .themedCard(cornerRadius: 24)
     }
 
-    private var ctaSection: some View {
-        VStack(spacing: 12) {
+    private var plansUnavailable: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Couldn't load plans. Check your connection.")
+                .font(isSentinel ? MirrorTheme.mono(12) : .system(size: 14))
+                .foregroundStyle(MirrorTheme.textSecondary)
             Button {
-                guard let package = currentPackages.first(where: { $0.storeProduct.productIdentifier == selectedProductID }) else { return }
+                Task {
+                    await subscriptionService.loadProducts()
+                    selectDefaultIfNeeded()
+                }
+            } label: {
+                Text("Try Again")
+                    .font(isSentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .textCase(isSentinel ? .uppercase : nil)
+                    .foregroundStyle(accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var yearlySavingsPercent: Int? { Self.yearlySavingsPercent(in: currentPackages) }
+
+    // MARK: CTA
+
+    private var ctaTitle: LocalizedStringKey {
+        if selectedIsCurrentPlan { return "Current plan" }
+        if subscriptionService.tier == .core && selectedTier == .deep && !SubscriptionService.allFeaturesFree {
+            return "Upgrade to Deep"
+        }
+        return showsTrial ? "Start Free Trial" : "Subscribe"
+    }
+
+    private var ctaDisabled: Bool {
+        subscriptionService.isPurchasing || selectedPackage == nil || selectedIsCurrentPlan
+    }
+
+    private var ctaBar: some View {
+        VStack(spacing: 10) {
+            if let message = subscriptionService.purchaseError ?? subscriptionService.restoreMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(subscriptionService.purchaseError != nil ? Color.red : MirrorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+
+            Button {
+                guard let package = selectedPackage else { return }
                 Task { await subscriptionService.purchase(package) }
             } label: {
-                HStack {
-                    Spacer()
+                ZStack {
                     if subscriptionService.isPurchasing {
                         ProgressView().tint(.white)
                     } else {
-                        Text(displayMode == .sentinel ? "START FREE TRIAL" : "Start Free Trial")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 17, weight: .semibold))
+                        Text(ctaTitle)
+                            .font(isSentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 17, weight: .semibold))
+                            .textCase(isSentinel ? .uppercase : nil)
                             .foregroundStyle(.white)
                     }
-                    Spacer()
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background(
-                    subscriptionService.isPurchasing || currentPackages.isEmpty
-                        ? AnyShapeStyle(Color.secondary.opacity(0.3))
-                        : AnyShapeStyle(MirrorTheme.ember),
-                    in: Capsule()
+                    ctaDisabled ? AnyShapeStyle(Color.secondary.opacity(0.3)) : AnyShapeStyle(MirrorTheme.ember),
+                    in: RoundedRectangle(cornerRadius: isSentinel ? 8 : 27, style: .continuous)
                 )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(subscriptionService.isPurchasing || currentPackages.isEmpty)
-            .shadow(color: MirrorTheme.ember.opacity(0.40), radius: 16, x: 0, y: 6)
+            .disabled(ctaDisabled)
 
-            Button {
-                Task { await subscriptionService.restorePurchases() }
-            } label: {
-                if displayMode == .sentinel {
-                    Text("RESTORE PURCHASES").font(MirrorTheme.mono(13, weight: .semibold))
-                } else {
-                    Text("Restore Purchases").font(.system(size: 14, weight: .semibold))
+            Text(showsTrial ? "Cancel anytime in App Store settings. No charge during trial." : "Cancel anytime in App Store settings.")
+                .font(isSentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
+                .textCase(isSentinel ? .uppercase : nil)
+                .foregroundStyle(MirrorTheme.textTertiary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 6) {
+                Button("Restore Purchases") {
+                    Task { await subscriptionService.restorePurchases() }
                 }
-            }
-            .foregroundStyle(MirrorTheme.textSecondary)
-
-            Group {
-                if displayMode == .sentinel {
-                    Text("CANCEL ANYTIME · NO CHARGE DURING TRIAL")
-                        .font(MirrorTheme.mono(10, weight: .medium))
-                } else {
-                    Text("Cancel anytime in App Store settings. No charge during trial.")
-                        .font(.system(size: 12))
-                }
-            }
-            .foregroundStyle(MirrorTheme.textTertiary)
-            .multilineTextAlignment(.center)
-
-            HStack(spacing: 16) {
+                .buttonStyle(.plain)
                 if let privacyURL = AppConstants.privacyPolicyURL {
+                    Text(verbatim: "·")
                     Link("Privacy Policy", destination: privacyURL)
                 }
                 if let termsURL = AppConstants.termsOfUseURL {
+                    Text(verbatim: "·")
                     Link("Terms of Use", destination: termsURL)
                 }
             }
-            .font(.system(size: 12))
+            .font(isSentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 12, weight: .medium))
+            .textCase(isSentinel ? .uppercase : nil)
             .foregroundStyle(MirrorTheme.textSecondary)
-
-            if let error = subscriptionService.purchaseError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider().overlay(MirrorTheme.inkBorder) }
     }
 }
 
 private struct PlanCard: View {
     let package: Package
+    let savingsPercent: Int?
     let isSelected: Bool
+    let isCurrent: Bool
     let onTap: () -> Void
     @Environment(\.appDisplayMode) private var displayMode
 
-    private var isYearly: Bool { package.storeProduct.productIdentifier.contains("yearly") || package.storeProduct.productIdentifier.contains("annual") }
-    private var isDeepProduct: Bool { package.storeProduct.productIdentifier.contains("deep") }
-    private var yearlySavingsPercent: Int { isDeepProduct ? 17 : 16 }
+    private var isSentinel: Bool { displayMode == .sentinel }
+    private var isYearly: Bool { PaywallView.isYearly(package) }
+    private var price: String { package.storeProduct.localizedPriceString }
+    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 14) {
-                ZStack {
-                    if displayMode == .sentinel {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .stroke(isSelected ? MirrorTheme.ember : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
-                            .frame(width: 20, height: 20)
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                .fill(MirrorTheme.ember)
-                                .frame(width: 10, height: 10)
-                        }
-                    } else {
-                        Circle()
-                            .stroke(isSelected ? MirrorTheme.primary : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
-                            .frame(width: 22, height: 22)
-                        if isSelected {
-                            Circle()
-                                .fill(MirrorTheme.accentGradient)
-                                .frame(width: 12, height: 12)
-                        }
-                    }
-                }
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                selectionMark
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
-                        Group {
-                            if displayMode == .sentinel {
-                                Text(isYearly ? "YEARLY" : "MONTHLY").font(MirrorTheme.mono(14, weight: .semibold))
-                            } else {
-                                Text(isYearly ? "Yearly" : "Monthly").font(.system(size: 15, weight: .semibold))
-                            }
-                        }
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                        if isYearly {
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("BEST VALUE")
-                                        .font(MirrorTheme.mono(10, weight: .bold))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(MirrorTheme.ember.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                                .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
-                                        }
-                                        .foregroundStyle(MirrorTheme.ember)
-                                } else {
-                                    Text("Best value")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(MirrorTheme.primary)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(MirrorTheme.primary.opacity(0.12), in: Capsule())
-                                }
-                            }
+                        Text(isYearly ? "Yearly" : "Monthly")
+                            .font(isSentinel ? MirrorTheme.mono(14, weight: .semibold) : .system(size: 16, weight: .semibold))
+                            .textCase(isSentinel ? .uppercase : nil)
+                            .foregroundStyle(MirrorTheme.textPrimary)
+                        if isCurrent {
+                            badge("Current plan")
+                        } else if isYearly {
+                            badge("Best value")
                         }
                     }
-                    Group {
-                        if displayMode == .sentinel {
-                            Text(isYearly
-                                 ? "\(package.storeProduct.localizedPriceString) / YR (SAVE ~\(yearlySavingsPercent)%)"
-                                 : "\(package.storeProduct.localizedPriceString) / MO")
-                                .font(MirrorTheme.mono(12, weight: .medium))
-                        } else {
-                            Text(isYearly
-                                 ? "\(package.storeProduct.localizedPriceString) / year (save ~\(yearlySavingsPercent)%)"
-                                 : "\(package.storeProduct.localizedPriceString) / month")
-                                .font(.system(size: 13))
-                        }
-                    }
-                    .foregroundStyle(MirrorTheme.textSecondary)
+                    priceLine
+                        .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
             }
             .padding(16)
             .background(
-                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.violetDim) : MirrorTheme.inkMid,
-                in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 16, style: .continuous)
+                isSelected ? (isSentinel ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.violetDim) : MirrorTheme.inkMid,
+                in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 16, style: .continuous)
+                RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
                     .stroke(
-                        isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.violet.opacity(0.45)) : MirrorTheme.inkBorder,
+                        isSelected ? (isSentinel ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.violet.opacity(0.45)) : MirrorTheme.inkBorder,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isSelected)
+    }
+
+    @ViewBuilder
+    private var priceLine: some View {
+        if isYearly, let savingsPercent {
+            Text(isSentinel ? "\(price) / YR (SAVE ~\(savingsPercent)%)" : "\(price) / year (save ~\(savingsPercent)%)")
+        } else if isYearly {
+            Text("\(price) / year").textCase(isSentinel ? .uppercase : nil)
+        } else {
+            Text(isSentinel ? "\(price) / MO" : "\(price) / month")
+        }
+    }
+
+    private var selectionMark: some View {
+        ZStack {
+            if isSentinel {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(isSelected ? MirrorTheme.ember : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
+                    .frame(width: 20, height: 20)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(MirrorTheme.ember)
+                        .frame(width: 10, height: 10)
+                }
+            } else {
+                Circle()
+                    .stroke(isSelected ? MirrorTheme.primary : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
+                    .frame(width: 22, height: 22)
+                if isSelected {
+                    Circle()
+                        .fill(MirrorTheme.accentGradient)
+                        .frame(width: 12, height: 12)
+                }
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+
+    private func badge(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 11, weight: .bold))
+            .textCase(isSentinel ? .uppercase : nil)
+            .foregroundStyle(accent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(accent.opacity(0.12), in: Capsule())
     }
 }

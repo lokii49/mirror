@@ -327,6 +327,8 @@ struct NoteEditorTextView: NSViewRepresentable {
     @Binding var fontChoiceRaw: String
     var panelState: FormattingPanelState
     var displayMode: DisplayMode
+    /// Shared with iOS's call site; the Mac always shows the popover.
+    var panelAsPopover = true
     var onPhotoTapped: ((Int) -> Void)?
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
@@ -915,8 +917,6 @@ struct NoteEditorTextView: NSViewRepresentable {
             case .uncheckAllItems: setAllChecklistItems(checked: false, in: textView)
             case .deleteCheckedItems: deleteCheckedItems(in: textView)
             case .sortCheckedToBottom: sortCheckedToBottom(in: textView)
-            case .photo:
-                break  // photos are attached under the editor on Mac
             }
         }
 

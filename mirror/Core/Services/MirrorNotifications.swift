@@ -106,6 +106,18 @@ enum NotificationService {
     /// check already passed), replaces the generic "ready" body with a snippet of the actual
     /// nudge — the lock-screen surface is the whole product for anyone who doesn't open the
     /// app. Ignored unless `insightReady` is also true.
+    /// After Delete Everything: the repeating daily nudge may carry a line of a deleted reflection,
+    /// pending or already delivered. Reschedules it with the generic body at the same time.
+    static func dropNudgePreview() async {
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [nudgeID])
+        let pending = await center.pendingNotificationRequests()
+        guard let request = pending.first(where: { $0.identifier == nudgeID }),
+              let trigger = request.trigger as? UNCalendarNotificationTrigger,
+              let hour = trigger.dateComponents.hour, let minute = trigger.dateComponents.minute else { return }
+        await rescheduleContextualNudge(hasWrittenToday: false, insightReady: false, hour: hour, minute: minute)
+    }
+
     static func rescheduleContextualNudge(
         hasWrittenToday: Bool,
         insightReady: Bool,

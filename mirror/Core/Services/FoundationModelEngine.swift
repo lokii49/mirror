@@ -122,6 +122,123 @@ enum FoundationModelEngine {
         #endif
     }
 
+    /// The structured English weekly digest (tools/llmrig/fm/RUBRIC_FM.md, rounds 16 and 18). `FMDigestGuard`
+    /// checks every field before anything is shown. Guide text is part of the measured prompt: it is
+    /// fmrig.swift's WeeklyDigestD5, word for word; change both together and re-measure.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct WeeklyDigestDraft {
+        @Guide(description: "One short phrase, 3 to 8 words, that finishes 'A week of' and says what the week was about for them. Not a list of names")
+        var theme: String
+        @Guide(description: "One sentence copied word for word, with the same punctuation, from this week's entries: the one that best shows when they had the most or the least energy")
+        var energyQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that moment seems to show you need, hope for or worry about. Do not retell it. Only feelings they wrote or plainly showed")
+        var energyRead: String
+        @Guide(description: "A different sentence copied word for word from this week's entries, about something good that is growing or changing for them")
+        var buildingQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that might mean for you from here on. Do not retell it. Say nothing about anything they did not write")
+        var buildingRead: String
+        @Guide(description: "A different sentence copied word for word from this week's entries, about something that may be costing them or wearing on them")
+        var watchQuote: String
+        @Guide(description: "One gentle sentence to the person as 'you' on what to keep an eye on and why it matters to you. Say nothing about anything they did not write")
+        var watchRead: String
+        @Guide(description: "One small thing they could do in the next few days, using a person, task or thing they named this week")
+        var boost: String
+        @Guide(description: "One kind, practical sentence for next week about something they wrote is coming up or still unfinished")
+        var nextWeek: String
+    }
+    #endif
+
+    /// One structured weekly digest draft. Temperature as measured (the daily reflection's), no token cap.
+    nonisolated static func generateWeeklyDigest(systemPrompt: String, userMessage: String) async throws -> FMDigestGuard.Draft {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let r = try await session.respond(to: userMessage, generating: WeeklyDigestDraft.self, options: options).content
+        return FMDigestGuard.Draft(
+            theme: r.theme, energyQuote: r.energyQuote, energyRead: r.energyRead,
+            buildingQuote: r.buildingQuote, buildingRead: r.buildingRead,
+            watchQuote: r.watchQuote, watchRead: r.watchRead, boost: r.boost, nextWeek: r.nextWeek
+        )
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
+    /// The structured monthly report (tools/llmrig/fm/RUBRIC_FM.md, round 19). `FMMonthlyGuard` checks every
+    /// field before anything is shown. Guide text is fmrig.swift's MonthlyM1, word for word.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct MonthlyReportDraft {
+        @Guide(description: "A short image, 3 to 10 words, for how the month felt. A picture, not a fact about their life")
+        var image: String
+        @Guide(description: "One thing from their entries that asked for their time or heart this month, a few plain words")
+        var tensionA: String
+        @Guide(description: "A second, different thing from their entries that also asked for their time or heart, a few plain words")
+        var tensionB: String
+        @Guide(description: "One sentence copied word for word, with the same punctuation, from this month's entries: one that seems to have changed something for them")
+        var momentQuote: String
+        @Guide(description: "One sentence to the person as 'you': what that moment might have changed. Do not retell it. Say nothing about anything they did not write")
+        var momentRead: String
+        @Guide(description: "A different sentence copied word for word from a day that was not hard, that shows who they are growing into")
+        var becomingQuote: String
+        @Guide(description: "The end of the sentence 'You seem to be becoming someone who ...', a few plain words, using only what they wrote")
+        var becomingRest: String
+        @Guide(description: "A different sentence copied word for word from a hard day, about something that weighed on them")
+        var releaseQuote: String
+        @Guide(description: "The end of the sentence 'Maybe it's time to let go of ...', a few plain words about that weight")
+        var releaseRest: String
+        @Guide(description: "One honest, open question for next month about something they wrote, ending with a question mark")
+        var question: String
+    }
+    #endif
+
+    /// One structured monthly report draft, at the measured temperature (the daily reflection's).
+    nonisolated static func generateMonthlyReport(systemPrompt: String, userMessage: String) async throws -> FMMonthlyGuard.Draft {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.dailyNudge.temperature))
+        let r = try await session.respond(to: userMessage, generating: MonthlyReportDraft.self, options: options).content
+        return FMMonthlyGuard.Draft(
+            image: r.image, tensionA: r.tensionA, tensionB: r.tensionB,
+            momentQuote: r.momentQuote, momentRead: r.momentRead,
+            becomingQuote: r.becomingQuote, becomingRest: r.becomingRest,
+            releaseQuote: r.releaseQuote, releaseRest: r.releaseRest, question: r.question
+        )
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
+    /// The sentences shown under a Foundation Models Ask answer (tools/llmrig/fm/RUBRIC_FM.md, round 21).
+    /// Guide text is fmrig.swift's AskQuotes, word for word.
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    nonisolated struct AskQuotesDraft {
+        @Guide(description: "The sentence from the entries that best backs up the answer, copied word for word with the same punctuation, or empty")
+        var quote1: String
+        @Guide(description: "A different sentence from the entries that also backs up the answer, copied word for word, or empty")
+        var quote2: String
+    }
+    #endif
+
+    nonisolated static func pickAskQuotes(systemPrompt: String, userMessage: String) async throws -> [String] {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, macOS 26.0, *) else { throw LocalLLMError.emptyResponse }
+        let session = LanguageModelSession(instructions: systemPrompt)
+        let options = GenerationOptions(temperature: Double(LocalLLMTask.ask.temperature))
+        let r = try await session.respond(to: userMessage, generating: AskQuotesDraft.self, options: options).content
+        return [r.quote1, r.quote2]
+        #else
+        throw LocalLLMError.emptyResponse
+        #endif
+    }
+
     /// Marks a test error as a guardrail refusal (a real `GenerationError` can't be built in tests).
     protocol GuardrailRefusalForTesting: Error {}
 

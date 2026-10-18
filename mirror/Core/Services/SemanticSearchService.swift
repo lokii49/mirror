@@ -202,6 +202,8 @@ actor SemanticSearchService {
             return
         }
         // A model that won't load (memory pressure) is skipped this pass, not downloaded again.
+        // llama.cpp logs to stderr by default; silence it before loading, as the Gemma path does.
+        LlamaLog.silence()
         guard let embedder = try? LlamaEmbedder(path: Self.modelFileURL().path) else { return }
         for (count, document) in stale.enumerated() {
             if Task.isCancelled { break }
@@ -240,6 +242,8 @@ actor SemanticSearchService {
             Task { await refresh(documents) }
             return nil
         }
+        // llama.cpp logs to stderr by default; silence it before loading, as the Gemma path does.
+        LlamaLog.silence()
         guard let embedder = try? LlamaEmbedder(path: Self.modelFileURL().path),
               let query = try? Self.embed(Self.queryPrefix + question, with: embedder) else { return nil }
         let scored: [(index: Int, id: UUID, score: Float)] = documents.enumerated().compactMap { position, document in

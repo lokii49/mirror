@@ -24,6 +24,9 @@ enum CachedInsightRepair {
     @MainActor
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        // Rewrites encrypted fields: wait for a readable key (next activation) rather than
+        // write plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
 
         let insights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
         var changed = 0

@@ -181,7 +181,9 @@ struct ParagraphStyleRenderingTests {
         }
     }
 
-    @Test func checklistCheckedDimsTextButDoesNotStrikethrough() throws {
+    /// As in Notes: a checked item keeps full-ink text and no strikethrough; only its circle changes
+    /// (drawn by ChecklistLayoutManager).
+    @Test func checklistCheckedKeepsFullInkAndDoesNotStrikethrough() throws {
         let h = makeEditorHarness(text: "done", textStyleData: style(.init(paragraphStyles: [.checklistChecked])))
         let rendered = try #require(h.textView.attributedText)
         for i in 0..<rendered.length {
@@ -189,7 +191,7 @@ struct ParagraphStyleRenderingTests {
                      "checked checklist text must not auto-strikethrough (index \(i))")
         }
         let color = rendered.attribute(.foregroundColor, at: rendered.length - 1, effectiveRange: nil) as? UIColor
-        #expect(color == UIColor.tertiaryLabel)
+        #expect(color == UIColor.label)
     }
 
     @Test func checklistUncheckedIsFullOpacity() throws {

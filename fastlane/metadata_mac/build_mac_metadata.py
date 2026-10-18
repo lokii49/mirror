@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes fastlane/metadata_mac/<locale>/{description,promotional_text}.txt for the Mac 1.0 version
-and validates App Store limits. Copy only claims what the Mac build has (see .claude/mac-parity-audit.md):
+and validates App Store limits. Copy only claims what the Mac build has (see the Mac section of .claude/roadmap.md):
 no Sentinel, no widgets, no voice notes, no encryption or cross-device sync claims (unverified on a signed Mac build)."""
 import os, sys
 

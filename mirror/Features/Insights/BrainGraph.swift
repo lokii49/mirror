@@ -8,6 +8,8 @@ struct BrainNode: Identifiable, Sendable {
     let label: String
     let type: ThemeNodeType
     let entryIDs: Set<UUID>
+    /// For a topic node, the words from the entries it gathers, most mentioned first.
+    var members: [String] = []
     /// Document frequency — number of entries mentioning this node.
     let mentionCount: Int
     /// nil when no contributing entry has a scored mood.
@@ -38,23 +40,42 @@ struct BrainGraph: Sendable {
 
 enum BrainGraphBuilder {
     static let minMentions = 2
+    /// A word that belongs to no topic needs this many entries to get its own node; below it, one
+    /// recurring noun ("phone", "water") isn't a theme.
+    static let looseKeywordMinMentions = 3
     static let maxNodes = 60
     static let minSharedEntriesForEdge = 1
 
     static func build(
         termsByEntry: [UUID: Set<ExtractedTerm>],
         moodScoreByEntry: [UUID: Double?],
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        looseKeywordMinMentions: Int = Self.looseKeywordMinMentions
     ) -> BrainGraph {
         // Invert: key → (label, best type, entries).
         struct Agg {
             var label: String
             var type: ThemeNodeType
             var entryIDs: Set<UUID> = []
+            var members: [String: Int] = [:]
         }
         var aggregates: [String: Agg] = [:]
+        // People and places that a later entry tags as a plain word keep their name node, so
+        // topics are only decided once every entry has been read.
+        var namedKeys: Set<String> = []
+        for terms in termsByEntry.values {
+            for term in terms where term.type != .keyword { namedKeys.insert(term.key) }
+        }
         for (entryID, terms) in termsByEntry {
             for term in terms {
+                if term.type == .keyword, !namedKeys.contains(term.key),
+                   let topicID = term.topicID, let topic = BrainTopics.byID[topicID] {
+                    var agg = aggregates[topic.id] ?? Agg(label: topic.label, type: .theme)
+                    agg.entryIDs.insert(entryID)
+                    agg.members[term.label.lowercased(), default: 0] += 1
+                    aggregates[topic.id] = agg
+                    continue
+                }
                 if var agg = aggregates[term.key] {
                     agg.entryIDs.insert(entryID)
                     // Type precedence: person > place > keyword — merges e.g.
@@ -71,7 +92,7 @@ enum BrainGraphBuilder {
         }
 
         let ranked = aggregates
-            .filter { $0.value.entryIDs.count >= minMentions }
+            .filter { $0.value.entryIDs.count >= ($0.value.type == .keyword ? max(minMentions, looseKeywordMinMentions) : minMentions) }
             .sorted {
                 if $0.value.entryIDs.count == $1.value.entryIDs.count { return $0.key < $1.key }
                 return $0.value.entryIDs.count > $1.value.entryIDs.count
@@ -93,6 +114,7 @@ enum BrainGraphBuilder {
                 label: agg.label,
                 type: agg.type,
                 entryIDs: agg.entryIDs,
+                members: agg.members.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key),
                 mentionCount: count,
                 avgMoodScore: scores.isEmpty ? nil : scores.reduce(0, +) / Double(scores.count),
                 radius: 8 + 18 * CGFloat(normalized.squareRoot())
@@ -386,7 +408,9 @@ enum BrainGraphBuilder {
         // units matching BrainSceneView's sphere sizes) aren't undone by a
         // later rescale shrinking the gaps they just created.
         let rawMaxDist = positions.map(length).max() ?? 1
-        let targetRadius = 4.5
+        // Grows with the node count: 4.5 suited 60 single-word nodes but flung a graph of ten
+        // topics far apart, with most of them off screen.
+        let targetRadius = min(4.5, max(1.8, 0.8 * cbrt(Double(n)) + 0.9))
         let seedScale = rawMaxDist > 0.01 ? targetRadius / rawMaxDist : 1
         for i in 0..<n { positions[i] *= seedScale }
 

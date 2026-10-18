@@ -1,5 +1,7 @@
 # mirror-loop state
 
+> **Stale (marked 2026-10-10):** last updated 2026-09-09 and not maintained since. Don't take its backlog as current; the active list is `3.1.2-backlog.md`.
+
 The agent forgets each run. This file does not — read it before starting.
 
 ## Backlog

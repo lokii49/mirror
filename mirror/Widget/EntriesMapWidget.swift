@@ -181,7 +181,7 @@ struct EntriesMapWidgetView: View {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(sentinel ? wEmber.opacity(0.5) : .white.opacity(0.35))
-                Text(sentinel ? "CORE · $2.99/MO" : "Core · $2.99/mo")
+                WidgetShared.lockedTierLabel(sentinel: sentinel)
                     .font(sentinel ? .system(size: 10, weight: .semibold, design: .monospaced) : .system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.45))
             }

@@ -12,6 +12,9 @@ enum PhotoMarkerRepair {
     @MainActor
     static func runIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        // Rewrites encrypted fields: wait for a readable key (next activation) rather than
+        // write plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         // Same wait-for-CloudKit deferral as UngroundedInsightCleanup: on a new device, entries
         // can still be arriving on first launch, and marking done early would skip them.
         guard UserDefaults.standard.integer(forKey: UngroundedInsightCleanup.backgroundingCountKey) >= 1 else { return }
@@ -26,6 +29,9 @@ enum PhotoMarkerRepair {
             // Formatting that can't be read now must not be overwritten with nothing.
             let inline = entry.inlineStyleData
             if entry.encryptedInlineStyleData != nil, inline == nil { continue }
+            // Nor formatting this device can't decrypt (handed back as ciphertext, not nil).
+            if MirrorEncryption.encryptedDataNeedsUnavailableKey(entry.encryptedInlineStyleData)
+                || MirrorEncryption.encryptedDataNeedsUnavailableKey(entry.encryptedTextStyleData) { continue }
             guard let repaired = NoteEditorCodec.repairPhotoMarkerDamage(
                 text: text, textStyleData: entry.textStyleData, inlineStyleData: inline
             ) else { continue }

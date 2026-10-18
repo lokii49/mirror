@@ -1,5 +1,5 @@
-Correcciones en la búsqueda inteligente
+Tus propias frases en resúmenes, informes y Preguntar a Mirror
 
-• Búsqueda inteligente en Preguntar: el modelo de búsqueda ya no se vuelve a descargar al cerrar y abrir de nuevo MirrorNotes. Ahora se descarga en segundo plano, y puedes pausar y reanudar la descarga.
-• Las descargas de modelos muestran una barra de progreso más clara con un solo botón para pausar y reanudar, y un botón de descarga más claro.
-• Novedades muestra solo los últimos cambios, y un Mac que se saltó la 1.1.0 también los ve.
+• Con Apple Intelligence, el Resumen semanal, el Informe mensual y Preguntar a Mirror citan ahora tus propias frases.
+• El contador de palabras dice ahora «1 palabra» en lugar de «1 palabras».
+• Pequeñas correcciones y mejoras.

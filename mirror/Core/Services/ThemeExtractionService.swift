@@ -5,7 +5,7 @@ enum ThemeNodeType: String, Codable, Sendable {
     case person
     case place
     case keyword
-    /// Reserved for a future on-device LLM pass that extracts abstract themes.
+    /// A Brain View topic ("Work", "Sleep") gathering related words; see `BrainTopics`.
     case theme
 }
 
@@ -15,6 +15,8 @@ struct ExtractedTerm: Hashable, Sendable {
     /// Display form as first seen in the entry (e.g. "Priya").
     let label: String
     let type: ThemeNodeType
+    /// The Brain View topic this word belongs to in its entry's language (`BrainTopics`), if any.
+    var topicID: String? = nil
 
     // Identity is the normalized key + type; label is presentation only,
     // so "Mom" and "mom" collapse to one term within an entry.
@@ -99,8 +101,11 @@ actor ThemeExtractionService {
         tagger.setLanguage(language, range: fullRange)
 
         var byKey: [String: ExtractedTerm] = [:]
+        let listLanguage = BrainTopics.listLanguage(language.rawValue)
 
-        // Pass 1 — named entities (person/place/organization).
+        // Pass 1 — named entities (person/place/organization). An organization on a topic list
+        // keeps its topic: the tagger reads brands ("Netflix", "Instagram") as organizations, and
+        // pass 2 skips keys already found, so they would otherwise miss Screens.
         tagger.enumerateTags(
             in: fullRange, unit: .word, scheme: .nameType,
             options: [.omitPunctuation, .omitWhitespace, .joinNames]
@@ -112,14 +117,36 @@ actor ThemeExtractionService {
             case .organizationName?: type = .keyword
             default: type = nil
             }
-            if let type, let term = makeTerm(String(input[range]), type: type) {
+            if let type, var term = makeTerm(String(input[range]), type: type) {
+                // One word only: a joined name ("Apple Music") isn't a list word, and a stem
+                // could match its first word.
+                if tag == .organizationName, let listLanguage, !term.key.contains(where: \.isWhitespace) {
+                    term.topicID = BrainTopics.topicID(for: term.key, language: listLanguage)
+                }
                 // First-seen label wins; name types always claim the key.
                 if byKey[term.key] == nil { byKey[term.key] = term }
             }
             return true
         }
 
-        // Pass 2 — common nouns as keywords.
+        // Pass 2 — words on the language's Brain View topic lists. Runs on plain word tokens, not
+        // the noun tagger, which has no model for most of the app's languages; short words count
+        // here ("tea", "gym", "会議").
+        if let listLanguage {
+            let tokenizer = NLTokenizer(unit: .word)
+            tokenizer.string = input
+            tokenizer.setLanguage(language)
+            tokenizer.enumerateTokens(in: fullRange) { range, _ in
+                let label = String(input[range]).trimmingCharacters(in: CharacterSet.letters.inverted)
+                let key = BrainTopics.fold(label)
+                guard !key.isEmpty, byKey[key] == nil,
+                      let topicID = BrainTopics.topicID(for: key, language: listLanguage) else { return true }
+                byKey[key] = ExtractedTerm(key: key, label: label, type: .keyword, topicID: topicID)
+                return true
+            }
+        }
+
+        // Pass 3 — other common nouns as keywords.
         tagger.enumerateTags(
             in: fullRange, unit: .word, scheme: .lexicalClass,
             options: [.omitPunctuation, .omitWhitespace, .omitOther]
@@ -162,7 +189,7 @@ actor ThemeExtractionService {
         "morning", "night", "evening", "afternoon", "time", "times", "day", "days", "week", "weeks",
         "month", "months", "year", "years", "things", "something", "anything", "everything", "nothing",
         "people", "life", "lot", "bit", "way", "ways", "kind", "sort", "stuff", "moment", "moments",
-        "tomorrow", "yesterday", "everyone", "someone", "anyone",
+        "tomorrow", "yesterday", "weekend", "weekends", "everyone", "someone", "anyone",
         "while", "hours", "hour", "minutes", "minute", "tonight", "ones", "everything's",
         "situation", "whole", "half", "part", "parts", "place", "back"
     ]

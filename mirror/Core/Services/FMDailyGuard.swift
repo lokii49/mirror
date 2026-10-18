@@ -40,13 +40,20 @@ nonisolated enum FMDailyGuard {
     /// measures 3, tools/llmrig/fm/RUBRIC_FM.md).
     static func verify(quote: String, insight: String, sources: [Source], maxSentences: Int = maxInsightSentences) -> Verified? {
         guard let (shownQuote, index) = locate(quote: quote, in: sources.map(\.text)) else { return nil }
+        guard let clean = cleanSentences(of: insight, sources: sources, maxSentences: maxSentences) else { return nil }
+        return Verified(quote: shownQuote, insight: clean.text, sourceIndex: index, droppedSentences: clean.dropped)
+    }
+
+    /// The sentences of `text` that pass the insight checks, tidied, at most `maxSentences`; nil when
+    /// none passes. The weekly digest (`FMDigestGuard`) checks each of its model-written lines with it.
+    static func cleanSentences(of text: String, sources: [Source], maxSentences: Int) -> (text: String, dropped: Int)? {
         let allowed = allowedWords(sources)
         let sourceWords = Set(sources.flatMap { words($0.text) })
         let sourceText = sources.map(\.text).joined(separator: " ")
         let names = personNames(in: sourceText)
         var kept: [String] = []
         var dropped = 0
-        for sentence in sentences(of: insight) {
+        for sentence in sentences(of: text) {
             let restored = restoreNames(sentence, names: names)
             let duplicate = kept.contains { $0.lowercased() == tidy(restored).lowercased() }
             if !duplicate, sentenceIsClean(restored, allowed: allowed, sourceWords: sourceWords, sourceText: sourceText) {
@@ -56,7 +63,7 @@ nonisolated enum FMDailyGuard {
             }
         }
         guard !kept.isEmpty else { return nil }
-        return Verified(quote: shownQuote, insight: kept.joined(separator: " "), sourceIndex: index, droppedSentences: dropped)
+        return (kept.joined(separator: " "), dropped)
     }
 
     // MARK: - Quote
@@ -81,6 +88,71 @@ nonisolated enum FMDailyGuard {
             return (shown, index)
         }
         return nil
+    }
+
+    /// `locate`, widened to the whole sentence the match sits in, then cut to the display limits from that
+    /// sentence's start. A match can be part of a sentence ("I want to quit my job" inside "I don't think I
+    /// want to quit my job."), and shown alone it says the opposite of what was written. For the weekly
+    /// digest and Ask's evidence; the daily reflection keeps `locate` as rig-measured.
+    /// Sentences end at . ! ? or … followed by a space (not after a title such as "Dr."), or at a line break.
+    static func locateSentence(quote: String, in texts: [String]) -> (quote: String, index: Int)? {
+        guard let found = locate(quote: quote, in: texts) else { return nil }
+        let needle = straighten(collapse(quote)).trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
+        // Like `collapse`, but remembering which spaces stand for a line break.
+        var chars: [Character] = []
+        var lineBreaks = Set<Int>()
+        var pendingSpace = false, pendingBreak = false
+        for ch in texts[found.index] {
+            if ch.isWhitespace {
+                pendingSpace = !chars.isEmpty
+                if ch.isNewline { pendingBreak = true }
+                continue
+            }
+            if pendingSpace {
+                if pendingBreak { lineBreaks.insert(chars.count) }
+                chars.append(" ")
+            }
+            pendingSpace = false
+            pendingBreak = false
+            chars.append(ch)
+        }
+        let haystack = straighten(String(chars))
+        guard let range = haystack.range(of: needle, options: .caseInsensitive) else { return found }
+        let matchStart = haystack.distance(from: haystack.startIndex, to: range.lowerBound)
+        let matchEnd = matchStart + haystack.distance(from: range.lowerBound, to: range.upperBound)
+        func endsSentence(at space: Int) -> Bool {
+            guard chars[space] == " " else { return false }
+            if lineBreaks.contains(space) { return true }
+            var k = space - 1
+            while k > 0, "\"')”’".contains(chars[k]) { k -= 1 }
+            guard k >= 0, ".!?…".contains(chars[k]) else { return false }
+            return !endsInTitle(String(chars[..<space]))
+        }
+        var start = matchStart
+        while start > 0, !endsSentence(at: start - 1) { start -= 1 }
+        // A list line's marker ("- ", "* ", "• ") isn't part of the sentence (rig round 27).
+        if start < matchStart, start + 1 < chars.count, "-*•".contains(chars[start]), chars[start + 1] == " " { start += 2 }
+        var end = matchEnd
+        while end < chars.count, !endsSentence(at: end) { end += 1 }
+        // A sentence too long to show whole is cut from its start; when that cut ends before the match, the
+        // clause the match starts in is shown instead, and when even that can't hold it, nothing (the quote
+        // shown must contain what was picked). `cut` returns a verbatim start, so its length says how far it reaches.
+        func shownFrom(_ from: Int) -> String? {
+            let shown = cut(String(chars[from..<end]))
+            if shown.count >= matchEnd - from { return shown }
+            // A pick of several sentences, too long to show whole: the whole sentences that fit, from the pick's
+            // own sentence on (rig round 27, replay 2).
+            if from == start, shown.count > matchStart - from,
+               let last = shown.last(where: { !"\"')”’".contains($0) }), ".!?…".contains(last), !endsInTitle(shown) {
+                return shown
+            }
+            return nil
+        }
+        var clause = matchStart
+        while clause > start, !(chars[clause - 1] == " " && clause >= 2 && ",;:—–".contains(chars[clause - 2])) { clause -= 1 }
+        guard let shown = shownFrom(start) ?? (clause > start ? shownFrom(clause) : nil),
+              shown.split(separator: " ").count >= minQuoteWords else { return nil }
+        return (shown, found.index)
     }
 
     /// The option a model-written quote stands for, for languages the English checks above do not cover.
@@ -153,6 +225,7 @@ nonisolated enum FMDailyGuard {
         for (i, ch) in characters.enumerated() {
             current.append(ch)
             let endsSentence = ".!?…".contains(ch) && (i + 1 == characters.count || characters[i + 1].isWhitespace)
+                && !endsInTitle(current)
             if endsSentence {
                 out.append(current.trimmingCharacters(in: .whitespaces))
                 current = ""
@@ -163,20 +236,52 @@ nonisolated enum FMDailyGuard {
         return out
     }
 
+    /// "Dr.", "Mrs.", "e.g." and the like: a period that doesn't end the sentence ("Talk to Dr. Okafor" was cut to
+    /// "Talk to Dr."; rig round 26).
+    static let titleAbbreviations: Set<String> = ["dr.", "mr.", "mrs.", "ms.", "mx.", "prof.", "st.", "jr.", "sr.", "vs.", "e.g.", "i.e."]
+
+    /// Whether `text` ends with one of `titleAbbreviations` (its last word, ignoring case).
+    static func endsInTitle(_ text: String) -> Bool {
+        let last = text.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
+        return titleAbbreviations.contains(last.trimmingCharacters(in: CharacterSet(charactersIn: "(\"'“‘")))
+    }
+
     /// Names the entries write (people and places), lowercased -> as written. The model sometimes
     /// writes a name in lowercase ("worried about maya").
-    private static func personNames(in text: String) -> [String: String] {
+    ///
+    /// At a sentence start the capital says nothing, and iOS 27's tagger calls such nouns places
+    /// ("Exam is on Friday" tags Exam as a PlaceName on an iPhone 14 Pro, 2026-10-15), which turned
+    /// the insight's "the exam" into "the Exam". So a word that opens a sentence counts only when the
+    /// tagger calls it a person ("Kai came back…" is a PersonalName). Mid-sentence, any name counts.
+    /// Measured in llmrig rounds 13 and 14 (RUBRIC_FM.md).
+    /// Also used by `FMDigestGuard` to keep each name with its own entry.
+    static func personNames(in text: String) -> [String: String] {
         let tagger = NLTagger(tagSchemes: [.nameType])
         tagger.string = text
         var names: [String: String] = [:]
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
             if let tag, tag == .personalName || tag == .placeName {
                 let name = String(text[range])
-                if name.first?.isUppercase == true { names[name.lowercased()] = name }
+                if name.first?.isUppercase == true, tag == .personalName || !startsSentence(range.lowerBound, in: text) {
+                    names[name.lowercased()] = name
+                }
             }
             return true
         }
         return names
+    }
+
+    /// Whether `index` begins a sentence: nothing but spaces and opening quotes or brackets between
+    /// it and the start of the text, a line break, or sentence-ending punctuation.
+    private static func startsSentence(_ index: String.Index, in text: String) -> Bool {
+        var i = index
+        while i > text.startIndex {
+            i = text.index(before: i)
+            let ch = text[i]
+            if ch == " " || ch == "\t" || "\"'\u{201C}\u{2018}([".contains(ch) { continue }
+            return ch.isNewline || ".!?…。！？".contains(ch)
+        }
+        return true
     }
 
     private static func restoreNames(_ sentence: String, names: [String: String]) -> String {
@@ -258,12 +363,19 @@ nonisolated enum FMDailyGuard {
         return allowed.filter { $0.count >= 3 }
     }
 
-    /// Same word, ignoring endings: compares up to the first five letters of the shorter word.
+    /// Same word, ignoring endings: compares up to the first five letters of the shorter word. A word shorter than
+    /// five letters matches only itself plus a plain ending ("calm" / "calmer", "hope" / "hopeful"), so "over" is not
+    /// "overwhelmed" and "numbers" is not "numb" (rig round 23, RUBRIC_FM.md).
     private static func matches(_ a: String, _ b: String) -> Bool {
-        let n = min(a.count, b.count, 5)
-        guard n >= 3 else { return a == b }
-        return a.prefix(n) == b.prefix(n)
+        let (short, long) = a.count <= b.count ? (a, b) : (b, a)
+        guard short.count >= 5 else {
+            guard long.hasPrefix(short) else { return false }
+            return plainEndings.contains(String(long.dropFirst(short.count)))
+        }
+        return a.prefix(5) == b.prefix(5)
     }
+
+    private static let plainEndings: Set<String> = ["", "s", "es", "ed", "d", "er", "r", "est", "ness", "ing", "ful", "ly", "y"]
 
     static func words(_ text: String) -> [String] {
         straighten(text).lowercased()

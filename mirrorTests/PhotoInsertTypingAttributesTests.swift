@@ -3,25 +3,9 @@ import SwiftUI
 import UIKit
 @testable import mirror
 
-/// A real bug, found live (not from the audit doc): attach a photo, then
-/// keep typing — the newly typed text rendered small and black instead of
-/// the entry's real body style, until the next full re-render papered over
-/// it. Root cause: `insertPhotoToken(at:in:)` called `applyStyledText`
-/// (which recomputes typing attributes at its end) *before* moving the
-/// cursor to its post-insert position — so typing attributes were computed
-/// against the stale, pre-insert cursor location and never recomputed after
-/// the move. `photoAttachmentString`'s attachment run carries no `.font` /
-/// `.foregroundColor` of its own, so with nothing ever computed correctly
-/// for the real position, UIKit fell back to its own default typing
-/// attributes instead of this entry's themed body style.
-///
-/// `encodedTextStyleData(from:)` (checked, not assumed) derives everything
-/// from the custom `paragraphStyleAttribute`/`fontChoiceAttribute` keys, not
-/// raw `.font`/`.foregroundColor` — so this was cosmetic, not a data
-/// integrity bug: the paragraph still persisted as `.body` correctly. Still
-/// a real, visible defect worth a direct test, since the manual UI-test
-/// route (mirrorUITests) was unusable when this was found — the simulator's
-/// XCTRunner launch was failing under machine load in the 100s.
+/// Attaching a photo goes through `textWithInlinePhotoToken(_:at:)` (WriteView+Photos), and text
+/// typed after it must keep the entry's body style. The editor's old `.photo(index:)` command,
+/// which only tests ever sent, was removed as dead code (backlog E); its test went with it.
 struct PhotoInsertTypingAttributesTests {
     /// A tiny (1x1) but genuinely decodable PNG — `photoAttachmentString`
     /// guards on `UIImage(data:)` succeeding, so empty `Data()` wouldn't
@@ -60,27 +44,8 @@ struct PhotoInsertTypingAttributesTests {
         return (coordinator, textView)
     }
 
-    @Test @MainActor func typingAttributesAfterPhotoAppendedAtEndMatchBodyStyle() {
-        let text = "Some journal text"
-        let (coordinator, textView) = makeCoordinator(text: text, photoData: [Self.onePixelPNG])
-
-        coordinator.apply(.photo(index: 0), to: textView)
-
-        let body = coordinator.bodyAttributes
-        let typing = textView.typingAttributes
-        #expect((typing[.foregroundColor] as? UIColor) == (body[.foregroundColor] as? UIColor),
-                "Typing color after an appended photo must match the entry's body style, not UIKit's black-text default")
-        #expect((typing[.font] as? UIFont)?.pointSize == (body[.font] as? UIFont)?.pointSize,
-                "Typing font size after an appended photo must match the entry's body size, not UIKit's small default")
-    }
-
-    // Real user report, distinct from the bug above: attaching a photo to a
-    // BLANK entry (not appending after existing text) goes through a totally
-    // different path — WriteView+Photos.handlePickedPhoto calls the free
-    // function textWithInlinePhotoToken(_:at:) directly, never through
-    // NoteEditorTextView.Coordinator.insertPhotoToken (the fix above only
-    // covers the toolbar .photo(index:) command, which the real picker flow
-    // never dispatches). On an empty entry that function returns *just* the
+    // Real user report: attaching a photo to a BLANK entry. WriteView+Photos.handlePickedPhoto
+    // calls the free function textWithInlinePhotoToken(_:at:) directly. On an empty entry that function returns *just* the
     // bare token with no trailing newline, so the photo attachment ends up
     // as the very last character with nothing typed after it. Neither UIKit's
     // own typing-attributes-on-selection-change inheritance nor our

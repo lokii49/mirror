@@ -1,8 +1,10 @@
-Correzioni per la ricerca intelligente, la scrittura e il check-in umore
+Pensato per iPhone Duo, e un nuovo Scrivi
 
-• Ricerca intelligente in Chiedi: il modello di ricerca non viene più scaricato di nuovo quando riapri l'app. Ora si scarica in background con il Wi-Fi o la rete cellulare, e puoi mettere in pausa e riprendere il download.
-• I download dei modelli mostrano una barra di avanzamento più chiara con un solo pulsante Pausa/Riprendi, e un pulsante di download più chiaro.
-• Scrittura: scegliere Titolo, Intestazione o Sottointestazione in una voce vuota ora si applica a ciò che scrivi.
-• Check-in umore: ogni nome di umore entra nel suo pulsante, e ogni umore mantiene il suo colore.
-• Novità mostra solo le ultime modifiche, non tutte le versioni precedenti.
-• Le schermate di valutazione e del check-in umore ora si adattano al loro contenuto.
+• iPhone Duo: aperto del tutto, l'elenco sta accanto alla voce che leggi e Approfondimenti si divide in due colonne. Piegato a metà, elenchi e testo restano ai lati della piega. Piegandolo o aprendolo conservi il testo e la cronologia per annullare.
+• Scrivi ha una nuova barra della tastiera e un nuovo pannello Aa. Anche gli elenchi di controllo sono più semplici: tocca un cerchio per spuntarlo, scorri per rientrare, trascina per riordinare, e le voci completate possono scendere in fondo.
+• Piccole animazioni mostrano cosa è appena successo: qualcosa da salvare, una bozza salvata, il tuo obiettivo di parole del giorno raggiunto.
+• Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
+• Approfondimenti ha intestazioni con la data e schede più pulite. Su iOS 18 e versioni successive, tieni premuto un giorno in un grafico dell'umore per vedere cosa hai scritto.
+• La Mappa mentale raggruppa le tue parole in argomenti.
+• Il widget Mappa dell'umore può mostrare 7 o 14 giorni.
+• Su iPad e su un iPhone Duo aperto, Impostazioni si apre dal pulsante persona in Approfondimenti.

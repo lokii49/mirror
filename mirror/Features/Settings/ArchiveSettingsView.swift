@@ -326,28 +326,7 @@ struct ArchiveSettingsView: View {
     }
 
     private func deleteAllData() {
-        let entries = (try? modelContext.fetch(FetchDescriptor<Entry>())) ?? []
-        let checkIns = (try? modelContext.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
-        // Synced marker so other devices' on-device backups never offer these back. Saved
-        // on its own, before the deletes: exports follow save order, so another device
-        // gets the marker before (or with) the deletes and never offers them back.
-        if !entries.isEmpty || !checkIns.isEmpty {
-            modelContext.insert(JournalErasure(erasedEntryIDs: entries.map(\.id), erasedCheckInIDs: checkIns.map(\.id)))
-            try? modelContext.save()
-        }
-        entries.forEach { modelContext.delete($0) }
-        checkIns.forEach { modelContext.delete($0) }
-        if let all = try? modelContext.fetch(FetchDescriptor<Insight>()) {
-            all.forEach { modelContext.delete($0) }
-        }
-        // Collection names and saved searches are journal data too.
-        (try? modelContext.fetch(FetchDescriptor<JournalCollection>()))?.forEach { modelContext.delete($0) }
-        (try? modelContext.fetch(FetchDescriptor<SavedEntryView>()))?.forEach { modelContext.delete($0) }
-        try? modelContext.save()
-        MoodCheckInMigration.eraseLegacyRecords()
-        JournalSafety.shared.journalWasErased()
-        // An unsaved Write draft is journal text too.
-        WriteView.eraseAllDraftStorage()
+        JournalErase.eraseEverything(context: modelContext)
     }
 
     private func checkiCloudStatus() async {

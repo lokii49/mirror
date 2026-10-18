@@ -25,6 +25,8 @@ struct MonthlyReportWidgetEntry: TimelineEntry {
     let imageText: String?
     /// True when the stored report is for the current calendar month.
     let isCurrentMonth: Bool
+    /// The stored image is last month's: shown labelled until this month's report (A16).
+    var isPreviousMonth = false
 }
 
 struct MonthlyReportWidgetProvider: TimelineProvider {
@@ -48,8 +50,10 @@ struct MonthlyReportWidgetProvider: TimelineProvider {
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         let text = defaults?.string(forKey: WidgetShared.monthlyImageKey)
         let storedPeriod = defaults?.string(forKey: WidgetShared.monthlyPeriodKey) ?? ""
-        let thisMonth = DateHelpers.monthIdentifier(for: Date())
-        return MonthlyReportWidgetEntry(date: .now, imageText: text, isCurrentMonth: storedPeriod == thisMonth)
+        let period = WidgetShared.storedPeriod(
+            storedPeriod, current: DateHelpers.monthIdentifier(for: Date()), previous: WidgetShared.previousMonth(before: Date())
+        )
+        return MonthlyReportWidgetEntry(date: .now, imageText: text, isCurrentMonth: period == .current, isPreviousMonth: period == .previous)
     }
 }
 
@@ -60,7 +64,11 @@ private struct MonthlyReportUnlockedView: View {
     @Environment(\.widgetFamily) private var family
     private let sentinel = widgetIsSentinel()
 
-    private var monthName: String { monthLabelFormatter.string(from: entry.date).uppercased() }
+    /// The month the shown image is about: last month's name while it's last month's (A16).
+    private var monthName: String {
+        let month = entry.isPreviousMonth ? (Calendar.current.date(byAdding: .month, value: -1, to: entry.date) ?? entry.date) : entry.date
+        return monthLabelFormatter.string(from: month).uppercased()
+    }
     private var isLarge: Bool { family == .systemLarge }
     private var glyphSize: CGFloat { isLarge ? 168 : 96 }
     private var bodySize: CGFloat { isLarge ? 18 : (sentinel ? 13 : 15) }
@@ -95,7 +103,15 @@ private struct MonthlyReportUnlockedView: View {
 
                 Spacer(minLength: isLarge ? 14 : 8)
 
-                if let text = entry.imageText, entry.isCurrentMonth {
+                if let text = entry.imageText, entry.isCurrentMonth || entry.isPreviousMonth {
+                    if entry.isPreviousMonth {
+                        Text("Last month")
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, isLarge ? 6 : 4)
+                    }
                     Text(text)
                         .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
@@ -144,7 +160,7 @@ private struct MonthlyReportLockedView: View {
             Text(sentinel ? "MONTHLY TRANSMISSION" : "Monthly Deep Report")
                 .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            Text(sentinel ? "DEEP · $4.99/MO" : "Deep · $4.99/mo")
+            WidgetShared.lockedTierLabel(deep: true, sentinel: sentinel)
                 .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
@@ -167,7 +183,7 @@ struct MonthlyReportWidgetView: View {
 
     var body: some View {
         // Deep only — NOT `WidgetShared.isSubscribed()`. This widget is priced at
-        // Deep ($4.99/mo); a Core subscriber sees the locked state.
+        // Deep; a Core subscriber sees the locked state.
         if WidgetShared.isDeep() {
             MonthlyReportUnlockedView(entry: entry)
         } else {

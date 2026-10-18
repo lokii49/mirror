@@ -1,8 +1,10 @@
-Korrekturen für die smarte Suche, das Schreiben und den Stimmungs-Check
+Fürs iPhone Duo gemacht – und ein neues Schreiben
 
-• Smarte Suche in Fragen: Das Suchmodell wird nach dem erneuten Öffnen der App nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund über WLAN oder Mobilfunk, und du kannst den Download pausieren und fortsetzen.
-• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
-• Schreiben: Titel, Überschrift oder Unterüberschrift in einem leeren Eintrag gelten jetzt für das, was du tippst.
-• Stimmungs-Check: Jeder Stimmungsname passt in seine Taste, und jede Stimmung behält ihre Farbe.
-• Neuigkeiten zeigt nur noch die neuesten Änderungen, nicht jede frühere Version.
-• Die Fenster für die Bewertung und den Stimmungs-Check passen jetzt zu ihrem Inhalt.
+• iPhone Duo: Aufgeklappt steht die Liste neben dem Eintrag, den du liest, und Einblicke verteilt sich auf zwei Spalten. Halb gefaltet bleiben Listen und Text neben dem Falz. Beim Auf- und Zuklappen bleiben dein Text und dein Widerrufen-Verlauf erhalten.
+• Schreiben hat eine neue Tastaturleiste und ein neues Aa-Feld. Auch Checklisten gehen leichter: Tippe auf einen Kreis, um ihn abzuhaken, wische zum Einrücken, ziehe zum Umsortieren, und Erledigtes kann nach unten wandern.
+• Kleine Animationen zeigen, was gerade passiert ist: etwas zum Sichern, ein gesicherter Entwurf, dein tägliches Wortziel erreicht.
+• Mit Apple Intelligence zitieren Wöchentliche Zusammenfassung, Monatsbericht und „Mirror fragen“ jetzt deine eigenen Sätze.
+• Einblicke hat Überschriften mit Datum und aufgeräumtere Karten. Ab iOS 18 hältst du einen Tag im Stimmungsdiagramm gedrückt, um zu sehen, was du geschrieben hast.
+• Die Denkkarte fasst deine Wörter zu Themen zusammen.
+• Das Widget „Stimmungskarte“ zeigt wahlweise 7 oder 14 Tage.
+• Auf dem iPad und dem aufgeklappten iPhone Duo öffnest du die Einstellungen über die Personen-Taste in Einblicke.

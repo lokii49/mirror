@@ -28,3 +28,7 @@ All marked `mirror patch` in the source.
    the dense layers). Never logs text, tokens or vectors. Before landing the bump, every Gemma 3 1B rig round
    was re-run on b6750: mood and follow-up are byte-identical, and grammar paths resample the same distributions
    (`.claude/ask-embeddings-plan.md`).
+8. **`Llama.swift` status lines are debug-only** (2026-10-11): its 9 `print`s (simulator GPU note,
+   "Could not load model at <path>", thread count, cache/reprocessing decisions, `llama_decode`
+   failure) go through `debugLog`, which prints only under `DEBUG`. None carried journal text;
+   release builds now print nothing from this file.

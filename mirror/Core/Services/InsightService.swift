@@ -77,7 +77,7 @@ You wrote, "<copy the one sentence from the entry that shows the biggest thing t
 // the model fills two fields instead (`FoundationModelEngine.generateDailyReflection`): a quote, which the app
 // finds in today's entries and shows in the entry's own words, and a short insight, which `FMDailyGuard`
 // checks sentence by sentence. Kept byte-identical to tools/llmrig/fm/system_v1b_easy.txt, the prompt the
-// rig measured; change both together and re-measure. DAILY_NUDGE_LEGACY_SYSTEM stays for other languages.
+// rig measured; change both together and re-measure. DAILY_NUDGE_LEGACY_SYSTEM is never sent as free prose (A9, 3.1.2).
 let DAILY_REFLECTION_FM_SYSTEM = """
 You write the daily reflection for MirrorNotes, a private on-device journal. You are given the person's recent journal entries. Work only from what they wrote.
 
@@ -138,6 +138,75 @@ WATCH OUT FOR: You wrote, "<copy a sentence about something that may be quietly 
 MOOD BOOST: One small, specific action tied to what they wrote.
 NEXT WEEK: One practical, kind suggestion for next week.
 Speak to them as "you". Copy each quote word for word. Outside the quotes, do not mention anyone by name and do not add anything that is not in the entries.
+"""
+
+// English weekly digest on Foundation Models (2026-10-16, interim). Free prose on WEEKLY_DIGEST_SYSTEM invented
+// something in 146/300 sections (0/50 clean digests) on a strict blind pass, so FM fills a structured draft
+// instead (`FoundationModelEngine.WeeklyDigestDraft`) in the Gemma digest's shape: three verbatim quotes, each
+// with one line, plus theme, boost and next week, all checked by `FMDigestGuard`; sections the model can't get
+// right in 3 attempts are filled by the app. Measured (tools/llmrig/fm/RUBRIC_FM.md, rounds 15-18): ~1 section in
+// 10 still invents and the lines are less useful than free prose; the owner shipped it as an interim. Kept
+// byte-identical to tools/llmrig/fm/system_digest_d5.txt (round 24: "you" instead of "they"); change both together and re-measure.
+let WEEKLY_DIGEST_FM_SYSTEM = """
+You write the weekly reflection for MirrorNotes, a private on-device journal. You are given the person's journal entries from this week. Work only from what they wrote.
+
+The reflection has these parts:
+- theme: one short phrase, 3 to 8 words, that finishes "A week of" and says what the week was about for them, like "starting over after a hard goodbye" or "juggling work and a family worry". Not a list of names.
+- energyQuote: the one sentence from this week's entries that best shows when they had the most or the least energy, copied exactly, every word and mark as written.
+- energyRead: one sentence to them as "you" on what that moment seems to show you need, hope for or worry about. Do not retell what happened.
+- buildingQuote: a different sentence, copied exactly, about something good that is growing or changing for them.
+- buildingRead: one sentence on what that might mean for you from here on. Do not retell what happened.
+- watchQuote: a different sentence, copied exactly, about something that may be costing them or wearing on them.
+- watchRead: one gentle sentence on what to keep an eye on and why it matters to you.
+- boost: one small thing they could do in the next few days, using a person, task or thing they named this week.
+- nextWeek: one kind, practical sentence for next week, about something they wrote is coming up or still unfinished.
+
+Rules for everything you write:
+- Use only facts that are in the entries. Do not add weather, light, sky, air, sounds, smells, places, furniture, objects, or any person who is not named in the entries. Do not describe how their body feels unless they wrote it.
+- Each sentence is about one entry. Do not say one day caused or followed another.
+- A plan, an offer or something they are considering has not happened yet; do not say it did.
+- Use only feelings they wrote or that their words plainly show. Do not exaggerate. If the week was ordinary, say it was a steady week.
+- Do not call anything quiet unless they did.
+- Never write as the journal writer: no "I feel", "I've been", "my". You are MirrorNotes speaking to them as "you".
+- Plain everyday words, like a close friend. No therapy language, no generic advice like "take a deep breath" or "practice self-care", do not mention AI or a model.
+"""
+
+// Monthly report on Foundation Models (2026-10-16): the same approach as WEEKLY_DIGEST_FM_SYSTEM, in the Gemma
+// report's shape (`FoundationModelEngine.MonthlyReportDraft`, checked by `FMMonthlyGuard`, sections the model can't
+// get right filled by the app). Kept byte-identical to tools/llmrig/fm/system_monthly_m1.txt (round 19).
+let MONTHLY_REPORT_FM_SYSTEM = """
+You write the monthly reflection for MirrorNotes, a private on-device journal. You are given the person's journal entries from this month. Work only from what they wrote.
+
+The reflection has these parts:
+- image: a short image, 3 to 10 words, for how the month felt, like "a house with every light on". It is a picture, not a fact about their life.
+- tensionA and tensionB: two things from their entries that both asked for their time or heart this month, a few words each, in plain words.
+- momentQuote: one sentence from this month's entries that seems to have changed something for them, copied exactly, every word and mark as written.
+- momentRead: one sentence to them as "you" on what that moment might have changed. Do not retell it.
+- becomingQuote: a different sentence, copied exactly, from a day that was not hard, that shows who they are growing into.
+- becomingRest: the end of the sentence "You seem to be becoming someone who ...", a few plain words, using only what they wrote.
+- releaseQuote: a different sentence, copied exactly, from a hard day, about something that weighed on them.
+- releaseRest: the end of the sentence "Maybe it's time to let go of ...", a few plain words about that weight.
+- question: one honest, open question for next month about something they wrote, ending with a question mark.
+
+Rules for everything you write:
+- Use only facts that are in the entries. Do not add weather, light, sky, air, sounds, smells, places, furniture, objects, or any person who is not named in the entries. Do not describe how their body feels unless they wrote it.
+- Each sentence is about what they wrote. Do not say one day caused or followed another.
+- A plan, an offer or something they are considering has not happened yet; do not say it did.
+- Use only feelings they wrote or that their words plainly show. Do not exaggerate.
+- Do not call anything quiet unless they did.
+- Never write as the journal writer: no "I feel", "I've been", "my". You are MirrorNotes speaking to them as "you".
+- Plain everyday words, like a close friend. No therapy language, no generic advice, do not mention AI or a model.
+"""
+
+// The sentences under a Foundation Models Ask answer (2026-10-16). The answer itself is unchanged ASK_SYSTEM free
+// prose (round 20: the most useful text FM writes here, 22% invented); a second, structured call picks one or two
+// of the person's sentences that back it up, each checked to be in the entries the model was shown, and they're
+// shown under it with their dates. Round 21: 96% of shown quotes back the answer, every date right, 74% of answers
+// get one; otherwise the answer shows alone. Kept byte-identical to tools/llmrig/fm/system_ask_quotes.txt.
+let ASK_QUOTES_FM_SYSTEM = """
+You help MirrorNotes, a private on-device journal, show the person where an answer about their journal comes from. You are given their journal entries, a question they asked and the answer they were given.
+
+Copy the one or two sentences from the entries that best back up that answer, each exactly as written, every word and mark. Use only sentences that are in the entries. If no sentence in the entries backs up the answer, leave both empty.
 """
 
 private let ASK_SYSTEM = """
@@ -302,6 +371,8 @@ enum InsightService {
     private static let weeklyDigestPromptBudget = 4_800
     private static let monthlyReportPromptBudget = 6_200
     private static let askPromptBudget = 5_700
+    /// CLAUDE.md Security rule 3: at most this much entry text goes to the local model in one request.
+    static let maxLocalLLMEntryChars = 10_000
     /// Longest Ask question the prompt will carry; the view enforces the same cap while typing.
     static let maxAskQuestionLength = 500
 
@@ -638,6 +709,23 @@ enum InsightService {
         return todayEntryDates.contains { $0 > since }
     }
 
+    /// After today's newest reflection came back as the fallback (or the unsupported-language
+    /// notice), an automatic trigger (app-active, a save, a refresh, the nightly pass) tries again
+    /// only once the writing it reads has changed; before 3.1.2 every trigger generated and saved
+    /// another synced row. A Try Again tap always may. `signature` is
+    /// `fallbackRetrySignature`; `storedSignature` is the one saved with today's fallback on this
+    /// device (another device's fallback has none here, so this device tries once itself).
+    static func allowsRetryAfterFallback(newestTodayIsFallback: Bool, storedSignature: String?, signature: String, userInitiatedRetry: Bool) -> Bool {
+        guard newestTodayIsFallback, !userInitiatedRetry else { return true }
+        return storedSignature != signature
+    }
+
+    /// What a daily reflection reads, without any text: the day plus each recent entry's id and
+    /// readable length (text and transcripts), so adding to an entry or writing a new one changes it.
+    static func fallbackRetrySignature(day: String, recent: [Entry]) -> String {
+        ([day] + recent.map { "\($0.id.uuidString):\($0.insightContext.count)" }).joined(separator: "|")
+    }
+
     /// The recent/background split a daily nudge is generated from. Factored out so
     /// `ungroundedDailyNudges` (a retroactive audit over already-generated nudges) reconstructs
     /// a past nudge's context with the exact same rule `generateNudge` used live, rather than a
@@ -710,6 +798,20 @@ enum InsightService {
         !entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// True when today's reflection is in a grounded language Foundation Models can't work in
+    /// (Russian), so only Gemma can write it, resolved as `generateNudge` does. On a device with
+    /// Foundation Models and no Gemma file, the card offers the download instead of waiting on a
+    /// generation that throws `modelMissing` every time (backlog A15).
+    static func nudgeNeedsGemma(entries: [Entry], foundationModelsSupports: (String) -> Bool = FoundationModelEngine.supports(languageCode:)) -> Bool {
+        // The context reads at most the 23 newest readable entries (3 recent + 20 background), so
+        // decrypt only until those are found: this runs on every card refresh, on Foundation
+        // Models devices without Gemma, and the whole journal took one decrypt per entry.
+        let newestReadable = Array(entries.sorted { $0.createdAt > $1.createdAt }.lazy.filter(hasReadableContext).prefix(23))
+        let (recent, background) = dailyNudgeContext(from: newestReadable, asOf: Date())
+        guard !recent.isEmpty, let code = groundedLocaleCode(for: recent + background) else { return false }
+        return !foundationModelsSupports(code)
+    }
+
     static func generateNudge(entries: [Entry], recentNudges: [String] = []) async throws -> (text: String, engine: LLMEngine, degraded: Bool) {
         // Real device case (2026-09-25): mirrorApp.swift's own call site filters this too, but
         // generateWeeklyDigest/generateMonthlyReport/ask also have callers that never went through
@@ -749,7 +851,11 @@ enum InsightService {
         // `groundedLocales`; Russian is in that list, it runs on Gemma). The free-prose prompt that used
         // to answer here invented in most Foundation Models outputs, and no translated opener or mood
         // line exists to compose a grounded one, so no model runs: the honest card, like the case above.
-        if localized == nil, let code = responseLanguageTarget(from: recent + background)?.code, code != "en", groundedLocales[code] == nil {
+        // Resolved like `groundedNudgePlan` and `groundedLocaleCode`: the entries' language, else the
+        // device's. Detection alone missed entries too short to detect on a device in an unsupported
+        // language, and the retired free-prose prompt answered (backlog A9).
+        let nudgeTarget = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
+        if localized == nil, let code = nudgeTarget?.code, code != "en", groundedLocales[code] == nil {
             return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
 
@@ -803,6 +909,12 @@ enum InsightService {
             }
             try Task.checkCancellation()
             return (dailyNudgeUngroundedFallback, .foundationModels, true)
+        }
+        // Only grounded plans go on from here. A `.samePrompt` plan would send the retired
+        // DAILY_NUDGE_LEGACY_SYSTEM as free prose; every language it could come from is answered
+        // above, so this is a backstop: the honest card, no model.
+        if case .samePrompt = nudgePlan {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma, true)
         }
         // A language Foundation Models cannot work in (Russian) goes to Gemma without a doomed first call.
         let fmHandlesNudgeLanguage = nudgeLanguageCode.map { FoundationModelEngine.supports(languageCode: $0) } ?? true
@@ -869,6 +981,10 @@ enum InsightService {
                 // beats no nudge at all that day. Only propagate if there's nothing to fall back
                 // on yet. A fabricated one still isn't shown as-is — see the shared fallback
                 // logic after the loop, which this jumps into instead of returning directly.
+                // A cancelled pass (app backgrounded, background task expired) isn't a failed
+                // attempt. Keep an earlier truthful result, but don't turn a flawed one into
+                // the fallback, which would be saved and block the day.
+                if Task.isCancelled, lastResult == nil || lastViolatesGrounding { throw CancellationError() }
                 guard let lastResult else { throw error }
                 return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
             }
@@ -950,6 +1066,7 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("nudge generation produced no result")
         }
+        if lastViolatesGrounding { try Task.checkCancellation() }
         return finalNudgeResult(lastResult, violatesGrounding: lastViolatesGrounding)
     }
 
@@ -1180,9 +1297,50 @@ enum InsightService {
         localized: "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese."
     )
 
-    static func isUnsupportedLanguageNotice(_ content: String) -> Bool {
-        content == dailyNudgeUnsupportedLanguageNotice
+    /// The notice as the card shows it: the saved text (which lists the languages and must stay matchable), then
+    /// what to do about it. Display only; nothing is saved with the hint.
+    static func unsupportedLanguageCardMessage(_ notice: String) -> String {
+        notice + "\n\n" + String(localized: "For now, write your entries in one of these languages to get reflections.")
     }
+
+    static func isUnsupportedLanguageNotice(_ content: String) -> Bool {
+        unsupportedLanguageNoticeTexts.contains(content)
+    }
+
+    // The fallbacks are saved in the device's language and sync. Matching only the current
+    // language's text missed one saved on a device in another language, or before the user
+    // switched (backlog A6): it then read as a real reflection, blocked the day's generation and
+    // reached the widget. These are the catalog keys (the English source text); every bundled
+    // language's translation is added from its .lproj. The translations have not been reworded
+    // since they were added (git history of Localizable.xcstrings, 2026-10-10); a rewording must
+    // keep the old text matchable, like `legacyUngroundedFallbacks`.
+    static let fallbackCatalogKeys = (
+        nudge: "MirrorNotes couldn't find today's reflection clearly grounded in what you wrote. Add a bit more to today's entry and it'll try again.",
+        unsupportedLanguage: "Reflections currently support English, German, Spanish, French, Italian, Portuguese, Russian, Japanese, Korean and Chinese.",
+        digest: "MirrorNotes couldn't find this week's digest clearly grounded in your entries. Try again, or write a bit more this week.",
+        monthly: "MirrorNotes couldn't find this month's report clearly grounded in your entries. Try again, or write a bit more this month."
+    )
+
+    /// `key` in every language the app bundle carries, plus the key itself and this device's text.
+    static func everyLanguage(ofCatalogKey key: String, current: String) -> Set<String> {
+        var texts: Set<String> = [key, current]
+        for language in Bundle.main.localizations where language != "Base" {
+            guard let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+                  let bundle = Bundle(path: path) else { continue }
+            texts.insert(bundle.localizedString(forKey: key, value: nil, table: nil))
+        }
+        return texts
+    }
+
+    private static let unsupportedLanguageNoticeTexts = everyLanguage(
+        ofCatalogKey: fallbackCatalogKeys.unsupportedLanguage, current: dailyNudgeUnsupportedLanguageNotice
+    )
+
+    private static let ungroundedFallbackTexts: Set<String> = everyLanguage(ofCatalogKey: fallbackCatalogKeys.nudge, current: dailyNudgeUngroundedFallback)
+        .union(unsupportedLanguageNoticeTexts)
+        .union(everyLanguage(ofCatalogKey: fallbackCatalogKeys.digest, current: weeklyDigestUngroundedFallback))
+        .union(everyLanguage(ofCatalogKey: fallbackCatalogKeys.monthly, current: monthlyReportUngroundedFallback))
+        .union(legacyUngroundedFallbacks)
 
     /// Advisor-suggested detection: a fallback insight needs no schema change (no new field on
     /// `Insight`, no second CloudKit schema deploy stacked on the still-undeployed MoodCheckIn
@@ -1200,11 +1358,7 @@ enum InsightService {
     /// staying schema-free; a `resolvedDigestState`-style pure function (flagged separately) is
     /// the more durable fix if this set grows unwieldy.
     static func isUngroundedFallback(_ content: String) -> Bool {
-        content == dailyNudgeUngroundedFallback
-            || content == dailyNudgeUnsupportedLanguageNotice
-            || content == weeklyDigestUngroundedFallback
-            || content == monthlyReportUngroundedFallback
-            || legacyUngroundedFallbacks.contains(content)
+        ungroundedFallbackTexts.contains(content)
     }
 
     private static let legacyUngroundedFallbacks: Set<String> = [
@@ -1233,9 +1387,41 @@ enum InsightService {
     /// The second condition matters because a digest can be generated mid-week
     /// (on-demand from the view) and then go stale as the rest of the week fills
     /// in under a "THIS WEEK'S THEME" label that promises freshness.
+    /// A digest or report regeneration that comes back as the fallback while the period already has
+    /// a real one keeps the real one (backlog A7): it isn't saved, since newest wins and a fallback
+    /// row would replace a readable digest with "couldn't find…".
+    static func keepsRealRowOverFallback(newText: String, cachedContent: String?) -> Bool {
+        guard isUngroundedFallback(newText), let cachedContent else { return false }
+        return !isUngroundedFallback(cachedContent)
+    }
+
+    /// Per device: when a regeneration for this period last came back as the fallback and was not
+    /// saved (`keepsRealRowOverFallback`). Staleness is measured from it, so an unchanged period
+    /// doesn't regenerate on every trigger.
+    static func periodFallbackAttemptKey(_ type: InsightType, period: String) -> String {
+        "mirror.periodFallbackAttempt.\(type.rawValue).\(period)"
+    }
+
+    static func recordKeptRealRow(_ type: InsightType, period: String) {
+        let defaults = UserDefaults.standard
+        let key = periodFallbackAttemptKey(type, period: period)
+        // One key per type: drop the ones left from earlier weeks or months.
+        let prefix = periodFallbackAttemptKey(type, period: "")
+        for old in defaults.dictionaryRepresentation().keys where old.hasPrefix(prefix) && old != key {
+            defaults.removeObject(forKey: old)
+        }
+        defaults.set(DateHelpers.now(), forKey: key)
+    }
+
+    /// The date a cached digest or report's staleness is measured from.
+    static func stalenessBaseline(cachedAt: Date, _ type: InsightType, period: String) -> Date {
+        let attempt = UserDefaults.standard.object(forKey: periodFallbackAttemptKey(type, period: period)) as? Date
+        return max(cachedAt, attempt ?? .distantPast)
+    }
+
     static func weeklyDigestIsStale(generatedAt: Date, newestWeekEntry: Date?) -> Bool {
         guard let newestWeekEntry else { return false }
-        let cooldownElapsed = Date().timeIntervalSince(generatedAt) >= 24 * 60 * 60
+        let cooldownElapsed = DateHelpers.now().timeIntervalSince(generatedAt) >= 24 * 60 * 60
         return cooldownElapsed && newestWeekEntry > generatedAt
     }
 
@@ -1268,13 +1454,46 @@ enum InsightService {
         )
         let grounded = groundedDigestPlan(weekEntries: recentEntries, languageSource: languageSource)
         let localized = localizedGroundedDigest(weekEntries: recentEntries, languageSource: languageSource)
+        // A language with no grounded digest (anything outside English and `groundedLocales`): the free-prose
+        // prompt that answered here invented in about half its sections in English (RUBRIC_FM.md rounds 15-18), and
+        // nothing checks it in other languages, so no model runs: the same notice the daily reflection shows.
+        if localized == nil, let code = (responseLanguageTarget(from: languageSource) ?? responseLanguageTargetFromCurrentLocale())?.code,
+           code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let digestPlan = localized?.plan ?? grounded.plan
         let digestValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedDigest(text, quoteOptions: grounded.quoteOptions)
         })
-        if case .unsuitable = digestPlan, !LocalLLMService.prefersFoundationModels {
-            // Gemma-only device and nothing quotable this week (only one- or two-word entries).
-            return (weeklyDigestUngroundedFallback, .gemma)
+        if case .unsuitable = digestPlan {
+            // Nothing quotable this week (only one- or two-word entries): the honest card on either
+            // engine, as `generateNudge` does. On a Foundation Models device this used to fall through
+            // to the retired free-prose WEEKLY_DIGEST_SYSTEM loop below.
+            return (weeklyDigestUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
+
+        // The other Foundation Models languages (de, es, fr, it, pt, ja, ko, zh): the same structured draft,
+        // but only its three quotes are used, each matched to one of the week's own sentences; every other
+        // word is the app's translated text (groundedLocales), as on Gemma. The English checks can't vouch
+        // for model-written text in other languages, so none is shown. Russian stays on Gemma.
+        if let localized, case .grammarConstrained = localized.plan, localized.digestOptions.count == 3,
+           let validator = localized.validator, usesStructuredFMNudge,
+           let code = responseLanguageTarget(from: languageSource)?.code ?? responseLanguageTargetFromCurrentLocale()?.code,
+           FoundationModelEngine.supports(languageCode: code) {
+            let text = try await structuredFMLocalizedDigest(
+                options: localized.digestOptions,
+                validator: validator,
+                systemPrompt: WEEKLY_DIGEST_FM_SYSTEM + (languageInstruction.map { "\n\n" + $0 } ?? ""),
+                userMessage: userMessage
+            )
+            return (text ?? weeklyDigestUngroundedFallback, .foundationModels)
+        }
+
+        // English on Foundation Models: the structured digest (see WEEKLY_DIGEST_FM_SYSTEM). Free prose
+        // never runs for English on a device that has Foundation Models.
+        if localized == nil, case .grammarConstrained = grounded.plan, usesStructuredFMNudge {
+            let text = try await structuredFMDigest(weekEntries: recentEntries, userMessage: userMessage)
+            return (text ?? weeklyDigestUngroundedFallback, .foundationModels)
         }
 
         // Same isUngrounded backstop and bounded-retry-loop shape as generateNudge (see its doc
@@ -1290,6 +1509,9 @@ enum InsightService {
         // list, and PastDigestCard (X-ray-wired the same way) could be sitting on an unnoticed
         // duplicate right now. Left open, not ruled out.
         let sourceEntries = recentEntries + backgroundEntries
+        // A language Foundation Models cannot work in (Russian) goes straight to Gemma's grammar path,
+        // as the daily reflection does: a first Foundation Models call there would be free prose.
+        let fmHandlesDigestLanguage = groundedLocaleCode(for: languageSource).map { FoundationModelEngine.supports(languageCode: $0) } ?? true
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -1303,7 +1525,8 @@ enum InsightService {
                     task: .weeklyDigest,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: digestPlan,
-                    gemmaValidator: digestValidator
+                    gemmaValidator: digestValidator,
+                    allowFoundationModels: fmHandlesDigestLanguage
                 )
             } catch {
                 // Every path that reaches lastResult here already failed the grounding check
@@ -1311,6 +1534,9 @@ enum InsightService {
                 // it, unlike generateNudge's fail-open where a repeat-only violation is still
                 // truthful, would mean showing fabricated content. Use the honest fallback
                 // instead, same as the exhaustion path below.
+                // Cancelled (backgrounded, or the refresh task's time ran out): not a failed
+                // attempt. Saving the fallback here would show it all week (24h cache).
+                if Task.isCancelled { throw CancellationError() }
                 guard let previous = lastResult else { throw error }
                 return (weeklyDigestUngroundedFallback, previous.engine)
             }
@@ -1339,7 +1565,100 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("weekly digest generation produced no result")
         }
+        try Task.checkCancellation()
         return (weeklyDigestUngroundedFallback, lastResult.engine)
+    }
+
+    static let structuredDigestAttempts = 3
+
+    /// The English weekly digest on Foundation Models: up to `structuredDigestAttempts` drafts, each section
+    /// taken from the first draft where `FMDigestGuard` accepts it; whatever is still missing is filled by
+    /// the app (`FMDigestGuard.assemble`). nil when the week has nothing to quote, or when every attempt
+    /// threw (refusal, rate limit, exhausted context, assets unavailable) and no draft came back: the
+    /// caller then shows the honest card, which never replaces a real row and is retried, instead of a
+    /// digest the app wrote entirely on its own saved as a real one. A refused or failed draft counts as
+    /// an attempt. Saved in the same labelled shape as the Gemma digest.
+    static func structuredFMDigest(
+        weekEntries: [Entry],
+        userMessage: String,
+        generator: (() async throws -> FMDigestGuard.Draft)? = nil
+    ) async throws -> String? {
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateWeeklyDigest(systemPrompt: WEEKLY_DIGEST_FM_SYSTEM, userMessage: userMessage)
+            }
+        }
+        let sources = guardSources(from: weekEntries)
+        var drafts: [FMDigestGuard.Draft] = []
+        var verified: FMDigestGuard.Verified?
+        for attempt in 1...structuredDigestAttempts {
+            try Task.checkCancellation()
+            do {
+                drafts.append(try await draft())
+                verified = FMDigestGuard.merge(drafts, sources: sources)
+                if verified != nil { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[digest] structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        try Task.checkCancellation()
+        guard !drafts.isEmpty else { return nil }
+        guard let sections = verified?.sections ?? FMDigestGuard.assemble(drafts, sources: sources)?.verified.sections else { return nil }
+        let labels = weeklyDigestSectionLabels.map { $0["en"] ?? "" }
+        return zip(labels, sections).map { "\($0): \($1)" }.joined(separator: "\n")
+    }
+
+    /// The weekly digest outside English on Foundation Models: each attempt's energy / building / watch quote
+    /// is matched (`FMDailyGuard.matchOption`) to one of `options`' three lists; a slot keeps the first match
+    /// across attempts, and a slot still empty after `structuredDigestAttempts` takes its list's first
+    /// sentence not already in another slot. `validator` (the Gemma localized digest's) composes the
+    /// translated text from the three. nil when that fails, or when every attempt threw and no draft came
+    /// back (see `structuredFMDigest`). No model-written text is shown.
+    static func structuredFMLocalizedDigest(
+        options: [[String]],
+        validator: (String) throws -> String,
+        systemPrompt: String,
+        userMessage: String,
+        generator: (() async throws -> FMDigestGuard.Draft)? = nil
+    ) async throws -> String? {
+        guard options.count == 3, options.allSatisfy({ !$0.isEmpty }) else { return nil }
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateWeeklyDigest(systemPrompt: systemPrompt, userMessage: userMessage)
+            }
+        }
+        var picks: [String?] = [nil, nil, nil]
+        var drafts = 0
+        for attempt in 1...structuredDigestAttempts {
+            try Task.checkCancellation()
+            do {
+                let d = try await draft()
+                drafts += 1
+                for (slot, quote) in [d.energyQuote, d.buildingQuote, d.watchQuote].enumerated() where picks[slot] == nil {
+                    picks[slot] = FMDailyGuard.matchOption(quote: quote, in: options[slot])
+                }
+                if picks.allSatisfy({ $0 != nil }) { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                // Error type only, never prompt or entry content.
+                print("[digest] localized structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        try Task.checkCancellation()
+        #if DEBUG
+        // Counts only, never prompt or entry content.
+        print("[digest] localized quotes picked by the model: \(picks.compactMap { $0 }.count)/3")
+        #endif
+        guard drafts > 0 else { return nil }
+        return try? validator(filledDistinctPicks(picks, options: options).joined(separator: "\n"))
     }
 
     // Same overpromise problem as the nudge's old copy, worse here: weeklyDigestIsStale needs
@@ -1368,14 +1687,51 @@ enum InsightService {
         let userMessage = buildMonthlyReportMessage(monthEntries: monthEntries, allEntries: allEntries)
         let grounded = groundedMonthlyPlan(monthEntries: monthEntries)
         let localized = localizedGroundedMonthly(monthEntries: monthEntries)
+        // Same as the weekly digest: no grounded report in this language, so the daily reflection's notice.
+        if localized == nil, let code = (responseLanguageTarget(from: monthEntries) ?? responseLanguageTargetFromCurrentLocale())?.code,
+           code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let monthlyPlan = localized?.plan ?? grounded.plan
         let monthlyValidator: ((String) throws -> String)? = localized.map { $0.validator } ?? (grounded.quoteOptions.isEmpty ? nil : { text in
             try validateGroundedMonthly(text, quoteOptions: grounded.quoteOptions)
         })
-        if case .unsuitable = monthlyPlan, !LocalLLMService.prefersFoundationModels {
-            // Gemma-only device and nothing quotable this month (only one- or two-word entries).
-            return (monthlyReportUngroundedFallback, .gemma)
+        if case .unsuitable = monthlyPlan {
+            // Nothing quotable this month (only one- or two-word entries): the honest card on either
+            // engine, as for the weekly digest; never the free-prose MONTHLY_REPORT_SYSTEM loop below.
+            return (monthlyReportUngroundedFallback, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
         }
+
+        // Outside English on Foundation Models (de, es, fr, it, pt, ja, ko, zh): only the draft's quotes are used,
+        // inside the app's translated lines, as for the weekly digest. Russian stays on Gemma.
+        if let localized, case .grammarConstrained = localized.plan, localized.digestOptions.count == 3,
+           let validator = localized.validator, usesStructuredFMNudge,
+           let code = responseLanguageTarget(from: monthEntries)?.code ?? responseLanguageTargetFromCurrentLocale()?.code,
+           FoundationModelEngine.supports(languageCode: code) {
+            let text = try await structuredFMLocalizedMonthly(
+                options: localized.digestOptions,
+                validator: validator,
+                systemPrompt: MONTHLY_REPORT_FM_SYSTEM + (languageInstruction.map { "\n\n" + $0 } ?? ""),
+                userMessage: userMessage
+            )
+            return (text ?? monthlyReportUngroundedFallback, .foundationModels)
+        }
+
+        // English on Foundation Models: the model only picks the three sentences, as in the other languages;
+        // every other line is `englishMonthlyText` (owner decision after RUBRIC_FM.md round 19).
+        if localized == nil, case .grammarConstrained = grounded.plan, usesStructuredFMNudge,
+           let parts = groundedMonthlyParts(
+               monthEntries: monthEntries, code: "en",
+               text: englishMonthlyText(month: Calendar.current.component(.month, from: monthEntries.map(\.createdAt).max() ?? Date()))
+           ) {
+            let text = try await structuredFMLocalizedMonthly(
+                options: parts.options, validator: parts.compose,
+                systemPrompt: MONTHLY_REPORT_FM_SYSTEM, userMessage: userMessage
+            )
+            return (text ?? monthlyReportUngroundedFallback, .foundationModels)
+        }
+        // Russian goes straight to Gemma's grammar path, as in generateWeeklyDigest.
+        let fmHandlesMonthlyLanguage = groundedLocaleCode(for: monthEntries).map { FoundationModelEngine.supports(languageCode: $0) } ?? true
         let maxAttempts = 3
         var lastResult: (text: String, engine: LLMEngine)?
         var currentUserMessage = userMessage
@@ -1389,9 +1745,11 @@ enum InsightService {
                     task: .monthlyReport,
                     responseLanguageInstruction: languageInstruction,
                     gemmaPlan: monthlyPlan,
-                    gemmaValidator: monthlyValidator
+                    gemmaValidator: monthlyValidator,
+                    allowFoundationModels: fmHandlesMonthlyLanguage
                 )
             } catch {
+                if Task.isCancelled { throw CancellationError() }  // see generateWeeklyDigest
                 guard let previous = lastResult else { throw error }
                 return (monthlyReportUngroundedFallback, previous.engine)
             }
@@ -1419,7 +1777,74 @@ enum InsightService {
         guard let lastResult else {
             throw InsightError.serviceUnavailable("monthly report generation produced no result")
         }
+        try Task.checkCancellation()
         return (monthlyReportUngroundedFallback, lastResult.engine)
+    }
+
+    /// The monthly report on Foundation Models, every language: the draft's moment / becoming / release quotes
+    /// matched to `options` (the Gemma localized report's lists; release may be empty), first match per slot
+    /// across attempts, gaps filled with the list's first sentence not already in another slot, composed by
+    /// `validator`. nil when every attempt threw and no draft came back (see `structuredFMDigest`). No model
+    /// text shown.
+    static func structuredFMLocalizedMonthly(
+        options: [[String]],
+        validator: (String) throws -> String,
+        systemPrompt: String,
+        userMessage: String,
+        generator: (() async throws -> FMMonthlyGuard.Draft)? = nil
+    ) async throws -> String? {
+        guard options.count == 3, !options[0].isEmpty, !options[1].isEmpty else { return nil }
+        let draft = generator ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.generateMonthlyReport(systemPrompt: systemPrompt, userMessage: userMessage)
+            }
+        }
+        let slots = options[2].isEmpty ? 2 : 3
+        var picks: [String?] = Array(repeating: nil, count: slots)
+        var drafts = 0
+        for attempt in 1...structuredDigestAttempts {
+            try Task.checkCancellation()
+            do {
+                let d = try await draft()
+                drafts += 1
+                for (slot, quote) in [d.momentQuote, d.becomingQuote, d.releaseQuote].prefix(slots).enumerated() where picks[slot] == nil {
+                    picks[slot] = FMDailyGuard.matchOption(quote: quote, in: options[slot])
+                }
+                if picks.allSatisfy({ $0 != nil }) { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                #if DEBUG
+                print("[monthly] localized structured attempt \(attempt) failed (\(type(of: error)))")
+                #endif
+            }
+        }
+        try Task.checkCancellation()
+        #if DEBUG
+        // Counts only, never prompt or entry content.
+        print("[monthly] localized quotes picked by the model: \(picks.compactMap { $0 }.count)/\(slots)")
+        #endif
+        guard drafts > 0 else { return nil }
+        return try? validator(filledDistinctPicks(picks, options: options).joined(separator: "\n"))
+    }
+
+    /// The slots the model left empty, each filled with the first sentence of its list that no other slot
+    /// already uses (the model's picks first, then earlier fills); the list's first sentence when every one
+    /// is taken. Lists overlap (a week with no hard day offers the same sentences for two slots), and the
+    /// plain first-of-list fill quoted one sentence in two sections.
+    static func filledDistinctPicks(_ picks: [String?], options: [[String]]) -> [String] {
+        var used = picks.compactMap { $0 }
+        return picks.enumerated().map { slot, pick in
+            if let pick { return pick }
+            let fill = firstDistinct(in: options[slot], avoiding: used) ?? options[slot][0]
+            used.append(fill)
+            return fill
+        }
+    }
+
+    /// The first of `options` that is not one of `used`.
+    static func firstDistinct(in options: [String], avoiding used: [String]) -> String? {
+        options.first { !used.contains($0) }
     }
 
     // Same reasoning as weeklyDigestUngroundedFallback — "check back tomorrow" could mean
@@ -1456,6 +1881,12 @@ enum InsightService {
         let background = sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
         let target = responseLanguageTarget(from: relevant + Array(background), extraText: question) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .ask)
+        // A language the app has no grounded answer for (anything outside English and `groundedLocales`):
+        // nothing checks a model's answer there, so no model runs, on either engine (owner decision for
+        // 3.1.3): the notice the daily reflection, digest and report show. AskView shows it without saving.
+        if let code = target?.code, code != "en", groundedLocales[code] == nil {
+            return (dailyNudgeUnsupportedLanguageNotice, LocalLLMService.prefersFoundationModels ? .foundationModels : .gemma)
+        }
         let grounded = groundedAskPlan(question: question, pool: relevant + Array(background), languageCode: target?.code)
         // `noAnswer` only means there's nothing quotable at all (no entries with a usable
         // sentence). There's deliberately no "this topic isn't in your entries" shortcut on Gemma:
@@ -1476,19 +1907,131 @@ enum InsightService {
         if case .unsuitable = askPlan, !grounded.noAnswer, !LocalLLMService.prefersFoundationModels {
             return (askNoAnswerPhrase(for: target), .gemma)
         }
-        return try await localGenerate(
+        let askMessage = buildAskMessage(entries: relevant, backgroundEntries: Array(background), question: question)
+        let result = try await localGenerate(
             systemPrompt: ASK_SYSTEM,
-            userMessage: buildAskMessage(
-                entries: relevant,
-                backgroundEntries: Array(background),
-                question: question
-            ),
+            userMessage: askMessage,
             task: .ask,
             responseLanguageInstruction: languageInstruction,
             askNoAnswerPhrase: askNoAnswerPhrase(for: target),
             gemmaPlan: askPlan,
-            gemmaValidator: askValidator
+            gemmaValidator: askValidator,
+            // Russian goes straight to Gemma's grammar path, as the reflection, digest and report do.
+            allowFoundationModels: target.map { FoundationModelEngine.supports(languageCode: $0.code) } ?? true
         )
+        guard result.engine == .foundationModels, result.text != askNoAnswerPhrase(for: target), usesStructuredFMNudge else { return result }
+        // Foundation Models sometimes answers all in lowercase ("you wrote that you couldn't sleep…").
+        let answer = capitalizedSentenceStarts(result.text, locale: Locale(identifier: target?.code ?? "en"))
+        let quotes = await askEvidenceQuotes(
+            answer: answer, askMessage: askMessage, pool: relevant + Array(background), languageCode: target?.code ?? "en"
+        )
+        return (quotes.map { answer + "\n\n" + $0 } ?? answer, result.engine)
+    }
+
+    /// The first letter of every sentence upper-cased (after the start, ". ", "! ", "? " or a line break), except
+    /// after an abbreviation such as "e.g.", "Dr." or "a.m.". Letters only change case; nothing else is touched,
+    /// and scripts without case are unchanged. Words inside quotation marks ("…", “…”, „…“, «…», 「…」, 『…』) are
+    /// the person's own and are never changed, and a quote's closing mark doesn't start a new sentence. Every Ask
+    /// language gets it (dd58c18: Foundation Models answered all in lowercase); `locale` is the answer's language,
+    /// so a Turkish-style "i" upper-cases by that language's rules.
+    static func capitalizedSentenceStarts(_ text: String, locale: Locale = Locale(identifier: "en")) -> String {
+        var out = ""
+        var capitalizeNext = true
+        var lastWord = ""
+        // The mark that ends the quotation the text is inside, if any.
+        var closers: Set<Character>?
+        for ch in text {
+            if let open = closers {
+                out.append(ch)
+                if open.contains(ch) {
+                    closers = nil
+                    lastWord = String(ch)
+                }
+                continue
+            }
+            if let close = quoteClosers[ch] {
+                out.append(ch)
+                closers = close
+                capitalizeNext = false
+                continue
+            }
+            if capitalizeNext, ch.isLetter {
+                out += String(ch).uppercased(with: locale)
+                capitalizeNext = false
+                lastWord = String(ch)
+                continue
+            }
+            out.append(ch)
+            if ch.isWhitespace {
+                if let last = lastWord.last, ".!?".contains(last), !sentenceAbbreviations.contains(lastWord.lowercased()) { capitalizeNext = true }
+                if ch.isNewline { capitalizeNext = true }
+                lastWord = ""
+            } else {
+                lastWord.append(ch)
+                if ch.isLetter || ch.isNumber { capitalizeNext = false }
+            }
+        }
+        return out
+    }
+
+    /// Opening quotation marks and the marks that close them.
+    private static let quoteClosers: [Character: Set<Character>] = [
+        "\"": ["\""], "\u{201C}": ["\u{201D}"], "\u{201E}": ["\u{201C}", "\u{201D}"],
+        "«": ["»"], "「": ["」"], "『": ["』"],
+    ]
+
+    /// Abbreviations whose period doesn't end a sentence: the guards' titles plus times and lists.
+    static let sentenceAbbreviations = FMDailyGuard.titleAbbreviations.union(["a.m.", "p.m.", "etc.", "no."])
+
+    /// The person's own sentences backing a Foundation Models Ask answer, formatted like Gemma's grounded Ask
+    /// ("The closest things you've written: On 12 Oct, you wrote, "…"", or the language's `askPrefix` lines),
+    /// or nil when none of the model's picks is in `pool` (or the call fails): the answer then shows alone.
+    /// English matches with `FMDailyGuard.locate` as round 21 measured, then shows the whole sentence the match
+    /// is in (`locateSentence`: a fragment can drop a "don't"); the other grounded languages with `matchOption`
+    /// against whole sentences, as their daily reflection does. Other languages get none.
+    static func askEvidenceQuotes(
+        answer: String,
+        askMessage: String,
+        pool: [Entry],
+        languageCode: String,
+        picker: (() async throws -> [String])? = nil
+    ) async -> String? {
+        let loc = groundedLocales[languageCode]
+        guard languageCode == "en" || loc != nil else { return nil }
+        let pick = picker ?? {
+            try await LLMGenerationQueue.shared.run {
+                try await FoundationModelEngine.pickAskQuotes(systemPrompt: ASK_QUOTES_FM_SYSTEM, userMessage: askMessage + "\n\nAnswer given: " + answer)
+            }
+        }
+        guard let picks = try? await pick() else { return nil }
+        let dayFormatter = DateFormatter()
+        if let _ = loc {
+            dayFormatter.locale = Locale(identifier: languageCode)
+            dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        } else {
+            dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dayFormatter.dateFormat = "d MMM"
+        }
+        let texts = pool.map(quotableText(of:))
+        var shown: [(quote: String, day: String)] = []
+        for pickText in picks {
+            let found: (quote: String, index: Int)?
+            if loc == nil {
+                found = FMDailyGuard.locateSentence(quote: pickText, in: texts)
+            } else {
+                let options = pool.enumerated().flatMap { i, entry in groundedQuoteCandidates(of: entry).map { ($0, i) } }
+                found = FMDailyGuard.matchOption(quote: pickText, in: options.map(\.0)).flatMap { option in
+                    options.first { $0.0 == option }.map { ($0.0, $0.1) }
+                }
+            }
+            guard let found, !shown.contains(where: { $0.quote.contains(found.quote) || found.quote.contains($0.quote) }) else { continue }
+            shown.append((found.quote, dayFormatter.string(from: pool[found.index].createdAt)))
+        }
+        guard !shown.isEmpty else { return nil }
+        if let loc {
+            return ([loc.askPrefix] + shown.map { "\($0.day) – \(loc.open)\($0.quote)\(loc.close)" }).joined(separator: "\n")
+        }
+        return groundedAskPrefix + shown.map { "On \($0.day), you wrote, \"\($0.quote)\"" }.joined(separator: " ")
     }
 
     static func detectEmotion(text: String) async throws -> String {
@@ -1571,15 +2114,7 @@ enum InsightService {
     // persisted, never written anywhere until the user explicitly inserts the composed result
     // into a real draft.
     static func generateGuidedQuestion(conversationSoFar: [(question: String, answer: String)]) async throws -> (text: String, engine: LLMEngine) {
-        let userMessage: String
-        if conversationSoFar.isEmpty {
-            userMessage = "This is the start of a new guided journal entry. Ask your first question."
-        } else {
-            let transcript = conversationSoFar
-                .map { "Q: \($0.question)\nA: \($0.answer)" }
-                .joined(separator: "\n\n")
-            userMessage = "Conversation so far:\n\(transcript)\n\nAsk the next question."
-        }
+        let userMessage = guidedQuestionUserMessage(conversationSoFar: conversationSoFar)
         let allAnswers = conversationSoFar.map(\.answer).joined(separator: " ")
         let target = responseLanguageTarget(from: [], extraText: allAnswers) ?? responseLanguageTargetFromCurrentLocale()
         let languageInstruction = responseLanguageInstruction(for: target, task: .followUp)
@@ -1589,6 +2124,21 @@ enum InsightService {
             task: .followUp,
             responseLanguageInstruction: languageInstruction
         )
+    }
+
+    /// Same cap as the follow-up chip's draft (same .followUp task, so it fits Gemma's context).
+    static let guidedTranscriptBudget = 3_000
+
+    // Answers have no length cap in TalkItOutView, so the transcript is cut to its newest
+    // characters: security rule 3 (oldest content first), and an uncapped one overflowed Gemma.
+    static func guidedQuestionUserMessage(conversationSoFar: [(question: String, answer: String)]) -> String {
+        guard !conversationSoFar.isEmpty else {
+            return "This is the start of a new guided journal entry. Ask your first question."
+        }
+        let transcript = conversationSoFar
+            .map { "Q: \($0.question)\nA: \($0.answer)" }
+            .joined(separator: "\n\n")
+        return "Conversation so far:\n\(String(transcript.suffix(guidedTranscriptBudget)))\n\nAsk the next question."
     }
 
     /// The AI voice's form of address where the fixed Gemma text (`groundedLocales`, and the
@@ -1673,7 +2223,15 @@ enum InsightService {
         return responseLanguageTarget(forCode: code)
     }
 
+    #if DEBUG
+    /// Tests only: stands in for the device language.
+    @TaskLocal static var deviceLanguageForTesting: String?
+    #endif
+
     private static func responseLanguageTargetFromCurrentLocale() -> ResponseLanguageTarget? {
+        #if DEBUG
+        if let code = deviceLanguageForTesting { return responseLanguageTarget(forCode: code) }
+        #endif
         guard let code = Locale.current.language.languageCode?.identifier else { return nil }
         return responseLanguageTarget(forCode: code)
     }
@@ -1787,12 +2345,16 @@ enum InsightService {
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: retryMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             } catch LocalLLMError.contextExhausted {
-                await LocalLLMService.shared.resetContext()
+                // No resetContext() here: outside the queue it could stop another caller's
+                // stream, and the retry's generate() resets inside it (backlog A15).
                 let second = try await queuedGenerate(systemPrompt: finalSystemPrompt, userMessage: userMessage, task: task, gemmaPlan: plan, allowFoundationModels: allowFoundationModels)
                 return (try validated(second), second.engine)
             }
         } catch let error as InsightError {
             throw error
+        } catch is CancellationError {
+            // Not a model failure: callers tell cancellation apart by its type (backlog A15).
+            throw CancellationError()
         } catch {
             throw InsightError.serviceUnavailable(error.localizedDescription)
         }
@@ -2211,6 +2773,13 @@ enum InsightService {
     /// (headers un-wrapped, colon-normalized) but a caller may pass raw text.
     ///
     /// Returns nil if the first section's header isn't present.
+    /// One digest / monthly-report section body as every surface shows it (the cards in both
+    /// themes, the widgets): no model dashes, first letter capitalized. Display-time so reports
+    /// already stored (and synced from older versions) read the same as new ones.
+    static func sectionBodyForDisplay(_ body: String) -> String {
+        body.withoutModelDashes().capitalizingFirstLetter()
+    }
+
     static func firstSectionBody(of content: String, labels: [[String: String]]) -> String? {
         guard let firstSection = labels.first else { return nil }
         let normalized = content
@@ -2700,7 +3269,10 @@ extension String {
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
             result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) —", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) –", with: "\(header):")
         }
+        result = result.withoutModelDashes()
 
         result = result
             .components(separatedBy: .newlines)
@@ -2722,7 +3294,10 @@ extension String {
         for header in headers {
             result = result.replacingOccurrences(of: "\(header)\n", with: "\(header):\n")
             result = result.replacingOccurrences(of: "\(header) -", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) —", with: "\(header):")
+            result = result.replacingOccurrences(of: "\(header) –", with: "\(header):")
         }
+        result = result.withoutModelDashes()
 
         result = result
             .components(separatedBy: .newlines)
@@ -2733,6 +3308,64 @@ extension String {
             .joined(separator: "\n")
 
         return softenDigestFragments(result)
+    }
+
+    /// Foundation Models writes the free-prose digest as "thing — why it matters" in nearly every
+    /// section: 20/20 rig digests had a dash, ~3.5 each (2026-10-11, scratch rig, synthetic weeks).
+    /// The prompt can't fix it: a no-dash rule left 5-8 of 20 with dashes, often unspaced
+    /// ("worry—it's"), and editing WEEKLY_DIGEST_SYSTEM would mislabel older digests in "How this
+    /// was generated". So the dash becomes a comma here, at save and again at display time
+    /// (`InsightService.sectionBodyForDisplay`) for digests and monthly reports already stored
+    /// (MONTHLY_REPORT_SYSTEM is written the same way). Never inside a quote: the user's own words
+    /// keep their dashes. A hyphen counts only when spaced (" - "), so "tug-of-war" stays. CJK and
+    /// Cyrillic text is left alone: a dash there is grammar ("Москва — столица"), not a comma, and
+    /// the ASCII ", " would look wrong in CJK.
+    func withoutModelDashes() -> String {
+        guard contains(where: { "—–".contains($0) }) || contains("--") || contains(" - ") else { return self }
+        guard !unicodeScalars.contains(where: { (0x0400...0x04FF).contains($0.value) || (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) || (0xAC00...0xD7AF).contains($0.value) }) else { return self }
+
+        let closers: [Character: Character] = ["\"": "\"", "“": "”", "„": "“", "«": "»"]
+        var out = ""
+        var plain = ""
+        var closer: Character?
+        // Anchors only at the real start and end of the text, not at a quote's edge, so the comma
+        // in `You wrote, "…"` and the one after a quote both survive.
+        func flushPlain(atEnd: Bool = false) {
+            var s = plain
+                .replacingOccurrences(of: #"[ \t]*(?:[—–]|--)[ \t]*|[ \t]+-[ \t]+"#, with: ", ", options: .regularExpression)
+                .replacingOccurrences(of: #"([,;:]) *, "#, with: "$1 ", options: .regularExpression)
+                .replacingOccurrences(of: #"\n, "#, with: "\n", options: .regularExpression)
+                .replacingOccurrences(of: #", *([.!?…]|\n)"#, with: "$1", options: .regularExpression)
+            if out.isEmpty { s = s.replacingOccurrences(of: #"^, "#, with: "", options: .regularExpression) }
+            if atEnd { s = s.replacingOccurrences(of: #", *$"#, with: "", options: .regularExpression) }
+            out += s
+            plain = ""
+        }
+        for ch in self {
+            if let open = closer {
+                out.append(ch)
+                if ch == open { closer = nil }
+            } else if let match = closers[ch] {
+                flushPlain()
+                out.append(ch)
+                closer = match
+            } else {
+                plain.append(ch)
+            }
+        }
+        flushPlain(atEnd: true)
+        return out
+    }
+
+    /// A section that opens lowercase ("you felt most alive…"): Foundation Models often carries on
+    /// from the header as if mid-sentence, and the Gemma digest's theme grammar allows only
+    /// lowercase. Capitalizes the first letter, unless the word reads like a name with its own
+    /// casing ("iPhone"). Display only (`InsightService.sectionBodyForDisplay`).
+    func capitalizingFirstLetter() -> String {
+        guard let first = first, first.isLowercase else { return self }
+        let rest = dropFirst()
+        if let second = rest.first, second.isUppercase { return self }
+        return first.uppercased() + rest
     }
 
     private func softenDigestFragments(_ text: String) -> String {
@@ -2827,7 +3460,8 @@ extension InsightService {
 
     /// The Gemma plan for a daily nudge, with the quote options its validator needs.
     /// English only: the grammar's fixed phrases and lowercase-only character class are English.
-    /// Other languages keep DAILY_NUDGE_LEGACY_SYSTEM on Gemma (`.samePrompt`) — not yet measured.
+    /// Other languages get `.samePrompt`, which `generateNudge` never sends: they take the localized
+    /// grounded path or the honest card (A9, 3.1.2).
     static func groundedNudgePlan(recent: [Entry], background: [Entry], recentNudges: [String]) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String]) {
         let target = responseLanguageTarget(from: recent + background) ?? responseLanguageTargetFromCurrentLocale()
         guard (target?.code ?? "en") == "en" else { return (.samePrompt, []) }
@@ -2924,13 +3558,16 @@ extension InsightService {
     /// Splits after any `boundaries` character that's followed by a space, and right after any
     /// `immediate` character (CJK punctuation, which takes no space), keeping every character —
     /// concatenating the pieces reproduces `text` exactly, so any run of pieces is verbatim.
+    /// A title such as "Dr." or "e.g." is not a boundary (`FMDailyGuard.endsInTitle`, as the Foundation
+    /// Models guards split): "Saw Dr. Okafor today." stays one sentence.
     private static func splitAfter(_ text: String, boundaries: String, immediate: String = "") -> [String] {
         var pieces: [String] = []
         var current = ""
         let chars = Array(text)
         for (i, c) in chars.enumerated() {
             current.append(c)
-            if immediate.contains(c) || (c == " " && i > 0 && boundaries.contains(chars[i - 1])) {
+            if immediate.contains(c)
+                || (c == " " && i > 0 && boundaries.contains(chars[i - 1]) && !FMDailyGuard.endsInTitle(current)) {
                 pieces.append(current)
                 current = ""
             }
@@ -3448,6 +4085,26 @@ enum GroundedMoodBucket: Hashable {
 /// Fixed text for one language. `pick*` are prompts (the model's only instructions); the rest
 /// is shown to the user verbatim around the quotes the model picked. `neutral` keys double as
 /// "mixed week/month". Generated from tools/i18n/grounded_locales.py — edit there, not here.
+/// The fixed text of the monthly report around the person's own quotes: a `GroundedLocale`'s monthly
+/// strings, or `InsightService.englishMonthlyText` for English on Foundation Models.
+struct GroundedMonthlyText {
+    /// Before the quote in WHAT YOU'RE BECOMING / WHAT WANTS TO BE RELEASED ("You wrote, " in English; empty in
+    /// the other languages, whose lines start at the quote).
+    var quoteLead: String = ""
+    let open: String
+    let close: String
+    let joiner: String
+    let monthImage: [GroundedMoodBucket: String]
+    let monthTension: [GroundedMoodBucket: String]
+    let monthQuestion: [GroundedMoodBucket: String]
+    /// Contains `{date}`.
+    let momentLead: String
+    let momentSuffix: String
+    let becomingSuffix: String
+    let releaseSuffix: String
+    let releaseFallback: String
+}
+
 struct GroundedLocale {
     let open: String
     let close: String
@@ -3488,6 +4145,36 @@ struct GroundedLocale {
     let partsLabel: String
     /// Two question templates; `{quote}` becomes `open` + the picked phrase + `close`.
     let followUpQuestion: [String]
+    /// Two more versions of the monthly image, tension and question per mood, and of the lines after the moment and
+    /// the heavy quote, rotated by month with the originals (`monthlyText(month:)`). `becomingSuffix` and
+    /// `releaseFallback` don't rotate: saved reports are recognized by them (`systemPrompt(for:)`).
+    let monthImageMore: [GroundedMoodBucket: [String]]
+    let monthTensionMore: [GroundedMoodBucket: [String]]
+    let monthQuestionMore: [GroundedMoodBucket: [String]]
+    let momentSuffixMore: [String]
+    let releaseSuffixMore: [String]
+
+    /// The monthly report's fixed lines for calendar `month` (1-12): the original in months 1, 4, 7, 10 and the two
+    /// alternates in the months after, so a month never reads like the one before it.
+    func monthlyText(month: Int) -> GroundedMonthlyText {
+        let k = max(0, month - 1) % 3
+        func pick(_ base: [GroundedMoodBucket: String], _ more: [GroundedMoodBucket: [String]]) -> [GroundedMoodBucket: String] {
+            guard k > 0 else { return base }
+            return base.reduce(into: [:]) { out, item in
+                let alternates = more[item.key] ?? []
+                out[item.key] = alternates.indices.contains(k - 1) ? alternates[k - 1] : item.value
+            }
+        }
+        return GroundedMonthlyText(
+            open: open, close: close, joiner: joiner,
+            monthImage: pick(monthImage, monthImageMore), monthTension: pick(monthTension, monthTensionMore),
+            monthQuestion: pick(monthQuestion, monthQuestionMore), momentLead: momentLead,
+            momentSuffix: k > 0 && momentSuffixMore.indices.contains(k - 1) ? momentSuffixMore[k - 1] : momentSuffix,
+            becomingSuffix: becomingSuffix,
+            releaseSuffix: k > 0 && releaseSuffixMore.indices.contains(k - 1) ? releaseSuffixMore[k - 1] : releaseSuffix,
+            releaseFallback: releaseFallback
+        )
+    }
 }
 
 extension InsightService {
@@ -3527,7 +4214,12 @@ extension InsightService {
             releaseFallback: "Nichts in diesem Monat scheint danach zu verlangen, losgelassen zu werden – achte weiter darauf, was dir guttut.",
             pickFollowUp: "Kopiere Wort für Wort den Teil des Tagebucheintrags, über den die Person am liebsten mehr schreiben würde: ein Gefühl, eine Sorge oder etwas, das ihr passiert ist. Gib nur diesen Teil aus.",
             partsLabel: "Teile des Eintrags:",
-            followUpQuestion: ["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"]
+            followUpQuestion: ["Was steckt hinter {quote}?", "Magst du mehr über {quote} schreiben?"],
+            monthImageMore: [.tired: ["Ein Handy auf zwei Prozent, das trotzdem klingelt.", "Eine lange Straße ohne Rastplatz."], .stressed: ["Ein Schreibtisch unter einem Berg Papier.", "Ein Wasserkessel, der nicht aufhört zu pfeifen."], .sad: ["Ein Zimmer mit noch zugezogenen Vorhängen.", "Ein Lied, das leise in einem anderen Zimmer läuft."], .good: ["Ein Garten, in dem die ersten Triebe kommen.", "Ein Weg, der sich immer leichter gehen ließ."], .neutral: ["Ebbe und Flut.", "Eine belebte Straße mit einer ruhigen Ecke."]],
+            monthTensionMore: [.tired: ["Zwischen dem Versuch, mit allem Schritt zu halten, und der Zeit, die du zum Erholen brauchst.", "Zwischen dem, was du durchziehst, und dem, was du ablegen müsstest."], .stressed: ["Zwischen dem Druck dessen, was fällig ist, und dem Tempo, das du halten kannst.", "Zwischen dem Zusammenhalten von allem und der Bitte um Hilfe."], .sad: ["Zwischen dem Weitermachen wie immer und dem Raum für das, was du fühlst.", "Zwischen dem, was schwer wiegt, und dem, was dich noch trägt."], .good: ["Zwischen der Freude an dieser Zeit und dem Planen, was als Nächstes kommt.", "Zwischen dem Guten, das wächst, und der Zeit, die es braucht."], .neutral: ["Zwischen den ruhigen Tagen und denen, die an dir gezerrt haben.", "Zwischen dem, was du bewältigst, und dem, wovon du gern mehr hättest."]],
+            monthQuestionMore: [.tired: ["Wozu könntest du im nächsten Monat einmal Nein sagen?", "Wann hast du dich diesen Monat am besten erholt, und wie könntest du mehr davon haben?"], .stressed: ["Was würde den nächsten Monat ein kleines bisschen leichter machen?", "Wen könntest du im nächsten Monat bei einer Sache um Hilfe bitten?"], .sad: ["Was Kleines könntest du im nächsten Monat für dich tun?", "Wem möchtest du im nächsten Monat näher sein?"], .good: ["Was hat diesen Monat gut gemacht, und wie kannst du es schützen?", "Was möchtest du im nächsten Monat weiter tun?"], .neutral: ["Von welchen Tagen dieses Monats möchtest du mehr?", "Was soll der nächste Monat für dich bereithalten?"]],
+            momentSuffixMore: ["Dieser Moment scheint dich begleitet zu haben.", "Kleine Momente wie dieser können einen ganzen Monat verändern."],
+            releaseSuffixMore: ["Vielleicht musst du das nicht allein tragen.", "Vielleicht kannst du einiges davon im nächsten Monat ablegen."]
         ),
         "es": GroundedLocale(
             open: "“",
@@ -3564,7 +4256,12 @@ extension InsightService {
             releaseFallback: "Nada de este mes parece pedir que lo sueltes; sigue fijándote en lo que te hace bien.",
             pickFollowUp: "Copia palabra por palabra la parte de la entrada del diario sobre la que la persona querría escribir más: un sentimiento, una preocupación o algo que le pasó. Escribe solo esa parte.",
             partsLabel: "Partes de la entrada:",
-            followUpQuestion: ["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"]
+            followUpQuestion: ["¿Qué hay detrás de {quote}?", "¿Quieres contar más sobre {quote}?"],
+            monthImageMore: [.tired: ["Un móvil al dos por ciento que no deja de sonar.", "Una carretera larga sin un sitio donde parar."], .stressed: ["Un escritorio enterrado bajo papeles.", "Una tetera que no deja de silbar."], .sad: ["Una habitación con las cortinas todavía cerradas.", "Una canción sonando bajito en otra habitación."], .good: ["Un jardín que empieza a brotar.", "Un camino que cada vez costaba menos andar."], .neutral: ["Una marea que sube y baja.", "Una calle llena de gente con un rincón tranquilo."]],
+            monthTensionMore: [.tired: ["Entre llegar a todo y encontrar tiempo para recuperarte.", "Entre lo que sacas adelante a pulso y lo que necesitas soltar."], .stressed: ["Entre la presión de lo que vence y el ritmo que puedes mantener.", "Entre sostenerlo todo y pedir ayuda."], .sad: ["Entre seguir como siempre y hacer espacio para lo que sientes.", "Entre lo que pesa y lo que todavía te sostiene."], .good: ["Entre disfrutar esta racha y planear lo que viene.", "Entre lo bueno que crece y el tiempo que necesita."], .neutral: ["Entre los días tranquilos y los que tiraron de ti.", "Entre lo que llevas al día y aquello de lo que te gustaría más."]],
+            monthQuestionMore: [.tired: ["¿A qué podrías decir que no el próximo mes?", "¿Cuándo descansaste mejor este mes y cómo podrías tener más de eso?"], .stressed: ["¿Qué haría que el próximo mes se sintiera un poco más ligero?", "¿A quién podrías pedirle ayuda con una cosa el próximo mes?"], .sad: ["¿Qué pequeño gesto podrías tener contigo el próximo mes?", "¿De quién te gustaría estar más cerca el próximo mes?"], .good: ["¿Qué hizo bueno este mes y cómo podrías cuidarlo?", "¿Qué quieres seguir haciendo el próximo mes?"], .neutral: ["¿De qué días de este mes te gustaría tener más?", "¿Qué te gustaría que trajera el próximo mes?"]],
+            momentSuffixMore: ["Parece que ese momento se quedó contigo.", "Momentos pequeños como ese pueden cambiar un mes entero."],
+            releaseSuffixMore: ["Quizás no tienes que cargar con esto sin ayuda.", "Quizás parte de esto pueda quedarse atrás el próximo mes."]
         ),
         "fr": GroundedLocale(
             open: "«\u{00A0}",
@@ -3601,7 +4298,12 @@ extension InsightService {
             releaseFallback: "Rien ce mois-ci ne semble demander à être lâché\u{00A0}; continue de remarquer ce qui te fait du bien.",
             pickFollowUp: "Recopie mot pour mot la partie de l'entrée du journal sur laquelle la personne aurait le plus envie d'écrire davantage : un sentiment, une inquiétude ou quelque chose qui lui est arrivé. Écris seulement cette partie.",
             partsLabel: "Parties de l'entrée\u{00A0}:",
-            followUpQuestion: ["Qu'est-ce qui se cache derrière {quote}\u{00A0}?", "Tu veux en dire plus sur {quote}\u{00A0}?"]
+            followUpQuestion: ["Qu'est-ce qui se cache derrière {quote}\u{00A0}?", "Tu veux en dire plus sur {quote}\u{00A0}?"],
+            monthImageMore: [.tired: ["Un téléphone à deux pour cent qui sonne encore.", "Une longue route sans aire de repos."], .stressed: ["Un bureau enseveli sous les papiers.", "Une bouilloire qui n'arrête pas de siffler."], .sad: ["Une chambre aux rideaux encore tirés.", "Une chanson qui joue doucement dans une autre pièce."], .good: ["Un jardin qui commence à pousser.", "Un chemin de plus en plus facile à suivre."], .neutral: ["Une marée qui monte et descend.", "Une rue animée avec un coin calme."]],
+            monthTensionMore: [.tired: ["Entre suivre le rythme de tout et trouver le temps de récupérer.", "Entre ce que tu tiens à bout de bras et ce que tu aurais besoin de poser."], .stressed: ["Entre la pression de ce qui est dû et le rythme que tu peux tenir.", "Entre tout tenir ensemble et demander de l'aide."], .sad: ["Entre continuer comme d'habitude et faire de la place à ce que tu ressens.", "Entre ce qui pèse et ce qui te porte encore."], .good: ["Entre profiter de cette période et préparer la suite.", "Entre les belles choses qui grandissent et le temps qu'il leur faut."], .neutral: ["Entre les jours calmes et ceux qui t'ont tiré dans tous les sens.", "Entre ce que tu gères et ce dont tu aimerais davantage."]],
+            monthQuestionMore: [.tired: ["À quoi pourrais-tu dire non le mois prochain\u{00A0}?", "Quels moments de repos t'ont fait du bien ce mois-ci, et comment en avoir plus\u{00A0}?"], .stressed: ["Qu'est-ce qui rendrait le mois prochain un peu plus léger\u{00A0}?", "À qui pourrais-tu demander de l'aide pour une chose le mois prochain\u{00A0}?"], .sad: ["Quelle petite chose pourrais-tu faire pour toi le mois prochain\u{00A0}?", "De qui aimerais-tu te rapprocher le mois prochain\u{00A0}?"], .good: ["Qu'est-ce qui a rendu ce mois agréable, et comment le préserver\u{00A0}?", "Qu'est-ce que tu veux continuer à faire le mois prochain\u{00A0}?"], .neutral: ["De quels jours de ce mois aimerais-tu en avoir plus\u{00A0}?", "Qu'aimerais-tu que le mois prochain t'apporte\u{00A0}?"]],
+            momentSuffixMore: ["Ce moment semble être resté avec toi.", "De petits moments comme celui-là peuvent changer tout un mois."],
+            releaseSuffixMore: ["Tu n'as peut-être pas à porter ça sans aide.", "Une partie de tout ça peut peut-être être posée le mois prochain."]
         ),
         "it": GroundedLocale(
             open: "“",
@@ -3638,7 +4340,12 @@ extension InsightService {
             releaseFallback: "Niente di questo mese sembra chiedere di essere lasciato andare; continua a notare ciò che ti fa bene.",
             pickFollowUp: "Copia parola per parola la parte della voce del diario su cui la persona vorrebbe scrivere di più: un sentimento, una preoccupazione o qualcosa che le è successo. Scrivi solo quella parte.",
             partsLabel: "Parti della voce:",
-            followUpQuestion: ["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"]
+            followUpQuestion: ["Cosa c'è dietro {quote}?", "Ti va di scrivere di più su {quote}?"],
+            monthImageMore: [.tired: ["Un telefono al due per cento che continua a squillare.", "Una lunga strada senza un'area di sosta."], .stressed: ["Una scrivania sommersa dalle carte.", "Un bollitore che non smette di fischiare."], .sad: ["Una stanza con le tende ancora tirate.", "Una canzone che suona piano in un'altra stanza."], .good: ["Un giardino che inizia a germogliare.", "Un sentiero sempre più facile da percorrere."], .neutral: ["Una marea che sale e scende.", "Una strada affollata con un angolo tranquillo."]],
+            monthTensionMore: [.tired: ["Tra stare dietro a tutto e trovare il tempo per riprenderti.", "Tra ciò che porti avanti a fatica e ciò che avresti bisogno di posare."], .stressed: ["Tra la pressione delle scadenze e il ritmo che riesci a tenere.", "Tra tenere tutto insieme e chiedere aiuto."], .sad: ["Tra andare avanti come sempre e fare spazio a ciò che senti.", "Tra ciò che pesa e ciò che ancora ti sostiene."], .good: ["Tra il goderti questo periodo e il pensare a cosa verrà.", "Tra le cose belle che crescono e il tempo che serve loro."], .neutral: ["Tra i giorni tranquilli e quelli che ti hanno tirato da ogni parte.", "Tra ciò che riesci a gestire e ciò di cui vorresti di più."]],
+            monthQuestionMore: [.tired: ["A cosa potresti dire di no il mese prossimo?", "Quali momenti di riposo ti hanno fatto bene questo mese, e come averne di più?"], .stressed: ["Cosa renderebbe il mese prossimo anche solo un po' più leggero?", "A chi potresti chiedere aiuto per una cosa il mese prossimo?"], .sad: ["Quale piccola cosa potresti fare per te il mese prossimo?", "Con chi vorresti avere più contatto il mese prossimo?"], .good: ["Cosa ha reso buono questo mese, e come potresti proteggerlo?", "Cosa vuoi continuare a fare il mese prossimo?"], .neutral: ["Di quali giorni di questo mese vorresti averne di più?", "Cosa vorresti che portasse il mese prossimo?"]],
+            momentSuffixMore: ["Sembra che quel momento ti sia rimasto dentro.", "Piccoli momenti così possono cambiare un mese intero."],
+            releaseSuffixMore: ["Forse non devi portare tutto questo senza aiuto.", "Forse una parte di questo può restare indietro il mese prossimo."]
         ),
         "pt": GroundedLocale(
             open: "“",
@@ -3675,7 +4382,12 @@ extension InsightService {
             releaseFallback: "Nada neste mês parece pedir para ser deixado de lado; continue percebendo o que faz bem a você.",
             pickFollowUp: "Copie palavra por palavra a parte da entrada do diário sobre a qual a pessoa mais gostaria de escrever: um sentimento, uma preocupação ou algo que aconteceu com ela. Escreva só essa parte.",
             partsLabel: "Partes da entrada:",
-            followUpQuestion: ["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"]
+            followUpQuestion: ["O que está por trás de {quote}?", "Quer escrever mais sobre {quote}?"],
+            monthImageMore: [.tired: ["Um celular com dois por cento de bateria, ainda tocando.", "Uma estrada longa sem nenhum lugar para parar."], .stressed: ["Uma mesa soterrada de papéis.", "Uma chaleira que não para de apitar."], .sad: ["Um quarto com as cortinas ainda fechadas.", "Uma música tocando baixinho em outro cômodo."], .good: ["Um jardim começando a brotar.", "Um caminho cada vez mais fácil de seguir."], .neutral: ["Uma maré que sobe e desce.", "Uma rua movimentada com um cantinho tranquilo."]],
+            monthTensionMore: [.tired: ["Entre dar conta de tudo e encontrar tempo para se recuperar.", "Entre o que você leva no braço e o que precisaria deixar de lado."], .stressed: ["Entre a pressão dos prazos e o ritmo que você consegue manter.", "Entre segurar tudo e pedir ajuda."], .sad: ["Entre seguir como sempre e abrir espaço para o que você sente.", "Entre o que pesa e o que ainda te sustenta."], .good: ["Entre aproveitar esta fase e planejar o que vem depois.", "Entre as coisas boas que crescem e o tempo de que elas precisam."], .neutral: ["Entre os dias tranquilos e os que puxaram você para todos os lados.", "Entre o que você dá conta e aquilo de que gostaria de ter mais."]],
+            monthQuestionMore: [.tired: ["Para o que você poderia dizer não no próximo mês?", "Que momentos de descanso fizeram bem a você este mês, e como ter mais deles?"], .stressed: ["O que deixaria o próximo mês um pouquinho mais leve?", "A quem você poderia pedir ajuda com uma coisa no próximo mês?"], .sad: ["Que coisa pequena você poderia fazer por você no próximo mês?", "De quem você gostaria de estar mais perto no próximo mês?"], .good: ["O que fez este mês ser bom, e como você poderia proteger isso?", "O que você quer continuar fazendo no próximo mês?"], .neutral: ["De quais dias deste mês você gostaria de ter mais?", "O que você gostaria que o próximo mês trouxesse?"]],
+            momentSuffixMore: ["Esse momento parece ter ficado com você.", "Pequenos momentos assim podem mudar um mês inteiro."],
+            releaseSuffixMore: ["Talvez você não precise carregar isso sem ajuda.", "Talvez parte disso possa ficar para trás no próximo mês."]
         ),
         "ru": GroundedLocale(
             open: "«",
@@ -3712,7 +4424,12 @@ extension InsightService {
             releaseFallback: "Похоже, в этом месяце нет ничего, что нужно отпустить, — продолжай замечать, что тебе помогает.",
             pickFollowUp: "Перепиши слово в слово ту часть записи в дневнике, о которой человеку больше всего хотелось бы написать подробнее: чувство, тревогу или то, что с ним случилось. Выведи только эту часть.",
             partsLabel: "Части записи:",
-            followUpQuestion: ["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"]
+            followUpQuestion: ["Что стоит за {quote}?", "Можешь рассказать подробнее про {quote}?"],
+            monthImageMore: [.tired: ["Телефон на двух процентах, который всё ещё звонит.", "Длинная дорога без единой остановки."], .stressed: ["Стол, заваленный бумагами.", "Чайник, который никак не перестаёт свистеть."], .sad: ["Комната с всё ещё задёрнутыми шторами.", "Песня, тихо звучащая в другой комнате."], .good: ["Сад, в котором начинают появляться всходы.", "Дорога, по которой идти становилось всё легче."], .neutral: ["Прилив и отлив.", "Шумная улица с одним тихим уголком."]],
+            monthTensionMore: [.tired: ["Между тем, чтобы всё успевать, и временем, чтобы восстановиться.", "Между тем, что ты тянешь через силу, и тем, что пора бы отложить."], .stressed: ["Между давлением сроков и темпом, который ты можешь выдержать.", "Между тем, чтобы держать всё на себе, и просьбой о помощи."], .sad: ["Между тем, чтобы жить как обычно, и местом для того, что ты чувствуешь.", "Между тем, что тяготит, и тем, что ещё держит тебя."], .good: ["Между радостью от этого периода и мыслями о том, что дальше.", "Между хорошим, что растёт, и временем, которое ему нужно."], .neutral: ["Между спокойными днями и теми, что тянули тебя в разные стороны.", "Между тем, с чем ты справляешься, и тем, чего хотелось бы больше."]],
+            monthQuestionMore: [.tired: ["Чему можно было бы сказать «нет» в следующем месяце?", "Какие моменты отдыха в этом месяце помогли тебе, и как сделать их больше?"], .stressed: ["Что сделало бы следующий месяц хоть немного легче?", "Кого можно было бы попросить о помощи с одним делом в следующем месяце?"], .sad: ["Что маленькое можно сделать для себя в следующем месяце?", "С кем хотелось бы быть ближе в следующем месяце?"], .good: ["Что сделало этот месяц хорошим и как это сберечь?", "Что хочется продолжать делать в следующем месяце?"], .neutral: ["Каких дней из этого месяца хотелось бы больше?", "Чего ты ждёшь от следующего месяца?"]],
+            momentSuffixMore: ["Похоже, этот момент остался с тобой.", "Такие маленькие моменты могут изменить целый месяц."],
+            releaseSuffixMore: ["Может быть, это не нужно нести в одиночку.", "Может быть, что-то из этого можно оставить позади в следующем месяце."]
         ),
         "ja": GroundedLocale(
             open: "「",
@@ -3749,7 +4466,12 @@ extension InsightService {
             releaseFallback: "今月は、手放すべきものは見当たりません。何が助けになるかに、引き続き気づいていきましょう。",
             pickFollowUp: "この日記の中から、書いた人がいちばん詳しく書きたいと思いそうな部分（気持ち、心配ごと、または起きた出来事）をそのまま書き写してください。その部分だけを出力してください。",
             partsLabel: "日記の各部分：",
-            followUpQuestion: ["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"]
+            followUpQuestion: ["{quote}の奥には、どんな気持ちがありますか？", "{quote}について、もう少し書いてみませんか？"],
+            monthImageMore: [.tired: ["残り2%なのに鳴り続けるスマホ。", "休憩所のない長い道。"], .stressed: ["書類に埋もれた机。", "鳴りやまないやかん。"], .sad: ["カーテンが閉じたままの部屋。", "隣の部屋で静かに流れる歌。"], .good: ["芽が出はじめた庭。", "だんだん歩きやすくなっていく道。"], .neutral: ["満ち引きを繰り返す潮。", "にぎやかな通りの、静かな一角。"]],
+            monthTensionMore: [.tired: ["すべてについていくことと、回復する時間を見つけることとのあいだ。", "無理して続けていることと、手放したほうがいいこととのあいだ。"], .stressed: ["締め切りのプレッシャーと、保てるペースとのあいだ。", "すべてを一人で支えることと、助けを求めることとのあいだ。"], .sad: ["いつもどおりに過ごすことと、自分の気持ちに場所をつくることとのあいだ。", "重く感じるものと、まだ支えてくれているものとのあいだ。"], .good: ["この時期を楽しむことと、次のことを考えることとのあいだ。", "育っているいいことと、それに必要な時間とのあいだ。"], .neutral: ["穏やかな日々と、あちこちに引っぱられた日々とのあいだ。", "こなせていることと、もっと増やしたいこととのあいだ。"]],
+            monthQuestionMore: [.tired: ["来月、断ってもいいことは何でしょうか？", "今月いちばん休めたのはいつでしたか？それを増やすにはどうしたらいいでしょう？"], .stressed: ["来月を少しでも軽くしてくれるものは何でしょうか？", "来月、一つのことで助けを頼めそうな人はいますか？"], .sad: ["来月、自分のためにできる小さなことは何でしょうか？", "来月、もっと近くにいたい人は誰ですか？"], .good: ["今月をいい月にしたのは何でしたか？それをどう守れるでしょう？", "来月も続けたいことは何ですか？"], .neutral: ["今月のどんな日を、もっと増やしたいですか？", "来月はどんな月になってほしいですか？"]],
+            momentSuffixMore: ["――その瞬間は、今も心に残っているようです。", "――こんな小さな瞬間が、ひと月を変えることもあります。"],
+            releaseSuffixMore: ["――これは一人で抱えなくてもいいのかもしれません。", "――来月は、このうちの少しを置いていけるかもしれません。"]
         ),
         "ko": GroundedLocale(
             open: "“",
@@ -3786,7 +4508,12 @@ extension InsightService {
             releaseFallback: "이번 달에는 내려놓아야 할 것이 보이지 않아요. 무엇이 도움이 되는지 계속 살펴봐 주세요.",
             pickFollowUp: "이 일기에서 쓴 사람이 가장 더 이야기하고 싶어 할 부분(감정, 걱정, 또는 있었던 일)을 그대로 옮겨 적어 주세요. 그 부분만 출력하세요.",
             partsLabel: "일기의 부분:",
-            followUpQuestion: ["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"]
+            followUpQuestion: ["{quote} 뒤에는 어떤 마음이 있나요?", "{quote}에 대해 조금 더 써 볼래요?"],
+            monthImageMore: [.tired: ["배터리 2%인데도 계속 울리는 휴대폰.", "쉴 곳 없는 긴 길."], .stressed: ["서류 더미에 파묻힌 책상.", "멈추지 않고 우는 주전자."], .sad: ["아직 커튼이 쳐진 방.", "다른 방에서 조용히 흘러나오는 노래."], .good: ["싹이 트기 시작한 정원.", "걸을수록 점점 쉬워진 길."], .neutral: ["밀려왔다 빠져나가는 바닷물.", "북적이는 거리의 조용한 한구석."]],
+            monthTensionMore: [.tired: ["모든 걸 따라잡는 것과 회복할 시간을 찾는 것 사이.", "버티며 해내는 일과 내려놓아야 할 일 사이."], .stressed: ["마감의 압박과 지킬 수 있는 속도 사이.", "모든 걸 혼자 붙잡는 것과 도움을 청하는 것 사이."], .sad: ["평소처럼 지내는 것과 마음에 자리를 내주는 것 사이.", "무겁게 느껴지는 것과 아직 붙잡아 주는 것 사이."], .good: ["지금 이 시기를 누리는 것과 다음을 계획하는 것 사이.", "자라나는 좋은 것들과 그것에 필요한 시간 사이."], .neutral: ["잔잔한 날들과 이리저리 끌려다닌 날들 사이.", "해내고 있는 것과 더 갖고 싶은 것 사이."]],
+            monthQuestionMore: [.tired: ["다음 달에는 무엇에 '아니요'라고 말할 수 있을까요?", "이번 달 가장 잘 쉬었던 때는 언제였나요? 그런 시간을 어떻게 더 늘릴 수 있을까요?"], .stressed: ["다음 달을 조금이라도 가볍게 해 줄 건 무엇일까요?", "다음 달에 한 가지 일로 도움을 청할 수 있는 사람이 있을까요?"], .sad: ["다음 달에 자신을 위해 할 수 있는 작은 일은 무엇일까요?", "다음 달에 더 가까워지고 싶은 사람은 누구인가요?"], .good: ["무엇이 이번 달을 좋은 달로 만들었나요? 그걸 어떻게 지킬 수 있을까요?", "다음 달에도 계속하고 싶은 일은 무엇인가요?"], .neutral: ["이번 달의 어떤 날들이 더 많았으면 하나요?", "다음 달은 어떤 달이었으면 하나요?"]],
+            momentSuffixMore: ["그 순간이 마음에 남아 있는 것 같아요.", "이런 작은 순간이 한 달 전체를 바꾸기도 해요."],
+            releaseSuffixMore: ["이건 혼자 짊어지지 않아도 될지 몰라요.", "다음 달에는 이 중 일부를 내려놓을 수 있을지도 몰라요."]
         ),
         "zh": GroundedLocale(
             open: "“",
@@ -3823,7 +4550,12 @@ extension InsightService {
             releaseFallback: "这个月似乎没有什么需要放下的。继续留意什么对你有帮助。",
             pickFollowUp: "请从这篇日记中，把作者最想多写一些的那一部分（一种感受、一个担心，或发生在他们身上的事）原样抄写下来。只输出这一部分。",
             partsLabel: "日记的各部分：",
-            followUpQuestion: ["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"]
+            followUpQuestion: ["{quote}背后是什么感受？", "能再多写一点关于{quote}的事吗？"],
+            monthImageMore: [.tired: ["电量只剩2%却还在响的手机。", "一条没有休息站的长路。"], .stressed: ["被文件淹没的书桌。", "一直响个不停的水壶。"], .sad: ["窗帘还拉着的房间。", "隔壁房间里轻轻放着的一首歌。"], .good: ["开始冒芽的花园。", "越走越顺的一条路。"], .neutral: ["涨了又退的潮水。", "热闹街道上一个安静的角落。"]],
+            monthTensionMore: [.tired: ["在跟上所有事和找时间恢复之间。", "在你硬撑着做的事和需要放下的事之间。"], .stressed: ["在截止日期的压力和你能维持的节奏之间。", "在独自撑起一切和开口求助之间。"], .sad: ["在照常生活和给自己的感受留出空间之间。", "在让你感到沉重的事和仍在支撑你的事之间。"], .good: ["在享受这段时光和计划接下来之间。", "在正在生长的美好和它需要的时间之间。"], .neutral: ["在平静的日子和把你拉向四面八方的日子之间。", "在你能应付的事和你想要更多的事之间。"]],
+            monthQuestionMore: [.tired: ["下个月，有什么事你可以拒绝？", "这个月你什么时候休息得最好？怎样才能多一些这样的时候？"], .stressed: ["什么能让下个月轻松一点点？", "下个月，有一件事你可以找谁帮忙？"], .sad: ["下个月，你能为自己做的一件小事是什么？", "下个月，你想和谁更亲近一些？"], .good: ["是什么让这个月变得美好？你可以怎样守护它？", "下个月你想继续做什么？"], .neutral: ["这个月的哪些日子，你希望能更多一些？", "你希望下个月是什么样的？"]],
+            momentSuffixMore: ["那个时刻似乎一直留在你心里。", "像这样的小时刻，可能会改变整个月。"],
+            releaseSuffixMore: ["也许这件事不必一个人扛。", "也许下个月可以把其中一部分放下。"]
         ),
     ]
 
@@ -3835,12 +4567,22 @@ extension InsightService {
         /// The quotable sentences the validator accepts (daily reflection only; empty elsewhere).
         /// Foundation Models picks one of them instead of Gemma.
         var quoteOptions: [String] = []
+        /// Weekly digest and monthly report: the sentences the validator accepts for each quoted section, in
+        /// order (digest: energy, building, watch; report: moment, becoming, release, which may be empty).
+        /// Foundation Models picks from them instead of Gemma.
+        var digestOptions: [[String]] = []
     }
 
     private static func groundedLocaleCode(for entries: [Entry], extraText: String? = nil) -> String? {
         let target = responseLanguageTarget(from: entries, extraText: extraText) ?? responseLanguageTargetFromCurrentLocale()
         guard let code = target?.code, code != "en", groundedLocales[code] != nil else { return nil }
         return code
+    }
+
+    /// The entries' own text, one block each, joined for the grounded pick prompts outside English, at most
+    /// `maxLocalLLMEntryChars` (Security rule 3). `entries` is newest first, so the oldest are cut first.
+    static func cappedQuotableText(_ entries: [Entry]) -> String {
+        clipped(entries.map(quotableText(of:)).joined(separator: "\n---\n"), maxChars: maxLocalLLMEntryChars)
     }
 
     private static func quotableText(of entry: Entry) -> String {
@@ -4014,7 +4756,7 @@ extension InsightService {
         let pick = bucket == .neutral
             ? loc.pickNeutral
             : loc.pickNudge.replacingOccurrences(of: "{mood}", with: loc.moodWord[bucket] ?? "")
-        let message = "\(pick)\n\n\(loc.entryLabel)\n" + source.map(quotableText(of:)).joined(separator: "\n---\n")
+        let message = "\(pick)\n\n\(loc.entryLabel)\n" + cappedQuotableText(source)
         let variant = (Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0) % 2
         return LocalizedGrounded(
             plan: .grammarConstrained(userMessage: message, grammar: literalOnlyGrammar("root", options)),
@@ -4057,7 +4799,7 @@ extension InsightService {
 
         let dominant = dominantMoodBucket(bucketCounts)
 
-        let entriesText = weekEntries.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = cappedQuotableText(weekEntries.sorted { $0.createdAt > $1.createdAt })
         let message = "\(loc.pickDigest)\n\n\(loc.weekLabel)\n\(entriesText)"
         let grammar = [
             #"root ::= energyq "\n" goodq "\n" hardq"#,
@@ -4072,17 +4814,22 @@ extension InsightService {
                 let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                 guard lines.count == 3, energyOptions.contains(lines[0]), goodOptions.contains(lines[1]), hardOptions.contains(lines[2])
                 else { throw InsightError.incompleteResponse }
-                let watch = lines[2] == lines[0] ? (hardOptions.first { $0 != lines[0] } ?? lines[2]) : lines[2]
+                // One sentence is quoted once: the lists overlap (no hard day this week makes energy and
+                // building the same list), so a repeat takes the next sentence of its list, when there is one.
+                let building = lines[1] == lines[0] ? (firstDistinct(in: goodOptions, avoiding: [lines[0]]) ?? lines[1]) : lines[1]
+                let watch = [lines[0], building].contains(lines[2])
+                    ? (firstDistinct(in: hardOptions, avoiding: [lines[0], building]) ?? lines[2]) : lines[2]
                 let bodies = [
                     loc.theme[dominant] ?? "",
                     (energyIsHard ? loc.energyHard : loc.energyGood) + loc.open + lines[0] + loc.close,
-                    loc.open + lines[1] + loc.close + loc.joiner + loc.buildingSuffix,
+                    loc.open + building + loc.close + loc.joiner + loc.buildingSuffix,
                     loc.open + watch + loc.close + loc.joiner + loc.watchSuffix,
                     loc.boost[dominant] ?? "",
                     loc.nextWeek[dominant] ?? "",
                 ]
                 return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
-            }
+            },
+            digestOptions: [energyOptions, goodOptions, hardOptions]
         )
     }
 
@@ -4105,6 +4852,31 @@ extension InsightService {
     /// `releaseFallback`. Options are taken round-robin across the month, like the English path.
     static func localizedGroundedMonthly(monthEntries: [Entry]) -> LocalizedGrounded? {
         guard let code = groundedLocaleCode(for: monthEntries), let loc = groundedLocales[code] else { return nil }
+        let month = Calendar.current.component(.month, from: monthEntries.map(\.createdAt).max() ?? Date())
+        guard let parts = groundedMonthlyParts(monthEntries: monthEntries, code: code, text: loc.monthlyText(month: month)) else {
+            return LocalizedGrounded(plan: .unsuitable, validator: nil)
+        }
+        let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
+        let entriesText = cappedQuotableText(entries)
+        let message = "\(loc.pickMonthly)\n\n\(loc.monthLabel)\n\(entriesText)"
+        var rules = [
+            parts.options[2].isEmpty ? #"root ::= momentq "\n" goodq"# : #"root ::= momentq "\n" goodq "\n" releaseq"#,
+            literalOnlyGrammar("momentq", parts.options[0]),
+            literalOnlyGrammar("goodq", parts.options[1]),
+        ]
+        if !parts.options[2].isEmpty { rules.append(literalOnlyGrammar("releaseq", parts.options[2])) }
+        return LocalizedGrounded(
+            plan: .grammarConstrained(userMessage: message, grammar: rules.joined(separator: "\n")),
+            validator: parts.compose,
+            digestOptions: parts.options
+        )
+    }
+
+    /// The monthly report built only from the person's sentences: the quote options for the moment, a
+    /// hopeful one (good-mood entries) and a heavy one (hard-mood entries except grief; may be empty), and
+    /// `compose`, which takes the picked sentences one per line and wraps them in `text`'s fixed lines for
+    /// the month's dominant mood. nil when the month has nothing to quote.
+    static func groundedMonthlyParts(monthEntries: [Entry], code: String, text loc: GroundedMonthlyText) -> (options: [[String]], compose: (String) throws -> String)? {
         let entries = monthEntries.sorted { $0.createdAt > $1.createdAt }
         let perEntry = entries.map { entry in
             (entry, groundedQuoteCandidates(of: entry).filter { $0.count <= groundedMonthlyMaxQuoteChars })
@@ -4126,7 +4898,7 @@ extension InsightService {
                 }
             }
         }
-        guard !moments.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
+        guard !moments.isEmpty else { return nil }
         let cap = groundedDigestMaxOptionsPerBucket
         let momentOptions = Array(moments.prefix(groundedMonthlyMaxMoments))
         let goodOptions = Array((good.isEmpty ? moments : good).prefix(cap))
@@ -4135,38 +4907,103 @@ extension InsightService {
         let dominant = dominantMoodBucket(bucketCounts)
 
         let dayFormatter = DateFormatter()
-        dayFormatter.locale = Locale(identifier: code)
-        dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
-        let entriesText = entries.map(quotableText(of:)).joined(separator: "\n---\n")
-        let message = "\(loc.pickMonthly)\n\n\(loc.monthLabel)\n\(entriesText)"
-        var rules = [
-            hasRelease ? #"root ::= momentq "\n" goodq "\n" releaseq"# : #"root ::= momentq "\n" goodq"#,
-            literalOnlyGrammar("momentq", momentOptions),
-            literalOnlyGrammar("goodq", goodOptions),
-        ]
-        if hasRelease { rules.append(literalOnlyGrammar("releaseq", releaseOptions)) }
+        if code == "en" {
+            dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dayFormatter.dateFormat = "d MMM"
+        } else {
+            dayFormatter.locale = Locale(identifier: code)
+            dayFormatter.setLocalizedDateFormatFromTemplate("d MMM")
+        }
         let labels = monthlyReportSectionLabels.map { $0[code] ?? $0["en"] ?? "" }
-        return LocalizedGrounded(
-            plan: .grammarConstrained(userMessage: message, grammar: rules.joined(separator: "\n")),
-            validator: { text in
-                let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-                guard lines.count == (hasRelease ? 3 : 2), momentOptions.contains(lines[0]), goodOptions.contains(lines[1]),
-                      !hasRelease || releaseOptions.contains(lines[2])
-                else { throw InsightError.incompleteResponse }
-                let hopeful = lines[1] == lines[0] ? (goodOptions.first { $0 != lines[0] } ?? lines[1]) : lines[1]
-                let date = dates[lines[0]].map(dayFormatter.string(from:)) ?? ""
-                let bodies = [
-                    loc.monthImage[dominant] ?? "",
-                    loc.monthTension[dominant] ?? "",
-                    loc.momentLead.replacingOccurrences(of: "{date}", with: date) + loc.open + lines[0] + loc.close + loc.joiner + loc.momentSuffix,
-                    loc.open + hopeful + loc.close + loc.joiner + loc.becomingSuffix,
-                    hasRelease ? loc.open + lines[2] + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
-                    loc.monthQuestion[dominant] ?? "",
-                ]
-                return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
-            }
+        let compose: (String) throws -> String = { text in
+            let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            guard lines.count == (hasRelease ? 3 : 2), momentOptions.contains(lines[0]), goodOptions.contains(lines[1]),
+                  !hasRelease || releaseOptions.contains(lines[2])
+            else { throw InsightError.incompleteResponse }
+            let hopeful = lines[1] == lines[0] ? (goodOptions.first { $0 != lines[0] } ?? lines[1]) : lines[1]
+            // The heavy sentence too: never the moment's or the hopeful one when its list has another.
+            let release = hasRelease && [lines[0], hopeful].contains(lines[2])
+                ? (firstDistinct(in: releaseOptions, avoiding: [lines[0], hopeful]) ?? lines[2]) : (hasRelease ? lines[2] : "")
+            let date = dates[lines[0]].map(dayFormatter.string(from:)) ?? ""
+            let bodies = [
+                loc.monthImage[dominant] ?? "",
+                loc.monthTension[dominant] ?? "",
+                loc.momentLead.replacingOccurrences(of: "{date}", with: date) + loc.open + lines[0] + loc.close + loc.joiner + loc.momentSuffix,
+                loc.quoteLead + loc.open + hopeful + loc.close + loc.joiner + loc.becomingSuffix,
+                hasRelease ? loc.quoteLead + loc.open + release + loc.close + loc.joiner + loc.releaseSuffix : loc.releaseFallback,
+                loc.monthQuestion[dominant] ?? "",
+            ]
+            return zip(labels, bodies).map { "\($0): \($1)" }.joined(separator: "\n")
+        }
+        return ([momentOptions, goodOptions, releaseOptions], compose)
+    }
+
+    /// English monthly report on Foundation Models (owner decision 2026-10-16, after round 19: the model's
+    /// own lines were honest but clumsy and rarely useful). Same shape as the other languages' fixed lines,
+    /// with three versions of each line rotated by calendar month, so two months with the same overall mood
+    /// don't read the same. `month` is 1-12.
+    static func englishMonthlyText(month: Int) -> GroundedMonthlyText {
+        let k = max(0, month - 1) % 3
+        func pick(_ options: [GroundedMoodBucket: [String]]) -> [GroundedMoodBucket: String] {
+            options.mapValues { $0[k % $0.count] }
+        }
+        return GroundedMonthlyText(
+            quoteLead: "You wrote, ", open: "\"", close: "\"", joiner: " ",
+            monthImage: pick([
+                .tired: ["A candle burning at both ends.", "A phone on two percent, still ringing.", "A long road with no rest stop yet."],
+                .stressed: ["A pot about to boil over.", "A desk buried under paper.", "A kettle that won't stop whistling."],
+                .sad: ["A grey sky that hasn't cleared yet.", "A room with the curtains still drawn.", "A song playing softly in another room."],
+                .good: ["A window opening onto morning light.", "A garden starting to come up.", "A path that kept getting easier to walk."],
+                .neutral: ["Weather that kept changing: sun, then rain, then sun again.", "A tide going in and out.", "A busy street with one calm corner."],
+            ]),
+            monthTension: pick([
+                .tired: ["Between everything that asks for your energy and the rest you need.",
+                         "Between keeping up with everything and finding time to recover.",
+                         "Between what you push through and what you need to put down."],
+                .stressed: ["Between what's expected of you and what you can carry.",
+                            "Between the pressure of what's due and the pace you can keep.",
+                            "Between holding everything together and asking for help."],
+                .sad: ["Between wanting to move forward and the time you need to feel it.",
+                       "Between carrying on as usual and making room for how you feel.",
+                       "Between what feels heavy and what still holds you up."],
+                .good: ["Between enjoying what's good and wondering if it will last.",
+                        "Between enjoying this stretch and planning what comes next.",
+                        "Between the good things growing and the time they need."],
+                .neutral: ["Between the days that cost you energy and the ones that gave it back.",
+                           "Between the steady days and the ones that pulled at you.",
+                           "Between what you keep up with and what you'd like more of."],
+            ]),
+            monthQuestion: pick([
+                .tired: ["What could you let go of to have more energy next month?",
+                         "What is one thing you could say no to next month?",
+                         "When did you feel most rested this month, and how could you have more of that?"],
+                .stressed: ["Which task could you hand off or drop next month?",
+                            "What would make next month feel even a little lighter?",
+                            "Who could you ask for help with one thing next month?"],
+                .sad: ["Who or what could support you a little more next month?",
+                       "What small thing could you do for yourself next month?",
+                       "Who would you like to be closer to next month?"],
+                .good: ["What would help you keep more of this next month?",
+                        "What made this month good, and how could you protect it?",
+                        "What do you want to keep doing next month?"],
+                .neutral: ["What gave you energy this month, and how could you make more room for it?",
+                           "Which days this month do you want more of?",
+                           "What would you like next month to hold?"],
+            ]),
+            momentLead: "On {date}, you wrote, ",
+            momentSuffix: ["Moments like that say a lot about your month.",
+                           "That moment seems to have stayed with you.",
+                           "Small moments like that can shift a whole month."][k],
+            becomingSuffix: ["You seem to be learning to notice what's good for you.",
+                             "You seem to be making room for what matters to you.",
+                             "You seem to be growing into someone who notices the good."][k],
+            releaseSuffix: ["Maybe it's time to hold on to this a little less.",
+                            "Maybe this doesn't need to be carried alone.",
+                            "Maybe some of this can be set down next month."][k],
+            releaseFallback: "Nothing this month seems to need letting go; keep noticing what's good for you."
         )
     }
+
 
     // MARK: Ask relevance outside English
 
@@ -4252,6 +5089,17 @@ extension InsightService {
         case nil: candidates = pool
         }
         if candidates.isEmpty { candidates = pool }
+        // Security rule 3: at most `maxLocalLLMEntryChars` of entry text. Whole entries in pool order
+        // (most relevant first), so every option the grammar allows is in the text Gemma reads.
+        var kept: [Entry] = []
+        var keptChars = 0
+        for entry in candidates {
+            let chars = quotableText(of: entry).count + 5
+            if !kept.isEmpty && keptChars + chars > maxLocalLLMEntryChars { break }
+            kept.append(entry)
+            keptChars += chars
+        }
+        candidates = kept
         let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
         var options: [String] = []
         var dates: [String: String] = [:]
@@ -4263,7 +5111,7 @@ extension InsightService {
         }
         options = Array(options.prefix(groundedAskMaxOptions))
         guard !options.isEmpty else { return LocalizedGrounded(plan: .unsuitable, validator: nil) }
-        let entriesText = candidates.map(quotableText(of:)).joined(separator: "\n---\n")
+        let entriesText = cappedQuotableText(candidates)
         let message = "\(loc.pickAsk)\n\n\(loc.questionLabel) \(question)\n\n\(loc.entriesLabel)\n\(entriesText)"
         let grammar = #"root ::= q ("\n" q)?"# + "\n" + literalOnlyGrammar("q", options)
         return LocalizedGrounded(
@@ -4312,18 +5160,34 @@ extension InsightService {
             return ("InsightService.swift:22 · DAILY_NUDGE_LEGACY_SYSTEM", DAILY_NUDGE_LEGACY_SYSTEM)
         case .weeklyDigest:
             if let content, content.contains("WHAT'S BUILDING: You wrote, \"") {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    return ("InsightService.swift · WEEKLY_DIGEST_FM_SYSTEM", WEEKLY_DIGEST_FM_SYSTEM)
+                }
                 return ("InsightService.swift · WEEKLY_DIGEST_GEMMA_INSTRUCTIONS", WEEKLY_DIGEST_GEMMA_INSTRUCTIONS)
             }
-            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.energyHard) || content.contains($0.energyGood) }) {
-                return ("InsightService.swift · groundedLocales.pickDigest", loc.pickDigest)
+            if let content, let match = groundedLocales.first(where: { content.contains($0.value.energyHard) || content.contains($0.value.energyGood) }) {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    // Foundation Models outside English: the structured prompt plus the "respond in <language>" line.
+                    let instruction = responseLanguageTarget(forCode: match.key).flatMap { responseLanguageInstruction(for: $0, task: .weeklyDigest) }
+                    return ("InsightService.swift · WEEKLY_DIGEST_FM_SYSTEM", WEEKLY_DIGEST_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? ""))
+                }
+                return ("InsightService.swift · groundedLocales.pickDigest", match.value.pickDigest)
             }
             return ("InsightService.swift:41 · WEEKLY_DIGEST_SYSTEM", WEEKLY_DIGEST_SYSTEM)
         case .monthlyReport:
+            if let content, engine == LLMEngine.foundationModels.rawValue,
+               content.contains("A MOMENT THAT SHIFTED SOMETHING: On ") {
+                return ("InsightService.swift · MONTHLY_REPORT_FM_SYSTEM", MONTHLY_REPORT_FM_SYSTEM)
+            }
             if let content, content.contains("WHAT YOU'RE BECOMING: You wrote, \"") {
                 return ("InsightService.swift · MONTHLY_REPORT_GEMMA_INSTRUCTIONS", MONTHLY_REPORT_GEMMA_INSTRUCTIONS)
             }
-            if let content, let loc = groundedLocales.values.first(where: { content.contains($0.becomingSuffix) || content.contains($0.releaseFallback) }) {
-                return ("InsightService.swift · groundedLocales.pickMonthly", loc.pickMonthly)
+            if let content, let match = groundedLocales.first(where: { content.contains($0.value.becomingSuffix) || content.contains($0.value.releaseFallback) }) {
+                if engine == LLMEngine.foundationModels.rawValue {
+                    let instruction = responseLanguageTarget(forCode: match.key).flatMap { responseLanguageInstruction(for: $0, task: .monthlyReport) }
+                    return ("InsightService.swift · MONTHLY_REPORT_FM_SYSTEM", MONTHLY_REPORT_FM_SYSTEM + (instruction.map { "\n\n" + $0 } ?? ""))
+                }
+                return ("InsightService.swift · groundedLocales.pickMonthly", match.value.pickMonthly)
             }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:

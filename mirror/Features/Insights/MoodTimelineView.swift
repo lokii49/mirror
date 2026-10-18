@@ -86,7 +86,7 @@ struct MoodTimelineView: View {
         MoodLog.events(in: rangeInterval, entries: entries, checkIns: moodCheckIns)
             .compactMap { event in
                 guard let score = event.score else { return nil }
-                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
             }
     }
 
@@ -96,7 +96,7 @@ struct MoodTimelineView: View {
         cachedAllMoodPoints = MoodLog.events(entries: entries, checkIns: moodCheckIns)
             .compactMap { event in
                 guard let score = event.score else { return nil }
-                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score)
+                return MoodPoint(id: event.id, date: event.date, mood: event.mood, score: score, origin: event.origin)
             }
 
         // One mood per calendar day, latest reading wins — the shared rule.
@@ -480,7 +480,7 @@ struct MoodTimelineView: View {
     // MARK: - Scatter chart (30D / 90D)
 
     private var moodChartCard: some View {
-        MoodChartCard(points: points)
+        MoodChartCard(points: points) { id in entries.first { $0.id == id } }
     }
 
     // MARK: - Calendar heatmap (All)
@@ -694,10 +694,10 @@ struct MoodTimelineView: View {
         let today = Date()
         func d(_ offset: Int) -> Date { cal.date(byAdding: .day, value: offset, to: today) ?? today }
         return [
-            MoodPoint(id: UUID(), date: d(-4), mood: "Hopeful",  score: 4),
-            MoodPoint(id: UUID(), date: d(-3), mood: "Anxious",  score: 2),
-            MoodPoint(id: UUID(), date: d(-2), mood: "Hopeful",  score: 4),
-            MoodPoint(id: UUID(), date: d(-1), mood: "Anxious",  score: 2),
+            MoodPoint(id: UUID(), date: d(-4), mood: "Hopeful",  score: 4, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-3), mood: "Anxious",  score: 2, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-2), mood: "Hopeful",  score: 4, origin: .entry),
+            MoodPoint(id: UUID(), date: d(-1), mood: "Anxious",  score: 2, origin: .entry),
         ]
     }
 
@@ -862,21 +862,48 @@ struct MoodTimelineView: View {
 
 // MARK: - Shared chart card (used by both real view and blurred preview)
 
-private struct MoodPoint: Identifiable {
-    let id: UUID
-    let date: Date
-    let mood: String
+private typealias MoodPoint = MoodDot
+
+/// The line and area of the mood chart: one point per calendar day, at the mean of that day's
+/// readings. Through every reading, several on one day gave the marks duplicate x values, which
+/// drew faint wedges inside the plot (and spikes outside it on Mac). The dots still show each one.
+nonisolated struct MoodDayMean: Equatable, Sendable {
+    let day: Date
     let score: Double
+}
+
+nonisolated enum MoodChartSeries {
+    static func dailyMeans(_ readings: [(date: Date, score: Double)], calendar: Calendar = .current) -> [MoodDayMean] {
+        Dictionary(grouping: readings) { calendar.startOfDay(for: $0.date) }
+            .map { day, group in MoodDayMean(day: day, score: group.map(\.score).reduce(0, +) / Double(group.count)) }
+            .sorted { $0.day < $1.day }
+    }
 }
 
 private struct MoodChartCard: View {
     let points: [MoodPoint]
+    /// The entry behind a held dot; nil (the locked preview) turns holding off.
+    var entry: ((UUID) -> Entry?)? = nil
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var selected: MoodDot?
+
+    private var dailyLine: [MoodDayMean] {
+        MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Group {
-                if displayMode == .sentinel {
+                if let selected {
+                    // While a dot is held, the header names it (same line, so the chart stays put).
+                    HStack(spacing: 6) {
+                        Circle().fill(MirrorTheme.moodColor(for: selected.mood)).frame(width: 7, height: 7)
+                        Text(verbatim: "\(selected.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())) · \(MirrorTheme.localizedMoodName(for: selected.mood))")
+                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                            .foregroundStyle(MirrorTheme.textPrimary)
+                    }
+                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                } else if displayMode == .sentinel {
                     Label("SIGNAL OVER TIME", systemImage: "chart.line.uptrend.xyaxis")
                         .font(MirrorTheme.mono(11, weight: .semibold))
                         .tracking(0.5)
@@ -887,50 +914,68 @@ private struct MoodChartCard: View {
             }
             .foregroundStyle(.secondary)
 
-            Chart(points) { point in
-                #if !os(macOS)
-                AreaMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart {
+                ForEach(dailyLine, id: \.day) { day in
+                    #if !os(macOS)
+                    AreaMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
                     )
-                )
-                .interpolationMethod(.catmullRom)
-                #endif
-
-                LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet, MirrorTheme.ember],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet.opacity(0.18), MirrorTheme.violet.opacity(0.02)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
-                #if os(macOS)
-                // Multiple moods can share a day. Avoid smoothing overshoot and the area
-                // renderer's duplicate-day wedges; show the recorded points and line.
-                .interpolationMethod(.linear)
-                #else
-                .interpolationMethod(.catmullRom)
-                #endif
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
+                    .interpolationMethod(.catmullRom)
+                    #endif
 
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Mood", point.score)
-                )
-                .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
-                .symbolSize(80)
+                    LineMark(
+                        x: .value("Day", day.day, unit: .day),
+                        y: .value("Mood", day.score)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MirrorTheme.violet, MirrorTheme.ember],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    #if os(macOS)
+                    // Multiple moods can share a day. Avoid smoothing overshoot and the area
+                    // renderer's duplicate-day wedges; show the recorded points and line.
+                    .interpolationMethod(.linear)
+                    #else
+                    .interpolationMethod(.catmullRom)
+                    #endif
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                }
+
+                if let selected {
+                    RuleMark(x: .value("Day", selected.date, unit: .day))
+                        .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+
+                ForEach(points) { point in
+                    PointMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Mood", point.score)
+                    )
+                    .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
+                    .symbolSize(point.id == selected?.id ? 180 : 80)
+                    .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                }
             }
             .chartYScale(domain: 0...6)
+            .chartOverlay { proxy in
+                if let entry {
+                    MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
+                        moodDotPreviewText(for: dot, entry: entry)
+                    }
+                }
+            }
             #if os(macOS)
             // Days with several entries give the smoothed area fill duplicate x values, which
             // overshoots; on Mac the spikes were drawn outside the card. Keep it in the plot.

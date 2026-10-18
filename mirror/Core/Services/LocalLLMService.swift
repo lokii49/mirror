@@ -104,6 +104,9 @@ actor LocalLLMService {
     /// harness capture the exact final system/user prompts a pipeline sends (including retry
     /// messages) without a slow real generation. Stripped from Release builds.
     nonisolated(unsafe) static var generateInterceptForTesting: ((String, String, LocalLLMTask, GemmaPlan) throws -> (text: String, engine: LLMEngine))?
+
+    /// Test-only: called at the start of every `resetContext()`.
+    nonisolated(unsafe) static var resetContextObserverForTesting: (@Sendable () async -> Void)?
     #endif
 
     /// How the Gemma path handles a request. Foundation Models always gets `systemPrompt`/
@@ -133,6 +136,9 @@ actor LocalLLMService {
     }
 
     func resetContext() async {
+        #if DEBUG
+        await Self.resetContextObserverForTesting?()
+        #endif
         if let service {
             await service.stopCompletion()
         }

@@ -42,7 +42,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = ContentView.launchTab  // 0=Entries, 1=Write, 2=Insights
-    @State private var selectedSidebarItem: AppSidebarItem? = .write
+    @State private var selectedSidebarItem: AppSidebarItem? = ContentView.launchTab == 0 ? .entries : ContentView.launchTab == 2 ? .insights : .write
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
@@ -107,15 +107,31 @@ struct ContentView: View {
         #endif
     }
 
+    /// UI tests (Debug only): skips onboarding, the mood check-in, What's New and the rate prompt.
+    /// A Release build ignores the flag, so a launch argument can't switch those off.
     private var isUITesting: Bool {
-        ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #else
+        return false
+        #endif
     }
 
-    /// Write, except DEBUG `--initialTab=entries` (headless simulator screenshots,
+    /// DEBUG `--showRatePrompt`; always false in a Release build.
+    private static var isRatePromptLaunch: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--showRatePrompt")
+        #else
+        return false
+        #endif
+    }
+
+    /// Write, except DEBUG `--initialTab=entries`/`=insights` (headless simulator screenshots,
     /// where a mirror:// link would stop at the system's open confirmation).
     private static var launchTab: Int {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=insights") { return 2 }
         #endif
         return 1
     }
@@ -128,8 +144,15 @@ struct ContentView: View {
         UserDefaults(suiteName: "group.com.lokesh.mirror")?.set(displayMode.rawValue, forKey: "widget.displayMode")
     }
 
+    /// Set once the user taps Get started, cleared when they finish. A profile synced from iCloud
+    /// (already onboarded on another device) used to close the flow on whatever screen it reached,
+    /// skipping the mode choice and dropping a typed first entry; while this is set the flow stays
+    /// up and everything gated on onboarding waits (owner, 2026-10-16). Not set at launch, so an
+    /// existing user whose profile loads a moment late can't get stuck in onboarding.
+    @State private var onboardingInProgress = false
+
     private var onboardingComplete: Bool {
-        profiles.first?.onboardingComplete ?? false
+        !onboardingInProgress && (UserProfile.canonical(in: profiles)?.onboardingComplete ?? false)
     }
 
     /// True only when the rate-us gate is wanted AND the screen is free to show
@@ -138,10 +161,13 @@ struct ContentView: View {
     /// The milestone flag is consumed only on a real presentation, so a session
     /// that never clears just defers to the next qualifying entry save.
     private var canPresentRatePrompt: Bool {
-        reviewPromptCoordinator.isPending
-            && !ReviewRequestManager.hasShownEntryMilestonePrompt
-            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
-            && onboardingComplete
+        ReviewRequestManager.canPresentPrompt(
+            pending: reviewPromptCoordinator.isPending,
+            alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
+            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn,
+            childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
+            onboardingComplete: onboardingComplete
+        )
     }
 
     /// The mood check-in sheet is triggered by tapping the daily reminder —
@@ -159,7 +185,7 @@ struct ContentView: View {
         // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
         return .classic
         #else
-        return profiles.first?.displayMode ?? .classic
+        return UserProfile.canonical(in: profiles)?.displayMode ?? .classic
         #endif
     }
 
@@ -212,7 +238,9 @@ struct ContentView: View {
             #if os(macOS)
             macLayout
             #else
-            if sizeClass == .regular {
+            if #available(iOS 18.0, *) {
+                adaptiveTabLayout
+            } else if sizeClass == .regular {
                 ipadLayout
             } else {
                 phoneLayout
@@ -249,7 +277,10 @@ struct ContentView: View {
             syncWidgetDisplayMode()
         }
         .fullScreenCover(isPresented: .constant(!onboardingComplete && !isUITesting)) {
-            OnboardingFlow()
+            OnboardingFlow(
+                onBegin: { onboardingInProgress = true },
+                onFinish: { onboardingInProgress = false }
+            )
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
@@ -269,7 +300,8 @@ struct ContentView: View {
         }
         #endif
         .sheet(isPresented: $showRatePrompt) {
-            RateUsPromptSheet()
+            // Neither UI tests nor the DEBUG --showRatePrompt launch may spend the real prompt.
+            RateUsPromptSheet(consumesMilestone: !isUITesting && !Self.isRatePromptLaunch)
                 .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showMoodCheckIn) {
@@ -288,7 +320,7 @@ struct ContentView: View {
             // UI tests and synthetic runs must not consume the once-per-install prompt.
             guard canPresent, !isUITesting else { return }
             reviewPromptCoordinator.isPending = false
-            ReviewRequestManager.markEntryMilestonePromptShown()
+            // The once-per-install flag is set by the sheet when it appears (A17).
             showRatePrompt = true
         }
         .onChange(of: canPresentMoodCheckIn, initial: true) { _, canPresent in
@@ -305,7 +337,13 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { maybeAutoPromptMoodCheckIn() }
         }
+        // A profile that synced in beside one this device's onboarding made (UserProfile.mergeDuplicates).
+        .onChange(of: profiles.count, initial: true) { _, _ in
+            UserProfile.mergeDuplicates(in: modelContext)
+        }
         .onChange(of: sizeClass) { _, newClass in
+            // iOS 18+ keeps one TabView across size classes, with the same tabs in each.
+            if Self.usesAdaptiveTabs { return }
             if newClass == .regular {
                 switch selectedTab {
                 case 0: selectedSidebarItem = .entries
@@ -382,7 +420,14 @@ struct ContentView: View {
                 selectedTab = 2
                 selectedSidebarItem = .insights
             case "upgrade":
-                showPaywall = true
+                // A widget can still link here from a locked view drawn before the tier key was
+                // written. Nothing is for sale while every feature is free.
+                if SubscriptionService.allFeaturesFree {
+                    selectedTab = 2
+                    selectedSidebarItem = .insights
+                } else {
+                    showPaywall = true
+                }
             case "entry":
                 if let idString = url.pathComponents.dropFirst().first,
                    let uuid = UUID(uuidString: idString) {
@@ -396,7 +441,56 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - iPhone layout (TabView)
+    // MARK: - One TabView for every size class (iOS 18+)
+
+    static var usesAdaptiveTabs: Bool {
+        #if os(iOS)
+        if #available(iOS 18.0, *) { return true }
+        #endif
+        return false
+    }
+
+    #if os(iOS)
+    /// The same tabs in every size class: a tab bar when compact, a top tab bar on iPad (sidebar
+    /// on request), and the vertical bar beside the status bar on iPhone Duo. Folding or unfolding a Duo changes
+    /// the size class but keeps these views, so the editor keeps its focus and undo history.
+    /// (The iOS 17 path swapped `phoneLayout` and `ipadLayout`, rebuilding every screen.)
+    /// No size-class branch may wrap a tab's content, or that rebuild comes back.
+    @available(iOS 18.0, *)
+    private var adaptiveTabLayout: some View {
+        let sentinel = displayMode == .sentinel
+        let selection = Binding<AppSidebarItem>(
+            get: { selectedSidebarItem ?? .write },
+            set: { selectedSidebarItem = $0 }
+        )
+        return TabView(selection: selection) {
+            Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
+                // List and reader side by side where there's room; compact keeps the pushed reader.
+                EntriesSplitView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+            }
+            Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
+                WriteTabView(onSave: {
+                    selectedSidebarItem = .entries
+                    entriesNavResetID = UUID()
+                })
+            }
+            Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
+                InsightView(viewModel: insightViewModel)
+            }
+            // No Settings tab (owner, 2026-10-16; it was one where there's room since
+            // 2026-10-11): every width reaches Settings from the Insights toolbar.
+        }
+        // The default placement: iPad opens with the tabs as a top bar and its sidebar button
+        // switches (iOS remembers the choice). Forcing .sidebar slid the sidebar over the content
+        // on every upright launch (owner, 2026-10-11). The Duo uses its vertical bar either way.
+        .tabViewStyle(.sidebarAdaptable)
+        .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .tint(sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+    }
+    #endif
+
+    // MARK: - iPhone layout (TabView), iOS 17
 
     private var phoneLayout: some View {
         TabView(selection: $selectedTab) {
@@ -566,7 +660,8 @@ struct ContentView: View {
 
     private var ipadLayout: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(AppSidebarItem.allCases, id: \.self, selection: $selectedSidebarItem) { item in
+            // Settings opens from the Insights toolbar, as on iPhone (owner, 2026-10-16).
+            List(AppSidebarItem.allCases.filter { $0 != .settings }, id: \.self, selection: $selectedSidebarItem) { item in
                 Label(item.title, systemImage: item.icon)
             }
             .navigationTitle("MirrorNotes")

@@ -1,5 +1,5 @@
-Correzioni per la ricerca intelligente
+Le tue frasi in riepiloghi, report e Chiedi a Mirror
 
-• Ricerca intelligente in Chiedi: il modello di ricerca non viene più scaricato di nuovo quando chiudi e riapri MirrorNotes. Ora si scarica in background, e puoi mettere in pausa e riprendere il download.
-• I download dei modelli mostrano una barra di avanzamento più chiara con un solo pulsante Pausa/Riprendi, e un pulsante di download più chiaro.
-• Novità mostra solo le ultime modifiche, e un Mac che ha saltato la 1.1.0 le vede comunque.
+• Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
+• Il conteggio parole ora dice "1 parola" invece di "1 parole".
+• Piccole correzioni e miglioramenti.

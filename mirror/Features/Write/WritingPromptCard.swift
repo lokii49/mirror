@@ -26,6 +26,7 @@ struct WritingPromptCard: View {
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Another prompt")
                 .buttonStyle(.plain)
             }
 

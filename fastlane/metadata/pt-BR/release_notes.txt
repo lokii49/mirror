@@ -1,8 +1,10 @@
-Correções na busca inteligente, na escrita e no check-in de humor
+Feito para o iPhone Duo, e um novo Escrever
 
-• Busca inteligente no Perguntar: o modelo de busca não é mais baixado de novo quando você reabre o app. Agora ele é baixado em segundo plano, no Wi-Fi ou nos dados móveis, e você pode pausar e retomar o download.
-• Os downloads de modelos mostram uma barra de progresso mais clara com um único botão Pausar/Retomar, e um botão de download mais claro.
-• Escrita: escolher Título, Cabeçalho ou Subcabeçalho em uma entrada vazia agora vale para o que você digita.
-• Check-in de humor: o nome de cada humor cabe no seu botão, e cada humor mantém sua cor.
-• Novidades mostra só as mudanças mais recentes, não todas as versões anteriores.
-• As telas de avaliação e de check-in de humor agora se ajustam ao conteúdo.
+• iPhone Duo: aberto por completo, a lista fica ao lado da entrada que você está lendo e Percepções se divide em duas colunas. Meio dobrado, listas e texto ficam dos lados da dobra. Ao dobrar ou abrir, você mantém o que está escrevendo e o histórico de desfazer.
+• Escrever tem uma nova barra do teclado e um novo painel Aa. As listas de tarefas também ficaram mais fáceis: toque num círculo para marcar, deslize para recuar, arraste para reordenar, e os itens concluídos podem ir para o fim.
+• Pequenas animações mostram o que acabou de acontecer: algo para salvar, um rascunho salvo, sua meta diária de palavras atingida.
+• Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
+• Percepções tem cabeçalhos com data e cartões mais limpos. No iOS 18 ou posterior, toque e segure um dia num gráfico de humor para ver o que você escreveu.
+• O Mapa mental agrupa suas palavras em temas.
+• O widget Mapa de humor pode mostrar 7 ou 14 dias.
+• No iPad e num iPhone Duo aberto, os Ajustes abrem pelo botão de pessoa em Percepções.

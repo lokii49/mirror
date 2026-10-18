@@ -141,14 +141,33 @@ final class InsightViewModel {
         let today = DateHelpers.dayIdentifier(for: Date())
         let coordinatorKey = "nudge_\(today)"
 
-        guard entries.count >= 3 else {
-            return .needsMoreEntries(3 - entries.count)
+        // Readable entries only, as `runDailyNudgeIfNeeded` counts them: with a photo-only entry or
+        // a failed transcription among three, the card promised a reflection the runner never made
+        // (backlog A11). Stops after three, so it decrypts at most a few entries.
+        let readable = entries.lazy.filter(InsightService.hasReadableContext).prefix(3).count
+        guard readable >= 3 else {
+            return .needsMoreEntries(3 - readable)
         }
 
-        // A fallback doesn't count as "seen" — a free user whose only nudge attempt so far
-        // failed the grounding check shouldn't be paywalled for a nudge they never got.
-        let hasSeenFirstNudge = insights.contains { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
-        if hasSeenFirstNudge && !SubscriptionService.shared.isSubscribed {
+        let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
+        // A reflection still current for the card: today's, or (next morning) one about
+        // yesterday's or today's writing with nothing written since.
+        func isCurrent(_ nudge: Insight) -> Bool {
+            if nudge.periodIdentifier == today { return true }
+            guard nudge.generatedAt >= startOfYesterday,
+                  !entries.contains(where: { $0.createdAt > nudge.generatedAt }),
+                  let aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: entries.sorted { $0.createdAt > $1.createdAt })
+            else { return false }
+            return aboutDay >= startOfYesterday
+        }
+
+        // The first reflection is free (CLAUDE.md, staged onboarding): a free user sees it, and
+        // the paywall follows it. This used to return .subscriptionRequired as soon as any real
+        // reflection existed, so the first one was never shown and that paywall never fired. A
+        // fallback doesn't count as "seen" either.
+        let realNudges = insights.filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
+        if !realNudges.isEmpty && !SubscriptionService.shared.isSubscribed {
+            if realNudges.count == 1, let first = realNudges.first, isCurrent(first) { return .loaded(first) }
             return .subscriptionRequired
         }
 
@@ -177,18 +196,13 @@ final class InsightViewModel {
         // at 8:00" card nothing new is coming for, but only while it's about yesterday's or
         // today's writing and nothing has been written since: someone who skipped yesterday
         // still gets the "write today" card, not a reflection about the day before.
-        let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
-        if let latest = insights
-            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
-            .max(by: { $0.generatedAt < $1.generatedAt }),
-           latest.generatedAt >= startOfYesterday,
-           !entries.contains(where: { $0.createdAt > latest.generatedAt }),
-           let aboutDay = InsightService.reflectedDay(of: latest, entriesNewestFirst: entries.sorted { $0.createdAt > $1.createdAt }),
-           aboutDay >= startOfYesterday {
+        if let latest = realNudges.max(by: { $0.generatedAt < $1.generatedAt }), isCurrent(latest) {
             return .loaded(latest)
         }
 
-        guard mirrorApp.modelAvailable() else {
+        // Foundation Models alone counts as available, but Russian runs only on Gemma (A15).
+        guard mirrorApp.modelAvailable(),
+              LocalLLMService.isGemmaModelAvailable || !InsightService.nudgeNeedsGemma(entries: entries) else {
             return .modelNotInstalled
         }
 
@@ -199,7 +213,7 @@ final class InsightViewModel {
     // On-demand if no cache. Background Sunday task pre-generates so it's ready on wake.
 
     func loadWeeklyDigest(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
-        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: DateHelpers.now())
         let coordinatorKey = "digest_\(thisWeek)"
 
         guard SubscriptionService.shared.isSubscribed else {
@@ -208,7 +222,10 @@ final class InsightViewModel {
         }
 
         // The digest is "this week" — gate on entries written this week, not lifetime.
-        let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
+        // Readable only, as the runner and generator count them (backlog A11).
+        let weekEntries = entries
+            .filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
+            .filter(InsightService.hasReadableContext)
         // Newest row wins; a stale digest is superseded by a fresh insert, never
         // deleted (a CloudKit-synced Insight deletion can hand a second device a
         // tombstoned object). Matches the monthly report's non-destructive approach.
@@ -232,7 +249,7 @@ final class InsightViewModel {
         // gate means deleting an entry after it generated doesn't blank it.
         if !forceRegenerate, let cached = cachedThisWeek {
             let stale = InsightService.weeklyDigestIsStale(
-                generatedAt: cached.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .weeklyDigest, period: thisWeek),
                 newestWeekEntry: weekEntries.map(\.createdAt).max()
             )
             guard stale else {
@@ -305,6 +322,11 @@ final class InsightViewModel {
             return
         }
 
+        // Saved encrypted: with the key unreadable, show the error card instead of a plaintext row.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {
+            digestState = .error(friendlyLLMError(InsightError.serviceUnavailable("content key unavailable")))
+            return
+        }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
             digestState = .loading
             return
@@ -314,6 +336,11 @@ final class InsightViewModel {
         digestState = .loading
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if let cached = cachedThisWeek, InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cached.content) {
+                InsightService.recordKeptRealRow(.weeklyDigest, period: thisWeek)
+                digestState = .loaded(cached)
+                return
+            }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -321,6 +348,9 @@ final class InsightViewModel {
             digestState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleWeeklyDigest()
         } catch {
+            // Cancelled with the view (or the app backgrounding): not an error to show. The
+            // next load resolves the card again.
+            if Task.isCancelled { return }
             digestState = .error(friendlyLLMError(error))
         }
     }
@@ -329,11 +359,11 @@ final class InsightViewModel {
     // On-demand if no cache. Background end-of-month task pre-generates so it's ready on wake.
 
     func loadMonthlyReport(entries: [Entry], insights: [Insight], context: ModelContext, forceRegenerate: Bool = false) async {
-        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        let thisMonth = DateHelpers.monthIdentifier(for: DateHelpers.now())
         let coordinatorKey = "monthlyReport_\(thisMonth)"
 
         let cal = Calendar.current
-        let now = Date()
+        let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
@@ -356,8 +386,11 @@ final class InsightViewModel {
             return
         }
 
-        guard thisMonthEntries.count >= InsightService.monthlyReportMinimumEntries else {
-            monthlyReportState = .endOfMonthTooFewEntries(count: thisMonthEntries.count)
+        // Readable only, as the runner counts them (backlog A11). After the date gate, so the three
+        // weeks of "waiting for month end" (which shows the plain count) decrypt nothing.
+        let readableThisMonth = thisMonthEntries.filter(InsightService.hasReadableContext)
+        guard readableThisMonth.count >= InsightService.monthlyReportMinimumEntries else {
+            monthlyReportState = .endOfMonthTooFewEntries(count: readableThisMonth.count)
             return
         }
 
@@ -385,8 +418,14 @@ final class InsightViewModel {
             return InsightService.isUngroundedFallback(cached.content) ? .groundingFallback(cached) : .loaded(cached)
         }
 
+        // Same staleness rule as the background runner: 24h passed AND newer writing this month (or
+        // since this device's last kept-real attempt). Was 24h alone, so opening Monthly each day of
+        // the last week regenerated from the same entries (backlog A8).
         if !forceRegenerate, let cached = cachedThisMonth,
-           Date().timeIntervalSince(cached.generatedAt) < 86400 {
+           !InsightService.weeklyDigestIsStale(
+               generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .monthlyReport, period: thisMonth),
+               newestWeekEntry: readableThisMonth.map(\.createdAt).max()
+           ) {
             // Same reasoning as loadWeeklyDigest's cache-serve branch: a cached fallback's "Try
             // Again" needs the model, so don't show it as actionable when the model isn't ready.
             if InsightService.isUngroundedFallback(cached.content) {
@@ -407,6 +446,10 @@ final class InsightViewModel {
             return
         }
 
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {  // see loadWeeklyDigest
+            monthlyReportState = .error(friendlyLLMError(InsightError.serviceUnavailable("content key unavailable")))
+            return
+        }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else {
             monthlyReportState = .loading
             return
@@ -416,8 +459,13 @@ final class InsightViewModel {
         monthlyReportState = .loading
         do {
             let (text, engine) = try await InsightService.generateMonthlyReport(
-                monthEntries: thisMonthEntries, allEntries: entries
+                monthEntries: readableThisMonth, allEntries: entries
             )
+            if let cached = cachedThisMonth, InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cached.content) {
+                InsightService.recordKeptRealRow(.monthlyReport, period: thisMonth)
+                monthlyReportState = .loaded(cached)
+                return
+            }
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -425,6 +473,7 @@ final class InsightViewModel {
             monthlyReportState = InsightService.isUngroundedFallback(text) ? .groundingFallback(insight) : .loaded(insight)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch {
+            if Task.isCancelled { return }  // see loadWeeklyDigest
             monthlyReportState = .error(friendlyLLMError(error))
         }
     }
@@ -474,8 +523,8 @@ func friendlyLLMError(_ error: Error) -> String {
         return String(localized: "MirrorNotes couldn't finish the reflection. Tap retry — it usually works on the next try.")
     case InsightError.emptyResponse:
         return String(localized: "MirrorNotes didn't get a response. Tap retry in a moment.")
-    case InsightError.serviceUnavailable:
-        return String(localized: "Something went wrong. Mirror will try again tonight while your phone charges.")
+    // serviceUnavailable used to promise "Mirror will try again tonight while your phone
+    // charges", but nothing retries Ask, and the nightly digest runs only on Sundays (backlog A15a).
     default:
         return String(localized: "Something went wrong. Tap retry or come back in a moment.")
     }

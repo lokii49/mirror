@@ -1,5 +1,5 @@
-Korrekturen für die smarte Suche
+Deine eigenen Sätze in Zusammenfassungen, Berichten und „Mirror fragen“
 
-• Smarte Suche in Fragen: Das Suchmodell wird nach dem Beenden und erneuten Öffnen von MirrorNotes nicht mehr noch einmal heruntergeladen. Es lädt jetzt im Hintergrund, und du kannst den Download pausieren und fortsetzen.
-• Modell-Downloads zeigen einen klareren Fortschrittsbalken mit einer Taste zum Pausieren und Fortsetzen sowie eine klarere Download-Taste.
-• Neuigkeiten zeigt nur die neuesten Änderungen, und ein Mac, der 1.1.0 übersprungen hat, sieht sie trotzdem.
+• Mit Apple Intelligence zitieren Wöchentliche Zusammenfassung, Monatsbericht und „Mirror fragen“ jetzt deine eigenen Sätze.
+• Die Wortzahl zeigt jetzt „1 Wort“ statt „1 Wörter“.
+• Kleinere Korrekturen und Verbesserungen.

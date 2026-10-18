@@ -65,6 +65,7 @@ struct BrainView: View {
                         .frame(width: 32, height: 32)
                         .background(.thinMaterial, in: Circle())
                 }
+                .accessibilityLabel("Close")
             }
             if subscriptionService.isDeep, case .ready = brainModel.state {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -419,7 +420,8 @@ private struct BrainNodeDetailSheet: View {
         switch node.type {
         case .person: return "person.fill"
         case .place: return "mappin.circle.fill"
-        case .keyword, .theme: return "number"
+        case .theme: return "square.grid.2x2.fill"
+        case .keyword: return "number"
         }
     }
 
@@ -453,6 +455,14 @@ private struct BrainNodeDetailSheet: View {
                     }
                 }
                 .foregroundStyle(MirrorTheme.textSecondary)
+                // A topic lists the words it gathered, most mentioned first.
+                if !node.members.isEmpty {
+                    Text(node.members.prefix(6).joined(separator: " · "))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 13))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .lineLimit(2)
+                        .accessibilityLabel(Text("Includes \(node.members.prefix(6).joined(separator: ", "))"))
+                }
             }
             Spacer()
             if let score = node.avgMoodScore {
@@ -471,7 +481,11 @@ private struct BrainNodeDetailSheet: View {
 
     private var askButton: some View {
         Button {
-            onAsk(String(localized: "What have I written about \(node.label)?"))
+            // A topic's label ("Outdoors") isn't a word in the entries; ask about the words it gathered.
+            let subject = node.type == .theme && !node.members.isEmpty
+                ? node.members.prefix(3).joined(separator: ", ")
+                : node.label
+            onAsk(String(localized: "What have I written about \(subject)?"))
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: displayMode == .sentinel ? "waveform.badge.magnifyingglass" : "bubble.left.and.text.bubble.right.fill")

@@ -10,8 +10,15 @@ struct EntryDetailView: View {
 
     let entry: Entry
     var onDone: (() -> Void)? = nil
+    /// Told when the editor opens and closes, so Entries can hold its layout across a fold while
+    /// an edit is open (EntriesSplitView.heldSideBySide).
+    var onEditorPresented: ((Bool) -> Void)? = nil
 
     @State private var showEditor = false
+    /// `Entry.contentDecryptionFailed`, checked once on appear (it opens every photo and
+    /// recording): a voice-only entry from a device whose key this one lacks reads fine as
+    /// text, but editing it would write its unreadable fields back.
+    @State private var contentUnreadable = false
     @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
@@ -210,7 +217,7 @@ struct EntryDetailView: View {
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                             .tracking(0.8)
                         Text(insight.content)
-                            .font(.system(size: 15, weight: .regular, design: .serif))
+                            .readingFont(size: 15)
                             .lineSpacing(5)
                             .foregroundStyle(MirrorTheme.textPrimary)
                             .italic()
@@ -232,6 +239,7 @@ struct EntryDetailView: View {
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
+            contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
             let prefix = text
                 .components(separatedBy: .whitespacesAndNewlines)
@@ -248,55 +256,64 @@ struct EntryDetailView: View {
         #endif
         #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacEditEntry)) { _ in
-            if macCanEditPlainText, !entry.textDecryptionFailed { showEditor = true }
+            if macEditAllowed { showEditor = true }
         }
         #endif
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    #if os(macOS)
-                    // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
-                    // stay read-only here so an edit cannot change what iPhone and iPad read back.
-                    if macCanEditPlainText {
-                        editButton
-                    }
-                    #else
+            // Separate items, not one custom HStack: the system lays them out itself, so on
+            // iPhone Duo they move into the vertical bar beside the list's buttons. One custom
+            // view counts as a single wide control, which stays in the top bar.
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                #if os(macOS)
+                // Entries the Mac editor cannot round-trip exactly (photos, legacy "# " prefixes)
+                // stay read-only here so an edit cannot change what iPhone and iPad read back.
+                if macCanEditPlainText {
                     editButton
-                    #endif
-
-                    Menu {
-                        Button(
-                            entry.isPinned ? "Unpin Entry" : "Pin Entry",
-                            systemImage: entry.isPinned ? "pin.slash" : "pin"
-                        ) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            entry.isPinned.toggle()
-                            try? modelContext.save()
-                        }
-                        Button("Share as text") { shareText() }
-                        #if os(iOS)
-                        Button("Export as PDF") { sharePDF() }
-                        #endif
-                        Button("Delete Entry", systemImage: "trash", role: .destructive) {
-                            showDeleteConfirm = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-                    }
                 }
+                #else
+                editButton
+                #endif
+
+                Menu {
+                    Button(
+                        entry.isPinned ? "Unpin Entry" : "Pin Entry",
+                        systemImage: entry.isPinned ? "pin.slash" : "pin"
+                    ) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        entry.isPinned.toggle()
+                        try? modelContext.save()
+                    }
+                    Button("Share as text") { shareText() }
+                    #if os(iOS)
+                    Button("Export as PDF") { sharePDF() }
+                    #endif
+                    Button("Delete Entry", systemImage: "trash", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+                }
+                .accessibilityLabel("More")
             }
         }
         .navigationDestination(isPresented: $showEditor) {
             WriteView(entry: entry, autoFocus: true, showsBackButton: true)
         }
+        .onChange(of: showEditor) { _, open in onEditorPresented?(open) }
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                modelContext.delete(entry)
-                try? modelContext.save()
+                // Leave the reader first, then delete (as on Mac): the reader column or the pushed
+                // reader must not render a deleted entry.
                 onDone?()
+                let doomed = entry
+                let context = modelContext
+                WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
+                DispatchQueue.main.async {
+                    context.delete(doomed)
+                    try? context.save()
+                }
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -304,10 +321,12 @@ struct EntryDetailView: View {
     }
 
     private var editButton: some View {
-        Button(displayMode == .sentinel ? "EDIT" : "Edit") { showEditor = true }
-            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .medium))
+        // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
+        // moves to the vertical one, splitting the reader's two buttons (owner, 2026-10-11).
+        Button("Edit", systemImage: "pencil") { showEditor = true }
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
-            .disabled(entry.textDecryptionFailed)
+            .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
 
     #if os(macOS)
@@ -373,7 +392,7 @@ struct EntryDetailView: View {
                                 .foregroundStyle(MirrorTheme.violetLight)
                                 .tracking(0.8)
                             Text(insight.content)
-                                .font(.system(size: 15, design: .serif))
+                                .readingFont(size: 15)
                                 .lineSpacing(5)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .italic()
@@ -399,6 +418,7 @@ struct EntryDetailView: View {
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
+            contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
             let prefix = text
                 .components(separatedBy: .whitespacesAndNewlines)
@@ -502,7 +522,7 @@ struct EntryDetailView: View {
         .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
     }
 
-    private var macEditAllowed: Bool { !entry.textDecryptionFailed && macCanEditPlainText }
+    private var macEditAllowed: Bool { !entry.textDecryptionFailed && !contentUnreadable && macCanEditPlainText }
 
     private func macToolbarButton(_ icon: String, label: LocalizedStringKey, active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -639,6 +659,29 @@ private struct OnThisDaySection: View {
     }
 }
 
+/// The iPhone/iPad reader's entry text sizes at Dynamic Type `scale` (1 at the default text size,
+/// where they are the editor's: body 17, title 30, heading 22, monospaced 16). They were fixed, so
+/// the reader ignored the person's text size (backlog A19 follow-up). The Mac reader keeps its own
+/// Text size setting.
+nonisolated struct ReaderTextSizes: Equatable, Sendable {
+    let body: CGFloat
+    let lineSpacing: CGFloat
+    let title: CGFloat
+    let heading: CGFloat
+    let monospaced: CGFloat
+    /// List and checklist markers (24 pt at the default size).
+    let marker: CGFloat
+
+    init(scale: CGFloat) {
+        body = 17 * scale
+        lineSpacing = 6 * scale
+        title = 30 * scale
+        heading = 22 * scale
+        monospaced = 16 * scale
+        marker = 24 * scale
+    }
+}
+
 private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
@@ -658,12 +701,16 @@ private struct InlineEntryContent: View {
     private var titleSize: CGFloat { bodySize + 10 }
     private var headingSize: CGFloat { bodySize + 4 }
     private var monospacedSize: CGFloat { bodySize - 2 }
+    private var markerScale: CGFloat { 1 }
     #else
-    private var bodySize: CGFloat { 17 }
-    private var bodyLineSpacing: CGFloat { 6 }
-    private var titleSize: CGFloat { 30 }
-    private var headingSize: CGFloat { 22 }
-    private var monospacedSize: CGFloat { 16 }
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1.0
+    private var sizes: ReaderTextSizes { ReaderTextSizes(scale: typeScale) }
+    private var bodySize: CGFloat { sizes.body }
+    private var bodyLineSpacing: CGFloat { sizes.lineSpacing }
+    private var titleSize: CGFloat { sizes.title }
+    private var headingSize: CGFloat { sizes.heading }
+    private var monospacedSize: CGFloat { sizes.monospaced }
+    private var markerScale: CGFloat { sizes.marker / 24 }
     #endif
     @Environment(\.appDisplayMode) private var displayMode
 
@@ -890,9 +937,9 @@ private struct InlineEntryContent: View {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(.system(size: 24 * markerScale, weight: .regular))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
-                    .frame(width: 24, alignment: .center)
+                    .frame(width: 24 * markerScale, alignment: .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .primary)
                     .strikethrough(style == .checklistChecked, color: .secondary)
@@ -908,9 +955,9 @@ private struct InlineEntryContent: View {
             let marker = listMarker(for: style, level: level, index: index)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(marker)
-                    .font(.system(size: style == .numberedList ? 17 : 20, weight: .regular))
+                    .font(.system(size: (style == .numberedList ? 17 : 20) * markerScale, weight: .regular))
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 22, alignment: style == .numberedList ? .trailing : .center)
+                    .frame(minWidth: 22 * markerScale, alignment: style == .numberedList ? .trailing : .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))
                     .foregroundStyle(MirrorTheme.textPrimary)
             }

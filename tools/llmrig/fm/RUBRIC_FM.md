@@ -420,3 +420,494 @@ rate is known from rounds 5-10).
     line and `@Guide`, so that wording affects the refusal, and round 11's "no prompt can fix a decline on the input
     itself" does not hold for these variants. One case, one round, with variants that failed elsewhere: this is a
     lead for its own round, not evidence that a guide change fixes the refusal.
+
+## Round 13: FMDailyGuard name casing (plan fixed BEFORE running, 2026-10-15)
+
+**Change under test** (`39fcab8`, unpushed): `FMDailyGuard.personNames` now counts a tagged name only where it is
+capitalized mid-sentence. Reason: on iOS 27 the NLTagger labels a sentence-initial noun as a name ("Exam is on
+Friday" tags Exam as a PlaceName on an iPhone 14 Pro), so `restoreNames` turned the insight's "the exam" into
+"the Exam" (SecondQuoteTests failed on 3.1.3). The guard's accept/reject decisions are not meant to change; only
+the casing step. The trade-off: a name the person writes only at a sentence start, if the model writes it in
+lowercase, stays lowercase.
+
+**Method.** One model, one prompt: prod (the shipped V1e, `DAILY_REFLECTION_FM_SYSTEM` dumped by
+`test_dumpStructuredNudgePromptsForRig`, `@Guide` and 3-attempt loop unchanged). fmrig built with the NEW
+`FMDailyGuard.swift` records every attempt's raw quote and insight (`raws`). The OLD guard (`FMDailyGuard.swift` at
+`39fcab8^`) is then replayed over the same raws offline (`replay13.swift`), so both guards judge identical model
+outputs and only the guard differs. Note: the dev Mac's tagger, not an iPhone's, decides names here (macOS 27.0.1).
+
+**Cases**: the 33 cases of round 12 plus 10 NEW held-out synthetic cases written before this run
+(`heldOutRound13`, labels `hold5_*`): everyday words opening a sentence (Work, Gym, Dinner, Interview, Grief, Rent)
+and names or places only at a sentence start (Priya, Tomás, Lena, Lisbon), plus a name mid-sentence (Arjun).
+N = 10 per case, temperature 0.45: 43 x 10 = 430 runs.
+
+**Gates (mechanical, all must hold):**
+- G1 no regression: for every run, old and new guards show the same attempt or both fall back, with the same
+  number of dropped sentences; shown texts differ only in letter case.
+- G2 the fix: under the new guard, 0 shown insights capitalize mid-sentence a word that the entries capitalize
+  only at sentence starts (old guard's count reported beside it).
+- G3 the trade-off: under the new guard, at most 5% of shown outputs on hold5_priya, hold5_tomas, hold5_grief and
+  hold5_lisbon contain Priya / Tomás / Lena / Lisbon in lowercase.
+- G4 sanity (model drift since round 12): prod fallback <= 10% overall; errors only on hold3_hospital.
+
+**Decision rule**: all pass -> 39fcab8 stays and 3.1.3 is pushed. G1 or G2 fails -> 39fcab8 is reverted before the
+push and the SecondQuoteTests failure goes back to the owner. Only G3 or G4 fails -> report to the owner before
+pushing. One round only.
+
+### Round 13 result (2026-10-15, 43 cases x 10 = 430 runs, prod, mechanical): G1, G2, G3 pass; G4 fails (not the guard); owner decides
+Tools: `fmrig.swift` (new guard) + `replay13.swift` built with each guard + `gates13.py`. The new replay reproduces
+fmrig's shown outputs exactly (0 mismatches).
+- **G1 pass**: 0 runs where old and new differ beyond letter case (same attempt, quote, fallback, dropped count). 14
+  runs differ in casing only.
+- **G2 pass**: sentence-start words capitalized mid-sentence: old 14, new 0. All 10 hold3_exam runs read "the Exam"
+  under the old guard ("You feel anxious about the Exam."), as on the iPhone.
+- **G3 pass as defined**: 0/30 lowercase names on the hold5 name cases, but only because the model never named
+  Priya, Tomás, Lena or Lisbon there. **The trade-off did show elsewhere**: hold4_colleague ("Kai came back to the
+  office today…", Kai only at a sentence start) shows "kai" in lowercase in 4/10 runs under the new guard (old: 2/10;
+  the model writes "kai" and the old guard fixed two of them).
+- **G4 fails (model, not guard)**: fallback 28/430 = 6.5% (round 12: 5.8%; hold4_weekends 10/10 and hold4_garden
+  8/10 as before). Errors: hold5_grief refused 10/10 "May contain sensitive content" (a grief entry mentioning a
+  dad); hold3_hospital was not refused this time (0/10). Production finding: grief days can get no reflection;
+  `refusedDayNudge` covers it in the app.
+- Tagger on the dev Mac: Kai and Priya are PersonalName, Exam and Lisbon PlaceName. A sharper rule (at a sentence
+  start trust only PersonalName) would keep Kai and drop Exam; it is not this round's change.
+Per the decision rule (G4 failed) this goes to the owner before the push.
+
+## Round 14: sentence-start names, PersonalName only (plan fixed BEFORE running, 2026-10-15)
+Owner, after round 13: sharpen the rule. **Change**: at a sentence start, a tagged word counts as a name only when the
+tagger calls it PersonalName (mid-sentence, any name tag counts, as before 39fcab8). Round 13 showed Kai/Priya tagged
+PersonalName and Exam/Lisbon PlaceName on the dev Mac; on the iPhone 14 Pro, Exam was PlaceName.
+**Method**: no new model runs. The same 430 raw outputs of round 13 replayed with the round-14 guard
+(`replay13.swift` built against it) beside the old guard (`39fcab8^`).
+**Gates**: G1 as round 13 (old vs round-14: differences in letter case only). G2: no mid-sentence capital on a word
+the entries capitalize only at sentence starts, except words the dev Mac's tagger calls PersonalName there (listed);
+hold3_exam shows "exam" 10/10. G3: hold4_colleague shows "kai" in lowercase in no more runs than the old guard (2/10).
+Pass -> commit the guard change and push 3.1.3. Fail -> back to the owner.
+
+### Round 14 result (2026-10-15, round 13's 430 raw outputs replayed): PASSED; the PersonalName rule ships
+- G1 pass: 0 runs differ from the old guard beyond letter case (10 differ in case: all hold3_exam).
+- G2 pass: hold3_exam shows "the exam" 10/10 (old guard: "the Exam" 10/10). The only other mid-sentence capitals
+  on sentence-start words are "Kai" (hold4_colleague, 4 runs), which the tagger calls a PersonalName: the exception.
+- G3 pass: hold4_colleague shows "kai" in lowercase in 0/10 runs (old guard 2/10, round 13's rule 4/10).
+- Model numbers are round 13's (same outputs): fallback 6.5%, hold5_grief refused 10/10.
+
+## Round 15: the weekly digest on Foundation Models, in the Gemma digest's shape (plan fixed BEFORE running, 2026-10-15)
+Owner, 2026-10-15: FM insights paraphrase the context instead of using the person's words, and the Gemma weekly
+digest (quotes + a line after each) reads better. FM weekly/monthly/Ask have never had a rig round: they are free
+prose with only the word-overlap backstop. Weekly first; monthly and Ask get their own rounds after.
+
+**Variants** (same dumped user message, `test_dumpDigestPromptsForRig`, byte-identical to the app):
+- **W0 baseline**: shipped `WEEKLY_DIGEST_SYSTEM`, free prose (`fmrig free`).
+- **W1**: `system_digest_d1.txt` + `@Generable WeeklyDigestD1` (theme, then quote + one line for energy / building /
+  watch, then boost and next week). The app composes the Gemma digest's text (same six labels, `You seemed most
+  <entry's mood> when you wrote, "<quote>" …`, `You wrote, "<quote>" …`), and `FMDigestGuard` (compiled into the rig)
+  must accept it: each quote found in this week's entries, the three quotes different, building not from a hard-mood
+  entry when the week has another, every model line passing `FMDailyGuard.cleanSentences` against the week. Up to 3
+  attempts; none accepted -> fallback (the app's honest card).
+
+**Cases**: 10 synthetic weeks, no real journal text: `wk_rigA` (the 13 daily rig cases as one week), `wk_rigB`
+(digestWeekB) and 8 new weeks written for this round (`digestRigWeeks`: caregiver, good, hard, neutral, sparse,
+runon, breakup, exam). N = 10 per case per variant, temperature 0.45 (`dailyNudge`'s, as the daily rounds).
+
+**Scored per shown digest**, blind (variant labels removed, shuffled), one section at a time, 0/1:
+1. **INVENT**: no event, object, place, person, sensation or scenery the entries don't contain; no feeling the
+   entries don't state or plainly show.
+2. **SWAP**: no person given another's action; plans not stated as done.
+3. **VALUE**: the section says something a reader would not get from the quote or entry alone (a meaning, a link
+   between two days, a concrete next step tied to their words). A restatement of the quote, or generic advice
+   ("take some time for yourself") scores 0.
+A digest PASSES when all six sections pass 1 and 2.
+
+**Gates for W1 to ship (all must hold)**:
+- G1 fallback <= 10% of runs, and no case above 30%.
+- G2 shown PASS >= 95% of shown digests, and W1's invented-section rate below W0's.
+- G3 VALUE: W1's mean VALUE per section >= W0's.
+- G4 quotes: 100% of shown quotes verbatim (by construction; checked by script).
+Pass -> `WEEKLY_DIGEST_FM_SYSTEM` + `WeeklyDigestDraft` ship for English FM digests; other languages keep the
+shipped path this round. Fail -> report to the owner with the numbers; no prompt change ships. One round, plus at
+most one revision (W2) if only G1 fails, fixed in writing before it runs.
+
+### Round 15, W2 (fixed BEFORE running, 2026-10-15; owner said go after W1's partial numbers)
+W1 partial (7 of 10 weeks): fallback ~70% (wk_hard and wk_neutral 10/10); W0 shown 10/10. Most rejected lines
+contained "quiet"/"quietly", which `FMDailyGuard` counts as an added state word; the W1 prompt itself said "quietly
+costing them". The rest were real catches ("before the grant review", "find a quiet space").
+**W2 changes, nothing else:**
+1. Prompt (`system_digest_d2.txt`) and the watch `@Guide` say "may be costing them or wearing on them", never
+   "quietly"; one added rule: do not call anything quiet unless they did.
+2. `FMDigestGuard.merge`: each section is taken from the first attempt in which it passes (same checks as W1), quotes
+   still distinct across the chosen sections. Attempts stop as soon as all six sections are filled; at most 3.
+   The guard itself (`FMDailyGuard.cleanSentences`) is unchanged.
+Same cases, N, temperature, scoring and gates G1-G4 as W1. W2 is the last revision this round.
+
+### Round 15 result (2026-10-16): W1 and W2 FAILED; nothing ships. The shipped FM digest (W0) invents in half its sections
+Runs: W0 100/100 shown; W1 25/100 shown (75% fallback); W2 47/100 shown (53% fallback; wk_exam 10/10, wk_neutral 9/10).
+W2's unfilled sections at fallback: energy 26, boost 15, nextWeek 10, watch 7, building 6.
+Blind scoring (3 scorers, 97 digests shuffled, labels removed: all 47 shown W2 + 5 W0 per week; the two shapes
+are recognisable, so blind only in labels):
+
+| | digests PASS | sections invented | swap | VALUE / section |
+|---|---|---|---|---|
+| W0 shipped free prose | **0/50** | **146/300 (48.7%)** | 9 | 0.51 |
+| W2 structured + guard | 30/47 (64%) | 20/282 (7.1%) | 1 | 0.19 |
+
+- G1 fail (53%), G2 fail (64% < 95%, though invented rate is far below W0's), G3 fail (0.19 < 0.51), G4 pass.
+- W0 inventions are scenery and events ("the dent in the wall", "the notebook from the corner", "your breath steady
+  as the pavement warmed") in every section, worst in YOUR ENERGY (44/50) and MOOD BOOST (34/50). This is what
+  English FM users get today.
+- W2's inventions are mostly in YOUR ENERGY (12/20) and come from the "connect it to another day" instruction:
+  false links ("especially after skipping dinner", "after the quiet time with Chris"). W2's low VALUE: theme reads
+  as a list of nouns (0/47), and most reads restate the quote; MOOD BOOST is its best section (25/47).
+
+## Round 16: W3, the weekly digest with fixed app lines where the model fails (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 15: go ahead with W3. **Changes from W2, nothing else:**
+1. Prompt `system_digest_d3.txt` + `WeeklyDigestD3` guides: no "connect it to another day" (round 15: most of W2's
+   inventions were false links between days). Theme is one short phrase about what the week was about, not a list of
+   names. Each read says what the moment seems to show they need, hope for or worry about, and must not retell it.
+2. `FMDigestGuard.assemble`: same per-section checks and merge across up to 3 attempts as W2. A section still empty
+   after 3 attempts is filled by the app, never by the model:
+   - quote section whose quote passed but whose line didn't: the quote + a fixed line (`fixedReads`);
+   - quote section with no passing quote: the app picks a sentence of 4+ words from an entry of the right kind
+     (energy: any; building: not a hard mood when the week has another; watch: a hard mood when it has one), not
+     overlapping the other quotes, + the fixed line;
+   - theme / boost / next week: a fixed line.
+   Nothing to quote at all (no sentence of 4+ words) -> fallback.
+Same 10 weeks, N = 10, temperature 0.45.
+**Gates** (G1-G4 as round 15, plus G5):
+- G1 fallback <= 10%. G2 shown PASS >= 95% and invented-section rate below W2's 7.1%.
+- G3 VALUE per section >= W0's on clean sections only (round 15: W0 0.39 useful-and-clean per section; W0 0.51 raw
+  is inflated by invented sections scoring VALUE).
+- G4 quotes verbatim 100%. G5 fixed (app-written) sections <= 25% of all sections.
+Pass -> wire into the app for English FM digests (other languages unchanged), with tests. Fail -> owner.
+Scoring: blind, 3 scorers, W3 shown digests only (W0's round-15 scores are reused as the baseline).
+
+### Round 16 result (2026-10-16, W3, 10 weeks x 10, blind-scored by 3 scorers): FAILED G2 and G3; nothing ships
+| | shown | digests PASS | sections invented | swap | useful-and-clean / section | app-fixed sections |
+|---|---|---|---|---|---|---|
+| W0 shipped (round 15) | 100% | 0/50 | 48.7% | 9 | 0.39 | - |
+| W2 (round 15) | 47% | 30/47 | 7.1% | 1 | 0.18 | - |
+| **W3** | **100%** | **46/100** | **9.5%** | 7 | **0.25** | 49/600 (8%) |
+
+- G1 pass (0% fallback), G4 pass, G5 pass (8%). G2 fail (46% < 95%; 9.5% is not below W2's 7.1%). G3 fail (0.25 < 0.39).
+- The scorer prompt this round also counted unstated cause-and-effect between days as invented; round 15's did not.
+  So W2 vs W3 is not exactly like for like.
+- NEXT WEEK is the worst section (18 invented): the field asks for something upcoming, so the model makes one up
+  ("Next week, the talk about the senior role": the entry says next month; "the final exam review will begin").
+  MOOD BOOST swaps people ("Talk to Tara about working from Mom's place": the request was to Deepa, 4 runs).
+  Reads add feelings the week-wide guard allows because another entry used the word ("heavy", "strain").
+- The 49 app-fixed sections scored VALUE 0/49, as expected.
+
+## Round 17: W4 = W3 aimed at round 16's three causes (plan fixed BEFORE running, 2026-10-16)
+Owner chose another round. **Changes from W3, nothing else:**
+1. NEXT WEEK: prompt/guide ask for one kind, practical sentence about something they wrote is still unfinished or
+   undecided, without saying when anything will happen. Guard: a model line with a timing phrase the entries don't
+   contain ("next week", "next month", "tomorrow", "coming up", "soon", "will begin", "as it nears") is dropped
+   (`FMDigestGuard.timingPhrases`).
+2. Names stay with their entry: for every name in a model line, at least 60% of the line's other content words
+   (4+ letters, not stop words) must appear in one entry that contains that name. Checked on every model line.
+3. A read under a quote is checked against the quoted entry only (feeling words, names), not the whole week.
+4. (Added before running.) MOOD BOOST prompt/guide: "using a person and a task from the same entry, or a task or
+   thing they named" instead of "in the next few days, using a person, task or thing they named this week".
+Names are found with `FMDailyGuard.personNames` (tagger, PersonalName only at a sentence start), now internal.
+Same weeks, N, temperature, fixed lines and gates G1-G5 as round 16. Scored blind by 3 scorers with round 16's
+scorer prompt. Last weekly round: pass -> wire into the app for English FM digests; fail -> owner picks W3 interim or
+leaving W0.
+**Held-out (added 2026-10-16 while W4 ran, before any W4 result was seen):** W4's rules were shaped by the 10 weeks
+above, so 5 new synthetic weeks (`digestHeldOutWeeks`: ho_move, ho_newparent, ho_volunteer, ho_flu, ho_short; new
+names incl. one only at sentence starts, a pet, future plans, two similar friends) run W4 and W0 at N = 10. Gates
+G1-G5 must also hold on the held-out weeks alone (W0's held-out VALUE is the G3 bar there). A pass on the old weeks
+only is not a pass.
+
+### Round 17 result (2026-10-16, W4, 10 original weeks x 10, blind-scored by 3 scorers, round 16's prompt): FAILED
+| | shown | digests PASS | sections invented | swap | useful-and-clean / section | app-fixed |
+|---|---|---|---|---|---|---|
+| W3 (round 16) | 100% | 46/100 | 9.5% | 7 | 0.25 | 8% |
+| **W4** | **100%** | **48/100** | **12.2%** | **2** | **0.17** | **21.5%** |
+
+- G1 pass, G4 pass, G5 pass (21.5%, MOOD BOOST app-fixed in 52/100). G2 fail, G3 fail (0.17 < 0.39).
+- Swaps fell (7 -> 2): the names rule works. The timing rule ended invented dates. But NEXT WEEK now invents
+  indecision instead (35 invented: "you haven't decided what to do with them", "the chat with Grandpa is still
+  waiting to unfold"): asked for something unfinished, the model makes something unfinished up.
+- Pattern across W1-W4: each field that asks for a kind of content (an upcoming event, something undecided,
+  something costing them on a peaceful week) gets that content invented when the week has none.
+- Held-out weeks: stopped after ho_move (W4 already failed on the original weeks); not scored.
+Per the plan, the owner picks: W3 as an interim, or keep W0.
+
+## Round 18: W3 as an interim, held-out check (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 17: ship W3 as an interim for English FM digests (it failed G2/G3 in round 16 but invents in
+~1 section in 10 against W0's ~1 in 2). W3 was only measured on the weeks that shaped it, so before it ships:
+W3 (round 16's exact prompt, guides and guard; the `fmrig3` binary) and W0 on the 5 held-out weeks, N = 10, blind
+scored together with round 16's scorer prompt (labels removed, shuffled).
+**Interim bar** (not round 15's gates; the owner accepted W3 below them): on the held-out weeks, W3 fallback <= 10%,
+W3's invented-section rate at most half of W0's on the same weeks, app-fixed sections <= 25%. Miss -> back to the
+owner before anything ships. The app ships round 16's FMDigestGuard (no round-17 rules).
+
+### Round 18 result (2026-10-16, 5 held-out weeks x 10, blind-scored by 3 scorers): two of three bars met; one missed by a refusal
+| held-out weeks | shown | digests PASS | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|---|
+| W0 shipped | 50/50 | 0/50 | 205/300 (68.3%) | 25 | 0.18 |
+| W3 | 40/50 | 20/40 | 19/240 (7.9%) | 10 | 0.20 |
+
+- Invented at most half of W0's: met (7.9% vs 68.3%). On these weeks W3 is also as useful as W0 on clean sections.
+- **ho_move: FM refused W3 10/10 ("May contain sensitive content"); W0's free prose was not refused.** In the app every
+  attempt refused means `FMDigestGuard.assemble([])`: a digest of the week's own sentences and fixed lines only.
+- App-fixed sections: 39/240 (16%) on the four answered weeks; counting ho_move as 60 fixed, 99/300 (33%) > 25%: missed.
+Per the plan this goes back to the owner before anything ships.
+
+### Shipped (2026-10-16, owner decision after round 18): W3 as an interim, English and the other FM languages
+- English FM digests: `WEEKLY_DIGEST_FM_SYSTEM` (= `system_digest_d3.txt`) + `WeeklyDigestDraft` (= WeeklyDigestD3's
+  guides) + round 16's `FMDigestGuard`, 3 attempts, app-filled sections (`InsightService.structuredFMDigest`).
+  Owner accepted the ho_move refusal case (an all-app digest of the week's sentences) over W0's 68% invented.
+- One app-side change after the rounds: on a week whose only good day went to YOUR ENERGY, an app-picked hard
+  sentence under WHAT'S BUILDING gets "That stood out this week." instead of "worth holding on to" (seen end to
+  end on the Mac's FM: "Woke up with a fever and chills." That sounds like something worth holding on to.).
+- de/es/fr/it/pt/ja/ko/zh on FM (owner: "fix this for all languages"): the same draft, but only its three quotes
+  are used, each matched with `FMDailyGuard.matchOption` to the Gemma localized digest's options; all other text is
+  `groundedLocales`' fixed translated lines, as on Gemma (`structuredFMLocalizedDigest`). No model-written text is
+  shown, so nothing can be invented; NOT rig-measured for how often the model's picks match (app picks fill gaps).
+- Still open: languages outside the 10 keep the free-prose digest on FM; reads can say "they" instead of "you".
+
+## Round 19: the monthly report on Foundation Models, in the Gemma report's shape (plan fixed BEFORE running, 2026-10-16)
+Owner: go ahead with the next items (monthly, then Ask, then the daily two quotes). FM monthly is free prose on
+`MONTHLY_REPORT_SYSTEM` with only the word-overlap backstop, never measured.
+**Variants** (same dumped user message, `test_dumpMonthlyPromptsForRig`, byte-identical to the app):
+- **M0**: shipped `MONTHLY_REPORT_SYSTEM`, free prose.
+- **M1**: `system_monthly_m1.txt` + `@Generable MonthlyM1`, built on round 15-17's lessons from the start: no field
+  asks for something the month may not have (no "upcoming", no "undecided", no link between days); every line
+  hangs off a quote or a fixed opener. Composed in the Gemma report's text: `A <image>.` / `You seem pulled between
+  <a> and <b>.` / `On <date>, you wrote, "<quote>" <line>` / `You wrote, "<good-day quote>" You seem to be becoming
+  someone who <...>.` / `You wrote, "<hard-day quote, not Sad/Numb>" Maybe it's time to let go of <...>.` /
+  `<question>?`. `FMMonthlyGuard` (compiled into the rig): quotes found in the month, distinct, mood rules as Gemma's;
+  every model line through `FMDailyGuard.cleanSentences`; each section from the first of up to 3 attempts where it
+  passes; still-empty sections filled by the app (its own quote + a fixed line, or a fixed line).
+**Cases**: 6 synthetic months of 10-14 entries spread over the month (`digestRigMonths`), built from the round-15/17
+weeks: 4 from the original weeks, 2 (`mo_ho_*`) from the held-out weeks. N = 10, temperature 0.45.
+**Scoring**: blind, 3 scorers, round 16's scorer prompt with the monthly section names; M0 and M1 mixed.
+**Ship bar** (the interim bar the owner accepted for the weekly digest): M1 fallback <= 10%, invented-section rate
+at most half of M0's, app-fixed sections <= 25% (refused months reported apart); usefulness reported, not gated.
+Also on the 2 held-out months alone. Miss -> owner.
+
+### Round 19 result (2026-10-16, 6 months x 10 x 2 variants, blind-scored by 4 scorers): ship bar met; usefulness very low
+| | shown | reports PASS | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|---|
+| M0 shipped, all months | 60/60 | 2/60 | 175/360 (48.6%) | 14 | 0.19 |
+| **M1, all months** | **60/60** | 17/60 | **43/360 (11.9%)** | 16 | **0.03** |
+| M0, held-out months | 20/20 | 1/20 | 46.7% | 10 | 0.16 |
+| M1, held-out months | 20/20 | 1/20 | 17.5% | 11 | 0.06 |
+
+- Bar: fallback 0% (no refusals), invented at most half of M0's (11.9% vs 48.6%; held-out 17.5% vs 46.7%), app-fixed
+  58/360 = 16% (release 21, image 15, tension 13). Met.
+- Usefulness (reported, not gated) is far below M0's: the model's lines mostly restate the quote.
+- M1's invented sections: A MOMENT THAT SHIFTED SOMETHING (25: its line restates another day's entry), TENSION (10:
+  "Omar didn't call" from "omar called, yusuf didnt"). Swaps are about the same as M0's.
+
+### Shipped (2026-10-16, owner decision after round 19): monthly report = the person's sentences + app lines, every FM language
+M1's own lines were honest but clumsy ("someone who baking bread", "let go of everything feels heavy and slow") and
+scored 0.03 useful. Owner chose: on FM the model only picks the moment / becoming / release sentences (matched with
+`FMDailyGuard.matchOption` to the Gemma report's options); image, tension, the line after each quote and the question
+are fixed text by the month's dominant mood: `englishMonthlyText` in English, `groundedLocales` elsewhere
+(`groundedMonthlyParts` is the one composer for both). Nothing model-written is shown, so nothing can be invented.
+
+## Round 20: Ask on Foundation Models (plan fixed BEFORE running, 2026-10-16)
+FM Ask is free prose on `ASK_SYSTEM`, never measured; Gemma Ask answers only with the person's dated sentences.
+**Variants** (dumped user message, `test_dumpAskPromptsForRig`; entries found by the app's own retrieval):
+- **A0**: shipped `ASK_SYSTEM`, free prose (plus the no-answer line the app appends).
+- **A1**: `system_ask_a1.txt` + `@Generable AskA1`: `answer` (one or two sentences to "you"), `quote1`, `quote2` (may be
+  empty). Shown: `<answer> The closest things you've written: On <date>, you wrote, "<quote>" …`. Each quote must be
+  found in the retrieved entries; `answer` goes through `FMDailyGuard.cleanSentences` against them. Up to 3 attempts;
+  if no answer passes, the quotes alone (Gemma's shape); no quote found -> the app's first retrieved sentence.
+**Cases**: 4 synthetic month pools x 5 questions (20), each pool with one question the entries can't answer.
+N = 5, temperature 0.45 (`ask`'s).
+**Scoring** (blind, A0/A1 mixed): per answer, INVENT (no fact, person, event or feeling the entries lack; for an
+unanswerable question, any claimed answer = invented), SWAP, ANSWERS (the text actually answers the question from the
+entries, or honestly says it isn't there), VALUE.
+**Ship bar**: A1 invented-answer rate at most half of A0's, 0 invented answers on unanswerable questions beyond
+A0's count, fallback (no text) 0%. ANSWERS and VALUE reported. Miss -> owner.
+**A1 revised before the round (2 probes on mo_caregiver_hard, 2026-10-16):** the first A1 copied "me" from the
+entry, appended the no-answer phrase to real answers and rewrote quotes. Now `found` comes first and A1 never says
+"you haven't written about this" (Gemma's measured lesson: model no-answer judgements were often wrong); when nothing
+is found or the answer fails, the closest sentences are shown under "The closest things you've written:".
+
+### Round 20 result (2026-10-16, 20 questions x 5 x 2 variants, blind-scored by 4 scorers): bar met by a hair; A1 far less useful
+| | shown | answers invented | swap | answers the question | useful |
+|---|---|---|---|---|---|
+| A0 shipped | 96/100 (4 errors) | 21/96 (22%) | 3 | 95% | 59% |
+| A1 | 100/100 | 10/100 (10%) | 6 | 74% | 14% |
+
+- Unanswerable questions: 0/20 invented for both.
+- A1: 73 answers + quotes, 27 quotes only; 24 runs needed an app-picked quote (the model's wasn't verbatim).
+- A1's errors are mostly swaps and false negatives: "You did not see anyone this month" (Leo visited), "You helped with
+  the night feeds" (Sam did), "raj said it WAS the cache" (the writer did).
+- Unlike the digest (49-68% invented) and the monthly report (49%), free-prose Ask invents in 22% and is the most
+  useful text FM writes in this app. Goes to the owner.
+
+## Round 21: Ask = today's answer + the person's own sentences under it (plan fixed BEFORE running, 2026-10-16)
+Owner, after round 20: keep the free-prose answer (useful 59%) and show 1-2 of the person's dated sentences under it
+as evidence. **A2**: unchanged `ASK_SYSTEM` answer, then one structured call (`system_ask_quotes.txt` + `@Generable
+AskQuotes`: quote1, quote2) given the question, the retrieved entries and that answer, asked for the sentences that
+back the answer. Each quote must be found in the retrieved entries (`FMDailyGuard.locate`) and is shown as `On <date>,
+you wrote, "<quote>"` under "The closest things you've written:". None found -> the answer alone (today's behaviour).
+No quotes after the no-answer phrase.
+**Inputs**: round 20's 96 A0 answers (same prompts), so only the quote step is new. N = 1 per answer.
+**Scoring** (blind, 3 scorers): per shown quote, SUPPORTS (it backs what the answer says, or is the entry the answer
+is about) and DATE (the date is that entry's).
+**Ship bar**: >= 80% of answered (non-no-answer) responses get at least one verified quote; >= 90% of shown quotes
+SUPPORT; 100% DATE. Miss -> owner.
+**Round 21 first count (before scoring): coverage 52/82 = 63%, under the bar.** 10 were refusals ("May contain
+sensitive content"); most of the other 20 were verbatim quotes from the prompt's *older excerpts*, which the rig's
+matcher did not search. Fix decided before re-counting: quotes are matched against every entry the model was shown
+(retrieved + older excerpts, with their dates). Replayed offline over the same 96 outputs; no new model runs.
+
+### Round 21 result (2026-10-16): shipped by the owner with coverage under the bar
+- Shown quotes: 86/90 (96%) back the answer they sit under; dates 90/90 right. Both bars met.
+- Coverage: 61/82 answered responses get a quote (74%; 61/72 = 85% without the 10 refusals of the quote call), under
+  the 80% bar. Without a quote the answer shows alone, as before; the owner shipped it on that basis.
+- In the app (`InsightService.askEvidenceQuotes`): quotes matched against every entry the Ask prompt shows; English
+  with `FMDailyGuard.locate` (as measured), the other grounded languages with `matchOption` and their `askPrefix`
+  lines (not rig-measured); other languages and the no-answer phrase get no quotes. End to end on the Mac's FM
+  (simulator): the mom question got two dated sentences, the sleep question none, the trips question the no-answer.
+
+## Round 22: the daily reflection's second quote, picked by the model (plan fixed BEFORE running, 2026-10-16)
+Owner: tie two of the person's own sentences together. Today the second quote ("You also wrote, …", display only,
+never stored) is the day's longest other sentence (`secondGroundedQuote`), not a related one. Lesson from rounds
+15-17: a model-written link between two sentences is where FM invents, so the model only *picks* the related
+sentence; the app writes the joining words. Not stored in `Insight.content` (old versions would leak it): kept per
+device as a reference (entry id + sentence index), never as text.
+**Variants** (same dumped prompts as rounds 12-14, `test_dumpStructuredNudgePromptsForRig`, + 6 new held-out days):
+- **P**: shipped V1e (`DailyV1bEasy`, `FMDailyGuard`, 3 attempts), plus the app's `secondGroundedQuote` pick.
+- **R**: the same struct with one more field after `insight`: `relatedQuote` ("a different sentence from today's
+  entries that connects to the quote, copied word for word, or empty"); everything else unchanged.
+**Mechanical gates (R vs P, same cases):** G1 fallback (no reflection) at most P's + 2 points; G2 the shown quote and
+insight pass the same guard, so the reflection itself must not change: shown-insight PASS on a blind sample of 60
+R vs 60 P not lower by more than 5 points; G3 `relatedQuote` found in today's entries, distinct from the main quote,
+in >= 80% of runs where today has another quotable sentence.
+**Blind (pairs):** for each run with both picks, the scorer sees today's entries, the main quote, and two candidate
+second quotes (R's pick, the app's pick) in random order and says which one connects better to the main quote, or
+neither. Ship if R's pick wins more often than the app's and G1-G3 hold. N = 5 per case.
+
+### Round 22 result (2026-10-16, 49 cases x 5 x 2 variants): FAILED; the daily reflection stays as it is
+- G1 pass: fallback/error 30/245 (R) vs 29/245 (P); adding the field does not hurt the reflection.
+- G3 fail: R's related sentence was a real, different sentence of today in 98/143 runs (69% < 80%); misses: the main
+  quote repeated (32), empty (7), not verbatim (6). In 52 of the 98 it was the sentence the app already picks.
+- Blind pairs, 46 runs where the picks differ (2 scorers): the app's longest-sentence pick connected better 26, R's
+  15, neither 5; on the 6 new held-out days the app won 10-0. The model's pick is not better than the app's, so no
+  related-quote field ships; `secondGroundedQuote` stays.
+
+## Round 23: two guard fixes, replayed (plan fixed BEFORE running, 2026-10-16)
+Owner: fix the "they" lines and the prefix matching. **Changes:**
+1. `FMDailyGuard.matches` (shared by the daily reflection and every FM digest/report line): a word shorter than five
+   letters matches only itself or itself plus a plain ending (s, es, ed, er, est, ness, ing, ful, ly, y). Today it
+   compares the first 3-4 letters, so "over" counts as "overwhelmed" and "numbers" as "numb" (the line is dropped
+   unless the entries carry that feeling).
+2. `FMDigestGuard` lines only: a line that speaks about "they / them / their" and never to "you / your" is dropped
+   ("That moment seems to show they need space"). The daily guard is not changed by this.
+**Method**: no new model runs. Old and new guards judge the same saved outputs: round 22's 490 daily runs (every
+attempt), round 16's 100 W3 digests and round 18's 40 held-out W3 digests. Every line whose verdict flips is listed.
+**Gates**: G1 daily: every newly accepted insight sentence is read by hand and contains no feeling the entries
+don't carry (0 allowed); fallback not higher than before. G2 weekly: every newly accepted line read by hand, 0
+invented feelings; no shown line speaks of "they" without "you"; app-fixed sections not higher than before.
+Pass -> ship both. Fail -> owner.
+
+### Round 23 result (2026-10-16, replay): G1 passes; G2 misses on app-fixed sections only
+- Daily (587 attempts of round 22): 1 verdict changes (sickday: "You feel drained and uncomfortable, with many ups and
+  downs." now kept; "ups" no longer counts as "upset"); no invented feeling. Fallback unchanged.
+- Weekly: lines that speak of "they" without "you": 61 -> 0 (round 16's 100 digests), 18 -> 0 (round 18's 40). App-fixed
+  sections 49 -> 88 of 600 (8% -> 15%) and 39 -> 43 of 240 (16% -> 18%): under the interim's 25%, but higher, so G2
+  as written misses. Cause found: W3's own guide says "what that moment seems to show they need", and the model
+  copies "they"; a "you" wording needs a model round. To the owner.
+
+## Round 24: W5 = W3 with "you" instead of "they" in the prompt (plan fixed BEFORE running, 2026-10-16)
+Owner shipped round 23 and asked for the wording fix. **Change, nothing else**: in `system_digest_d3.txt` and
+WeeklyDigestD3's guides, "seems to show they need" -> "seems to show you need", "what that might mean for them" ->
+"for you", "why it matters to them" -> "to you" (`system_digest_d5.txt`, `WeeklyDigestD5`). Guard = round 23's.
+**Cases**: round 15's 10 weeks + round 17's 5 held-out weeks, N = 10. **Gates**: G1 app-fixed sections no higher
+than W3's before round 23 (8% original, 16% held-out); G2 blind invented-section rate not above W3's (9.5% original,
+7.9% held-out; round 16/18 scorer prompt), 3 scorers. Pass -> W5 replaces W3 in the app. Fail -> W3 stays.
+
+### Round 24 result (2026-10-16, W5, 15 weeks x 10, blind-scored by 3 scorers): both gates missed by about a point
+| | app-fixed | sections invented | swap | useful-and-clean / section |
+|---|---|---|---|---|
+| W3 + round-23 guard (shipped), original weeks | 15% | (not re-scored) | | |
+| W3 (round 16 / 18 scores), original / held-out | 8% / 16% | 9.5% / 7.9% | 7 / 10 | 0.25 / 0.20 |
+| **W5, original / held-out** | **9% / 12%** | **6.3% / 8.8%** | 4 / 1 | 0.26 / 0.27 |
+
+- G1: 9% vs the 8% bar on the original weeks (missed by 1 point); held-out 12% vs 16% (met).
+- G2: original weeks 6.3% vs 9.5% (better); held-out 8.8% vs 7.9% (worse by 0.9 points). ho_move refused 10/10 again.
+- Against what ships today (W3 + round-23 guard, 15% app-fixed), W5 cuts app-written sections by about 40%.
+Goes to the owner.
+
+## Round 25: names stay with their entry, on W5 (plan fixed BEFORE replaying, 2026-10-16)
+Owner, after the Mac app check showed "Talk to Tara about … working from Mom's place" (the request was to Deepa):
+fix the mixed-up people. **Change**: round 17's rule 2 alone, added to round 23's `FMDigestGuard` line check: for every
+name a weekly line mentions (`FMDailyGuard.personNames`), at least 60% of the line's other content words must appear
+in one entry that names that person. Round 17's other rules (timing words, quoted-entry-only feelings) stay out.
+**Method**: replay, no new model runs: round 24's 140 W5 digests (all attempts) judged by the shipped guard and by the
+guard with the rule. **Gates**: G1 every newly dropped line listed and read by hand: the rule removes the Tara/Deepa
+kind of swap and drops no more than 5 correct lines; G2 app-fixed sections rise by at most 3 points (9% -> <= 12%
+original, 12% -> <= 15% held-out); G3 no newly shown line contains a swap. Pass -> ship. Fail -> owner.
+**Round 25 replay 1 (the rule as planned): G2 fails** (app-fixed 9% -> 24% original, 12% -> 20% held-out). It does turn
+"Talk to Tara about working from Mom's place" into "Talk to Deepa about …", but drops many right lines ("Talk to Sam
+about the night feeds": only half its words are in Sam's entry). **Replay 2, narrower rule (fixed before running)**:
+drop a line only when, for a name it mentions, one entry naming a *different* person holds >= 60% of the line's content
+words while the entries naming that person hold < 40% (the swap: another person's matter given to this one). A line
+about a name and an unnamed matter ("Talk to Malik about the final exam") stays. Same gates.
+**Replay 2 result:** G2 passes (9% -> 12% original, 12% -> 12% held-out). G1: of 10 "Talk to Tara about … Mom's place"
+lines, 8 are now dropped or became "Talk to Deepa about …"; "Talk to Farah about the climbing session with Sam" (2) and
+"Talk to Priyanka about the Spanish course" (10, an invented pairing: Priyanka is only in the dinner entry) dropped too;
+no correct line lost. G3 misses on 2 newly shown lines that still pair Tara with the wrong matter ("…about the audit
+and the possibility of working from Mom's place", where the audit is in Tara's entry; "…about the list you keep").
+Goes to the owner.
+Owner shipped replay 2's rule (2026-10-16). Note: the iOS simulator's name tagger finds no names, so the rule is inert
+there (tests skip); it works on the Mac (replay) and on iPhone (round 13 tagged names on a 14 Pro).
+
+## Round 26: titles don't end a sentence (plan fixed BEFORE replaying, 2026-10-16)
+Round 25's first replay showed weekly lines cut to "Talk to Dr." (the guard's splitter ends a sentence at every ". "),
+and the app's own quote picker can drop the "Dr." the same way. **Change**: `FMDailyGuard.sentences` and
+`FMDigestGuard.quotableSentences` don't end a sentence after Dr., Mr., Mrs., Ms., Mx., Prof., St., Jr., Sr., vs.,
+e.g., i.e. (`FMDailyGuard.titleAbbreviations`). **Replay** on round 22's daily attempts and round 24's W5 digests:
+G1 every changed verdict listed; no line or quote ends in a title; no other change.
+**Round 26 result (replay):** daily 0/587 attempts change; weekly: 3 shown "Talk to Dr." lines become "Talk to Dr. Okafor
+about the grant deadline." (and similar), no other section changes, app-fixed sections unchanged (73 / 29). Ships.
+
+## Round 27: whole-sentence quotes for the digest and Ask evidence (plan fixed BEFORE running, 2026-10-17)
+Pre-release audit (3.1.3, commit 28f30e7): `FMDailyGuard.locate` accepts any 4+ word substring, so "I don't think I
+want to quit my job" can be shown as "I want to quit my job". **Change**: `FMDailyGuard.locateSentence` widens a match to
+the whole sentence it sits in (the clause it starts in when the sentence is too long; nil if even that can't hold the
+match). Used by `FMDigestGuard` (quotes) and Ask's evidence quotes. The daily reflection's `locate`/`verify` are
+unchanged. Expected side effect: two fragments of one sentence now collide in `distinct()`, so more digest sections may
+be app-filled.
+**Method**: no saved round 21/24 outputs exist on this Mac, so new model runs, then a replay of old vs new guard on the
+same outputs. (1) Fresh dumps (`test_dumpDigestPromptsForRig`, `test_dumpAskPromptsForRig`). (2) `fmrig digest_d5`
+(shipped W5) on round 24's 15 weeks (10 original + 5 held-out), N = 10, temperature 0.45, always 3 attempts per run
+(`FMRIG_ALL_ATTEMPTS=1`, rig-only) so both guards see the same drafts. `fmrig ask_quotes` (shipped round 21 path) on
+round 20's 20 Ask questions, N = 5, its user message = the Ask prompt + "\n\nAnswer given: <answer>" with the answer
+from one fresh `fmrig ask_a1` run per question (round 21's method). (3) Replay: digest with `replay23` built against the 2e34a09 guards and against
+28f30e7's; Ask quotes with `locate` vs `locateSentence`. Outputs kept outside git for later replays.
+**Gates**: G1 digest app-fixed sections rise by at most 3 points (round 25's tolerance), original and held-out weeks
+separately. G2 every shown quote that changes is listed; each new quote is a whole sentence (or clause) of one entry,
+verbatim (script), and none changes the meaning of what was written (read by hand); 0 newly shown fragments that flip
+meaning. G3 Ask: runs with no located quote (app quote fallback) rise by at most 3 points; every changed quote listed,
+whole sentence, verbatim. Pass -> keep. Fail on a caller -> that caller goes back to `locate`; owner.
+**Round 27, Ask replay 1 (2026-10-17): G3 fails.** 100 ask_quotes runs: no located quote 35% -> 40% (+5 points, bar
++3). All 5 lost runs are one question (mo_runon_breakup_q0), where the model quoted three whole sentences: too long to
+show whole, and `locateSentence` drops a quote whose shown cut doesn't reach the end of the pick. The other 10 changed
+runs widen a fragment to its sentence as intended ("I woke up panicking because it was so quiet." -> "Ava slept four
+hours in a row last night and I woke up panicking because it was so quiet."). **Replay 2, revised rule (fixed before
+replaying)**: when the pick runs past the longest quote shown, the sentences that fit are shown whenever the cut ends at a
+sentence end and starts at the pick's own sentence (whole sentences, verbatim, containing the start of the pick). Same
+gates, both callers.
+**Ask replay 2 result: G3 passes.** No located quote 35% -> 35%; 10 runs change, all a fragment widened to its whole
+sentence, verbatim, meaning kept (the two above; "the whole afternoon lost to the migration bug." -> "ok so today:
+dentist at 9, standup, then the whole afternoon lost to the migration bug.").
+### Round 27 result (2026-10-17, W5, 15 weeks x 10, every attempt kept; replayed old vs new guard): passes; ships
+- ho_move refused 10/10 again ("May contain sensitive content"), as in round 24; 140 digests replayed.
+- **G1** app-fixed sections: original weeks 10.8% -> 11.0% (65 -> 66 of 600), held-out 12.1% -> 12.1% (29 of 240).
+- **G2** 13 digests change. 10 (ho_newparent) widen "I woke up panicking because it was so quiet." to "Ava slept four
+  hours in a row last night and I woke up panicking because it was so quiet." (more context, same meaning). wk_runon #2:
+  a fragment that ran across two run-on sentences becomes the whole first sentence; the watch section then shares it
+  and is app-filled (the +1 above). Two wk_runon quotes became "- still need to find a gift": a list line's marker is
+  now dropped (`locateSentence`), after which 11 digests change and both read "still need to find a gift" as before.
+  No newly shown quote changes the meaning of what was written. Gates unchanged by the marker fix; Ask unchanged (35 -> 35).
+- Outputs kept outside git, synthetic only, in `~/mirror-rig-outputs/round27/` (digest.jsonl with every attempt,
+  ask_a1.jsonl, ask_quotes.jsonl, the dumps and gates.py), so later guard changes can be replayed on them.
+Not measured: `groundedNudgeQuoteCandidates` no longer splitting after a title (the app's own quote picker; round 26's
+rule, applied there in 28f30e7).

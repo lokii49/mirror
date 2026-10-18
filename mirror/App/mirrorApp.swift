@@ -20,6 +20,19 @@ struct mirrorApp: App {
     // Foreground proactive generation task — cancelled immediately when app backgrounds
     // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
+
+    /// Starts `work` once a cancelled `previous` pass has finished. Coming back to the app cancels
+    /// the running pre-generation and starts another; the cancelled one still holds its
+    /// `InsightGenerationCoordinator` claim until it unwinds, so the new pass found the key taken
+    /// and gave up, and nothing generated until the next activation (backlog A14; on Mac every app
+    /// switch is an activation).
+    static func afterCancelling(_ previous: Task<Void, Never>?, priority: TaskPriority = .background, _ work: @escaping @Sendable () async -> Void) -> Task<Void, Never> {
+        Task(priority: priority) {
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            await work()
+        }
+    }
     // The one-time regrade of old digests/reports; cancelled on background like the task above.
     nonisolated(unsafe) static var regradeTask: Task<Void, Never>?
 
@@ -38,12 +51,16 @@ struct mirrorApp: App {
         Purchases.logLevel = .debug
         #endif
         Purchases.configure(withAPIKey: "appl_OcfOuFibRNCALKDBSbAslQwJKQT")
+        // Create it now, not on first use: its init writes the widgets' tier key, which has to
+        // land before the app-active pass reloads the widget timelines.
+        _ = SubscriptionService.shared
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         NotificationService.registerCategories()
         registerNightlyInsightsTask()
         configureNavigationBarAppearance()
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
+            WidgetSaveRefresher.shared.start(container: sharedModelContainer)
         }
         // Re-attach to a search-model download still running in its background session, so it
         // installs when it finishes even if Ask and Settings are never opened this launch.
@@ -75,6 +92,13 @@ struct mirrorApp: App {
         // `--perfSeed=N`: fill the synthetic scratch store once (PerfSeed.swift). Before first frame.
         if PerfSeed.isRequested {
             PerfSignpost.interval("perfSeed") { PerfSeed.seedIfNeeded(into: sharedModelContainer.mainContext) }
+            // App Store screenshots: `--seedStoreDemo=<code>` with `--perfSeed=0` (StoreDemoSeed.swift).
+            if let code = StoreDemoSeed.requestedLanguage {
+                StoreDemoSeed.seed(into: sharedModelContainer.mainContext, code: code)
+            }
+            if FMInsightProbe.isRequested {
+                Task { @MainActor in await FMInsightProbe.run() }
+            }
             if GemmaMemoryProbe.isRequested {
                 Task { @MainActor in await GemmaMemoryProbe.run() }
             } else if PerfSeed.draftRecoveryPhase != nil {
@@ -187,6 +211,8 @@ struct mirrorApp: App {
         if ProcessInfo.processInfo.arguments.contains("--clearWriteTestState") {
             WriteView.clearAllDraftStorage()
             SampleData.clear(from: sharedModelContainer.mainContext)
+            // The first checkbox tap asks about automatic sorting; tests start before that.
+            UserDefaults.standard.removeObject(forKey: ChecklistSorting.storageKey)
         }
         // Design-review capture for MirrorNotificationContentExtension: fires the real
         // "ready" nudge notification (matching category, App Group mood) a few seconds
@@ -194,7 +220,7 @@ struct mirrorApp: App {
         // Content Extension. Scratch-device only, DEBUG only — delete once screenshots
         // are captured, this is not a regression test fixture.
         if ProcessInfo.processInfo.arguments.contains("--scheduleTestNudge") {
-            let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+            let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
             let today = DateHelpers.dayIdentifier(for: Date())
             defaults?.set(today, forKey: "widget.nudge.date")
             defaults?.set("Content", forKey: "widget.nudge.mood")
@@ -345,21 +371,26 @@ struct mirrorApp: App {
                 }
                 // Proactively generate so content is ready before user opens Insights tab.
                 // Store task so we can cancel it immediately if the app backgrounds.
-                mirrorApp.activeGenerationTask?.cancel()
+                let previousGeneration = mirrorApp.activeGenerationTask
+                previousGeneration?.cancel()
                 // Not in perf runs: it loads the model and can post a "reflection ready" notification.
                 if !perfRun {
-                    mirrorApp.activeGenerationTask = Task(priority: .background) {
+                    mirrorApp.activeGenerationTask = mirrorApp.afterCancelling(previousGeneration) {
                         await PerfSignpost.interval("active.preGenerateInsights") { await preGenerateInsightsIfNeeded() }
                     }
+                } else {
+                    mirrorApp.activeGenerationTask = nil
                 }
             case .background:
                 // Cancel any foreground GPU generation immediately — LocalLLMService will
                 // stop at the next Task.checkCancellation() and the nightly BGProcessingTask
                 // will retry on CPU.
+                // Cancelled but kept: the next .active pass waits for it to unwind and release its
+                // claim (A14). Home and back is the common way back in on iPhone.
                 mirrorApp.activeGenerationTask?.cancel()
-                mirrorApp.activeGenerationTask = nil
                 mirrorApp.regradeTask?.cancel()
                 mirrorApp.regradeTask = nil
+                WidgetSaveRefresher.shared.flushNow()
                 scheduleDailyNudgeFallback()
                 generateDailyNudgeInBackgroundIfNeeded()
                 scheduleNightlyInsights()
@@ -377,17 +408,11 @@ struct mirrorApp: App {
                 break
             }
         }
-        // Keep BGAppRefreshTask as a lightweight fallback for weekly digest on devices
-        // that don't charge overnight (power requirement not met for nightly task).
+        // One app refresh for everything the nightly task does, for devices that don't charge
+        // overnight (the nightly BGProcessingTask needs power): see runDailyNudgeFallback.
         #if os(iOS)
-        .backgroundTask(.appRefresh("com.lokesh.mirror.weeklyDigest")) {
-            await runWeeklyDigestFallback()
-        }
         .backgroundTask(.appRefresh("com.lokesh.mirror.dailyNudge")) {
             await runDailyNudgeFallback()
-        }
-        .backgroundTask(.appRefresh("com.lokesh.mirror.monthlyReport")) {
-            await runMonthlyReportFallback()
         }
         #endif
 
@@ -508,14 +533,16 @@ struct mirrorApp: App {
         #endif
     }
 
-    private func next3AM() -> Date {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+    private func next3AM() -> Date { Self.next3AM(after: Date()) }
+
+    /// Earliest start for the nightly processing task: 3 AM today, or tomorrow once that's passed.
+    static func next3AM(after now: Date, calendar: Calendar = .current) -> Date {
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = 3
         components.minute = 0
         components.second = 0
-        guard var target = calendar.date(from: components) else { return Date() }
-        if target <= Date() {
+        guard var target = calendar.date(from: components) else { return now }
+        if target <= now {
             target = calendar.date(byAdding: .day, value: 1, to: target) ?? target
         }
         return target
@@ -548,7 +575,7 @@ struct mirrorApp: App {
         if DateHelpers.isSunday() {
             await runWeeklyDigestIfNeeded(context: context)
         }
-        // Monthly report: generate once 20+ entries exist (Deep only)
+        // Monthly report (Deep only): last 7 days of the month, 10+ entries (the runner's gates)
         await runMonthlyReportIfNeeded(context: context)
         // Fill in moods the save-time auto-detect missed, then check alerts
         await backfillMissingMoodsIfNeeded(context: context)
@@ -571,6 +598,8 @@ struct mirrorApp: App {
         // same reason syncNudgeToWidget exists.
         WidgetBridge.syncWeeklyDigest(from: context)
         WidgetBridge.syncMonthlyReport(from: context)
+        // An erase on another device leaves this one's widget text otherwise.
+        WidgetBridge.clearIfJournalEmpty(context: context)
 
         // Update the daily nudge notification to reflect current state.
         // Content resets on every app open so the message matches today's context.
@@ -591,7 +620,7 @@ struct mirrorApp: App {
         if DateHelpers.isSunday() {
             await mirrorApp.runWeeklyDigestIfNeeded(context: context)
         }
-        // Monthly report: generate as soon as 20+ entries exist, not only on the 1st.
+        // Monthly report (Deep only): last 7 days of the month, 10+ entries (the runner's gates).
         await mirrorApp.runMonthlyReportIfNeeded(context: context)
         // Fill in moods the save-time auto-detect missed, then check alerts
         await mirrorApp.backfillMissingMoodsIfNeeded(context: context)
@@ -658,9 +687,10 @@ struct mirrorApp: App {
         // entirely when the next day's writing came first. Only today's entries are fetched
         // (and decrypted) for that check.
         var isExtraReflection = false
-        if let newestToday = todayInsights
+        let newestTodayNudge = todayInsights
             .filter({ $0.type == .dailyNudge })
-            .max(by: { $0.generatedAt < $1.generatedAt }),
+            .max(by: { $0.generatedAt < $1.generatedAt })
+        if let newestToday = newestTodayNudge,
            !InsightService.isUngroundedFallback(newestToday.content) {
             guard anotherReflectionAllowed(after: newestToday, context: context) else {
                 #if DEBUG
@@ -689,6 +719,13 @@ struct mirrorApp: App {
         guard entries.count >= 3 else {
             #if DEBUG
             print("[nudge] blocked: entries<3")
+            #endif
+            return
+        }
+        // The reflection is saved encrypted: don't generate one that would be stored in plaintext.
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else {
+            #if DEBUG
+            print("[nudge] blocked: key-unavailable")
             #endif
             return
         }
@@ -724,6 +761,22 @@ struct mirrorApp: App {
                 #endif
                 return
             }
+        }
+
+        // Today's newest is a fallback: retry automatically only once what it reads has changed.
+        let retrySignature = InsightService.fallbackRetrySignature(
+            day: today, recent: InsightService.dailyNudgeContext(from: entries, asOf: Date()).recent
+        )
+        guard InsightService.allowsRetryAfterFallback(
+            newestTodayIsFallback: newestTodayNudge.map { InsightService.isUngroundedFallback($0.content) } ?? false,
+            storedSignature: UserDefaults.standard.string(forKey: fallbackRetrySignatureKey),
+            signature: retrySignature,
+            userInitiatedRetry: userInitiatedRetry
+        ) else {
+            #if DEBUG
+            print("[nudge] blocked: fallback-unchanged-writing")
+            #endif
+            return
         }
 
         // Respect the user's preferred nudge time so a full day of writing informs the reflection.
@@ -793,6 +846,11 @@ struct mirrorApp: App {
             let insight = Insight(type: .dailyNudge, content: text, periodIdentifier: today, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
+            if InsightService.isUngroundedFallback(text) {
+                UserDefaults.standard.set(retrySignature, forKey: fallbackRetrySignatureKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: fallbackRetrySignatureKey)
+            }
             // Real device case (2026-09-20): the widget has no groundingFallback UI like the
             // in-app card does — it just renders whatever string it's handed. Writing `text`
             // unconditionally put the canned "couldn't confirm this reflection" sentence on the
@@ -801,7 +859,7 @@ struct mirrorApp: App {
             // real nudge it last had (or nothing), same as the in-app UI never overwrites a real
             // card with a fallback in place.
             if !InsightService.isUngroundedFallback(text) {
-                let wDefaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+                let wDefaults = UserDefaults(suiteName: WidgetShared.appGroupID)
                 wDefaults?.set(InsightService.nudgeTextForOutsideApp(text), forKey: "widget.nudge.text")
                 wDefaults?.set(today, forKey: "widget.nudge.date")
                 // The day it's about (the newest readable entry's), so the widget can keep an
@@ -891,7 +949,7 @@ struct mirrorApp: App {
 
     @MainActor
     static func runWeeklyDigestIfNeeded(context: ModelContext) async {
-        let thisWeek = DateHelpers.digestWeekIdentifier(for: Date())
+        let thisWeek = DateHelpers.digestWeekIdentifier(for: DateHelpers.now())
         let coordinatorKey = "digest_\(thisWeek)"
 
         let descriptor = FetchDescriptor<Insight>(
@@ -919,17 +977,21 @@ struct mirrorApp: App {
         // (24h cooldown elapsed AND newer entries since), else nothing to do.
         if let cached = cachedDigest {
             guard InsightService.weeklyDigestIsStale(
-                generatedAt: cached.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cached.generatedAt, .weeklyDigest, period: thisWeek),
                 newestWeekEntry: weekEntries.first?.createdAt  // entries are sorted newest-first
             ) else { return }
         }
 
-        guard modelAvailable() else { return }
+        guard modelAvailable(), MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
             let (text, engine) = try await InsightService.generateWeeklyDigest(weekEntries: weekEntries, allEntries: entries)
+            if InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cachedDigest?.content) {
+                InsightService.recordKeptRealRow(.weeklyDigest, period: thisWeek)
+                return
+            }
             let insight = Insight(type: .weeklyDigest, content: text, periodIdentifier: thisWeek, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
@@ -944,7 +1006,10 @@ struct mirrorApp: App {
 
     @MainActor
     static func runMonthlyReportIfNeeded(context: ModelContext) async {
-        let thisMonth = DateHelpers.monthIdentifier(for: Date())
+        // Cheap gates first: this runs on every app refresh, and everything below fetches and
+        // decrypts the whole journal.
+        guard DateHelpers.isInLastWeekOfMonth(), SubscriptionService.shared.isDeep else { return }
+        let thisMonth = DateHelpers.monthIdentifier(for: DateHelpers.now())
         let coordinatorKey = "monthlyReport_\(thisMonth)"
 
         let descriptor = FetchDescriptor<Insight>(
@@ -971,34 +1036,43 @@ struct mirrorApp: App {
         // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
         let allEntries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         let cal = Calendar.current
-        let now = Date()
+        let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let monthEntries = allEntries.filter { $0.createdAt >= monthStart }
 
         if let cachedReport {
             guard InsightService.weeklyDigestIsStale(
-                generatedAt: cachedReport.generatedAt,
+                generatedAt: InsightService.stalenessBaseline(cachedAt: cachedReport.generatedAt, .monthlyReport, period: thisMonth),
                 newestWeekEntry: monthEntries.first?.createdAt  // entries are sorted newest-first
             ) else { return }
         }
 
         // Same last-week-of-month gate as InsightViewModel.loadMonthlyReport (see its comment) —
         // this background pass must not generate early just because entries happen to be there.
-        guard DateHelpers.isInLastWeekOfMonth(now),
-              monthEntries.count >= InsightService.monthlyReportMinimumEntries,
-              SubscriptionService.shared.isDeep else { return }
-        guard modelAvailable() else { return }
+        guard monthlyReportIsDue(now: now, monthEntryCount: monthEntries.count, isDeep: SubscriptionService.shared.isDeep) else { return }
+        guard modelAvailable(), MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return }
         guard InsightGenerationCoordinator.shared.claim(key: coordinatorKey) else { return }
         defer { InsightGenerationCoordinator.shared.release(key: coordinatorKey) }
 
         do {
             let (text, engine) = try await InsightService.generateMonthlyReport(monthEntries: monthEntries, allEntries: allEntries)
+            if InsightService.keepsRealRowOverFallback(newText: text, cachedContent: cachedReport?.content) {
+                InsightService.recordKeptRealRow(.monthlyReport, period: thisMonth)
+                return
+            }
             let insight = Insight(type: .monthlyReport, content: text, periodIdentifier: thisMonth, generatedByEngine: engine)
             context.insert(insight)
             try context.save()
             WidgetBridge.syncMonthlyReport(from: context)
             await NotificationService.scheduleMonthlyReportReminder()
         } catch { /* Non-fatal */ }
+    }
+
+    /// The monthly report's gate before any model work: Deep, the last 7 days of the month, and
+    /// at least `monthlyReportMinimumEntries` entries this month. Pure, so tests can reach it
+    /// without a model.
+    static func monthlyReportIsDue(now: Date, monthEntryCount: Int, isDeep: Bool) -> Bool {
+        isDeep && DateHelpers.isInLastWeekOfMonth(now) && monthEntryCount >= InsightService.monthlyReportMinimumEntries
     }
 
     // MARK: - Model availability
@@ -1020,6 +1094,8 @@ struct mirrorApp: App {
     /// When a second same-day reflection last came back as the fallback (see
     /// InsightService.allowsAnotherReflectionToday). Per device, like the other generation state.
     static let extraReflectionFailedAttemptKey = "mirror.nudge.extraReflectionFailedAttempt"
+    /// `InsightService.fallbackRetrySignature` of the writing today's fallback reflection read.
+    static let fallbackRetrySignatureKey = "mirror.nudge.fallbackRetrySignature"
 
     // MARK: - Mood backfill
     //
@@ -1091,16 +1167,28 @@ struct mirrorApp: App {
     private func runDailyNudgeFallback() async {
         // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
         guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
+        // Re-arm first: once the task's time runs out, nothing after this point runs.
         scheduleDailyNudgeFallback()
+        let context = sharedModelContainer.mainContext
+        // The digest and report ride on this refresh. Separate weekly and monthly refresh
+        // requests were never submitted before 3.1.2, and when they were, they didn't stay
+        // pending next to this one on device (2026-10-10). They go first: each is due rarely
+        // and returns at once when it isn't, while the nudge has other triggers (app-active,
+        // the nightly task) and a refresh window fits about one generation.
+        if DateHelpers.isSunday() {
+            await mirrorApp.runWeeklyDigestIfNeeded(context: context)
+            guard !Task.isCancelled else { return }
+        }
+        await mirrorApp.runMonthlyReportIfNeeded(context: context)
+        guard !Task.isCancelled else { return }
+        await mirrorApp.runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
     }
 
     private func scheduleDailyNudgeFallback() {
         #if os(iOS)
         let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.dailyNudge")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 10 * 60)
-        try? BGTaskScheduler.shared.submit(request)
+        Self.submitRefresh(request)
         #endif
     }
 
@@ -1127,80 +1215,20 @@ struct mirrorApp: App {
         }
     }
 
-    // MARK: - BGAppRefreshTask fallback for weekly digest
-
-    @MainActor
-    private func runWeeklyDigestFallback() async {
-        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
-        guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runWeeklyDigestIfNeeded(context: context)
-        scheduleWeeklyDigestFallback()
-    }
-
-    private func scheduleWeeklyDigestFallback() {
-        #if os(iOS)
-        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.weeklyDigest")
-        request.earliestBeginDate = nextSunday7AM()
-        try? BGTaskScheduler.shared.submit(request)
-        #endif
-    }
-
-    // MARK: - Monthly report BGAppRefreshTask (fallback for 1st of month)
-
-    @MainActor
-    private func runMonthlyReportFallback() async {
-        // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
-        guard MirrorModelContainer.isStoreAvailable else { return }
-        let context = sharedModelContainer.mainContext
-        await mirrorApp.runMonthlyReportIfNeeded(context: context)
-        scheduleMonthlyReportFallback()
-    }
-
-    private func scheduleMonthlyReportFallback() {
-        #if os(iOS)
-        let request = BGAppRefreshTaskRequest(identifier: "com.lokesh.mirror.monthlyReport")
-        request.earliestBeginDate = lastDayOfCurrentMonth9PM()
-        try? BGTaskScheduler.shared.submit(request)
-        #endif
-    }
-
-    private func lastDayOfCurrentMonth9PM() -> Date {
-        let cal = Calendar.current
-        let now = Date()
-        // Last day of current month = first day of next month minus 1 day
-        guard let nextMonthAny = cal.date(byAdding: .month, value: 1, to: now),
-              let nextMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: nextMonthAny)),
-              let lastDay = cal.date(byAdding: .day, value: -1, to: nextMonthStart) else { return now }
-        var comps = cal.dateComponents([.year, .month, .day], from: lastDay)
-        comps.hour = 21; comps.minute = 0; comps.second = 0
-        guard var target = cal.date(from: comps) else { return now }
-        if target <= now {
-            // Already past end of this month — target last day of next month
-            guard let twoMonthsAny = cal.date(byAdding: .month, value: 2, to: now),
-                  let twoMonthsStart = cal.date(from: cal.dateComponents([.year, .month], from: twoMonthsAny)),
-                  let nextLastDay = cal.date(byAdding: .day, value: -1, to: twoMonthsStart) else { return target }
-            var nextComps = cal.dateComponents([.year, .month, .day], from: nextLastDay)
-            nextComps.hour = 21; nextComps.minute = 0; nextComps.second = 0
-            target = cal.date(from: nextComps) ?? target
+    #if os(iOS)
+    private static func submitRefresh(_ request: BGTaskRequest) {
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
+            print("[bg] submitted \(request.identifier)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[bg] submit failed \(request.identifier): \(error)")
+            #endif
         }
-        return target
     }
-
-    private func nextSunday7AM() -> Date {
-        let calendar = Calendar.current
-        let now = Date()
-        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
-        components.weekday = 1
-        components.hour = 7
-        components.minute = 0
-        components.second = 0
-        guard var next = calendar.date(from: components) else { return now }
-        if next <= now {
-            next = calendar.date(byAdding: .weekOfYear, value: 1, to: next) ?? next
-        }
-        return next
-    }
+    #endif
 
     // MARK: - Widget data bridge
 
@@ -1230,7 +1258,7 @@ struct mirrorApp: App {
             moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
-        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         defaults?.set(try? JSONEncoder().encode(countByDay), forKey: "widget.entries.heatmap")
         defaults?.set(try? JSONEncoder().encode(moodByDay),  forKey: "widget.mood.heatmap")
 
@@ -1276,11 +1304,22 @@ struct mirrorApp: App {
         // this function (CachedInsightRepair, UngroundedInsightCleanup, preGenerateInsightsIfNeeded)
         // could otherwise push that text to the widget even when the in-app card correctly shows
         // the retry state instead.
-        guard let insights = try? context.fetch(descriptor),
-              let nudge = insights
-                  .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
-                  .max(by: { $0.generatedAt < $1.generatedAt }) else { return }
-        let defaults = UserDefaults(suiteName: "group.com.lokesh.mirror")
+        guard let insights = try? context.fetch(descriptor) else { return }
+        let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
+        guard let nudge = insights
+            .filter({ $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) })
+            .max(by: { $0.generatedAt < $1.generatedAt }) else {
+            // Today has only fallbacks, yet the widget holds a line from today: it was today's
+            // reflection until `UngroundedInsightCleanup` turned it into a fallback. Clear it. A line
+            // from an earlier day stays (the next-morning widget keeps it until new writing).
+            if insights.contains(where: { $0.type == .dailyNudge }),
+               defaults?.string(forKey: "widget.nudge.date") == today {
+                ["widget.nudge.text", "widget.nudge.date", "widget.nudge.aboutDate", "widget.nudge.mood"]
+                    .forEach { defaults?.removeObject(forKey: $0) }
+                WidgetCenter.shared.reloadTimelines(ofKind: "MirrorNudgeWidget")
+            }
+            return
+        }
         defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
@@ -1324,7 +1363,8 @@ struct mirrorApp: App {
     /// granted, when nothing would otherwise have been scheduled.
     private func reArmUserReminders() async {
         let d = UserDefaults.standard
-        // `moodCheckInEnabled` defaults to true — treat a missing value as on.
+        // `moodCheckInEnabled` defaults to true, so a missing value is on: users from before
+        // 2026-10-16 keep it. Onboarding writes false for new users before asking permission.
         let enabled = (d.object(forKey: "moodCheckInEnabled") as? Bool) ?? true
         guard enabled else { return }
         await NotificationService.scheduleMoodCheckIn(
@@ -1341,9 +1381,8 @@ struct mirrorApp: App {
         // *before* the first nudge generates, or scheduleFirstNudgeHook's isAuthorized() check
         // silently no-ops and, since the Insight it would have announced is already saved by
         // then, never gets a second chance (hasSeenFirst locks out that path for non-subscribers
-        // for good). This backfill (originally added for users who onboarded before a permission
-        // prompt existed at all) is now the ONLY place permission is requested — OnboardingFlow
-        // no longer asks at Day 0.
+        // for good). Since 2026-10-16 OnboardingFlow asks on its reminder step, so this only
+        // reaches people who onboarded before that and were never asked.
         let context = sharedModelContainer.mainContext
         let entryCount = (try? context.fetchCount(FetchDescriptor<Entry>())) ?? 0
         guard entryCount >= 3 else { return }

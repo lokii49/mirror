@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import Charts
+import AppIntents
 
 private let moodHeatmapKey = "widget.mood.heatmap"
 
@@ -25,31 +26,55 @@ private let moodDayFormatter: DateFormatter = {
     return f
 }()
 
+// MARK: - Configuration
+
+/// How many days the chart covers, picked in Edit Widget. 14 is the default, so widgets placed
+/// before this option existed keep showing two weeks.
+enum MoodMapRange: Int, AppEnum {
+    case week = 7
+    case twoWeeks = 14
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Range"
+    static var caseDisplayRepresentations: [MoodMapRange: DisplayRepresentation] = [
+        .week: "7 days",
+        .twoWeeks: "14 days",
+    ]
+}
+
+struct MoodMapConfigurationIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Mood Map"
+    static var description = IntentDescription("Choose how many days the chart shows.")
+
+    @Parameter(title: "Range", default: .twoWeeks)
+    var range: MoodMapRange
+}
+
 // MARK: - Timeline
 
 struct MoodMapEntry: TimelineEntry {
     let date: Date
     let moodByDay: [String: String]
+    var days: Int = MoodMapRange.twoWeeks.rawValue
 }
 
-struct MoodMapProvider: TimelineProvider {
+struct MoodMapProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> MoodMapEntry {
         MoodMapEntry(date: .now, moodByDay: [:])
     }
-    func getSnapshot(in context: Context, completion: @escaping (MoodMapEntry) -> Void) {
-        completion(makeEntry())
+    func snapshot(for configuration: MoodMapConfigurationIntent, in context: Context) async -> MoodMapEntry {
+        makeEntry(days: configuration.range.rawValue)
     }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<MoodMapEntry>) -> Void) {
-        let entry = makeEntry()
+    func timeline(for configuration: MoodMapConfigurationIntent, in context: Context) async -> Timeline<MoodMapEntry> {
+        let entry = makeEntry(days: configuration.range.rawValue)
         let nextMidnight = Calendar.current.startOfDay(
             for: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
         )
-        completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
+        return Timeline(entries: [entry], policy: .after(nextMidnight))
     }
-    private func makeEntry() -> MoodMapEntry {
+    private func makeEntry(days: Int) -> MoodMapEntry {
         let data = UserDefaults(suiteName: WidgetShared.appGroupID)?.data(forKey: moodHeatmapKey)
         let moods = data.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
-        return MoodMapEntry(date: .now, moodByDay: moods)
+        return MoodMapEntry(date: .now, moodByDay: moods, days: days)
     }
 }
 
@@ -74,7 +99,7 @@ struct MoodMapWidgetView: View {
 
     private var points: [MoodPoint] {
         let today = Calendar.current.startOfDay(for: .now)
-        return (0..<14).reversed().compactMap { offset -> MoodPoint? in
+        return (0..<entry.days).reversed().compactMap { offset -> MoodPoint? in
             guard let day = Calendar.current.date(byAdding: .day, value: -offset, to: today) else { return nil }
             let key = moodDayFormatter.string(from: day)
             guard let mood = entry.moodByDay[key], let score = widgetMoodScore[mood] else { return nil }
@@ -194,7 +219,7 @@ struct MoodMapWidgetView: View {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(sentinel ? wEmber.opacity(0.5) : .white.opacity(0.35))
-                Text(sentinel ? "CORE · $2.99/MO" : "Core · $2.99/mo")
+                WidgetShared.lockedTierLabel(sentinel: sentinel)
                     .font(sentinel ? .system(size: 10, weight: .semibold, design: .monospaced) : .system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.45))
             }
@@ -235,11 +260,11 @@ struct MirrorMoodMapWidget: Widget {
     let kind = "MirrorMoodMapWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: MoodMapProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: MoodMapConfigurationIntent.self, provider: MoodMapProvider()) { entry in
             MoodMapWidgetView(entry: entry)
         }
         .configurationDisplayName("Mood Map")
-        .description("Your mood trend over the last 2 weeks.")
+        .description("Your mood trend over the last 7 or 14 days.")
         .supportedFamilies([.systemSmall])
     }
 }

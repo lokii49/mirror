@@ -59,20 +59,7 @@ private struct OnThisDayCard: View {
         entry.mood.map { MirrorTheme.moodColor(for: $0) } ?? MirrorTheme.primary
     }
 
-    private var snippet: String {
-        if entry.textDecryptionFailed { return "Encrypted entry unavailable" }
-        var raw = entry.text.isEmpty ? (entry.voiceNoteTranscript ?? "") : entry.text
-        for (range, _) in allPhotoTokens(in: raw).reversed() { raw.removeSubrange(range) }
-        let oneLine = raw
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        if !oneLine.isEmpty { return oneLine }
-        if entry.hasVoiceNotes { return "Voice note" }
-        if entry.hasPhoto { return "Photo entry" }
-        return "Untitled"
-    }
+    private var snippet: String { entry.previewSnippet }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -105,7 +92,7 @@ private struct OnThisDayCard: View {
             }
 
             Text(snippet)
-                .font(.system(size: 15, weight: .regular, design: .serif))
+                .readingFont(size: 15)
                 .foregroundStyle(MirrorTheme.textPrimary.opacity(0.9))
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)

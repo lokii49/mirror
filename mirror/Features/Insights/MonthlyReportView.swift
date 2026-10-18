@@ -114,6 +114,7 @@ struct MonthlyReportView: View {
                     .frame(width: 32, height: 32)
                     .background(canGoBack ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
+            .accessibilityLabel("Previous month")
             .buttonStyle(.plain)
             .disabled(!canGoBack)
             #if os(macOS)
@@ -157,6 +158,7 @@ struct MonthlyReportView: View {
                     .frame(width: 32, height: 32)
                     .background(canGoForward ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim) : Color.clear, in: Circle())
             }
+            .accessibilityLabel("Next month")
             .buttonStyle(.plain)
             .disabled(!canGoForward)
             #if os(macOS)
@@ -204,6 +206,9 @@ struct MonthlyReportView: View {
                 nightlyPendingCard
             case .modelNotInstalled:
                 ModelNotInstalledCard()
+            case .groundingFallback(let insight) where InsightService.isUnsupportedLanguageNotice(insight.content):
+                // Retrying can't help: say which languages work, with no "Try Again".
+                GroundingFallbackCard(title: "Reflections aren't available in this language yet", message: InsightService.unsupportedLanguageCardMessage(insight.content))
             case .groundingFallback(let insight):
                 groundingFallbackCard(message: insight.content) {
                     // Instant feedback — generation gives no progress callback of its
@@ -556,10 +561,9 @@ private struct MonthlyStatsStrip: View {
     }
 
     private var topMood: String? {
-        Dictionary(grouping: entries.compactMap(\.mood), by: { $0 })
-            .mapValues(\.count)
-            .max(by: { $0.value < $1.value })?
-            .key
+        MoodLog.dominantMood(entries.compactMap { entry in
+            entry.mood.map { MoodEvent(id: entry.id, date: entry.createdAt, mood: $0, origin: .entry) }
+        })
     }
 
     private var voiceCount: Int {
@@ -673,7 +677,7 @@ private struct MonthlyReportCard: View {
 
             if sections.isEmpty {
                 Text(insight.content)
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .readingFont(size: 16)
                     .lineSpacing(7)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .selectableUnlessSentinel(isSentinel)
@@ -710,7 +714,7 @@ private struct MonthlyReportCard: View {
             }
             if isQuestion {
                 Text(section.body)
-                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .readingFont(size: 17)
                     .italic()
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
@@ -718,7 +722,7 @@ private struct MonthlyReportCard: View {
                     .padding(.top, 2)
             } else {
                 Text(section.body)
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .readingFont(size: 16)
                     .lineSpacing(5)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .selectableUnlessSentinel(isSentinel)
@@ -742,7 +746,7 @@ private struct MonthlyReportCard: View {
                 }
             }
         }
-        return String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return InsightService.sectionBodyForDisplay(String(afterHeader[..<bodyEnd]).trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private func firstHeaderRange(in text: String, aliases: [String]) -> Range<String.Index>? {

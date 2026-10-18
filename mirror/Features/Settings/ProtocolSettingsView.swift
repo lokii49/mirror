@@ -30,6 +30,7 @@ struct ProtocolSettingsView: View {
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
     @AppStorage("transcriptionLanguage") private var transcriptionLanguage: String = ""
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw: String = ReflectionStyle.gentle.rawValue
+    @AppStorage(ChecklistSorting.storageKey) private var checklistSortingRaw = ""
     @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
     @State private var showSubscription = false
@@ -268,7 +269,19 @@ struct ProtocolSettingsView: View {
                             .padding(.leading, 44)
                             .padding(.top, -4)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                        Group {
+                            // "How this was generated" opens only from Sentinel on iPhone (and on Mac):
+                            // don't name it to Classic iPhone users, who can't reach it (backlog A18).
+                            #if os(iOS)
+                            if displayMode == .classic {
+                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are.")
+                            } else {
+                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                            }
+                            #else
+                            Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
+                            #endif
+                        }
                             .font(.system(size: 12))
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
@@ -278,6 +291,28 @@ struct ProtocolSettingsView: View {
                     .padding(.vertical, 2)
                 }
                 }
+
+                // The Mac editor never sorts checklists, so the setting would do nothing there.
+                #if os(iOS)
+                SettingsGroup(title: "Checklists") {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Toggle(isOn: Binding(
+                            get: { checklistSortingRaw == ChecklistSorting.on },
+                            set: { checklistSortingRaw = $0 ? ChecklistSorting.on : ChecklistSorting.off }
+                        )) {
+                            SettingsRowLabel(title: "Sort checked items", systemImage: "checklist.checked", iconColor: MirrorTheme.green)
+                        }
+                        .tint(MirrorTheme.primary)
+                        Text("Checked items move to the bottom of their list.")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .padding(.leading, 44)
+                            .padding(.top, -4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 2)
+                }
+                #endif
 
                 SettingsGroup(title: "Input") {
                     // SettingsRowLabel centers its 32pt icon against the title (correct, and

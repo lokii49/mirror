@@ -10,3 +10,6 @@ xcuserdata/
 
 # Coverage output from test runs
 *.profraw
+
+# Per-machine Claude Code settings
+.claude/settings.local.json

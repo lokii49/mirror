@@ -107,7 +107,7 @@ private struct PromptLockedView: View {
             Text(sentinel ? "TRANSMISSION" : "Writing Prompt")
                 .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            Text(sentinel ? "CORE · $2.99/MO" : "Core · $2.99/mo")
+            WidgetShared.lockedTierLabel(sentinel: sentinel)
                 .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
