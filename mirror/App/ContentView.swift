@@ -47,6 +47,8 @@ struct ContentView: View {
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
     @State private var showWhatsNew = false
+    /// The paid-plans notice on its own, for installs that never get it in What's New.
+    @State private var showPaidPlansNotice = false
     @State private var showRatePrompt = false
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
@@ -164,7 +166,7 @@ struct ContentView: View {
         ReviewRequestManager.canPresentPrompt(
             pending: reviewPromptCoordinator.isPending,
             alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
-            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn,
+            rootSheetUp: showPaywall || showWhatsNew || showPaidPlansNotice || showRatePrompt || showMoodCheckIn,
             childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
             onboardingComplete: onboardingComplete
         )
@@ -175,7 +177,7 @@ struct ContentView: View {
     /// in this session, `pending` simply carries to the next launch/tap.
     private var canPresentMoodCheckIn: Bool {
         moodCheckInPresenter.pending
-            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
+            && !showPaywall && !showWhatsNew && !showPaidPlansNotice && !showRatePrompt && !showMoodCheckIn
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
     }
@@ -293,10 +295,14 @@ struct ContentView: View {
             WhatsNewSheet(mode: .whatsNew)
                 .environment(\.appDisplayMode, displayMode)
         }
+        .sheet(isPresented: $showPaidPlansNotice) {
+            PaidPlansNoticeSheet()
+                .environment(\.appDisplayMode, displayMode)
+        }
         #if os(iOS)
         // Write focuses its editor on launch, and these sheets open over it a moment later: put the
         // keyboard away so it doesn't sit on top of the sheet (2026-10-09).
-        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
+        .onChange(of: showWhatsNew || showPaidPlansNotice || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
             if covered {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
@@ -370,6 +376,8 @@ struct ContentView: View {
                     try? await Task.sleep(nanoseconds: 800_000_000)
                     if featureCardService.shouldShowWhatsNew {
                         showWhatsNew = true
+                    } else if PaidPlansNotice.shouldShow() {
+                        showPaidPlansNotice = true
                     }
                 }
             }
@@ -397,6 +405,12 @@ struct ContentView: View {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     showWhatsNew = true
+                }
+            } else if onboardingComplete && !isUITesting && PaidPlansNotice.shouldShow() {
+                // Installed fresh (onboarding marked What's New seen) or What's New had no notice.
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    showPaidPlansNotice = true
                 }
             }
         }

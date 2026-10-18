@@ -262,4 +262,20 @@ struct TrashDraftsDuplicatesTests {
         #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.3", current: "1.1.4"))
     }
 
+
+    /// New installs never see What's New (onboarding marks it seen), so the notice shows on its
+    /// own until the cutover, once.
+    @Test func paidPlansNoticeShowsOnceBeforeTheCutover() {
+        let defaults = UserDefaults(suiteName: "TrashDraftsDuplicatesTests.notice")!
+        defaults.removePersistentDomain(forName: "TrashDraftsDuplicatesTests.notice")
+        let before = FeatureCardRegistry.paidPlansStart.addingTimeInterval(-86_400)
+        let after = FeatureCardRegistry.paidPlansStart.addingTimeInterval(86_400)
+        #expect(PaidPlansNotice.shouldShow(now: before, defaults: defaults, allFeaturesFree: true))
+        #expect(!PaidPlansNotice.shouldShow(now: after, defaults: defaults, allFeaturesFree: true))
+        #expect(!PaidPlansNotice.shouldShow(now: before, defaults: defaults, allFeaturesFree: false))
+        PaidPlansNotice.markSeen(defaults: defaults)
+        #expect(!PaidPlansNotice.shouldShow(now: before, defaults: defaults, allFeaturesFree: true))
+        #expect(PaidPlansNotice.card != nil)
+    }
+
 }
