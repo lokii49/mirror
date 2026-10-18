@@ -19,8 +19,9 @@ enum CloudKitSchemaSeed {
     /// 3.1.4: `entryID` of the seeded Recently Deleted rows (no real entry has it).
     static let seedTrashedEntryID = UUID(uuidString: "5EED7A54-0000-4000-8000-000000000314")!
 
-    /// `--removeCloudKitSchemaSeed`: deletes only what `run` added for 3.0.9 (the seed
-    /// entry, the "Schema seed" collection and saved view), matched by exact text/name.
+    /// `--removeCloudKitSchemaSeed`: deletes only what `run` added (the seed entry, the
+    /// "Schema seed" collection and saved view, and the 3.1.4 Recently Deleted rows with
+    /// `seedTrashedEntryID`), matched by exact text/name/id.
     /// Erase markers stay: they list random UUIDs only. Keep the app open ~2 minutes.
     @MainActor
     static func removeSeed(context: ModelContext) {
@@ -33,8 +34,8 @@ enum CloudKitSchemaSeed {
         collections.forEach(context.delete)
         views.forEach(context.delete)
         try? context.save()
-        NSLog("CloudKitSchemaSeed: removed %d seed entries, %d collections, %d saved views; keep the app open ~2 minutes so the deletions export",
-              entries.count, collections.count, views.count)
+        NSLog("CloudKitSchemaSeed: removed %d seed entries, %d collections, %d saved views, %d Recently Deleted rows; keep the app open ~2 minutes so the deletions export",
+              entries.count, collections.count, views.count, trashed.count)
     }
 
     @MainActor
