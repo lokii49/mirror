@@ -1,10 +1,9 @@
-Pensado para el iPhone Duo, y un nuevo Escribir
+Eliminados recientemente, Borradores y planes de pago desde el 15 de noviembre
 
-• iPhone Duo: al abrirlo del todo, la lista queda junto a la entrada que lees y Perspectivas se reparte en dos columnas. Medio plegado, las listas y lo que escribes quedan a los lados del pliegue. Al plegarlo o desplegarlo conservas lo que escribes y el historial para deshacer.
-• Escribir tiene una nueva barra de teclado y un nuevo panel Aa. Las listas de tareas también son más fáciles: toca un círculo para marcarlo, desliza para sangrar, arrastra para reordenar y lo completado puede bajar al final.
-• Pequeñas animaciones muestran lo que acaba de pasar: algo que guardar, un borrador guardado, tu objetivo diario de palabras cumplido.
-• Con Apple Intelligence, el Resumen semanal, el Informe mensual y Preguntar a Mirror citan ahora tus propias frases.
-• Perspectivas tiene encabezados con fecha y tarjetas más limpias. En iOS 18 o posterior, mantén pulsado un día en un gráfico de ánimo para ver lo que escribiste.
-• El Mapa mental agrupa tus palabras en temas.
-• El widget Mapa de ánimo puede mostrar 7 o 14 días.
-• En el iPad y en un iPhone Duo abierto, Ajustes se abre desde el botón de persona en Perspectivas.
+• Los planes de pago empiezan el 15 de noviembre. Desde entonces, la reflexión diaria, Preguntar a Mirror, el Resumen semanal, el Informe mensual, la línea de ánimo y los widgets necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
+• Eliminados recientemente: las entradas eliminadas esperan 30 días en todos tus dispositivos, y Deshacer recupera una al instante. Elige 7, 30 o 90 días en Ajustes.
+• Borradores: aparta una entrada, empieza otra y retómala después desde Escribir.
+• Elige una colección mientras escribes, o crea una nueva ahí mismo.
+• Selecciona varias entradas para moverlas a una colección o eliminarlas.
+• Duplicados encuentra las entradas guardadas dos veces y las combina. Guardar el mismo texto otra vez ahora pregunta antes.
+• Corregido: salir de Escribir justo después de teclear podía perder las últimas palabras.

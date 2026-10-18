@@ -1,10 +1,9 @@
-Pensato per iPhone Duo, e un nuovo Scrivi
+Eliminati di recente, Bozze e piani a pagamento dal 15 novembre
 
-• iPhone Duo: aperto del tutto, l'elenco sta accanto alla voce che leggi e Approfondimenti si divide in due colonne. Piegato a metà, elenchi e testo restano ai lati della piega. Piegandolo o aprendolo conservi il testo e la cronologia per annullare.
-• Scrivi ha una nuova barra della tastiera e un nuovo pannello Aa. Anche gli elenchi di controllo sono più semplici: tocca un cerchio per spuntarlo, scorri per rientrare, trascina per riordinare, e le voci completate possono scendere in fondo.
-• Piccole animazioni mostrano cosa è appena successo: qualcosa da salvare, una bozza salvata, il tuo obiettivo di parole del giorno raggiunto.
-• Con Apple Intelligence, Riepilogo settimanale, Report mensile e Chiedi a Mirror ora citano le tue frasi.
-• Approfondimenti ha intestazioni con la data e schede più pulite. Su iOS 18 e versioni successive, tieni premuto un giorno in un grafico dell'umore per vedere cosa hai scritto.
-• La Mappa mentale raggruppa le tue parole in argomenti.
-• Il widget Mappa dell'umore può mostrare 7 o 14 giorni.
-• Su iPad e su un iPhone Duo aperto, Impostazioni si apre dal pulsante persona in Approfondimenti.
+• I piani a pagamento iniziano il 15 novembre. Da allora, la riflessione quotidiana, Chiedi a Mirror, Riepilogo settimanale, Report mensile, la linea dell’umore e i widget richiedono Core o Deep. Scrivere, leggere, cercare e il backup su iCloud restano gratis, per sempre. I nuovi abbonati hanno 7 giorni di prova gratuita.
+• Eliminati di recente: le voci eliminate restano 30 giorni su tutti i tuoi dispositivi, e Annulla ne riporta subito una. Scegli 7, 30 o 90 giorni in Impostazioni.
+• Bozze: metti da parte una voce, iniziane un’altra e riprendila più tardi da Scrivi.
+• Scegli una raccolta mentre scrivi, o creane una nuova lì.
+• Seleziona più voci per spostarle in una raccolta o eliminarle.
+• Duplicati trova le voci salvate due volte e le unisce. Salvare di nuovo lo stesso testo ora chiede prima conferma.
+• Corretto: uscire da Scrivi subito dopo aver digitato poteva far perdere le ultime parole.

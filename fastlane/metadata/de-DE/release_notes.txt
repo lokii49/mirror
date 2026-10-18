@@ -1,10 +1,9 @@
-Fürs iPhone Duo gemacht – und ein neues Schreiben
+Zuletzt gelöscht, Entwürfe und Bezahlpläne ab 15. November
 
-• iPhone Duo: Aufgeklappt steht die Liste neben dem Eintrag, den du liest, und Einblicke verteilt sich auf zwei Spalten. Halb gefaltet bleiben Listen und Text neben dem Falz. Beim Auf- und Zuklappen bleiben dein Text und dein Widerrufen-Verlauf erhalten.
-• Schreiben hat eine neue Tastaturleiste und ein neues Aa-Feld. Auch Checklisten gehen leichter: Tippe auf einen Kreis, um ihn abzuhaken, wische zum Einrücken, ziehe zum Umsortieren, und Erledigtes kann nach unten wandern.
-• Kleine Animationen zeigen, was gerade passiert ist: etwas zum Sichern, ein gesicherter Entwurf, dein tägliches Wortziel erreicht.
-• Mit Apple Intelligence zitieren Wöchentliche Zusammenfassung, Monatsbericht und „Mirror fragen“ jetzt deine eigenen Sätze.
-• Einblicke hat Überschriften mit Datum und aufgeräumtere Karten. Ab iOS 18 hältst du einen Tag im Stimmungsdiagramm gedrückt, um zu sehen, was du geschrieben hast.
-• Die Denkkarte fasst deine Wörter zu Themen zusammen.
-• Das Widget „Stimmungskarte“ zeigt wahlweise 7 oder 14 Tage.
-• Auf dem iPad und dem aufgeklappten iPhone Duo öffnest du die Einstellungen über die Personen-Taste in Einblicke.
+• Ab 15. November gibt es Bezahlpläne. Dann brauchen die tägliche Reflexion, „Mirror fragen“, Wöchentliche Zusammenfassung, Monatsbericht, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Zuletzt gelöscht: Gelöschte Einträge warten 30 Tage auf all deinen Geräten, und „Widerrufen“ holt einen sofort zurück. In den Einstellungen wählst du 7, 30 oder 90 Tage.
+• Entwürfe: Leg einen Eintrag beiseite, beginne einen neuen und schreib den ersten später in Schreiben weiter.
+• Wähle beim Schreiben eine Sammlung oder lege dort eine neue an.
+• Wähle mehrere Einträge aus, um sie in eine Sammlung zu verschieben oder zu löschen.
+• Duplikate findet doppelt gesicherte Einträge und führt sie zusammen. Wer denselben Text noch einmal sichert, wird jetzt vorher gefragt.
+• Behoben: Wer Schreiben direkt nach dem Tippen verließ, konnte die letzten Wörter verlieren.

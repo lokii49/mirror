@@ -1,5 +1,7 @@
-Suas próprias frases em resumos, relatórios e Perguntar ao Mirror
+Apagados recentemente, Rascunhos e planos pagos a partir de 15 de novembro
 
-• Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
-• A contagem de palavras agora diz "1 palavra" em vez de "1 palavras".
-• Pequenas correções e melhorias.
+• Os planos pagos começam em 15 de novembro. A partir daí, a reflexão diária, Perguntar ao Mirror, o Resumo semanal, o Relatório mensal, a linha do humor e os widgets precisam do Core ou do Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes ganham 7 dias de teste grátis.
+• Apagados recentemente: registros apagados ficam 30 dias em todos os seus dispositivos, e Desfazer traz um de volta na hora. Escolha 7, 30 ou 90 dias em Ajustes.
+• Rascunhos: guarde um registro, comece outro e retome depois em Escrever.
+• Escolha uma coleção enquanto escreve, ou crie uma nova ali mesmo.
+• Duplicados encontra registros salvos duas vezes e os mescla. Salvar o mesmo texto de novo agora pergunta antes.
