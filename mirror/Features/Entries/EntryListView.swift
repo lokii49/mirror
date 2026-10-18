@@ -904,6 +904,32 @@ struct EntriesTabView: View {
 
     // MARK: - Select mode
 
+    #if os(macOS)
+    /// ⌘-click adds or removes a row, ⇧-click selects the range from the open entry (Finder's
+    /// rules); a plain click opens the entry, or toggles it while selecting from the menu.
+    private func macTap(_ entry: Entry, _ snapshot: EntryListSnapshot) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if !isSelecting {
+                isSelecting = true
+                selectedIDs = Set([macSelection?.wrappedValue?.id].compactMap { $0 })
+            }
+            toggleSelection(entry)
+        } else if flags.contains(.shift), let anchor = macSelection?.wrappedValue {
+            let ordered = macOrderedEntries(snapshot)
+            if let a = ordered.firstIndex(where: { $0.id == anchor.id }),
+               let b = ordered.firstIndex(where: { $0.id == entry.id }) {
+                isSelecting = true
+                selectedIDs = Set(ordered[min(a, b)...max(a, b)].map(\.id))
+            }
+        } else if isSelecting {
+            toggleSelection(entry)
+        } else {
+            open(entry)
+        }
+    }
+    #endif
+
     private func startSelecting() {
         selectedIDs = []
         isSelecting = true
@@ -1568,6 +1594,18 @@ extension EntriesTabView {
             .onChange(of: macPendingDelete?.id) { _, id in
                 if id != nil { macDeletePending(snapshot) }
             }
+            if isSelecting {
+                let visible = visibleEntryIDs(snapshot)
+                EntrySelectionBar(
+                    count: selectedIDs.count,
+                    lookup: collectionLookup,
+                    allSelected: !visible.isEmpty && visible.isSubset(of: selectedIDs),
+                    toggleAll: { selectedIDs = visible.isSubset(of: selectedIDs) ? [] : visible },
+                    move: moveSelection,
+                    delete: deleteSelection,
+                    done: endSelecting
+                )
+            }
         }
         .background(MirrorTheme.inkMid)
         .overlay(alignment: .trailing) { Rectangle().fill(MacTokens.divider).frame(width: 1) }
@@ -1596,6 +1634,10 @@ extension EntriesTabView {
         #if DEBUG
         NSLog("EntryList delete key: selection %@", macSelection?.wrappedValue == nil ? "none" : "set")
         #endif
+        if isSelecting, !selectedIDs.isEmpty {
+            deleteSelection()
+            return .handled
+        }
         guard let selected = macSelection?.wrappedValue else { return .ignored }
         macPendingDelete = selected
         return .handled
@@ -1623,7 +1665,7 @@ extension EntriesTabView {
             Spacer(minLength: 0)
             SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
                            open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
-                       openLibrary: { libraryPage = $0 }) {
+                       openLibrary: { libraryPage = $0 }, select: startSelecting) {
                 Image(systemName: "bookmark")
                     .font(.system(size: 14, weight: .medium))
                     .frame(width: 30, height: 28)
@@ -1762,9 +1804,10 @@ extension EntriesTabView {
 
     private func macRow(_ entry: Entry, snapshot: EntryListSnapshot) -> some View {
         let isSelected = macSelection?.wrappedValue?.id == entry.id
-        return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: isSelected)
+        let highlighted = isSelecting ? selectedIDs.contains(entry.id) : isSelected
+        return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: highlighted)
             .padding(.horizontal, 8)
-            .onTapGesture { open(entry); macListFocused = true }
+            .onTapGesture { macTap(entry, snapshot); macListFocused = true }
             .contextMenu {
                 Button("Edit") {
                     open(entry)

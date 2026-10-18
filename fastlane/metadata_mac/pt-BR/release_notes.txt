@@ -4,4 +4,6 @@ Apagados recentemente, Rascunhos e planos pagos a partir de 15 de novembro
 • Apagados recentemente: registros apagados ficam 30 dias em todos os seus dispositivos, e Desfazer traz um de volta na hora. Escolha 7, 30 ou 90 dias em Ajustes.
 • Rascunhos: guarde um registro, comece outro e retome depois em Escrever.
 • Escolha uma coleção enquanto escreve, ou crie uma nova ali mesmo.
+• Selecione vários registros para movê-los para uma coleção ou apagá-los.
 • Duplicados encontra registros salvos duas vezes e os mescla. Salvar o mesmo texto de novo agora pergunta antes.
+• Corrigido: sair de Escrever logo depois de digitar podia perder as últimas palavras.

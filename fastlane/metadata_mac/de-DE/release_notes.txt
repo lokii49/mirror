@@ -4,4 +4,6 @@ Zuletzt gelöscht, Entwürfe und Bezahlpläne ab 15. November
 • Zuletzt gelöscht: Gelöschte Einträge warten 30 Tage auf all deinen Geräten, und „Widerrufen“ holt einen sofort zurück. In den Einstellungen wählst du 7, 30 oder 90 Tage.
 • Entwürfe: Leg einen Eintrag beiseite, beginne einen neuen und schreib den ersten später in Schreiben weiter.
 • Wähle beim Schreiben eine Sammlung oder lege dort eine neue an.
+• Wähle mehrere Einträge aus, um sie in eine Sammlung zu verschieben oder zu löschen.
 • Duplikate findet doppelt gesicherte Einträge und führt sie zusammen. Wer denselben Text noch einmal sichert, wird jetzt vorher gefragt.
+• Behoben: Wer Schreiben direkt nach dem Tippen verließ, konnte die letzten Wörter verlieren.

@@ -4,4 +4,6 @@ Eliminados recientemente, Borradores y planes de pago desde el 15 de noviembre
 • Eliminados recientemente: las entradas eliminadas esperan 30 días en todos tus dispositivos, y Deshacer recupera una al instante. Elige 7, 30 o 90 días en Ajustes.
 • Borradores: aparta una entrada, empieza otra y retómala después desde Escribir.
 • Elige una colección mientras escribes, o crea una nueva ahí mismo.
+• Selecciona varias entradas para moverlas a una colección o eliminarlas.
 • Duplicados encuentra las entradas guardadas dos veces y las combina. Guardar el mismo texto otra vez ahora pregunta antes.
+• Corregido: salir de Escribir justo después de teclear podía perder las últimas palabras.

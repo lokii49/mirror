@@ -4,4 +4,6 @@ Eliminati di recente, Bozze e piani a pagamento dal 15 novembre
 • Eliminati di recente: le voci eliminate restano 30 giorni su tutti i tuoi dispositivi, e Annulla ne riporta subito una. Scegli 7, 30 o 90 giorni in Impostazioni.
 • Bozze: metti da parte una voce, iniziane un’altra e riprendila più tardi da Scrivi.
 • Scegli una raccolta mentre scrivi, o creane una nuova lì.
+• Seleziona più voci per spostarle in una raccolta o eliminarle.
 • Duplicati trova le voci salvate due volte e le unisce. Salvare di nuovo lo stesso testo ora chiede prima conferma.
+• Corretto: uscire da Scrivi subito dopo aver digitato poteva far perdere le ultime parole.
