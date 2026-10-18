@@ -14,7 +14,8 @@ extension WriteView {
     private var tagsScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // Add first: always reachable, however many tags follow.
+                // Collection first, then Add: both always reachable, however many tags follow.
+                WriteCollectionPicker(selection: $entryCollectionID)
                 if showTagInput {
                     TextField("tag", text: $tagText)
                         .font(.system(size: 12))

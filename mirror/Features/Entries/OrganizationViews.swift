@@ -121,6 +121,7 @@ struct SavedViewsMenu<Label: View>: View {
     let open: (SavedEntryView.Payload) -> Void
     let saveCurrent: () -> Void
     let manage: () -> Void
+    var openLibrary: (LibraryPage) -> Void = { _ in }
     @ViewBuilder let label: () -> Label
 
     var body: some View {
@@ -135,6 +136,10 @@ struct SavedViewsMenu<Label: View>: View {
             Button("Save current view…", systemImage: "bookmark.badge.plus", action: saveCurrent)
                 .disabled(!canSaveCurrent)
             Button("Manage collections and views…", systemImage: "slider.horizontal.3", action: manage)
+            Divider()
+            ForEach(LibraryPage.allCases) { page in
+                Button { openLibrary(page) } label: { SwiftUI.Label(page.title, systemImage: page.icon) }
+            }
         } label: {
             label()
         }
@@ -168,6 +173,16 @@ struct OrganizationManagerSheet: View {
     var body: some View {
         PlatformNavigationStack {
             List {
+                Section {
+                    ForEach(LibraryPage.allCases) { page in
+                        NavigationLink {
+                            page.destination
+                        } label: {
+                            SwiftUI.Label(page.title, systemImage: page.icon)
+                        }
+                    }
+                }
+
                 Section {
                     ForEach(sortedCollections) { collection in
                         HStack {

@@ -55,6 +55,7 @@ extension WriteView {
         h.combine(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines))
         h.combine(viewModel.selectedMood)
         h.combine(entryTags)
+        h.combine(entryCollectionID)
         h.combine(entryDate)
         h.combine(entryFontChoiceRaw)
         h.combine(viewModel.textStyleData)
@@ -115,6 +116,7 @@ extension WriteView {
             entry.createdAt = entryDate
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
             entry.tags = entryTags
+            entry.collectionID = entryCollectionID
             entry.fontChoice = entryFontChoiceRaw
             entry.photoDataArray = photoDataArray
             entry.voiceNoteData = voiceNoteData
@@ -161,6 +163,7 @@ extension WriteView {
                 entry.createdAt = entryDate
                 entry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
                 entry.tags = entryTags
+                entry.collectionID = entryCollectionID
                 entry.fontChoice = entryFontChoiceRaw
                 entry.textStyleData = viewModel.textStyleData
                 entry.photoDataArray = photoDataArray
@@ -227,6 +230,7 @@ extension WriteView {
         savedEntry.createdAt = entryDate
         savedEntry.weekIdentifier = DateHelpers.weekIdentifier(for: entryDate)
         savedEntry.tags = entryTags
+        savedEntry.collectionID = entryCollectionID
         savedEntry.fontChoice = entryFontChoiceRaw
         savedEntry.textStyleData = viewModel.textStyleData
         savedEntry.photoDataArray = photoDataArray
@@ -296,6 +300,7 @@ extension WriteView {
         tagText = ""
         showTagInput = false
         if entry == nil {
+            entryCollectionID = nil
             entryDate = Date()
             entryDateChosen = false
         }
@@ -376,10 +381,10 @@ extension WriteView {
     func deleteAndDismiss() {
         editCommitted = true
         if let entry {
-            WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-            modelContext.delete(entry)
+            try? EntryTrash.moveToTrash([entry], in: modelContext)
+        } else {
+            try? modelContext.save()
         }
-        try? modelContext.save()
         dismiss()
         DispatchQueue.main.async {
             onSaveComplete?()
@@ -440,11 +445,13 @@ extension WriteView {
         var tags: [String]
         var entryDate: Date
         var fontChoice: String = WritingFontChoice.system.rawValue
+        var collectionID: UUID? = nil
     }
 
     var draftChangeKey: DraftChangeKey {
         DraftChangeKey(textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData,
-                       tags: entryTags, entryDate: entryDate, fontChoice: entryFontChoiceRaw)
+                       tags: entryTags, entryDate: entryDate, fontChoice: entryFontChoiceRaw,
+                       collectionID: entryCollectionID)
     }
 
     /// The entry date as the date pickers set it: a pick marks the date as chosen, so a
@@ -574,7 +581,8 @@ extension WriteView {
             mood: viewModel.selectedMood,
             tags: entryTags,
             entryDate: entryDateChosen ? entryDate : nil,
-            fontChoice: entryFontChoiceRaw
+            fontChoice: entryFontChoiceRaw,
+            collectionID: entryCollectionID
         ), slot: newEntryDraftSlot)
         draftSaveState = saved && attachmentsSaved ? .saved : .failed
     }
@@ -609,7 +617,8 @@ extension WriteView {
             entryDate: entryDate,
             baseFingerprint: base,
             savedAt: Date(),
-            fontChoice: entryFontChoiceRaw
+            fontChoice: entryFontChoiceRaw,
+            collectionID: entryCollectionID
         ), slot: slot)
         draftSaveState = saved ? .saved : .failed
     }
@@ -625,6 +634,7 @@ extension WriteView {
             && draft.textStyleData == viewModel.textStyleData
             && draft.inlineStyleData == inlineStyleData
             && (draft.entryDate ?? entryDate) == entryDate
+            && draft.collectionID == entryCollectionID
         if unchanged {
             WriteDraftStore.clear(slot: slot)
         } else {
@@ -643,6 +653,7 @@ extension WriteView {
         entryTags = draft.tags
         if let date = draft.entryDate { entryDate = date }
         if let font = draft.fontChoice { entryFontChoiceRaw = font }
+        entryCollectionID = draft.collectionID
         draftSaveState = .saved
     }
 
@@ -733,6 +744,7 @@ extension WriteView {
             entryDateChosen = true
         }
         if let font = draft.fontChoice { entryFontChoiceRaw = font }
+        entryCollectionID = draft.collectionID
     }
 
     func clearDraftStorage() {
@@ -779,14 +791,20 @@ extension WriteView {
         WriteDraftStore.clearIncludingPreserved()
         WriteDraftStore.clearIncludingPreserved(slot: .newEntryWindow)
         WriteDraftStore.clearAllEntryDrafts()
+        SavedDraftStore.deleteAll()
         NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
     }
 }
 
+/// Delete Everything and Drafts > Continue writing, in one modifier: `WriteView.body` has no
+/// stack to spare in Debug.
 struct OnDraftsErased: ViewModifier {
     let perform: () -> Void
+    var resume: () -> Void = {}
     func body(content: Content) -> some View {
-        content.onReceive(NotificationCenter.default.publisher(for: .mirrorDraftsErased)) { _ in perform() }
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorDraftsErased)) { _ in perform() }
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in resume() }
     }
 }
 

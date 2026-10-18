@@ -397,6 +397,19 @@ struct ContentView: View {
                 }
             }
         }
+        // Drafts > Continue writing: the Write editor takes the draft (SavedDraftStore).
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in
+            selectedTab = 1
+            selectedSidebarItem = .write
+            #if os(macOS)
+            // A prompt-seeded editor never takes drafts; a plain one does.
+            if !macWriteInitialText.isEmpty {
+                macWriteInitialText = ""
+                macWriteID = UUID()
+            }
+            macDestination = .write
+            #endif
+        }
         .onOpenURL { url in
             guard url.scheme == "mirror" else { return }
             #if os(macOS)

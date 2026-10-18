@@ -414,6 +414,16 @@ extension WriteView {
             }
             .preferringVerticalBar()
 
+            // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
+            // a prefilled one (widget prompt, Talk It Out) keeps its own text.
+            if takesSavedDrafts {
+                ToolbarItem(placement: .topBarLeading) {
+                    WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
+                                    resume: continueSavedDraft)
+                }
+                .preferringVerticalBar()
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     saveDraft()

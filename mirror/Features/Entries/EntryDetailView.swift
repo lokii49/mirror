@@ -309,13 +309,13 @@ struct EntryDetailView: View {
                 onDone?()
                 let doomed = entry
                 let context = modelContext
-                WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
                 DispatchQueue.main.async {
-                    context.delete(doomed)
-                    try? context.save()
+                    try? EntryTrash.moveToTrash([doomed], in: context)
                 }
             }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("It moves to Recently Deleted, where you can restore it for 30 days.")
         }
         #endif
     }
@@ -438,6 +438,8 @@ struct EntryDetailView: View {
         .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { macDeleteEntry() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("It moves to Recently Deleted, where you can restore it for 30 days.")
         }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugConfirmDelete)) { _ in macDeleteEntry() }
@@ -448,10 +450,8 @@ struct EntryDetailView: View {
     private func macDeleteEntry() {
         onDone?()
         let doomed = entry
-        WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
         DispatchQueue.main.async {
-            modelContext.delete(doomed)
-            try? modelContext.save()
+            try? EntryTrash.moveToTrash([doomed], in: modelContext)
         }
     }
 

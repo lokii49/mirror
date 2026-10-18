@@ -42,6 +42,8 @@ enum DraftAttachmentStore {
         static var live: Location? { named("mirror-draft-attachments") }
         /// A Mac "New Entry in New Window" editor's attachments, apart from the main editor's.
         static var window: Location? { named("mirror-draft-attachments-window") }
+        /// A draft kept in Drafts (`SavedDraftStore`).
+        static func saved(_ id: UUID) -> Location? { named("mirror-saved-draft-" + id.uuidString) }
 
         private static func named(_ base: String) -> Location? {
             guard let dir = try? FileManager.default.url(
@@ -207,6 +209,21 @@ enum DraftAttachmentStore {
             try? FileManager.default.removeItem(at: location.file)
         } else {
             preserve(location)
+        }
+    }
+
+    /// Moves a draft's attachment file (still sealed, never opened) to another location,
+    /// replacing what was there. After any save queued before it. False when nothing moved.
+    @discardableResult
+    static func move(from source: Location?, to destination: Location?) -> Bool {
+        serialized {
+            guard let source, let destination else { return false }
+            let fm = FileManager.default
+            let from = fm.fileExists(atPath: source.file.path) ? source.file
+                : (fm.fileExists(atPath: source.preserved.path) ? source.preserved : nil)
+            guard let from else { return false }
+            try? fm.removeItem(at: destination.file)
+            return (try? fm.moveItem(at: from, to: destination.file)) != nil
         }
     }
 

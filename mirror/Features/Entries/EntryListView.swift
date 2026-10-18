@@ -31,6 +31,7 @@ struct EntriesTabView: View {
     @Query private var collectionModels: [JournalCollection]
     @Query private var savedViewModels: [SavedEntryView]
     @State private var showOrganizer = false
+    @State private var libraryPage: LibraryPage?
     @State private var newCollectionFor: Entry?
     @State private var savingView = false
     /// Query a saved view just applied: its own sort wins over the Best Match switch.
@@ -345,7 +346,8 @@ struct EntriesTabView: View {
             .accessibilityLabel("On This Day")
         }
         SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
+                       openLibrary: { libraryPage = $0 }) {
             Image(systemName: "bookmark")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color.primary)
@@ -477,6 +479,7 @@ struct EntriesTabView: View {
                 }
             }
             .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
+            .sheet(item: $libraryPage) { LibrarySheet(page: $0) }
             .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
                 EntryFiltersView(criteria: filters, moods: snapshot.usedMoods, tags: snapshot.usedTags) {
@@ -938,9 +941,7 @@ struct EntriesTabView: View {
                     // Clear the selection first so the reader column (iPad, open Duo) never
                     // renders a deleted entry, as the Mac row's Delete does.
                     if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
-                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                    modelContext.delete(entry)
-                    try? modelContext.save()
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
@@ -1501,7 +1502,7 @@ extension EntriesTabView {
                 Button("Delete", role: .destructive) { macDeletePending(snapshot) }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("It will be removed from this Mac and your other devices.")
+                Text("It moves to Recently Deleted, where you can restore it for 30 days.")
             }
         }
         .background(MirrorTheme.inkMid)
@@ -1543,9 +1544,7 @@ extension EntriesTabView {
         let index = ordered.firstIndex { $0.id == entry.id }
         let neighbour = index.flatMap { i in ordered.indices.contains(i + 1) ? ordered[i + 1] : (i > 0 ? ordered[i - 1] : nil) }
         macSelection?.wrappedValue = neighbour
-        WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-        modelContext.delete(entry)
-        try? modelContext.save()
+        try? EntryTrash.moveToTrash([entry], in: modelContext)
         macPendingDelete = nil
     }
 
@@ -1559,7 +1558,8 @@ extension EntriesTabView {
                 .foregroundStyle(MacTokens.secondaryInk)
             Spacer(minLength: 0)
             SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
+                       openLibrary: { libraryPage = $0 }) {
                 Image(systemName: "bookmark")
                     .font(.system(size: 14, weight: .medium))
                     .frame(width: 30, height: 28)
@@ -1726,9 +1726,7 @@ extension EntriesTabView {
                 Button("Delete", role: .destructive) {
                     // Clear the selection first so the reader never renders a deleted entry.
                     if isSelected { macSelection?.wrappedValue = nil }
-                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                    modelContext.delete(entry)
-                    try? modelContext.save()
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
                 }
             }
     }

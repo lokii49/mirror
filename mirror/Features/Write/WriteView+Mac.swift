@@ -104,6 +104,19 @@ extension WriteView {
                 macToolbarButton(label: "Add tag", isOn: false) { showTagInput = true } content: {
                     MacIcon(name: "tag", size: 17)
                 }
+                WriteCollectionPicker(selection: $entryCollectionID, style: .macToolbar)
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(entryCollectionID == nil ? MacTokens.controlInk : MacTokens.accent)
+                    .help("Collection")
+                if takesSavedDrafts {
+                    WriteDraftsMenu(style: .macToolbar, canSave: hasDraftContent, save: saveToDrafts,
+                                    resume: continueSavedDraft)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(MacTokens.controlInk)
+                        .help("Drafts")
+                }
             }
             .modifier(MacToolbarCapsule())
 

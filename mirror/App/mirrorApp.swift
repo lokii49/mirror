@@ -553,6 +553,7 @@ struct mirrorApp: App {
     @MainActor
     private static func runNightlyInsights(container: ModelContainer) async {
         let context = container.mainContext
+        EntryTrash.purgeExpired(in: context)
         await runDailyNudgeIfNeeded(context: context, bypassTimeGate: true)
 
         // Refresh contextual nudge notification so it reflects tonight's generation result.
@@ -590,6 +591,8 @@ struct mirrorApp: App {
         // Empty in-memory stand-in when the journal store couldn't be opened: nothing to do.
         guard MirrorModelContainer.isStoreAvailable else { return }
         let context = sharedModelContainer.mainContext
+        // Recently Deleted keeps entries for 30 days.
+        EntryTrash.purgeExpired(in: context)
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
