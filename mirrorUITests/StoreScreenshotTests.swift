@@ -168,6 +168,7 @@ final class StoreScreenshotTests: XCTestCase {
         let only = env["STORE_LOCALES"]?.split(separator: ",").map(String.init)
         let pose = env["DUO_POSE"] ?? "open"
         let brainOnly = env["DUO_ONLY"] == "brain", writeOnly = env["DUO_ONLY"] == "write"
+        let askOnly = env["DUO_ONLY"] == "ask", writeAskOnly = env["DUO_ONLY"] == "write-ask"
         for loc in locales where only == nil || only!.contains(loc.0) {
             let dir = "\(root)-duo/\(loc.0)"
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -179,6 +180,11 @@ final class StoreScreenshotTests: XCTestCase {
             }
             if writeOnly {
                 captureDuoWrite(loc, tabs, dir, pose)
+                continue
+            }
+            if askOnly || writeAskOnly {
+                captureDuoTiles(loc, tabs, Array(tiles.prefix(1)), dir, pose)
+                if writeAskOnly { captureDuoWrite(loc, tabs, dir, pose) }
                 continue
             }
 

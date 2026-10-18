@@ -376,7 +376,7 @@ struct ContentView: View {
                     try? await Task.sleep(nanoseconds: 800_000_000)
                     if featureCardService.shouldShowWhatsNew {
                         showWhatsNew = true
-                    } else if PaidPlansNotice.shouldShow() {
+                    } else if !isUITesting && PaidPlansNotice.shouldShow() {
                         showPaidPlansNotice = true
                     }
                 }
