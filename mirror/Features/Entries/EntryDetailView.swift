@@ -7,6 +7,10 @@ struct EntryDetailView: View {
     @Environment(\.appDisplayMode) private var displayMode
     @Query private var insights: [Insight]
     @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
+    @Query private var collections: [JournalCollection]
+    /// "Move to > New collection…" in the More menu.
+    @State private var newCollectionFor: Entry?
+    @State private var savingViewUnused = false
 
     let entry: Entry
     var onDone: (() -> Void)? = nil
@@ -19,7 +23,6 @@ struct EntryDetailView: View {
     /// recording): a voice-only entry from a device whose key this one lacks reads fine as
     /// text, but editing it would write its unreadable fields back.
     @State private var contentUnreadable = false
-    @State private var showDeleteConfirm = false
     @State private var relatedInsight: Insight? = nil
     @State private var displayedWordCount: Int = 0
     @State private var searchMatches: [ReaderMatches.Location] = []
@@ -91,7 +94,7 @@ struct EntryDetailView: View {
                 togglePin: { entry.isPinned.toggle(); try? modelContext.save() },
                 share: { shareText() },
                 exportPDF: { MacEntryExport.exportPDF(entry) },
-                delete: { showDeleteConfirm = true }
+                delete: { macDeleteEntry() }
             ))
             .textSelection(.enabled)
         #else
@@ -283,13 +286,13 @@ struct EntryDetailView: View {
                         entry.isPinned.toggle()
                         try? modelContext.save()
                     }
+                    MoveToCollectionMenu(entry: entry, lookup: CollectionLookup(collections)) { newCollectionFor = entry }
                     Button("Share as text") { shareText() }
                     #if os(iOS)
                     Button("Export as PDF") { sharePDF() }
                     #endif
-                    Button("Delete Entry", systemImage: "trash", role: .destructive) {
-                        showDeleteConfirm = true
-                    }
+                    // No confirmation: it goes to Recently Deleted, and the app offers Undo.
+                    Button("Delete Entry", systemImage: "trash", role: .destructive) { deleteToTrash() }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .semibold))
@@ -302,23 +305,22 @@ struct EntryDetailView: View {
             WriteView(entry: entry, autoFocus: true, showsBackButton: true)
         }
         .onChange(of: showEditor) { _, open in onEditorPresented?(open) }
-        .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                // Leave the reader first, then delete (as on Mac): the reader column or the pushed
-                // reader must not render a deleted entry.
-                onDone?()
-                let doomed = entry
-                let context = modelContext
-                WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
-                DispatchQueue.main.async {
-                    context.delete(doomed)
-                    try? context.save()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
+        .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingViewUnused, saveView: { _ in }))
         #endif
     }
+
+    #if !os(macOS)
+    /// Leave the reader first, then delete (as on Mac): the reader column or the pushed reader
+    /// must not render a deleted entry.
+    private func deleteToTrash() {
+        onDone?()
+        let doomed = entry
+        let context = modelContext
+        DispatchQueue.main.async {
+            try? EntryTrash.moveToTrash([doomed], in: context)
+        }
+    }
+    #endif
 
     private var editButton: some View {
         // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
@@ -435,10 +437,6 @@ struct EntryDetailView: View {
         .navigationDestination(isPresented: $showEditor) {
             WriteView(entry: entry, autoFocus: true, showsBackButton: true)
         }
-        .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { macDeleteEntry() }
-            Button("Cancel", role: .cancel) {}
-        }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugConfirmDelete)) { _ in macDeleteEntry() }
         #endif
@@ -448,10 +446,8 @@ struct EntryDetailView: View {
     private func macDeleteEntry() {
         onDone?()
         let doomed = entry
-        WriteDraftStore.clearIncludingPreserved(slot: .entry(doomed.id))
         DispatchQueue.main.async {
-            modelContext.delete(doomed)
-            try? modelContext.save()
+            try? EntryTrash.moveToTrash([doomed], in: modelContext)
         }
     }
 
@@ -498,9 +494,7 @@ struct EntryDetailView: View {
             macToolbarButton("external", label: "Open in new window") {
                 openWindow(id: "entry", value: entry.id)
             }
-            macToolbarButton("trash", label: "Delete entry") {
-                showDeleteConfirm = true
-            }
+            macToolbarButton("trash", label: "Delete entry") { macDeleteEntry() }
             Button { showEditor = true } label: {
                 Text("Edit")
                     .font(.system(size: 12.5, weight: .semibold))

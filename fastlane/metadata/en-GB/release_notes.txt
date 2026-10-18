@@ -1,10 +1,9 @@
-Made for iPhone Duo, and a new Write screen
+Recently Deleted, Drafts, and paid plans from 15 November
 
-• iPhone Duo: open it flat and the list sits beside the entry you're reading, while Insights spreads into two columns. Half-folded, lists and writing stay off the crease. Folding or unfolding keeps your writing and undo history.
-• Write has a new keyboard bar and Aa panel. Checklists are easier too: tap a circle to tick it, swipe to indent, drag to reorder, and done items can move to the bottom.
-• Small animations show what just happened: something to save, a draft kept, your daily word goal reached.
-• With Apple Intelligence, Weekly Digest, Monthly Report and Ask Mirror now quote your own sentences.
-• Insights has dated headers and cleaner cards. On iOS 18 and later, press and hold a day in a mood chart to see what you wrote.
-• Brain View groups your words into topics.
-• The Mood Map widget can show 7 or 14 days.
-• On iPad and an open iPhone Duo, Settings opens from the person button in Insights.
+• Paid plans start on 15 November. From then, the daily reflection, Ask Mirror, Weekly Digest, Monthly Report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• Recently Deleted: deleted entries wait 30 days on all your devices, and Undo brings one back straight away. Choose 7, 30 or 90 days in Settings.
+• Drafts: put an entry aside and start another, then pick it up later from Write.
+• Choose a collection while you write, or make a new one there.
+• Select several entries to move them to a collection or delete them.
+• Duplicates finds entries saved twice and merges them. Saving the same text again now asks first.
+• Fixed: leaving Write right after typing could lose the last few words.

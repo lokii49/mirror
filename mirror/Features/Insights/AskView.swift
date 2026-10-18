@@ -106,10 +106,10 @@ struct AskView: View {
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.plain)
-        #if os(macOS)
-        .buttonStyle(MacHoverButtonStyle())
         .accessibilityLabel("Suggested questions")
         .accessibilityAddTraits(showSuggestions ? .isSelected : [])
+        #if os(macOS)
+        .buttonStyle(MacHoverButtonStyle())
         .help("Suggested questions")
         #endif
     }
@@ -153,7 +153,10 @@ struct AskView: View {
                     if !subscriptionService.isDeep {
                         ToolbarItem(placement: .topBarTrailing) { remainingBadge }
                     }
+                    // On iPhone Duo it joins the back button in the vertical strip on the right,
+                    // instead of staying alone in the top bar (owner, 2026-10-18).
                     ToolbarItem(placement: .topBarTrailing) { suggestionsToggle }
+                        .preferringVerticalBar()
                 }
                 #endif
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in

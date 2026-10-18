@@ -93,6 +93,12 @@ struct WriteView: View {
         #endif
     }
     @State var showSaved = false
+    /// The toast says "Saved to Drafts" instead of "Saved".
+    @State var savedToastIsDraft = false
+    /// Save found an entry with the same text: its date, while asking "Save anyway?".
+    @State var duplicateOfDate: Date? = nil
+    /// Which save asked: the main editor's (stays open) or a sheet's (dismisses).
+    @State var duplicateSaveDismisses = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
     @State var showDeleteCheckedConfirm = false
@@ -206,6 +212,8 @@ struct WriteView: View {
     @State var showDatePicker = false
     @State var focusMode = false
     @State var entryTags: [String] = []
+    /// `JournalCollection.id` picked in Write; nil is Unfiled.
+    @State var entryCollectionID: UUID? = nil
     @State var entryFontChoiceRaw: String = WritingFontChoice.system.rawValue
     @State var tagText: String = ""
     @State var showTagInput = false
@@ -421,7 +429,7 @@ struct WriteView: View {
             #endif
 
             if showSaved {
-                Label("Saved", systemImage: "checkmark.circle.fill")
+                Label(savedToastIsDraft ? "Saved to Drafts" : "Saved", systemImage: savedToastIsDraft ? "doc.text.fill" : "checkmark.circle.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(MirrorTheme.green)
                     .padding(.horizontal, 18)
@@ -634,6 +642,7 @@ struct WriteView: View {
             entryDate = entry?.createdAt ?? Date()
             entryDateChosen = false
             entryTags = entry?.tags ?? []
+            entryCollectionID = entry?.collectionID
             #if os(macOS)
             // The Mac design sets body text in a serif face; new entries start there.
             // New entries start in the font chosen in Settings (Serif unless changed).
@@ -670,7 +679,9 @@ struct WriteView: View {
                 // outright — the stale draft is left untouched in storage (not cleared, no data
                 // loss), just not loaded into this particular prefilled session.
                 if initialText.isEmpty {
+                    resumePendingSavedDraft(flushingEditor: false)
                     restoreDraftFromStorage()
+                    prefillCollectionFromEntries()
                 } else if viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
@@ -908,18 +919,23 @@ struct WriteView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { flushDraftSave() }
         }
-        .modifier(OnDraftsErased(perform: handleDraftsErased))
+        .modifier(OnDraftsErased(perform: handleDraftsErased, resume: { resumePendingSavedDraft(flushingEditor: true) }))
         .modifier(DraftRecoveryAlerts(
             pendingEditDraft: $pendingEditDraft,
             entryChangedSinceDraft: pendingEditDraft.map { $0.baseFingerprint != editBaseFingerprint } ?? false,
             entrySaveFailed: $entrySaveFailed,
             restore: restoreEditDraft,
-            discard: discardEditDraft
+            discard: discardEditDraft,
+            duplicateOfDate: $duplicateOfDate,
+            saveDuplicate: {
+                if duplicateSaveDismisses { saveAndDismiss(skipDuplicateCheck: true) } else { saveDraft(skipDuplicateCheck: true) }
+            }
         ))
         .onDisappear {
-            // Unsaved edits to an existing entry are kept for next time; a new-entry
-            // draft was already flushed by the paths that change it.
-            if entry != nil { flushDraftSave() }
+            // Unsaved edits to an existing entry are kept for next time. A new-entry draft whose
+            // debounced write is still pending is written now: cancelling it lost the last second
+            // of typing, because coming back restores the stored (older) draft over the editor.
+            if entry != nil || draftSaveTask != nil { flushDraftSave() }
             cancelDraftSave()
             followUpTask?.cancel()
             followUpTask = nil

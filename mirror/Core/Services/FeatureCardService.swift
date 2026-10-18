@@ -363,7 +363,65 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.0",
             showInFeatureGuide: false
         ),
+        // 3.1.4: the paid-plans notice, two weeks before the 15 November cutover
+        // (november-paid-activation.md, owner 2026-10-18). Nothing is gated in 3.1.4.
+        .init(
+            id: "paid-plans-314",
+            title: "Paid plans start \(FeatureCardRegistry.paidPlansStartText)",
+            body: "From \(FeatureCardRegistry.paidPlansStartText), the daily reflection, Ask, the weekly digest, the monthly report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.",
+            symbolName: "calendar.badge.clock",
+            accentColor: MirrorTheme.primary,
+            tier: .free,
+            sinceVersion: "3.1.4",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "recently-deleted-314",
+            title: "Recently Deleted",
+            body: "Deleted entries wait 30 days in Recently Deleted, on all your devices, so you can bring them back. Find it in Entries, under the bookmark menu.",
+            symbolName: "trash",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.4"
+        ),
+        .init(
+            id: "drafts-314",
+            title: "Drafts",
+            body: "Put an entry aside and start another: tap the drafts button in Write. Pick it up later from the same menu. Drafts stay on this device.",
+            symbolName: "doc.text",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.4"
+        ),
+        .init(
+            id: "collection-in-write-314",
+            title: "Collections while you write",
+            body: "Tap the folder next to your tags to choose where an entry goes, or make a new collection there.",
+            symbolName: "folder",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.4",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "duplicates-314",
+            title: "Find duplicates",
+            body: "Entries saved twice with the same text show up together, with their dates. Merge them into one; the copies go to Recently Deleted.",
+            symbolName: "square.on.square",
+            accentColor: .purple,
+            tier: .free,
+            sinceVersion: "3.1.4"
+        ),
     ]
+
+    /// 15 November 2026, the paid-plans cutover, in the reader's own date format.
+    static var paidPlansStart: Date {
+        Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 15)) ?? Date()
+    }
+
+    static var paidPlansStartText: String {
+        paidPlansStart.formatted(.dateTime.day().month(.wide))
+    }
 }
 
 // MARK: - Service
@@ -382,6 +440,7 @@ final class FeatureCardService {
     /// their own (1.1.1) need no entry.
     static let macFeatureRelease: [String: String] = [
         "1.1.0": "3.1.0",
+        "1.1.4": "3.1.4",
     ]
 
     /// The cards a Mac version shows: those of the newest iOS release whose Mac version is newer
@@ -457,5 +516,24 @@ final class FeatureCardService {
 
     private var lastSeenVersion: String {
         UserDefaults.standard.string(forKey: lastSeenVersionKey) ?? "0.0.0"
+    }
+}
+
+/// The paid-plans notice for everyone before the cutover, not only people updating: onboarding
+/// marks the current version's What's New as seen, so a fresh 3.1.4 install never got it from
+/// What's New. Shown once per device, from What's New (an update) or on its own (a new install).
+enum PaidPlansNotice {
+    static let cardID = "paid-plans-314"
+    static let seenKey = "mirror.paidPlansNotice.seen"
+
+    static var card: FeatureCard? { FeatureCardRegistry.all.first { $0.id == cardID } }
+
+    static func shouldShow(now: Date = Date(), defaults: UserDefaults = .standard,
+                           allFeaturesFree: Bool = SubscriptionService.allFeaturesFree) -> Bool {
+        allFeaturesFree && now < FeatureCardRegistry.paidPlansStart && !defaults.bool(forKey: seenKey)
+    }
+
+    static func markSeen(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: seenKey)
     }
 }

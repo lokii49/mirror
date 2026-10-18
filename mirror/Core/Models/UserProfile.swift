@@ -9,6 +9,10 @@ enum DisplayMode: String, Codable {
     var onboardingComplete: Bool = false
     var streakCount: Int = 0
     var lastWritten: Date? = nil
+    /// Days an entry stays in Recently Deleted (7, 30 or 90). Synced, because the purge is: one
+    /// device removing a row removes it everywhere, so every device must use the same value.
+    /// Added in 3.1.4 (CloudKit field `CD_trashRetentionDays`).
+    var trashRetentionDays: Int = 30
 
     /// Stored as raw String, not a native enum attribute — a native
     /// RawRepresentable attribute added to an *already-persisted* @Model

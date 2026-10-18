@@ -1,10 +1,9 @@
-Feito para o iPhone Duo, e um novo Escrever
+Apagados recentemente, Rascunhos e planos pagos a partir de 15 de novembro
 
-• iPhone Duo: aberto por completo, a lista fica ao lado da entrada que você está lendo e Percepções se divide em duas colunas. Meio dobrado, listas e texto ficam dos lados da dobra. Ao dobrar ou abrir, você mantém o que está escrevendo e o histórico de desfazer.
-• Escrever tem uma nova barra do teclado e um novo painel Aa. As listas de tarefas também ficaram mais fáceis: toque num círculo para marcar, deslize para recuar, arraste para reordenar, e os itens concluídos podem ir para o fim.
-• Pequenas animações mostram o que acabou de acontecer: algo para salvar, um rascunho salvo, sua meta diária de palavras atingida.
-• Com a Apple Intelligence, o Resumo semanal, o Relatório mensal e Perguntar ao Mirror agora citam suas próprias frases.
-• Percepções tem cabeçalhos com data e cartões mais limpos. No iOS 18 ou posterior, toque e segure um dia num gráfico de humor para ver o que você escreveu.
-• O Mapa mental agrupa suas palavras em temas.
-• O widget Mapa de humor pode mostrar 7 ou 14 dias.
-• No iPad e num iPhone Duo aberto, os Ajustes abrem pelo botão de pessoa em Percepções.
+• Os planos pagos começam em 15 de novembro. A partir daí, a reflexão diária, Perguntar ao Mirror, o Resumo semanal, o Relatório mensal, a linha do humor e os widgets precisam do Core ou do Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes ganham 7 dias de teste grátis.
+• Apagados recentemente: registros apagados ficam 30 dias em todos os seus dispositivos, e Desfazer traz um de volta na hora. Escolha 7, 30 ou 90 dias em Ajustes.
+• Rascunhos: guarde um registro, comece outro e retome depois em Escrever.
+• Escolha uma coleção enquanto escreve, ou crie uma nova ali mesmo.
+• Selecione vários registros para movê-los para uma coleção ou apagá-los.
+• Duplicados encontra registros salvos duas vezes e os mescla. Salvar o mesmo texto de novo agora pergunta antes.
+• Corrigido: sair de Escrever logo depois de digitar podia perder as últimas palavras.

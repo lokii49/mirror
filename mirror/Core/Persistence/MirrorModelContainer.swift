@@ -19,6 +19,7 @@ enum MirrorModelContainer {
         JournalErasure.self,
         JournalCollection.self,
         SavedEntryView.self,
+        TrashedEntry.self,
     ])
 
     static var defaultConfiguration: ModelConfiguration {

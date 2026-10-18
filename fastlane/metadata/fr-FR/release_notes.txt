@@ -1,10 +1,9 @@
-Conçu pour l'iPhone Duo, et un nouvel écran Écrire
+Supprimés récemment, Brouillons et abonnements payants dès le 15 novembre
 
-• iPhone Duo : ouvert à plat, la liste se place à côté de l'entrée que vous lisez et Aperçus se déploie sur deux colonnes. À moitié plié, les listes et votre texte restent de part et d'autre du pli. Plier ou déplier conserve votre texte et l'historique d'annulation.
-• Écrire a une nouvelle barre de clavier et un nouveau panneau Aa. Les listes de tâches sont aussi plus simples : touchez un cercle pour le cocher, balayez pour indenter, faites glisser pour réordonner, et les éléments faits peuvent descendre en bas.
-• De petites animations montrent ce qui vient de se passer : quelque chose à enregistrer, un brouillon conservé, votre objectif de mots du jour atteint.
-• Avec Apple Intelligence, le Résumé hebdomadaire, le Rapport mensuel et Demander à Mirror citent désormais vos propres phrases.
-• Aperçus a des en-têtes datés et des cartes plus nettes. Sur iOS 18 et versions ultérieures, maintenez le doigt sur un jour d'un graphique d'humeur pour voir ce que vous avez écrit.
-• La Carte mentale regroupe vos mots par thèmes.
-• Le widget Carte d'humeur peut afficher 7 ou 14 jours.
-• Sur iPad et sur un iPhone Duo ouvert, les Réglages s'ouvrent depuis le bouton personne dans Aperçus.
+• Les abonnements payants commencent le 15 novembre. Dès lors, la réflexion du jour, Demander à Mirror, le Résumé hebdomadaire, le Rapport mensuel, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
+• Supprimés récemment : les entrées supprimées attendent 30 jours sur tous vos appareils, et Annuler en ramène une aussitôt. Choisissez 7, 30 ou 90 jours dans Réglages.
+• Brouillons : mettez une entrée de côté, commencez-en une autre et reprenez-la plus tard depuis Écrire.
+• Choisissez une collection pendant l’écriture, ou créez-en une sur place.
+• Sélectionnez plusieurs entrées pour les déplacer dans une collection ou les supprimer.
+• Doublons repère les entrées enregistrées deux fois et les fusionne. Enregistrer le même texte une seconde fois demande désormais confirmation.
+• Corrigé : quitter Écrire juste après avoir tapé pouvait faire perdre les derniers mots.

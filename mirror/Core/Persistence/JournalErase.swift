@@ -7,11 +7,14 @@ enum JournalErase {
     static func eraseEverything(context: ModelContext) {
         let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
         let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
+        // Entries in Recently Deleted are still in other devices' backups.
+        let trashed = (try? context.fetch(FetchDescriptor<TrashedEntry>())) ?? []
         // Synced marker so other devices' on-device backups never offer these back. Saved
         // on its own, before the deletes: exports follow save order, so another device
         // gets the marker before (or with) the deletes and never offers them back.
-        if !entries.isEmpty || !checkIns.isEmpty {
-            context.insert(JournalErasure(erasedEntryIDs: entries.map(\.id), erasedCheckInIDs: checkIns.map(\.id)))
+        if !entries.isEmpty || !checkIns.isEmpty || !trashed.isEmpty {
+            let entryIDs = Array(Set(entries.map(\.id) + trashed.map(\.entryID)))
+            context.insert(JournalErasure(erasedEntryIDs: entryIDs, erasedCheckInIDs: checkIns.map(\.id)))
             try? context.save()
         }
         entries.forEach { context.delete($0) }
@@ -22,6 +25,7 @@ enum JournalErase {
         // Collection names and saved searches are journal data too.
         (try? context.fetch(FetchDescriptor<JournalCollection>()))?.forEach { context.delete($0) }
         (try? context.fetch(FetchDescriptor<SavedEntryView>()))?.forEach { context.delete($0) }
+        trashed.forEach { context.delete($0) }
         try? context.save()
         MoodCheckInMigration.eraseLegacyRecords()
         JournalSafety.shared.journalWasErased()

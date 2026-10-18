@@ -100,7 +100,7 @@ struct MirrorMacCommands: Commands {
             Button("Export as PDF…") { unlocked { entry?.exportPDF() } }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(entry == nil)
-            Button("Delete Entry…") { unlocked { entry?.delete() } }
+            Button("Delete Entry") { unlocked { entry?.delete() } }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(entry == nil)
         }

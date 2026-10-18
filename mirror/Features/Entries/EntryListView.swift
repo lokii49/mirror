@@ -31,6 +31,10 @@ struct EntriesTabView: View {
     @Query private var collectionModels: [JournalCollection]
     @Query private var savedViewModels: [SavedEntryView]
     @State private var showOrganizer = false
+    @State private var libraryPage: LibraryPage?
+    /// Select mode (iPhone/iPad): tap rows to select, then Move to… or Delete from the bottom bar.
+    @State private var isSelecting = false
+    @State private var selectedIDs: Set<UUID> = []
     @State private var newCollectionFor: Entry?
     @State private var savingView = false
     /// Query a saved view just applied: its own sort wins over the Best Match switch.
@@ -345,7 +349,8 @@ struct EntriesTabView: View {
             .accessibilityLabel("On This Day")
         }
         SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                       open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
+                       openLibrary: { libraryPage = $0 }, select: startSelecting) {
             Image(systemName: "bookmark")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color.primary)
@@ -445,6 +450,22 @@ struct EntriesTabView: View {
                     if !snapshot.usedTags.isEmpty { tagFilterBar(snapshot.usedTags) }
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSelecting {
+                    let visible = visibleEntryIDs(snapshot)
+                    EntrySelectionBar(
+                        count: selectedIDs.count,
+                        lookup: collectionLookup,
+                        allSelected: !visible.isEmpty && visible.isSubset(of: selectedIDs),
+                        toggleAll: { selectedIDs = visible.isSubset(of: selectedIDs) ? [] : visible },
+                        move: moveSelection,
+                        delete: deleteSelection,
+                        done: endSelecting
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: isSelecting)
             #endif
             .task(id: searchText) {
                 let value = searchText
@@ -477,6 +498,12 @@ struct EntriesTabView: View {
                 }
             }
             .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
+            .sheet(item: $libraryPage) { LibrarySheet(page: $0) }
+            // Drafts > Continue writing from inside Organize: close it so Write isn't left under it.
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in
+                showOrganizer = false
+                libraryPage = nil
+            }
             .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
                 EntryFiltersView(criteria: filters, moods: snapshot.usedMoods, tags: snapshot.usedTags) {
@@ -875,6 +902,71 @@ struct EntriesTabView: View {
         .onAppear { searchFocused = true }
     }
 
+    // MARK: - Select mode
+
+    #if os(macOS)
+    /// ⌘-click adds or removes a row, ⇧-click selects the range from the open entry (Finder's
+    /// rules); a plain click opens the entry, or toggles it while selecting from the menu.
+    private func macTap(_ entry: Entry, _ snapshot: EntryListSnapshot) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if !isSelecting {
+                isSelecting = true
+                selectedIDs = Set([macSelection?.wrappedValue?.id].compactMap { $0 })
+            }
+            toggleSelection(entry)
+        } else if flags.contains(.shift), let anchor = macSelection?.wrappedValue {
+            let ordered = macOrderedEntries(snapshot)
+            if let a = ordered.firstIndex(where: { $0.id == anchor.id }),
+               let b = ordered.firstIndex(where: { $0.id == entry.id }) {
+                isSelecting = true
+                selectedIDs = Set(ordered[min(a, b)...max(a, b)].map(\.id))
+            }
+        } else if isSelecting {
+            toggleSelection(entry)
+        } else {
+            open(entry)
+        }
+    }
+    #endif
+
+    private func startSelecting() {
+        selectedIDs = []
+        isSelecting = true
+    }
+
+    private func endSelecting() {
+        isSelecting = false
+        selectedIDs = []
+    }
+
+    private func toggleSelection(_ entry: Entry) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if selectedIDs.contains(entry.id) { selectedIDs.remove(entry.id) } else { selectedIDs.insert(entry.id) }
+    }
+
+    /// The rows on screen now (search, filters and collection applied).
+    private func visibleEntryIDs(_ snapshot: EntryListSnapshot) -> Set<UUID> {
+        Set(snapshot.pinnedEntries.map(\.id) + snapshot.groupedByMonth.flatMap { $0.entries.map(\.id) })
+    }
+
+    private var selectedEntries: [Entry] {
+        entries.filter { selectedIDs.contains($0.id) }
+    }
+
+    private func moveSelection(to collectionID: UUID?) {
+        try? JournalOrganizationStore.move(selectedEntries, to: collectionID, in: modelContext)
+        endSelecting()
+    }
+
+    /// To Recently Deleted, with the app's Undo toast.
+    private func deleteSelection() {
+        let doomed = selectedEntries
+        if let open = macSelection?.wrappedValue, selectedIDs.contains(open.id) { macSelection?.wrappedValue = nil }
+        endSelecting()
+        try? EntryTrash.moveToTrash(doomed, in: modelContext)
+    }
+
     private func open(_ entry: Entry) {
         if let macSelection {
             macSelection.wrappedValue = entry
@@ -917,15 +1009,18 @@ struct EntriesTabView: View {
 
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
-        EntryRow(entry: entry, rowPreview: preview)
+        HStack(spacing: 10) {
+            if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
+            EntryRow(entry: entry, rowPreview: preview)
+        }
             .contentShape(Rectangle())
             .onTapGesture {
-                open(entry)
+                if isSelecting { toggleSelection(entry) } else { open(entry) }
             }
             // One element that opens the entry, not its separate texts (backlog A19).
             .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { open(entry) }
+            .accessibilityAddTraits(isSelecting ? (selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton) : .isButton)
+            .accessibilityAction { if isSelecting { toggleSelection(entry) } else { open(entry) } }
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
@@ -938,9 +1033,7 @@ struct EntriesTabView: View {
                     // Clear the selection first so the reader column (iPad, open Duo) never
                     // renders a deleted entry, as the Mac row's Delete does.
                     if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
-                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                    modelContext.delete(entry)
-                    try? modelContext.save()
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
@@ -1497,11 +1590,21 @@ extension EntriesTabView {
                 if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
             }
             }
-            .confirmationDialog("Delete this entry?", isPresented: Binding(get: { macPendingDelete != nil }, set: { if !$0 { macPendingDelete = nil } }), titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { macDeletePending(snapshot) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("It will be removed from this Mac and your other devices.")
+            // No confirmation: the Delete key moves the entry to Recently Deleted, with Undo.
+            .onChange(of: macPendingDelete?.id) { _, id in
+                if id != nil { macDeletePending(snapshot) }
+            }
+            if isSelecting {
+                let visible = visibleEntryIDs(snapshot)
+                EntrySelectionBar(
+                    count: selectedIDs.count,
+                    lookup: collectionLookup,
+                    allSelected: !visible.isEmpty && visible.isSubset(of: selectedIDs),
+                    toggleAll: { selectedIDs = visible.isSubset(of: selectedIDs) ? [] : visible },
+                    move: moveSelection,
+                    delete: deleteSelection,
+                    done: endSelecting
+                )
             }
         }
         .background(MirrorTheme.inkMid)
@@ -1531,6 +1634,10 @@ extension EntriesTabView {
         #if DEBUG
         NSLog("EntryList delete key: selection %@", macSelection?.wrappedValue == nil ? "none" : "set")
         #endif
+        if isSelecting, !selectedIDs.isEmpty {
+            deleteSelection()
+            return .handled
+        }
         guard let selected = macSelection?.wrappedValue else { return .ignored }
         macPendingDelete = selected
         return .handled
@@ -1543,9 +1650,7 @@ extension EntriesTabView {
         let index = ordered.firstIndex { $0.id == entry.id }
         let neighbour = index.flatMap { i in ordered.indices.contains(i + 1) ? ordered[i + 1] : (i > 0 ? ordered[i - 1] : nil) }
         macSelection?.wrappedValue = neighbour
-        WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-        modelContext.delete(entry)
-        try? modelContext.save()
+        try? EntryTrash.moveToTrash([entry], in: modelContext)
         macPendingDelete = nil
     }
 
@@ -1559,7 +1664,8 @@ extension EntriesTabView {
                 .foregroundStyle(MacTokens.secondaryInk)
             Spacer(minLength: 0)
             SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
-                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true }) {
+                           open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
+                       openLibrary: { libraryPage = $0 }, select: startSelecting) {
                 Image(systemName: "bookmark")
                     .font(.system(size: 14, weight: .medium))
                     .frame(width: 30, height: 28)
@@ -1698,9 +1804,10 @@ extension EntriesTabView {
 
     private func macRow(_ entry: Entry, snapshot: EntryListSnapshot) -> some View {
         let isSelected = macSelection?.wrappedValue?.id == entry.id
-        return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: isSelected)
+        let highlighted = isSelecting ? selectedIDs.contains(entry.id) : isSelected
+        return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: highlighted)
             .padding(.horizontal, 8)
-            .onTapGesture { open(entry); macListFocused = true }
+            .onTapGesture { macTap(entry, snapshot); macListFocused = true }
             .contextMenu {
                 Button("Edit") {
                     open(entry)
@@ -1726,9 +1833,7 @@ extension EntriesTabView {
                 Button("Delete", role: .destructive) {
                     // Clear the selection first so the reader never renders a deleted entry.
                     if isSelected { macSelection?.wrappedValue = nil }
-                    WriteDraftStore.clearIncludingPreserved(slot: .entry(entry.id))
-                    modelContext.delete(entry)
-                    try? modelContext.save()
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
                 }
             }
     }

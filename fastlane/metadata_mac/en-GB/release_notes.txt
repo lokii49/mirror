@@ -1,5 +1,9 @@
-Your own sentences in digests, reports and Ask Mirror
+Recently Deleted, Drafts, and paid plans from 15 November
 
-• With Apple Intelligence, Weekly Digest, Monthly Report and Ask Mirror now quote your own sentences.
-• The word count now says "1 word" rather than "1 words".
-• Smaller fixes and improvements.
+• Paid plans start on 15 November. From then, the daily reflection, Ask Mirror, Weekly Digest, Monthly Report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• Recently Deleted: deleted entries wait 30 days on all your devices, and Undo brings one back straight away. Choose 7, 30 or 90 days in Settings.
+• Drafts: put an entry aside and start another, then pick it up later from Write.
+• Choose a collection while you write, or make a new one there.
+• Select several entries to move them to a collection or delete them.
+• Duplicates finds entries saved twice and merges them. Saving the same text again now asks first.
+• Fixed: leaving Write right after typing could lose the last few words.
