@@ -2,15 +2,34 @@ import Foundation
 import SwiftData
 
 /// Recently Deleted. Every user delete of an entry goes through `moveToTrash`; rows older than
-/// `retention` are removed for good on app-active and the nightly pass.
+/// the retention setting (default 30 days) are removed for good on app-active and the nightly pass.
+extension Notification.Name {
+    /// Entries moved to Recently Deleted by a user delete; `userInfo["ids"]` is `[UUID]`. The
+    /// app shows an Undo toast for it (`TrashUndoToast`).
+    static let mirrorEntriesTrashed = Notification.Name("mirror.entriesTrashed")
+}
+
 enum EntryTrash {
-    static let retentionDays = 30
-    static var retention: TimeInterval { TimeInterval(retentionDays) * 24 * 60 * 60 }
+    static let retentionChoices = [7, 30, 90]
+    static let defaultRetentionDays = 30
+
+    /// The journal's setting (Settings > Journal), synced on `UserProfile`. With two profiles
+    /// (before `mergeDuplicates` runs) the longer one wins, so nothing is purged early.
+    @MainActor
+    static func retentionDays(in context: ModelContext) -> Int {
+        let values = ((try? context.fetch(FetchDescriptor<UserProfile>())) ?? []).map(\.trashRetentionDays)
+        guard let days = values.filter(retentionChoices.contains).max() else { return defaultRetentionDays }
+        return days
+    }
+
+    static func retention(days: Int) -> TimeInterval { TimeInterval(days) * 24 * 60 * 60 }
 
     /// Moves the entries to Recently Deleted and saves. Their unsaved edit drafts are dropped,
     /// as a delete always did. On a failed save nothing changes and the error is thrown.
+    /// `announce: false` where the caller has its own undo (Write's countdown) or the move is a
+    /// side effect (a duplicate merge).
     @MainActor
-    static func moveToTrash(_ entries: [Entry], in context: ModelContext, now: Date = Date()) throws {
+    static func moveToTrash(_ entries: [Entry], in context: ModelContext, now: Date = Date(), announce: Bool = true) throws {
         guard !entries.isEmpty else { return }
         // Read before the delete is saved: a deleted model's attributes may not be readable after.
         let ids = entries.map(\.id)
@@ -27,6 +46,18 @@ enum EntryTrash {
         for id in ids {
             WriteDraftStore.clearIncludingPreserved(slot: .entry(id))
         }
+        if announce {
+            NotificationCenter.default.post(name: .mirrorEntriesTrashed, object: nil, userInfo: ["ids": ids])
+        }
+    }
+
+    /// Undo for a delete: restores these entries if they are still in Recently Deleted.
+    @MainActor
+    @discardableResult
+    static func restore(entryIDs: [UUID], in context: ModelContext) throws -> [UUID] {
+        let wanted = Set(entryIDs)
+        let rows = ((try? context.fetch(FetchDescriptor<TrashedEntry>())) ?? []).filter { wanted.contains($0.entryID) }
+        return try restore(rows, in: context)
     }
 
     /// Everything in Recently Deleted, most recently deleted first, one row per entry (two
@@ -89,11 +120,11 @@ enum EntryTrash {
         try context.save()
     }
 
-    /// Removes rows deleted more than `retention` ago. Idempotent across devices: each one
-    /// removes the same rows.
+    /// Removes rows deleted more than the retention period ago. Idempotent across devices: each
+    /// one removes the same rows.
     @MainActor
     static func purgeExpired(in context: ModelContext, now: Date = Date()) {
-        let cutoff = now.addingTimeInterval(-retention)
+        let cutoff = now.addingTimeInterval(-retention(days: retentionDays(in: context)))
         let descriptor = FetchDescriptor<TrashedEntry>(predicate: #Predicate { $0.deletedAt < cutoff })
         guard let expired = try? context.fetch(descriptor), !expired.isEmpty else { return }
         expired.forEach(context.delete)
@@ -101,8 +132,9 @@ enum EntryTrash {
     }
 
     /// Whole days left before the row is removed for good (0 on its last day).
-    static func daysRemaining(for row: TrashedEntry, now: Date = Date(), calendar: Calendar = .current) -> Int {
-        let expiry = row.deletedAt.addingTimeInterval(retention)
+    static func daysRemaining(for row: TrashedEntry, retentionDays: Int, now: Date = Date(),
+                              calendar: Calendar = .current) -> Int {
+        let expiry = row.deletedAt.addingTimeInterval(retention(days: retentionDays))
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: expiry)).day ?? 0
         return max(0, days)
     }

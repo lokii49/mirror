@@ -95,6 +95,10 @@ struct WriteView: View {
     @State var showSaved = false
     /// The toast says "Saved to Drafts" instead of "Saved".
     @State var savedToastIsDraft = false
+    /// Save found an entry with the same text: its date, while asking "Save anyway?".
+    @State var duplicateOfDate: Date? = nil
+    /// Which save asked: the main editor's (stays open) or a sheet's (dismisses).
+    @State var duplicateSaveDismisses = false
     @State var showDeleteConfirm = false
     @State var showDiscardConfirm = false
     @State var showDeleteCheckedConfirm = false
@@ -677,6 +681,7 @@ struct WriteView: View {
                 if initialText.isEmpty {
                     resumePendingSavedDraft(flushingEditor: false)
                     restoreDraftFromStorage()
+                    prefillCollectionFromEntries()
                 } else if viewModel.text.isEmpty {
                     viewModel.text = initialText
                 }
@@ -920,12 +925,17 @@ struct WriteView: View {
             entryChangedSinceDraft: pendingEditDraft.map { $0.baseFingerprint != editBaseFingerprint } ?? false,
             entrySaveFailed: $entrySaveFailed,
             restore: restoreEditDraft,
-            discard: discardEditDraft
+            discard: discardEditDraft,
+            duplicateOfDate: $duplicateOfDate,
+            saveDuplicate: {
+                if duplicateSaveDismisses { saveAndDismiss(skipDuplicateCheck: true) } else { saveDraft(skipDuplicateCheck: true) }
+            }
         ))
         .onDisappear {
-            // Unsaved edits to an existing entry are kept for next time; a new-entry
-            // draft was already flushed by the paths that change it.
-            if entry != nil { flushDraftSave() }
+            // Unsaved edits to an existing entry are kept for next time. A new-entry draft whose
+            // debounced write is still pending is written now: cancelling it lost the last second
+            // of typing, because coming back restores the stored (older) draft over the editor.
+            if entry != nil || draftSaveTask != nil { flushDraftSave() }
             cancelDraftSave()
             followUpTask?.cancel()
             followUpTask = nil

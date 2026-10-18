@@ -117,3 +117,30 @@ struct WriteCollectionPicker: View {
         }
     }
 }
+
+/// The collection Entries is showing, so a new entry in Write can start there. Per device.
+enum WriteCollectionDefault {
+    private static let key = "mirror.write.viewedCollection"
+
+    static var viewed: EntryFilterCriteria.CollectionScope {
+        get {
+            UserDefaults.standard.string(forKey: key).flatMap(UUID.init(uuidString:)).map { .collection($0) } ?? .all
+        }
+        set {
+            if case .collection(let id) = newValue {
+                UserDefaults.standard.set(id.uuidString, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+
+    /// The viewed collection's id if it still exists.
+    @MainActor
+    static func collectionForNewEntry(in context: ModelContext) -> UUID? {
+        guard case .collection(let id) = viewed else { return nil }
+        var descriptor = FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return ((try? context.fetchCount(descriptor)) ?? 0) > 0 ? id : nil
+    }
+}

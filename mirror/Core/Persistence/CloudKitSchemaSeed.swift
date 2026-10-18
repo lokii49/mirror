@@ -77,6 +77,17 @@ enum CloudKitSchemaSeed {
         largeTrashed.encryptedTagsStorage = blob()
         context.insert(largeTrashed)
         try? context.save()
+        // 3.1.4 (part 2): UserProfile's CD_trashRetentionDays. CloudKit learns a field only from a
+        // record that exports it, so change each profile and change it back (two saves, two exports).
+        let profiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
+        for profile in profiles {
+            let kept = profile.trashRetentionDays
+            profile.trashRetentionDays = kept == 90 ? 7 : 90
+            try? context.save()
+            profile.trashRetentionDays = kept
+            try? context.save()
+        }
+        NSLog("CloudKitSchemaSeed: touched %d profiles for trashRetentionDays", profiles.count)
         NSLog("CloudKitSchemaSeed: inserted erase markers, a collection, a saved view, one seed entry and two Recently Deleted rows; keep the app open ~2 minutes so they export")
     }
 }

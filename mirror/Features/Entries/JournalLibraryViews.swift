@@ -239,6 +239,7 @@ struct DuplicatesView: View {
 struct RecentlyDeletedView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TrashedEntry.deletedAt, order: .reverse) private var rows: [TrashedEntry]
+    @Query private var profiles: [UserProfile]
     @State private var previews: [UUID: String] = [:]
     @State private var confirmEmpty = false
     @State private var pendingDelete: TrashedEntry?
@@ -246,13 +247,17 @@ struct RecentlyDeletedView: View {
 
     private var items: [TrashedEntry] { EntryTrash.newestPerEntry(rows) }
 
+    private var retentionDays: Int {
+        profiles.map(\.trashRetentionDays).filter(EntryTrash.retentionChoices.contains).max() ?? EntryTrash.defaultRetentionDays
+    }
+
     var body: some View {
         List {
             if items.isEmpty {
                 ContentUnavailableView {
                     Label("Nothing deleted", systemImage: "trash")
                 } description: {
-                    Text("Deleted entries stay here for \(EntryTrash.retentionDays) days, on all your devices, before they're removed for good.")
+                    Text("Deleted entries stay here for \(retentionDays) days, on all your devices, before they're removed for good.")
                 }
                 .listRowBackground(Color.clear)
             } else {
@@ -273,7 +278,7 @@ struct RecentlyDeletedView: View {
                             }
                     }
                 } footer: {
-                    Text("Entries here aren't used for reflections, Ask or widgets. They're removed for good after \(EntryTrash.retentionDays) days.")
+                    Text("Entries here aren't used for reflections, Ask or widgets. They're removed for good after \(retentionDays) days.")
                 }
             }
         }
@@ -327,7 +332,7 @@ struct RecentlyDeletedView: View {
 
     private func detail(for row: TrashedEntry) -> String {
         let written = row.createdAt.formatted(.dateTime.day().month(.abbreviated).year())
-        let days = EntryTrash.daysRemaining(for: row)
+        let days = EntryTrash.daysRemaining(for: row, retentionDays: retentionDays)
         let left = days == 1 ? String(localized: "1 day left") : String(localized: "\(days) days left")
         return "\(written) · \(left)"
     }

@@ -34,6 +34,19 @@ struct ProtocolSettingsView: View {
     @State private var showLanguagePicker = false
     @State private var notificationPermission: UNAuthorizationStatus = .notDetermined
     @State private var showSubscription = false
+    @Query private var profiles: [UserProfile]
+    @State private var showRecentlyDeleted = false
+
+    /// Synced on every profile (all devices purge with the same value).
+    private var trashRetention: Binding<Int> {
+        Binding(
+            get: { profiles.map(\.trashRetentionDays).filter(EntryTrash.retentionChoices.contains).max() ?? EntryTrash.defaultRetentionDays },
+            set: { days in
+                profiles.forEach { $0.trashRetentionDays = days }
+                try? modelContext.save()
+            }
+        )
+    }
 
     private var nudgeTime: Date {
         var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
@@ -290,6 +303,45 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
                 }
+                }
+
+                SettingsGroup(title: "Recently Deleted") {
+                    Button { showRecentlyDeleted = true } label: {
+                        HStack {
+                            SettingsRowLabel(title: "Recently Deleted", systemImage: "trash.fill", iconColor: .orange)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showRecentlyDeleted) {
+                        LibrarySheet(page: .recentlyDeleted).environment(\.appDisplayMode, displayMode)
+                    }
+
+                    SettingsDivider()
+
+                    HStack {
+                        SettingsRowLabel(title: "Keep deleted entries", systemImage: "clock.arrow.circlepath", iconColor: .orange)
+                        Spacer()
+                        Picker("Keep deleted entries", selection: trashRetention) {
+                            ForEach(EntryTrash.retentionChoices, id: \.self) { days in
+                                Text("\(days) days").tag(days)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(MirrorTheme.primary)
+                        .disabled(profiles.isEmpty)
+                    }
+                    Text("Applies on all your devices. Entries older than this are removed from Recently Deleted for good.")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .padding(.leading, 44)
+                        .padding(.top, 2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 // The Mac editor never sorts checklists, so the setting would do nothing there.

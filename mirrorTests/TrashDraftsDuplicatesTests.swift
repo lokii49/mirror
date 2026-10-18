@@ -209,4 +209,57 @@ struct TrashDraftsDuplicatesTests {
         #expect(oldDraft.collectionID == nil)
         #expect(!oldDraft.storesCollection, "a 3.1.3 edit draft must not unfile its entry")
     }
+
+    // MARK: - 3.1.4 part 2
+
+    @Test func undoRestoresByEntryID() throws {
+        let context = try makeContext()
+        let entry = Entry(text: "A synthetic entry deleted by mistake.")
+        context.insert(entry)
+        try context.save()
+        let id = entry.id
+        try EntryTrash.moveToTrash([entry], in: context, announce: false)
+        #expect(try EntryTrash.restore(entryIDs: [id], in: context) == [id])
+        #expect(entries(context).map(\.id) == [id])
+    }
+
+    @Test func retentionFollowsTheSyncedSettingAndPurgesWithIt() throws {
+        let context = try makeContext()
+        #expect(EntryTrash.retentionDays(in: context) == 30, "no profile yet: the default")
+        let profile = UserProfile()
+        profile.trashRetentionDays = 7
+        context.insert(profile)
+        let now = Date()
+        let tenDays = Entry(text: "Synthetic, deleted ten days ago.")
+        context.insert(TrashedEntry(copying: tenDays, deletedAt: now.addingTimeInterval(-10 * 86_400)))
+        try context.save()
+        #expect(EntryTrash.retentionDays(in: context) == 7)
+        EntryTrash.purgeExpired(in: context, now: now)
+        #expect(trash(context).isEmpty, "7 days: a 10-day-old row goes")
+
+        profile.trashRetentionDays = 999   // not a choice: ignored
+        try context.save()
+        #expect(EntryTrash.retentionDays(in: context) == 30)
+    }
+
+    @Test func saveWarnsAboutAnExactCopyOnly() throws {
+        let context = try makeContext()
+        let old = Entry(text: "Walked to the market and bought bread.")
+        old.createdAt = Date(timeIntervalSince1970: 1_000_000)
+        context.insert(old)
+        context.insert(Entry(text: "Tired."))
+        try context.save()
+        #expect(EntryDuplicates.existingCopy(of: "Walked to the market and  bought bread.", in: context) == old.createdAt)
+        #expect(EntryDuplicates.existingCopy(of: "Walked to the market and bought milk.", in: context) == nil)
+        #expect(EntryDuplicates.existingCopy(of: "Tired.", in: context) == nil, "short texts never warn")
+    }
+
+    @Test func paidPlansNoticeShipsIn314OnIOSAndMac() {
+        let ios = FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.3", current: "3.1.4").map(\.id)
+        #expect(ios.first == "paid-plans-314")
+        let mac = FeatureCardService.macWhatsNewCards(lastSeen: "1.1.3", current: "1.1.4").map(\.id)
+        #expect(mac.contains("paid-plans-314"))
+        #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.3", current: "1.1.4"))
+    }
+
 }

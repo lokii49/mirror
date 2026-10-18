@@ -28,7 +28,8 @@ extension WriteView {
         withAnimation { showSaved = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             withAnimation { showSaved = false }
-            savedToastIsDraft = false
+            // After the fade, or the label reads "Saved" while it disappears.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { savedToastIsDraft = false }
         }
     }
 

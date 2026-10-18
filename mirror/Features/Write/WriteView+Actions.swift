@@ -73,7 +73,7 @@ extension WriteView {
     /// `continueTranscriptionAfterSaveAnyway` so it keeps running against the
     /// saved entry after this view is gone, instead of being silently
     /// abandoned or corrupting whatever comes next.
-    func saveAndDismiss() {
+    func saveAndDismiss(skipDuplicateCheck: Bool = false) {
         commitPendingTag()
         if let entry {
             // Snapshot before the handoff below clears failedTranscriptionIndexes —
@@ -153,6 +153,11 @@ extension WriteView {
             }
         } else {
             if hasDraftContent {
+                if !skipDuplicateCheck, let date = existingCopyDate() {
+                    duplicateSaveDismisses = true
+                    duplicateOfDate = date
+                    return
+                }
                 guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see the edit path above
                     flushDraftSave()
                     entrySaveFailed = true
@@ -217,9 +222,14 @@ extension WriteView {
 
     /// Saves even while a voice note is still transcribing (1.4) — see
     /// `saveAndDismiss()`'s doc comment.
-    func saveDraft() {
+    func saveDraft(skipDuplicateCheck: Bool = false) {
         commitPendingTag()
         guard entry == nil, hasDraftContent else { return }
+        if !skipDuplicateCheck, let date = existingCopyDate() {
+            duplicateSaveDismisses = false
+            duplicateOfDate = date
+            return
+        }
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else {  // see saveAndDismiss
             flushDraftSave()
             entrySaveFailed = true
@@ -268,6 +278,11 @@ extension WriteView {
             withAnimation { showSaved = false }
         }
         onSaveComplete?()
+    }
+
+    /// A saved entry with exactly this text, if any (new entries only; see `EntryDuplicates`).
+    func existingCopyDate() -> Date? {
+        EntryDuplicates.existingCopy(of: viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines), in: modelContext)
     }
 
     func clearDraft() {
@@ -381,7 +396,8 @@ extension WriteView {
     func deleteAndDismiss() {
         editCommitted = true
         if let entry {
-            try? EntryTrash.moveToTrash([entry], in: modelContext)
+            // The editor already offered its own Undo countdown.
+            try? EntryTrash.moveToTrash([entry], in: modelContext, announce: false)
         } else {
             try? modelContext.save()
         }
@@ -748,6 +764,12 @@ extension WriteView {
         if draft.storesCollection { entryCollectionID = draft.collectionID }
     }
 
+    /// A blank new entry starts in the collection Entries is showing (when it shows one).
+    func prefillCollectionFromEntries() {
+        guard entry == nil, entryCollectionID == nil, !hasDraftContent, entryTags.isEmpty else { return }
+        entryCollectionID = WriteCollectionDefault.collectionForNewEntry(in: modelContext)
+    }
+
     func clearDraftStorage() {
         cancelDraftSave()
         attachmentSaveGeneration &+= 1   // a photo save still in flight must not report afterwards
@@ -821,9 +843,21 @@ struct DraftRecoveryAlerts: ViewModifier {
     @Binding var entrySaveFailed: Bool
     let restore: (WriteDraftStore.Payload) -> Void
     let discard: () -> Void
+    /// Save found the same text already saved (`EntryDuplicates.existingCopy`).
+    @Binding var duplicateOfDate: Date?
+    let saveDuplicate: () -> Void
 
     func body(content: Content) -> some View {
         content
+            .alert("You've already saved this", isPresented: Binding(
+                get: { duplicateOfDate != nil },
+                set: { if !$0 { duplicateOfDate = nil } }
+            ), presenting: duplicateOfDate) { _ in
+                Button("Save Anyway") { saveDuplicate() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: { date in
+                Text("An entry from \(date.formatted(date: .abbreviated, time: .shortened)) has exactly the same text.")
+            }
             .alert("Restore unsaved changes?", isPresented: Binding(
                 get: { pendingEditDraft != nil },
                 // Cancel (Mac) or dismissal: decide later; the draft stays stored and

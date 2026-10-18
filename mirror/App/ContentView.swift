@@ -247,6 +247,9 @@ struct ContentView: View {
             }
             #endif
         }
+        // Undo after a delete (it goes to Recently Deleted without asking first). Inside the
+        // display-mode environment below, so the toast follows the theme.
+        .modifier(TrashUndoToast())
         .environment(\.appDisplayMode, displayMode)
         // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
         // which also covers sheets. This one only guarantees the first frame never shows the journal.

@@ -51,6 +51,21 @@ enum EntryDuplicates {
         Set(group.map { calendar.startOfDay(for: $0.createdAt) }).count > 1
     }
 
+    /// When a saved entry already has this exact text (5+ words), the oldest one's date. Only
+    /// entries with the same stored word count (plaintext, no decrypt) are opened, so a save
+    /// decrypts a handful of entries, not the journal.
+    @MainActor
+    static func existingCopy(of text: String, in context: ModelContext) -> Date? {
+        guard let wanted = key(for: text) else { return nil }
+        let words = strippedWordCount(text)
+        let descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.wordCount == words },
+                                                sortBy: [SortDescriptor(\.createdAt)])
+        let sameLength = (try? context.fetch(descriptor)) ?? []
+        return sameLength.first { entry in
+            entry.decryptedText.flatMap(key(for:)) == wanted
+        }?.createdAt
+    }
+
     enum MergeError: Error { case unreadable, cannotEncrypt }
 
     /// Keeps the oldest entry and moves the others to Recently Deleted (restorable for 30 days).
@@ -103,7 +118,7 @@ enum EntryDuplicates {
         if !keep.isPinned, others.contains(where: \.isPinned) { keep.isPinned = true }
 
         // One save for the kept entry's changes and the move to Recently Deleted.
-        try EntryTrash.moveToTrash(others, in: context)
+        try EntryTrash.moveToTrash(others, in: context, announce: false)
         return keep.id
     }
 }

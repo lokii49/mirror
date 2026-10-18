@@ -32,6 +32,9 @@ struct EntriesTabView: View {
     @Query private var savedViewModels: [SavedEntryView]
     @State private var showOrganizer = false
     @State private var libraryPage: LibraryPage?
+    /// Select mode (iPhone/iPad): tap rows to select, then Move to… or Delete from the bottom bar.
+    @State private var isSelecting = false
+    @State private var selectedIDs: Set<UUID> = []
     @State private var newCollectionFor: Entry?
     @State private var savingView = false
     /// Query a saved view just applied: its own sort wins over the Best Match switch.
@@ -347,7 +350,7 @@ struct EntriesTabView: View {
         }
         SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
                        open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
-                       openLibrary: { libraryPage = $0 }) {
+                       openLibrary: { libraryPage = $0 }, select: startSelecting) {
             Image(systemName: "bookmark")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color.primary)
@@ -447,6 +450,22 @@ struct EntriesTabView: View {
                     if !snapshot.usedTags.isEmpty { tagFilterBar(snapshot.usedTags) }
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSelecting {
+                    let visible = visibleEntryIDs(snapshot)
+                    EntrySelectionBar(
+                        count: selectedIDs.count,
+                        lookup: collectionLookup,
+                        allSelected: !visible.isEmpty && visible.isSubset(of: selectedIDs),
+                        toggleAll: { selectedIDs = visible.isSubset(of: selectedIDs) ? [] : visible },
+                        move: moveSelection,
+                        delete: deleteSelection,
+                        done: endSelecting
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: isSelecting)
             #endif
             .task(id: searchText) {
                 let value = searchText
@@ -883,6 +902,45 @@ struct EntriesTabView: View {
         .onAppear { searchFocused = true }
     }
 
+    // MARK: - Select mode
+
+    private func startSelecting() {
+        selectedIDs = []
+        isSelecting = true
+    }
+
+    private func endSelecting() {
+        isSelecting = false
+        selectedIDs = []
+    }
+
+    private func toggleSelection(_ entry: Entry) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if selectedIDs.contains(entry.id) { selectedIDs.remove(entry.id) } else { selectedIDs.insert(entry.id) }
+    }
+
+    /// The rows on screen now (search, filters and collection applied).
+    private func visibleEntryIDs(_ snapshot: EntryListSnapshot) -> Set<UUID> {
+        Set(snapshot.pinnedEntries.map(\.id) + snapshot.groupedByMonth.flatMap { $0.entries.map(\.id) })
+    }
+
+    private var selectedEntries: [Entry] {
+        entries.filter { selectedIDs.contains($0.id) }
+    }
+
+    private func moveSelection(to collectionID: UUID?) {
+        try? JournalOrganizationStore.move(selectedEntries, to: collectionID, in: modelContext)
+        endSelecting()
+    }
+
+    /// To Recently Deleted, with the app's Undo toast.
+    private func deleteSelection() {
+        let doomed = selectedEntries
+        if let open = macSelection?.wrappedValue, selectedIDs.contains(open.id) { macSelection?.wrappedValue = nil }
+        endSelecting()
+        try? EntryTrash.moveToTrash(doomed, in: modelContext)
+    }
+
     private func open(_ entry: Entry) {
         if let macSelection {
             macSelection.wrappedValue = entry
@@ -925,15 +983,18 @@ struct EntriesTabView: View {
 
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
-        EntryRow(entry: entry, rowPreview: preview)
+        HStack(spacing: 10) {
+            if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
+            EntryRow(entry: entry, rowPreview: preview)
+        }
             .contentShape(Rectangle())
             .onTapGesture {
-                open(entry)
+                if isSelecting { toggleSelection(entry) } else { open(entry) }
             }
             // One element that opens the entry, not its separate texts (backlog A19).
             .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { open(entry) }
+            .accessibilityAddTraits(isSelecting ? (selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton) : .isButton)
+            .accessibilityAction { if isSelecting { toggleSelection(entry) } else { open(entry) } }
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
@@ -1503,11 +1564,9 @@ extension EntriesTabView {
                 if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
             }
             }
-            .confirmationDialog("Delete this entry?", isPresented: Binding(get: { macPendingDelete != nil }, set: { if !$0 { macPendingDelete = nil } }), titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { macDeletePending(snapshot) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("It moves to Recently Deleted, where you can restore it for 30 days.")
+            // No confirmation: the Delete key moves the entry to Recently Deleted, with Undo.
+            .onChange(of: macPendingDelete?.id) { _, id in
+                if id != nil { macDeletePending(snapshot) }
             }
         }
         .background(MirrorTheme.inkMid)
