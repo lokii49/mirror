@@ -12,11 +12,28 @@ enum SubscriptionTier: String {
 final class SubscriptionService {
     static let shared = SubscriptionService()
 
-    // TEMPORARY: unlock every tier for every user, no purchase required.
-    // Flip to false to restore normal RevenueCat-driven gating.
-    static let allFeaturesFree = true
+    /// Every tier for every user, no purchase required, until paid plans start on 15 November
+    /// 2026 (`FeatureCardRegistry.paidPlansStart`, the date the notice gives). By date, not a
+    /// flag: the paid build is approved and installed before then, and must not gate anyone
+    /// early (3.1.6, 2026-10-20).
+    static var allFeaturesFree: Bool {
+        #if DEBUG
+        // Unit tests that generate insights assume a paid tier, and the gating tests set theirs
+        // with `debugSetTier`; without this, they'd turn Free on 15 November, or follow
+        // whichever sandbox account the simulator has.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return true }
+        #endif
+        return allFeaturesFree(now: Date())
+    }
+
+    static func allFeaturesFree(now: Date) -> Bool {
+        now < FeatureCardRegistry.paidPlansStart
+    }
 
     private(set) var tier: SubscriptionTier = allFeaturesFree ? .deep : .free
+    /// The tier came from the free period, not from RevenueCat; checked again on app-active so an
+    /// app left running into 15 November doesn't stay Deep until it's relaunched.
+    private var tierFromFreePeriod = SubscriptionService.allFeaturesFree
     private(set) var corePackages: [Package] = []
     private(set) var deepPackages: [Package] = []
     private(set) var isPurchasing = false
@@ -193,6 +210,23 @@ final class SubscriptionService {
         }
     }
 
+    /// App-active: once paid plans have started, a tier still left from the free period is
+    /// replaced by the real one.
+    func appDidBecomeActive() {
+        guard tierFromFreePeriod, !Self.allFeaturesFree else { return }
+        tierFromFreePeriod = false
+        if let cached = Purchases.shared.cachedCustomerInfo {
+            updateTier(from: cached)
+        } else {
+            tier = .free
+            Self.publishTierToWidgets(.free)
+        }
+        Task {
+            await syncPurchasesSilently()
+            await refresh()
+        }
+    }
+
     /// Launch-time sync: no password prompt, and a failure stays quiet (no `purchaseError`),
     /// since the user didn't ask for anything. `refresh()` runs right after either way.
     private func syncPurchasesSilently() async {
@@ -228,9 +262,11 @@ final class SubscriptionService {
         activeProductIDs = customerInfo.activeSubscriptions
         guard !Self.allFeaturesFree else {
             tier = .deep
+            tierFromFreePeriod = true
             Self.publishTierToWidgets(tier)
             return
         }
+        tierFromFreePeriod = false
         if customerInfo.entitlements["deep"]?.isActive == true {
             tier = .deep
         } else if customerInfo.entitlements["core"]?.isActive == true {

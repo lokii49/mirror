@@ -56,7 +56,7 @@ iOS (SwiftUI + SwiftData)
 
 **Ask cap**: Core = 15/month. Deep = unlimited. Cut immediately — no grandfathering.
 
-**Everything is free for now**: `SubscriptionService.allFeaturesFree = true` (since 3.1.1) makes every user Deep, so the paywall and the Ask cap never apply. It stays on in 3.1.2. Paid gating returns in a November build: an in-app notice about 2 weeks ahead, then gating with the 7-day trial (owner, 2026-10-11; plan in `mirror/.claude/november-paid-activation.md`). When it's flipped off, launch restores with RevenueCat's silent `syncPurchases`, never `restorePurchases`, and Free users don't see Talk It Out.
+**Everything is free until 15 November 2026**: `SubscriptionService.allFeaturesFree` is by date since 3.1.6 (`allFeaturesFree(now:)`, true before `FeatureCardRegistry.paidPlansStart`), so the paid build can be installed early without gating anyone; an app left running into the 15th switches on app-active (`SubscriptionService.appDidBecomeActive`). Both Core and Deep start that day, with the 7-day trial for new subscribers (owner, 2026-10-20; plan `mirror/.claude/3.1.6-paid-build.md`). Launch restores with RevenueCat's silent `syncPurchases`, never `restorePurchases`, and Free users don't see Talk It Out. **Free keeps reading what was already made** (owner, 2026-10-20): saved daily reflections, weekly digests and monthly reports stay visible on every tier, cards and widgets included; a tier that can't generate an insight sees the saved one or the lock, never a state that promises a new one.
 
 App Store Connect products:
 - `mirror_core_monthly` — $7.99/mo, 7-day free trial
