@@ -407,7 +407,7 @@ enum FeatureCardRegistry {
         .init(
             id: "insights-stay-316",
             title: "What's made for you stays yours",
-            body: "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, after paid plans start on \(FeatureCardRegistry.paidPlansStartText) too. New ones need Core or Deep.",
+            body: "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on \(FeatureCardRegistry.paidPlansStartText). New ones need Core or Deep.",
             symbolName: "lock.open",
             accentColor: MirrorTheme.primary,
             tier: .free,

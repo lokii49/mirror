@@ -5994,7 +5994,7 @@
         }
       }
     },
-    "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, after paid plans start on %@ too. New ones need Core or Deep." : {
+    "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on %@. New ones need Core or Deep." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
