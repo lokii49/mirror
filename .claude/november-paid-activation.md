@@ -62,9 +62,10 @@ The notice has to be in users' hands before the cutover build, so A needs its ow
 
 ## Decided
 - Both plans, Core and Deep, launch on 15 November in the paid build, which is 3.1.6, not 3.1.5 (owner, 2026-10-20). A Deep-only November with Core in December was considered and dropped: the notice and release notes already promise "Core or Deep", and one free trial per Apple ID across the group would spend Core's trial on Deep.
+- Free users keep reading the weekly digests and monthly reports already made for them, including those from the free period (owner, 2026-10-20; answers question 4). Gating stops new ones being generated, not reading old ones.
 
 ## Open questions for the owner
 1. Cutover date (and so the notice date).
 2. Notice copy, and whether it shows in Sentinel's voice too.
 3. Should anyone keep free access (TestFlight testers, reviewers)? A promo code / offer code via App Store Connect avoids app code.
-4. What Free users see on surfaces they used for free during the grace period, such as past digests and reports. Reading past AI output could stay free, in line with "your data is always yours". Needs a call before B.
+4. What Free users see on surfaces they used for free during the grace period, such as past digests and reports. Reading past AI output could stay free, in line with "your data is always yours". Needs a call before B. **Answered 2026-10-20: they keep reading them (see Decided).**
