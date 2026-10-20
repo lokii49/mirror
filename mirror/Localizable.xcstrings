@@ -7545,6 +7545,64 @@
         }
       }
     },
+    "iCloud storage is full" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud-Speicher ist voll"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "El almacenamiento de iCloud está lleno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le stockage iCloud est plein"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lo spazio iCloud è pieno"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloudストレージがいっぱいです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud 저장 공간이 가득 찼습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O armazenamento do iCloud está cheio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Хранилище iCloud заполнено"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud 储存空间已满"
+          }
+        }
+      }
+    },
     "If you turn on Smarter Ask search, mirror downloads EmbeddingGemma 300M (google/embeddinggemma-300m, GGUF build by ggml-org) once and runs it on your device to find entries for Ask. EmbeddingGemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms." : {
       "localizations" : {
         "de" : {
@@ -14927,6 +14985,64 @@
         }
       }
     },
+    "UPLINK STORAGE FULL" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "UPLINK-SPEICHER VOLL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ALMACENAMIENTO DE ENLACE LLENO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "STOCKAGE DE LIAISON PLEIN"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "SPAZIO DI COLLEGAMENTO PIENO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "アップリンク容量不足"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "업링크 저장 공간 가득 참"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARMAZENAMENTO DO LINK CHEIO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ХРАНИЛИЩЕ КАНАЛА ЗАПОЛНЕНО"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "上行链路空间已满"
+          }
+        }
+      }
+    },
     "Waiting for approval. Your plan starts as soon as the purchase is approved." : {
       "localizations" : {
         "de" : {
@@ -15810,6 +15926,238 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "现在无法保存你的日记，请重试。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this device, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code %@. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Gerät, und iCloud lehnt sie immer wieder ab. Warten hilft also nicht. Aktualisiere MirrorNotes, und wenn das bleibt, schreib an hello@mirrornotes.org mit dem Code %@. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Gerät."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este dispositivo e iCloud los sigue rechazando, así que esperar no lo arreglará. Actualiza MirrorNotes y, si sigue así, escribe a hello@mirrornotes.org con el código %@. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur cet appareil et iCloud continue de les refuser : attendre ne suffira pas. Mettez à jour MirrorNotes et, si cela persiste, écrivez à hello@mirrornotes.org avec le code %@. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de cet appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo dispositivo e iCloud continua a rifiutarle, quindi aspettare non basta. Aggiorna MirrorNotes e, se continua, scrivi a hello@mirrornotes.org con il codice %@. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのデバイスにしかなく、iCloudが受け付けない状態が続いているため、待っても解決しません。MirrorNotesをアップデートし、それでも続く場合はコード %@ を添えて hello@mirrornotes.org までご連絡ください。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このデバイスのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 기기에만 있고 iCloud가 계속 거부하고 있어 기다려도 해결되지 않습니다. MirrorNotes를 업데이트하고, 계속되면 코드 %@와 함께 hello@mirrornotes.org로 이메일을 보내 주세요. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 기기의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste dispositivo e o iCloud continua recusando, então esperar não vai resolver. Atualize o MirrorNotes e, se continuar, envie um e-mail para hello@mirrornotes.org com o código %@. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом устройстве, и iCloud продолжает их отклонять, так что ожидание не поможет. Обновите MirrorNotes, а если не пройдёт, напишите на hello@mirrornotes.org с кодом %@. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台设备上，而 iCloud 一直拒绝接收，等待无法解决。请更新 MirrorNotes；如果问题仍在，请发邮件至 hello@mirrornotes.org 并附上代码 %@。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台设备上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this device. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Gerät. Gib iCloud-Speicher frei, dann werden sie von selbst hochgeladen. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Gerät."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este dispositivo. Libera espacio en iCloud y se subirán solos. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur cet appareil. Libérez de l'espace iCloud et elles seront envoyées d'elles-mêmes. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de cet appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo dispositivo. Libera spazio su iCloud e verranno caricate da sole. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのデバイスにしかありません。iCloudストレージの空き容量を増やすと、自動でアップロードされます。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このデバイスのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 기기에만 있습니다. iCloud 저장 공간을 확보하면 자동으로 업로드됩니다. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 기기의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste dispositivo. Libere espaço no iCloud e elas serão enviadas sozinhas. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом устройстве. Освободите место в iCloud, и они выгрузятся сами. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台设备上。释放 iCloud 储存空间后，它们会自动上传。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台设备上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this Mac, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code %@. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Mac, und iCloud lehnt sie immer wieder ab. Warten hilft also nicht. Aktualisiere MirrorNotes, und wenn das bleibt, schreib an hello@mirrornotes.org mit dem Code %@. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este Mac e iCloud los sigue rechazando, así que esperar no lo arreglará. Actualiza MirrorNotes y, si sigue así, escribe a hello@mirrornotes.org con el código %@. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur ce Mac et iCloud continue de les refuser : attendre ne suffira pas. Mettez à jour MirrorNotes et, si cela persiste, écrivez à hello@mirrornotes.org avec le code %@. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de ce Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo Mac e iCloud continua a rifiutarle, quindi aspettare non basta. Aggiorna MirrorNotes e, se continua, scrivi a hello@mirrornotes.org con il codice %@. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのMacにしかなく、iCloudが受け付けない状態が続いているため、待っても解決しません。MirrorNotesをアップデートし、それでも続く場合はコード %@ を添えて hello@mirrornotes.org までご連絡ください。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このMacのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 Mac에만 있고 iCloud가 계속 거부하고 있어 기다려도 해결되지 않습니다. MirrorNotes를 업데이트하고, 계속되면 코드 %@와 함께 hello@mirrornotes.org로 이메일을 보내 주세요. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 Mac의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste Mac e o iCloud continua recusando, então esperar não vai resolver. Atualize o MirrorNotes e, se continuar, envie um e-mail para hello@mirrornotes.org com o código %@. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste Mac."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом Mac, и iCloud продолжает их отклонять, так что ожидание не поможет. Обновите MirrorNotes, а если не пройдёт, напишите на hello@mirrornotes.org с кодом %@. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台 Mac 上，而 iCloud 一直拒绝接收，等待无法解决。请更新 MirrorNotes；如果问题仍在，请发邮件至 hello@mirrornotes.org 并附上代码 %@。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台 Mac 上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this Mac. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Mac. Gib iCloud-Speicher frei, dann werden sie von selbst hochgeladen. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este Mac. Libera espacio en iCloud y se subirán solos. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur ce Mac. Libérez de l'espace iCloud et elles seront envoyées d'elles-mêmes. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de ce Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo Mac. Libera spazio su iCloud e verranno caricate da sole. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのMacにしかありません。iCloudストレージの空き容量を増やすと、自動でアップロードされます。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このMacのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 Mac에만 있습니다. iCloud 저장 공간을 확보하면 자동으로 업로드됩니다. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 Mac의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste Mac. Libere espaço no iCloud e elas serão enviadas sozinhas. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste Mac."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом Mac. Освободите место в iCloud, и они выгрузятся сами. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台 Mac 上。释放 iCloud 储存空间后，它们会自动上传。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台 Mac 上的副本。"
           }
         }
       }

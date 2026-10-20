@@ -1080,7 +1080,7 @@ struct EntriesTabView: View {
 
             if journalSafety.showsNotBackedUp(now: backupStatusNow) {
                 Section {
-                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                    NotBackedUpBanner(exportError: journalSafety.exportError, now: backupStatusNow)
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
@@ -1533,7 +1533,7 @@ extension EntriesTabView {
                     RestoreFromDeviceBanner()
                 }
                 if journalSafety.showsNotBackedUp(now: backupStatusNow) {
-                    NotBackedUpBanner(uploadFailing: journalSafety.lastExportFailed)
+                    NotBackedUpBanner(exportError: journalSafety.exportError, now: backupStatusNow)
                 }
                 if UnreadableEntriesBanner.shouldShow(unreadableCount: snapshot.unreadableCount, dismissedCount: unreadableBannerDismissedCount) {
                     unreadableBanner(snapshot)

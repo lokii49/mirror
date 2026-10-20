@@ -3,23 +3,51 @@ import SwiftUI
 /// "Your latest changes aren't in iCloud yet." iOS gives no warning before the user turns
 /// iCloud off for the app — which erases this device's copy — so this standing notice is
 /// the warning. The host decides when to show it (`JournalSafety.showsNotBackedUp`).
+///
+/// The wording follows the upload error: a full iCloud says so, and the same non-network error
+/// for hours (`ExportError.isStuck`) stops asking the user to wait and names the code. A
+/// schema rejection once showed "keep MirrorNotes open on Wi-Fi" for a day while nothing on
+/// the device could clear it (2026-10-20).
 struct NotBackedUpBanner: View {
-    let uploadFailing: Bool
+    let exportError: ExportError?
+    let now: Date
 
     var body: some View {
         NoticeBanner(
             systemImage: "icloud.slash",
-            title: Text(uploadFailing ? "iCloud upload is failing" : "Not backed up to iCloud yet"),
-            sentinelTitle: Text(uploadFailing ? "UPLINK FAILING" : "UPLINK PENDING"),
+            title: title,
+            sentinelTitle: sentinelTitle,
             message: Text(message)
         )
     }
 
+    private var title: Text {
+        guard let exportError else { return Text("Not backed up to iCloud yet") }
+        return exportError.isQuotaExceeded ? Text("iCloud storage is full") : Text("iCloud upload is failing")
+    }
+
+    private var sentinelTitle: Text {
+        guard let exportError else { return Text("UPLINK PENDING") }
+        return exportError.isQuotaExceeded ? Text("UPLINK STORAGE FULL") : Text("UPLINK FAILING")
+    }
+
     private var message: LocalizedStringKey {
         #if os(macOS)
-        "Your latest changes are only on this Mac. Keep MirrorNotes open while online until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy."
+        if exportError?.isQuotaExceeded == true {
+            return "Your latest changes are only on this Mac. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy."
+        }
+        if let exportError, exportError.isStuck(now: now) {
+            return "Your latest changes are only on this Mac, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code \(exportError.label). Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy."
+        }
+        return "Your latest changes are only on this Mac. Keep MirrorNotes open while online until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy."
         #else
-        "Your latest changes are only on this device. Keep MirrorNotes open on Wi-Fi until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy."
+        if exportError?.isQuotaExceeded == true {
+            return "Your latest changes are only on this device. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy."
+        }
+        if let exportError, exportError.isStuck(now: now) {
+            return "Your latest changes are only on this device, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code \(exportError.label). Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy."
+        }
+        return "Your latest changes are only on this device. Keep MirrorNotes open on Wi-Fi until this clears, and don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy."
         #endif
     }
 }

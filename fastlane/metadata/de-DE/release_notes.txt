@@ -1,9 +1,5 @@
-Zuletzt gelöscht, Entwürfe und Bezahlpläne ab 15. November
+Klarerer iCloud-Status und ein Tastatur-Fix
 
+• Wenn iCloud deine letzten Änderungen nicht annimmt, sagt der Hinweis jetzt warum: wenn dein iCloud-Speicher voll ist und wenn Warten nicht hilft, mit einem Code, den du uns schicken kannst.
+• Behoben: Direkt nach dem Start konnte sich die Tastatur über „Neuigkeiten“ oder einem anderen Fenster öffnen.
 • Ab 15. November gibt es Bezahlpläne. Dann brauchen die tägliche Reflexion, „Mirror fragen“, Wöchentliche Zusammenfassung, Monatsbericht, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
-• Zuletzt gelöscht: Gelöschte Einträge warten 30 Tage auf all deinen Geräten, und „Widerrufen“ holt einen sofort zurück. In den Einstellungen wählst du 7, 30 oder 90 Tage.
-• Entwürfe: Leg einen Eintrag beiseite, beginne einen neuen und schreib den ersten später in Schreiben weiter.
-• Wähle beim Schreiben eine Sammlung oder lege dort eine neue an.
-• Wähle mehrere Einträge aus, um sie in eine Sammlung zu verschieben oder zu löschen.
-• Duplikate findet doppelt gesicherte Einträge und führt sie zusammen. Wer denselben Text noch einmal sichert, wird jetzt vorher gefragt.
-• Behoben: Wer Schreiben direkt nach dem Tippen verließ, konnte die letzten Wörter verlieren.

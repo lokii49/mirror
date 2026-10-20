@@ -1,9 +1,5 @@
-Recently Deleted, Drafts, and paid plans from 15 November
+Clearer iCloud status, and a keyboard fix
 
+• When iCloud can't take your latest changes, the notice now says why: it tells you when iCloud storage is full, and when waiting won't fix it, with a code to send us.
+• Fixed: the keyboard could open on top of What's New or another sheet right after launch.
 • Paid plans start on 15 November. From then, the daily reflection, Ask Mirror, Weekly Digest, Monthly Report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
-• Recently Deleted: deleted entries wait 30 days on all your devices, and Undo brings one back straight away. Choose 7, 30 or 90 days in Settings.
-• Drafts: put an entry aside and start another, then pick it up later from Write.
-• Choose a collection while you write, or make a new one there.
-• Select several entries to move them to a collection or delete them.
-• Duplicates finds entries saved twice and merges them. Saving the same text again now asks first.
-• Fixed: leaving Write right after typing could lose the last few words.

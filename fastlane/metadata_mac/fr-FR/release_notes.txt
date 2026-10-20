@@ -1,9 +1,4 @@
-Supprimés récemment, Brouillons et abonnements payants dès le 15 novembre
+Un statut iCloud plus clair
 
+• Quand iCloud n'accepte pas vos dernières modifications, l'avis explique maintenant pourquoi : il indique quand votre stockage iCloud est plein et quand attendre ne suffira pas, avec un code à nous envoyer.
 • Les abonnements payants commencent le 15 novembre. Dès lors, la réflexion du jour, Demander à Mirror, le Résumé hebdomadaire, le Rapport mensuel, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
-• Supprimés récemment : les entrées supprimées attendent 30 jours sur tous vos appareils, et Annuler en ramène une aussitôt. Choisissez 7, 30 ou 90 jours dans Réglages.
-• Brouillons : mettez une entrée de côté, commencez-en une autre et reprenez-la plus tard depuis Écrire.
-• Choisissez une collection pendant l’écriture, ou créez-en une sur place.
-• Sélectionnez plusieurs entrées pour les déplacer dans une collection ou les supprimer.
-• Doublons repère les entrées enregistrées deux fois et les fusionne. Enregistrer le même texte une seconde fois demande désormais confirmation.
-• Corrigé : quitter Écrire juste après avoir tapé pouvait faire perdre les derniers mots.
