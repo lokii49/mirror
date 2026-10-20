@@ -209,9 +209,12 @@ struct NudgeWidgetView: View {
     let entry: NudgeWidgetEntry
     @Environment(\.widgetFamily) private var family
 
+    /// Core and Deep, or any tier with a current reflection already made: Free keeps seeing
+    /// what was made for them (owner, 2026-10-20). The lock replaces only the empty states,
+    /// which promise a reflection Free won't get.
     private var isUnlocked: Bool {
         let tier = WidgetShared.tier()
-        return tier == "core" || tier == "deep"
+        return tier == "core" || tier == "deep" || (entry.nudgeText != nil && entry.isToday)
     }
 
     var body: some View {

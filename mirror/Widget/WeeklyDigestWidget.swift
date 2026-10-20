@@ -168,7 +168,9 @@ struct DigestWidgetView: View {
     let entry: DigestWidgetEntry
 
     var body: some View {
-        if WidgetShared.isSubscribed() {
+        // A digest already made stays readable on Free (owner, 2026-10-20); the lock replaces
+        // only the empty states, which promise a digest Free won't get.
+        if WidgetShared.isSubscribed() || (entry.themeText != nil && (entry.isCurrentWeek || entry.isPreviousWeek)) {
             DigestUnlockedView(entry: entry)
         } else {
             DigestLockedView()

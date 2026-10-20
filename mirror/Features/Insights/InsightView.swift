@@ -243,8 +243,8 @@ struct InsightView: View {
     /// Everything but what the Today card shows: the card's own row (which can be yesterday's
     /// reflection, see InsightViewModel.resolvedNudgeState) and today's newest real row, the
     /// card's default, so it doesn't flash in the list before the card resolves.
+    /// Shown to every tier: Free keeps reading reflections already made (owner, 2026-10-20).
     private var pastNudges: [Insight] {
-        guard SubscriptionService.shared.isSubscribed else { return [] }
         let today = DateHelpers.dayIdentifier(for: Date())
         var onCard = Set<PersistentIdentifier>()
         if case .loaded(let insight) = viewModel.nudgeState { onCard.insert(insight.persistentModelID) }
@@ -292,8 +292,8 @@ struct InsightView: View {
     /// `periodIdentifier`, not position 0: `loadWeeklyDigest`'s `.previousWeek` pick can be a
     /// fallback row, which `cachedPastDigests` (via `newestPerPeriod`) already excludes — so
     /// `dropFirst()` would remove the wrong (next-newest, real) row instead of a no-op.
+    /// Shown to every tier: Free keeps reading digests already made (owner, 2026-10-20).
     private var pastDigests: [Insight] {
-        guard SubscriptionService.shared.isSubscribed else { return [] }
         if case .previousWeek(let hero, _) = viewModel.digestState {
             return cachedPastDigests.filter { $0.periodIdentifier != hero.periodIdentifier }
         }
@@ -2045,7 +2045,7 @@ extension InsightView {
                 nudgeStatusContent
             }
 
-            if !macPastRows.isEmpty, SubscriptionService.shared.isSubscribed {
+            if !macPastRows.isEmpty {
                 Text("PAST REFLECTIONS")
                     .font(.system(size: 11.5, weight: .semibold))
                     .tracking(0.8)

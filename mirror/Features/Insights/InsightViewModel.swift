@@ -161,13 +161,14 @@ final class InsightViewModel {
             return aboutDay >= startOfYesterday
         }
 
-        // The first reflection is free (CLAUDE.md, staged onboarding): a free user sees it, and
-        // the paywall follows it. This used to return .subscriptionRequired as soon as any real
-        // reflection existed, so the first one was never shown and that paywall never fired. A
-        // fallback doesn't count as "seen" either.
+        // The first reflection is free (CLAUDE.md, staged onboarding): with none yet, a free user
+        // goes on below and gets one, and the paywall follows it. After that a free user keeps
+        // reading what was already made, including the free period's (owner, 2026-10-20), but
+        // nothing new comes: the card shows the latest one while it's current, else the lock,
+        // never a promise of another reflection. A fallback doesn't count as "seen".
         let realNudges = insights.filter { $0.type == .dailyNudge && !InsightService.isUngroundedFallback($0.content) }
         if !realNudges.isEmpty && !SubscriptionService.shared.isSubscribed {
-            if realNudges.count == 1, let first = realNudges.first, isCurrent(first) { return .loaded(first) }
+            if let latest = realNudges.max(by: { $0.generatedAt < $1.generatedAt }), isCurrent(latest) { return .loaded(latest) }
             return .subscriptionRequired
         }
 
@@ -216,8 +217,14 @@ final class InsightViewModel {
         let thisWeek = DateHelpers.digestWeekIdentifier(for: DateHelpers.now())
         let coordinatorKey = "digest_\(thisWeek)"
 
+        // Free keeps reading a digest already made for this week (owner, 2026-10-20); earlier
+        // weeks are in Past digests. Nothing else shows: every other state promises a digest
+        // that won't be generated.
         guard SubscriptionService.shared.isSubscribed else {
-            digestState = .subscriptionRequired
+            let saved = insights
+                .filter { $0.type == .weeklyDigest && $0.periodIdentifier == thisWeek && !InsightService.isUngroundedFallback($0.content) }
+                .max { $0.generatedAt < $1.generatedAt }
+            digestState = saved.map { .loaded($0) } ?? .subscriptionRequired
             return
         }
 
@@ -367,6 +374,16 @@ final class InsightViewModel {
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
         let thisMonthEntries = entries.filter { $0.createdAt >= monthStart }
 
+        // Without Deep: this month's report if one was already made (owner, 2026-10-20), else the
+        // lock. Before the date and count gates, which promise a report that won't come.
+        guard SubscriptionService.shared.isDeep else {
+            let saved = insights
+                .filter { $0.type == .monthlyReport && $0.periodIdentifier == thisMonth && !InsightService.isUngroundedFallback($0.content) }
+                .max { $0.generatedAt < $1.generatedAt }
+            monthlyReportState = saved.map { .loaded($0) } ?? .subscriptionRequired
+            return
+        }
+
         // Generation is gated on being in the last week of the month FIRST — a report about
         // "this month" generated from only the first two weeks isn't actually a monthly report,
         // no matter how many entries went into it. Entry count is only checked once that's true.
@@ -391,11 +408,6 @@ final class InsightViewModel {
         let readableThisMonth = thisMonthEntries.filter(InsightService.hasReadableContext)
         guard readableThisMonth.count >= InsightService.monthlyReportMinimumEntries else {
             monthlyReportState = .endOfMonthTooFewEntries(count: readableThisMonth.count)
-            return
-        }
-
-        guard SubscriptionService.shared.isDeep else {
-            monthlyReportState = .subscriptionRequired
             return
         }
 

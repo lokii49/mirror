@@ -183,8 +183,9 @@ struct MonthlyReportWidgetView: View {
 
     var body: some View {
         // Deep only — NOT `WidgetShared.isSubscribed()`. This widget is priced at
-        // Deep; a Core subscriber sees the locked state.
-        if WidgetShared.isDeep() {
+        // Deep; a Core subscriber sees the locked state, unless a report was already made
+        // (owner, 2026-10-20: what was made stays readable).
+        if WidgetShared.isDeep() || (entry.imageText != nil && (entry.isCurrentMonth || entry.isPreviousMonth)) {
             MonthlyReportUnlockedView(entry: entry)
         } else {
             MonthlyReportLockedView()
