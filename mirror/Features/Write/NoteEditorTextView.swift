@@ -137,7 +137,12 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         context.coordinator.updatePlaceholder(in: textView)
 
-        if isFocused, !textView.isFirstResponder {
+        if isFocused, !textView.isFirstResponder, Self.isCoveredBySheet(textView) {
+            // Write's launch focus can land after What's New (or another sheet) is already up,
+            // and the keyboard would sit on top of that sheet (3.1.4, 2026-10-20). Give the
+            // focus up instead; a tap brings it back.
+            DispatchQueue.main.async { isFocused = false }
+        } else if isFocused, !textView.isFirstResponder {
             // The first focus this editor didn't get from a tap (autoFocus on Write, Edit, a
             // restored draft) starts at the end of the text, like Notes; it used to start at
             // the beginning. Later programmatic refocus keeps the caret where it was.
@@ -163,6 +168,13 @@ struct NoteEditorTextView: UIViewRepresentable {
     /// ScrollView does). Never reports shorter than this so an empty note still
     /// has a comfortable tap target.
     private static let minEditorHeight: CGFloat = 240
+
+    /// True when a sheet the editor isn't inside is presented on its window.
+    static func isCoveredBySheet(_ view: UIView) -> Bool {
+        guard var top = view.window?.rootViewController else { return false }
+        while let presented = top.presentedViewController, !presented.isBeingDismissed { top = presented }
+        return !view.isDescendant(of: top.view)
+    }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let rawWidth = proposal.width, rawWidth > 0, rawWidth != .infinity else { return nil }
