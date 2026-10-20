@@ -73,7 +73,15 @@ private struct NudgeSmallView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
 
-                if let text = entry.nudgeText, entry.isToday {
+                if let text = entry.nudgeText, entry.isToday || !WidgetShared.isSubscribed() {
+                    if !entry.isToday {
+                        Text("Earlier")
+                            .font(.system(size: 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, 4)
+                    }
                     Text(text)
                         .font(sentinel ? .system(size: 12, weight: .medium, design: .monospaced) : .system(size: 13, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
@@ -129,7 +137,15 @@ private struct NudgeMediumView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
 
-                if let text = entry.nudgeText, entry.isToday {
+                if let text = entry.nudgeText, entry.isToday || !WidgetShared.isSubscribed() {
+                    if !entry.isToday {
+                        Text("Earlier")
+                            .font(.system(size: 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, 4)
+                    }
                     Text(text)
                         .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
@@ -209,12 +225,11 @@ struct NudgeWidgetView: View {
     let entry: NudgeWidgetEntry
     @Environment(\.widgetFamily) private var family
 
-    /// Core and Deep, or any tier with a current reflection already made: Free keeps seeing
-    /// what was made for them (owner, 2026-10-20). The lock replaces only the empty states,
-    /// which promise a reflection Free won't get.
+    /// Core and Deep, or any tier with a reflection already made: Free keeps seeing its latest
+    /// one, however old (owner, 2026-10-20), labelled "Earlier" once it isn't current. The lock
+    /// shows only when none was ever made, since the empty states promise one Free won't get.
     private var isUnlocked: Bool {
-        let tier = WidgetShared.tier()
-        return tier == "core" || tier == "deep" || (entry.nudgeText != nil && entry.isToday)
+        WidgetShared.isSubscribed() || entry.nudgeText != nil
     }
 
     var body: some View {

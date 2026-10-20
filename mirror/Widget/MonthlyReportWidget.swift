@@ -103,7 +103,15 @@ private struct MonthlyReportUnlockedView: View {
 
                 Spacer(minLength: isLarge ? 14 : 8)
 
-                if let text = entry.imageText, entry.isCurrentMonth || entry.isPreviousMonth {
+                if let text = entry.imageText, entry.isCurrentMonth || entry.isPreviousMonth || !WidgetShared.isDeep() {
+                    if !entry.isCurrentMonth && !entry.isPreviousMonth {
+                        Text("Earlier")
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, isLarge ? 6 : 4)
+                    }
                     if entry.isPreviousMonth {
                         Text("Last month")
                             .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
@@ -183,9 +191,9 @@ struct MonthlyReportWidgetView: View {
 
     var body: some View {
         // Deep only — NOT `WidgetShared.isSubscribed()`. This widget is priced at
-        // Deep; a Core subscriber sees the locked state, unless a report was already made
-        // (owner, 2026-10-20: what was made stays readable).
-        if WidgetShared.isDeep() || (entry.imageText != nil && (entry.isCurrentMonth || entry.isPreviousMonth)) {
+        // Deep; Free and Core see the locked state unless a report was already made: then its
+        // latest one, however old (owner, 2026-10-20), labelled "Earlier" past last month.
+        if WidgetShared.isDeep() || entry.imageText != nil {
             MonthlyReportUnlockedView(entry: entry)
         } else {
             MonthlyReportLockedView()
