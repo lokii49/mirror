@@ -1,5 +1,4 @@
-Klarerer iCloud-Status und ein Tastatur-Fix
+Bezahlpläne ab 15. November
 
-• Wenn iCloud deine letzten Änderungen nicht annimmt, sagt der Hinweis jetzt warum: wenn dein iCloud-Speicher voll ist und wenn Warten nicht hilft, mit einem Code, den du uns schicken kannst.
-• Behoben: Direkt nach dem Start konnte sich die Tastatur über „Neuigkeiten“ oder einem anderen Fenster öffnen.
-• Ab 15. November gibt es Bezahlpläne. Dann brauchen die tägliche Reflexion, „Mirror fragen“, Wöchentliche Zusammenfassung, Monatsbericht, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.

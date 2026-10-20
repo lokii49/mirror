@@ -5994,6 +5994,64 @@
         }
       }
     },
+    "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, after paid plans start on %@ too. New ones need Core or Deep." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jede tägliche Reflexion, jeder Wochenrückblick und jeder Monatsbericht, die schon für dich erstellt wurden, bleiben in jedem Plan lesbar, in der App und in den Widgets, auch nachdem die Bezahlpläne am %@ starten. Neue brauchen Core oder Deep."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada reflexión diaria, resumen semanal e informe mensual que ya se creó para ti seguirá pudiendo leerse en cualquier plan, en la app y en los widgets, también después de que empiecen los planes de pago el %@. Los nuevos necesitan Core o Deep."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chaque réflexion du jour, résumé hebdomadaire et rapport mensuel déjà créé pour vous reste lisible avec tous les abonnements, dans l'app et dans les widgets, y compris après le début des abonnements payants le %@. Les nouveaux nécessitent Core ou Deep."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ogni riflessione quotidiana, riepilogo settimanale e report mensile già creato per te resta leggibile con qualsiasi piano, nell'app e nei widget, anche dopo l'inizio dei piani a pagamento il %@. Quelli nuovi richiedono Core o Deep."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "これまでに作られた毎日の振り返り、週間ダイジェスト、月次レポートは、%@に有料プランが始まった後も、どのプランでもアプリとウィジェットで読めます。新しく作るにはCoreまたはDeepが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이미 만들어진 매일의 회고, 주간 요약, 월간 리포트는 %@에 유료 플랜이 시작된 후에도 모든 플랜에서 앱과 위젯으로 계속 볼 수 있습니다. 새로 만들려면 Core 또는 Deep이 필요합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada reflexão diária, resumo semanal e relatório mensal já feito para você continua disponível para leitura em qualquer plano, no app e nos widgets, também depois que os planos pagos começarem em %@. Os novos precisam de Core ou Deep."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Все ежедневные размышления, недельные сводки и месячные отчёты, уже созданные для вас, останутся доступны для чтения на любом тарифе, в приложении и в виджетах, и после начала платных тарифов %@. Для новых нужен Core или Deep."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已为你生成的每日回顾、每周摘要和月度报告，在 %@ 付费方案开始后，在任何方案下都仍可在应用和小组件中阅读。新的内容需要 Core 或 Deep。"
+          }
+        }
+      }
+    },
     "Every quote is copied word for word from these entries. Long entries are shortened to fit." : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note under the rows.",
       "extractionState" : "manual",
@@ -15295,6 +15353,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一早走去了市场。"
+          }
+        }
+      }
+    },
+    "What's made for you stays yours" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Was für dich entstanden ist, bleibt deins"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lo que se creó para ti sigue siendo tuyo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ce qui a été créé pour vous reste à vous"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ciò che è stato creato per te resta tuo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "あなたのために作られたものは、ずっとあなたのもの"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "나를 위해 만들어진 것은 계속 내 것"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O que foi feito para você continua seu"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Созданное для вас остаётся вашим"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "为你生成的内容始终属于你"
           }
         }
       }

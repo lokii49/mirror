@@ -1,4 +1,4 @@
-Clearer iCloud status
+Paid plans from 15 November
 
-• When iCloud can't take your latest changes, the notice now says why: it tells you when iCloud storage is full, and when waiting won't fix it, with a code to send us.
-• Paid plans start on 15 November. From then, the daily reflection, Ask Mirror, Weekly Digest, Monthly Report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.

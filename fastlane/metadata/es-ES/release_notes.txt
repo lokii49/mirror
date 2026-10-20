@@ -1,5 +1,4 @@
-Estado de iCloud más claro y un arreglo del teclado
+Planes de pago desde el 15 de noviembre
 
-• Cuando iCloud no acepta tus últimos cambios, el aviso ahora explica por qué: te dice si tu almacenamiento de iCloud está lleno y cuándo esperar no lo arreglará, con un código para enviarnos.
-• Corregido: el teclado podía abrirse encima de Novedades u otra hoja justo después de abrir la app.
-• Los planes de pago empiezan el 15 de noviembre. Desde entonces, la reflexión diaria, Preguntar a Mirror, el Resumen semanal, el Informe mensual, la línea de ánimo y los widgets necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
+• Desde el 15 de noviembre, las nuevas reflexiones diarias, Preguntar a Mirror, los nuevos resúmenes semanales e informes mensuales, la línea de estados de ánimo y los widgets necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
+• Todo lo que ya se creó para ti sigue pudiendo leerse en cualquier plan: reflexiones, resúmenes e informes anteriores, en la app y en los widgets.
