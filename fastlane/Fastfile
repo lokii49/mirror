@@ -98,6 +98,27 @@ platform :ios do
     )
   end
 
+  desc "Archive and upload the current iOS build to TestFlight only: no metadata, no review submission"
+  desc "The internal group \"MirrorNotes testers\" gets every build once it's processed"
+  lane :beta do
+    auth
+
+    build_app(
+      scheme: "mirror",
+      project: "mirror.xcodeproj",
+      configuration: "Release",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      xcargs: "-allowProvisioningUpdates"
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      skip_submission: true
+    )
+  end
+
   desc "Archive, upload, and submit the current version for App Store review (auto_release:true to go live on approval)"
   lane :release do |options|
     auth
