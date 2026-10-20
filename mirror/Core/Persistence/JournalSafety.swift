@@ -79,7 +79,10 @@ final class JournalSafety {
     /// in-flight upload. `now` comes from the view's TimelineView.
     func showsNotBackedUp(now: Date) -> Bool {
         guard hasSeenCloudKitEvent, accountAvailable == true, hasPendingChanges, let lastLocalSave else { return false }
-        return lastExportFailed || now.timeIntervalSince(lastLocalSave) > 120
+        // A network error kept from an earlier launch gets the normal wait: the next upload may
+        // well succeed.
+        let failing = exportError.map { !$0.isTransient } ?? false
+        return failing || now.timeIntervalSince(lastLocalSave) > 120
     }
 
     // MARK: - Lifecycle
@@ -521,17 +524,28 @@ struct ExportError: Codable, Equatable {
 
         static let unknown = Code(domain: "unknown", code: 0)
 
-        /// A partial failure's own code says only "some records failed"; the first record's
-        /// error says why (a schema rejection, a full iCloud).
+        /// The CloudKit error underneath, which says why (a schema rejection, a full iCloud).
+        /// Core Data can wrap it (`NSUnderlyingErrorKey`), and a partial failure's own code says
+        /// only "some records failed", so both are unwrapped, a few levels at most.
         init?(_ error: Error?) {
-            guard let error = error as NSError? else { return nil }
-            if error.domain == CKError.errorDomain, error.code == CKError.Code.partialFailure.rawValue,
-               let first = (error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error])?
-                .values.compactMap({ $0 as NSError }).min(by: { $0.code < $1.code }) {
-                self.init(domain: first.domain, code: first.code)
-            } else {
-                self.init(domain: error.domain, code: error.code)
+            guard var error = error as NSError? else { return nil }
+            for _ in 0..<4 {
+                if error.domain == CKError.errorDomain, error.code == CKError.Code.partialFailure.rawValue,
+                   let records = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error] {
+                    // A record that failed only because its batch did says nothing; prefer the cause.
+                    let errors = records.values.map { $0 as NSError }
+                    let sideEffects = [CKError.Code.batchRequestFailed, .serverRecordChanged].map(\.rawValue)
+                    guard let cause = errors.filter({ !sideEffects.contains($0.code) }).min(by: { $0.code < $1.code })
+                            ?? errors.min(by: { $0.code < $1.code }) else { break }
+                    error = cause
+                } else if error.domain != CKError.errorDomain,
+                          let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    error = underlying
+                } else {
+                    break
+                }
             }
+            self.init(domain: error.domain, code: error.code)
         }
 
         init(domain: String, code: Int) {
@@ -556,12 +570,15 @@ struct ExportError: Codable, Equatable {
         failure.domain == CKError.errorDomain && failure.code == CKError.Code.quotaExceeded.rawValue
     }
 
-    /// Offline, throttled or iCloud busy: these clear on their own.
+    /// Offline, throttled, iCloud busy, or something NSPersistentCloudKitContainer repairs on
+    /// its own (a zone or change token it recreates): these clear without the user.
     var isTransient: Bool {
         if failure.domain == NSURLErrorDomain { return true }
         guard failure.domain == CKError.errorDomain else { return false }
         let transient: [CKError.Code] = [.networkUnavailable, .networkFailure, .serviceUnavailable,
-                                         .requestRateLimited, .zoneBusy]
+                                         .requestRateLimited, .zoneBusy, .serverResponseLost,
+                                         .operationCancelled, .accountTemporarilyUnavailable,
+                                         .zoneNotFound, .userDeletedZone, .changeTokenExpired]
         return transient.map(\.rawValue).contains(failure.code)
     }
 

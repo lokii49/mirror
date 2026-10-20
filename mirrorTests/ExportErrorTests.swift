@@ -20,6 +20,26 @@ struct ExportErrorTests {
         #expect(ExportError.Code(nil) == nil)
     }
 
+    /// Core Data can wrap the CloudKit error; a full iCloud must still read as full.
+    @Test func wrappedCloudKitErrorIsUnwrapped() {
+        let quota = NSError(domain: CKError.errorDomain, code: CKError.Code.quotaExceeded.rawValue)
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134400, userInfo: [NSUnderlyingErrorKey: quota])
+        let code = ExportError.Code(wrapped)
+        #expect(code == ck(.quotaExceeded))
+        #expect(ExportError(failure: code ?? .unknown, since: start).isQuotaExceeded)
+    }
+
+    /// A record that failed only because its batch did isn't the cause.
+    @Test func partialFailurePrefersTheCauseOverBatchSideEffects() {
+        let records: [AnyHashable: Error] = [
+            CKRecord.ID(recordName: "a"): NSError(domain: CKError.errorDomain, code: CKError.Code.batchRequestFailed.rawValue),
+            CKRecord.ID(recordName: "b"): NSError(domain: CKError.errorDomain, code: CKError.Code.quotaExceeded.rawValue),
+        ]
+        let outer = NSError(domain: CKError.errorDomain, code: CKError.Code.partialFailure.rawValue,
+                            userInfo: [CKPartialErrorsByItemIDKey: records])
+        #expect(ExportError.Code(outer) == ck(.quotaExceeded))
+    }
+
     @Test func sameErrorKeepsItsStartAndBecomesStuck() {
         let first = ExportError.next(after: nil, failure: ck(.invalidArguments), now: start)
         let later = ExportError.next(after: first, failure: ck(.invalidArguments), now: start.addingTimeInterval(3600))

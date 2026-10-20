@@ -12,6 +12,9 @@ struct NotBackedUpBanner: View {
     let exportError: ExportError?
     let now: Date
 
+    /// A network error reads as "not backed up yet": the advice to stay on Wi-Fi fits it.
+    private var failing: Bool { exportError.map { !$0.isTransient } ?? false }
+
     var body: some View {
         NoticeBanner(
             systemImage: "icloud.slash",
@@ -22,12 +25,12 @@ struct NotBackedUpBanner: View {
     }
 
     private var title: Text {
-        guard let exportError else { return Text("Not backed up to iCloud yet") }
+        guard failing, let exportError else { return Text("Not backed up to iCloud yet") }
         return exportError.isQuotaExceeded ? Text("iCloud storage is full") : Text("iCloud upload is failing")
     }
 
     private var sentinelTitle: Text {
-        guard let exportError else { return Text("UPLINK PENDING") }
+        guard failing, let exportError else { return Text("UPLINK PENDING") }
         return exportError.isQuotaExceeded ? Text("UPLINK STORAGE FULL") : Text("UPLINK FAILING")
     }
 
