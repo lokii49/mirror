@@ -1834,7 +1834,10 @@ extension EntriesTabView {
     }
 }
 
-/// One row of the Mac list: date and word count, the first line, then mood and tags.
+/// One row of the Mac list (design review 2026-10-21): the iPhone row's day tile and mood rail at
+/// Mac scale, the first line, then mood · first tag · words. The date lives in the tile, so the
+/// row no longer spends its top line on it; the list reads like the phone's, not like a stock
+/// sidebar.
 private struct MacEntryRow: View {
     let entry: Entry
     let preview: EntriesTabView.EntryRowPreview?
@@ -1842,45 +1845,65 @@ private struct MacEntryRow: View {
     @State private var hovered = false
 
     private var mood: String? { preview?.moodLabel ?? entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
+    private var moodColor: Color { mood.map { MirrorTheme.moodColor(for: $0) } ?? MacTokens.accent }
     private var secondary: Color { isSelected ? MacTokens.selectedRowInk : MacTokens.secondaryInk }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(entry.createdAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                Spacer(minLength: 8)
-                if let count = preview?.wordCount, count > 0 {
-                    Text(count == 1 ? "1 word" : "\(count) words")
-                }
+        HStack(alignment: .top, spacing: 10) {
+            VStack(spacing: 2) {
+                Text(entry.createdAt, format: .dateTime.day())
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(MacTokens.ink)
+                    .monospacedDigit()
+                Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(secondary)
+                    .textCase(.uppercase)
             }
-            .font(.system(size: 12))
-            .foregroundStyle(secondary)
+            .frame(width: 36)
+            .padding(.vertical, 7)
+            .background(moodColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
-            (preview?.preview ?? Text("Untitled entry"))
-                .font(.system(size: 13.5, weight: .semibold))
-                .foregroundStyle(MacTokens.ink)
-                .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 4) {
+                (preview?.preview ?? Text("Untitled entry"))
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(MacTokens.ink)
+                    .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
+                    .truncationMode(.tail)
 
-            if mood != nil || !entry.tags.isEmpty {
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     if let mood {
-                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
+                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 6, height: 6)
                         Text(MirrorTheme.localizedMoodName(for: mood))
                     }
                     if let firstTag = entry.tags.first {
-                        Text("· #\(MirrorTheme.localizedTagName(for: firstTag))")
+                        if mood != nil { Text("·") }
+                        Text("#\(MirrorTheme.localizedTagName(for: firstTag))")
+                    }
+                    if let count = preview?.wordCount, count > 0 {
+                        if mood != nil || !entry.tags.isEmpty { Text("·") }
+                        Text(count == 1 ? "1 word" : "\(count) words")
                     }
                 }
                 .font(.system(size: 12))
                 .foregroundStyle(secondary)
                 .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.leading, 13)
+        .padding(.trailing, 10)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isSelected ? MacTokens.selectedRowFill : hovered ? MacTokens.controlInk.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(alignment: .leading) {
+            // The phone row's mood rail, kept inside the row's rounded corners.
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(moodColor.opacity(mood == nil ? 0.18 : 0.65))
+                .frame(width: 3)
+                .padding(.vertical, 10)
+                .padding(.leading, 4)
+        }
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(MacTokens.selectedRowBorder, lineWidth: 1)

@@ -24,6 +24,10 @@ struct EntryDetailView: View {
     /// text, but editing it would write its unreadable fields back.
     @State private var contentUnreadable = false
     @State private var relatedInsight: Insight? = nil
+    #if os(macOS)
+    @State private var macReflection: Insight? = nil
+    @State private var macRelatedEntries: [Entry] = []
+    #endif
     @State private var displayedWordCount: Int = 0
     @State private var searchMatches: [ReaderMatches.Location] = []
     @State private var matchIndex = 0
@@ -387,20 +391,16 @@ struct EntryDetailView: View {
                         }
                         .padding(.top, 30)
                     }
-                    if let insight = relatedInsight {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("mirror noticed", systemImage: "sparkles")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(MirrorTheme.violetLight)
-                                .tracking(0.8)
-                            Text(insight.content)
-                                .readingFont(size: 15)
-                                .lineSpacing(5)
-                                .foregroundStyle(MirrorTheme.textPrimary)
-                                .italic()
+                    // The pane holds what the phone's reader can't fit beside the entry (design
+                    // review 2026-10-21): the day's reflection, then entries about the same things.
+                    if let reflection = macReflection {
+                        macReflectionCard(reflection)
+                            .padding(.top, 30)
+                    }
+                    if !macRelatedEntries.isEmpty {
+                        MacRelatedEntriesSection(entries: macRelatedEntries) { other in
+                            NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": other.id])
                         }
-                        .padding(18)
-                        .themedCard(cornerRadius: 18, classicBase: .elevated)
                         .padding(.top, 30)
                     }
                     if !onThisDayEntries.isEmpty {
@@ -421,15 +421,10 @@ struct EntryDetailView: View {
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
-            let text = entry.text
-            let prefix = text
-                .components(separatedBy: .whitespacesAndNewlines)
-                .prefix(6)
-                .joined(separator: " ")
-            relatedInsight = insights.first { insight in
-                insight.content.localizedCaseInsensitiveContains(prefix)
-            }
-            displayedWordCount = strippedWordCount(text)
+            displayedWordCount = strippedWordCount(entry.text)
+            macReflection = macFindReflection()
+            macRelatedEntries = []
+            await macLoadRelated()
         }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
@@ -440,6 +435,98 @@ struct EntryDetailView: View {
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugConfirmDelete)) { _ in macDeleteEntry() }
         #endif
+    }
+
+    // MARK: Mac reader: the day's reflection and related entries
+
+    /// The daily reflection about this entry's day, newest first, through the same `reflectedDay`
+    /// the Today card and the Past list use. Replaces a six-word prefix match that found an
+    /// insight only when it happened to quote the entry's opening words. Fallback cards are
+    /// skipped. A reflection about day D is generated on D or within the fortnight after it (the
+    /// Past list's window), so only those rows are decrypted and checked.
+    private func macFindReflection() -> Insight? {
+        let day = Calendar.current.startOfDay(for: entry.createdAt)
+        let window = day...day.addingTimeInterval(14 * 86_400)
+        return insights
+            .filter { $0.type == .dailyNudge && window.contains($0.generatedAt) }
+            .sorted { $0.generatedAt > $1.generatedAt }
+            .first { insight in
+                !InsightService.isUngroundedFallback(insight.content)
+                    && !InsightService.isUnsupportedLanguageNotice(insight.content)
+                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: allEntries) == day
+            }
+    }
+
+    /// Entries about the same things as this one, for the pane's "Related entries" list: Ask's
+    /// retrieval pointed at this entry (EmbeddingGemma when its index is on, keyword overlap
+    /// otherwise), then entries sharing a tag, newest first. Up to three, never the entry itself.
+    /// On-device like Ask; nothing is logged. Waits a moment first so arrowing through the list
+    /// doesn't start a search per row.
+    private func macLoadRelated() async {
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        let others = allEntries.filter { $0.id != entry.id && InsightService.hasReadableContext($0) }
+        guard !others.isEmpty else { return }
+        let question = String(entry.insightContext.prefix(1_500))
+        var picked: [Entry] = []
+        if !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            var semantic: [UUID]?
+            if await SemanticSearchService.shared.modelState == .installed {
+                let documents = others.map { SemanticSearchService.Document(id: $0.id, text: $0.insightContext) }
+                semantic = await SemanticSearchService.shared.search(question: question, in: documents, limit: 3)
+            }
+            if let semantic {
+                let byID = Dictionary(others.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                picked = semantic.compactMap { byID[$0] }
+            } else {
+                let keyword = SearchService.search(query: question, in: others, limit: 3)
+                // SearchService hands back the newest entries when nothing matches; that isn't "related".
+                if keyword.map(\.id) != others.prefix(3).map(\.id) { picked = keyword }
+            }
+        }
+        if picked.count < 3 {
+            let tags = Set(entry.tags)
+            if !tags.isEmpty {
+                for other in others where !picked.contains(where: { $0.id == other.id }) && !tags.isDisjoint(with: other.tags) {
+                    picked.append(other)
+                    if picked.count == 3 { break }
+                }
+            }
+        }
+        guard !Task.isCancelled else { return }
+        macRelatedEntries = picked
+    }
+
+    /// The reflection in the Insights cards' grammar, with the entry's own sentence highlighted
+    /// as the Today board shows it. Display-time second quote and style, like everywhere else.
+    private func macReflectionCard(_ insight: Insight) -> some View {
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: allEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
+        let parts = InsightService.isGrammarGrounded(insight.content) ? shown.parts : nil
+        return VStack(alignment: .leading, spacing: 14) {
+            InsightCardHeader("Daily Reflection", icon: "sparkles", trailing: {
+                InsightCardStamp(date: insight.generatedAt, format: .dateTime.day().month(.abbreviated).hour().minute())
+            })
+            Self.macReflectionText(shown.text, parts: parts)
+                .readingFont(size: 15)
+                .lineSpacing(5)
+                .foregroundStyle(MirrorTheme.textPrimary)
+        }
+        .padding(18)
+        .themedCard(cornerRadius: 18, classicBase: .elevated)
+    }
+
+    private static func macReflectionText(_ content: String, parts: InsightService.GroundedNudgeParts?) -> Text {
+        guard let parts, let range = content.range(of: parts.quote) else { return Text(content) }
+        let before = String(content[..<range.lowerBound])
+        let after = String(content[range.upperBound...])
+        guard before.hasSuffix(parts.open), after.hasPrefix(parts.close) else { return Text(content) }
+        let straight = parts.open == "\"" && parts.close == "\""
+        var text = AttributedString(String(before.dropLast(parts.open.count)))
+        var highlighted = AttributedString((straight ? "\u{201C}" : parts.open) + parts.quote + (straight ? "\u{201D}" : parts.close))
+        highlighted.backgroundColor = MacTokens.quoteHighlight
+        text += highlighted
+        text += AttributedString(String(after.dropFirst(parts.close.count)))
+        return Text(text)
     }
 
     /// Leave the reader first, then delete: SwiftUI must not render a deleted entry.
@@ -652,6 +739,96 @@ private struct OnThisDaySection: View {
         }
     }
 }
+
+#if os(macOS)
+/// The Mac pane's related entries (design review 2026-10-21): the one thing the big screen can
+/// show beside an entry that the phone can't. Three at most; a click selects the entry in the
+/// list. Rows share the list row's day tile.
+private struct MacRelatedEntriesSection: View {
+    let entries: [Entry]
+    let open: (Entry) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Related entries", systemImage: "link")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(MirrorTheme.textTertiary)
+                .tracking(0.6)
+                .padding(.horizontal, 4)
+            ForEach(entries) { other in
+                Button { open(other) } label: {
+                    MacRelatedEntryRow(entry: other)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+private struct MacRelatedEntryRow: View {
+    let entry: Entry
+    @State private var hovered = false
+
+    private var mood: String? { entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
+    private var moodColor: Color { mood.map { MirrorTheme.moodColor(for: $0) } ?? MacTokens.accent }
+    private var firstLine: String {
+        entry.text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? ""
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 2) {
+                Text(entry.createdAt, format: .dateTime.day())
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(MacTokens.ink)
+                    .monospacedDigit()
+                Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(MacTokens.secondaryInk)
+                    .textCase(.uppercase)
+            }
+            .frame(width: 36)
+            .padding(.vertical, 7)
+            .background(moodColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(entry.createdAt, format: .dateTime.month(.abbreviated).year())
+                    if let mood {
+                        Text("·")
+                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 6, height: 6)
+                        Text(MirrorTheme.localizedMoodName(for: mood))
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(MacTokens.secondaryInk)
+                .lineLimit(1)
+                if !firstLine.isEmpty {
+                    Text(firstLine)
+                        .font(.system(size: 14))
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .lineLimit(2)
+                        .lineSpacing(3)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .themedCard(cornerRadius: 14)
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(hovered ? MacTokens.selectedRowBorder : Color.clear, lineWidth: 1)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+    }
+}
+#endif
 
 /// The iPhone/iPad reader's entry text sizes at Dynamic Type `scale` (1 at the default text size,
 /// where they are the editor's: body 17, title 30, heading 22, monospaced 16). They were fixed, so

@@ -91,9 +91,23 @@ extension WriteView {
                 Menu {
                     macMoodMenuItems
                 } label: {
-                    MacIcon(name: "smile", size: 17)
-                        .frame(width: 34, height: 30)
+                    // The chosen mood is named in the bar (design review 2026-10-21: one action
+                    // bar holds formatting, mood, tags and Save); the smile stands in until then.
+                    if let mood = viewModel.selectedMood {
+                        HStack(spacing: 6) {
+                            Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
+                            Text(MirrorTheme.localizedMoodName(for: mood))
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
                         .contentShape(Rectangle())
+                    } else {
+                        MacIcon(name: "smile", size: 17)
+                            .frame(width: 34, height: 30)
+                            .contentShape(Rectangle())
+                    }
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
@@ -135,6 +149,26 @@ extension WriteView {
                 .fixedSize()
                 .help("Talk it out")
             }
+
+            // Save sits at the end of the one bar; the bottom edge of the window is free. ⌘↩ is
+            // the File menu's Save Entry (MacCommands), which calls the same save.
+            Button {
+                if entry == nil { saveDraft() } else { saveAndDismiss() }
+            } label: {
+                Text("Save entry")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 30)
+                    .background(MirrorTheme.buttonFill, in: Capsule())
+                    .opacity(hasDraftContent ? 1 : 0.5)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 6)
+            .fixedSize()
+            .disabled(!hasDraftContent)
+            .accessibilityLabel("Save entry")
+            .help("⌘↩ to save")
         }
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)
@@ -228,14 +262,7 @@ extension WriteView {
 
     private var macChips: some View {
         HStack(spacing: 10) {
-            if let mood = viewModel.selectedMood {
-                Text(MirrorTheme.localizedMoodName(for: mood))
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Color.white)
-                    .padding(.horizontal, 12)
-                    .frame(height: 26)
-                    .background(MacTokens.accent, in: Capsule())
-            }
+            // The mood is named in the toolbar's mood control; here only the tags and the hint.
             ForEach(entryTags, id: \.self) { tag in
                 HStack(spacing: 4) {
                     Text("#\(MirrorTheme.localizedTagName(for: tag))")
@@ -342,37 +369,23 @@ extension WriteView {
         if entry == nil { saveDraftToStorage() }
     }
 
-    // MARK: - Status bar
+    // MARK: - Status line
 
-    var macStatusBar: some View {
+    /// Word count and the draft's save state, under the chips in the column. This was a bar
+    /// along the bottom of the window with the Save button; Save moved into the toolbar
+    /// (design review 2026-10-21), so the bottom edge is free and the status reads with the text.
+    var macStatusLine: some View {
         HStack(spacing: 14) {
             Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
                 .font(.system(size: 12))
                 .foregroundStyle(MacTokens.secondaryInk)
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
             Spacer(minLength: 0)
-            Text("⌘↩ to save")
-                .font(.system(size: 12))
-                .foregroundStyle(MacTokens.secondaryInk)
-            Button {
-                if entry == nil { saveDraft() } else { saveAndDismiss() }
-            } label: {
-                Text("Save entry")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.white)
-                    .padding(.horizontal, 18)
-                    .frame(height: 30)
-                    .background(MacTokens.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .opacity(hasDraftContent ? 1 : 0.5)
-            }
-            .buttonStyle(.plain)
-            .disabled(!hasDraftContent)
-            .accessibilityLabel("Save entry")
         }
         .padding(.horizontal, 20)
-        .frame(height: 46)
-        .overlay(alignment: .top) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
-        .background(MacTokens.windowBackground)
+        .padding(.top, 14)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

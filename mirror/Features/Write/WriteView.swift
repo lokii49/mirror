@@ -400,6 +400,7 @@ struct WriteView: View {
                         #if os(macOS)
                         macChipsRow
                         macPhotosRow
+                        macStatusLine
                         #endif
                     }
                     #if os(macOS)
@@ -568,7 +569,6 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
-        .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
         #if DEBUG
