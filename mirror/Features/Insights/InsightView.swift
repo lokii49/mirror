@@ -147,8 +147,17 @@ struct InsightView: View {
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
+            #if DEBUG
+            // `--openBrainView`: device/simulator screenshots land on Brain View without a tap
+            // (devicectl can launch but not tap; same idea as ContentView's `--initialTab=`).
+            .navigationDestination(isPresented: $debugOpenBrainView) { BrainView(viewModel: viewModel) }
+            #endif
         }
     }
+
+    #if DEBUG
+    @State private var debugOpenBrainView = ProcessInfo.processInfo.arguments.contains("--openBrainView")
+    #endif
 
     @ViewBuilder
     private var platformContent: some View {
