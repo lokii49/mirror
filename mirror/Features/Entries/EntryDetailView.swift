@@ -457,6 +457,11 @@ struct EntryDetailView: View {
             }
     }
 
+    /// How far back "Related entries" looks: the newest readable entries, not the whole journal.
+    /// Every candidate is decrypted on the main actor (the list's snapshot exists so scrolling
+    /// never does that), so a 3,000-entry journal must not pay 3,000 decrypts per row click.
+    private static let macRelatedCandidateLimit = 300
+
     /// Entries about the same things as this one, for the pane's "Related entries" list: Ask's
     /// retrieval pointed at this entry (EmbeddingGemma when its index is on, keyword overlap
     /// otherwise), then entries sharing a tag, newest first. Up to three, never the entry itself.
@@ -465,8 +470,19 @@ struct EntryDetailView: View {
     private func macLoadRelated() async {
         try? await Task.sleep(for: .milliseconds(350))
         guard !Task.isCancelled else { return }
-        let others = allEntries.filter { $0.id != entry.id && InsightService.hasReadableContext($0) }
+        #if DEBUG
+        let started = Date()
+        #endif
+        var others: [Entry] = []
+        others.reserveCapacity(Self.macRelatedCandidateLimit)
+        for other in allEntries where other.id != entry.id && InsightService.hasReadableContext(other) {
+            others.append(other)
+            if others.count == Self.macRelatedCandidateLimit { break }
+        }
         guard !others.isEmpty else { return }
+        #if DEBUG
+        defer { NSLog("EntryDetail related: %d candidates, %.0f ms", others.count, Date().timeIntervalSince(started) * 1000) }
+        #endif
         let question = String(entry.insightContext.prefix(1_500))
         var picked: [Entry] = []
         if !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -825,7 +841,6 @@ private struct MacRelatedEntryRow: View {
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
     }
 }
 #endif

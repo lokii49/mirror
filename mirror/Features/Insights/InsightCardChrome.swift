@@ -9,6 +9,10 @@ import SwiftUI
 
 /// Header row: `Label(title, icon)` in the accent, a trailing slot (timestamp, chip, source
 /// button), an optional subline, then the hairline that every Insights card draws.
+/// `trailing` has no default on purpose: with both slots defaulted, a call passing one
+/// unlabeled closure bound it to the *last* slot (the subline), and the week chart's chip
+/// dropped under its title on device (2026-10-21). Pass `trailing: { EmptyView() }` when a
+/// card has nothing on the right.
 struct InsightCardHeader<Trailing: View, Subline: View>: View {
     let title: Text
     let icon: String?
@@ -21,7 +25,7 @@ struct InsightCardHeader<Trailing: View, Subline: View>: View {
     init(
         _ title: LocalizedStringKey,
         icon: String? = nil,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder trailing: @escaping () -> Trailing,
         @ViewBuilder subline: @escaping () -> Subline = { EmptyView() }
     ) {
         self.title = Text(title)
@@ -34,7 +38,7 @@ struct InsightCardHeader<Trailing: View, Subline: View>: View {
     init(
         text title: Text,
         icon: String? = nil,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder trailing: @escaping () -> Trailing,
         @ViewBuilder subline: @escaping () -> Subline = { EmptyView() }
     ) {
         self.title = title
