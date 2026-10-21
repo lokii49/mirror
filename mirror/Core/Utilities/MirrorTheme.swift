@@ -36,9 +36,13 @@ enum MirrorTheme {
 
     // MARK: - Surface tokens
 
+    // Dark steps (2026-10-21 design review): page #08060F → card #15111F → raised #1E1933.
+    // The old card (#110E1C) sat 1.3:1 above the page and read as ink on ink; cards only
+    // separated by their border. Light values are unchanged. Widgets mirror the dark values
+    // in `WidgetTheme`, asserted by `WidgetThemeTokenTests`.
     static let inkBase    = hex(0x08060F, 0xF2EEF8)  // page background
-    static let inkMid     = hex(0x110E1C, 0xFFFFFF)  // base card
-    static let inkRaised  = hex(0x1C1830, 0xF8F5FF)  // elevated card / sheet
+    static let inkMid     = hex(0x15111F, 0xFFFFFF)  // base card
+    static let inkRaised  = hex(0x1E1933, 0xF8F5FF)  // elevated card / sheet
     static let inkBorder  = hex(0x2A2545, 0xE0D9F5)  // dividers, stroke
 
     // MARK: - Accent tokens
@@ -48,12 +52,20 @@ enum MirrorTheme {
     static let violetDim   = hex(0x3D2D8A, 0xEDE8FC)  // tint backgrounds (chips, etc.)
     // ember — warm second accent. 3 uses only: paywall CTA, mood alert, first insight.
     static let ember       = hex(0xF97B8B, 0xE05470)
+    /// Fill for buttons that carry white text. `violet` in dark mode (#7C5CE4) puts white at
+    /// 3.6:1; this deeper step reaches 5.4:1. Light mode is the same violet as the accent.
+    /// Accent-coloured *text* on dark surfaces keeps `violet`; only filled controls use this.
+    static let buttonFill  = hex(0x6E4FE0, 0x6341CC)
 
     // MARK: - Text tokens
 
     static let textPrimary   = hex(0xEDE9F8, 0x16112A)
     static let textSecondary = hex(0x7A7098, 0x6B6080)
-    static let textTertiary  = hex(0x3F3860, 0xA89FC0)
+    // Muted text (dates, timestamps, labels; ~50 uses) now reads at 4.5:1 or better on every
+    // surface in both modes. It was #A89FC0 light / #3F3860 dark — 2.2:1 and under 2:1 — the
+    // same colour the website darkened on 2026-10-21 to pass its accessibility audit; the three
+    // surfaces use one value again.
+    static let textTertiary  = hex(0x9087B0, 0x6E6587)
 
     // MARK: - Legacy aliases (kept for backward compat)
 
@@ -121,34 +133,52 @@ enum MirrorTheme {
         }
     }
 
+    /// Valence is encoded in saturation (2026-10-21 design review): the six good moods stay
+    /// bright, the six difficult ones are dusted versions of their hue family. Before this,
+    /// Joyful (#FFD54F) and Anxious (#FFC107) were both yellow and Energized/Frustrated both
+    /// orange, so a good day and an anxious day looked alike in the week strip (ΔE 4.9, the
+    /// worst pair of the twelve; now 7.4). Colour alone still can't separate twelve moods for
+    /// colour-blind readers, so where a mood shows as colour only (day tiles, timeline dots)
+    /// the view adds a thin ink ring for `negativeMoods` — see `moodRing(for:)`.
+    /// The website's mood map carries the same twelve values.
     static func moodColor(for mood: String) -> Color {
         switch mood {
-        case "Joyful":      return Color(red: 1.000, green: 0.835, blue: 0.310)
-        case "Grateful":    return Color(red: 0.400, green: 0.733, blue: 0.416)
-        case "Peaceful":    return Color(red: 0.506, green: 0.831, blue: 0.980)
-        case "Content":     return Color(red: 0.302, green: 0.714, blue: 0.675)
-        case "Energized":   return Color(red: 1.000, green: 0.596, blue: 0.000)
-        case "Hopeful":     return Color(red: 0.584, green: 0.459, blue: 0.804)
-        case "Anxious":     return Color(red: 1.000, green: 0.757, blue: 0.027)
-        case "Overwhelmed": return Color(red: 0.937, green: 0.325, blue: 0.314)
-        case "Frustrated":  return Color(red: 0.961, green: 0.486, blue: 0.000)
-        case "Drained":     return Color(red: 0.620, green: 0.620, blue: 0.620)
-        case "Sad":         return Color(red: 0.259, green: 0.647, blue: 0.961)
-        case "Numb":        return Color(red: 0.812, green: 0.847, blue: 0.863)
+        case "Joyful":      return Color(red: 1.000, green: 0.835, blue: 0.310)  // #FFD54F
+        case "Grateful":    return Color(red: 0.400, green: 0.733, blue: 0.416)  // #66BB6A
+        case "Peaceful":    return Color(red: 0.506, green: 0.831, blue: 0.980)  // #81D4FA
+        case "Content":     return Color(red: 0.302, green: 0.714, blue: 0.675)  // #4DB6AC
+        case "Energized":   return Color(red: 1.000, green: 0.596, blue: 0.000)  // #FF9800
+        case "Hopeful":     return Color(red: 0.584, green: 0.459, blue: 0.804)  // #9575CD
+        case "Anxious":     return Color(red: 0.831, green: 0.659, blue: 0.294)  // #D4A84B dusty amber
+        case "Overwhelmed": return Color(red: 0.851, green: 0.416, blue: 0.388)  // #D96A63 dusty red
+        case "Frustrated":  return Color(red: 0.851, green: 0.541, blue: 0.310)  // #D98A4F dusty orange
+        case "Drained":     return Color(red: 0.604, green: 0.588, blue: 0.639)  // #9A96A3 violet grey
+        case "Sad":         return Color(red: 0.416, green: 0.624, blue: 0.820)  // #6A9FD1 dusty blue
+        case "Numb":        return Color(red: 0.765, green: 0.796, blue: 0.820)  // #C3CBD1 pale grey
         default:            return violet
         }
     }
 
+    /// The second cue for valence where a mood is shown as colour alone (day tiles in the
+    /// calendar strips, dots on the mood charts): difficult moods get a thin ink ring, good
+    /// moods none. Twelve hues cannot be told apart by colour-blind readers (validator floor
+    /// ΔE ≈ 2–3 on the gray/teal pairs whatever the values), so good/hard has to survive
+    /// without the hue. Returns nil for good moods and for unknown ones.
+    static func moodRing(for mood: String) -> Color? {
+        negativeMoods.contains(mood) ? textPrimary.opacity(0.55) : nil
+    }
+
     /// Readable label/dot color for content drawn directly on top of
-    /// `moodColor(for:)` at full opacity (a selected mood chip). Several mood
-    /// colors — Joyful's yellow, Numb's pale grey, Peaceful's sky blue,
-    /// Anxious's amber — are too light for white to read against; those get
-    /// dark text instead. Fixed black, not `textPrimary` — this is contrast
-    /// against a hardcoded bright mood color, not the app's light/dark theme,
-    /// so it shouldn't flip to near-white again in dark mode.
+    /// `moodColor(for:)` at full opacity (a selected mood chip). Mood colours
+    /// whose relative luminance is above ~0.3 — Joyful, Numb, Peaceful, Anxious,
+    /// and since the 2026-10-21 dusting also Frustrated, Drained and Sad (white
+    /// on those lands near 2.8:1) — get dark text; the rest keep white. Fixed
+    /// black, not `textPrimary` — this is contrast against a hardcoded mood
+    /// color, not the app's light/dark theme, so it shouldn't flip to near-white
+    /// again in dark mode.
     static func moodOnColorText(for mood: String) -> Color {
         switch mood {
-        case "Joyful", "Numb", "Peaceful", "Anxious":
+        case "Joyful", "Numb", "Peaceful", "Anxious", "Frustrated", "Drained", "Sad":
             return Color.black.opacity(0.78)
         default:
             return .white
@@ -158,12 +188,12 @@ enum MirrorTheme {
     /// Continuous color for an average mood score (1…5), anchored to the
     /// discrete mood colors so aggregate visuals stay on-palette.
     static func moodScoreColor(_ score: Double) -> Color {
-        // Anchors: 1 Overwhelmed (red), 2 Frustrated (orange), 3 Numb (gray),
-        // 4 Content (teal), 5 Joyful (yellow).
+        // Anchors: 1 Overwhelmed (dusty red), 2 Frustrated (dusty orange), 3 Numb (pale grey),
+        // 4 Content (teal), 5 Joyful (yellow) — the same values as `moodColor(for:)`.
         let anchors: [(Double, Double, Double)] = [
-            (0.937, 0.325, 0.314),
-            (0.961, 0.486, 0.000),
-            (0.812, 0.847, 0.863),
+            (0.851, 0.416, 0.388),
+            (0.851, 0.541, 0.310),
+            (0.765, 0.796, 0.820),
             (0.302, 0.714, 0.675),
             (1.000, 0.835, 0.310)
         ]

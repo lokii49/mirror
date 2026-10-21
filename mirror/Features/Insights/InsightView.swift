@@ -1838,6 +1838,16 @@ private struct MoodWeekChartView: View {
                 }
 
                 ForEach(points) { point in
+                    // Ring under difficult-mood dots: valence stays readable without the hue.
+                    if let ring = MirrorTheme.moodRing(for: point.mood) {
+                        PointMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Mood", point.score)
+                        )
+                        .foregroundStyle(ring)
+                        .symbolSize((point.id == selected?.id ? 240 : 120) * 1.7)
+                        .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                    }
                     PointMark(
                         x: .value("Day", point.date, unit: .day),
                         y: .value("Mood", point.score)

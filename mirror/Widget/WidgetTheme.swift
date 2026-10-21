@@ -20,8 +20,8 @@ enum WidgetTheme {
         )
     }
 
-    static let bgTop        = hex(0x1C1830)  // MirrorTheme.inkRaised (dark)
-    static let bgBottom      = hex(0x110E1C)  // MirrorTheme.inkMid (dark)
+    static let bgTop        = hex(0x1E1933)  // MirrorTheme.inkRaised (dark)
+    static let bgBottom      = hex(0x15111F)  // MirrorTheme.inkMid (dark)
     static let violet        = hex(0x7C5CE4)  // MirrorTheme.violet (dark)
     static let violetLight    = hex(0xA78BFA)  // MirrorTheme.violetLight (dark)
     static let ember          = hex(0xF97B8B)  // MirrorTheme.ember (dark)

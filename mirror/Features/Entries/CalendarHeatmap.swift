@@ -443,8 +443,11 @@ struct CalendarHeatmap: View {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
                     } else if displayMode != .sentinel {
+                        // Difficult moods get an ink ring: the second cue for valence, since twelve
+                        // mood hues can't be told apart by colour-blind readers (MirrorTheme.moodRing).
+                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
+                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(height: 46)
@@ -617,8 +620,9 @@ struct CalendarHeatmap: View {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
                     } else if displayMode != .sentinel {
+                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
+                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(width: 36, height: 44)
