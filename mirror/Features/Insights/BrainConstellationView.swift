@@ -26,8 +26,10 @@ struct BrainConstellationView: View {
     private let maxScale: CGFloat = 5.0
     /// Screen-space radius (pt) a node must reach before its label appears.
     private let labelRevealRadius: CGFloat = 13
-    /// Always-visible baseline so the overview isn't completely unlabeled.
-    private let alwaysLabeledCount = 3
+    /// Always-visible baseline so the overview isn't completely unlabeled. Six, since 2D is the
+    /// landing view (2026-10-21): the biggest themes read without a tap; the rest appear as you
+    /// zoom or select.
+    private let alwaysLabeledCount = 6
 
     private static let background = Color(red: 0.09, green: 0.09, blue: 0.10)
     private static let linkColor = Color.white.opacity(0.16)
@@ -149,7 +151,33 @@ struct BrainConstellationView: View {
             )
 
             zoomControls
+            moodLegend
         }
+    }
+
+    /// What the node colours mean: the average mood of the entries that mention a theme, on the
+    /// same difficult→good ramp as the Mood Timeline. The canvas is dark in both themes, so this
+    /// is fixed light-on-dark like the labels.
+    private var moodLegend: some View {
+        HStack(spacing: 8) {
+            Text("Difficult")
+            LinearGradient(
+                colors: [1.0, 2.0, 3.0, 4.0, 5.0].map { MirrorTheme.moodScoreColor($0) },
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(width: 72, height: 6)
+            .clipShape(Capsule())
+            Text("Good")
+        }
+        .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 11, weight: .medium))
+        .foregroundStyle(.white.opacity(0.75))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.white.opacity(0.08), in: Capsule())
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .allowsHitTesting(false)
+        .accessibilityLabel("Node colour shows the average mood of the entries that mention the theme, from difficult to good")
     }
 
     private func drawLabel(_ context: inout GraphicsContext, text: String, at point: CGPoint, bold: Bool = false) {

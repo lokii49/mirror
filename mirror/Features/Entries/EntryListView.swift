@@ -1291,15 +1291,10 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
-    // The preview joins multiple paragraphs into one line, so per-paragraph fonts
-    // can't all render — use the entry's first paragraph's font, since that's what
-    // the preview visually represents (its opening line).
-    private var writingFontDesign: Font.Design {
-        let firstOverride = entry.textStyleData
-            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
-            .flatMap { $0.fontChoices?.first }
-        return WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: firstOverride).swiftUIDesign
-    }
+    // The list reads in one voice (2026-10-21 design review): a per-entry font (serif, mono,
+    // rounded from the Aa panel) shows inside the entry, where the writing is, not in its row.
+    // Before this the row used the entry's first paragraph's font, so a mono entry between a
+    // serif one and a sans one made the list look like three apps.
 
     // rowPreview is precomputed in .task — zero decrypts during scroll.
     // Falls back to inline decryption only on first render before cache is ready.
@@ -1359,7 +1354,7 @@ private struct EntryRow: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
                     preview
-                        .font(.system(size: 16, weight: .medium, design: writingFontDesign))
+                        .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .medium) : .system(size: 16, weight: .medium))
                         .foregroundStyle(previewTextColor)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)

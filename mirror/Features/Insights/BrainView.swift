@@ -14,7 +14,9 @@ struct BrainView: View {
     @State private var showPaywall = false
     @State private var selectedNode: BrainNode?
     @State private var askPrefill: AskPrefill?
-    @State private var is3D = true
+    /// 2D is the landing view (2026-10-21 design review): labelled, readable at a glance; 3D is
+    /// one tap away and remembered per device.
+    @AppStorage("brainViewIs3D") private var is3D = false
 
     var body: some View {
         Group {
