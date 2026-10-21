@@ -83,9 +83,13 @@ struct BrainConstellationView: View {
                 let hubRect = CGRect(x: hubCenter.x - hubRadius, y: hubCenter.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2)
                 context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 context.stroke(Circle().path(in: hubRect), with: .color(.white.opacity(0.4)), lineWidth: 1 / steadyScale)
-                drawLabel(&context, text: String(localized: "You"), at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
 
-                // Nodes + progressively revealed labels.
+                // Nodes first, then every label: a node drawn later used to paint over an earlier
+                // node's label ("Work" under the Outdoors node on the 2D opening view). Each label
+                // goes below its node unless that spot sits on another node, then above it.
+                var labels: [(text: String, at: CGPoint, bold: Bool)] = [
+                    (String(localized: "You"), labelPoint(center: hubCenter, radius: hubRadius, text: "You", in: graph), true)
+                ]
                 for (index, node) in graph.nodes.enumerated() {
                     let color = nodeColor(node)
                     let rect = CGRect(
@@ -102,7 +106,10 @@ struct BrainConstellationView: View {
                     let onScreenRadius = node.radius * steadyScale
                     let alwaysShow = index < alwaysLabeledCount || node.id == selectedNodeID
                     guard alwaysShow || onScreenRadius >= labelRevealRadius else { continue }
-                    drawLabel(&context, text: node.label, at: CGPoint(x: node.position.x, y: node.position.y + node.radius + 12))
+                    labels.append((node.label, labelPoint(center: node.position, radius: node.radius, text: node.label, in: graph, excluding: node.id), false))
+                }
+                for label in labels {
+                    drawLabel(&context, text: label.text, at: label.at, bold: label.bold)
                 }
             }
             .background(Self.background)
@@ -178,6 +185,33 @@ struct BrainConstellationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         .allowsHitTesting(false)
         .accessibilityLabel("Node colour shows the average mood of the entries that mention the theme, from difficult to good")
+    }
+
+    /// Where a label goes: 12 pt under its node on screen (the gap is in screen points, so it
+    /// doesn't grow when zoomed out), or 12 pt above when the spot under it lands on another
+    /// node or the hub. The label's size is estimated from its text; when both spots are
+    /// taken it stays below and the outline keeps it readable.
+    private func labelPoint(center: CGPoint, radius: CGFloat, text: String, in graph: BrainGraph, excluding id: String? = nil) -> CGPoint {
+        let gap = 12 / steadyScale
+        let height = 14 / steadyScale
+        let width = CGFloat(max(text.count, 2)) * 6.6 / steadyScale
+        let below = CGPoint(x: center.x, y: center.y + radius + gap)
+        let above = CGPoint(x: center.x, y: center.y - radius - gap)
+        func clear(_ point: CGPoint) -> Bool {
+            let rect = CGRect(x: point.x - width / 2, y: point.y - height / 2, width: width, height: height)
+            if id != nil, Self.hits(rect, center: graph.hubPosition, radius: 15) { return false }
+            return !graph.nodes.contains { $0.id != id && Self.hits(rect, center: $0.position, radius: $0.radius) }
+        }
+        if clear(below) { return below }
+        return clear(above) ? above : below
+    }
+
+    /// Whether a label's rect overlaps a node's circle: the rect's nearest point to the centre
+    /// is inside the circle.
+    private static func hits(_ rect: CGRect, center: CGPoint, radius: CGFloat) -> Bool {
+        let dx = max(rect.minX - center.x, 0, center.x - rect.maxX)
+        let dy = max(rect.minY - center.y, 0, center.y - rect.maxY)
+        return dx * dx + dy * dy < radius * radius
     }
 
     private func drawLabel(_ context: inout GraphicsContext, text: String, at point: CGPoint, bold: Bool = false) {
