@@ -1219,11 +1219,13 @@ struct NightlyPendingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            InsightCardHeader(title, icon: icon) {
+            // Slot labels are spelled out on every header with one closure: Swift's trailing-closure
+            // rule binds a lone closure to the *last* defaulted slot (subline), not the first.
+            InsightCardHeader(title, icon: icon, trailing: {
                 Image(systemName: "moon.zzz.fill")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(MirrorTheme.textTertiary)
-            }
+            })
             Group {
                 if isSentinel {
                     Text(label).font(MirrorTheme.mono(13, weight: .semibold)).textCase(.uppercase)
@@ -1746,22 +1748,26 @@ private struct MoodWeekChartView: View {
             // Same header as every other Insights card. While a dot is held the header names
             // it instead; same height, so the chart stays put.
             if let selected {
+                // The mood chip sits on the title row (the proposal's header), so the slot is
+                // spelled out: a lone trailing closure would bind to the last defaulted slot,
+                // the subline, and the chip dropped under the title on device (owner, 2026-10-21).
                 InsightCardHeader(
                     text: Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()),
-                    icon: "chart.line.uptrend.xyaxis"
-                ) {
-                    moodChip(selected.mood, label: Text(isSentinel
-                        ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
-                        : MirrorTheme.localizedMoodName(for: selected.mood)))
-                }
+                    icon: "chart.line.uptrend.xyaxis",
+                    trailing: {
+                        moodChip(selected.mood, label: Text(isSentinel
+                            ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
+                            : MirrorTheme.localizedMoodName(for: selected.mood)))
+                    }
+                )
             } else {
-                InsightCardHeader("This Week's Mood", icon: "chart.line.uptrend.xyaxis") {
+                InsightCardHeader("This Week's Mood", icon: "chart.line.uptrend.xyaxis", trailing: {
                     if let mood = dominantMood {
                         moodChip(mood, label: Text(isSentinel
                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))"))
                     }
-                }
+                })
             }
 
             Chart {
