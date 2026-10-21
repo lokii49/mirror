@@ -53,7 +53,7 @@ enum MirrorTheme {
     // ember — warm second accent. 3 uses only: paywall CTA, mood alert, first insight.
     static let ember       = hex(0xF97B8B, 0xE05470)
     /// Fill for buttons that carry white text. `violet` in dark mode (#7C5CE4) puts white at
-    /// 3.6:1; this deeper step reaches 5.4:1. Light mode is the same violet as the accent.
+    /// 4.7:1; this deeper step reaches 5.4:1. Light mode is the same violet as the accent.
     /// Accent-coloured *text* on dark surfaces keeps `violet`; only filled controls use this.
     static let buttonFill  = hex(0x6E4FE0, 0x6341CC)
 
@@ -84,8 +84,12 @@ enum MirrorTheme {
 
     static let palette: [Color] = [red, yellow, green, blue, purple]
 
+    /// The fill behind white-text CTAs (paywall, rate-us, onboarding). It used to run
+    /// `violet` → `violetLight`, whose dark-mode end (#A78BFA) left white at 2.7:1; it now runs
+    /// `buttonFill` → #7C5CE4 in both modes, 5.4→4.7:1 dark and 6.7→4.7:1 light (light mode's
+    /// colours are the same as before). Measured 2026-10-21.
     static var accentGradient: LinearGradient {
-        LinearGradient(colors: [violet, violetLight], startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: [buttonFill, hex(0x7C5CE4, 0x7C5CE4)], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     // MARK: - Mood
