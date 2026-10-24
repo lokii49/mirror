@@ -2134,6 +2134,18 @@ extension InsightView {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+        .contextMenu {
+            Button("Copy Reflection") { UIPasteboard.general.string = today.content }
+            Button("How this was generated") {
+                withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen = true }
+            }
+            if let question = today.followUp {
+                Divider()
+                Button("Write About This") {
+                    NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": question + "\n"])
+                }
+            }
+        }
     }
 
     /// The reflection with the user's own sentence highlighted. A reflection that isn't a

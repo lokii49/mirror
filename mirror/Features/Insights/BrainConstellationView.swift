@@ -13,6 +13,9 @@ struct BrainConstellationView: View {
     @State private var steadyScale: CGFloat = 1
     @State private var steadyOffset: CGSize = .zero
     @State private var selectedNodeID: String?
+    /// The theme under the pointer on the Mac: its outline brightens and its name shows, so a
+    /// node reads before it's clicked (UI pass 2026-10-24).
+    @State private var hoveredNodeID: String?
     /// True once the user has actually pinched/panned — until then, every
     /// appear/resize keeps re-fitting instead of locking in on the first
     /// call. onAppear vs onChange(size) firing order isn't guaranteed, and
@@ -99,12 +102,12 @@ struct BrainConstellationView: View {
                     context.fill(Circle().path(in: rect), with: .color(color))
                     context.stroke(
                         Circle().path(in: rect),
-                        with: .color(.white.opacity(node.id == selectedNodeID ? 0.9 : 0.25)),
-                        lineWidth: (node.id == selectedNodeID ? 2 : 1) / steadyScale
+                        with: .color(.white.opacity(node.id == selectedNodeID ? 0.9 : node.id == hoveredNodeID ? 0.65 : 0.25)),
+                        lineWidth: (node.id == selectedNodeID || node.id == hoveredNodeID ? 2 : 1) / steadyScale
                     )
 
                     let onScreenRadius = node.radius * steadyScale
-                    let alwaysShow = index < alwaysLabeledCount || node.id == selectedNodeID
+                    let alwaysShow = index < alwaysLabeledCount || node.id == selectedNodeID || node.id == hoveredNodeID
                     guard alwaysShow || onScreenRadius >= labelRevealRadius else { continue }
                     labels.append((node.label, labelPoint(center: node.position, radius: node.radius, text: node.label, in: graph, excluding: node.id), false))
                 }
@@ -154,27 +157,47 @@ struct BrainConstellationView: View {
                     steadyScale = newScale
                 },
                 onTap: { location in
-                    let p = inverseTransform(location, center: center)
-                    var best: BrainNode?
-                    var bestDist: CGFloat = .greatestFiniteMagnitude
-                    for node in graph.nodes {
-                        let dx = node.position.x - p.x
-                        let dy = node.position.y - p.y
-                        let dist = (dx * dx + dy * dy).squareRoot()
-                        guard dist <= node.radius + 22 / steadyScale, dist < bestDist else { continue }
-                        best = node
-                        bestDist = dist
-                    }
-                    if let best {
+                    if let best = node(at: location, center: center, slack: 22) {
                         selectedNodeID = best.id
                         onNodeTap(best)
                     }
                 }
             )
+            #if os(macOS)
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    let id = node(at: location, center: center, slack: 4)?.id
+                    if id != hoveredNodeID {
+                        hoveredNodeID = id
+                        if id != nil { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+                    }
+                case .ended:
+                    hoveredNodeID = nil
+                    NSCursor.arrow.set()
+                }
+            }
+            #endif
 
             zoomControls
             moodLegend
         }
+    }
+
+    /// The theme nearest a screen point, within its radius plus `slack` screen points.
+    private func node(at location: CGPoint, center: CGPoint, slack: CGFloat) -> BrainNode? {
+        let p = inverseTransform(location, center: center)
+        var best: BrainNode?
+        var bestDist: CGFloat = .greatestFiniteMagnitude
+        for node in graph.nodes {
+            let dx = node.position.x - p.x
+            let dy = node.position.y - p.y
+            let dist = (dx * dx + dy * dy).squareRoot()
+            guard dist <= node.radius + slack / steadyScale, dist < bestDist else { continue }
+            best = node
+            bestDist = dist
+        }
+        return best
     }
 
     /// What the node colours mean: the average mood of the entries that mention a theme, on the
