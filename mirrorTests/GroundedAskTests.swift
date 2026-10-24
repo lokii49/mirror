@@ -98,7 +98,10 @@ extension SharedLLMState {
             let (text, engine) = try await InsightService.ask(question: "How has my sleep been lately?", entries: pool())
             #expect(calls == 0)
             #expect(engine == .search)
-            #expect(text == InsightService.groundedAskPrefix + #"On 27 Sep, you wrote, "Barely slept, my stomach was bad all night.""#)
+            // Either sentence of the sleep entry: with Smart Search's model in the test host (AskPickRigDump
+            // leaves it in the simulator) the semantic score may pick its second one.
+            let sleepEntry = ["Barely slept, my stomach was bad all night.", "Woke at 10, way later than usual."]
+            #expect(sleepEntry.contains { text == InsightService.groundedAskPrefix + "On 27 Sep, you wrote, \"\($0)\"" }, "\(text)")
             #expect(InsightService.isGrammarGrounded(text), "same shape as Gemma's grounded answers, so saved-insight passes leave it alone")
         }
 

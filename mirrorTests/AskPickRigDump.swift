@@ -9,7 +9,8 @@ import SwiftLlama
 //
 // TEST_RUNNER_ASK_POOL=<pool.jsonl> TEST_RUNNER_ASK_QUERIES=<queries.tsv> TEST_RUNNER_HARNESS_DUMP_DIR=<dir>
 // TEST_RUNNER_ASK_RETRIEVAL=semantic|keyword. Semantic copies mirror/LocalModels/embeddinggemma-300M-Q8_0.gguf
-// into the simulator's model directory and indexes the pool; keyword removes it there.
+// into the simulator's model directory and indexes the pool, and leaves it there (later Ask tests in that
+// simulator then rank with it); keyword removes it.
 final class AskPickRigDump: XCTestCase {
 
     private struct PoolRow: Decodable {
