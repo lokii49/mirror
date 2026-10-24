@@ -101,6 +101,10 @@ struct BrainView: View {
                 AskView(viewModel: viewModel, initialQuestion: prefill.question, onClose: { askPrefill = nil })
             }
             .environment(\.appDisplayMode, displayMode)
+            #if os(iOS)
+            // Shows the sheet can be swiped down; Ask's Done button closes it too.
+            .presentationDragIndicator(.visible)
+            #endif
             #if os(macOS)
             .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 640)
             #endif

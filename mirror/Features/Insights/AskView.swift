@@ -171,6 +171,15 @@ struct AskView: View {
         .navigationTitle(displayMode == .sentinel ? "Comms" : "Ask")
         #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            // Opened as a sheet (Brain View): a way out besides swiping down, in every Ask state.
+            if let onClose {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done", action: onClose)
+                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                }
+            }
+        }
         #endif
         .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
         .onAppear {
