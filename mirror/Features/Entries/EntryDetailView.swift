@@ -529,6 +529,9 @@ struct EntryDetailView: View {
         }
         .padding(18)
         .themedCard(cornerRadius: 18, classicBase: .elevated)
+        .contextMenu {
+            Button("Copy Reflection") { UIPasteboard.general.string = shown.text }
+        }
     }
 
     private static func macReflectionText(_ content: String, parts: InsightService.GroundedNudgeParts?) -> Text {
@@ -763,6 +766,7 @@ private struct OnThisDaySection: View {
 private struct MacRelatedEntriesSection: View {
     let entries: [Entry]
     let open: (Entry) -> Void
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -776,6 +780,10 @@ private struct MacRelatedEntriesSection: View {
                     MacRelatedEntryRow(entry: other)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Open") { open(other) }
+                    Button("Open in New Window") { openWindow(id: "entry", value: other.id) }
+                }
             }
         }
     }

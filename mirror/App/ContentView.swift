@@ -59,8 +59,11 @@ struct ContentView: View {
     @State private var macSelectedEntry: Entry? = nil
     @State private var macWriteID = UUID()
     @State private var macWriteInitialText = ""
-    @State private var macDestination: MacDestination = .write
-    @State private var macSidebarVisible = true
+    // Per window, so a relaunch reopens each window on its page, sidebar state and entry
+    // (UI pass 2026-10-24). The entry is kept by id and fetched back on appear.
+    @SceneStorage("mac.destination") private var macDestination: MacDestination = .write
+    @SceneStorage("mac.sidebarVisible") private var macSidebarVisible = true
+    @SceneStorage("mac.selectedEntryID") private var macSelectedEntryID = ""
     #endif
     @State private var showWriteFromWidgetPrompt = false
     @State private var widgetPromptText: String = ""
@@ -624,6 +627,13 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacToggleSidebar)) { _ in
             macSidebarVisible.toggle()
+        }
+        .onChange(of: macSelectedEntry?.id) { _, id in macSelectedEntryID = id?.uuidString ?? "" }
+        .onAppear {
+            guard macSelectedEntry == nil, let id = UUID(uuidString: macSelectedEntryID) else { return }
+            var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            macSelectedEntry = try? modelContext.fetch(descriptor).first
         }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugSelectFirstEntry)) { _ in
