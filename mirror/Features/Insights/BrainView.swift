@@ -296,7 +296,7 @@ struct BrainView: View {
                         .frame(width: 72, height: 72)
                     Image(systemName: "brain.head.profile")
                         .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.68, green: 0.56, blue: 1.0))
+                        .foregroundStyle(MirrorTheme.brainIcon)
                 }
                 VStack(spacing: 8) {
                     Group {
@@ -337,7 +337,7 @@ struct BrainView: View {
             .shadow(color: .black.opacity(0.3), radius: 24, x: 0, y: 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.09, green: 0.09, blue: 0.10))
+        .background(MirrorTheme.brainCanvas)
     }
 
     /// Static mock graph rendered behind the lock card — no real data.
@@ -360,7 +360,7 @@ struct BrainView: View {
                     path.addLine(to: p)
                     context.stroke(path, with: .color(.white.opacity(0.18)), lineWidth: 0.7)
                 }
-                let hubColor = displayMode == .sentinel ? MirrorTheme.ember : Color(red: 0.62, green: 0.5, blue: 1.0)
+                let hubColor = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.brainHub
                 let hubRect = CGRect(x: center.x - 15, y: center.y - 15, width: 30, height: 30)
                 context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 for node in mock {
@@ -370,7 +370,7 @@ struct BrainView: View {
                     context.fill(Circle().path(in: rect), with: .color(color))
                 }
             }
-            .background(Color(red: 0.09, green: 0.09, blue: 0.10))
+            .background(MirrorTheme.brainCanvas)
         }
     }
 }

@@ -151,12 +151,14 @@ struct InsightView: View {
             // `--openBrainView`: device/simulator screenshots land on Brain View without a tap
             // (devicectl can launch but not tap; same idea as ContentView's `--initialTab=`).
             .navigationDestination(isPresented: $debugOpenBrainView) { BrainView(viewModel: viewModel) }
+            .navigationDestination(isPresented: $debugOpenMonthlyReport) { MonthlyReportView(viewModel: viewModel) }
             #endif
         }
     }
 
     #if DEBUG
     @State private var debugOpenBrainView = ProcessInfo.processInfo.arguments.contains("--openBrainView")
+    @State private var debugOpenMonthlyReport = ProcessInfo.processInfo.arguments.contains("--openMonthlyReport")
     #endif
 
     @ViewBuilder
@@ -1042,11 +1044,11 @@ private struct BrainEntryCard: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
-    private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
-    private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let bg = MirrorTheme.brainCanvas
+    private static let hubColor = MirrorTheme.brainHub
     // Ends at 0.86 of the width so the chevron has clear space (at 0.94 it sat on a dot).
     private static let dots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)] = [
-        (0.62, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
+        (0.62, 0.24, 5, MirrorTheme.brainHub),
         (0.78, 0.36, 4, .teal),
         (0.70, 0.6, 6, .orange),
         (0.86, 0.5, 3, .red),

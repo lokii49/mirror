@@ -57,6 +57,17 @@ enum MirrorTheme {
     /// Accent-coloured *text* on dark surfaces keeps `violet`; only filled controls use this.
     static let buttonFill  = hex(0x6E4FE0, 0x6341CC)
 
+    // MARK: - Fixed dark surfaces
+
+    // Brain View draws on the same near-black canvas in both modes (its node and mood colours
+    // are tuned for it); these were written out in four files. Sentinel's hub is `ember`.
+    static let brainCanvas = Color(red: 0.09, green: 0.09, blue: 0.10)
+    static let brainHub    = Color(red: 0.62, green: 0.5, blue: 1.0)
+    /// The Brain lock card's icon, a step lighter than the hub.
+    static let brainIcon   = Color(red: 0.68, green: 0.56, blue: 1.0)
+    /// The terminal-style panels of the Sentinel signal-source sheet, dark in both modes.
+    static let inkDeep     = Color(red: 0.043, green: 0.043, blue: 0.063)
+
     // MARK: - Text tokens
 
     static let textPrimary   = hex(0xEDE9F8, 0x16112A)

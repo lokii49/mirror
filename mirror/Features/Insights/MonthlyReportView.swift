@@ -632,28 +632,30 @@ private struct MonthlyReportCard: View {
         "YOUR QUESTION FOR NEXT MONTH": "Your Question For Next Month",
     ]
 
-    private let headerIcons: [String: (String, Color)] = [
-        "YOUR MONTH IN ONE IMAGE": ("moon.stars.fill", MirrorTheme.violet),
-        "THE TENSION AT THE CENTER": ("arrow.left.arrow.right", .orange),
-        "A MOMENT THAT SHIFTED SOMETHING": ("sparkles", .blue),
-        "WHAT YOU'RE BECOMING": ("leaf.fill", .green),
-        "WHAT WANTS TO BE RELEASED": ("wind", MirrorTheme.textTertiary),
-        "YOUR QUESTION FOR NEXT MONTH": ("questionmark.circle.fill", Color(red: 0.9, green: 0.7, blue: 0.1)),
+    // One accent for every section; the icon carries the meaning (2026-10-24 UI pass). The six
+    // colours before were system orange/blue/green plus a gold at ~2:1 on the light card.
+    private let headerIcons: [String: String] = [
+        "YOUR MONTH IN ONE IMAGE": "moon.stars.fill",
+        "THE TENSION AT THE CENTER": "arrow.left.arrow.right",
+        "A MOMENT THAT SHIFTED SOMETHING": "sparkles",
+        "WHAT YOU'RE BECOMING": "leaf.fill",
+        "WHAT WANTS TO BE RELEASED": "wind",
+        "YOUR QUESTION FOR NEXT MONTH": "questionmark.circle.fill",
     ]
+
+    private var sectionAccent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight }
 
     private struct Section: Identifiable {
         let id = UUID()
         let header: String
         let body: String
         let icon: String
-        let color: Color
     }
 
     private var sections: [Section] {
         sectionHeaderAliases.compactMap { header in
             guard let body = extractBody(for: header.aliases) else { return nil }
-            let (icon, color) = headerIcons[header.canonical] ?? ("circle.fill", .secondary)
-            return Section(header: header.canonical, body: body, icon: icon, color: color)
+            return Section(header: header.canonical, body: body, icon: headerIcons[header.canonical] ?? "circle.fill")
         }
     }
 
@@ -705,11 +707,11 @@ private struct MonthlyReportCard: View {
             HStack(spacing: 6) {
                 Image(systemName: section.icon)
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(section.color)
+                    .foregroundStyle(sectionAccent)
                 Text(headerDisplayNames[section.header] ?? LocalizedStringKey(section.header.localizedCapitalized))
                     .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
                     .textCase(isSentinel ? .uppercase : nil)
-                    .foregroundStyle(section.color)
+                    .foregroundStyle(sectionAccent)
                     .tracking(0.3)
             }
             if isQuestion {

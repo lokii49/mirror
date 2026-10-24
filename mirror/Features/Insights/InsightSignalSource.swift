@@ -297,7 +297,7 @@ struct InsightSignalSource: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+        .background(MirrorTheme.inkDeep,
                     in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -344,7 +344,7 @@ struct SystemPromptDetail: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
-                    .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+                    .background(MirrorTheme.inkDeep,
                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)

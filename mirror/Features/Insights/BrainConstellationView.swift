@@ -31,11 +31,11 @@ struct BrainConstellationView: View {
     /// zoom or select.
     private let alwaysLabeledCount = 6
 
-    private static let background = Color(red: 0.09, green: 0.09, blue: 0.10)
+    private static let background = MirrorTheme.brainCanvas
     private static let linkColor = Color.white.opacity(0.16)
     private static let linkColorNearHub = Color.white.opacity(0.32)
     private static let linkColorHighlighted = Color.white.opacity(0.9)
-    private static let violetHubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let violetHubColor = MirrorTheme.brainHub
 
     var body: some View {
         GeometryReader { geo in

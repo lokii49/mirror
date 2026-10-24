@@ -193,8 +193,8 @@ private struct BrainSceneView: BrainRepresentable {
         private var fittedSize: CGSize = .zero
         private var autoRotateEnabled = true
 
-        static let background = UIColor(red: 0.09, green: 0.09, blue: 0.10, alpha: 1)
-        private static let hubColor = UIColor(red: 0.62, green: 0.5, blue: 1.0, alpha: 1)
+        static let background = UIColor(MirrorTheme.brainCanvas)
+        private static let hubColor = UIColor(MirrorTheme.brainHub)
         /// Any bit outside SceneKit's default (1) so tap hit-testing can
         /// exclude labels via a category mask instead of relying on opacity.
         private static let labelCategory = 2
