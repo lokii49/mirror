@@ -26,6 +26,8 @@ struct EntriesTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Opening an entry zooms from its row on iOS 18+ (UI pass 2026-10-24).
+    @Namespace private var entryZoom
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var collectionModels: [JournalCollection]
@@ -489,6 +491,7 @@ struct EntriesTabView: View {
                         showEntryDetail = false
                         self.selectedEntry = nil
                     }, onEditorPresented: onReaderEditorPresented)
+                    .modifier(EntryZoomDestination(id: selectedEntry.id, namespace: entryZoom, enabled: !reduceMotion))
                 }
             }
             #endif
@@ -1012,6 +1015,7 @@ struct EntriesTabView: View {
         HStack(spacing: 10) {
             if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
             EntryRow(entry: entry, rowPreview: preview)
+                .modifier(EntryZoomSource(id: entry.id, namespace: entryZoom, enabled: !reduceMotion))
         }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -2059,5 +2063,42 @@ final class EntryDecryptCache {
     func prune(keeping entries: [Entry]) {
         let live = Set(entries.map(\.id))
         items = items.filter { live.contains($0.key) }
+    }
+}
+
+/// The row an entry zooms out of (iOS 18+). Under Reduce Motion it stays a plain push.
+private struct EntryZoomSource: ViewModifier {
+    let id: UUID
+    let namespace: Namespace.ID
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if #available(iOS 18, *), enabled {
+            content.matchedTransitionSource(id: id, in: namespace)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+private struct EntryZoomDestination: ViewModifier {
+    let id: UUID
+    let namespace: Namespace.ID
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if #available(iOS 18, *), enabled {
+            content.navigationTransition(.zoom(sourceID: id, in: namespace))
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }
