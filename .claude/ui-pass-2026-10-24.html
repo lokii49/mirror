@@ -1,0 +1,540 @@
+<title>MirrorNotes UI Pass</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex">
+<style>
+  /* Layout: one reading column of proposals, each with a mock beside its evidence; decisions gathered at the end. */
+  :root {
+    --bg: #F2EEF8; --surface: #FFFFFF; --surface2: #F8F5FF; --surface3: #EDE8FC;
+    --accent: #6341CC; --accent-tint: rgba(99,65,204,0.10); --ember: #E05470; --ok: #1E9E4C; --warn: #C76A00;
+    --text: #16112A; --text-2: #5B5170; --text-3: #6E6587;
+    --border: rgba(22,17,42,0.08); --border-2: rgba(22,17,42,0.16);
+    --frame: #1a1626; --canvas: #17171A; --hub: #9E80FF;
+    --shadow: 0 1px 2px rgba(40,24,90,0.05), 0 10px 28px rgba(40,24,90,0.07);
+    --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #08060F; --surface: #110E1C; --surface2: #1C1830; --surface3: #241F3D;
+    --accent: #A78BFA; --accent-tint: rgba(139,108,240,0.16); --ember: #F97B8B; --ok: #4ADE80; --warn: #FBBF24;
+    --text: #EDE9F8; --text-2: #A39BC0; --text-3: #9087B0;
+    --border: rgba(237,233,248,0.08); --border-2: rgba(237,233,248,0.18);
+    --frame: #2b2540; --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.35); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #08060F; --surface: #110E1C; --surface2: #1C1830; --surface3: #241F3D;
+    --accent: #A78BFA; --accent-tint: rgba(139,108,240,0.16); --ember: #F97B8B; --ok: #4ADE80; --warn: #FBBF24;
+    --text: #EDE9F8; --text-2: #A39BC0; --text-3: #9087B0;
+    --border: rgba(237,233,248,0.08); --border-2: rgba(237,233,248,0.18);
+    --frame: #2b2540; --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.35); color-scheme: dark; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header.top { padding-block: 48px 20px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5vw, 50px); letter-spacing: -0.02em; line-height: 1.06; margin: 0 0 14px; text-wrap: balance; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -0.015em; line-height: 1.12; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; }
+  p, li { color: var(--text-2); font-size: 16px; margin: 0; }
+  .lede { font-size: 18px; max-width: 40em; }
+  .meta { font-size: 14px; color: var(--text-3); }
+  .stack { display: grid; gap: 14px; }
+  section { padding-block: 48px; border-top: 1px solid var(--border); }
+  .kick { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; align-items: start; }
+  .three { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; align-items: start; }
+  @media (max-width: 880px) { .two, .three { grid-template-columns: minmax(0,1fr); } }
+  .card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px; padding: 18px 20px; box-shadow: var(--shadow); min-width: 0; }
+  code, .code { font-family: var(--mono); font-size: 13px; }
+  p code, li code { background: var(--surface3); padding: 1px 6px; border-radius: 6px; color: var(--text); }
+  pre { margin: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.5; }
+  ul.plain { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+  ul.plain li { padding-left: 18px; position: relative; }
+  ul.plain li::before { content: ''; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: .6; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 100px; font-size: 12.5px; font-weight: 600; background: var(--surface3); color: var(--text); white-space: nowrap; }
+  .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .pill.a11y::before { background: var(--ember); }
+  .pill.mac::before { background: var(--text-3); }
+  .pill.new::before { background: var(--ok); }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-2); }
+  th { color: var(--text-3); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; color: var(--text); font-weight: 600; }
+  .tablewrap { overflow-x: auto; }
+  .sw { display: inline-block; width: 16px; height: 16px; border-radius: 5px; vertical-align: -3px; border: 1px solid var(--border-2); margin-right: 6px; }
+  .note { font-size: 14px; color: var(--text-3); }
+  .fix { border-left: 3px solid var(--ok); padding-left: 12px; }
+
+  /* phone mocks */
+  .phones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  @media (max-width: 880px) { .phones { grid-template-columns: minmax(0, 1fr); max-width: 340px; margin: 0 auto; } }
+  .phone { border: 9px solid var(--frame); border-radius: 40px; background: var(--bg); padding: 34px 12px 22px; position: relative; min-height: 560px; box-shadow: 0 24px 60px rgba(20,10,60,0.22); overflow: hidden; }
+  .phone::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 80px; height: 22px; border-radius: 14px; background: #000; }
+  .cap { text-align: center; font-size: 13px; font-weight: 600; color: var(--text-2); margin-top: 10px; }
+  .cap small { display: block; font-weight: 500; color: var(--text-3); }
+  .icard { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px 13px; }
+  .icard .lab { font-weight: 700; letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; display: flex; justify-content: space-between; gap: 6px; }
+  .icard .refl { font-family: var(--serif); color: var(--text); margin: 8px 0 12px; line-height: 1.38; }
+  .icard .btns { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .icard .btns span { border-radius: 100px; background: var(--surface3); color: var(--accent); font-weight: 600; padding: 5px 9px; white-space: nowrap; }
+  .icard.p1 .lab { font-size: 9.5px; } .icard.p1 .refl { font-size: 14px; } .icard.p1 .btns span { font-size: 10.5px; }
+  .icard.p2 .lab { font-size: 9.5px; } .icard.p2 .refl { font-size: 23px; } .icard.p2 .btns { overflow: hidden; } .icard.p2 .btns span { font-size: 10.5px; }
+  .icard.p3 .lab { font-size: 15px; flex-direction: column; } .icard.p3 .refl { font-size: 23px; } .icard.p3 .btns { flex-direction: column; } .icard.p3 .btns span { font-size: 17px; text-align: center; padding: 9px; }
+  .mrow { margin-top: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 9px 11px; }
+  .mrow b { color: var(--text); font-weight: 600; display: block; }
+  .mrow span { color: var(--text-3); }
+  .p1 + .mrow b, .mrow.s1 b { font-size: 12.5px; } .mrow.s1 span { font-size: 10px; }
+  .mrow.s2 b { font-size: 12.5px; } .mrow.s2 span { font-size: 10px; }
+  .mrow.s3 b { font-size: 20px; } .mrow.s3 span { font-size: 15px; display: block; }
+  .flag { position: absolute; right: 12px; font-size: 10px; font-weight: 700; color: #fff; background: var(--ember); border-radius: 6px; padding: 2px 6px; }
+
+  /* VoiceOver bubble */
+  .vo { background: #111; color: #fff; border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.45; margin-top: 12px; }
+  .vo b { color: #9fd0ff; font-weight: 600; }
+  .vo .before { color: #ff9a9a; }
+
+  /* Brain canvas */
+  .canvas { background: var(--canvas); border-radius: 16px; height: 150px; position: relative; overflow: hidden; }
+  .canvas i { position: absolute; border-radius: 50%; display: block; }
+
+  /* Control Center */
+  .cc { display: grid; grid-template-columns: repeat(4, 64px); gap: 12px; justify-content: center; padding: 18px; border-radius: 26px; background: linear-gradient(160deg, #3a3150, #1b1626); }
+  .cc div { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; text-align: center; line-height: 1.15; font-weight: 600; }
+  .cc div.on { background: #fff; color: #4b2fb8; }
+  .cc div.wide { grid-column: span 2; width: 140px; border-radius: 32px; }
+  .ccl { color: rgba(255,255,255,.6); font-size: 11px; text-align: center; grid-column: 1 / -1; }
+
+  /* Mac window */
+  .mac { border-radius: 14px; border: 1px solid var(--border-2); background: var(--surface); box-shadow: 0 24px 60px rgba(20,10,60,0.2); overflow: hidden; }
+  .mac .bar { height: 38px; display: flex; align-items: center; gap: 7px; padding: 0 14px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .mac .bar i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .mac .bar .t { margin-left: 12px; font-size: 12px; color: var(--text-3); font-weight: 600; }
+  .mac .body { display: grid; grid-template-columns: 170px 260px minmax(0,1fr); min-height: 340px; }
+  @media (max-width: 760px) { .mac .body { grid-template-columns: minmax(0,1fr); } .mac .pane { display: none; } }
+  .mac .side { background: var(--surface2); border-right: 1px solid var(--border); padding: 12px 10px; font-size: 13px; display: grid; align-content: start; gap: 3px; }
+  .mac .side .h { font-size: 10.5px; color: var(--text-3); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 8px 8px 2px; }
+  .mac .side div { padding: 5px 8px; border-radius: 7px; color: var(--text); }
+  .mac .side .sel { background: var(--surface3); }
+  .mac .side .drop { outline: 2px solid var(--accent); background: var(--accent-tint); }
+  .mac .list { border-right: 1px solid var(--border); padding: 8px; display: grid; align-content: start; gap: 4px; position: relative; }
+  .mac .row { border-radius: 9px; padding: 8px 10px; font-size: 12.5px; display: grid; gap: 2px; border: 1px solid transparent; }
+  .mac .row b { color: var(--text); font-weight: 600; }
+  .mac .row span { color: var(--text-3); font-size: 11.5px; }
+  .mac .row.hover { background: var(--surface2); border-color: var(--border); }
+  .mac .row.on { background: var(--surface3); }
+  .ghost { position: absolute; left: -96px; top: 150px; width: 190px; border-radius: 9px; background: var(--surface); border: 1px solid var(--border-2); box-shadow: 0 12px 30px rgba(20,10,60,.25); padding: 7px 10px; font-size: 12px; opacity: .92; transform: rotate(-2deg); }
+  @media (max-width: 760px) { .ghost { left: auto; right: 10px; top: 120px; } }
+  .ghost b { color: var(--text); }
+  .ghost em { font-style: normal; font-size: 10.5px; color: #fff; background: var(--ok); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .mac .pane { padding: 16px 18px; display: grid; gap: 10px; align-content: start; position: relative; }
+  .mac .pane .ic { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; font-size: 12.5px; color: var(--text-2); }
+  .mac .pane .ic .lab { font-size: 10px; letter-spacing: .08em; font-weight: 700; color: var(--text-3); text-transform: uppercase; }
+  .mac .pane .ic .refl { font-family: var(--serif); font-size: 14px; color: var(--text); margin-top: 4px; }
+  .menu { position: absolute; right: 26px; top: 82px; background: var(--surface); border: 1px solid var(--border-2); border-radius: 9px; box-shadow: 0 14px 34px rgba(20,10,60,.28); padding: 5px; font-size: 12.5px; min-width: 200px; }
+  .menu div { padding: 4px 10px; border-radius: 5px; color: var(--text); display: flex; justify-content: space-between; gap: 14px; }
+  .menu div:first-child { background: var(--accent); color: #fff; }
+  .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
+  .menu kbd { font-family: var(--sans); color: inherit; opacity: .6; font-size: 11.5px; }
+
+  /* order + decisions */
+  ol.order { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
+  ol.order li::marker { color: var(--accent); font-weight: 700; }
+  .dec { display: grid; gap: 14px; }
+  .dq { background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 16px 18px; }
+  .dq h3 { margin-bottom: 4px; }
+  .dq p { font-size: 14.5px; margin-bottom: 10px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opts label { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--border-2); border-radius: 100px; padding: 6px 13px; font-size: 14px; cursor: pointer; color: var(--text); background: var(--surface2); }
+  .opts input { accent-color: var(--accent); margin: 0; }
+  .opts label:has(input:checked) { border-color: var(--accent); background: var(--accent-tint); }
+  .opts label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .rec { font-size: 11px; font-weight: 700; color: var(--accent); }
+  .out { display: grid; gap: 10px; margin-top: 18px; }
+  textarea { width: 100%; min-height: 150px; font-family: var(--mono); font-size: 13px; background: var(--surface2); color: var(--text); border: 1px solid var(--border-2); border-radius: 12px; padding: 12px; resize: vertical; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 100px; padding: 10px 18px; cursor: pointer; justify-self: start; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button { color: #120c24; } }
+  :root[data-theme="dark"] button { color: #120c24; }
+  button:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  footer { padding-block: 30px 60px; border-top: 1px solid var(--border); }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="kick">iOS 3.1.x · Mac 1.1.x · proposal, no code yet</div>
+  <h1>Accessibility and Mac polish, after the 21 October review</h1>
+  <p class="lede">The 21 October review fixed colour, Insights cards, Brain View and the Mac reader. This pass covers what it didn't reach: text that ignores the user's text size, charts VoiceOver can't read, a few colours outside the token set, and Mac habits like drag, hover and right-click. It ends with seven decisions for you.</p>
+  <p class="meta" style="margin-top:12px">Branch 3.1.6 at cd94173 (Build 29). Evidence is code counts and file reads; the app was not run for this page. Mocks are drawn to show the idea, not pixel captures. Sample text is invented.</p>
+</header>
+
+<section>
+  <div class="kick">Summary</div>
+  <h2>Nine changes, ordered by risk</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Change</th><th>Platform</th><th>Evidence</th><th>Size</th></tr></thead>
+    <tbody>
+      <tr><td>Colours outside the tokens move into <code>MirrorTheme</code>, Monthly Report icons join the palette</td><td>iOS + Mac</td><td>16 literal colours in Features, 4 system colours in one Monthly Report table; 106 more system orange/blue/green uses to audit</td><td>Small</td></tr>
+      <tr><td>VoiceOver chart summaries and Audio Graphs</td><td>iOS + Mac</td><td>0 <code>accessibilityChartDescriptor</code></td><td>Medium</td></tr>
+      <tr><td>Icon-only buttons get spoken names</td><td>iOS + Mac</td><td>121 bare <code>Image(systemName:)</code> lines to audit</td><td>Small</td></tr>
+      <tr><td>Interface text follows the user's text size</td><td>iOS + Mac</td><td>622 fixed sizes + 249 Sentinel mono, 18 text styles</td><td>Large</td></tr>
+      <tr><td>Hover, right-click, window memory</td><td>Mac</td><td>5 <code>onHover</code>, 9 <code>contextMenu</code>, 0 <code>@SceneStorage</code></td><td>Small</td></tr>
+      <tr><td>Drag an entry onto a collection</td><td>Mac (iPad later)</td><td>0 <code>draggable</code> / <code>dropDestination</code></td><td>Medium</td></tr>
+      <tr><td>Controls: New Entry and Log Mood in Control Center, Lock Screen, Action button</td><td>iOS 18+</td><td>0 <code>ControlWidget</code></td><td>Medium</td></tr>
+      <tr><td>Zoom from entry row into the entry; glass on the selection bar</td><td>iOS 18+ / 26</td><td>0 <code>navigationTransition</code>, 3 <code>glassEffect</code></td><td>Small</td></tr>
+      <tr><td>Drop a photo or text into Write</td><td>Mac</td><td>WriteView is at the Debug stack limit</td><td>Medium, risky</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note fix" style="margin-top:14px">Correction to the list I gave in the terminal: arrow keys already move through the Mac entry list (<code>EntryListView.swift:1573</code>, ↑ ↓ Return), and the reader's serif text already scales (<code>readingFont</code>, <code>MirrorTheme.swift:469</code>). Both are dropped from the plan.</p>
+</section>
+
+<section id="type">
+  <div class="pills"><span class="pill a11y">Accessibility</span><span class="pill">iOS + Mac</span><span class="pill">Both themes</span></div>
+  <h2>Interface text that follows the user's text size</h2>
+  <div class="two">
+    <div class="stack">
+      <p>Today, reading text grows with the user's setting and everything around it doesn't. A reflection at the largest size sits between a 9-point label and 10-point buttons. The entry row title stays at 13 points. Someone who needs large text gets it for the paragraph and loses it for the controls.</p>
+      <ul class="plain">
+        <li><b>622</b> <code>.font(.system(size:))</code> calls and <b>249</b> <code>MirrorTheme.mono(size)</code> calls (Sentinel) use fixed sizes. Only <b>18</b> use text styles like <code>.body</code>.</li>
+        <li><b>17</b> <code>readingFont</code> calls, plus the reader and Write editors, already scale. That's backlog A19, so the pattern exists.</li>
+        <li><b>37</b> <code>lineLimit(1)</code> and <b>18</b> <code>minimumScaleFactor</code> shrink text to fit. At large sizes that means clipped or tiny words, worse in German and French.</li>
+      </ul>
+      <h3 style="margin-top:6px">How</h3>
+      <p>A small set of named roles beside <code>readingFont</code>, each tied to a system text style, so the default size looks the same as today and the user's setting moves it:</p>
+<pre>.mirrorFont(.label)        // 11 pt today, scales with .caption2
+.mirrorFont(.meta)         // 12 pt, .caption
+.mirrorFont(.rowTitle)     // 15 pt, .subheadline
+.mirrorFont(.cardTitle)    // 17 pt, .headline
+.mirrorFont(.button)       // 15 pt semibold, .callout
+MirrorTheme.mono(11, relativeTo: .caption2)   // Sentinel</pre>
+      <p>At accessibility sizes, rows of buttons and chips stack vertically (<code>ViewThatFits</code>), as in the third phone. One file per commit, biggest first: InsightView (48), MonthlyReportView (34), MoodTimelineView (32), EntryListView (32), OnboardingFlow (31), WriteView+Subviews (30). Each one is checked in Classic and Sentinel at the default size and at AX3. Widgets are left for a later pass.</p>
+    </div>
+    <div>
+      <div class="phones">
+        <div>
+          <div class="phone">
+            <div class="icard p1">
+              <div class="lab"><span>Today's reflection</span><span>Oct 24</span></div>
+              <div class="refl">You wrote, "I finally said no to the extra shift." That sounds like relief.</div>
+              <div class="btns"><span>Try again</span><span>How this was made</span></div>
+            </div>
+            <div class="mrow s1"><b>Morning walk before work</b><span>Thu · Calm · 212 words</span></div>
+            <div class="mrow s1"><b>Long call with my sister</b><span>Wed · Good · 340 words</span></div>
+          </div>
+          <div class="cap">Default size<small>today and after: identical</small></div>
+        </div>
+        <div>
+          <div class="phone">
+            <span class="flag" style="top:40px">9 pt</span>
+            <div class="icard p2">
+              <div class="lab"><span>Today's reflection</span><span>Oct 24</span></div>
+              <div class="refl">You wrote, "I finally said no to the extra shift." That sounds like relief.</div>
+              <div class="btns"><span>Try again</span><span>How this was made</span></div>
+            </div>
+            <div class="mrow s2"><b>Morning walk before work</b><span>Thu · Calm · 212 words</span></div>
+          </div>
+          <div class="cap">Largest size, today<small>only the paragraph grows</small></div>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="icard p3">
+              <div class="lab"><span>Today's reflection</span><span>Oct 24</span></div>
+              <div class="refl">You wrote, "I finally said no to the extra shift." That sounds like relief.</div>
+              <div class="btns"><span>Try again</span><span>How this was made</span></div>
+            </div>
+          </div>
+          <div class="cap">Largest size, proposed<small>labels and buttons grow, buttons stack</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="charts">
+  <div class="pills"><span class="pill a11y">Accessibility</span><span class="pill">iOS + Mac</span><span class="pill">No visual change</span></div>
+  <h2>Charts VoiceOver can describe</h2>
+  <div class="two">
+    <div class="stack">
+      <p>Mood Timeline, the calendar heatmap and Brain View have 8 accessibility labels between them, and none uses <code>accessibilityChartDescriptor</code>. A VoiceOver user hears that a chart exists, not what it says.</p>
+      <ul class="plain">
+        <li><b>Mood Timeline:</b> a chart descriptor (dates × mood valence), which gives Audio Graphs for free: VoiceOver plays the line as a rising and falling tone. Plus a one-sentence summary built from the same numbers the chart draws.</li>
+        <li><b>Heatmap:</b> each week is one element ("Week of 13 October, 5 entries, mostly Calm") instead of 7 unnamed squares.</li>
+        <li><b>Brain View:</b> the top themes as an ordered list ("Work, 14 entries, linked to Sleep and Family"). Tapping a theme already opens its entries.</li>
+      </ul>
+      <p class="note">The summaries are counts and mood names the app already has. No model writes them.</p>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 420 150" role="img" aria-label="Sample mood timeline over 30 days" style="width:100%;height:auto;display:block">
+        <g stroke="var(--border-2)" stroke-width="1">
+          <line x1="34" y1="20" x2="410" y2="20"/><line x1="34" y1="70" x2="410" y2="70"/><line x1="34" y1="120" x2="410" y2="120"/>
+        </g>
+        <g fill="var(--text-3)" font-size="10" font-family="-apple-system, sans-serif">
+          <text x="0" y="24">Good</text><text x="0" y="74">Calm</text><text x="0" y="124">Hard</text>
+          <text x="34" y="142">Sep 25</text><text x="210" y="142">Oct 9</text><text x="370" y="142">Oct 24</text>
+        </g>
+        <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"
+          points="40,60 66,52 92,48 118,66 144,74 170,88 196,104 222,118 248,96 274,80 300,70 326,58 352,44 378,40 404,34"/>
+        <circle cx="222" cy="118" r="5" fill="var(--ember)"/>
+        <circle cx="404" cy="34" r="5" fill="var(--accent)"/>
+      </svg>
+      <div class="vo"><span class="before">Today:</span> "Mood timeline. Image."</div>
+      <div class="vo"><b>Proposed:</b> "Mood timeline, last 30 days, 15 readings. Mostly Calm to Good. Lowest: Anxious on 9 October. Rising since. Swipe up or down to play the audio graph."</div>
+    </div>
+  </div>
+</section>
+
+<section id="colour">
+  <div class="pills"><span class="pill">Tokens</span><span class="pill">iOS + Mac</span><span class="pill">Both themes</span></div>
+  <h2>The last colours outside the token set</h2>
+  <div class="two">
+    <div class="stack">
+      <p>The 21 October tokens didn't reach these. Most sit in Brain View, so the canvas and hub colour are written out five times across four files. A change to one wouldn't reach the others.</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Where</th><th>Literal</th><th>Becomes</th></tr></thead>
+        <tbody>
+          <tr><td>Brain canvas: BrainView 340, 373 · BrainConstellationView 34 · BrainSceneView 196 · InsightView 1045</td><td><span class="sw" style="background:#17171A"></span>0.09 / 0.09 / 0.10</td><td><code>MirrorTheme.brainCanvas</code>, same look</td></tr>
+          <tr><td>Brain hub: BrainView 299, 363 · BrainConstellationView 38 · BrainSceneView 197 · InsightView 1046, 1049</td><td><span class="sw" style="background:#9E80FF"></span>0.62 / 0.50 / 1.00</td><td><code>MirrorTheme.brainHub</code> (Sentinel already uses ember)</td></tr>
+          <tr><td>Signal source background: InsightSignalSource 300, 347</td><td><span class="sw" style="background:#0B0B10"></span>0.043 / 0.043 / 0.063</td><td><code>MirrorTheme.inkDeep</code></td></tr>
+          <tr><td>Monthly Report section icons: MonthlyReportView 636–641</td><td><span class="sw" style="background:#FF9500"></span><span class="sw" style="background:#007AFF"></span><span class="sw" style="background:#34C759"></span><span class="sw" style="background:#E6B31A"></span>system orange, blue, green, gold</td><td>Accent plus the retuned mood colours</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">The gold question icon is about 2:1 against a white card, under the 3:1 that icons need. Orange, blue and green are iOS system colours, not the app's. They also appear 106 more times outside this table, most in FeatureCardService (14), InsightView (11), ProtocolSettingsView (8) and MoodTimelineView (8). This step changes only the Monthly Report table, its one visible change; the other 106 get an audit list for a later pass.</p>
+    </div>
+    <div class="stack">
+      <div class="canvas" aria-hidden="true">
+        <i style="width:46px;height:46px;left:44%;top:36%;background:var(--hub);box-shadow:0 0 30px var(--hub)"></i>
+        <i style="width:18px;height:18px;left:20%;top:22%;background:#6FB7A8"></i>
+        <i style="width:14px;height:14px;left:72%;top:28%;background:#E9A86A"></i>
+        <i style="width:22px;height:22px;left:66%;top:66%;background:#8FA3E8"></i>
+        <i style="width:12px;height:12px;left:28%;top:70%;background:#C98BB9"></i>
+      </div>
+      <p class="note">Brain canvas and hub, unchanged in look; now one token each.</p>
+      <div class="card" style="display:grid;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase">Monthly Report headers, proposed</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--text)">
+          <span class="pill">Your month in one image</span>
+          <span class="pill">The tension at the centre</span>
+          <span class="pill">What you're becoming</span>
+          <span class="pill">Your question for next month</span>
+        </div>
+        <p class="note">One accent for all six, with the icon carrying the meaning, is the simplest option. The alternative is mapping them to mood colours. Decision 3.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="labels">
+  <div class="pills"><span class="pill a11y">Accessibility</span><span class="pill">iOS + Mac</span></div>
+  <h2>Every icon button says what it does</h2>
+  <div class="two">
+    <div class="stack">
+      <p>There are 121 lines with a bare SF Symbol and 126 accessibility labels in the whole app. Many of those symbols sit inside a <code>Label</code> or next to text and are fine. The rest read as "button" or as the symbol's file name ("sparkles", "arrow.left.arrow.right").</p>
+      <p>Method: list every <code>Button</code> whose only content is an <code>Image</code>, run the Accessibility Inspector over Write, Entries, Insights and Settings in both themes, and give each a label in the nine languages. Decorative symbols get <code>.accessibilityHidden(true)</code>.</p>
+    </div>
+    <div class="card">
+      <div class="vo"><span class="before">Today, sample:</span> "Sparkles. Button."</div>
+      <div class="vo"><b>Proposed:</b> "How this was generated. Button."</div>
+      <p class="note" style="margin-top:10px">Translations go into <code>Localizable.xcstrings</code> by the Xcode layout rule, committing only the new keys.</p>
+    </div>
+  </div>
+</section>
+
+<section id="mac">
+  <div class="pills"><span class="pill mac">Mac</span><span class="pill">Classic only (Sentinel on Mac stays deferred)</span></div>
+  <h2>Mac: hover, right-click, drag, and windows that remember</h2>
+  <div class="two">
+    <div class="stack">
+      <ul class="plain">
+        <li><b>Drag an entry onto a collection.</b> Drag a row from the list onto a sidebar collection to move it there, using the store's existing <code>JournalOrganizationStore.move</code>. Multi-select drags move them all. Undo uses the existing toast.</li>
+        <li><b>Hover.</b> There are 5 <code>onHover</code> uses in the app, one of them on the entry row. Add hover states to toolbar buttons, Insights cards, Brain nodes (name and count tooltip) and the related-entries list in the reader.</li>
+        <li><b>Right-click.</b> Entry rows have a menu. Insights cards, Brain nodes and related entries don't. The commands already exist in the menu bar, so the menus reuse them.</li>
+        <li><b>Windows remember.</b> With <code>@SceneStorage</code> per window, the selected entry, sidebar state and list scroll position come back after relaunch, for the main window and each entry window.</li>
+        <li><b>Drop into Write</b> (photo or text from Finder or Safari). Useful, but WriteView is at the Debug main-thread stack limit, so this has to be a separate view with no new body modifiers, launch-tested on the 14 Pro. Decision 6.</li>
+      </ul>
+    </div>
+    <div class="mac" aria-label="Mock of the Mac window with drag and context menu">
+      <div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="t">MirrorNotes</span></div>
+      <div class="body">
+        <div class="side">
+          <div class="h">Library</div>
+          <div class="sel">All Entries</div>
+          <div>Pinned</div>
+          <div class="h">Collections</div>
+          <div>Family</div>
+          <div class="drop">Work</div>
+          <div>Travel</div>
+          <div class="h">Recently Deleted</div>
+        </div>
+        <div class="list">
+          <div class="row on"><b>Morning walk before work</b><span>Thu · Calm · 212 words</span></div>
+          <div class="row hover"><b>Planning the team offsite</b><span>Wed · Good · 188 words</span></div>
+          <div class="row"><b>Long call with my sister</b><span>Wed · Good · 340 words</span></div>
+          <div class="row"><b>Couldn't sleep again</b><span>Tue · Drained · 96 words</span></div>
+          <div class="ghost"><b>Planning the team offsite</b><em>+ Work</em></div>
+        </div>
+        <div class="pane">
+          <div style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--text)">Morning walk before work</div>
+          <div style="font-size:12.5px;color:var(--text-2)">Took the long way past the canal. Cold, but the light was good and I didn't check my phone once.</div>
+          <div class="ic"><div class="lab">Reflection</div><div class="refl">You wrote, "I didn't check my phone once." That sounds like ease.</div></div>
+          <div class="menu">
+            <div>Copy Reflection <kbd>⌘C</kbd></div>
+            <div>How This Was Generated</div>
+            <hr>
+            <div>Open Entry in New Window</div>
+            <div>Try Again</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ios18">
+  <div class="pills"><span class="pill new">New surface</span><span class="pill">iOS 18+ (app supports 17.6, so gated)</span></div>
+  <h2>iOS: Controls, a zoom into entries, and glass</h2>
+  <div class="two">
+    <div class="stack">
+      <ul class="plain">
+        <li><b>Controls.</b> Two <code>ControlWidget</code>s, New Entry and Log Mood, that people can place in Control Center, on the Lock Screen bottom corners, or on the Action button. They open Write or the existing mood check-in sheet and add nothing to storage. They sit in the existing widget extension beside the 7 widgets.</li>
+        <li><b>Zoom transition.</b> Opening an entry from the list zooms from its row (<code>matchedTransitionSource</code> + <code>.navigationTransition(.zoom)</code>), and swiping down returns to the same row. With Reduce Motion on it stays a plain push. Classic and Sentinel both.</li>
+        <li><b>Glass on the selection bar.</b> <code>EntrySelectionBar</code> and the other custom bottom bars use the iOS 26 glass the keyboard bar and voice recorder already use, so they match the system tab bar. iOS 17 and 18 keep today's material.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <div class="cc" aria-label="Mock of Control Center with MirrorNotes controls">
+        <div>Wi-Fi</div><div>Focus</div><div class="on">New<br>Entry</div><div class="on">Log<br>Mood</div>
+        <div class="wide">Music</div><div>Timer</div><div>Torch</div>
+        <span class="ccl">Control Center, sample layout</span>
+      </div>
+      <p class="note">On iPhone 15 Pro and later, the Action button can open New Entry directly, which is the fastest way to start writing.</p>
+    </div>
+  </div>
+</section>
+
+<section id="order">
+  <div class="kick">Order</div>
+  <h2>Each step is a commit you see on device before the next</h2>
+  <ol class="order">
+    <li><b>Tokens:</b> Brain and signal colours into <code>MirrorTheme</code>, Monthly Report icons. Mac follows automatically.</li>
+    <li><b>Chart summaries</b> for Mood Timeline, Heatmap and Brain. VoiceOver run on the 14 Pro.</li>
+    <li><b>Icon labels</b> audit, with translations for nine languages.</li>
+    <li><b>Text size</b>, one file per commit, biggest first. Captures at default and AX3, Classic and Sentinel, light and dark.</li>
+    <li><b>Mac:</b> hover, right-click menus, <code>@SceneStorage</code>. MacSnapshot captures.</li>
+    <li><b>Mac:</b> drag an entry onto a collection.</li>
+    <li><b>iOS 18:</b> New Entry and Log Mood controls.</li>
+    <li><b>iOS 18/26:</b> zoom transition, glass on bottom bars.</li>
+    <li><b>Mac:</b> drop into Write, only if decision 6 says now.</li>
+  </ol>
+  <div class="card" style="margin-top:20px">
+    <h3>Rules every step keeps</h3>
+    <ul class="plain">
+      <li>Every themed iOS view ships in Classic and Sentinel and is checked in both.</li>
+      <li>Nothing touches WriteView's body; Write changes go in split views and get a launch test on the 14 Pro.</li>
+      <li>No CloudKit schema change, nothing model-written, no new stored fields.</li>
+      <li>The two header rows in Write stay as they are (your call, 16 October).</li>
+      <li>Commits stay local; nothing is pushed until you say so.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="decide">
+  <div class="kick">Your decisions</div>
+  <h2>Seven choices</h2>
+  <p style="margin-bottom:18px">Pick an answer for each, then copy the summary and paste it into the terminal. Recommended answers are preselected.</p>
+  <form class="dec" id="decisions">
+    <div class="dq">
+      <h3>1. How large should interface text go?</h3>
+      <p>Full range means up to the largest accessibility size, with stacking layouts. Capped stops at the largest standard size (xxxLarge), which is less layout work but leaves people who use accessibility sizes behind.</p>
+      <div class="opts">
+        <label><input type="radio" name="d1" id="d1a" value="Full range with stacking layouts" checked> Full range <span class="rec">REC</span></label>
+        <label><input type="radio" name="d1" id="d1b" value="Cap at xxxLarge"> Cap at xxxLarge</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>2. Chart summaries and icon labels</h3>
+      <p>No visual change. VoiceOver only.</p>
+      <div class="opts">
+        <label><input type="radio" name="d2" id="d2a" value="Go" checked> Go <span class="rec">REC</span></label>
+        <label><input type="radio" name="d2" id="d2b" value="Not now"> Not now</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>3. Monthly Report section icons</h3>
+      <p>Today they're system orange, blue, green and a gold that fails contrast.</p>
+      <div class="opts">
+        <label><input type="radio" name="d3" id="d3a" value="One accent colour, icon carries meaning" checked> One accent <span class="rec">REC</span></label>
+        <label><input type="radio" name="d3" id="d3b" value="Map to mood colours"> Mood colours</label>
+        <label><input type="radio" name="d3" id="d3c" value="Keep as is, only fix gold contrast"> Only fix the gold</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>4. Controls for Control Center, Lock Screen and Action button</h3>
+      <p>A new surface. It's standalone, with no storage, and needs iOS 18.</p>
+      <div class="opts">
+        <label><input type="radio" name="d4" id="d4a" value="Both: New Entry and Log Mood" checked> Both <span class="rec">REC</span></label>
+        <label><input type="radio" name="d4" id="d4b" value="New Entry only"> New Entry only</label>
+        <label><input type="radio" name="d4" id="d4c" value="Skip"> Skip</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>5. Mac inspector column for entry details</h3>
+      <p>The reader pane from 21 October already shows the reflection and related entries. An inspector would move mood, tags, collection and word count into a column you toggle with ⌥⌘I.</p>
+      <div class="opts">
+        <label><input type="radio" name="d5" id="d5a" value="No inspector, keep the reader pane" checked> No inspector <span class="rec">REC</span></label>
+        <label><input type="radio" name="d5" id="d5b" value="Add inspector"> Add inspector</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>6. Drop a photo or text into Write on Mac</h3>
+      <p>Riskiest item because of the WriteView stack limit.</p>
+      <div class="opts">
+        <label><input type="radio" name="d6" id="d6a" value="Later, after the rest ships" checked> Later <span class="rec">REC</span></label>
+        <label><input type="radio" name="d6" id="d6b" value="Now, as the last step"> Now, last step</label>
+      </div>
+    </div>
+    <div class="dq">
+      <h3>7. Which branch?</h3>
+      <p>3.1.6 has Builds 27–29 on TestFlight, not submitted, with the Ask fix waiting for the iPhone 13 check.</p>
+      <div class="opts">
+        <label><input type="radio" name="d7" id="d7a" value="New branch 3.1.7 from 3.1.6" checked> New 3.1.7 <span class="rec">REC</span></label>
+        <label><input type="radio" name="d7" id="d7b" value="Continue on 3.1.6"> Continue 3.1.6</label>
+      </div>
+    </div>
+    <div class="out">
+      <label for="summary" class="meta">Summary to paste into the terminal</label>
+      <textarea id="summary" readonly></textarea>
+      <button type="button" id="copy">Copy summary</button>
+      <span class="meta" id="copied" role="status"></span>
+    </div>
+  </form>
+</section>
+
+<footer class="meta">Proposal file: <code>mirror/.claude/ui-pass-2026-10-24.html</code>. Counts were taken from <code>mirror/mirror</code> at cd94173 on 24 October 2026.</footer>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('decisions');
+  var out = document.getElementById('summary');
+  var titles = ['Text size range', 'Chart summaries + icon labels', 'Monthly Report icons', 'Controls', 'Mac inspector', 'Drop into Write', 'Branch'];
+  function render() {
+    var lines = ['UI pass 2026-10-24 decisions:'];
+    for (var i = 1; i <= 7; i++) {
+      var el = form.querySelector('input[name="d' + i + '"]:checked');
+      lines.push(i + '. ' + titles[i - 1] + ': ' + (el ? el.value : '—'));
+    }
+    out.value = lines.join('\n');
+  }
+  form.addEventListener('change', render);
+  render();
+  document.getElementById('copy').addEventListener('click', function () {
+    var status = document.getElementById('copied');
+    var fallback = function () { out.focus(); out.select(); status.textContent = 'Selected. Press ⌘C to copy.'; };
+    try {
+      navigator.clipboard.writeText(out.value).then(function () { status.textContent = 'Copied.'; }, fallback);
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
