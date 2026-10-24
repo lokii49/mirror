@@ -119,6 +119,22 @@ extension SharedLLMState {
             #expect(await InsightService.rankedAskAnswer(question: "Anything?", pool: [Entry(text: "Tired.", mood: "Drained")]) == nil)
         }
 
+        // Round 2 (tools/llmrig/ask/RUBRIC.md): a second sentence only on Smart Search scores at or above the floor.
+        @Test func secondSentenceNeedsTheFloorAndTheSearchModel() async throws {
+            let question = "How has my sleep been lately?"
+            func scorer(second: Float) -> (String, [String]) async -> [Float]? {
+                { _, quotes in quotes.map { $0.hasPrefix("Barely slept") ? 0.7 : $0.hasPrefix("Woke at 10") ? second : 0.1 } }
+            }
+            let prefix = InsightService.groundedAskPrefix + #"On 27 Sep, you wrote, "Barely slept, my stomach was bad all night.""#
+            let two = try #require(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: scorer(second: InsightService.askSecondQuoteFloor)))
+            #expect(two == prefix + #" On 27 Sep, you wrote, "Woke at 10, way later than usual.""#)
+            let options = InsightService.groundedAskPlan(question: question, pool: pool(), languageCode: "en").quoteOptions
+            #expect(try InsightService.validateGroundedAsk(two, quoteOptions: options) == two, "same two-quote shape Gemma's grammar allowed")
+            #expect(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: scorer(second: 0.44)) == prefix)
+            let wordMatch = try #require(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: { _, _ in nil }))
+            #expect(wordMatch.components(separatedBy: ", you wrote, ").count == 2, "word-match scores show one sentence")
+        }
+
         @Test func howThisWasGeneratedSaysNoModelRan() {
             let prompt = InsightService.systemPrompt(for: .askResponse, content: InsightService.groundedAskPrefix + "x", engine: LLMEngine.search.rawValue)
             #expect(prompt.ref.hasSuffix("rankedAskAnswer"))

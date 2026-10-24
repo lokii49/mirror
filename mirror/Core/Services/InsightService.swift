@@ -3903,29 +3903,46 @@ extension InsightService {
         return dayFormatter
     }
 
-    /// English Ask on Gemma (2026-10-24): the one sentence closest to the question, in the grounded
-    /// Ask shape, with no model run. Closest = EmbeddingGemma's score when Smart Search's model is
+    /// English Ask on Gemma (2026-10-24): the sentence closest to the question, in the grounded Ask
+    /// shape, with no model run. Closest = EmbeddingGemma's score when Smart Search's model is
     /// installed, else the most question terms (`askTerms`); ties go to the earlier sentence. Measured
     /// in tools/llmrig/ask/RUBRIC.md: Gemma's pick among 40 options was relevant 21% of the time, the
-    /// closest sentence 95% (8% vs 23% without the model). nil when no candidate has a quotable sentence.
-    static func rankedAskAnswer(question: String, pool: [Entry]) async -> String? {
+    /// closest sentence 95% (8% vs 23% without the model). With the model, the second-closest sentence
+    /// follows when its own score reaches `askSecondQuoteFloor` (round 2, held out: 94% of shown
+    /// sentences relevant, every second one, 19% of answers get two). nil when nothing is quotable.
+    /// `scorer` is SemanticSearchService's unless a test passes one (nil = model not installed).
+    static func rankedAskAnswer(
+        question: String,
+        pool: [Entry],
+        scorer: ((String, [String]) async -> [Float]?)? = nil
+    ) async -> String? {
         var seen = Set<String>()
         let sentences = groundedAskCandidates(question: question, pool: pool)
             .flatMap { entry in groundedQuoteCandidates(of: entry).map { (quote: $0, entry: entry) } }
             .filter { seen.insert($0.quote).inserted }
         guard !sentences.isEmpty else { return nil }
-        let scores: [Float]
-        if let semantic = await SemanticSearchService.shared.sentenceScores(question: question, sentences: sentences.map(\.quote)) {
-            scores = semantic
-        } else {
-            let terms = askTerms(for: question)
-            scores = sentences.map { Float(askStems(in: $0.quote).intersection(terms).count) }
+        let quotes = sentences.map(\.quote)
+        var semantic = if let scorer { await scorer(question, quotes) } else {
+            await SemanticSearchService.shared.sentenceScores(question: question, sentences: quotes)
         }
-        var best = 0
-        for index in scores.indices where scores[index] > scores[best] { best = index }
-        let day = groundedAskDayFormatter().string(from: sentences[best].entry.createdAt)
-        return groundedAskPrefix + "On \(day), you wrote, \"\(sentences[best].quote)\""
+        if semantic?.count != quotes.count { semantic = nil }
+        let scores = semantic ?? {
+            let terms = askTerms(for: question)
+            return sentences.map { Float(askStems(in: $0.quote).intersection(terms).count) }
+        }()
+        // Best first; a stable order keeps ties on the earlier sentence.
+        let ranked = scores.indices.sorted { scores[$0] > scores[$1] || (scores[$0] == scores[$1] && $0 < $1) }
+        var shown = [ranked[0]]
+        if semantic != nil, ranked.count > 1, scores[ranked[1]] >= askSecondQuoteFloor { shown.append(ranked[1]) }
+        let dayFormatter = groundedAskDayFormatter()
+        return groundedAskPrefix + shown.map { index in
+            "On \(dayFormatter.string(from: sentences[index].entry.createdAt)), you wrote, \"\(sentences[index].quote)\""
+        }.joined(separator: " ")
     }
+
+    /// EmbeddingGemma score a second sentence needs to be shown under the first (tools/llmrig/ask
+    /// RUBRIC.md round 2). Word-match scores have no floor measured, so they always show one sentence.
+    static let askSecondQuoteFloor: Float = 0.45
 
     /// English-only. The answer is 1–2 dated verbatim quotes; `noAnswer` only when there's nothing
     /// quotable at all. Entries mentioning the question's terms (stems + embedding neighbours) are
