@@ -403,6 +403,13 @@ enum InsightService {
         "ru": "Об этом у тебя ещё нет записей.",
         "zh": "你还没有写过这个话题。",
     ]
+    /// Foundation Models often words the no-answer itself: "You haven't written about exercise yet." (8 of 81
+    /// answers in tools/llmrig/fm RUBRIC_FM.md round 28). Only a whole one-sentence English reply of that shape
+    /// counts, so a real answer that says "You haven't written about managing anxiety, but…" stays an answer.
+    static func isRewordedAskNoAnswer(_ text: String) -> Bool {
+        text.wholeMatch(of: /(?i)you (?:haven['’]t|have not) (?:written|mentioned|said) (?:anything )?(?:about|on) [^.!?,;:\n]{1,60}?(?: yet)?[.!]?/) != nil
+    }
+
     private static func askNoAnswerPhrase(for target: ResponseLanguageTarget?) -> String {
         guard let target, let phrase = askNoAnswerPhrases[target.code] else {
             return askNoAnswerSentinelEN
@@ -2458,7 +2465,7 @@ enum InsightService {
             )
         case .ask:
             let expectedPhrase = askNoAnswerPhrase ?? askNoAnswerSentinelEN
-            if trimmed == askNoAnswerSentinelEN || trimmed == expectedPhrase {
+            if trimmed == askNoAnswerSentinelEN || trimmed == expectedPhrase || isRewordedAskNoAnswer(trimmed) {
                 return expectedPhrase
             }
             // ASK_SYSTEM grants no Mirror-voice exception at all ("Address the person as

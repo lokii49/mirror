@@ -227,6 +227,20 @@ struct InsightValidationTests {
         }
     }
 
+    // Foundation Models words the no-answer itself (RUBRIC_FM.md round 28); a one-sentence reply of that shape is
+    // the no-answer, so no quote is put under it. A longer real answer with the same words stays an answer.
+    @Test func ask_rewordedNoAnswer_becomesTheNoAnswerPhrase() throws {
+        let phrase = "You haven't written about this yet."
+        for reworded in ["You haven't written about exercise yet.", "You haven’t written about your new car yet.",
+                         "you have not mentioned anything about your garden", "You haven't said anything about Lisbon."] {
+            #expect(try InsightService.validate(reworded, for: .ask, askNoAnswerPhrase: phrase) == phrase, "\(reworded)")
+        }
+        let realAnswer = "You haven't written about managing anxiety, but the tiredness after long work days points to a heavy load."
+        #expect(!InsightService.isRewordedAskNoAnswer(realAnswer))
+        #expect(try InsightService.validate(realAnswer, for: .ask, askNoAnswerPhrase: phrase) == realAnswer)
+        #expect(!InsightService.isRewordedAskNoAnswer("You haven't written about exercise yet. You did walk Pepper on the beach."))
+    }
+
     // ASK_SYSTEM grants no Mirror-voice exception at all ("Address the person as you/your
     // only") — unlike dailyNudge, .ask uses FirstPersonPolicy.strict, so even "I noticed" (the
     // one phrase dailyNudge explicitly allows) is rejected here. This is the test proving the
