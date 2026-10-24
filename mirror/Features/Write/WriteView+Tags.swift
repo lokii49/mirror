@@ -18,7 +18,7 @@ extension WriteView {
                 WriteCollectionPicker(selection: $entryCollectionID)
                 if showTagInput {
                     TextField("tag", text: $tagText)
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .frame(minWidth: 60)
@@ -68,7 +68,7 @@ extension WriteView {
                             } label: {
                                 let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
                                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 12, weight: .medium))
+                                    .scaledFont(12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                     .foregroundStyle(accent)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -91,9 +91,9 @@ extension WriteView {
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: "plus")
-                                .font(.system(size: 10, weight: .semibold))
+                                .scaledFont(10, weight: .semibold)
                             Text("tag")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
+                                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                         }
                         // Same pill as the date and Mood buttons above it: it used to be a grey
                         // fill with tertiary text, which read as disabled.
@@ -117,13 +117,13 @@ extension WriteView {
                 ForEach(entryTags, id: \.self) { tag in
                     HStack(spacing: 3) {
                         Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                            .font(.system(size: 12, weight: .medium))
+                            .scaledFont(12, weight: .medium)
                         Button {
                             entryTags.removeAll { $0 == tag }
                             if entry == nil { saveDraftToStorage() }
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
+                                .scaledFont(9, weight: .bold)
                         }
                         .accessibilityLabel("Remove tag")
                         .buttonStyle(.plain)

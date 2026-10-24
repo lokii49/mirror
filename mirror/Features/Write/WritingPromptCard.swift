@@ -14,14 +14,14 @@ struct WritingPromptCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text("Prompt")
-                    .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 10, weight: .semibold))
+                    .scaledFont(10, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
                     .tracking(isSentinel ? 0.6 : 0.8)
                 Spacer()
                 Button(action: onShuffle) {
                     Image(systemName: "shuffle")
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(13, weight: .medium)
                         .foregroundStyle(.secondary)
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
@@ -33,7 +33,7 @@ struct WritingPromptCard: View {
             // Prompt copy stays serif in both modes — a sentence to read,
             // not a HUD readout, same as PastNudgeCard's insight text.
             Text(prompt)
-                .font(.system(size: 16, weight: .regular, design: .serif))
+                .scaledFont(16, design: .serif)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(5)
@@ -45,7 +45,7 @@ struct WritingPromptCard: View {
 
             Button(action: onUse) {
                 Text(isSentinel ? "USE THIS PROMPT" : "Use this prompt")
-                    .font(isSentinel ? MirrorTheme.mono(11.5, weight: .bold) : .system(size: 12, weight: .semibold))
+                    .scaledFont(isSentinel ? 11.5 : 12, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                     .kerning(isSentinel ? 0.3 : 0)
                     .foregroundStyle(accent)
                     .padding(.horizontal, 10)

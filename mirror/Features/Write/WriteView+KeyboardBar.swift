@@ -241,7 +241,7 @@ extension WriteView {
 
     private func countBadge(_ count: Int) -> some View {
         Text("\(count)")
-            .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .bold) : .system(size: 9, weight: .bold))
+            .scaledFont(9, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
             .foregroundStyle(.white)
             .padding(.horizontal, 4)
             .padding(.vertical, 2)

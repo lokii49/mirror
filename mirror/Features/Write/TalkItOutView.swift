@@ -178,7 +178,7 @@ struct TalkItOutView: View {
                 if turns.isEmpty {
                     Button(action: shuffleFirstQuestion) {
                         Image(systemName: "shuffle")
-                            .font(.system(size: 13, weight: .medium))
+                            .scaledFont(13, weight: .medium)
                             .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -190,7 +190,7 @@ struct TalkItOutView: View {
 
             if isSentinel, let engineTag {
                 Text(engineTag)
-                    .font(MirrorTheme.mono(8.5, weight: .bold))
+                    .scaledFont(8.5, weight: .bold, design: .monospaced)
                     .tracking(0.6)
                     .foregroundStyle(MirrorTheme.textTertiary)
             }

@@ -913,7 +913,7 @@ struct DraftSaveStatusLabel: View {
             if compact {
                 HStack(spacing: 3) {
                     Image(systemName: "checkmark.circle")
-                        .font(.system(size: 10, weight: .semibold))
+                        .scaledFont(10, weight: .semibold)
                     label("Draft saved")
                 }
                 .foregroundStyle(.tertiary)
@@ -931,7 +931,7 @@ struct DraftSaveStatusLabel: View {
                     Text("Not saved · Retry")
                         .lineLimit(1)
                 }
-                .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 12, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 10 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(.orange)
             }
             .buttonStyle(.plain)
@@ -941,7 +941,7 @@ struct DraftSaveStatusLabel: View {
 
     private func label(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
+            .scaledFont(displayMode == .sentinel ? 10 : 12, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
             .foregroundStyle(.tertiary)
             .lineLimit(1)
             .accessibilityIdentifier("draft.saveStatus")

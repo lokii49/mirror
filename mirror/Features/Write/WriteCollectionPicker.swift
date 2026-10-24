@@ -73,13 +73,13 @@ struct WriteCollectionPicker: View {
             let filed = selectedItem != nil
             HStack(spacing: 4) {
                 Image(systemName: selectedItem?.icon ?? "folder")
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(11, weight: .semibold)
                 // Unfiled shows the icon alone, so the row looks as before for people who
                 // don't use collections.
                 if let item = selectedItem {
                     Text(item.name)
                         .lineLimit(1)
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 12, weight: .medium))
+                        .scaledFont(12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                         .textCase(displayMode == .sentinel ? .uppercase : nil)
                 }
             }
@@ -94,7 +94,7 @@ struct WriteCollectionPicker: View {
             .contentShape(Rectangle())
         case .macToolbar:
             Image(systemName: selectedItem == nil ? "folder" : "folder.fill")
-                .font(.system(size: 15))
+                .scaledFont(15)
                 .frame(width: 34, height: 30)
                 .contentShape(Rectangle())
         }
