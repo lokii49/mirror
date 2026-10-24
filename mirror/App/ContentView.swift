@@ -449,6 +449,9 @@ struct ContentView: View {
             case "entries":
                 selectedTab = 0
                 selectedSidebarItem = .entries
+            case "mood-checkin":
+                // The Log Mood control; presents once the screen is free (canPresentMoodCheckIn).
+                moodCheckInPresenter.pending = true
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
