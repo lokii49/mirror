@@ -12977,6 +12977,72 @@
         }
       }
     },
+    "SEARCH · NO LANGUAGE MODEL" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value for an Ask answer no language model wrote: the app showed the sentence closest to the question.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "SUCHE · KEIN SPRACHMODELL"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SEARCH · NO LANGUAGE MODEL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "BÚSQUEDA · SIN MODELO DE LENGUAJE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RECHERCHE · SANS MODÈLE DE LANGAGE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RICERCA · NESSUN MODELLO LINGUISTICO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "検索・言語モデルなし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "검색 · 언어 모델 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "BUSCA · SEM MODELO DE LINGUAGEM"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ПОИСК · БЕЗ ЯЗЫКОВОЙ МОДЕЛИ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "搜索 · 未使用语言模型"
+          }
+        }
+      }
+    },
     "See how you're doing week by week." : {
       "localizations" : {
         "de" : {

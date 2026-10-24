@@ -82,6 +82,9 @@ enum LocalLLMTask {
 enum LLMEngine: String {
     case foundationModels
     case gemma
+    /// No language model ran: English Ask on a Gemma device shows the sentence closest to the
+    /// question (`InsightService.rankedAskAnswer`). Older versions show it as "ON-DEVICE MODEL".
+    case search
 }
 
 actor LocalLLMService {

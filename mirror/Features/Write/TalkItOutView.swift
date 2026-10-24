@@ -36,6 +36,7 @@ struct TalkItOutView: View {
         switch currentQuestionEngine {
         case .gemma: return "GEMMA"
         case .foundationModels: return "FM"
+        case .search: return "SEARCH"
         case nil: return nil
         }
     }

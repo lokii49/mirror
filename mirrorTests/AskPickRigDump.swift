@@ -73,22 +73,16 @@ final class AskPickRigDump: XCTestCase {
             let semanticIDs = await SemanticSearchService.shared.search(question: question, in: documents, limit: 10)
             XCTAssertEqual(semanticIDs != nil, semantic, "\(qid): retrieval mode")
 
-            var captured: (user: String, grammar: String)?
-            LocalLLMService.generateInterceptForTesting = { _, _, _, plan in
-                if case .grammarConstrained(let user, let grammar) = plan, captured == nil { captured = (user, grammar) }
-                return ("x", .gemma)
-            }
-            _ = try? await InsightService.ask(question: question, entries: entries)
-            let shipped = try XCTUnwrap(captured, "\(qid): no grammar-constrained generation")
-
-            // The pool ask() builds, rebuilt here; the grammar check below proves it's the same.
+            // The pool ask() builds. Since 2026-10-24 English Ask on Gemma shows rankedAskAnswer and no
+            // longer sends this plan; it is dumped as the round's S0 (what shipped before).
             let relevant = await InsightService.askRelevantEntries(question: question, newestFirst: sorted)
             let relevantIDs = Set(relevant.map(\.id))
             let pool = relevant + sorted.filter { !relevantIDs.contains($0.id) }.prefix(8)
             let plan = InsightService.groundedAskPlan(question: question, pool: pool, languageCode: "en")
-            guard case .grammarConstrained(_, let grammar) = plan.plan, grammar == shipped.grammar else {
-                XCTFail("\(qid): rebuilt pool doesn't give the shipped grammar"); continue
+            guard case .grammarConstrained(let user, let grammar) = plan.plan else {
+                XCTFail("\(qid): no grammar-constrained plan"); continue
             }
+            let shipped = (user: user, grammar: grammar)
             let s0 = Set(plan.quoteOptions)
 
             let terms = InsightService.askTerms(for: question)

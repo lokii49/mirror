@@ -66,6 +66,7 @@ struct InsightSignalSource: View {
         switch insight.generatedByEngine {
         case "foundationModels": return String(localized: "APPLE FOUNDATION MODELS · ON-DEVICE")
         case "gemma":            return String(localized: "GEMMA 3 1B · ON-DEVICE")
+        case "search":           return String(localized: "SEARCH · NO LANGUAGE MODEL")
         default:                 return String(localized: "ON-DEVICE MODEL")
         }
     }

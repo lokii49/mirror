@@ -671,6 +671,7 @@ struct FollowUpChip: View {
         switch engine {
         case .gemma: return "GEMMA"
         case .foundationModels: return "FM"
+        case .search: return "SEARCH"
         }
     }
 

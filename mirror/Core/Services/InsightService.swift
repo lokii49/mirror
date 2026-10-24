@@ -239,6 +239,13 @@ Add a second quote in the same form only if another sentence also directly answe
 Copy each quote word for word.
 """
 
+// Shown in "How this was generated" for an English Ask answer on Gemma since 2026-10-24: no prompt
+// was sent, so this says what picked the sentence instead (InsightService.rankedAskAnswer).
+let ASK_RANKED_DESCRIPTION = """
+No language model wrote or picked this answer. Ask found the entries closest to your question, then showed the one sentence from them that is closest to it, word for word, with its date.
+Closest means the Smart Search model's score when it is installed, otherwise the most words shared with your question.
+"""
+
 private let MONTHLY_REPORT_SYSTEM = """
 You are MirrorNotes. Read this person's full month of journal entries and write a deep monthly reflection about who they are becoming, what tensions are shaping them, and what they might not have noticed themselves.
 
@@ -1898,6 +1905,13 @@ enum InsightService {
         // written:" is honest; a wrong "you haven't written about this" isn't.
         if grounded.noAnswer && !LocalLLMService.prefersFoundationModels {
             return (askNoAnswerPhrase(for: target), .gemma)
+        }
+        // English on Gemma: the closest sentence, picked without a model (rankedAskAnswer). Gemma's own
+        // pick under groundedAskPlan's grammar was off-topic 4 times in 5. Other languages keep it until
+        // their own rig round.
+        if !LocalLLMService.prefersFoundationModels, (target?.code ?? "en") == "en",
+           let answer = await rankedAskAnswer(question: question, pool: relevant + Array(background)) {
+            return (answer, .search)
         }
         let localized = localizedGroundedAsk(question: question, pool: relevant + Array(background))
         let askPlan = grounded.noAnswer ? .unsuitable : (localized?.plan ?? grounded.plan)
@@ -3868,25 +3882,58 @@ extension InsightService {
         !askStems(in: entry.insightContext).isDisjoint(with: terms)
     }
 
+    /// The entries an English grounded Ask answer quotes from: hard-/good-mood entries for a worry/happy
+    /// question (`askLean`), otherwise entries mentioning the question's terms first, then the rest.
+    static func groundedAskCandidates(question: String, pool: [Entry]) -> [Entry] {
+        let terms = askTerms(for: question)
+        let mentioning = terms.isEmpty ? [] : pool.filter { askEntryMentions(terms, $0) }
+        let candidates: [Entry]
+        switch askLean(of: question) {
+        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
+        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
+        case nil: candidates = mentioning + pool.filter { entry in !mentioning.contains { $0.id == entry.id } }
+        }
+        return candidates.isEmpty ? pool : candidates
+    }
+
+    private static func groundedAskDayFormatter() -> DateFormatter {
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.dateFormat = "d MMM"
+        return dayFormatter
+    }
+
+    /// English Ask on Gemma (2026-10-24): the one sentence closest to the question, in the grounded
+    /// Ask shape, with no model run. Closest = EmbeddingGemma's score when Smart Search's model is
+    /// installed, else the most question terms (`askTerms`); ties go to the earlier sentence. Measured
+    /// in tools/llmrig/ask/RUBRIC.md: Gemma's pick among 40 options was relevant 21% of the time, the
+    /// closest sentence 95% (8% vs 23% without the model). nil when no candidate has a quotable sentence.
+    static func rankedAskAnswer(question: String, pool: [Entry]) async -> String? {
+        var seen = Set<String>()
+        let sentences = groundedAskCandidates(question: question, pool: pool)
+            .flatMap { entry in groundedQuoteCandidates(of: entry).map { (quote: $0, entry: entry) } }
+            .filter { seen.insert($0.quote).inserted }
+        guard !sentences.isEmpty else { return nil }
+        let scores: [Float]
+        if let semantic = await SemanticSearchService.shared.sentenceScores(question: question, sentences: sentences.map(\.quote)) {
+            scores = semantic
+        } else {
+            let terms = askTerms(for: question)
+            scores = sentences.map { Float(askStems(in: $0.quote).intersection(terms).count) }
+        }
+        var best = 0
+        for index in scores.indices where scores[index] > scores[best] { best = index }
+        let day = groundedAskDayFormatter().string(from: sentences[best].entry.createdAt)
+        return groundedAskPrefix + "On \(day), you wrote, \"\(sentences[best].quote)\""
+    }
+
     /// English-only. The answer is 1–2 dated verbatim quotes; `noAnswer` only when there's nothing
     /// quotable at all. Entries mentioning the question's terms (stems + embedding neighbours) are
     /// offered first — ordering only, never a "not written about" verdict (see `ask`).
     static func groundedAskPlan(question: String, pool: [Entry], languageCode: String?) -> (plan: LocalLLMService.GemmaPlan, quoteOptions: [String], noAnswer: Bool) {
         guard (languageCode ?? "en") == "en" else { return (.samePrompt, [], false) }
-        let lean = askLean(of: question)
-        let terms = askTerms(for: question)
-        let mentioning = terms.isEmpty ? [] : pool.filter { askEntryMentions(terms, $0) }
-        var candidates: [Entry]
-        switch lean {
-        case .hard: candidates = pool.filter { $0.mood.map(MirrorTheme.negativeMoods.contains) ?? false }
-        case .good: candidates = pool.filter { $0.mood.map { !MirrorTheme.negativeMoods.contains($0) } ?? false }
-        case nil: candidates = mentioning + pool.filter { entry in !mentioning.contains { $0.id == entry.id } }
-        }
-        if candidates.isEmpty { candidates = pool }
-
-        let dayFormatter = DateFormatter()
-        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dayFormatter.dateFormat = "d MMM"
+        let candidates = groundedAskCandidates(question: question, pool: pool)
+        let dayFormatter = groundedAskDayFormatter()
         let perEntry = candidates.map { ($0, groundedQuoteCandidates(of: $0)) }
         var options: [String] = []
         var seen = Set<String>()
@@ -5191,6 +5238,9 @@ extension InsightService {
             }
             return ("InsightService.swift:84 · MONTHLY_REPORT_SYSTEM", MONTHLY_REPORT_SYSTEM)
         case .askResponse:
+            if engine == LLMEngine.search.rawValue {
+                return ("InsightService.swift · rankedAskAnswer", ASK_RANKED_DESCRIPTION)
+            }
             if let content, content.hasPrefix(groundedAskPrefix) {
                 return ("InsightService.swift · ASK_GEMMA_INSTRUCTIONS", ASK_GEMMA_INSTRUCTIONS)
             }
