@@ -630,6 +630,7 @@ struct AskView: View {
                                 .foregroundStyle(.white)
                         }
                     }
+                    .accessibilityLabel("Ask")
                     .disabled(!canAsk)
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: canAsk)
                 }

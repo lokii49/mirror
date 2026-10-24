@@ -328,6 +328,7 @@ struct VoiceNoteAttachmentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(player.isPlaying ? Text("Pause") : Text("Play"))
 
                 VStack(alignment: .leading, spacing: 5) {
                     waveformBars
