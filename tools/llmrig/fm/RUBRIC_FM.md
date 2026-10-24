@@ -944,10 +944,12 @@ Miss → owner.
 | R1Q EmbeddingGemma vs question | 81/81 (100%) | 81 | 79% | 85% |
 
 - Bar: SUPPORTS ≥ Q0 − 5 = 90%. R1 86% and R1L 89% miss; coverage +25 points passes. Q0 reproduces round 21 (74%, 10 refusals).
-- The whole gap is 9 answers that say "You haven't written about <x> yet." in words other than the exact phrase (so the
-  app treats them as answers): 7 of them on answerable questions ("Did I exercise?" over a run entry). R* always shows
-  a sentence under them, which can't back "you haven't written"; Q0 showed one under 1 of the 9.
-- Post-hoc, not a ship result: with no quote under an answer that says "haven't written about", R1 would be 93% and
+- The gap is the answers containing "haven't written about": 8 are FM's own no-answer in other words, "You haven't
+  written about exercise yet." (5, on "Did I exercise?", meant to be answerable) and "...your new car yet." (3, the
+  unanswerable question), which the app treats as answers because they aren't the exact phrase; 1 is a real answer
+  ("You haven't written about managing anxiety..."). R* always shows a sentence under them, and under the 8 none can
+  back "you haven't written"; Q0 showed one under 1 of the 9.
+- Post-hoc, not a ship result: with no quote under an answer containing "haven't written about" (all 9), R1 would be 93% and
   R1L 96% against Q0's 95%, at 90% coverage. A rule chosen after seeing the data, so it goes to the owner, and a
   held-out round would test it.
 - Outputs in `mirror-rig-outputs/round28/` (answers, quote calls, scores, the blind sheet and labels; synthetic only).
