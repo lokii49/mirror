@@ -102,7 +102,7 @@ struct BrainView: View {
             }
             .environment(\.appDisplayMode, displayMode)
             #if os(iOS)
-            // Shows the sheet can be swiped down; Ask's Done button closes it too.
+            // Shows the sheet can be swiped down: Ask has no close button on iPhone (owner, 2026-10-24).
             .presentationDragIndicator(.visible)
             #endif
             #if os(macOS)
