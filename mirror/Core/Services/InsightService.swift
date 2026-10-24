@@ -242,8 +242,8 @@ Copy each quote word for word.
 // Shown in "How this was generated" for an English Ask answer on Gemma since 2026-10-24: no prompt
 // was sent, so this says what picked the sentence instead (InsightService.rankedAskAnswer).
 let ASK_RANKED_DESCRIPTION = """
-No language model wrote or picked this answer. Ask found the entries closest to your question, then showed the one sentence from them that is closest to it, word for word, with its date.
-Closest means the Smart Search model's score when it is installed, otherwise the most words shared with your question.
+No language model wrote or picked this answer. Ask found the entries closest to your question, then showed the sentence from them that is closest to it, word for word, with its date, and a second one when it also scores high.
+Closest means the Smart Search model's score when it is installed, otherwise the most words shared with your question (then only one sentence is shown).
 """
 
 private let MONTHLY_REPORT_SYSTEM = """

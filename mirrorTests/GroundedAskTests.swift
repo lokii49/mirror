@@ -130,6 +130,7 @@ extension SharedLLMState {
             #expect(two == prefix + #" On 27 Sep, you wrote, "Woke at 10, way later than usual.""#)
             let options = InsightService.groundedAskPlan(question: question, pool: pool(), languageCode: "en").quoteOptions
             #expect(try InsightService.validateGroundedAsk(two, quoteOptions: options) == two, "same two-quote shape Gemma's grammar allowed")
+            #expect(InsightService.isGrammarGrounded(two))
             #expect(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: scorer(second: 0.44)) == prefix)
             let wordMatch = try #require(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: { _, _ in nil }))
             #expect(wordMatch.components(separatedBy: ", you wrote, ").count == 2, "word-match scores show one sentence")
