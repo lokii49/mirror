@@ -113,6 +113,21 @@ struct BrainConstellationView: View {
                 }
             }
             .background(Self.background)
+            // The canvas draws the themes itself, so VoiceOver gets one element per theme,
+            // biggest first, each opening the same sheet a tap does.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Themes")
+            .accessibilityChildren {
+                ForEach(graph.nodes) { node in
+                    Color.clear
+                        .accessibilityLabel(BrainAccessibility.label(for: node, in: graph))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction {
+                            selectedNodeID = node.id
+                            onNodeTap(node)
+                        }
+                }
+            }
             .onAppear { fitToContent(size: size, center: center) }
             .onChange(of: size) { _, newSize in fitToContent(size: newSize, center: CGPoint(x: newSize.width / 2, y: newSize.height / 2)) }
 

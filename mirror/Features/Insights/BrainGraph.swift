@@ -484,3 +484,29 @@ enum BrainGraphBuilder {
         return hash
     }
 }
+
+/// What VoiceOver says for a theme on the 2D canvas, which draws every node itself and so has no
+/// elements of its own: the name, how many entries mention it, the average mood of those entries,
+/// and up to three linked themes, strongest link first.
+enum BrainAccessibility {
+    static func label(for node: BrainNode, in graph: BrainGraph) -> String {
+        var parts = [node.mentionCount == 1
+            ? String(localized: "\(node.label), 1 entry")
+            : String(localized: "\(node.label), \(node.mentionCount) entries")]
+        if let score = node.avgMoodScore {
+            parts.append(score < 2.5 ? String(localized: "mostly difficult days")
+                : score > 3.5 ? String(localized: "mostly good days")
+                : String(localized: "mixed days"))
+        }
+        let names = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, $0.label) })
+        let linked = graph.edges
+            .filter { $0.a == node.id || $0.b == node.id }
+            .sorted { $0.weight == $1.weight ? $0.id < $1.id : $0.weight > $1.weight }
+            .prefix(3)
+            .compactMap { names[$0.a == node.id ? $0.b : $0.a] }
+        if !linked.isEmpty {
+            parts.append(String(localized: "linked to \(ListFormatter.localizedString(byJoining: linked))"))
+        }
+        return parts.joined(separator: ", ")
+    }
+}

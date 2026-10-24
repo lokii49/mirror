@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import Accessibility
 
 struct MoodTimelineView: View {
     @Environment(\.modelContext) private var modelContext
@@ -880,6 +881,66 @@ nonisolated enum MoodChartSeries {
     }
 }
 
+/// What VoiceOver says about the mood chart (its summary, and Audio Graphs through the chart
+/// descriptor): how many readings and over which days, the most frequent mood, the lowest reading,
+/// and whether the line ends higher or lower than it starts. Built from the same points the chart
+/// draws; no model writes it.
+enum MoodChartSummary {
+    static func text(_ points: [MoodDot], calendar: Calendar = .current) -> String {
+        guard let first = points.min(by: { $0.date < $1.date }),
+              let last = points.max(by: { $0.date < $1.date }) else { return "" }
+        let day = { (date: Date) in date.formatted(.dateTime.day().month(.wide)) }
+        var sentences = [points.count == 1
+            ? String(localized: "1 mood reading, on \(day(first.date)).")
+            : String(localized: "\(points.count) mood readings from \(day(first.date)) to \(day(last.date)).")]
+        // Most frequent mood; a tie goes to the one read most recently.
+        let groups = Dictionary(grouping: points, by: \.mood)
+        if let common = groups.max(by: { a, b in
+            a.value.count == b.value.count
+                ? (a.value.map(\.date).max() ?? .distantPast) < (b.value.map(\.date).max() ?? .distantPast)
+                : a.value.count < b.value.count
+        }), points.count > 1 {
+            sentences.append(String(localized: "Most often \(MirrorTheme.localizedMoodName(for: common.key))."))
+        }
+        if let low = points.min(by: { $0.score == $1.score ? $0.date > $1.date : $0.score < $1.score }), points.count > 1 {
+            sentences.append(String(localized: "Lowest: \(MirrorTheme.localizedMoodName(for: low.mood)) on \(day(low.date))."))
+        }
+        let line = MoodChartSeries.dailyMeans(points.map { (date: $0.date, score: $0.score) }, calendar: calendar)
+        if line.count > 1, let start = line.first?.score, let end = line.last?.score {
+            sentences.append(end - start >= 1 ? String(localized: "Higher at the end than at the start.")
+                : start - end >= 1 ? String(localized: "Lower at the end than at the start.")
+                : String(localized: "About the same at the end as at the start."))
+        }
+        return sentences.joined(separator: " ")
+    }
+
+    /// The chart's three bands, the same words as its axis.
+    static func levelName(_ score: Double) -> String {
+        score < 2 ? String(localized: "Low") : score < 4 ? String(localized: "Mid") : String(localized: "High")
+    }
+}
+
+/// Audio Graphs for the mood chart: one series, the daily means the line draws.
+private struct MoodChartDescriptor: AXChartDescriptorRepresentable {
+    let line: [MoodDayMean]
+    let summary: String
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let start = line.first?.day.timeIntervalSince1970 ?? 0
+        let end = max(line.last?.day.timeIntervalSince1970 ?? 0, start + 1)
+        let xAxis = AXNumericDataAxisDescriptor(title: String(localized: "Day"), range: start...end, gridlinePositions: []) {
+            Date(timeIntervalSince1970: $0).formatted(.dateTime.day().month(.wide))
+        }
+        let yAxis = AXNumericDataAxisDescriptor(title: String(localized: "Mood"), range: 0...6, gridlinePositions: [1, 3, 5]) {
+            MoodChartSummary.levelName($0)
+        }
+        let series = AXDataSeriesDescriptor(name: String(localized: "Mood over time"), isContinuous: true,
+                                            dataPoints: line.map { AXDataPoint(x: $0.day.timeIntervalSince1970, y: $0.score) })
+        return AXChartDescriptor(title: String(localized: "Mood over time"), summary: summary,
+                                 xAxis: xAxis, yAxis: yAxis, additionalAxes: [], series: [series])
+    }
+}
+
 private struct MoodChartCard: View {
     let points: [MoodPoint]
     /// The entry behind a held dot; nil (the locked preview) turns holding off.
@@ -929,6 +990,7 @@ private struct MoodChartCard: View {
                         )
                     )
                     .interpolationMethod(.catmullRom)
+                    .accessibilityHidden(true)
                     #endif
 
                     LineMark(
@@ -950,12 +1012,14 @@ private struct MoodChartCard: View {
                     .interpolationMethod(.catmullRom)
                     #endif
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
+                    .accessibilityHidden(true)
                 }
 
                 if let selected {
                     RuleMark(x: .value("Day", selected.date, unit: .day))
                         .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .accessibilityHidden(true)
                 }
 
                 ForEach(points) { point in
@@ -968,6 +1032,7 @@ private struct MoodChartCard: View {
                         .foregroundStyle(ring)
                         .symbolSize((point.id == selected?.id ? 180 : 80) * 1.7)
                         .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                        .accessibilityHidden(true)
                     }
                     PointMark(
                         x: .value("Day", point.date, unit: .day),
@@ -976,9 +1041,13 @@ private struct MoodChartCard: View {
                     .foregroundStyle(MirrorTheme.moodColor(for: point.mood))
                     .symbolSize(point.id == selected?.id ? 180 : 80)
                     .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                    // Read as "24 October, Anxious" instead of the axis numbers.
+                    .accessibilityLabel(point.date.formatted(.dateTime.day().month(.wide)))
+                    .accessibilityValue(MirrorTheme.localizedMoodName(for: point.mood))
                 }
             }
             .chartYScale(domain: 0...6)
+            .accessibilityChartDescriptor(MoodChartDescriptor(line: dailyLine, summary: MoodChartSummary.text(points)))
             .chartOverlay { proxy in
                 if let entry {
                     MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
