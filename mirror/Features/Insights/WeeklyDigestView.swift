@@ -37,7 +37,7 @@ struct WeeklyDigestView: View {
             } subline: {
                 if let note {
                     Label(isSentinel ? (sentinelNote ?? note) : note, systemImage: "arrow.triangle.2.circlepath")
-                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .medium))
+                        .scaledFont(isSentinel ? 11 : 12, weight: isSentinel ? .bold : .medium, design: isSentinel ? .monospaced : .default)
                         .kerning(isSentinel ? 0.4 : 0)
                         .foregroundStyle(isSentinel ? MirrorTheme.ember.opacity(0.85) : MirrorTheme.textSecondary)
                 }
@@ -214,9 +214,9 @@ struct DigestSectionView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Image(systemName: sectionIcon)
-                    .font(.system(size: 10, weight: .bold))
+                    .scaledFont(10, weight: .bold)
                 Text(displayName)
-                    .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 10, weight: .bold))
+                    .scaledFont(10, weight: .bold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)
                     .tracking(0.6)
             }

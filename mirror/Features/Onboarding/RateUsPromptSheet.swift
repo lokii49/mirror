@@ -83,9 +83,9 @@ struct RateUsPromptSheet: View {
             appLogo
             VStack(spacing: 6) {
                 Text(displayMode == .sentinel ? "How's the signal?" : "How's mirror going?")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .scaledFont(22, weight: .bold, design: .rounded)
                 Text("A quick check before we ask anything else.")
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -94,7 +94,7 @@ struct RateUsPromptSheet: View {
                     requestSystemReview()
                 } label: {
                     Text("🙂  Good")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
@@ -111,7 +111,7 @@ struct RateUsPromptSheet: View {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { step = .notGreat }
                 } label: {
                     Text("🙁  Not really")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
@@ -128,7 +128,7 @@ struct RateUsPromptSheet: View {
 
             Button { dismiss() } label: {
                 Text("Not now")
-                    .font(.system(size: 14, weight: .medium))
+                    .scaledFont(14, weight: .medium)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
@@ -141,13 +141,13 @@ struct RateUsPromptSheet: View {
     private var notGreatStep: some View {
         VStack(spacing: 20) {
             Image(systemName: "envelope.fill")
-                .font(.system(size: 34))
+                .scaledFont(34)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
             VStack(spacing: 8) {
                 Text("What would make it better?")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .scaledFont(20, weight: .bold, design: .rounded)
                 Text("Tell us directly — this opens an email, nothing is logged or sent anywhere unless you send it.")
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -158,7 +158,7 @@ struct RateUsPromptSheet: View {
                 dismiss()
             } label: {
                 Text("Send feedback")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
@@ -171,7 +171,7 @@ struct RateUsPromptSheet: View {
 
             Button { dismiss() } label: {
                 Text("Not now")
-                    .font(.system(size: 14, weight: .medium))
+                    .scaledFont(14, weight: .medium)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())

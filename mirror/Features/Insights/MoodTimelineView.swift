@@ -268,29 +268,29 @@ struct MoodTimelineView: View {
     private var moodAlertBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 18, weight: .semibold))
+                .scaledFont(18, weight: .semibold)
                 .foregroundStyle(MirrorTheme.ember)
             VStack(alignment: .leading, spacing: 2) {
                 Group {
                     if displayMode == .sentinel {
                         Text("ANOMALY · LAST \(consecutiveNegativeCount) READINGS LOW")
-                            .font(MirrorTheme.mono(12, weight: .bold))
+                            .scaledFont(12, weight: .bold, design: .monospaced)
                             .tracking(0.3)
                             .lineLimit(2)
                             .minimumScaleFactor(0.8)
                     } else {
                         Text("Your last \(consecutiveNegativeCount) moods have all been low")
-                            .font(.system(size: 14, weight: .semibold))
+                            .scaledFont(14, weight: .semibold)
                     }
                 }
                 .foregroundStyle(MirrorTheme.textPrimary)
                 Group {
                     if displayMode == .sentinel {
                         Text("RECOMMEND CHECK-IN")
-                            .font(MirrorTheme.mono(11, weight: .medium))
+                            .scaledFont(11, weight: .medium, design: .monospaced)
                     } else {
                         Text("Consider taking a moment to check in with yourself.")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                     }
                 }
                 .foregroundStyle(MirrorTheme.textSecondary)
@@ -376,27 +376,27 @@ struct MoodTimelineView: View {
     private func statPill(value: String, valueSuffix: String = "", label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
+                .scaledFont(16, weight: .semibold)
                 .foregroundStyle(color)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(value)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 20, weight: .bold, design: .rounded))
+                    .scaledFont(20, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                     .foregroundStyle(.primary)
                 if !valueSuffix.isEmpty {
                     Text(valueSuffix)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .scaledFont(11, weight: .medium, design: .rounded)
                         .foregroundStyle(.secondary)
                 }
             }
             Group {
                 if displayMode == .sentinel {
                     Text(label)
-                        .font(MirrorTheme.mono(10, weight: .medium))
+                        .scaledFont(10, weight: .medium, design: .monospaced)
                         .textCase(.uppercase)
                         .tracking(0.5)
                 } else {
                     Text(label)
-                        .font(.system(size: 11, weight: .medium))
+                        .scaledFont(11, weight: .medium)
                 }
             }
             .foregroundStyle(.secondary)
@@ -448,27 +448,27 @@ struct MoodTimelineView: View {
                 HStack {
                     Group {
                         if displayMode == .sentinel {
-                            Text("1 · LOW").font(MirrorTheme.mono(9, weight: .medium))
+                            Text("1 · LOW").scaledFont(9, weight: .medium, design: .monospaced)
                         } else {
-                            Text("1 · Low").font(.system(size: 10))
+                            Text("1 · Low").scaledFont(10)
                         }
                     }
                     .foregroundStyle(.secondary)
                     Spacer()
                     Group {
                         if displayMode == .sentinel {
-                            Text(interpretation).font(MirrorTheme.mono(11, weight: .bold)).textCase(.uppercase).tracking(0.5)
+                            Text(interpretation).scaledFont(11, weight: .bold, design: .monospaced).textCase(.uppercase).tracking(0.5)
                         } else {
-                            Text(interpretation).font(.system(size: 11, weight: .semibold))
+                            Text(interpretation).scaledFont(11, weight: .semibold)
                         }
                     }
                     .foregroundStyle(barColor)
                     Spacer()
                     Group {
                         if displayMode == .sentinel {
-                            Text("5 · HIGH").font(MirrorTheme.mono(9, weight: .medium))
+                            Text("5 · HIGH").scaledFont(9, weight: .medium, design: .monospaced)
                         } else {
-                            Text("5 · High").font(.system(size: 10))
+                            Text("5 · High").scaledFont(10)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -491,11 +491,11 @@ struct MoodTimelineView: View {
             Group {
                 if displayMode == .sentinel {
                     Label("SIGNAL CALENDAR", systemImage: "calendar")
-                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .scaledFont(11, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                 } else {
                     Label("Mood calendar", systemImage: "calendar")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                 }
             }
             .foregroundStyle(.secondary)
@@ -517,18 +517,18 @@ struct MoodTimelineView: View {
                     .frame(width: 11, height: 11)
                 Group {
                     if displayMode == .sentinel {
-                        Text("NO SIGNAL").font(MirrorTheme.mono(9, weight: .medium))
+                        Text("NO SIGNAL").scaledFont(9, weight: .medium, design: .monospaced)
                     } else {
-                        Text("No entry").font(.system(size: 10))
+                        Text("No entry").scaledFont(10)
                     }
                 }
                 .foregroundStyle(.secondary)
                 Spacer()
                 Group {
                     if displayMode == .sentinel {
-                        Text("COLOR = MOOD").font(MirrorTheme.mono(9, weight: .medium))
+                        Text("COLOR = MOOD").scaledFont(9, weight: .medium, design: .monospaced)
                     } else {
-                        Text("Color = mood").font(.system(size: 10))
+                        Text("Color = mood").scaledFont(10)
                     }
                 }
                 .foregroundStyle(.secondary)
@@ -561,7 +561,7 @@ struct MoodTimelineView: View {
                 VStack(alignment: .leading, spacing: gap) {
                     // fixedSize lets "Aug" render beyond the 13pt column width
                     Text(monthLabel)
-                        .font(.system(size: 9, weight: .medium))
+                        .scaledFont(9, weight: .medium)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: true, vertical: false)
                         .frame(height: 12)
@@ -597,20 +597,20 @@ struct MoodTimelineView: View {
     private var noDataCard: some View {
         VStack(spacing: 10) {
             Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 32, weight: .semibold))
+                .scaledFont(32, weight: .semibold)
                 .foregroundStyle(.secondary)
             Group {
                 if displayMode == .sentinel {
                     Text("INSUFFICIENT SIGNAL DATA")
-                        .font(MirrorTheme.mono(14, weight: .semibold))
+                        .scaledFont(14, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                 } else {
                     Text("Not enough mood data")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                 }
             }
             Text("Set a mood on your entries, or use the daily check-in, to see your timeline.")
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -624,11 +624,11 @@ struct MoodTimelineView: View {
             Group {
                 if displayMode == .sentinel {
                     Label("SIGNAL BREAKDOWN", systemImage: "chart.pie.fill")
-                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .scaledFont(11, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                 } else {
                     Label("Mood breakdown", systemImage: "chart.pie.fill")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                 }
             }
             .foregroundStyle(.secondary)
@@ -649,19 +649,19 @@ struct MoodTimelineView: View {
                         Group {
                             if displayMode == .sentinel {
                                 Text(MirrorTheme.localizedMoodName(for: item.mood))
-                                    .font(MirrorTheme.mono(13, weight: .medium))
+                                    .scaledFont(13, weight: .medium, design: .monospaced)
                                     .textCase(.uppercase)
                             } else {
                                 Text(MirrorTheme.localizedMoodName(for: item.mood))
-                                    .font(.system(size: 14, weight: .medium))
+                                    .scaledFont(14, weight: .medium)
                             }
                         }
                         Spacer()
                         Group {
                             if displayMode == .sentinel {
-                                Text("\(item.count)×").font(MirrorTheme.mono(12, weight: .medium))
+                                Text("\(item.count)×").scaledFont(12, weight: .medium, design: .monospaced)
                             } else {
-                                Text("\(item.count)×").font(.system(size: 13, weight: .medium))
+                                Text("\(item.count)×").scaledFont(13, weight: .medium)
                             }
                         }
                         .foregroundStyle(.secondary)
@@ -728,25 +728,25 @@ struct MoodTimelineView: View {
                         .fill(MirrorTheme.violetDim)
                         .frame(width: 72, height: 72)
                     Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 28, weight: .semibold))
+                        .scaledFont(28, weight: .semibold)
                         .foregroundStyle(MirrorTheme.violetLight)
                 }
                 VStack(spacing: 8) {
                     Group {
                         if displayMode == .sentinel {
-                            Text("VITALS").font(MirrorTheme.mono(20, weight: .bold)).tracking(1)
+                            Text("VITALS").scaledFont(20, weight: .bold, design: .monospaced).tracking(1)
                         } else {
-                            Text("Mood Timeline").font(.system(size: 22, weight: .bold, design: .rounded))
+                            Text("Mood Timeline").scaledFont(22, weight: .bold, design: .rounded)
                         }
                     }
                     Text("Trend charts, analytics, and low-mood\nalerts are part of Deep.")
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 Button { showPaywall = true } label: {
                     Text("Unlock with Deep")
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 14)
@@ -813,11 +813,11 @@ struct MoodTimelineView: View {
             }
             .frame(height: 11)
             HStack {
-                Text("1 · Low").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text("1 · Low").scaledFont(10).foregroundStyle(.secondary)
                 Spacer()
-                Text("Mixed, leaning neutral").font(.system(size: 11, weight: .semibold)).foregroundStyle(barColor)
+                Text("Mixed, leaning neutral").scaledFont(11, weight: .semibold).foregroundStyle(barColor)
                 Spacer()
-                Text("5 · High").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text("5 · High").scaledFont(10).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 4)
@@ -831,7 +831,7 @@ struct MoodTimelineView: View {
     private var previewMoodDistributionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Mood breakdown", systemImage: "chart.pie.fill")
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
                 .foregroundStyle(.secondary)
             VStack(spacing: 8) {
                 ForEach(["Hopeful", "Anxious"], id: \.self) { mood in
@@ -840,10 +840,10 @@ struct MoodTimelineView: View {
                             .fill(MirrorTheme.moodColor(for: mood))
                             .frame(width: 10, height: 10)
                         Text(MirrorTheme.localizedMoodName(for: mood))
-                            .font(.system(size: 14, weight: .medium))
+                            .scaledFont(14, weight: .medium)
                         Spacer()
                         Text("2×")
-                            .font(.system(size: 13, weight: .medium))
+                            .scaledFont(13, weight: .medium)
                             .foregroundStyle(.secondary)
                         GeometryReader { geo in
                             Capsule()
@@ -963,14 +963,14 @@ private struct MoodChartCard: View {
                             .textCase(displayMode == .sentinel ? .uppercase : nil)
                             .foregroundStyle(MirrorTheme.textPrimary)
                     }
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 } else if displayMode == .sentinel {
                     Label("SIGNAL OVER TIME", systemImage: "chart.line.uptrend.xyaxis")
-                        .font(MirrorTheme.mono(11, weight: .semibold))
+                        .scaledFont(11, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                 } else {
                     Label("Mood over time", systemImage: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                 }
             }
             .foregroundStyle(.secondary)
@@ -1069,6 +1069,8 @@ private struct MoodChartCard: View {
                             let label: LocalizedStringKey = v == 1 ? "Low" : v == 3 ? "Mid" : "High"
                             Text(label)
                                 .textCase(displayMode == .sentinel ? .uppercase : nil)
+                                // Fixed size: the 160 pt chart has no room for larger axis words
+                                // ("HI…"); VoiceOver reads the chart through its descriptor.
                                 .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .medium) : .system(size: 10))
                                 .foregroundStyle(Color.secondary)
                         }

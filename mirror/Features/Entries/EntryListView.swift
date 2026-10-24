@@ -343,7 +343,7 @@ struct EntriesTabView: View {
                 showOnThisDay = true
             } label: {
                 Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 17, weight: .semibold))
+                    .scaledFont(17, weight: .semibold)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.primary)
             }
             .accessibilityLabel("On This Day")
@@ -352,7 +352,7 @@ struct EntriesTabView: View {
                        open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
                        openLibrary: { libraryPage = $0 }, select: startSelecting) {
             Image(systemName: "bookmark")
-                .font(.system(size: 17, weight: .semibold))
+                .scaledFont(17, weight: .semibold)
                 .foregroundStyle(Color.primary)
         }
         .accessibilityLabel("Saved views")
@@ -366,7 +366,7 @@ struct EntriesTabView: View {
             }
         } label: {
             Image(systemName: "arrow.up.arrow.down")
-                .font(.system(size: 17, weight: .semibold))
+                .scaledFont(17, weight: .semibold)
                 .foregroundStyle(displayMode == .sentinel && sortOrder != .newestFirst ? MirrorTheme.ember : Color.primary)
         }
         .accessibilityLabel("Sort by")
@@ -374,7 +374,7 @@ struct EntriesTabView: View {
             withAnimation { showSearch.toggle() }
         } label: {
             Image(systemName: displayMode == .sentinel ? "scope" : "magnifyingglass")
-                .font(.system(size: 17, weight: .semibold))
+                .scaledFont(17, weight: .semibold)
                 .foregroundStyle(displayMode == .sentinel && showSearch ? MirrorTheme.ember : Color.primary)
         }
         .accessibilityLabel("Search entries")
@@ -400,7 +400,7 @@ struct EntriesTabView: View {
     private var listHeaderRow: some View {
         HStack(spacing: 16) {
             Text(displayMode == .sentinel ? "Log" : "Entries")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 26, weight: .bold))
+                .scaledFont(displayMode == .sentinel ? 20 : 26, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
@@ -639,9 +639,9 @@ struct EntriesTabView: View {
             } label: {
                 Group {
                     if displayMode == .sentinel {
-                        Text("Clear All").textCase(.uppercase).font(MirrorTheme.mono(11, weight: .medium))
+                        Text("Clear All").textCase(.uppercase).scaledFont(11, weight: .medium, design: .monospaced)
                     } else {
-                        Text("Clear All").font(.system(size: 12, weight: .medium))
+                        Text("Clear All").scaledFont(12, weight: .medium)
                     }
                 }
                 .foregroundStyle(.secondary)
@@ -735,18 +735,18 @@ struct EntriesTabView: View {
         return Button(action: onRemove) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 9, weight: .semibold))
+                    .scaledFont(9, weight: .semibold)
                     .foregroundStyle(color)
                 Group {
                     if displayMode == .sentinel {
-                        Text(label.uppercased()).font(MirrorTheme.mono(11, weight: .medium))
+                        Text(label.uppercased()).scaledFont(11, weight: .medium, design: .monospaced)
                     } else {
-                        Text(label).font(.system(size: 12, weight: .medium))
+                        Text(label).scaledFont(12, weight: .medium)
                     }
                 }
                 .foregroundStyle(.primary)
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .scaledFont(9, weight: .bold)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 10)
@@ -795,10 +795,10 @@ struct EntriesTabView: View {
                         Group {
                             if displayMode == .sentinel {
                                 Text("#\(MirrorTheme.localizedTagName(for: tag))".uppercased())
-                                    .font(MirrorTheme.mono(11, weight: .medium))
+                                    .scaledFont(11, weight: .medium, design: .monospaced)
                             } else {
                                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .scaledFont(12, weight: .medium)
                             }
                         }
                         .padding(.horizontal, 10)
@@ -842,7 +842,7 @@ struct EntriesTabView: View {
                                 .fill(MirrorTheme.moodColor(for: mood))
                                 .frame(width: 7, height: 7)
                             Text(MirrorTheme.localizedMoodName(for: mood))
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
+                                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                                 .kerning(displayMode == .sentinel ? 0.3 : 0)
                         }
@@ -875,7 +875,7 @@ struct EntriesTabView: View {
             Group {
                 if displayMode == .sentinel {
                     TextField("scan entries…", text: $searchText)
-                        .font(MirrorTheme.mono(14, weight: .medium))
+                        .scaledFont(14, weight: .medium, design: .monospaced)
                 } else {
                     TextField("Search entries...", text: $searchText)
                 }
@@ -1113,12 +1113,12 @@ struct EntriesTabView: View {
                     }
                 } header: {
                     HStack(spacing: 4) {
-                        Image(systemName: "pin.fill").font(.system(size: 11, weight: .bold))
+                        Image(systemName: "pin.fill").scaledFont(11, weight: .bold)
                         Group {
                             if displayMode == .sentinel {
-                                Text("Pinned").font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                                Text("Pinned").scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                             } else {
-                                Text("Pinned").font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                                Text("Pinned").scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
                             }
                         }
                     }
@@ -1133,9 +1133,9 @@ struct EntriesTabView: View {
             if snapshot.filteredEntries.isEmpty {
                 Group {
                     if displayMode == .sentinel {
-                        Text(emptyFilteredMessage).font(MirrorTheme.mono(13, weight: .medium)).textCase(.uppercase)
+                        Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
                     } else {
-                        Text(emptyFilteredMessage).font(.system(size: 14))
+                        Text(emptyFilteredMessage).scaledFont(14)
                     }
                 }
                 .foregroundStyle(.secondary)
@@ -1165,14 +1165,14 @@ struct EntriesTabView: View {
                     HStack {
                         Group {
                             if displayMode == .sentinel {
-                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).font(MirrorTheme.mono(13, weight: .bold)).tracking(1.5)
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                             } else {
-                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).font(.system(size: 13, weight: .black, design: .rounded)).tracking(1.5)
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
                             }
                         }
                         Spacer()
                         Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .scaledFont(12, weight: .semibold, design: .monospaced)
                             .textCase(nil)
                     }
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
@@ -1203,9 +1203,9 @@ struct EntriesTabView: View {
         } label: {
             Group {
                 if displayMode == .sentinel {
-                    Text("Search without filters (\(count))").font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
+                    Text("Search without filters (\(count))").scaledFont(12, weight: .semibold, design: .monospaced).textCase(.uppercase)
                 } else {
-                    Text("Search without filters (\(count))").font(.system(size: 14, weight: .semibold))
+                    Text("Search without filters (\(count))").scaledFont(14, weight: .semibold)
                 }
             }
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
@@ -1255,20 +1255,20 @@ struct EntriesTabView: View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: displayMode == .sentinel ? "viewfinder" : "book.closed")
-                .font(.system(size: 48, weight: .light))
+                .scaledFont(48, weight: .light)
                 .foregroundStyle(.quaternary)
             Group {
                 if displayMode == .sentinel {
-                    Text("NO SIGNALS YET").font(MirrorTheme.mono(18, weight: .semibold)).tracking(1)
+                    Text("NO SIGNALS YET").scaledFont(18, weight: .semibold, design: .monospaced).tracking(1)
                 } else {
-                    Text("No entries yet").font(.system(size: 20, weight: .semibold))
+                    Text("No entries yet").scaledFont(20, weight: .semibold)
                 }
             }
             Group {
                 if displayMode == .sentinel {
-                    Text("OPEN TRANSMISSION TO LOG YOUR FIRST SIGNAL.").font(MirrorTheme.mono(12, weight: .medium))
+                    Text("OPEN TRANSMISSION TO LOG YOUR FIRST SIGNAL.").scaledFont(12, weight: .medium, design: .monospaced)
                 } else {
-                    Text("Tap Write to start your first entry.").font(.system(size: 15))
+                    Text("Tap Write to start your first entry.").scaledFont(15)
                 }
             }
             .foregroundStyle(.secondary)
@@ -1285,6 +1285,7 @@ struct EntriesTabView: View {
 private struct EntryRow: View {
     let entry: Entry
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.dynamicTypeSize) private var typeSize
     private let moodLabel: String?
     private let preview: Text
     private let displayWordCount: Int
@@ -1318,6 +1319,97 @@ private struct EntryRow: View {
         }
     }
 
+    private func dateTile(stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
+            Text(entry.createdAt, format: .dateTime.day())
+                .scaledFont(displayMode == .sentinel ? 17 : 18, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
+                .foregroundStyle(.primary)
+                .monospacedDigit()
+            Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                .scaledFont(displayMode == .sentinel ? 9.5 : 10, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+        .frame(width: stacked ? 42 : nil)
+        .padding(.vertical, stacked ? 10 : 6)
+        .padding(.horizontal, stacked ? 0 : 12)
+        .background(
+            moodColor.opacity(0.10),
+            in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous)
+        )
+        .overlay {
+            if displayMode == .sentinel {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(moodColor.opacity(0.35), lineWidth: 1)
+            }
+        }
+    }
+
+    private var contentColumn: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                preview
+                    .scaledFont(displayMode == .sentinel ? 15 : 16, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .foregroundStyle(previewTextColor)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 6) {
+                    if entry.hasPhoto {
+                        Image(systemName: "photo")
+                            .scaledFont(12, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                    }
+                    if hasVoiceNotes {
+                        Image(systemName: "waveform")
+                            .scaledFont(13, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(entry.createdAt, format: .dateTime.hour().minute())
+                    .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .foregroundStyle(.secondary)
+                if displayWordCount > 0 {
+                    Text("\(displayWordCount)w")
+                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 8)
+                if let label = moodLabel {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(MirrorTheme.moodColor(for: label))
+                            .frame(width: 7, height: 7)
+                        Text(displayMode == .sentinel
+                             ? MirrorTheme.localizedMoodName(for: label).uppercased()
+                             : MirrorTheme.localizedMoodName(for: label))
+                            .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                            .kerning(displayMode == .sentinel ? 0.3 : 0)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        MirrorTheme.moodColor(for: label).opacity(0.10),
+                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                    )
+                    .overlay {
+                        if displayMode == .sentinel {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(MirrorTheme.moodColor(for: label).opacity(0.3), lineWidth: 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var previewTextColor: Color {
         hasReadablePreview && !decryptFailed ? MirrorTheme.textPrimary : MirrorTheme.textSecondary
     }
@@ -1327,89 +1419,18 @@ private struct EntryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 6) {
-                Text(entry.createdAt, format: .dateTime.day())
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(17, weight: .bold) : .system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
-                Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(9.5, weight: .bold) : .system(size: 10, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-            }
-            .frame(width: 42)
-            .padding(.vertical, 10)
-            .background(
-                moodColor.opacity(0.10),
-                in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous)
-            )
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(moodColor.opacity(0.35), lineWidth: 1)
+        // At accessibility text sizes the date tile goes above the text as one line ("24 SAT");
+        // in its 42 pt column the day and weekday broke apart.
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    dateTile(stacked: false)
+                    contentColumn
                 }
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
+            } else {
                 HStack(alignment: .top, spacing: 12) {
-                    preview
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .medium) : .system(size: 16, weight: .medium))
-                        .foregroundStyle(previewTextColor)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    HStack(spacing: 6) {
-                        if entry.hasPhoto {
-                            Image(systemName: "photo")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        if hasVoiceNotes {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(entry.createdAt, format: .dateTime.hour().minute())
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    if displayWordCount > 0 {
-                        Text("\(displayWordCount)w")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Spacer(minLength: 8)
-                    if let label = moodLabel {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(MirrorTheme.moodColor(for: label))
-                                .frame(width: 7, height: 7)
-                            Text(displayMode == .sentinel
-                                 ? MirrorTheme.localizedMoodName(for: label).uppercased()
-                                 : MirrorTheme.localizedMoodName(for: label))
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .semibold) : .system(size: 12, weight: .semibold))
-                                .kerning(displayMode == .sentinel ? 0.3 : 0)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            MirrorTheme.moodColor(for: label).opacity(0.10),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                        )
-                        .overlay {
-                            if displayMode == .sentinel {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                    .stroke(MirrorTheme.moodColor(for: label).opacity(0.3), lineWidth: 1)
-                            }
-                        }
-                    }
+                    dateTile(stacked: true)
+                    contentColumn
                 }
             }
         }
@@ -1548,7 +1569,7 @@ extension EntriesTabView {
                     }
                     if snapshot.filteredEntries.isEmpty {
                         Text(emptyFilteredMessage)
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(MacTokens.secondaryInk)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 32)
@@ -1652,17 +1673,17 @@ extension EntriesTabView {
     fileprivate var macHeader: some View {
         HStack(spacing: 8) {
             Text("Entries")
-                .font(.system(size: 15, weight: .semibold))
+                .scaledFont(15, weight: .semibold)
                 .foregroundStyle(MacTokens.ink)
             Text("\(entries.count)")
-                .font(.system(size: 12))
+                .scaledFont(12)
                 .foregroundStyle(MacTokens.secondaryInk)
             Spacer(minLength: 0)
             SavedViewsMenu(views: savedViewModels, canSaveCurrent: canSaveCurrentView,
                            open: applySavedView, saveCurrent: { savingView = true }, manage: { showOrganizer = true },
                        openLibrary: { libraryPage = $0 }, select: startSelecting) {
                 Image(systemName: "bookmark")
-                    .font(.system(size: 14, weight: .medium))
+                    .scaledFont(14, weight: .medium)
                     .frame(width: 30, height: 28)
             }
             .menuStyle(.borderlessButton)
@@ -1728,7 +1749,7 @@ extension EntriesTabView {
             MacIcon(name: "search", size: 14)
             TextField("Search entries", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(MacTokens.ink)
                 .focused($macSearchFocused)
                 .accessibilityLabel("Search entries")
@@ -1739,7 +1760,7 @@ extension EntriesTabView {
                 }
             filtersButton.buttonStyle(.plain)
             if searchText.isEmpty {
-                Text("⌘F").font(.system(size: 11))
+                Text("⌘F").scaledFont(11)
             } else {
                 Button {
                     searchText = ""
@@ -1770,7 +1791,7 @@ extension EntriesTabView {
             HStack(spacing: 6) {
                 MacIcon(name: "chevron", size: 11)
                     .rotationEffect(.degrees(macShowCalendar ? 90 : 0))
-                Text("Calendar").font(.system(size: 12))
+                Text("Calendar").scaledFont(12)
             }
             .foregroundStyle(MacTokens.secondaryInk)
             .padding(.horizontal, 16)
@@ -1789,7 +1810,7 @@ extension EntriesTabView {
             if let icon { MacIcon(name: icon, size: 11) }
             Text(title)
         }
-        .font(.system(size: 11, weight: .semibold))
+        .scaledFont(11, weight: .semibold)
         .tracking(0.66)
         .foregroundStyle(MacTokens.secondaryInk)
         .padding(.horizontal, 16)
@@ -1852,11 +1873,11 @@ private struct MacEntryRow: View {
         HStack(alignment: .top, spacing: 10) {
             VStack(spacing: 2) {
                 Text(entry.createdAt, format: .dateTime.day())
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .scaledFont(15, weight: .bold, design: .rounded)
                     .foregroundStyle(MacTokens.ink)
                     .monospacedDigit()
                 Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .font(.system(size: 9, weight: .bold))
+                    .scaledFont(9, weight: .bold)
                     .foregroundStyle(secondary)
                     .textCase(.uppercase)
             }
@@ -1866,7 +1887,7 @@ private struct MacEntryRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 (preview?.preview ?? Text("Untitled entry"))
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .scaledFont(13.5, weight: .semibold)
                     .foregroundStyle(MacTokens.ink)
                     .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
                     .truncationMode(.tail)
@@ -1885,7 +1906,7 @@ private struct MacEntryRow: View {
                         Text(count == 1 ? "1 word" : "\(count) words")
                     }
                 }
-                .font(.system(size: 12))
+                .scaledFont(12)
                 .foregroundStyle(secondary)
                 .lineLimit(1)
             }

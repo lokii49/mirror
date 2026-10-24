@@ -191,7 +191,7 @@ struct BrainConstellationView: View {
             .clipShape(Capsule())
             Text("Good")
         }
-        .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 11, weight: .medium))
+        .scaledFont(displayMode == .sentinel ? 10 : 11, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
         .foregroundStyle(.white.opacity(0.75))
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -301,7 +301,7 @@ struct BrainConstellationView: View {
             withAnimation(.easeOut(duration: 0.2)) { action() }
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: 15, weight: .bold))
+                .scaledFont(15, weight: .bold)
                 .foregroundStyle(.white)
                 .frame(width: 38, height: 38)
                 .background(.white.opacity(0.12), in: Circle())

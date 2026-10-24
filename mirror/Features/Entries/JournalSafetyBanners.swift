@@ -77,10 +77,10 @@ struct RestoreFromDeviceBanner: View {
             ) {
                 HStack(spacing: 16) {
                     Button("Restore") { confirmRestore = true }
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(14, weight: .semibold)
                         .disabled(safety.isRestoring)
                     Button("Not now", role: .destructive) { confirmDiscard = true }
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                 }
                 .buttonStyle(.borderless)
             }

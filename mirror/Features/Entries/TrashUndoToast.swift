@@ -41,15 +41,15 @@ struct TrashUndoToast: ViewModifier {
     private var toast: some View {
         HStack(spacing: 12) {
             Image(systemName: "trash")
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(14, weight: .medium)
                 .foregroundStyle(.secondary)
             Text(trashedIDs.count == 1 ? String(localized: "Moved to Recently Deleted")
                                        : String(localized: "\(trashedIDs.count) entries moved to Recently Deleted"))
-                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .medium))
+                .scaledFont(displayMode == .sentinel ? 12 : 14, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                 .lineLimit(2)
             Spacer(minLength: 8)
             Button("Undo") { undo() }
-                .font(.system(size: 14, weight: .semibold))
+                .scaledFont(14, weight: .semibold)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("trash.undo")

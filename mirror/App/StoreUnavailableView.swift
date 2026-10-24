@@ -12,7 +12,7 @@ struct StoreUnavailableView: View {
         VStack(spacing: 20) {
             Spacer()
             Image(systemName: "lock.trianglebadge.exclamationmark")
-                .font(.system(size: 44))
+                .scaledFont(44)
                 .foregroundStyle(.secondary)
             Text("Your journal couldn't be opened")
                 .font(.title2.weight(.semibold))

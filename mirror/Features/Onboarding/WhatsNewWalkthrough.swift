@@ -84,7 +84,7 @@ struct WhatsNewWalkthrough: View {
                 } else {
                     // A row of dots wider than the screen widened the whole sheet (3.1.0, 28 pages).
                     Text("\(index + 1) of \(cards.count)")
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 13, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -96,7 +96,7 @@ struct WhatsNewWalkthrough: View {
                 if index > 0 {
                     Button { go(to: index - 1) } label: {
                         Text("Back")
-                            .font(.system(size: 16, weight: .semibold))
+                            .scaledFont(16, weight: .semibold)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
                             .foregroundStyle(Color.primary)
@@ -108,7 +108,7 @@ struct WhatsNewWalkthrough: View {
                     if isLast { onFinish() } else { go(to: index + 1) }
                 } label: {
                     Text(isLast ? "Get started" : "Next")
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .foregroundStyle(.white)
@@ -141,9 +141,9 @@ private struct WhatsNewPage: View {
                 VStack(spacing: 10) {
                     Group {
                         if displayMode == .sentinel {
-                            Text(card.title).font(MirrorTheme.mono(19, weight: .bold))
+                            Text(card.title).scaledFont(19, weight: .bold, design: .monospaced)
                         } else {
-                            Text(card.title).font(.system(size: 24, weight: .bold, design: .rounded))
+                            Text(card.title).scaledFont(24, weight: .bold, design: .rounded)
                         }
                     }
                     .multilineTextAlignment(.center)
@@ -152,7 +152,7 @@ private struct WhatsNewPage: View {
 
                     if card.tier != .free {
                         Text(card.tier.label)
-                            .font(.system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold)
                             .foregroundStyle(card.tier.color)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 3)
@@ -160,7 +160,7 @@ private struct WhatsNewPage: View {
                     }
 
                     Text(card.body)
-                        .font(.system(size: 15))
+                        .scaledFont(15)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
@@ -231,7 +231,7 @@ private struct IconStage: View {
             Circle().fill(card.accentColor.opacity(0.14)).frame(width: 150, height: 150)
             Circle().fill(card.accentColor.opacity(0.10)).frame(width: 104, height: 104)
             Image(systemName: card.symbolName)
-                .font(.system(size: 46, weight: .semibold))
+                .scaledFont(46, weight: .semibold)
                 .foregroundStyle(card.accentColor)
         }
     }
@@ -263,7 +263,7 @@ private struct AskSearchDemo: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkle.magnifyingglass").foregroundStyle(accent)
                 Text("a calm evening")
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                     .opacity(phase >= 1 ? 1 : 0)
                 Spacer(minLength: 0)
             }
@@ -281,10 +281,10 @@ private struct AskSearchDemo: View {
     private func row(_ text: LocalizedStringKey, match: Bool) -> some View {
         let lit = match && phase >= 2
         return VStack(alignment: .leading, spacing: 4) {
-            Text(text).font(.system(size: 13)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Text(text).scaledFont(13).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             if lit && phase >= 3 {
                 Label("Found by meaning", systemImage: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(11, weight: .semibold)
                     .foregroundStyle(accent)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -314,7 +314,7 @@ private struct ReflectionStylesDemo: View {
                 HStack(alignment: .top, spacing: 10) {
                     RoundedRectangle(cornerRadius: 1.5).fill(accent).frame(width: 3)
                     Text("Sat on the balcony after dinner. Finally quiet.")
-                        .font(.system(size: 15, weight: .medium, design: .serif)).italic()
+                        .scaledFont(15, weight: .medium, design: .serif).italic()
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .fixedSize(horizontal: false, vertical: true)
@@ -322,7 +322,7 @@ private struct ReflectionStylesDemo: View {
                     Text("You seem calmer tonight.").opacity(style == 0 ? 1 : 0)
                     Text("What's underneath “Finally quiet”?").opacity(style == 2 ? 1 : 0)
                 }
-                .font(.system(size: 14))
+                .scaledFont(14)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: style == 1 ? 0 : nil, alignment: .top)
@@ -335,7 +335,7 @@ private struct ReflectionStylesDemo: View {
 
     private func chip(_ title: LocalizedStringKey, on: Bool) -> some View {
         Text(title)
-            .font(.system(size: 13, weight: .semibold))
+            .scaledFont(13, weight: .semibold)
             .foregroundStyle(on ? .white : Color.primary)
             .padding(.horizontal, 12)
             .frame(height: 30)
@@ -353,7 +353,7 @@ private struct FormatPanelDemo: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
-                if phase >= 3 { Text("•").font(.system(size: 18, weight: .bold)) }
+                if phase >= 3 { Text("•").scaledFont(18, weight: .bold) }
                 Text("Morning pages")
                     .font(.system(size: phase >= 1 ? 22 : 16, weight: phase >= 1 ? .bold : .regular))
                     .padding(.horizontal, phase >= 2 ? 4 : 0)
@@ -391,7 +391,7 @@ private struct FormatPanelDemo: View {
 
     private func tile(_ title: LocalizedStringKey, on: Bool) -> some View {
         Text(title)
-            .font(.system(size: 13, weight: .semibold))
+            .scaledFont(13, weight: .semibold)
             .foregroundStyle(on ? accent : Color.primary)
             .frame(maxWidth: .infinity)
             .frame(height: 30)
@@ -401,7 +401,7 @@ private struct FormatPanelDemo: View {
 
     private func cell(_ glyph: String, on: Bool) -> some View {
         Text(verbatim: glyph)
-            .font(.system(size: 15, weight: .bold))
+            .scaledFont(15, weight: .bold)
             .foregroundStyle(on ? accent : Color.primary)
             .frame(maxWidth: .infinity)
             .frame(height: 32)
@@ -438,7 +438,7 @@ private struct WritingDemo: View {
                 Image(systemName: "calendar")
                 Text(verbatim: dateText)
             }
-            .font(.system(size: 13, weight: .medium))
+            .scaledFont(13, weight: .medium)
             .padding(.horizontal, 10)
             .frame(height: 28)
             .background(accent.opacity(0.12), in: Capsule())
@@ -447,7 +447,7 @@ private struct WritingDemo: View {
                 Image(systemName: "checkmark.circle")
                 Text("Draft saved")
             }
-            .font(.system(size: 12, weight: .medium))
+            .scaledFont(12, weight: .medium)
             .foregroundStyle(.secondary)
             .opacity(phase >= 3 ? 1 : 0)
         })
@@ -464,7 +464,7 @@ private struct WritingDemo: View {
         }
         return AnyView(HStack {
             Text(verbatim: phase >= 1 ? "#\(work), \(sleep)" : " ")
-                .font(.system(size: 13, weight: .medium))
+                .scaledFont(13, weight: .medium)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
@@ -475,7 +475,7 @@ private struct WritingDemo: View {
     private var editorRow: AnyView {
         AnyView(HStack(alignment: .center, spacing: 1) {
             Text("Walked to the market early.")
-                .font(.system(size: 16))
+                .scaledFont(16)
             Caret(color: accent)
             Spacer(minLength: 0)
         }
@@ -484,7 +484,7 @@ private struct WritingDemo: View {
 
     private func chip(_ text: String) -> some View {
         Text(verbatim: text)
-            .font(.system(size: 13, weight: .medium))
+            .scaledFont(13, weight: .medium)
             .padding(.horizontal, 10)
             .frame(height: 28)
             .background(MirrorTheme.bgBase, in: Capsule())

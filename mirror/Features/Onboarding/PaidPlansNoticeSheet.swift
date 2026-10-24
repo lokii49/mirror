@@ -12,17 +12,17 @@ struct PaidPlansNoticeSheet: View {
         VStack(spacing: 20) {
             Spacer(minLength: 12)
             Image(systemName: PaidPlansNotice.card?.symbolName ?? "calendar.badge.clock")
-                .font(.system(size: 44, weight: .medium))
+                .scaledFont(44, weight: .medium)
                 .foregroundStyle(accent)
                 .frame(width: 88, height: 88)
                 .background(accent.opacity(0.12), in: Circle())
                 .accessibilityHidden(true)
             if let card = PaidPlansNotice.card {
                 Text(card.title)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(20, weight: .bold) : .system(size: 24, weight: .bold))
+                    .scaledFont(displayMode == .sentinel ? 20 : 24, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                     .multilineTextAlignment(.center)
                 Text(card.body)
-                    .font(.system(size: 16))
+                    .scaledFont(16)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -32,7 +32,7 @@ struct PaidPlansNoticeSheet: View {
                 dismiss()
             } label: {
                 Text("Got it")
-                    .font(.system(size: 17, weight: .semibold))
+                    .scaledFont(17, weight: .semibold)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }

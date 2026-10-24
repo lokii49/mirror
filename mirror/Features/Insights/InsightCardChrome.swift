@@ -47,23 +47,34 @@ struct InsightCardHeader<Trailing: View, Subline: View>: View {
         self.subline = subline
     }
 
+    private var label: some View {
+        HStack(spacing: 6) {
+            if let icon {
+                Image(systemName: icon)
+                    .scaledFont(isSentinel ? 11 : 12, weight: .bold)
+            }
+            title
+                .scaledFont(isSentinel ? 11 : 12, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
+                .textCase(isSentinel ? .uppercase : nil)
+                .tracking(isSentinel ? 0.8 : 0)
+        }
+        .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 8) {
-                HStack(spacing: 6) {
-                    if let icon {
-                        Image(systemName: icon)
-                            .font(.system(size: isSentinel ? 11 : 12, weight: .bold))
-                    }
-                    title
-                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                        .textCase(isSentinel ? .uppercase : nil)
-                        .tracking(isSentinel ? 0.8 : 0)
+            // One row when it fits; at large text sizes the title goes above the trailing slot
+            // instead of truncating ("Daily Refl…").
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 8) {
+                    label.lineLimit(1)
+                    Spacer(minLength: 8)
+                    trailing()
                 }
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
-                .lineLimit(1)
-                Spacer(minLength: 8)
-                trailing()
+                VStack(alignment: .leading, spacing: 8) {
+                    label
+                    trailing()
+                }
             }
             subline()
             Rectangle()
@@ -90,7 +101,7 @@ struct InsightCardStamp: View {
 
     var body: some View {
         Text(date, format: format)
-            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 12, weight: .medium))
+            .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
             .foregroundStyle(MirrorTheme.textTertiary)
             .lineLimit(1)
     }
@@ -112,10 +123,10 @@ struct InsightCardAction: View {
                 Text(isSentinel ? sentinelTitle : title)
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 11, weight: .bold))
+                        .scaledFont(11, weight: .bold)
                 }
             }
-            .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 14, weight: .semibold))
+            .scaledFont(isSentinel ? 12 : 14, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
             .kerning(isSentinel ? 0.4 : 0)
             .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             .frame(maxWidth: .infinity)
@@ -149,7 +160,7 @@ struct InsightCardChip: View {
             if let systemImage { Image(systemName: systemImage) }
             Text(title)
         }
-        .font(isSentinel ? MirrorTheme.mono(9.5, weight: .bold) : .system(size: 11, weight: .semibold))
+        .scaledFont(isSentinel ? 9.5 : 11, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
         .textCase(isSentinel ? .uppercase : nil)
         .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.textSecondary)
         .lineLimit(1)

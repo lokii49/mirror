@@ -259,6 +259,9 @@ struct mirrorApp: App {
                     StoreUnavailableView()
                 }
             }
+            #if DEBUG && os(iOS)
+            .modifier(DebugDynamicTypeSize())
+            #endif
             #if os(macOS)
             // An open main window takes widget and notification links (mirror://...) itself.
             // Without this, macOS opened another main window for every widget click (2026-10-09).
@@ -1432,3 +1435,25 @@ struct mirrorApp: App {
 private final class BackgroundTaskReference: @unchecked Sendable {
     var id: UIBackgroundTaskIdentifier = .invalid
 }
+
+#if DEBUG && os(iOS)
+/// `--dynamicTypeSize=accessibility3` (or any `DynamicTypeSize` case name): device captures at a
+/// set text size. The phone ignores `-UIPreferredContentSizeCategoryName`, and SwiftUI's
+/// `.dynamicTypeSize` doesn't reach sheets, so this overrides the window scene's trait instead.
+private struct DebugDynamicTypeSize: ViewModifier {
+    private let size: DynamicTypeSize? = {
+        let prefix = "--dynamicTypeSize="
+        guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) else { return nil }
+        return DynamicTypeSize.allCases.first { "\($0)" == arg.dropFirst(prefix.count) }
+    }()
+
+    func body(content: Content) -> some View {
+        content.onAppear {
+            guard let size else { return }
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size)
+            }
+        }
+    }
+}
+#endif

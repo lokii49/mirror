@@ -103,7 +103,7 @@ struct ArchiveSettingsView: View {
                     .accessibilityIdentifier("archive.export")
                     if exportProgress != nil {
                         Button("Cancel export", role: .cancel) { exportTask?.cancel() }
-                            .font(.system(size: 13, weight: .medium))
+                            .scaledFont(13, weight: .medium)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
 
@@ -140,7 +140,7 @@ struct ArchiveSettingsView: View {
                                 .fill(iCloudStatusColor)
                                 .frame(width: 7, height: 7)
                             Text(iCloudStatus.label)
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(12.5) : .system(size: 13))
+                                .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }

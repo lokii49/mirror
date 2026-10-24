@@ -166,7 +166,7 @@ struct PaywallView: View {
             dismiss()
         } label: {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 22))
+                .scaledFont(22)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(MirrorTheme.textSecondary)
         }
@@ -216,7 +216,7 @@ struct PaywallView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: selectedTier == .core ? "sparkles" : "flame.fill")
-                        .font(.system(size: 20, weight: .semibold))
+                        .scaledFont(20, weight: .semibold)
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.18), in: Circle())
@@ -231,11 +231,11 @@ struct PaywallView: View {
                     Group {
                         if isSentinel {
                             Text(selectedTier == .core ? "SENTINEL CORE" : "SENTINEL DEEP")
-                                .font(MirrorTheme.mono(26, weight: .bold))
+                                .scaledFont(26, weight: .bold, design: .monospaced)
                                 .tracking(0.5)
                         } else {
                             Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
-                                .font(.system(size: 30, weight: .bold, design: .rounded))
+                                .scaledFont(30, weight: .bold, design: .rounded)
                         }
                     }
                     .foregroundStyle(.white)
@@ -246,12 +246,12 @@ struct PaywallView: View {
                             Text(selectedTier == .core
                                  ? "PRIVATE SIGNAL INTELLIGENCE,\nBUILT AROUND YOUR OWN LOG."
                                  : "FULL SPECTRUM: MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF.")
-                                .font(MirrorTheme.mono(12, weight: .medium))
+                                .scaledFont(12, weight: .medium, design: .monospaced)
                         } else {
                             Text(selectedTier == .core
                                  ? "Private journal intelligence,\nbuilt around your writing."
                                  : "The full picture: mood, patterns,\nand monthly deep reflection.")
-                                .font(.system(size: 15, weight: .medium))
+                                .scaledFont(15, weight: .medium)
                         }
                     }
                     .foregroundStyle(.white.opacity(0.8))
@@ -269,9 +269,9 @@ struct PaywallView: View {
     private func trialBadge(_ length: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "gift")
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
             Text("Free for \(length)")
-                .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                .scaledFont(isSentinel ? 12 : 13, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                 .textCase(isSentinel ? .uppercase : nil)
         }
         .foregroundStyle(.white)
@@ -331,7 +331,7 @@ struct PaywallView: View {
             ? "Current plan"
             : (tier == .core ? "Most popular" : "More AI")
         Text(caption)
-            .font(isSentinel ? MirrorTheme.mono(9, weight: .semibold) : .system(size: 11, weight: .semibold))
+            .scaledFont(isSentinel ? 9 : 11, weight: .semibold, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
             .foregroundStyle(isSelected ? accent.opacity(0.85) : MirrorTheme.textTertiary)
     }
@@ -382,10 +382,10 @@ struct PaywallView: View {
 
             HStack(spacing: 10) {
                 Image(systemName: "lock.shield")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.green)
                 Text("AI runs on your device")
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .scaledFont(isSentinel ? 12 : 14, weight: .semibold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
@@ -399,7 +399,7 @@ struct PaywallView: View {
     private func featureRow(_ feature: Feature) -> some View {
         HStack(alignment: feature.detail == nil ? .center : .top, spacing: 14) {
             Image(systemName: feature.icon)
-                .font(.system(size: 16, weight: .semibold))
+                .scaledFont(16, weight: .semibold)
                 .foregroundStyle(isSentinel ? MirrorTheme.ember : feature.color)
                 .frame(width: 38, height: 38)
                 .background(
@@ -408,12 +408,12 @@ struct PaywallView: View {
                 )
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.title)
-                    .font(isSentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .scaledFont(isSentinel ? 13 : 15, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 if let detail = feature.detail {
                     Text(detail)
-                        .font(isSentinel ? MirrorTheme.mono(11) : .system(size: 13))
+                        .scaledFont(isSentinel ? 11 : 13, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
@@ -425,7 +425,7 @@ struct PaywallView: View {
 
     private func sectionHeader(_ title: LocalizedStringKey) -> some View {
         Text(title)
-            .font(isSentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+            .scaledFont(isSentinel ? 11 : 12, weight: .semibold, design: isSentinel ? .monospaced : .default)
             .foregroundStyle(MirrorTheme.textSecondary)
             .textCase(.uppercase)
             .tracking(0.8)
@@ -475,7 +475,7 @@ struct PaywallView: View {
     private var plansUnavailable: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Couldn't load plans. Check your connection.")
-                .font(isSentinel ? MirrorTheme.mono(12) : .system(size: 14))
+                .scaledFont(isSentinel ? 12 : 14, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textSecondary)
             Button {
                 Task {
@@ -484,7 +484,7 @@ struct PaywallView: View {
                 }
             } label: {
                 Text("Try Again")
-                    .font(isSentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .scaledFont(isSentinel ? 13 : 14, weight: .semibold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)
                     .foregroundStyle(accent)
             }
@@ -527,7 +527,7 @@ struct PaywallView: View {
                         ProgressView().tint(.white)
                     } else {
                         Text(ctaTitle)
-                            .font(isSentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 17, weight: .semibold))
+                            .scaledFont(isSentinel ? 15 : 17, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                             .textCase(isSentinel ? .uppercase : nil)
                             .foregroundStyle(.white)
                     }
@@ -544,36 +544,45 @@ struct PaywallView: View {
             .disabled(ctaDisabled)
 
             Text(showsTrial ? "Cancel anytime in App Store settings. No charge during trial." : "Cancel anytime in App Store settings.")
-                .font(isSentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12))
+                .scaledFont(isSentinel ? 10 : 12, weight: isSentinel ? .medium : .regular, design: isSentinel ? .monospaced : .default)
                 .textCase(isSentinel ? .uppercase : nil)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 6) {
-                Button("Restore Purchases") {
-                    Task { await subscriptionService.restorePurchases() }
-                }
-                .buttonStyle(.plain)
-                if let privacyURL = AppConstants.privacyPolicyURL {
-                    Text(verbatim: "·")
-                    Link("Privacy Policy", destination: privacyURL)
-                }
-                if let termsURL = AppConstants.termsOfUseURL {
-                    Text(verbatim: "·")
-                    Link("Terms of Use", destination: termsURL)
-                }
+            // One line when it fits; at large text sizes the three links stack instead of
+            // truncating ("Restore P… · Privacy…").
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { footerLinks(separated: true) }
+                    .lineLimit(1)
+                VStack(spacing: 8) { footerLinks(separated: false) }
             }
-            .font(isSentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 12, weight: .medium))
+            .scaledFont(isSentinel ? 11 : 12, weight: .medium, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
             .foregroundStyle(MirrorTheme.textSecondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 8)
         .background(.bar)
         .overlay(alignment: .top) { Divider().overlay(MirrorTheme.inkBorder) }
+    }
+}
+
+extension PaywallView {
+    @ViewBuilder
+    fileprivate func footerLinks(separated: Bool) -> some View {
+        Button("Restore Purchases") {
+            Task { await subscriptionService.restorePurchases() }
+        }
+        .buttonStyle(.plain)
+        if let privacyURL = AppConstants.privacyPolicyURL {
+            if separated { Text(verbatim: "·") }
+            Link("Privacy Policy", destination: privacyURL)
+        }
+        if let termsURL = AppConstants.termsOfUseURL {
+            if separated { Text(verbatim: "·") }
+            Link("Terms of Use", destination: termsURL)
+        }
     }
 }
 
@@ -598,7 +607,7 @@ private struct PlanCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text(isYearly ? "Yearly" : "Monthly")
-                            .font(isSentinel ? MirrorTheme.mono(14, weight: .semibold) : .system(size: 16, weight: .semibold))
+                            .scaledFont(isSentinel ? 14 : 16, weight: .semibold, design: isSentinel ? .monospaced : .default)
                             .textCase(isSentinel ? .uppercase : nil)
                             .foregroundStyle(MirrorTheme.textPrimary)
                         if isCurrent {
@@ -608,7 +617,7 @@ private struct PlanCard: View {
                         }
                     }
                     priceLine
-                        .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
+                        .scaledFont(isSentinel ? 12 : 13, weight: isSentinel ? .medium : .regular, design: isSentinel ? .monospaced : .default)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
 
@@ -671,7 +680,7 @@ private struct PlanCard: View {
 
     private func badge(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 11, weight: .bold))
+            .scaledFont(isSentinel ? 10 : 11, weight: .bold, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
             .foregroundStyle(accent)
             .padding(.horizontal, 8)

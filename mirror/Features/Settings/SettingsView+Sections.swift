@@ -13,8 +13,9 @@ extension SettingsView {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MirrorNotes")
-                        .font(.system(size: 17, weight: .semibold))
+                        .scaledFont(17, weight: .semibold)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                         .onTapGesture(count: 3) {
                             copiedRevenueCatID = false
                             withAnimation(.easeInOut(duration: 0.2)) { showsRevenueCatID.toggle() }
@@ -28,7 +29,7 @@ extension SettingsView {
                         planChip(tierLabel, systemImage: "checkmark.seal.fill", color: tierColor)
                     } else {
                         Text("Free plan")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
                 }
@@ -37,12 +38,12 @@ extension SettingsView {
 
                 if SubscriptionService.allFeaturesFree {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 22))
+                        .scaledFont(22)
                         .foregroundStyle(MirrorTheme.primary)
                 } else if subscriptionService.isSubscribed {
                     let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 22))
+                        .scaledFont(22)
                         .foregroundStyle(tierColor)
                 }
             }
@@ -72,7 +73,7 @@ extension SettingsView {
                     let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 13, weight: .semibold))
+                            .scaledFont(13, weight: .semibold)
                         // The trial only when this Apple ID can still get it, and the store's own price.
                         Group {
                             if let trial = coreTrialLength {
@@ -81,16 +82,16 @@ extension SettingsView {
                                 Text("MirrorNotes Core")
                             }
                         }
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 14, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 13 : 14, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .textCase(displayMode == .sentinel ? .uppercase : nil)
                         Spacer(minLength: 4)
                         if let price = coreMonthlyPrice {
                             Text("\(price) / month")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(11.5) : .system(size: 12, weight: .medium))
+                                .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                 .opacity(0.65)
                         }
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .bold))
+                            .scaledFont(12, weight: .bold)
                     }
                     .foregroundStyle(accent)
                     .padding(.horizontal, 14)
@@ -132,11 +133,11 @@ extension SettingsView {
                 .padding(.top, 14)
                 .padding(.bottom, 4)
             Text(verbatim: subscriptionService.isAnonymousUser ? "RevenueCat ID (anonymous)" : "RevenueCat ID")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textSecondary)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(verbatim: appUserID)
-                    .font(MirrorTheme.mono(12))
+                    .scaledFont(12, weight: .semibold, design: .monospaced)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
@@ -145,7 +146,7 @@ extension SettingsView {
                     copiedRevenueCatID = true
                 } label: {
                     Image(systemName: copiedRevenueCatID ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(14, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
                 }
                 .buttonStyle(.plain)
@@ -178,7 +179,7 @@ extension SettingsView {
     var statsGrid: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(displayMode == .sentinel ? "Log stats" : "Your journal")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
                 .tracking(displayMode == .sentinel ? 0.6 : 1.0)
@@ -205,7 +206,7 @@ extension SettingsView {
                     .fill(color.opacity(0.12))
                     .frame(width: 36, height: 36)
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .scaledFont(16, weight: .semibold)
                     .foregroundStyle(color)
             }
             .overlay {
@@ -215,12 +216,12 @@ extension SettingsView {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(19, weight: .bold) : .system(size: 20, weight: .bold, design: .rounded))
+                    .scaledFont(displayMode == .sentinel ? 19 : 20, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Text(label)
-                    .font(.system(size: 12, weight: .medium))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
@@ -246,7 +247,7 @@ extension SettingsView {
                     )
                     Spacer()
                     Text(SubscriptionService.allFeaturesFree ? "Early Access" : (subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free"))
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                     SettingsChevron()
                 }
@@ -268,13 +269,13 @@ extension SettingsView {
             let cardCorner: CGFloat = displayMode == .sentinel ? 7 : 12
             HStack(spacing: 6) {
                 Text(title)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .bold) : .system(size: 13, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(accent)
                 }
             }
@@ -305,7 +306,7 @@ extension SettingsView {
                     HStack(spacing: 4) {
                         SettingsValueText(text: appearanceModeLabel)
                         Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
+                            .scaledFont(11, weight: .semibold)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
                 }
@@ -346,9 +347,9 @@ extension SettingsView {
     func upgradeChip(_ label: LocalizedStringKey, icon: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .scaledFont(10, weight: .semibold)
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .scaledFont(11, weight: .medium)
         }
         .foregroundStyle(MirrorTheme.primary)
         .padding(.horizontal, 10)
@@ -361,8 +362,11 @@ extension SettingsView {
     /// of status readout.
     func planChip(_ label: LocalizedStringKey, systemImage: String, color: Color) -> some View {
         Label(label, systemImage: systemImage)
-            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+            .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
             .textCase(displayMode == .sentinel ? .uppercase : nil)
+            // Shrinks at large text sizes rather than breaking the word ("ACCES S").
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
             .foregroundStyle(color)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)

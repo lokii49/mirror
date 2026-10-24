@@ -12,7 +12,7 @@ struct InsightSourceButton: View {
             show = true
         } label: {
             Image(systemName: "shield.lefthalf.filled")
-                .font(.system(size: 11, weight: .bold))
+                .scaledFont(11, weight: .bold)
                 .foregroundStyle(MirrorTheme.ember)
                 .padding(5)
                 .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: 5, style: .continuous))

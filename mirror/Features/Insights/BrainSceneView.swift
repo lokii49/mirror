@@ -50,7 +50,7 @@ struct Brain3DView: View {
     private func zoomButton(systemName: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 15, weight: .bold))
+                .scaledFont(15, weight: .bold)
                 .foregroundStyle(.white)
                 .frame(width: 38, height: 38)
                 .background(.white.opacity(0.12), in: Circle())

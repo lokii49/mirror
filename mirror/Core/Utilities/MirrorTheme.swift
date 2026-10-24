@@ -500,3 +500,48 @@ extension View {
     }
 }
 
+/// Interface text (labels, buttons, rows, chips, Sentinel's mono readouts) that follows the
+/// person's text size, the way `readingFont` does for reading text (UI pass 2026-10-24). `size` is
+/// the point size at the default setting, so nothing moves there; it scales with the text style
+/// nearest that size, over the full range including the accessibility sizes. On the Mac the
+/// factor is 1.
+private struct ScaledFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+    private let design: Font.Design
+
+    init(size: CGFloat, weight: Font.Weight, design: Font.Design) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: MirrorTheme.textStyle(near: size))
+        self.weight = weight
+        self.design = design
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: design))
+    }
+}
+
+extension MirrorTheme {
+    /// The system text style whose default size is nearest `size`; `scaledFont` grows with it.
+    nonisolated static func textStyle(near size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case ..<11.5: .caption2
+        case ..<12.5: .caption
+        case ..<13.5: .footnote
+        case ..<15.5: .subheadline
+        case ..<16.5: .callout
+        case ..<19.5: .body
+        case ..<21: .title3
+        case ..<25: .title2
+        case ..<31: .title
+        default: .largeTitle
+        }
+    }
+}
+
+extension View {
+    func scaledFont(_ size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, design: design))
+    }
+}
+

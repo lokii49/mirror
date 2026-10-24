@@ -30,18 +30,18 @@ struct AppLockScreen: View {
             if interactive && lock.isLocked {
                 VStack(spacing: 16) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 30, weight: .semibold))
+                        .scaledFont(30, weight: .semibold)
                         .foregroundStyle(accent)
                         .frame(width: 72, height: 72)
                         .background(accent.opacity(0.12), in: Circle())
                     Text("MirrorNotes is locked")
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(17) : .system(size: 20, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 17 : 20, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Button {
                         Task { await lock.unlock() }
                     } label: {
                         Text(unlockTitle)
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(15, weight: .semibold)
                             .foregroundStyle(Color.white)
                             .padding(.horizontal, 22)
                             .frame(height: 42)
@@ -52,7 +52,7 @@ struct AppLockScreen: View {
                     .keyboardShortcut(.defaultAction)
                     if let reason = lock.unavailableReason {
                         Text(reason)
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: 280)
@@ -61,7 +61,7 @@ struct AppLockScreen: View {
                 .padding(24)
             } else {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 26, weight: .semibold))
+                    .scaledFont(26, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .accessibilityHidden(true)
             }
@@ -110,7 +110,7 @@ struct AppLockSettingsGroup: View {
             }
 
             Text(caption)
-                .font(.system(size: 12.5))
+                .scaledFont(12.5)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .padding(.leading, 44)
                 .padding(.top, 2)

@@ -110,24 +110,24 @@ struct EntryDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if displayMode == .sentinel {
                             Text(entry.createdAt.formatted(.dateTime.weekday(.wide).day().month(.wide).year()).uppercased())
-                                .font(MirrorTheme.mono(15, weight: .bold))
+                                .scaledFont(15, weight: .bold, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .kerning(0.4)
                         } else {
                             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                                .font(.system(size: 18, weight: .semibold))
+                                .scaledFont(18, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                         }
 
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                             if let label = moodLabel {
                                 Text("·")
                                     .foregroundStyle(MirrorTheme.textTertiary)
                                 Text(displayMode == .sentinel ? label.uppercased() : label)
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 13, weight: .medium))
+                                    .scaledFont(displayMode == .sentinel ? 11 : 13, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                     .kerning(displayMode == .sentinel ? 0.2 : 0)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                                     .padding(.horizontal, 8)
@@ -145,7 +145,7 @@ struct EntryDetailView: View {
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
                             Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                         }
                     }
@@ -155,10 +155,10 @@ struct EntryDetailView: View {
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
-                                .font(.system(size: 17, weight: .semibold))
+                                .scaledFont(17, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
-                                .font(.system(size: 15))
+                                .scaledFont(15)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -195,7 +195,7 @@ struct EntryDetailView: View {
                             HStack(spacing: 6) {
                                 ForEach(entry.tags, id: \.self) { tag in
                                     Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 12, weight: .medium))
+                                        .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                         .foregroundStyle(MirrorTheme.textSecondary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
@@ -220,7 +220,7 @@ struct EntryDetailView: View {
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
                         Label(displayMode == .sentinel ? "SIGNAL DETECTED" : "mirror noticed", systemImage: displayMode == .sentinel ? "waveform" : "sparkles")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                             .tracking(0.8)
                         Text(insight.content)
@@ -299,7 +299,7 @@ struct EntryDetailView: View {
                     Button("Delete Entry", systemImage: "trash", role: .destructive) { deleteToTrash() }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                 }
                 .accessibilityLabel("More")
@@ -330,7 +330,7 @@ struct EntryDetailView: View {
         // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
         // moves to the vertical one, splitting the reader's two buttons (owner, 2026-10-11).
         Button("Edit", systemImage: "pencil") { showEditor = true }
-            .font(.system(size: 16, weight: .semibold))
+            .scaledFont(16, weight: .semibold)
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
             .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
@@ -346,7 +346,7 @@ struct EntryDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(macDateLine)
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .scaledFont(11.5, weight: .semibold)
                         .tracking(0.8)
                         .foregroundStyle(MacTokens.secondaryInk)
                         .padding(.bottom, 10)
@@ -357,10 +357,10 @@ struct EntryDetailView: View {
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
-                                .font(.system(size: 17, weight: .semibold))
+                                .scaledFont(17, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
-                                .font(.system(size: 15))
+                                .scaledFont(15)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -569,7 +569,7 @@ struct EntryDetailView: View {
                     Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
                     Text(MirrorTheme.localizedMoodName(for: mood))
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
                 .foregroundStyle(MacTokens.selectedRowInk)
                 .padding(.horizontal, 11)
                 .frame(height: 24)
@@ -577,7 +577,7 @@ struct EntryDetailView: View {
             }
             ForEach(entry.tags, id: \.self) { tag in
                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                    .font(.system(size: 12))
+                    .scaledFont(12)
                     .foregroundStyle(MacTokens.controlInk)
                     .padding(.horizontal, 11)
                     .frame(height: 24)
@@ -600,7 +600,7 @@ struct EntryDetailView: View {
             macToolbarButton("trash", label: "Delete entry") { macDeleteEntry() }
             Button { showEditor = true } label: {
                 Text("Edit")
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .scaledFont(12.5, weight: .semibold)
                     .foregroundStyle(MacTokens.ink)
                     .padding(.horizontal, 14)
                     .frame(height: 28)
@@ -708,7 +708,7 @@ private struct OnThisDaySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(displayMode == .sentinel ? "ON THIS DAY" : "On this day", systemImage: "calendar.badge.clock")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .bold))
+                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
@@ -717,7 +717,7 @@ private struct OnThisDaySection: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(past.createdAt, format: .dateTime.year())
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .scaledFont(12, weight: .bold, design: .monospaced)
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                         if let mood = past.mood {
                             Text("·")
@@ -727,13 +727,13 @@ private struct OnThisDaySection: View {
                                     .fill(MirrorTheme.moodColor(for: mood))
                                     .frame(width: 6, height: 6)
                                 Text(MirrorTheme.localizedMoodName(for: mood))
-                                    .font(.system(size: 11, weight: .medium))
+                                    .scaledFont(11, weight: .medium)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                             }
                         }
                         Spacer()
                         Text(past.createdAt, format: .dateTime.hour().minute())
-                            .font(.system(size: 11))
+                            .scaledFont(11)
                             .foregroundStyle(MirrorTheme.textTertiary)
                     }
                     let preview = past.text
@@ -767,7 +767,7 @@ private struct MacRelatedEntriesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Related entries", systemImage: "link")
-                .font(.system(size: 12, weight: .bold))
+                .scaledFont(12, weight: .bold)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
@@ -798,11 +798,11 @@ private struct MacRelatedEntryRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 2) {
                 Text(entry.createdAt, format: .dateTime.day())
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .scaledFont(15, weight: .bold, design: .rounded)
                     .foregroundStyle(MacTokens.ink)
                     .monospacedDigit()
                 Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .font(.system(size: 9, weight: .bold))
+                    .scaledFont(9, weight: .bold)
                     .foregroundStyle(MacTokens.secondaryInk)
                     .textCase(.uppercase)
             }
@@ -819,12 +819,12 @@ private struct MacRelatedEntryRow: View {
                         Text(MirrorTheme.localizedMoodName(for: mood))
                     }
                 }
-                .font(.system(size: 12))
+                .scaledFont(12)
                 .foregroundStyle(MacTokens.secondaryInk)
                 .lineLimit(1)
                 if !firstLine.isEmpty {
                     Text(firstLine)
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .lineLimit(2)
                         .lineSpacing(3)
@@ -1123,7 +1123,7 @@ private struct InlineEntryContent: View {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
-                    .font(.system(size: 24 * markerScale, weight: .regular))
+                    .scaledFont(24 * markerScale)
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24 * markerScale, alignment: .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))

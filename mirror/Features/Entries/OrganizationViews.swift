@@ -47,7 +47,7 @@ struct CollectionsBar: View {
                 }
                 Button(action: manage) {
                     Image(systemName: "folder.badge.gearshape")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .padding(.horizontal, 8)
                 }
@@ -72,7 +72,7 @@ struct CollectionsBar: View {
             withAnimation(.easeInOut(duration: 0.2)) { scope = selected && value != .all ? .all : value }
         } label: {
             Label(title, systemImage: icon)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .medium))
+                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

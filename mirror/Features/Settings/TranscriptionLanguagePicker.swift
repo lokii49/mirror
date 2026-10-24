@@ -12,17 +12,17 @@ struct TranscriptionLanguagePickerView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Group {
                             if displayMode == .sentinel {
-                                Label("MODEL DOWNLOAD", systemImage: "info.circle").font(MirrorTheme.mono(11, weight: .semibold))
+                                Label("MODEL DOWNLOAD", systemImage: "info.circle").scaledFont(11, weight: .semibold, design: .monospaced)
                             } else {
-                                Label("Download language models", systemImage: "info.circle").font(.system(size: 13, weight: .semibold))
+                                Label("Download language models", systemImage: "info.circle").scaledFont(13, weight: .semibold)
                             }
                         }
                         .foregroundStyle(.secondary)
                         Text("Some languages (e.g. Telugu, Tamil, Kannada) use Apple's on-device speech model. If transcription fails, the model may not be downloaded yet.")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(.secondary)
                         Text("To download: **iOS Settings → General → Language & Region → Add Language**")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
@@ -38,7 +38,7 @@ struct TranscriptionLanguagePickerView: View {
                             HStack {
                                 Group {
                                     if displayMode == .sentinel {
-                                        Text(lang.displayName).font(MirrorTheme.mono(14, weight: .medium))
+                                        Text(lang.displayName).scaledFont(14, weight: .medium, design: .monospaced)
                                     } else {
                                         Text(lang.displayName)
                                     }
@@ -47,7 +47,7 @@ struct TranscriptionLanguagePickerView: View {
                                 Spacer()
                                 if selected == lang.id {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .scaledFont(14, weight: .semibold)
                                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                                 }
                             }
