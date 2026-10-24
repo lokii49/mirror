@@ -141,5 +141,9 @@ question mostly can't be answered, whoever picks. The lever there is getting Sma
 
 **Still open before anything ships:**
 (1) done (above). (2) ~~B1 latency~~ measured 2026-10-24 on the iPhone 14 Pro (A16; the iPhone 13's A15 will be somewhat slower, not measured): query + 43–54 sentence embeddings = 0.75–1.0 s per question (10 synthetic questions, 2 rounds); EmbeddingGemma load 6.3 s cold (fresh install), 0.2 s warm; peak footprint +105 MB. Shipped Smart Search already loads the embedder for every question, so B1 adds the sentence pass and removes the Gemma run. Throwaway probe in a `prepare_search_device.py` copy, deleted after; numbers in the outputs folder. (3) A second quote for B1 needs
-its own round (B2 always-two drops PREC to 77%). Outputs: `~/mirror-rig-outputs/ask-picks-2026-10-23/` (synthetic only).
+its own round (B2 always-two drops PREC to 77%). **Post-hoc sweep (2026-10-24, no model runs, same 39 questions, so tuned
+on the data it is scored on, not a ship result):** second sentence only when it is within δ of the top score: δ 0.01
+90% / 95% / 8% (PREC / HIT / TWO), 0.02 87 / 97 / 18, 0.03 84 / 97 / 44, 0.05 84 / 97 / 62. Only when its own score is
+≥ floor: 0.40 89 / 95 / 41, **0.45 96 / 95 / 21**, 0.50 95 / 95 / 10. Gaps overlap (second gold: 0–0.095; not gold:
+0.009–0.238), so a gap rule can't separate them; an absolute floor near 0.45 is the candidate for a held-out round. Outputs: `~/mirror-rig-outputs/ask-picks-2026-10-23/` (synthetic only).
 Goes to the owner.
