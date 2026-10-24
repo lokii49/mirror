@@ -176,7 +176,7 @@ struct AskView: View {
             if let onClose {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done", action: onClose)
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
                 }
             }
         }
