@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Builds out/pool.jsonl for the Gemma Ask pick round (RUBRIC.md): the English targets of
 ../retrieval/cases/targets.tsv, each wrapped in neutral filler sentences, plus filler entries of
-4-7 neutral sentences. Every line: id, text, original (the target's own text, "" for filler), date."""
-import csv, datetime, importlib.util, json, os, random
+4-7 neutral sentences. Every line: id, text, original (the target's own text, "" for filler), date.
+--heldout: round 2's cases/heldout_targets.tsv into out/heldout_pool.jsonl, with its own seed."""
+import csv, datetime, importlib.util, json, os, random, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RETRIEVAL = os.path.join(HERE, "..", "retrieval")
@@ -16,8 +17,10 @@ DAYS = 180
 
 
 def main():
-    rng = random.Random(20261023)
-    with open(os.path.join(RETRIEVAL, "cases", "targets.tsv"), newline="") as f:
+    heldout = "--heldout" in sys.argv
+    rng = random.Random(20261024 if heldout else 20261023)
+    source = os.path.join(HERE, "cases", "heldout_targets.tsv") if heldout else os.path.join(RETRIEVAL, "cases", "targets.tsv")
+    with open(source, newline="") as f:
         targets = [r for r in csv.DictReader(f, delimiter="\t") if r["lang"] == "en"]
     sentences = list(bc.FILLER_EN)
 
@@ -32,7 +35,7 @@ def main():
     for i in range(FILLER_ENTRIES):
         rows.append({"id": f"f{i}", "text": " ".join(rng.sample(sentences, rng.randrange(4, 8))), "original": "", "date": when()})
     os.makedirs(os.path.join(HERE, "out"), exist_ok=True)
-    with open(os.path.join(HERE, "out", "pool.jsonl"), "w") as f:
+    with open(os.path.join(HERE, "out", "heldout_pool.jsonl" if heldout else "pool.jsonl"), "w") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     lengths = [len(r["text"]) for r in rows]

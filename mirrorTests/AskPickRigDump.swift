@@ -121,4 +121,37 @@ final class AskPickRigDump: XCTestCase {
             try shipped.grammar.write(toFile: "\(dir)/\(qid)_s0.gbnf", atomically: true, encoding: .utf8)
         }
     }
+
+    /// RUBRIC_FM.md round 28: scores every candidate sentence of a Foundation Models Ask answer against the answer
+    /// (EmbeddingGemma, and shared `askTerms` stems) and against the question. TEST_RUNNER_ASK_EVIDENCE_IN=<jsonl of
+    /// {id, question, answer, sentences}> TEST_RUNNER_HARNESS_DUMP_DIR=<dir> -> <dir>/evidence_scores.jsonl.
+    func test_scoreAskEvidenceForRig() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let input = env["ASK_EVIDENCE_IN"], let dir = env["HARNESS_DUMP_DIR"] else {
+            throw XCTSkip("Set ASK_EVIDENCE_IN and HARNESS_DUMP_DIR to score")
+        }
+        let projectRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let embedder = try LlamaEmbedder(path: projectRoot.appendingPathComponent("mirror/LocalModels")
+            .appendingPathComponent(SemanticSearchService.modelFileName).path)
+        func score(_ query: String, _ sentence: String) throws -> Double {
+            let q = try embedder.embed(SemanticSearchService.queryPrefix + query)
+            let d = try embedder.embed(SemanticSearchService.documentPrefix + sentence)
+            return Double(zip(q, d).reduce(0) { $0 + $1.0 * $1.1 })
+        }
+        func stems(_ text: String) -> Set<String> {
+            Set(text.lowercased().split { !$0.isLetter && $0 != "'" }.map { InsightService.askStem(String($0)) })
+        }
+        var out = ""
+        for line in try String(contentsOfFile: input, encoding: .utf8).split(separator: "\n") {
+            let rec = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+            let question = try XCTUnwrap(rec["question"] as? String), answer = try XCTUnwrap(rec["answer"] as? String)
+            let terms = InsightService.askTerms(for: answer)
+            let scored: [[String: Any]] = try (rec["sentences"] as? [String] ?? []).map { s in
+                ["quote": s, "semA": try score(answer, s), "semQ": try score(question, s), "lexA": stems(s).intersection(terms).count]
+            }
+            let data = try JSONSerialization.data(withJSONObject: ["id": rec["id"] ?? "", "scores": scored], options: [.sortedKeys])
+            out += String(decoding: data, as: UTF8.self) + "\n"
+        }
+        try out.write(toFile: "\(dir)/evidence_scores.jsonl", atomically: true, encoding: .utf8)
+    }
 }

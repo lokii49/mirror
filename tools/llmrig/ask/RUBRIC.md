@@ -147,3 +147,41 @@ on the data it is scored on, not a ship result):** second sentence only when it 
 ≥ floor: 0.40 89 / 95 / 41, **0.45 96 / 95 / 21**, 0.50 95 / 95 / 10. Gaps overlap (second gold: 0–0.095; not gold:
 0.009–0.238), so a gap rule can't separate them; an absolute floor near 0.45 is the candidate for a held-out round. Outputs: `~/mirror-rig-outputs/ask-picks-2026-10-23/` (synthetic only).
 Goes to the owner.
+
+# Round 2: a second sentence for the Gemma ranked answer, held out (written 2026-10-24, before any run)
+
+Round 1's post-hoc sweep suggested showing a second sentence only when its EmbeddingGemma score is ≥ 0.45 (96% /
+95% / 21% two on round 1's own questions). This round tests that floor on data it was not tuned on.
+
+**Data, all new and synthetic:** `cases/heldout_targets.tsv`, 13 topics none of round 1 used, 3–4 targets each,
+1–2 sentences, every sentence about its topic, plus **near-miss distractors** (same words or topic, not an answer:
+someone else's knee, a song on the radio for the choir question), so the pool is harder than round 1's.
+`cases/heldout_queries.tsv`: 2 questions per topic (one paraphrase, one short like "Spanish?"), gold = every target
+of the topic that answers it. Distractors are never gold. Pool: `build_pool.py --heldout` → `out/heldout_pool.jsonl`,
+same wrapping and filler as round 1 (filler checked against the new topics: "walk back", "flat-pack" and "recycling" share words with them but answer nothing, kept as traps). No moods, so no lean questions.
+
+**Run:** `AskPickRigDump` (semantic) on the held-out pool and queries. No model generates; the dump's sentence scores
+are all that is needed.
+
+**Rules compared:** B1 (top sentence only, what ships); F45 (B1 + the second-ranked sentence when its score ≥ 0.45);
+the other floors (0.40, 0.50) and B2 (always two) reported only.
+
+**Metrics:** PREC (relevant shown sentences / shown), HIT (answers with a relevant sentence), TWO (answers with two),
+SECOND (relevant second sentences / second sentences shown).
+
+**Bar for F45:** PREC ≥ B1's − 3 points, SECOND ≥ 80%, TWO ≥ 15%. All met → ships as the second quote. Otherwise
+the floor stays out and the result goes to the owner.
+
+## Round 2 result (2026-10-24, 26 held-out questions, semantic dump): F45 passes; ships as the second quote
+
+| rule | PREC | HIT | TWO | SECOND |
+|---|---|---|---|---|
+| B1 (shipped in 1d50289) | 92% | 92% | 0% | - |
+| F40 | 92% | 96% | 42% | 91% |
+| **F45** | **94%** | 92% | **19%** | **100%** |
+| F50 | 93% | 92% | 4% | 100% |
+| B2 (always two) | 90% | 100% | 100% | 88% |
+
+Bar: PREC 94% ≥ 92 − 3, SECOND 100% ≥ 80%, TWO 19% ≥ 15%: met. B1's two misses were both near-miss traps ("Chess" →
+"Dad found his old chess set in the loft…", 0.448; "Flat hunting" → "Assembled a flat-pack coffee table.", 0.384), so
+the harder pool cost B1 3 points against round 1 (95% → 92%).
