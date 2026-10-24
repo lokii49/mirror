@@ -932,3 +932,22 @@ construction. COVERAGE = answered responses with at least one quote.
 **Ship bar:** R1 replaces the quote call if SUPPORTS ≥ Q0's − 5 points and COVERAGE ≥ Q0's + 10 points. R1L is the
 fallback for FM devices without the search model under the same bar against Q0; if it misses, those devices keep Q0.
 Miss → owner.
+
+### Round 28 result (2026-10-24, 20 questions x 5 = 100 answers, 81 answered, one blind scorer): R1 and R1L MISS; Q0 stays
+100 fresh A0 answers: 17 the exact no-answer phrase (all on the unanswerable questions), 2 refused, 81 answered.
+
+| | coverage | quotes shown | SUPPORTS | SUPPORTS, real answers only |
+|---|---|---|---|---|
+| Q0 shipped quote call | 61/81 (75%; 11 refusals) | 95 | 95% | 95% |
+| R1 EmbeddingGemma vs answer | 81/81 (100%) | 81 | **86%** | 93% |
+| R1L shared stems with answer | 81/81 (100%) | 81 | **89%** | 96% |
+| R1Q EmbeddingGemma vs question | 81/81 (100%) | 81 | 79% | 85% |
+
+- Bar: SUPPORTS ≥ Q0 − 5 = 90%. R1 86% and R1L 89% miss; coverage +25 points passes. Q0 reproduces round 21 (74%, 10 refusals).
+- The whole gap is 9 answers that say "You haven't written about <x> yet." in words other than the exact phrase (so the
+  app treats them as answers): 7 of them on answerable questions ("Did I exercise?" over a run entry). R* always shows
+  a sentence under them, which can't back "you haven't written"; Q0 showed one under 1 of the 9.
+- Post-hoc, not a ship result: with no quote under an answer that says "haven't written about", R1 would be 93% and
+  R1L 96% against Q0's 95%, at 90% coverage. A rule chosen after seeing the data, so it goes to the owner, and a
+  held-out round would test it.
+- Outputs in `mirror-rig-outputs/round28/` (answers, quote calls, scores, the blind sheet and labels; synthetic only).
