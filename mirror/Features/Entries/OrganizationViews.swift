@@ -36,6 +36,11 @@ struct CollectionsBar: View {
     @Binding var scope: EntryFilterCriteria.CollectionScope
     let manage: () -> Void
     @Environment(\.appDisplayMode) private var displayMode
+    #if os(macOS)
+    @Environment(\.modelContext) private var modelContext
+    /// The chip an entry is being dragged over (Mac).
+    @State private var dropTarget: EntryFilterCriteria.CollectionScope?
+    #endif
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -81,11 +86,50 @@ struct CollectionsBar: View {
                     in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
                 )
                 .foregroundStyle(selected ? accent : MirrorTheme.textSecondary)
+                #if os(macOS)
+                .overlay {
+                    if dropTarget == value {
+                        Capsule().stroke(accent, lineWidth: 2)
+                    }
+                }
+                #endif
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
+        #if os(macOS)
+        // Drop entries dragged from the list onto Unfiled or a collection to move them there.
+        .modifier(CollectionDropTarget(value: value, target: $dropTarget, context: modelContext))
+        #endif
     }
 }
+
+#if os(macOS)
+private struct CollectionDropTarget: ViewModifier {
+    let value: EntryFilterCriteria.CollectionScope
+    @Binding var target: EntryFilterCriteria.CollectionScope?
+    let context: ModelContext
+
+    private var collectionID: UUID?? {
+        switch value {
+        case .unfiled: return .some(nil)
+        case .collection(let id): return .some(id)
+        default: return nil
+        }
+    }
+
+    func body(content: Content) -> some View {
+        if let collectionID {
+            content.dropDestination(for: String.self) { payloads, _ in
+                JournalOrganizationStore.moveDropped(payloads, to: collectionID, in: context) > 0
+            } isTargeted: { targeted in
+                if targeted { target = value } else if target == value { target = nil }
+            }
+        } else {
+            content
+        }
+    }
+}
+#endif
 
 /// "Move to" for one entry: Unfiled, each collection, or a new one.
 struct MoveToCollectionMenu: View {

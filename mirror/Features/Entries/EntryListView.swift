@@ -1824,6 +1824,9 @@ extension EntriesTabView {
         return MacEntryRow(entry: entry, preview: snapshot.rowPreviews[entry.id], isSelected: highlighted)
             .padding(.horizontal, 8)
             .onTapGesture { macTap(entry, snapshot); macListFocused = true }
+            // Drag onto a collection chip to move it; in Select mode a selected row carries the
+            // whole selection.
+            .draggable(JournalOrganizationStore.dragPayload(for: isSelecting && selectedIDs.contains(entry.id) ? Array(selectedIDs) : [entry.id]))
             .contextMenu {
                 Button("Edit") {
                     open(entry)
