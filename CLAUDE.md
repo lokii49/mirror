@@ -123,7 +123,8 @@ The app has grown past what the rest of this doc describes. Not exhaustive, but 
 - **`GamificationEngine`** (`Core/Utilities/`) — XP, levels, and `SentinelRank` derived from entry history.
 - **Siri App Intent** — `AddJournalEntryIntent` (`Core/AppIntents/`), quick-capture via Siri/Shortcuts.
 - **App Store review prompt** — `ReviewRequestManager`, milestone-based, wired into `WriteView+Actions` and `AddJournalEntryIntent`.
-- **7 widgets**, not 2 — see `MirrorWidgetExtension/MirrorWidgetExtensionBundle.swift`.
+- **7 widgets**, not 2, plus 2 iOS 18 controls (New Entry, Log Mood; `MirrorWidgetExtension/MirrorControls.swift`) — see `MirrorWidgetExtension/MirrorWidgetExtensionBundle.swift`. The controls only open `mirror://write` / `mirror://mood-checkin` and work on every tier.
+- **Text size (Dynamic Type, since the 2026-10-24 UI pass).** Interface text uses `.scaledFont(size, weight:, design:)` and reading text `.readingFont(size:)` (both `MirrorTheme.swift`): the size is the default-setting size and it grows with the user's text size. Don't add fixed `.font(.system(size:))` or `.font(MirrorTheme.mono(n))` in app views; the exceptions are `Text` concatenation, chart axis labels, `typeScale`/`toolbarIconSize` sites and widgets. Layouts that must change at accessibility sizes use `ViewThatFits` or `lineLimit` ranges; avoid adding `@Environment(\.dynamicTypeSize)` to small shared views (on `ModelDownloadButton` it made Settings crash in Debug on device).
 
 ---
 
@@ -212,3 +213,5 @@ Feature ordering rationale: Daily Nudge first (easiest AI, highest emotional imp
 **iOS**: Open `mirror.xcodeproj` (there is no `.xcworkspace` — SPM packages resolve inside the `.xcodeproj`). The llama.cpp wrapper is a **local package** at `mirror/Packages/SwiftLlama` (vendored from lokii49/swift-llama-cpp @ a79abb8, patched — see its `PATCHES.md`; never reintroduce a `print` of sampling config or prompts there: grammars contain journal sentences). Build/run via Xcode (iOS 17+ target required for SwiftData; Foundation Models path additionally needs iOS 26+ and an Apple Intelligence-eligible device, else falls back to Gemma).
 
 Command-line build check: `xcodebuild build -project mirror.xcodeproj -scheme mirror -destination 'generic/platform=iOS Simulator' -configuration Debug`
+
+DEBUG launch flags for device and simulator captures (devicectl can launch but not tap): `--initialTab=entries|insights`, `--forceDisplayMode=classic|sentinel`, `--dynamicTypeSize=<DynamicTypeSize case, e.g. accessibility3>`, `--openBrainView`, `--openMonthlyReport`, `--openMoodTimeline`, `--openAsk`, `--openSettings`, `--openPaywall`; light/dark through `-mirrorAppearanceMode light|dark`.

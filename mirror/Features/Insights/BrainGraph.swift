@@ -498,7 +498,7 @@ enum BrainAccessibility {
                 : score > 3.5 ? String(localized: "mostly good days")
                 : String(localized: "mixed days"))
         }
-        let names = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, $0.label) })
+        let names = Dictionary(graph.nodes.map { ($0.id, $0.label) }, uniquingKeysWith: { first, _ in first })
         let linked = graph.edges
             .filter { $0.a == node.id || $0.b == node.id }
             .sorted { $0.weight == $1.weight ? $0.id < $1.id : $0.weight > $1.weight }
