@@ -17,8 +17,9 @@ struct mirrorApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #endif
 
-    // Foreground proactive generation task — cancelled immediately when app backgrounds
-    // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
+    // Foreground proactive generation task — cancelled immediately when app backgrounds. GPU decodes
+    // stop at LlamaGPUGate (LocalLLMService.installGPUGate), not at this cancellation: prompt
+    // processing and the token stream never check it (3.1.6 (29) crashed on that).
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
 
     /// Starts `work` once a cancelled `previous` pass has finished. Coming back to the app cancels
@@ -57,6 +58,9 @@ struct mirrorApp: App {
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         NotificationService.registerCategories()
         registerNightlyInsightsTask()
+        #if os(iOS)
+        LocalLLMService.installGPUGate()
+        #endif
         configureNavigationBarAppearance()
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)

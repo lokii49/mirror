@@ -10,4 +10,6 @@ public enum LlamaError: Error{
     case contextSizeLimitExeeded
     case decodingError
     case emptyMessageArray
+    /// mirror patch: the app is in the background, so the GPU can't take work (`LlamaGPUGate`).
+    case gpuUnavailable
 }

@@ -208,8 +208,13 @@ actor SemanticSearchService {
         for (count, document) in stale.enumerated() {
             if Task.isCancelled { break }
             let text = Self.embeddedText(document.text)
-            if let vector = try? Self.embed(Self.documentPrefix + text, with: embedder) {
+            do {
+                let vector = try Self.embed(Self.documentPrefix + text, with: embedder)
                 index[document.id] = IndexRecord(textHash: Self.textHash(text), vector: vector)
+            } catch LlamaError.gpuUnavailable {
+                break   // backgrounded (LlamaGPUGate): the rest waits for the next pass
+            } catch {
+                continue
             }
             if count % 50 == 49 { try? saveIndex() }
         }
