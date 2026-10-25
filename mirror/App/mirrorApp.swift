@@ -64,6 +64,9 @@ struct mirrorApp: App {
         configureNavigationBarAppearance()
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
+            #if os(iOS)
+            CloudSyncBackgroundTime.shared.start()
+            #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
         }
         // Re-attach to a search-model download still running in its background session, so it
