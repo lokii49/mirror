@@ -15182,6 +15182,72 @@
         }
       }
     },
+    "Takes about a minute. If you leave, it carries on when you're back." : {
+      "comment" : "Insights: under the progress bar while the weekly digest is generated on device. Leaving the app pauses it; it continues when the app is opened again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dauert etwa eine Minute. Wenn du die App verlässt, geht es weiter, sobald du zurück bist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes about a minute. If you leave, it carries on when you're back."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tarda alrededor de un minuto. Si sales, continúa cuando vuelvas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cela prend environ une minute. Si tu quittes l'app, ça reprend à ton retour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ci vuole circa un minuto. Se esci, continua quando torni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1分ほどかかります。アプリを離れても、戻ったときに続きから再開します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1분 정도 걸려요. 앱을 나가도 돌아오면 이어서 진행돼요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Leva cerca de um minuto. Se você sair, continua quando voltar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Это займёт около минуты. Если выйдешь, продолжится, когда вернёшься."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "大约需要一分钟。如果你离开，回来后会继续。"
+          }
+        }
+      }
+    },
     "Tap the folder next to your tags to choose where an entry goes, or make a new collection there." : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {

@@ -791,7 +791,10 @@ struct InsightView: View {
         case .idle:
             EmptyView()
         case .loading:
-            LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
+            // Leaving no longer stops it for good (3.1.6 (30): the run moves to the CPU, pauses when iOS
+            // suspends the app and carries on when it's back), so the card says so (owner, 2026-10-25).
+            LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock",
+                               note: "Takes about a minute. If you leave, it carries on when you're back.")
         case .loaded(let insight):
             WeeklyDigestView(
                 insight: insight,
@@ -1266,6 +1269,8 @@ struct LoadingInsightCard: View {
     let label: LocalizedStringKey
     let sublabel: LocalizedStringKey
     let icon: String
+    /// A line under the progress bar, for what happens if the person leaves while it runs.
+    var note: LocalizedStringKey? = nil
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
@@ -1300,6 +1305,12 @@ struct LoadingInsightCard: View {
             // renders a static empty bar. A custom sliding highlight, driven by explicit
             // `@State`, is guaranteed to actually move.
             IndeterminateProgressBar(color: accent)
+            if let note {
+                Text(note)
+                    .scaledFont(12)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(20)
         .themedCard(cornerRadius: 22)

@@ -23,6 +23,17 @@ struct DiagnosticsSettingsView: View {
     var body: some View {
         SettingsScroll {
             VStack(spacing: 14) {
+                // Whether iOS ran the night job, and how it ended (NightlyRunLog). English-only, like
+                // the rest of this developer screen.
+                SettingsGroup(title: "Night Job") {
+                    Text(verbatim: NightlyRunLog.summary())
+                        .scaledFont(13)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .textSelection(.enabled)
+                }
                 SettingsGroup(title: "Developer") {
                     Button {
                         let unreadable = entries.filter(\.textDecryptionFailed).count

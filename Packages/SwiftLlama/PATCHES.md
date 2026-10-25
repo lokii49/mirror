@@ -39,4 +39,6 @@ All marked `mirror patch` in the source.
    crashed this way 4 times on an iPhone 13 (weekly digest, mood detection, generation, all after leaving
    the app). The app sets the gate from its lifecycle (`LocalLLMService.installGPUGate`). A CPU-only
    `Llama` context also sets `offload_kqv` and `op_offload` to false, so it never touches Metal.
-
+10. **CPU-only contexts use up to 4 threads** (2026-10-25). Background runs (the night job, a run moved off the
+    GPU by `LlamaGPUGate`) used one thread. On an iPhone 14 Pro a digest-sized generation took 14.1 s on 1 thread
+    and 9.3 s on 4, with identical output. GPU contexts keep 1 thread.

@@ -475,6 +475,7 @@ struct mirrorApp: App {
                 processingTask.setTaskCompleted(success: false)
                 return
             }
+            NightlyRunLog.recordStart()
             let work = Task { @MainActor in
                 await mirrorApp.runNightlyInsights(container: self.sharedModelContainer)
             }
@@ -483,12 +484,18 @@ struct mirrorApp: App {
             let completion = RunOnce()
             processingTask.expirationHandler = {
                 work.cancel()
-                completion.run { processingTask.setTaskCompleted(success: false) }
+                completion.run {
+                    NightlyRunLog.recordEnd(.expired)
+                    processingTask.setTaskCompleted(success: false)
+                }
             }
             Task {
                 _ = await work.result
                 scheduleNightlyInsights()  // always re-schedule, even if expired
-                completion.run { processingTask.setTaskCompleted(success: true) }
+                completion.run {
+                    NightlyRunLog.recordEnd(.finished)
+                    processingTask.setTaskCompleted(success: true)
+                }
             }
         }
         #elseif os(macOS)
@@ -509,7 +516,9 @@ struct mirrorApp: App {
             }
             Task { @MainActor in
                 UserDefaults.standard.set(Date(), forKey: Self.macNightlyLastRunKey)
+                NightlyRunLog.recordStart()
                 await mirrorApp.runNightlyInsights(container: container)
+                NightlyRunLog.recordEnd(.finished)
                 completion(.finished)
             }
         }

@@ -52,6 +52,15 @@ final actor Llama {
         contextParam.n_ctx = config.maxTokenCount
         contextParam.n_threads       = 1 // UInt32(n_threads) its actually faster if less threads are doing work
         contextParam.n_threads_batch = 1 // UInt32(n_threads)
+        // mirror patch: a CPU-only context (background runs: the night job, a run moved off the GPU) uses
+        // up to 4 threads. Measured on an iPhone 14 Pro, one digest-sized generation: 1 thread 14.1 s,
+        // 2 threads 8.9 s, 4 threads 9.3 s, 6 threads 8.2 s, same output at every count (2026-10-25).
+        // The single thread above stays for GPU contexts, where the CPU only feeds the GPU.
+        if !usesGPU {
+            let cpuThreads = Int32(max(1, min(4, ProcessInfo.processInfo.activeProcessorCount - 1)))
+            contextParam.n_threads = cpuThreads
+            contextParam.n_threads_batch = cpuThreads
+        }
         contextParam.n_batch = config.batchSize
         contextParam.n_ubatch = config.batchSize
         // mirror patch: a CPU-only context keeps every op off the GPU. With n_gpu_layers = 0 alone,
