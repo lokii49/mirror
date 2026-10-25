@@ -2,3 +2,10 @@ Piani a pagamento dal 15 novembre
 
 • Dal 15 novembre, le nuove riflessioni quotidiane, Chiedi a Mirror, i nuovi riepiloghi settimanali e report mensili, la cronologia dell’umore e i widget richiedono Core o Deep. Scrivere, leggere, cercare e il backup su iCloud restano gratuiti, per sempre. I nuovi abbonati hanno 7 giorni di prova gratuita.
 • Tutto ciò che è già stato creato per te resta leggibile con qualsiasi piano: riflessioni, riepiloghi e report passati, nell’app e nei widget.
+
+Inoltre in questo aggiornamento
+
+• Il testo segue la dimensione che hai scelto in tutta l’app, e la Cronologia dell’umore e la Mappa mentale funzionano con VoiceOver.
+• Nuovi controlli «Nuova voce» e «Registra umore» per il Centro di Controllo, la schermata di blocco e il tasto Azione.
+• Le voci si aprono con uno zoom dall’elenco. I colori dell’umore sono più tenui e la Mappa mentale si apre in piano con una legenda degli umori.
+• Corretto un arresto anomalo quando uscivi dall’app mentre veniva scritta un’analisi; un raro arresto durante la sincronizzazione iCloud è ora meno probabile.

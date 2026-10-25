@@ -2,3 +2,11 @@ Planes de pago desde el 15 de noviembre
 
 • Desde el 15 de noviembre, las nuevas reflexiones diarias, Preguntar a Mirror, los nuevos resúmenes semanales e informes mensuales, la línea de estados de ánimo y los widgets necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
 • Todo lo que ya se creó para ti sigue pudiendo leerse en cualquier plan: reflexiones, resúmenes e informes anteriores, en la app y en los widgets.
+
+Además en esta actualización
+
+• Las ventanas se reabren en la página y la entrada donde estabas, incluso después de salir.
+• Arrastra entradas a una colección para moverlas, y haz clic secundario en la reflexión del día y en las entradas relacionadas.
+• La lista de entradas coincide con la del iPhone, y el lector muestra la reflexión del día y las entradas relacionadas junto a la entrada.
+• La Cronología del estado de ánimo y el Mapa mental funcionan con VoiceOver, y los temas del Mapa mental responden al puntero.
+• Los colores del estado de ánimo son más tranquilos y el Mapa mental se abre en plano con una leyenda.

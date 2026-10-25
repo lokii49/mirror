@@ -2,3 +2,10 @@ Bezahlpläne ab 15. November
 
 • Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
 • Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
+
+Außerdem in diesem Update
+
+• Der Text folgt in der ganzen App der von dir gewählten Textgröße, und Stimmungsverlauf und Denkkarte funktionieren mit VoiceOver.
+• Neue Steuerelemente „Neuer Eintrag“ und „Stimmung eintragen“ für das Kontrollzentrum, den Sperrbildschirm und die Aktionstaste.
+• Einträge öffnen sich mit einem Zoom aus der Liste. Die Stimmungsfarben sind ruhiger, und die Denkkarte öffnet flach mit einer Stimmungslegende.
+• Ein Absturz beim Verlassen der App, während eine Auswertung entstand, ist behoben, und ein seltener Absturz beim iCloud-Abgleich ist unwahrscheinlicher.

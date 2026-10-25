@@ -2,3 +2,11 @@ Abonnements payants dès le 15 novembre
 
 • Dès le 15 novembre, les nouvelles réflexions du jour, Demander à Mirror, les nouveaux résumés hebdomadaires et rapports mensuels, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
 • Tout ce qui a déjà été créé pour vous reste lisible avec tous les abonnements : réflexions, résumés et rapports passés, dans l’app et dans les widgets.
+
+Également dans cette mise à jour
+
+• Les fenêtres se rouvrent sur la page et l’entrée où vous étiez, même après avoir quitté l’app.
+• Faites glisser des entrées sur une collection pour les déplacer, et faites un clic droit sur la réflexion du jour et les entrées liées.
+• La liste des entrées ressemble à celle de l’iPhone, et le lecteur affiche la réflexion du jour et les entrées liées à côté de l’entrée.
+• La Chronologie de l’humeur et la Carte mentale fonctionnent avec VoiceOver, et les thèmes de la Carte mentale réagissent au pointeur.
+• Les couleurs d’humeur sont plus apaisées, et la Carte mentale s’ouvre à plat avec une légende.

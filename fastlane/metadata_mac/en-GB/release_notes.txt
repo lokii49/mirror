@@ -2,3 +2,11 @@ Paid plans from 15 November
 
 • From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
 • Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
+
+Also in this update
+
+• Windows reopen on the page and entry you were on, even after quitting.
+• Drag entries onto a collection to move them, and right-click the day's reflection and related entries.
+• The entry list matches iPhone, and the reader shows the day's reflection and related entries beside the entry.
+• The mood timeline and Brain View work with VoiceOver, and Brain View's themes respond to the pointer.
+• Mood colours are calmer, and Brain View opens flat with a mood legend.

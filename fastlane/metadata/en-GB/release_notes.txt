@@ -2,3 +2,11 @@ Paid plans from 15 November
 
 • From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
 • Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
+
+Also in this update
+
+• In English, Ask on iPhones without Apple Intelligence now answers faster, with the sentence from your journal that best fits your question.
+• Text follows your chosen text size throughout the app, and the mood timeline and Brain View work with VoiceOver.
+• New Entry and Log Mood controls for Control Center, the Lock Screen and the Action button.
+• Opening an entry zooms in from the list. Mood colours are calmer, and Brain View opens flat with a mood legend.
+• Fixed a crash when you left the app while an insight was being written, and made a rare crash during iCloud sync less likely.

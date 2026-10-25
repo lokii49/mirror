@@ -2,3 +2,11 @@ Bezahlpläne ab 15. November
 
 • Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
 • Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
+
+Außerdem in diesem Update
+
+• Fenster öffnen sich auf der Seite und dem Eintrag, wo du warst, auch nach dem Beenden.
+• Ziehe Einträge auf eine Sammlung, um sie zu verschieben, und klicke mit der rechten Maustaste auf die Tagesreflexion und verwandte Einträge.
+• Die Eintragsliste sieht aus wie auf dem iPhone, und der Leser zeigt neben dem Eintrag die Reflexion des Tages und verwandte Einträge.
+• Stimmungsverlauf und Denkkarte funktionieren mit VoiceOver, und die Themen der Denkkarte reagieren auf den Mauszeiger.
+• Die Stimmungsfarben sind ruhiger, und die Denkkarte öffnet flach mit einer Stimmungslegende.
