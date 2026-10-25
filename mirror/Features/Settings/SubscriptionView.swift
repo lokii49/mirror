@@ -122,7 +122,7 @@ struct SubscriptionView: View {
     }
 
     private var tierDescription: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Every feature is free while MirrorNotes is in early access" }
+        if SubscriptionService.allFeaturesFree { return "Every feature is free until 15 November" }
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -166,7 +166,7 @@ struct SubscriptionView: View {
             .padding(16)
             .subscriptionCard(cornerRadius: 16)
 
-            Text("MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way.")
+            Text("Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way.")
                 .scaledFont(13)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

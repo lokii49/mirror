@@ -6500,6 +6500,72 @@
         }
       }
     },
+    "Every feature is free until 15 November" : {
+      "comment" : "Settings > Subscription: the plan card's description while every feature is free (before paid plans start on 15 November 2026).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Alle Funktionen sind bis zum 15. November kostenlos"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every feature is free until 15 November"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todas las funciones son gratis hasta el 15 de noviembre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Toutes les fonctionnalités sont gratuites jusqu’au 15 novembre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tutte le funzionalità sono gratuite fino al 15 novembre"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11月15日まではすべての機能が無料です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11월 15일까지 모든 기능이 무료입니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todos os recursos são gratuitos até 15 de novembro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Все функции бесплатны до 15 ноября"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11 月 15 日前所有功能均可免费使用"
+          }
+        }
+      }
+    },
     "Every quote is copied word for word from these entries. Long entries are shortened to fit." : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note under the rows.",
       "extractionState" : "manual",
@@ -11904,6 +11970,72 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "付费方案将于 %@ 开始"
+          }
+        }
+      }
+    },
+    "Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way." : {
+      "comment" : "Settings > Subscription, under the Early Access card while every feature is free (before paid plans start on 15 November 2026).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bezahlpläne starten am 15. November. Bis dahin ist alles kostenlos. Deine Einträge und dein Verlauf bleiben in jedem Fall dein Eigentum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Los planes de pago empiezan el 15 de noviembre. Hasta entonces, todo es gratis. Tus entradas e historial seguirán siendo tuyos de todas formas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les abonnements payants commencent le 15 novembre. D’ici là, tout est gratuit. Vos entrées et votre historique resteront les vôtres dans tous les cas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "I piani a pagamento iniziano il 15 novembre. Fino ad allora è tutto gratuito. Le tue voci e la cronologia resteranno comunque tue."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "有料プランは11月15日に始まります。それまではすべて無料です。あなたのエントリーと履歴はどちらにしてもあなたのものです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "유료 요금제는 11월 15일에 시작됩니다. 그때까지는 모든 기능이 무료입니다. 어떤 경우에도 당신의 항목과 기록은 당신의 것입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Os planos pagos começam em 15 de novembro. Até lá, tudo é grátis. Suas entradas e seu histórico continuam sendo seus de qualquer forma."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Платные планы начнутся 15 ноября. До этого всё бесплатно. Ваши записи и история в любом случае останутся вашими."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "付费方案将于 11 月 15 日开始。在此之前，一切免费。无论如何，你的条目和历史记录始终属于你。"
           }
         }
       }
@@ -45879,72 +46011,6 @@
         }
       }
     },
-    "Every feature is free while MirrorNotes is in early access" : {
-      "comment" : "A description of the benefits of using MirrorNotes while it is in early access.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Funktionen sind kostenlos, solange sich MirrorNotes im frühen Zugang befindet"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every feature is free while MirrorNotes is in early access"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todas las funciones son gratis mientras MirrorNotes esté en acceso anticipado"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toutes les fonctionnalités sont gratuites tant que MirrorNotes est en accès anticipé"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tutte le funzionalità sono gratuite finché MirrorNotes è in accesso anticipato"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotesがアーリーアクセス中はすべての機能が無料です"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes가 얼리 액세스 중인 동안 모든 기능이 무료입니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todos os recursos são gratuitos enquanto o MirrorNotes estiver em acesso antecipado"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Все функции бесплатны, пока MirrorNotes находится в раннем доступе"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes 处于抢先体验阶段时，所有功能均可免费使用"
-          }
-        }
-      }
-    },
     "Every Sunday, mirror writes a short pattern summary from the week's entries — useful for spotting recurring themes you'd otherwise miss." : {
       "localizations" : {
         "de" : {
@@ -58389,72 +58455,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "MirrorNotes 导出（Markdown）"
-          }
-        }
-      }
-    },
-    "MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way." : {
-      "comment" : "A description of the current state of MirrorNotes.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes befindet sich derzeit im frühen Zugang. Preise könnten in einem zukünftigen Update zurückkehren, aber deine Einträge und dein Verlauf bleiben in jedem Fall dein Eigentum."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes está actualmente en acceso anticipado. Es posible que los precios vuelvan en una futura actualización, pero tus entradas e historial seguirán siendo tuyos de todas formas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes est actuellement en accès anticipé. Les tarifs pourraient revenir dans une future mise à jour, mais vos entrées et votre historique resteront les vôtres dans tous les cas."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes è attualmente in accesso anticipato. I prezzi potrebbero tornare in un futuro aggiornamento, ma le tue voci e la cronologia resteranno comunque tue."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotesは現在アーリーアクセス中です。今後のアップデートで料金プランが復活する可能性がありますが、あなたのエントリーと履歴はどちらにしてもあなたのものです。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes는 현재 얼리 액세스 중입니다. 향후 업데이트에서 요금제가 다시 도입될 수 있지만, 어떤 경우에도 당신의 항목과 기록은 당신의 것입니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O MirrorNotes está atualmente em acesso antecipado. Os preços podem retornar em uma atualização futura, mas suas entradas e seu histórico continuam sendo seus de qualquer forma."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes сейчас находится в раннем доступе. В будущем обновлении может вернуться платная подписка, но ваши записи и история в любом случае останутся вашими."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes 目前处于抢先体验阶段。未来更新中可能会恢复付费定价，但无论如何，你的条目和历史记录始终属于你。"
           }
         }
       }
