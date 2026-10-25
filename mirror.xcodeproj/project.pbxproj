@@ -698,7 +698,7 @@
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
@@ -758,7 +758,7 @@
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
@@ -904,7 +904,7 @@
 				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -947,7 +947,7 @@
 				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -988,7 +988,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = MirrorNotificationContentExtension/MirrorNotificationContentExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorNotificationContentExtension/Info.plist;
@@ -1015,7 +1015,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = MirrorNotificationContentExtension/MirrorNotificationContentExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorNotificationContentExtension/Info.plist;
