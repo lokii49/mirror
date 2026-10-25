@@ -59,11 +59,13 @@ struct ContentView: View {
     @State private var macSelectedEntry: Entry? = nil
     @State private var macWriteID = UUID()
     @State private var macWriteInitialText = ""
-    // Per window, so a relaunch reopens each window on its page, sidebar state and entry
-    // (UI pass 2026-10-24). The entry is kept by id and fetched back on appear.
+    // Per window when macOS restores windows (UI pass 2026-10-24). By default macOS closes windows
+    // on quit and restores none, so a window that wasn't restored starts from the last-used page,
+    // sidebar and entry instead (MacLastPlace). The entry is kept by id and fetched on appear.
     @SceneStorage("mac.destination") private var macDestination: MacDestination = .write
     @SceneStorage("mac.sidebarVisible") private var macSidebarVisible = true
     @SceneStorage("mac.selectedEntryID") private var macSelectedEntryID = ""
+    @SceneStorage("mac.sceneStarted") private var macSceneStarted = false
     #endif
     @State private var showWriteFromWidgetPrompt = false
     @State private var widgetPromptText: String = ""
@@ -631,13 +633,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacToggleSidebar)) { _ in
             macSidebarVisible.toggle()
         }
-        .onChange(of: macSelectedEntry?.id) { _, id in macSelectedEntryID = id?.uuidString ?? "" }
-        .onAppear {
-            guard macSelectedEntry == nil, let id = UUID(uuidString: macSelectedEntryID) else { return }
-            var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            macSelectedEntry = try? modelContext.fetch(descriptor).first
-        }
+        .modifier(MacPlaceMemory(destination: $macDestination, sidebarVisible: $macSidebarVisible,
+                                 entryID: $macSelectedEntryID, sceneStarted: $macSceneStarted,
+                                 selectedEntry: $macSelectedEntry))
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugSelectFirstEntry)) { _ in
             var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
@@ -753,3 +751,60 @@ private struct WriteTabView: View {
     }
 }
 
+
+#if os(macOS)
+/// Keeps a Mac window's page, sidebar and entry: in the scene's own storage, and as the app's last
+/// place for windows macOS didn't restore.
+private struct MacPlaceMemory: ViewModifier {
+    @Binding var destination: MacDestination
+    @Binding var sidebarVisible: Bool
+    @Binding var entryID: String
+    @Binding var sceneStarted: Bool
+    @Binding var selectedEntry: Entry?
+    @Environment(\.modelContext) private var modelContext
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: selectedEntry?.id) { _, id in
+                entryID = id?.uuidString ?? ""
+                MacLastPlace.entryID = entryID
+            }
+            .onChange(of: destination) { _, value in MacLastPlace.destination = value.rawValue }
+            .onChange(of: sidebarVisible) { _, value in MacLastPlace.sidebarVisible = value }
+            .onAppear(perform: restore)
+    }
+
+    private func restore() {
+        if !sceneStarted {
+            sceneStarted = true
+            if let raw = MacLastPlace.destination, let value = MacDestination(rawValue: raw) { destination = value }
+            sidebarVisible = MacLastPlace.sidebarVisible
+            entryID = MacLastPlace.entryID
+        }
+        guard selectedEntry == nil, let id = UUID(uuidString: entryID) else { return }
+        var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        selectedEntry = try? modelContext.fetch(descriptor).first
+    }
+}
+
+/// The page, sidebar state and entry the Mac app was last on, for a window macOS didn't restore.
+enum MacLastPlace {
+    private static let defaults = UserDefaults.standard
+
+    static var destination: String? {
+        get { defaults.string(forKey: "mac.last.destination") }
+        set { defaults.set(newValue, forKey: "mac.last.destination") }
+    }
+
+    static var sidebarVisible: Bool {
+        get { defaults.object(forKey: "mac.last.sidebarVisible") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "mac.last.sidebarVisible") }
+    }
+
+    static var entryID: String {
+        get { defaults.string(forKey: "mac.last.entryID") ?? "" }
+        set { defaults.set(newValue, forKey: "mac.last.entryID") }
+    }
+}
+#endif
